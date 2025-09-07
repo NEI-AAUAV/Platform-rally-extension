@@ -1,14 +1,21 @@
-# Platform Rally Extension
+# Rally Tascas Extension
+
+A comprehensive drinking game management system for NEI's "Rally Tascas" - a competitive team-based drinking game where teams visit checkpoints, complete drinking challenges, and earn points. This extension provides real-time scoring, team management, and checkpoint tracking for the ultimate drinking rally experience.
+
+## 🍻 What is Rally Tascas?
+
+Rally Tascas is a competitive drinking game where teams navigate through various checkpoints across campus, completing drinking challenges and earning points. Teams compete for the highest score through a combination of drinking performance, time completion, and challenge success.
 
 ### Key Features
 
-- **Team Management**: Create, update, and track teams with member assignments
-- **Checkpoint System**: Define and manage rally checkpoints with scoring
-- **Real-time Scoring**: Live scoreboard with team rankings and progress tracking
-- **Staff Interface**: Administrative tools for checkpoint staff to record team progress
-- **Participant Interface**: Team-specific views and progress tracking
+- **Team Management**: Create, update, and track drinking teams with member assignments
+- **Checkpoint System**: 8 themed checkpoints with unique drinking challenges and scoring
+- **Real-time Scoring**: Live scoreboard with team rankings and drinking performance tracking
+- **Staff Interface**: Checkpoint staff can record team drinking performance and challenge completion
+- **Participant Interface**: Team-specific views showing drinking progress and checkpoint history
+- **Drinking Metrics**: Track shots, pukes, drinking participation, and challenge completion
 - **Authentication**: Integrated with NEI Platform authentication system
-- **Responsive Design**: Modern UI built with React and Tailwind CSS
+- **Responsive Design**: Modern UI built with React and Tailwind CSS with "bloody" theme
 
 ## 🏗️ Architecture
 
@@ -62,38 +69,52 @@ Platform-rally-extension/
 
 ## 🎮 Usage
 
-### For Participants
+### For Participants (Drinking Teams)
 
-1. **View Scoreboard**: See real-time team rankings and scores
-2. **Team Details**: View your team's progress and checkpoint history
-3. **Maps**: Access rally maps and checkpoint locations
+1. **View Scoreboard**: See real-time team rankings and drinking performance scores
+2. **Team Details**: View your team's drinking progress and checkpoint completion history
+3. **Maps**: Access rally maps showing drinking checkpoint locations across campus
+4. **Checkpoint Info**: View next checkpoint details and drinking challenges
 
-### For Staff
+### For Checkpoint Staff
 
-1. **Admin Panel**: Access administrative functions (admin users only)
-2. **Checkpoint Management**: Record team progress at assigned checkpoints
-3. **Team Management**: Create and manage teams and participants
+1. **Checkpoint Management**: Record team drinking performance at assigned checkpoints
+2. **Scoring Interface**: Input shots consumed, pukes, drinking participation, and challenge completion
+3. **Team Verification**: Verify team identity and drinking performance
+4. **Real-time Updates**: Update team scores and checkpoint completion status
 
 ### For Administrators
 
-1. **Full System Access**: Complete control over teams, checkpoints, and scoring
+1. **Full System Access**: Complete control over teams, checkpoints, and drinking game scoring
 2. **User Management**: Manage staff and participant accounts
-3. **System Configuration**: Configure rally parameters and settings
+3. **Game Configuration**: Configure rally parameters, checkpoint challenges, and scoring rules
+4. **Team Management**: Create and manage drinking teams and member assignments
 
 ## 🗄️ Database Schema
 
 ### Core Entities
 
-- **Teams**: Rally teams with scoring and classification data
-- **Users**: System users (admins, staff, participants)
-- **Checkpoints**: Rally checkpoints with descriptions and locations
+- **Teams**: Drinking teams with scoring and classification data (12 teams total)
+- **Users**: System users (admins, checkpoint staff, drinking participants)
+- **Checkpoints**: 8 themed drinking checkpoints with creative names and challenges
+
+### Drinking Game Checkpoints
+
+1. **Tribunal** (Mugshot) - AFUAv location
+2. **Receção** (Algemas) - Dep. Materiais
+3. **Cela** (Até andas de lado) - Tunnel between DETI and DEP
+4. **Pátio** (Palmada) - Fotossíntese
+5. **Cantina** (Hot Wheels) - Dep. Matemática
+6. **WC** (Sabonetes) - Restaurante Universitário (Grelhados)
+7. **Ginásio** (MotoMoto) - Pavilhão Arístides
+8. **Enfermaria** (SpEIderSémen) - Bridge entrance at Crasto
 
 ### Key Relationships
 
-- Users belong to Teams (participants)
-- Users can be assigned to Checkpoints (staff)
-- Teams have multiple checkpoint times and scores
-- Teams are classified based on total scores
+- Users belong to Teams (drinking participants)
+- Users can be assigned to Checkpoints (checkpoint staff)
+- Teams have multiple checkpoint times and drinking performance scores
+- Teams are classified based on total drinking game scores
 
 ## 🔧 Configuration
 
@@ -135,17 +156,17 @@ npm run test
 ## 📊 API Endpoints
 
 ### Teams
-- `GET /api/v1/team/` - List all teams
-- `GET /api/v1/team/me` - Get current user's team
+- `GET /api/v1/team/` - List all drinking teams
+- `GET /api/v1/team/me` - Get current user's drinking team
 - `GET /api/v1/team/{id}` - Get team by ID
-- `POST /api/v1/team/` - Create new team (admin)
+- `POST /api/v1/team/` - Create new drinking team (admin)
 - `PUT /api/v1/team/{id}` - Update team (admin)
-- `PUT /api/v1/team/{id}/checkpoint` - Add checkpoint score (staff)
+- `PUT /api/v1/team/{id}/checkpoint` - Record drinking performance at checkpoint (staff)
 
 ### Checkpoints
-- `GET /api/v1/checkpoint/` - List all checkpoints
+- `GET /api/v1/checkpoint/` - List all drinking checkpoints
 - `GET /api/v1/checkpoint/me` - Get next checkpoint for team
-- `GET /api/v1/checkpoint/teams` - Get teams for checkpoint (staff)
+- `GET /api/v1/checkpoint/teams` - Get teams for specific checkpoint (staff)
 
 ### Users
 - `GET /api/v1/user/me` - Get current user info
@@ -154,16 +175,16 @@ npm run test
 ## 🎨 UI Components
 
 ### Custom Components
-- **BloodyButton**: Themed button component with blood effect
-- **Score**: Team score display component
-- **Team**: Team card component
-- **CustomBadge**: Styled badge component
+- **BloodyButton**: Themed button component with blood effect (perfect for drinking game theme!)
+- **Score**: Team drinking performance score display component
+- **Team**: Drinking team card component
+- **CustomBadge**: Styled badge component for team status
 
 ### Pages
-- **Scoreboard**: Real-time team rankings
-- **Teams**: Team listing and details
-- **Maps**: Rally maps and checkpoint locations
-- **Admin**: Administrative interface
+- **Scoreboard**: Real-time drinking team rankings and performance
+- **Teams**: Drinking team listing and performance details
+- **Maps**: Rally maps showing drinking checkpoint locations across campus
+- **Admin**: Administrative interface for drinking game management
 
 ## 🔐 Security
 
