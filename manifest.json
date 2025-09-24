@@ -1,0 +1,54 @@
+{
+  "name": "rally",
+  "version": "1.0.0",
+  "scopes": [
+    { "name": "manager-rally", "description": "Edit data related to rally tascas" },
+    { "name": "rally-staff", "description": "Staff member for rally checkpoints" }
+  ],
+  "nav": [
+    { "label": "Rally Tascas", "href": "/rally", "requiresScopes": ["manager-rally", "admin"] }
+  ],
+
+  "x_notes": [
+    "Fields under x_* are hints/placeholders and may not be implemented yet.",
+    "Keep this file JSON-valid; comments are expressed as x_* fields."
+  ],
+
+  "x_permissions": {
+    "canManageTeams": ["manager-rally", "admin"],
+    "canManageCheckpoints": ["manager-rally", "admin"]
+  },
+
+  "x_api": {
+    "basePath": "/api/rally/v1",
+    "healthPath": "/health"
+  },
+
+  "x_web": {
+    "basePath": "/rally"
+  },
+
+  "x_routes": [
+    { "path": "/api/rally", "proxyTo": "http://api_rally:8003", "requiresScopes": ["manager-rally", "admin"] },
+    { "path": "/rally", "proxyTo": "http://web_rally:3003" }
+  ],
+
+  "x_env": {
+    "required": [],
+    "optional": { "RALLY_THEME": "bloody" }
+  },
+
+  "x_ws": [
+    { "topic": "RALLY_SCOREBOARD", "description": "Live scoreboard updates" }
+  ],
+
+  "x_migrations": [
+    { "id": "2025-09-01-init", "description": "Initial schema" }
+  ],
+
+  "x_compatibility": { "minPlatformVersion": "1.0.0" },
+
+  "x_telemetry": { "enable": true, "events": ["team_created", "checkpoint_updated"] }
+}
+
+

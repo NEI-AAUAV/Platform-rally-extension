@@ -42,7 +42,7 @@ services:
     volumes:
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./proxy/locations.conf:/etc/nginx/conf.d/locations.conf:ro
-      - ./proxy/locations.rally.conf:/etc/nginx/conf.d/locations.rally.conf:ro
+      - ./extensions/rally/proxy/locations.conf:/etc/nginx/conf.d/locations.rally.conf:ro
       - ./proxy/nei.web.ua.pt/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - api_rally
