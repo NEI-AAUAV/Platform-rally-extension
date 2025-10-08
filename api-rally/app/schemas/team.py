@@ -23,6 +23,7 @@ class ListingTeam(TeamBase):
     num_members: int
 
     last_checkpoint_time: Optional[datetime]
+    last_checkpoint_score: Optional[int] = None
 
 
 class DetailedTeam(TeamBase):
@@ -48,4 +49,7 @@ class AdminCheckPointSelect(BaseModel):
 
 
 class TeamScoresUpdate(AdminCheckPointSelect):
-    score: int
+    question_score: int
+    time_score: int
+    pukes: int
+    skips: int

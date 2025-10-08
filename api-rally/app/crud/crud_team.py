@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session
 
-from app.exception import APIException, CardNotActiveException, CardEffectException
+from app.exception import APIException
 from app.crud.base import CRUDBase
 from app.models.team import Team
 from app.schemas.team import (
@@ -61,12 +61,12 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             return abs(skips) * 4
 
         return (
-            calc_time_score(checkpoint, team.time_scores[checkpoint])
+            calc_time_score(checkpoint, team.time_scores[checkpoint] if checkpoint < len(team.time_scores) else 0)
             + calc_question_scores(
-                team.card1 == checkpoint + 1, team.question_scores[checkpoint]
+                team.card1 == checkpoint + 1, team.question_scores[checkpoint] if checkpoint < len(team.question_scores) else False
             )
-            + calc_skips(team.card2 == checkpoint + 1, team.skips[checkpoint])
-            + calc_pukes(team.card3 == checkpoint + 1, team.pukes[checkpoint])
+            + calc_skips(team.card2 == checkpoint + 1, team.skips[checkpoint] if checkpoint < len(team.skips) else 0)
+            + calc_pukes(team.card3 == checkpoint + 1, team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
         )
 
     def update_classification_unlocked(self, db: Session) -> None:
@@ -168,55 +168,10 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         db.refresh(team)
         return team
 
-    # def activate_cards_unlocked(
-    #     self, *, team: Team, checkpoint_id: int, obj_in: TeamCardsUpdate
-    # ) -> Team:
-    #     # can only activate after scores have been done
-    #     if len(team.times) != checkpoint_id:
-    #         raise APIException(
-    #             status_code=400, detail="Checkpoint not in order, or already passed"
-    #         )
 
-    #     # question pass
-    #     if obj_in.card1 is not None:
-    #         if team.card1 != 0:
-    #             raise CardNotActiveException()
-    #         if team.question_scores[-1]:
-    #             raise CardEffectException()
-    #         team.card1 = checkpoint_id
-    #     # skip pass
-    #     if obj_in.card2 is not None:
-    #         if team.card2 != 0:
-    #             raise CardNotActiveException()
-    #         if team.skips[-1] <= 0:
-    #             raise CardEffectException()
-    #         team.card2 = checkpoint_id
-    #     # puke pass
-    #     if obj_in.card3 is not None:
-    #         if team.card3 != 0:
-    #             raise CardNotActiveException()
-    #         if team.pukes[-1] <= 0:
-    #             raise CardEffectException()
-    #         team.card3 = checkpoint_id
-
-    #     return team
-
-    # def activate_cards(
-    #     self, db: Session, *, id: int, checkpoint_id: int, obj_in: TeamCardsUpdate
-    # ) -> Team:
-    #     with db.begin_nested():
-    #         team = self.get(db=db, id=id, for_update=True)
-    #         team = self.activate_cards_unlocked(
-    #             team=team, checkpoint_id=checkpoint_id, obj_in=obj_in
-    #         )
-    #         db.commit()
-    #     self.update_classification(db=db)
-    #     db.refresh(team)
-    #     return team
-
-    # def get_by_checkpoint(self, db: Session, checkpoint_id: int) -> Sequence[Team]:
-    #     stmt = select(Team).where(func.cardinality(Team.times) == checkpoint_id)
-    #     return db.scalars(stmt).all()
+    def get_by_checkpoint(self, db: Session, checkpoint_id: int) -> Sequence[Team]:
+        stmt = select(Team).where(func.cardinality(Team.times) == checkpoint_id)
+        return db.scalars(stmt).all()
 
 
 team = CRUDTeam(Team)

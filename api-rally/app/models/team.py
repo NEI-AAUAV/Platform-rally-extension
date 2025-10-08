@@ -19,6 +19,17 @@ class Team(Base):
 
     score_per_checkpoint: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
 
+    # Additional arrays needed for Rally functionality
+    question_scores: Mapped[List[bool]] = mapped_column(ARRAY(Boolean), default=[])
+    time_scores: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
+    pukes: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
+    skips: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
+
+    # Card tracking
+    card1: Mapped[int] = mapped_column(default=-1)
+    card2: Mapped[int] = mapped_column(default=-1)
+    card3: Mapped[int] = mapped_column(default=-1)
+
     total: Mapped[int] = mapped_column(default=0)
     classification: Mapped[int] = mapped_column(default=-1)
 
