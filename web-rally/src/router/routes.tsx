@@ -18,10 +18,10 @@ const routes: RouteObject[] = [
         },
       },
       {
-        path: "/maps",
+        path: "/postos",
         async lazy() {
-          const { default: Maps } = await import("@/pages/maps");
-          return { Component: Maps };
+          const { default: Postos } = await import("@/pages/postos");
+          return { Component: Postos };
         },
       },
       {
@@ -43,6 +43,13 @@ const routes: RouteObject[] = [
         async lazy() {
           const { default: Admin } = await import("@/pages/admin");
           return { Component: Admin };
+        },
+      },
+      {
+        path: "/assignment",
+        async lazy() {
+          const { default: Assignment } = await import("@/pages/assignment");
+          return { Component: Assignment };
         },
       },
     ],

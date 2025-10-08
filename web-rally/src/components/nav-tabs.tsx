@@ -11,11 +11,18 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { scopes } = useUserStore((state) => state);
   const navigation = [
     { name: "Pontuação", href: "/scoreboard", show: true },
-    { name: "Mapa", href: "/maps", show: true },
+    { name: "Postos", href: "/postos", show: true },
     { name: "Equipas", href: "/teams", show: true },
     {
       name: "Admin",
       href: "/admin",
+      show:
+        scopes !== undefined &&
+        (scopes.includes("admin") || scopes.includes("manager-rally")),
+    },
+    {
+      name: "Atribuições",
+      href: "/assignment",
       show:
         scopes !== undefined &&
         (scopes.includes("admin") || scopes.includes("manager-rally")),
