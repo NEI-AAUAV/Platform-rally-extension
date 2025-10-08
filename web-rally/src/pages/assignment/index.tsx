@@ -7,14 +7,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { BloodyButton } from "@/components/bloody-button";
 import { Users, MapPin } from "lucide-react";
 import useUser from "@/hooks/useUser";
 
 // No form schema needed since we're only assigning existing users to checkpoints
 
 export default function Assignment() {
-  const { userData, isRallyAdmin, isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStoreStuff } = useUser();
   
   // Check if user is manager-rally or admin
   const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
@@ -50,7 +49,6 @@ export default function Assignment() {
 
   const {
     mutate: updateStaffAssignment,
-    isPending: isPendingUpdate,
     isSuccess: isSuccessUpdate,
     isError: isErrorUpdate,
     error: updateError,

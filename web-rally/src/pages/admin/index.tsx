@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/bloody-button";
-import { Plus, Edit, Trash2, Users, MapPin, GripVertical } from "lucide-react";
+import { Edit, Trash2, Users, MapPin, GripVertical } from "lucide-react";
 import useUser from "@/hooks/useUser";
 
 // Team form schema
@@ -35,7 +35,7 @@ type TeamForm = z.infer<typeof teamFormSchema>;
 type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 
 export default function Admin() {
-  const { userData, isRallyAdmin, isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStoreStuff } = useUser();
   
   // Check if user is manager-rally or admin
   const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
@@ -60,7 +60,6 @@ export default function Admin() {
   const {
     mutate: createTeam,
     isPending: isCreatingTeam,
-    isSuccess: isTeamCreated,
   } = useMutation({
     mutationFn: async (teamData: TeamForm) => {
       const response = await fetch("/api/rally/v1/team/", {
@@ -203,7 +202,7 @@ export default function Admin() {
     },
   });
 
-  const { mutate: reorderCheckpoints, isPending: isReorderingCheckpoints } = useMutation({
+  const { mutate: reorderCheckpoints } = useMutation({
     mutationFn: async (checkpointOrders: Record<number, number>) => {
       const response = await fetch("/api/rally/v1/checkpoint/reorder", {
         method: "PUT",
