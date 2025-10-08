@@ -25,8 +25,19 @@ async def get_current_user(
     user = db.get(User, auth.sub)
     if user is None:
         user = crud.user.create(
-            db, obj_in=UserCreate(id=auth.sub, name=f"{auth.name} {auth.surname}")
+            db, obj_in=UserCreate(
+                id=auth.sub, 
+                name=f"{auth.name} {auth.surname}",
+                scopes=auth.scopes
+            )
         )
+    else:
+        # Update scopes if they've changed
+        if user.scopes != auth.scopes:
+            user.scopes = auth.scopes
+            db.add(user)
+            db.commit()
+            db.refresh(user)
     return DetailedUser.model_validate(user)
 
 

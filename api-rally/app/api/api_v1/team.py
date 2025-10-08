@@ -1,10 +1,15 @@
 from typing import List
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, HTTPException, Security
 
 from app import crud
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
+from app.api.abac_deps import (
+    require_checkpoint_score_permission,
+    require_team_management_permission,
+    validate_checkpoint_access
+)
 from app.models.team import Team
 from app.schemas.user import DetailedUser
 from app.schemas.team import (
@@ -15,7 +20,6 @@ from app.schemas.team import (
     TeamScoresUpdate,
 )
 
-from ._deps import get_checkpoint_id
 
 router = APIRouter()
 
@@ -68,7 +72,21 @@ def add_checkpoint(
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     staff_user: DetailedUser = Depends(deps.get_admin_or_staff),
 ) -> DetailedTeam:
-    checkpoint_id = get_checkpoint_id(staff_user, obj_in, auth.scopes)
+    # Use ABAC to validate checkpoint access
+    checkpoint_id = validate_checkpoint_access(
+        user=staff_user,
+        auth=auth,
+        requested_checkpoint_id=obj_in.checkpoint_id
+    )
+    
+    # Enforce ABAC permission for adding scores
+    require_checkpoint_score_permission(
+        checkpoint_id=checkpoint_id,
+        team_id=id,
+        auth=auth,
+        curr_user=staff_user
+    )
+    
     team_db = crud.team.add_checkpoint(
         db=db,
         id=id,
@@ -78,34 +96,6 @@ def add_checkpoint(
     return DetailedTeam.model_validate(team_db)
 
 
-# @router.put("/{id}/cards", status_code=201)
-# def activate_cards(
-#     *,
-#     db: Session = Depends(deps.get_db),
-#     id: int,@router.put("/{id}/cards", status_code=201)
-# def activate_cards(
-#     *,
-#     db: Session = Depends(deps.get_db),
-#     id: int,
-#     obj_in: TeamCardsUpdate,
-#     auth: AuthData = Security(api_nei_auth, scopes=[]),
-#     staff_user: DetailedUser = Depends(deps.get_admin_or_staff),
-# ) -> DetailedTeam:
-#     checkpoint_id = get_checkpoint_id(staff_user, obj_in, auth.scopes)
-#     team_db = crud.team.activate_cards(
-#         db, id=id, checkpoint_id=checkpoint_id, obj_in=obj_in
-#     )
-#     return DetailedTeam.model_validate(team_db)
-
-#     obj_in: TeamCardsUpdate,
-#     auth: AuthData = Security(api_nei_auth, scopes=[]),
-#     staff_user: DetailedUser = Depends(deps.get_admin_or_staff),
-# ) -> DetailedTeam:
-#     checkpoint_id = get_checkpoint_id(staff_user, obj_in, auth.scopes)
-#     team_db = crud.team.activate_cards(
-#         db, id=id, checkpoint_id=checkpoint_id, obj_in=obj_in
-#     )
-#     return DetailedTeam.model_validate(team_db)
 
 
 @router.post("/", status_code=201)
@@ -113,8 +103,12 @@ def create_team(
     *,
     db: Session = Depends(deps.get_db),
     team_in: TeamCreate,
-    _: DetailedUser = Depends(deps.get_admin),
+    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedTeam:
+    # Enforce ABAC permission for team creation
+    require_team_management_permission(auth=auth, curr_user=curr_user)
+    
     return DetailedTeam.model_validate(crud.team.create(db=db, obj_in=team_in))
 
 
@@ -127,3 +121,29 @@ def update_team(
     _: DetailedUser = Depends(deps.get_admin),
 ) -> DetailedTeam:
     return DetailedTeam.model_validate(crud.team.update(db=db, id=id, obj_in=team_in))
+
+
+@router.delete("/{id}", status_code=200)
+def delete_team(
+    *,
+    db: Session = Depends(deps.get_db),
+    id: int,
+    _: DetailedUser = Depends(deps.get_admin),
+) -> dict:
+    """Delete a team. Only admins can delete teams."""
+    try:
+        # Check if team has members before deleting
+        team = crud.team.get(db=db, id=id)
+        if team and len(team.members) > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete team with members. Remove all members first."
+            )
+        
+        crud.team.remove(db=db, id=id)
+        return {"message": "Team deleted successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete team: {str(e)}"
+        )
