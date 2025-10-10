@@ -19,7 +19,7 @@ export default function Postos() {
   const sortedCheckpoints = checkpoints?.sort((a, b) => a.order - b.order) || [];
 
   // Calculate map bounds if we have coordinates
-  const hasCoordinates = sortedCheckpoints.some(cp => cp.latitude && cp.longitude);
+  const hasCoordinates = sortedCheckpoints.some(cp => cp.latitude !== null && cp.latitude !== undefined && cp.longitude !== null && cp.longitude !== undefined);
   
   const mapBounds = hasCoordinates ? {
     minLat: Math.min(...sortedCheckpoints.map(cp => cp.latitude).filter(Boolean)),

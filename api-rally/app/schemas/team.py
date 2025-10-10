@@ -42,7 +42,7 @@ class TeamUpdate(BaseModel):
     name: Optional[str] = None
     times: Optional[List[datetime]] = None
     score_per_checkpoint: Optional[List[int]] = None
-    question_scores: Optional[List[int]] = None
+    question_scores: Optional[List[bool]] = None
     time_scores: Optional[List[int]] = None
     pukes: Optional[int] = None
     skips: Optional[int] = None
@@ -56,8 +56,7 @@ class AdminCheckPointSelect(BaseModel):
 
 
 class TeamScoresUpdate(AdminCheckPointSelect):
-    score: int
-    question_score: Optional[int] = None
-    time_score: Optional[int] = None
-    pukes: Optional[int] = None
-    skips: Optional[int] = None
+    question_score: int
+    time_score: int
+    pukes: int
+    skips: int

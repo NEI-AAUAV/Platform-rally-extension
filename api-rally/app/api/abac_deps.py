@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_db
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission, 
@@ -56,7 +57,8 @@ async def require_checkpoint_score_permission(
     checkpoint_id: int,
     team_id: int,
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access)
+    curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
+    db: Session = Depends(get_db)
 ):
     """
     Require permission to add checkpoint scores
@@ -70,11 +72,6 @@ async def require_checkpoint_score_permission(
     # For staff users, validate checkpoint order
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
         from app import crud
-        from sqlalchemy.orm import Session
-        from app.api.deps import get_db
-        
-        # Get database session
-        db = next(get_db())
         
         # Get team to check their progress
         team = crud.team.get(db=db, id=team_id)

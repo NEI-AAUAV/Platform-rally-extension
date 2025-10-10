@@ -5,7 +5,11 @@ export default function TeamImage({ teamId }: { teamId: number }) {
   useEffect(() => {
     import(`@/public/team-images/team-${teamId}.png`)
       .then((image) => setImage(image.default))
-      .catch(() => setImage(null));
+      .catch(() => {
+        import("@/public/team-images/team-default.png")
+          .then((fallback) => setImage(fallback.default))
+          .catch(() => setImage(null));
+      });
   }, [teamId]);
 
   return (
