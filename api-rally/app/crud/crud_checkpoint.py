@@ -6,6 +6,7 @@ from app.crud.base import CRUDBase
 from app.models.team import Team
 from app.models.checkpoint import CheckPoint
 from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
+from app.core.config import settings
 
 
 class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
@@ -48,7 +49,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         # First, set all affected checkpoints to negative orders
         for checkpoint_id in checkpoint_orders.keys():
             db.execute(
-                text("UPDATE rally_tascas.check_point SET \"order\" = -:checkpoint_id WHERE id = :checkpoint_id"),
+                text(f"UPDATE {settings.SCHEMA_NAME}.check_point SET \"order\" = -:checkpoint_id WHERE id = :checkpoint_id"),
                 {"checkpoint_id": checkpoint_id}
             )
         
@@ -57,7 +58,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         # Then set the final orders
         for checkpoint_id, new_order in checkpoint_orders.items():
             db.execute(
-                text("UPDATE rally_tascas.check_point SET \"order\" = :new_order WHERE id = :checkpoint_id"),
+                text(f"UPDATE {settings.SCHEMA_NAME}.check_point SET \"order\" = :new_order WHERE id = :checkpoint_id"),
                 {"new_order": new_order, "checkpoint_id": checkpoint_id}
             )
         
