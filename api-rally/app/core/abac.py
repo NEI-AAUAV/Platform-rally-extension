@@ -337,7 +337,3 @@ def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> List[int]:
     return accessible
 
 
-
-
-
-

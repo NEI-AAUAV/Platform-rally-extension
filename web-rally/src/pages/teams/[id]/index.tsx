@@ -47,9 +47,7 @@ export default function TeamsById() {
     return <Navigate to="/teams" />;
   }
 
-  const lastCheckpoint = checkpoints?.find(
-    (checkpoint) => checkpoint.id === team?.times.length,
-  );
+  const lastCheckpoint = checkpoints?.[team?.times.length - 1];
   const lastCheckpointTimeString = team?.times[team.times.length - 1];
   const lastCheckpointTime =
     lastCheckpointTimeString && new Date(lastCheckpointTimeString);

@@ -26,7 +26,3 @@ class RallyStaffAssignment(Base):
     checkpoint = relationship("CheckPoint", back_populates="staff_assignments")
 
 
-
-
-
-
