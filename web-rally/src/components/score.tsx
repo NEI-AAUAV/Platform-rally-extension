@@ -4,6 +4,7 @@ import CustomBadge from "./custom-badge";
 import { BloodyButton } from "./bloody-button";
 import type { ListingTeam } from "@/client";
 import { Link } from "react-router-dom";
+import { formatTime } from "@/utils/timeFormat";
 
 type ScoreProps = { team: ListingTeam } & ComponentProps<"div">;
 
@@ -63,7 +64,7 @@ export default function Score({ className, team, ...props }: ScoreProps) {
         {team.last_checkpoint_score}{" "}
         {lastCheckpointTime && (
           <span className="font-light text-white/60">
-            | {lastCheckpointTime.getHours()}:{lastCheckpointTime.getMinutes()}
+            | {formatTime(lastCheckpointTime)}
           </span>
         )}
       </span>

@@ -99,7 +99,7 @@ def get_checkpoint_teams(
 
 
 @router.post("/", status_code=201)
-def create_checkpoint(
+async def create_checkpoint(
     *,
     db: Session = Depends(deps.get_db),
     cp_in: CheckPointCreate,
@@ -107,7 +107,7 @@ def create_checkpoint(
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedCheckPoint:
     # Enforce ABAC permission for checkpoint creation
-    require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
+    await require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
     
     # Validate order uniqueness
     existing_checkpoint = crud.checkpoint.get_by_order(db=db, order=cp_in.order)

@@ -224,7 +224,7 @@ export default function Admin() {
     onSuccess: () => {
       refetchCheckpoints();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Failed to reorder checkpoints:", error);
       alert(`Erro ao reordenar checkpoints: ${error.message || error.toString()}`);
     },
@@ -381,7 +381,7 @@ export default function Admin() {
                 <FormField
                   control={teamForm.control}
                   name="name"
-                  render={({ field }) => (
+                  render={({ field }: { field: any }) => (
                     <FormItem>
                       <FormLabel>Nome da Equipa</FormLabel>
                       <FormControl>

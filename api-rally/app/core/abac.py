@@ -188,7 +188,11 @@ class ABACEngine:
         # User scope conditions
         if key == "user_scopes":
             if "contains" in value:
-                return any(scope in context.auth.scopes for scope in value["contains"])
+                # Handle both string and list cases
+                if isinstance(value["contains"], str):
+                    return value["contains"] in context.auth.scopes
+                else:
+                    return any(scope in context.auth.scopes for scope in value["contains"])
             elif "not_in" in value:
                 return not any(scope in context.auth.scopes for scope in value["not_in"])
         
@@ -331,3 +335,9 @@ def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> List[int]:
         accessible.append(user.staff_checkpoint_id)
     
     return accessible
+
+
+
+
+
+

@@ -6,7 +6,7 @@ export default function TeamImage({ teamId }: { teamId: number }) {
     import(`@/public/team-images/team-${teamId}.png`)
       .then((image) => setImage(image.default))
       .catch(() => setImage(null));
-  });
+  }, [teamId]);
 
   return (
     <div className="grid aspect-square place-items-center overflow-hidden rounded-lg border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]">
