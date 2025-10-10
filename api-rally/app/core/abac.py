@@ -46,7 +46,7 @@ class Context:
     resource_id: Optional[int] = None
     checkpoint_id: Optional[int] = None
     team_id: Optional[int] = None
-    request_time: datetime = None
+    request_time: Optional[datetime] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
     

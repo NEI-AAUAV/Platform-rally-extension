@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { formatTime } from "@/utils/timeFormat";
 
 const nthNumber = (number: number) => {
   if (number > 3 && number < 21) return "th";
@@ -103,8 +104,7 @@ export default function TeamsById() {
               {team.score_per_checkpoint[team.score_per_checkpoint.length - 1]}{" "}
               {lastCheckpointTime && (
                 <span className="font-light text-white/60">
-                  | {lastCheckpointTime.getHours()}:
-                  {lastCheckpointTime.getMinutes()}
+                  | {formatTime(lastCheckpointTime)}
                 </span>
               )}
             </p>

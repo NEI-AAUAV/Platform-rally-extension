@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Navigate } from "react-router-dom";
 import {
   Select,
@@ -7,9 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// @ts-ignore
 import { useMutation, useQuery } from "@tanstack/react-query";
-// @ts-ignore
 import { Users, MapPin } from "lucide-react";
 import useUser from "@/hooks/useUser";
 

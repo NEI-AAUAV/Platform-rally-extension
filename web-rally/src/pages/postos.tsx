@@ -10,7 +10,7 @@ export default function Postos() {
   const { data: checkpoints, isLoading } = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => {
-      const response = await CheckPointService.getCheckpointsApiRallyV1Get();
+      const response = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return response;
     },
   });
