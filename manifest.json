@@ -28,6 +28,13 @@
     "basePath": "/rally"
   },
 
+  "api": {
+    "port": "8003"
+  },
+  "web": {
+    "port": "3003"
+  },
+
   "x_routes": [
     { "path": "/api/rally", "proxyTo": "http://api_rally:8003", "requiresScopes": ["manager-rally", "admin"] },
     { "path": "/rally", "proxyTo": "http://web_rally:3003" }
