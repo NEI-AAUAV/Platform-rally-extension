@@ -235,10 +235,9 @@ class ABACEngine:
                     return context.user.staff_checkpoint_id is not None
         
         # Time-based conditions
-        elif key == "time_window":
-            if "hours" in value:
-                window_start = context.request_time - timedelta(hours=value["hours"])
-                return context.request_time >= window_start
+        elif key == "time_window" and "hours" in value:
+            window_start = context.request_time - timedelta(hours=value["hours"])
+            return context.request_time >= window_start
         
         return False
     
