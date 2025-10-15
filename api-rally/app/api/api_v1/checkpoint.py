@@ -24,8 +24,8 @@ router = APIRouter()
 
 @router.get("/", status_code=200)
 def get_checkpoints(*, db: Session = Depends(deps.get_db)) -> List[DetailedCheckPoint]:
-    DetailedCheckPointListAdapter = TypeAdapter(List[DetailedCheckPoint])
-    return DetailedCheckPointListAdapter.validate_python(
+    detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+    return detailed_checkpoint_list_adapter.validate_python(
         crud.checkpoint.get_all_ordered(db=db)
     )
 
@@ -99,7 +99,7 @@ def get_checkpoint_teams(
 
 
 @router.post("/", status_code=201)
-async def create_checkpoint(
+def create_checkpoint(
     *,
     db: Session = Depends(deps.get_db),
     cp_in: CheckPointCreate,
@@ -107,7 +107,7 @@ async def create_checkpoint(
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedCheckPoint:
     # Enforce ABAC permission for checkpoint creation
-    await require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
+    require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
     
     # Validate order uniqueness
     existing_checkpoint = crud.checkpoint.get_by_order(db=db, order=cp_in.order)
@@ -147,7 +147,7 @@ def update_checkpoint(
     cp_in: CheckPointUpdate,
     _: DetailedUser = Depends(deps.get_admin),
 ) -> DetailedCheckPoint:
-    db_obj = crud.checkpoint.get(db=db, id=id, for_update=True)
+    crud.checkpoint.get(db=db, id=id, for_update=True)
     updated = crud.checkpoint.update(db=db, id=id, obj_in=cp_in)
     return DetailedCheckPoint.model_validate(updated)
 

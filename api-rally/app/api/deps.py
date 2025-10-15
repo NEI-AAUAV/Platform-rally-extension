@@ -18,7 +18,7 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-async def get_current_user(
+def get_current_user(
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     db: Session = Depends(get_db),
 ) -> DetailedUser:
@@ -41,7 +41,7 @@ async def get_current_user(
     return DetailedUser.model_validate(user)
 
 
-async def get_participant(
+def get_participant(
     curr_user: DetailedUser = Depends(get_current_user),
 ) -> DetailedUser:
     if curr_user.disabled:
@@ -53,7 +53,7 @@ def is_admin(scopes: List[str]) -> bool:
     return any(scope in [ScopeEnum.MANAGER_RALLY, ScopeEnum.ADMIN] for scope in scopes)
 
 
-async def get_admin(
+def get_admin(
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(get_participant),
 ) -> DetailedUser:
@@ -62,7 +62,7 @@ async def get_admin(
     return curr_user
 
 
-async def get_admin_or_staff(
+def get_admin_or_staff(
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(get_participant),
 ) -> DetailedUser:

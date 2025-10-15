@@ -20,7 +20,7 @@ from app.core.abac import (
 from app.api.deps import is_admin
 
 
-async def get_staff_with_checkpoint_access(
+def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant),
     db: Session = Depends(deps.get_db)
@@ -53,7 +53,7 @@ async def get_staff_with_checkpoint_access(
     return curr_user
 
 
-async def require_checkpoint_score_permission(
+def require_checkpoint_score_permission(
     checkpoint_id: int,
     team_id: int,
     auth: AuthData = Depends(api_nei_auth),
@@ -107,7 +107,7 @@ async def require_checkpoint_score_permission(
     )
 
 
-async def require_checkpoint_view_permission(
+def require_checkpoint_view_permission(
     checkpoint_id: Optional[int],
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access)
@@ -133,7 +133,7 @@ async def require_checkpoint_view_permission(
     )
 
 
-async def require_checkpoint_management_permission(
+def require_checkpoint_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
 ):
@@ -148,7 +148,7 @@ async def require_checkpoint_management_permission(
     )
 
 
-async def require_team_management_permission(
+def require_team_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
 ):
