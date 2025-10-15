@@ -1,0 +1,27 @@
+from pydantic import BaseModel, ConfigDict
+
+
+class CheckPointBase(BaseModel):
+    name: str
+    description: str
+    latitude: float | None = None
+    longitude: float | None = None
+    order: int
+
+
+class CheckPointCreate(CheckPointBase):
+    pass
+
+
+class CheckPointUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    order: int | None = None
+
+
+class DetailedCheckPoint(CheckPointBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
