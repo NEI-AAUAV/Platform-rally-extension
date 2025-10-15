@@ -155,7 +155,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
           
       - name: SonarQube Scan (PR)
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && vars.SONAR_ENABLE_PR == 'true' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
@@ -163,6 +163,7 @@ jobs:
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.head_ref }}
             -Dsonar.pullrequest.base=${{ github.base_ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
             -Djavax.net.ssl.trustStore=custom-truststore.jks
             -Djavax.net.ssl.trustStorePassword=changeit
             -Djavax.net.ssl.trustStoreType=JKS
@@ -176,7 +177,7 @@ jobs:
           SONAR_SCANNER_OPTS: -Djavax.net.ssl.trustStore=custom-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS -Dsonar.ssl.verify=false
 
       - name: SonarQube Scan (Branch)
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' || vars.SONAR_ENABLE_PR != 'true' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
