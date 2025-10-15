@@ -1,6 +1,7 @@
 name: SonarQube Analysis
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   push:
@@ -65,6 +66,7 @@ jobs:
           cd api-rally
           poetry install --no-root
           poetry run pip install pytest-cov
+          poetry run pip install requests
           
       - name: Cache pnpm store (Web)
         uses: actions/cache@v3
