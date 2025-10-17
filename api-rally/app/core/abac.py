@@ -27,6 +27,8 @@ class Action(Enum):
     UPDATE_CHECKPOINT = "update_checkpoint"
     CREATE_TEAM = "create_team"
     UPDATE_TEAM = "update_team"
+    VIEW_RALLY_SETTINGS = "view_rally_settings"
+    UPDATE_RALLY_SETTINGS = "update_rally_settings"
 
 
 class Resource(Enum):
@@ -34,6 +36,7 @@ class Resource(Enum):
     CHECKPOINT = "checkpoint"
     TEAM = "team"
     SCORE = "score"
+    RALLY_SETTINGS = "rally_settings"
 
 
 @dataclass

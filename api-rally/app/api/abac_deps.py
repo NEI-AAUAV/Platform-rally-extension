@@ -210,3 +210,65 @@ def validate_checkpoint_access(
         )
     
     return requested_checkpoint_id
+
+def validate_settings_update_access(
+    user: DetailedUser,
+    auth: AuthData
+) -> bool:
+    """
+    Validate that the user has access to update the rally settings.
+    
+    Args:
+        user: The authenticated user
+        auth: Authentication data with scopes
+    
+    Returns:
+        True if access is granted
+    
+    Raises:
+        HTTPException: If access is denied
+    """
+
+    if not check_permission(
+        user=user,
+        auth=auth,
+        action=Action.UPDATE_RALLY_SETTINGS,
+        resource=Resource.RALLY_SETTINGS
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to rally settings"
+        )
+    
+    return True
+
+def validate_settings_view_access(
+    user: DetailedUser,
+    auth: AuthData
+) -> bool:
+    """
+    Validate that the user has access to view the rally settings.
+    
+    Args:
+        user: The authenticated user
+        auth: Authentication data with scopes
+    
+    Returns:
+        True if access is granted
+    
+    Raises:
+        HTTPException: If access is denied
+    """
+
+    if not check_permission(
+        user=user,
+        auth=auth,
+        action=Action.VIEW_RALLY_SETTINGS,
+        resource=Resource.RALLY_SETTINGS
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to rally settings"
+        )
+    
+    return True

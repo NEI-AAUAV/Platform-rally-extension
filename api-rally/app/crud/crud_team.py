@@ -19,6 +19,8 @@ from app.schemas.team import (
 
 from ._deps import unique_key_error_regex
 
+from app.crud.rally_settings import rally_settings
+
 locked_arrays = [
     "times",
     "question_scores",
@@ -95,6 +97,12 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             db.commit()
 
     def create(self, db: Session, *, obj_in: TeamCreate) -> Team:
+        settings = rally_settings.get_or_create(db)
+        current_team_count = db.scalar(select(func.count(Team.id)))
+
+        if current_team_count >= settings.max_teams:
+            raise HTTPException(status_code=400, detail="Team limit reached")
+        
         try:
             team = super().create(db, obj_in=obj_in)
         except IntegrityError as e:
