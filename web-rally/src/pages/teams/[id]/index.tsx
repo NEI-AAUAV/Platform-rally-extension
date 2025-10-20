@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
 
 const nthNumber = (number: number) => {
@@ -22,6 +23,7 @@ const nthNumber = (number: number) => {
 
 export default function TeamsById() {
   const { id } = useParams<{ id: string }>();
+  const { settings } = useRallySettings();
 
   const {
     data: team,
@@ -68,7 +70,7 @@ export default function TeamsById() {
           <div>Try again later</div>
         </>
       )}
-      {isSuccess && (
+      {isSuccess && settings?.show_team_details !== false ? (
         <>
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Team description and score
@@ -127,7 +129,20 @@ export default function TeamsById() {
             })}
           </div>
         </>
-      )}
+      ) : isSuccess ? (
+        <div className="mt-16 rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-center">
+          <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
+          <div className="text-white/70 mt-2 text-sm">
+            O organizador desativou a visualização de detalhes das equipas.
+          </div>
+          <div className="mt-4">
+            <Link to="/teams" className="inline-flex items-center gap-2 px-4 py-2 bg-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.2)] rounded-lg text-white font-medium transition-colors">
+              <ArrowBigLeft className="w-4 h-4" />
+              Voltar à lista de equipas
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

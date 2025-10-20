@@ -84,8 +84,8 @@ export default function RallySettings() {
       form.reset({
         max_teams: settings.max_teams,
         enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time,
-        rally_end_time: settings.rally_end_time,
+        rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
+        rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
@@ -124,8 +124,8 @@ export default function RallySettings() {
       form.reset({
         max_teams: settings.max_teams,
         enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time,
-        rally_end_time: settings.rally_end_time,
+        rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
+        rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
@@ -243,7 +243,9 @@ export default function RallySettings() {
               <Input
                 id="rally_start_time"
                 type="datetime-local"
-                {...form.register("rally_start_time")}
+                {...form.register("rally_start_time", {
+                  setValueAs: (value) => value ? new Date(value).toISOString() : null
+                })}
                 disabled={!isEditing}
               />
             </div>
@@ -253,7 +255,9 @@ export default function RallySettings() {
               <Input
                 id="rally_end_time"
                 type="datetime-local"
-                {...form.register("rally_end_time")}
+                {...form.register("rally_end_time", {
+                  setValueAs: (value) => value ? new Date(value).toISOString() : null
+                })}
                 disabled={!isEditing}
               />
             </div>

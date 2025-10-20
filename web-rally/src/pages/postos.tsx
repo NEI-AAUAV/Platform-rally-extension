@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckPointService } from "@/client";
 import { MapPin, Navigation } from "lucide-react";
 import { useState } from "react";
+import useRallySettings from "@/hooks/useRallySettings";
 
 export default function Postos() {
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<any>(null);
+  const { settings } = useRallySettings();
 
   // Fetch checkpoints
   const { data: checkpoints, isLoading } = useQuery({
@@ -99,7 +101,7 @@ export default function Postos() {
                       </div>
                     </div>
                     
-                    {(checkpoint.latitude || checkpoint.longitude) && (
+                    {settings?.show_checkpoint_map !== false && (checkpoint.latitude || checkpoint.longitude) && (
                       <div className="flex items-center gap-2 text-sm text-[rgb(255,255,255,0.6)]">
                         <MapPin className="w-4 h-4" />
                         <span>
@@ -109,7 +111,7 @@ export default function Postos() {
                     )}
                   </div>
                   
-                  {(checkpoint.latitude && checkpoint.longitude) && (
+                  {settings?.show_checkpoint_map !== false && (checkpoint.latitude && checkpoint.longitude) && (
                     <a
                       href={`https://www.google.com/maps?q=${checkpoint.latitude},${checkpoint.longitude}`}
                       target="_blank"
@@ -129,7 +131,7 @@ export default function Postos() {
       </div>
 
       {/* Map Section */}
-      {hasCoordinates && (
+      {settings?.show_checkpoint_map !== false && hasCoordinates && (
         <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Navigation className="w-5 h-5" />
@@ -152,7 +154,7 @@ export default function Postos() {
                 Abrir Mapa Completo
               </a>
               
-              {selectedCheckpoint && selectedCheckpoint.latitude && selectedCheckpoint.longitude && (
+              {settings?.show_checkpoint_map !== false && selectedCheckpoint && selectedCheckpoint.latitude && selectedCheckpoint.longitude && (
                 <a
                   href={`https://www.google.com/maps?q=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
                   target="_blank"

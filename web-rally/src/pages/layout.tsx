@@ -1,5 +1,7 @@
 import NavTabs from "@/components/nav-tabs";
+import RallyTimeBanner from "@/components/rally-time-banner";
 import useLoginLink from "@/hooks/useLoginLink";
+import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
@@ -12,6 +14,11 @@ export default function MainLayout() {
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const loginLink = useLoginLink();
+  const { settings } = useRallySettings();
+
+  if (settings?.rally_theme) {
+    document.title = settings.rally_theme;
+  }
 
   if (sub === undefined && !sessionLoading) {
     window.location.href = loginLink;
@@ -21,9 +28,10 @@ export default function MainLayout() {
     <div className="font-inter" style={bgStyle}>
       <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
         <h1 className="font-playfair text-3xl font-bold [text-wrap:balance]">
-          Perdidos? Assim é o Rally Tascas
+          {settings?.rally_theme ?? "Rally Tascas"}
         </h1>
         <NavTabs className="mt-4" />
+        <RallyTimeBanner />
         <Outlet />
       </div>
     </div>
