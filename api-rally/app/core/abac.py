@@ -29,6 +29,8 @@ class Action(Enum):
     UPDATE_TEAM = "update_team"
     VIEW_RALLY_SETTINGS = "view_rally_settings"
     UPDATE_RALLY_SETTINGS = "update_rally_settings"
+    CREATE_VERSUS_GROUP = "create_versus_group"
+    VIEW_VERSUS_GROUP = "view_versus_group"
 
 
 class Resource(Enum):
@@ -37,6 +39,7 @@ class Resource(Enum):
     TEAM = "team"
     SCORE = "score"
     RALLY_SETTINGS = "rally_settings"
+    VERSUS_GROUP = "versus_group"
 
 
 @dataclass
@@ -106,8 +109,42 @@ class ABACEngine:
             },
             priority=90
         ))
+
+        # Policy 3: Rally managers can manage versus groups
+        self.policies.append(Policy(
+            name="rally_manager_versus_access",
+            description="Rally managers can manage versus team pairings",
+            effect="allow",
+            conditions={
+                "user_scopes" : {"contains" : "manager-rally"},
+                "action" : {"in" : [
+                    Action.CREATE_VERSUS_GROUP.value,
+                    Action.VIEW_VERSUS_GROUP.value
+                ],
+                "resource" : {"equals" : Resource.VERSUS_GROUP.value}
+                }
+            },
+            priority=90
+        ))
         
-        # Policy 3: Staff can only add scores at their assigned checkpoint
+        # Policy 4: Rally managers can manage rally settings
+        self.policies.append(Policy(
+            name="rally_manager_settings_access",
+            description="Rally managers can manage rally settings",
+            effect="allow",
+            conditions={
+                "user_scopes" : {"contains" : "manager-rally"},
+                "action" : {"in" : [
+                    Action.UPDATE_RALLY_SETTINGS.value,
+                    Action.VIEW_RALLY_SETTINGS.value
+                ],
+                "resource" : {"equals" : Resource.RALLY_SETTINGS.value}
+                }
+            },
+            priority=90
+        ))
+
+        # Policy 5: Staff can only add scores at their assigned checkpoint
         self.policies.append(Policy(
             name="staff_checkpoint_restriction",
             description="Staff can only add scores at their assigned checkpoint",
@@ -121,7 +158,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 4: Staff can view teams at their checkpoint
+        # Policy 6: Staff can view teams at their checkpoint
         self.policies.append(Policy(
             name="staff_view_checkpoint_teams",
             description="Staff can view teams at their assigned checkpoint",
@@ -135,7 +172,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 5: Deny all other staff actions
+        # Policy 7: Deny all other staff actions
         self.policies.append(Policy(
             name="staff_default_deny",
             description="Deny all other staff actions",
@@ -150,7 +187,7 @@ class ABACEngine:
             priority=70
         ))
         
-        # Policy 6: Default deny for unauthenticated users
+        # Policy 8: Default deny for unauthenticated users
         self.policies.append(Policy(
             name="default_deny",
             description="Deny all actions for unauthenticated users",

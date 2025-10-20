@@ -8,7 +8,7 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
 from app.api.abac_deps import validate_settings_update_access, validate_settings_view_access
 
-from app.crud.rally_settings import rally_settings
+from app.crud.crud_rally_settings import rally_settings
 
 router = APIRouter()
 

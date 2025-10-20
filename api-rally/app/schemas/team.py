@@ -13,6 +13,7 @@ class TeamBase(BaseModel):
     name: str
     total: int
     classification: int
+    versus_group_id: Optional[int] = None
 
 
 class ListingTeam(TeamBase):

@@ -19,7 +19,7 @@ from app.schemas.team import (
 
 from ._deps import unique_key_error_regex
 
-from app.crud.rally_settings import rally_settings
+from app.crud.crud_rally_settings import rally_settings
 
 locked_arrays = [
     "times",
