@@ -17,8 +17,6 @@ from app.schemas.team import (
     TeamScoresUpdate,
 )
 
-from ._deps import unique_key_error_regex
-
 from app.crud.crud_rally_settings import rally_settings
 
 locked_arrays = [
@@ -46,7 +44,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         return min_time_scores
 
     def calculate_checkpoint_score(
-        self, checkpoint: int, *, team: Team, min_time_scores: List[float]
+        self, checkpoint: int, *, team: Team, min_time_scores: List[float], penalty_per_puke: int = -20
     ) -> int:
         def calc_time_score(checkpoint: int, score: int) -> int:
             return int(min_time_scores[checkpoint] / score * 10) if score != 0 else 0
@@ -55,7 +53,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             return 6 if used_card else int(is_correct) * 8
 
         def calc_pukes(used_card: bool, pukes: int) -> int:
-            return (pukes - 1 if used_card else pukes) * -20
+            return (pukes - 1 if used_card else pukes) * penalty_per_puke
 
         def calc_skips(used_card: bool, skips: int) -> int:
             if skips > 0:
@@ -73,13 +71,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
     def update_classification_unlocked(self, db: Session) -> None:
         teams = list(self.get_multi(db=db, for_update=True))
+        settings = rally_settings.get_or_create(db)
 
         min_time_scores = self.calculate_min_time_scores(teams)
 
         for t in teams:
             t.score_per_checkpoint = [
                 self.calculate_checkpoint_score(
-                    i, team=t, min_time_scores=min_time_scores
+                    i, team=t, min_time_scores=min_time_scores, penalty_per_puke=settings.penalty_per_puke
                 )
                 for i in range(len(t.times))
             ]
@@ -147,14 +146,38 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     ) -> Team:
         with db.begin_nested():
             team = self.get(db=db, id=id, for_update=True)
+            settings = rally_settings.get_or_create(db)
 
-            time = datetime.now()
-            # can only update when no scores have been done
-            if len(team.times) != checkpoint_id - 1:
+            # Time-based validation
+            current_time = datetime.now()
+            if settings.rally_start_time and current_time < settings.rally_start_time:
                 raise APIException(
-                    status_code=400, detail="Checkpoint not in order, or already passed"
+                    status_code=400, 
+                    detail=f"Rally has not started yet. Starts at {settings.rally_start_time.isoformat()}"
+                )
+            
+            if settings.rally_end_time and current_time > settings.rally_end_time:
+                raise APIException(
+                    status_code=400, 
+                    detail=f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
                 )
 
+            # Checkpoint order validation (if enabled)
+            if settings.checkpoint_order_matters:
+                if len(team.times) != checkpoint_id - 1:
+                    raise APIException(
+                        status_code=400, 
+                        detail="Checkpoint not in order, or already passed. Checkpoint order matters is enabled."
+                    )
+            else:
+                # If order doesn't matter, just check if checkpoint already visited
+                if checkpoint_id <= len(team.times):
+                    raise APIException(
+                        status_code=400, 
+                        detail="Checkpoint already visited"
+                    )
+
+            time = current_time
             team.question_scores.append(obj_in.question_score)
             team.time_scores.append(obj_in.time_score)
             team.pukes.append(obj_in.pukes)
