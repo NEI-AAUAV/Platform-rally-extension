@@ -12,9 +12,9 @@ from .session import engine
 
 
 def init_db() -> None:
-    # Tables should be created with Alembic migrations
-    # But if you don't want to use migrations, create
-    # the tables with Base.metadata.create_all(bind=engine)
+    # For extensions, we use simple table creation since schemas are dropped/created
+    # when extensions are disabled/enabled. This is simpler and more appropriate
+    # than complex migration management for temporary schemas.
 
     inspector = inspect(engine)
     all_schemas = inspector.get_schema_names()
