@@ -52,6 +52,13 @@ const routes: RouteObject[] = [
           return { Component: Assignment };
         },
       },
+      {
+        path: "/settings",
+        async lazy() {
+          const { default: Settings } = await import("@/pages/settings");
+          return { Component: Settings };
+        },
+      },
     ],
   },
 ];

@@ -27,6 +27,13 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
         scopes !== undefined &&
         (scopes.includes("admin") || scopes.includes("manager-rally")),
     },
+    {
+      name: "Configurações",
+      href: "/settings",
+      show:
+        scopes !== undefined &&
+        (scopes.includes("admin") || scopes.includes("manager-rally")),
+    },
   ].filter((item) => item.show);
   return (
     <ul {...props} className={cn("flex gap-3", className)}>
