@@ -11,6 +11,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 id=1,
                 # Team management
                 max_teams=16,
+                max_members_per_team=5,
                 enable_versus=False,
                 # Rally timing
                 rally_start_time=None,
@@ -26,7 +27,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 show_team_details=True,
                 show_checkpoint_map=True,
                 # Rally customization
-                rally_theme="Rally Tascas"
+                rally_theme="Rally Tascas",
+                # Access control
+                public_access_enabled=False
             )
             db.add(settings)
             db.commit()

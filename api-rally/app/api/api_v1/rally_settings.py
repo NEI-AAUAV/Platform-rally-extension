@@ -44,3 +44,11 @@ def view_rally_settings(
     """View rally settings"""
     validate_settings_view_access(curr_user, auth)
     return rally_settings.get_or_create(db)
+
+
+@router.get("/rally/settings/public", status_code=200, response_model=RallySettingsResponse)
+def view_rally_settings_public(
+    db: Session = Depends(get_db)
+) -> RallySettingsResponse:
+    """View rally settings (public access - no authentication required)"""
+    return rally_settings.get_or_create(db)

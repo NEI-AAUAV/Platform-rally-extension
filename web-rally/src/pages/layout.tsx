@@ -14,14 +14,33 @@ export default function MainLayout() {
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const loginLink = useLoginLink();
-  const { settings } = useRallySettings();
+  const { settings, isLoading: settingsLoading } = useRallySettings();
 
   if (settings?.rally_theme) {
     document.title = settings.rally_theme;
   }
 
-  if (sub === undefined && !sessionLoading) {
+  // Check if user is authenticated OR if public access is enabled
+  const isAuthenticated = sub !== undefined;
+  const isPublicAccessEnabled = settings?.public_access_enabled === true;
+  
+  // Don't redirect while settings are loading
+  if (!isAuthenticated && !isPublicAccessEnabled && !sessionLoading && !settingsLoading) {
     window.location.href = loginLink;
+  }
+
+  // Show loading while settings are being fetched
+  if (settingsLoading) {
+    return (
+      <div className="font-inter" style={bgStyle}>
+        <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
+          <div className="text-center">
+            <h1 className="font-playfair text-3xl font-bold mb-4">Rally Tascas</h1>
+            <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

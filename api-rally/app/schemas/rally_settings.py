@@ -5,6 +5,7 @@ from datetime import datetime
 class RallySettingsBase(BaseModel):
     # Team management
     max_teams: int
+    max_members_per_team: int
     enable_versus: bool
     
     # Rally timing
@@ -27,6 +28,9 @@ class RallySettingsBase(BaseModel):
     
     # Rally customization
     rally_theme: str
+    
+    # Access control
+    public_access_enabled: bool
 
 class RallySettingsUpdate(RallySettingsBase):
     pass

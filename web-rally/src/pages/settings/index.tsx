@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +7,7 @@ import { Calendar, Clock, Users, MapPin, Eye, EyeOff, Settings, Save, RotateCcw 
 import { RallySettingsService, type RallySettingsResponse, type RallySettingsUpdate } from "@/client";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
-import BloodyButton from "@/components/ui/bloody-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 const rallySettingsSchema = z.object({
   // Team management
   max_teams: z.number().min(1, "Must allow at least 1 team").max(100, "Maximum 100 teams allowed"),
+  max_members_per_team: z.number().min(1, "Must allow at least 1 member").max(50, "Maximum 50 members per team"),
   enable_versus: z.boolean(),
   
   // Rally timing
@@ -40,6 +41,9 @@ const rallySettingsSchema = z.object({
   
   // Rally customization
   rally_theme: z.string().min(1, "Theme is required").max(100, "Theme too long"),
+  
+  // Access control
+  public_access_enabled: z.boolean(),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -54,10 +58,11 @@ export default function RallySettings() {
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch current settings
-  const { data: settings, refetch: refetchSettings, isLoading: isLoadingSettings } = useQuery({
+  const { data: settings, refetch: refetchSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
     queryKey: ["rallySettings"],
     queryFn: RallySettingsService.getRallySettings,
     enabled: isManager,
+    retry: false, // Don't retry on auth errors
   });
 
   // Form setup
@@ -65,6 +70,7 @@ export default function RallySettings() {
     resolver: zodResolver(rallySettingsSchema),
     defaultValues: {
       max_teams: 16,
+      max_members_per_team: 10,
       enable_versus: false,
       rally_start_time: null,
       rally_end_time: null,
@@ -75,15 +81,17 @@ export default function RallySettings() {
       show_team_details: true,
       show_checkpoint_map: true,
       rally_theme: "Rally Tascas",
+      public_access_enabled: false,
     },
   });
 
   // Update form when settings are loaded
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       form.reset({
-        max_teams: settings.max_teams,
-        enable_versus: settings.enable_versus,
+               max_teams: settings.max_teams,
+               max_members_per_team: settings.max_members_per_team,
+               enable_versus: settings.enable_versus,
         rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
         rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
         penalty_per_puke: settings.penalty_per_puke,
@@ -93,9 +101,10 @@ export default function RallySettings() {
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
         rally_theme: settings.rally_theme,
+        public_access_enabled: settings.public_access_enabled,
       });
     }
-  });
+  }, [settings, form]);
 
   // Update settings mutation
   const {
@@ -122,8 +131,9 @@ export default function RallySettings() {
   const handleCancel = () => {
     if (settings) {
       form.reset({
-        max_teams: settings.max_teams,
-        enable_versus: settings.enable_versus,
+               max_teams: settings.max_teams,
+               max_members_per_team: settings.max_members_per_team,
+               enable_versus: settings.enable_versus,
         rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
         rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
         penalty_per_puke: settings.penalty_per_puke,
@@ -133,6 +143,7 @@ export default function RallySettings() {
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
         rally_theme: settings.rally_theme,
+        public_access_enabled: settings.public_access_enabled,
       });
     }
     setIsEditing(false);
@@ -150,6 +161,31 @@ export default function RallySettings() {
     return <div className="mt-16 text-center">Carregando configurações...</div>;
   }
 
+  if (settingsError) {
+    return (
+      <div className="mt-16 text-center space-y-4">
+        <h2 className="text-2xl font-bold text-red-400">Erro ao Carregar Configurações</h2>
+        <p className="text-[rgb(255,255,255,0.7)]">
+          Não foi possível carregar as configurações do Rally.
+        </p>
+        <div className="bg-red-600/20 border border-red-500/30 rounded-lg p-4 max-w-md mx-auto">
+          <p className="text-red-300 text-sm">
+            <strong>Erro:</strong> {settingsError.message || 'Erro de autenticação'}
+          </p>
+          <p className="text-red-300 text-sm mt-2">
+            Certifique-se de que está logado e tem permissões de manager-rally ou admin.
+          </p>
+        </div>
+        <Button 
+          onClick={() => refetchSettings()}
+          variant="outline"
+        >
+          Tentar Novamente
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-16 space-y-8">
       <div className="text-center">
@@ -157,6 +193,30 @@ export default function RallySettings() {
         <p className="text-[rgb(255,255,255,0.7)]">
           Gerir configurações globais do Rally Tascas
         </p>
+        
+        {/* Edit Button at the top */}
+        {!isEditing ? (
+          <div className="mt-6 space-y-3">
+            <p className="text-[rgb(255,255,255,0.7)] text-sm">
+              Clique no botão abaixo para editar as configurações
+            </p>
+            <Button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              variant="default"
+              size="lg"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Editar Configurações
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-4 p-3 bg-blue-600/20 border border-blue-500/30 rounded-lg">
+            <p className="text-blue-300 text-sm font-medium">
+              Modo de edição ativo - Clique em "Guardar" para aplicar as alterações
+            </p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={form.handleSubmit(handleSave)} className="space-y-8">
@@ -211,6 +271,21 @@ export default function RallySettings() {
               />
               {form.formState.errors.max_teams && (
                 <p className="text-red-400 text-sm">{form.formState.errors.max_teams.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max_members_per_team">Número Máximo de Membros por Equipa</Label>
+              <Input
+                id="max_members_per_team"
+                type="number"
+                {...form.register("max_members_per_team", { valueAsNumber: true })}
+                disabled={!isEditing}
+                min="1"
+                max="50"
+              />
+              {form.formState.errors.max_members_per_team && (
+                <p className="text-red-400 text-sm">{form.formState.errors.max_members_per_team.message}</p>
               )}
             </div>
             
@@ -382,41 +457,40 @@ export default function RallySettings() {
               />
               <Label htmlFor="show_checkpoint_map">Mostrar Mapa dos Checkpoints</Label>
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="public_access_enabled"
+                checked={form.watch("public_access_enabled")}
+                onCheckedChange={(checked) => form.setValue("public_access_enabled", checked)}
+                disabled={!isEditing}
+              />
+              <Label htmlFor="public_access_enabled">Acesso Público ao Rally</Label>
+            </div>
           </CardContent>
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex justify-center gap-4">
-          {!isEditing ? (
-            <BloodyButton
-              type="button"
-              onClick={() => setIsEditing(true)}
+        {isEditing && (
+          <div className="flex justify-center gap-4">
+            <Button
+              type="submit"
+              disabled={isUpdating}
               variant="default"
             >
-              <Settings className="w-4 h-4 mr-2" />
-              Editar Configurações
-            </BloodyButton>
-          ) : (
-            <>
-              <BloodyButton
-                type="submit"
-                disabled={isUpdating}
-                variant="default"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isUpdating ? "A Guardar..." : "Guardar"}
-              </BloodyButton>
-              <BloodyButton
-                type="button"
-                onClick={handleCancel}
-                variant="neutral"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Cancelar
-              </BloodyButton>
-            </>
-          )}
-        </div>
+              <Save className="w-4 h-4 mr-2" />
+              {isUpdating ? "A Guardar..." : "Guardar"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCancel}
+              variant="outline"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+          </div>
+        )}
       </form>
     </div>
   );

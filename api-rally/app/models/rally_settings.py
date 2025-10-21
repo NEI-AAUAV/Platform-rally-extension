@@ -8,6 +8,7 @@ class RallySettings(Base):
     
     # Team management
     max_teams = Column(Integer, nullable=False, default=16)
+    max_members_per_team = Column(Integer, nullable=False, default=10)
     enable_versus = Column(Boolean, nullable=False, default=False)
     
     # Rally timing
@@ -30,3 +31,6 @@ class RallySettings(Base):
     
     # Rally customization
     rally_theme = Column(String(100), nullable=False, default="Rally Tascas")
+    
+    # Access control
+    public_access_enabled = Column(Boolean, nullable=False, default=False)

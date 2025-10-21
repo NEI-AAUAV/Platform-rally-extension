@@ -8,7 +8,15 @@ type NavTabsProps = ComponentProps<"ul">;
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
-  const { scopes } = useUserStore((state) => state);
+  const { scopes, sub } = useUserStore((state) => state);
+  
+  // Check if user is authenticated
+  const isAuthenticated = sub !== undefined;
+  
+  // Check if user has admin/manager privileges
+  const isAdminOrManager = scopes !== undefined && 
+    (scopes.includes("admin") || scopes.includes("manager-rally"));
+  
   const navigation = [
     { name: "Pontuação", href: "/scoreboard", show: true },
     { name: "Postos", href: "/postos", show: true },
@@ -16,23 +24,27 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     {
       name: "Admin",
       href: "/admin",
-      show:
-        scopes !== undefined &&
-        (scopes.includes("admin") || scopes.includes("manager-rally")),
+      show: isAdminOrManager,
     },
     {
       name: "Atribuições",
       href: "/assignment",
-      show:
-        scopes !== undefined &&
-        (scopes.includes("admin") || scopes.includes("manager-rally")),
+      show: isAdminOrManager,
+    },
+    {
+      name: "Versus",
+      href: "/versus",
+      show: isAdminOrManager,
+    },
+    {
+      name: "Membros",
+      href: "/team-members",
+      show: isAdminOrManager,
     },
     {
       name: "Configurações",
       href: "/settings",
-      show:
-        scopes !== undefined &&
-        (scopes.includes("admin") || scopes.includes("manager-rally")),
+      show: isAdminOrManager,
     },
   ].filter((item) => item.show);
   return (

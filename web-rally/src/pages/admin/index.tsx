@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/bloody-button";
-import { Edit, Trash2, Users, MapPin, GripVertical } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Edit, Trash2, Users, MapPin, GripVertical, AlertCircle } from "lucide-react";
 import useUser from "@/hooks/useUser";
 
 // Team form schema
@@ -60,6 +61,8 @@ export default function Admin() {
   const {
     mutate: createTeam,
     isPending: isCreatingTeam,
+    error: createTeamError,
+    reset: resetCreateTeamError,
   } = useMutation({
     mutationFn: async (teamData: TeamForm) => {
       const response = await fetch("/api/rally/v1/team/", {
@@ -70,12 +73,19 @@ export default function Admin() {
         },
         body: JSON.stringify(teamData),
       });
-      if (!response.ok) throw new Error("Failed to create team");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to create team");
+      }
       return response.json();
     },
     onSuccess: () => {
       refetchTeams();
       teamForm.reset();
+      resetCreateTeamError();
+    },
+    onError: (error: any) => {
+      console.error("Error creating team:", error);
     },
   });
 
@@ -273,6 +283,7 @@ export default function Admin() {
   const startEditTeam = (team: any) => {
     setEditingTeam(team);
     teamForm.setValue("name", team.name);
+    resetCreateTeamError();
   };
 
   const startEditCheckpoint = (checkpoint: any) => {
@@ -289,6 +300,7 @@ export default function Admin() {
     setEditingCheckpoint(null);
     teamForm.reset();
     checkpointForm.reset();
+    resetCreateTeamError();
   };
 
   // Drag and drop handlers
@@ -378,6 +390,14 @@ export default function Admin() {
             </h3>
             <Form {...teamForm}>
               <form onSubmit={teamForm.handleSubmit(handleTeamSubmit)} className="space-y-4">
+                {createTeamError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {createTeamError.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <FormField
                   control={teamForm.control}
                   name="name"

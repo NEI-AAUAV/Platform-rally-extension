@@ -9,6 +9,7 @@ import { request as __request } from '../core/request';
 
 export interface RallySettingsResponse {
     max_teams: number;
+    max_members_per_team: number;
     enable_versus: boolean;
     rally_start_time?: string | null;
     rally_end_time?: string | null;
@@ -19,10 +20,12 @@ export interface RallySettingsResponse {
     show_team_details: boolean;
     show_checkpoint_map: boolean;
     rally_theme: string;
+    public_access_enabled: boolean;
 }
 
 export interface RallySettingsUpdate {
     max_teams: number;
+    max_members_per_team: number;
     enable_versus: boolean;
     rally_start_time?: string | null;
     rally_end_time?: string | null;
@@ -33,6 +36,7 @@ export interface RallySettingsUpdate {
     show_team_details: boolean;
     show_checkpoint_map: boolean;
     rally_theme: string;
+    public_access_enabled: boolean;
 }
 
 export class RallySettingsService {
@@ -65,3 +69,4 @@ export class RallySettingsService {
         });
     }
 }
+
