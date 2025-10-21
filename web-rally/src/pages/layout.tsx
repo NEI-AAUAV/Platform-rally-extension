@@ -4,6 +4,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function MainLayout() {
   const bgStyle: CSSProperties = {
@@ -15,9 +16,13 @@ export default function MainLayout() {
   const loginLink = useLoginLink();
   const { settings, isLoading: settingsLoading } = useRallySettings();
 
-  if (settings?.rally_theme) {
-    document.title = settings.rally_theme;
-  }
+  useEffect(() => {
+    if (settings?.rally_theme) {
+      document.title = settings.rally_theme;
+    } else {
+      document.title = "Rally Tascas";
+    }
+  }, [settings?.rally_theme]);
 
   // Check if user is authenticated OR if public access is enabled
   const isAuthenticated = sub !== undefined;

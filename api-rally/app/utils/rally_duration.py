@@ -96,7 +96,7 @@ class RallyDurationCalculator:
             "is_within_rally_time": self._is_within_rally_time(team_start_time)
         }
     
-    def _format_duration(self, duration: timedelta) -> str:
+    def _format_duration(self, duration: timedelta) -> Optional[str]:
         """Format a timedelta into a human-readable string."""
         if duration is None:
             return None

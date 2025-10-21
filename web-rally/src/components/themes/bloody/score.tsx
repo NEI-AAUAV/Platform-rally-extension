@@ -81,48 +81,4 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
 }
 
 // Keep default export for backward compatibility
-export default function Score({ className, team, ...props }: ScoreProps) {
-  const lastCheckpointTime =
-    team.last_checkpoint_time && new Date(team.last_checkpoint_time);
-  return (
-    <div
-      {...props}
-      className={cn(
-        "grid place-items-center gap-4 self-stretch rounded-2xl border-2 px-4 py-8",
-        {
-          "border-transparent bg-[rgb(255,255,255,0.15)]":
-            team.classification === 1,
-          "border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]":
-            team.classification !== 1,
-        },
-        className,
-      )}
-    >
-      <BloodyBadge
-        className="flex w-14 justify-center px-8 py-2 text-lg font-bold"
-        variant={variantClassification(team.classification)}
-      >
-        {team.classification}
-        {nthNumber(team.classification)}
-      </BloodyBadge>
-
-      <span className="grow text-center text-2xl font-bold">{team.name}</span>
-      <span className="grow text-center">
-        {team.last_checkpoint_score}{" "}
-        {lastCheckpointTime && (
-          <span className="font-light text-white/60">
-            | {formatTime(lastCheckpointTime)}
-          </span>
-        )}
-      </span>
-      <span className="grow text-center text-lg font-bold">
-        {team.total}pts
-      </span>
-      <Link to={`/teams/${team.id}`}>
-        <BloodyButton variant={"primary"} blood>
-          View Team
-        </BloodyButton>
-      </Link>
-    </div>
-  );
-}
+export default BloodyScore;

@@ -1,11 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { RallySettingsService, type RallySettingsResponse } from "@/client";
-import { useUserStore } from "@/stores/useUserStore";
 
 export default function useRallySettings() {
-  const { sub } = useUserStore((state) => state);
-  const isAuthenticated = sub !== undefined;
-  
   const { data, isLoading, error, refetch } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-public"],
     queryFn: async () => {
