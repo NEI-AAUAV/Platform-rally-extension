@@ -75,7 +75,7 @@ class CRUDVersus():
 
         return opponent
     
-    def get_all_versus_pairs(db: Session):
+    def get_all_versus_pairs(self, db: Session):
         teams = db.scalars(select(Team).where(Team.versus_group_id.isnot(None))).all()
 
         groups = defaultdict(list)

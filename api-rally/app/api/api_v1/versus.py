@@ -60,7 +60,6 @@ def get_team_opponent(
     )
 
     opp = versus.get_opponent(db, team_id=team_id)
-    print(opp)
     
     if opp is None:
         return VersusOpponentResponse(opponent_id=None, opponent_name=None)

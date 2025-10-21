@@ -11,7 +11,7 @@ class VersusPairResponse(BaseModel):
     team_b_id: int
 
 class VersusGroupListResponse(BaseModel):
-    groups : List[VersusPairResponse]
+    groups: List[VersusPairResponse]
 
 class VersusOpponentResponse(BaseModel):
     opponent_id: Optional[int]

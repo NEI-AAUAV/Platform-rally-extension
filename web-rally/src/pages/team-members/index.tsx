@@ -219,7 +219,6 @@ export default function TeamMembers() {
                     </AlertDescription>
                   </Alert>
                 )}
-                {console.log("addError state:", addError)}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
