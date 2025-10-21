@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { BloodyButton } from "./bloody-button";
+import { BloodyButton } from "../themes/bloody";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";

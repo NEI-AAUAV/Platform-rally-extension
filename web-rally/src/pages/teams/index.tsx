@@ -1,5 +1,5 @@
 import { TeamService } from "@/client";
-import Team from "@/components/team";
+import { Team } from "@/components/shared";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 

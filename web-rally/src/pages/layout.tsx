@@ -1,5 +1,4 @@
-import NavTabs from "@/components/nav-tabs";
-import RallyTimeBanner from "@/components/rally-time-banner";
+import { NavTabs, RallyTimeBanner } from "@/components/shared";
 import useLoginLink from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";

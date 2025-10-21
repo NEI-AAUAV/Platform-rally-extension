@@ -1,5 +1,5 @@
 import { CheckPointService, TeamService } from "@/client";
-import TeamImage from "@/components/team-image";
+import { TeamImage } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft } from "lucide-react";

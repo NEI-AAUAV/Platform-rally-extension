@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { BloodyButton } from "@/components/bloody-button";
+import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Edit, Trash2, Users, MapPin, GripVertical, AlertCircle } from "lucide-react";
 import useUser from "@/hooks/useUser";

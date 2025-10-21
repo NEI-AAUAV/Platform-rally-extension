@@ -1,7 +1,7 @@
 import type { ListingTeam } from "@/client";
 import { cn } from "@/lib/utils";
 import { type ComponentProps } from "react";
-import CustomBadge from "./custom-badge";
+import { BloodyBadge } from "../themes/bloody";
 import { Link } from "react-router-dom";
 import TeamImage from "./team-image";
 
@@ -45,14 +45,14 @@ export default function Team({ team, className, ...props }: TeamProps) {
       )}
       to={`/teams/${team.id}`}
     >
-      <CustomBadge
+      <BloodyBadge
         className="flex justify-center place-self-center font-bold"
         variant={variantClassification(team.classification)}
       >
         {team.classification}
         {nthNumber(team.classification)}
         <span className="font-normal">&nbsp;| {team.total} points</span>
-      </CustomBadge>
+      </BloodyBadge>
       <TeamImage teamId={team.id} />
       <p className="place-self-center text-xl font-bold">{team.name}</p>
     </Link>
