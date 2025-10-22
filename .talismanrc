@@ -1,4 +1,6 @@
 fileignoreconfig:
+- filename: api-rally/app/tests/api/test_auth.py
+  checksum: e9f69e992bf4dfa4ed0adda687fe4320f1465dc6ade8d5b532111b77687b4a0d
 - filename: api-rally/poetry.lock
   checksum: 674ba48dac5cf377bd40865ddf7bc08c881a94b3dd7e3d9be51cc0104cc43289
 - filename: web-rally/package-lock.json
