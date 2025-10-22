@@ -13,7 +13,7 @@ class RallyDurationCalculator:
     
     def get_rally_status(self) -> Dict[str, Any]:
         """Get current rally status and timing information."""
-        current_time = datetime.utcnow()
+        current_time = datetime.now(datetime.timezone.utc)
         
         status = {
             "current_time": current_time.isoformat(),
@@ -73,7 +73,7 @@ class RallyDurationCalculator:
     
     def get_team_rally_duration(self, team_start_time: datetime) -> Dict[str, Any]:
         """Calculate rally duration for a specific team."""
-        current_time = datetime.utcnow()
+        current_time = datetime.now(datetime.timezone.utc)
         
         if not self.settings.rally_start_time:
             return {"error": "No rally start time configured"}

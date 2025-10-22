@@ -78,22 +78,15 @@ export default function Postos() {
         ) : (
           <div className="space-y-3">
             {sortedCheckpoints.map((checkpoint: any) => (
-              <div
+              <button
                 key={checkpoint.id}
-                role="button"
-                tabIndex={0}
-                className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                type="button"
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
                   selectedCheckpoint?.id === checkpoint.id
                     ? 'bg-[rgb(255,255,255,0.08)] border-[rgb(255,255,255,0.3)]'
                     : 'bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.04)]'
                 }`}
                 onClick={() => setSelectedCheckpoint(checkpoint)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedCheckpoint(checkpoint);
-                  }
-                }}
                 aria-pressed={selectedCheckpoint?.id === checkpoint.id}
                 aria-label={`Selecionar checkpoint ${checkpoint.name}`}
               >
@@ -134,7 +127,7 @@ export default function Postos() {
                     </a>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

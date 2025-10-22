@@ -431,7 +431,7 @@ export default function Admin() {
                       Cancelar
                     </BloodyButton>
                   )}
-                </div>
+                </ul>
               </form>
             </Form>
           </div>
@@ -444,7 +444,7 @@ export default function Admin() {
                 Nenhuma equipa criada ainda.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-3 list-none">
                 {teams?.map((team: any) => (
                   <div
                     key={team.id}
@@ -454,8 +454,8 @@ export default function Admin() {
                       <div className="font-semibold">{team.name}</div>
                       <div className="text-sm text-[rgb(255,255,255,0.7)]">
                         Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
-                      </div>
-                    </div>
+                      </li>
+                    </li>
                     <div className="flex gap-2">
                       <BloodyButton
                         variant="neutral"
@@ -472,10 +472,10 @@ export default function Admin() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
-                    </div>
-                  </div>
+                    </li>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function Admin() {
                       </FormItem>
                     )}
                   />
-                </div>
+                </ul>
                 <FormField
                   control={checkpointForm.control}
                   name="order"
@@ -596,7 +596,7 @@ export default function Admin() {
                       Cancelar
                     </BloodyButton>
                   )}
-                </div>
+                </ul>
               </form>
             </Form>
           </div>
@@ -614,13 +614,11 @@ export default function Admin() {
                 Nenhum checkpoint criado ainda.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-3 list-none">
                 {checkpoints?.sort((a, b) => a.order - b.order).map((checkpoint: any) => (
-                  <div
+                  <li
                     key={checkpoint.id}
                     draggable
-                    role="listitem"
-                    tabIndex={0}
                     aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
                     onDragStart={(e) => handleDragStart(e, checkpoint)}
                     onDragOver={handleDragOver}
@@ -641,19 +639,19 @@ export default function Admin() {
                       <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
                         <GripVertical className="w-4 h-4" />
                         <span className="text-xs font-mono">{checkpoint.order}</span>
-                      </div>
+                      </li>
                       <div>
                         <div className="font-semibold">{checkpoint.name}</div>
                         <div className="text-sm text-[rgb(255,255,255,0.7)]">
                           {checkpoint.description}
-                        </div>
+                        </li>
                         {(checkpoint.latitude || checkpoint.longitude) && (
                           <div className="text-xs text-[rgb(255,255,255,0.5)]">
                             📍 {checkpoint.latitude}, {checkpoint.longitude}
-                          </div>
+                          </li>
                         )}
-                      </div>
-                    </div>
+                      </li>
+                    </li>
                     <div className="flex gap-2">
                       <BloodyButton
                         variant="neutral"
@@ -670,10 +668,10 @@ export default function Admin() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
-                    </div>
-                  </div>
+                    </li>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>

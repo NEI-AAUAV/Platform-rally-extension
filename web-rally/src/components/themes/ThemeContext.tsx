@@ -1,5 +1,5 @@
 // Theme context and hook for Rally components
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { getThemeComponents, type ThemeName, type ThemeComponents } from './index';
 import useRallySettings from '@/hooks/useRallySettings';
 
@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
@@ -40,8 +40,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     setThemeName(theme);
   };
 
+  const contextValue = useMemo(() => ({
+    themeName,
+    setTheme,
+    components
+  }), [themeName, components]);
+
   return (
-    <ThemeContext.Provider value={{ themeName, setTheme, components }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

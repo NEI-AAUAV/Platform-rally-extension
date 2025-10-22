@@ -10,9 +10,6 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
   const { scopes, sub } = useUserStore((state) => state);
   
-  // Check if user is authenticated
-  const isAuthenticated = sub !== undefined;
-  
   // Check if user has admin/manager privileges
   const isAdminOrManager = scopes !== undefined && 
     (scopes.includes("admin") || scopes.includes("manager-rally"));

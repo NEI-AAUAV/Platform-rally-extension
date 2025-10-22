@@ -14,6 +14,10 @@ from app.crud.crud_rally_settings import rally_settings
 
 router = APIRouter()
 
+# Constants
+TEAM_NOT_FOUND_MESSAGE = "Team not found"
+USER_NOT_FOUND_MESSAGE = "User not found"
+
 
 @router.post("/team/{team_id}/members", status_code=201)
 def add_team_member(
@@ -31,7 +35,7 @@ def add_team_member(
     # Check if team exists
     team = db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
     
     # Check member limit
     settings = rally_settings.get_or_create(db)
@@ -88,12 +92,12 @@ def remove_team_member(
     # Check if team exists
     team = db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
     
     # Check if user exists and is in this team
     user = db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
     
     if user.team_id != team_id:
         raise HTTPException(
@@ -125,12 +129,12 @@ def update_team_member(
     # Check if team exists
     team = db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
     
     # Check if user exists and is in this team
     user = db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
     
     if user.team_id != team_id:
         raise HTTPException(
@@ -185,7 +189,7 @@ def get_team_members(
     # Check if team exists
     team = db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
     
     # Get team members
     members = db.query(User).filter(User.team_id == team_id).all()

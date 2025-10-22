@@ -174,7 +174,8 @@ export function isValidUTCISOString(str: string): boolean {
 export function isValidDatetimeLocalString(str: string): boolean {
   try {
     const d = new Date(str);
-    return !isNaN(d.getTime()) && str.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    return !isNaN(d.getTime()) && regex.exec(str) !== null;
   } catch {
     return false;
   }
