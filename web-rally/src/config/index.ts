@@ -9,7 +9,6 @@ const scheme = {
 
 if (process.env.NODE_ENV === "production") {
   PRODUCTION = true;
-  // HOST = 'https://nei-aauav.pt';
   HOST = "nei.web.ua.pt";
   BASE_URL = `${scheme.HTTPS}${HOST}`;
 } else {

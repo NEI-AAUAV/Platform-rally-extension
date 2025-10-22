@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import DateTime, Integer, Boolean
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -34,3 +34,5 @@ class Team(Base):
     classification: Mapped[int] = mapped_column(default=-1)
 
     members: Mapped[List[User]] = relationship()
+
+    versus_group_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)

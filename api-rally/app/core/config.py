@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from functools import lru_cache
 
 from fastapi import Depends
-from typing import Annotated, Any, List, TypeAlias, Union
+from typing import Annotated, Any, List, TypeAlias
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 

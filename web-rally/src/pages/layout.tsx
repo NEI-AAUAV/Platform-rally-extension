@@ -1,8 +1,10 @@
-import NavTabs from "@/components/nav-tabs";
+import { NavTabs, RallyTimeBanner } from "@/components/shared";
 import useLoginLink from "@/hooks/useLoginLink";
+import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function MainLayout() {
   const bgStyle: CSSProperties = {
@@ -12,18 +14,47 @@ export default function MainLayout() {
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const loginLink = useLoginLink();
+  const { settings, isLoading: settingsLoading } = useRallySettings();
 
-  if (sub === undefined && !sessionLoading) {
+  useEffect(() => {
+    if (settings?.rally_theme) {
+      document.title = settings.rally_theme;
+    } else {
+      document.title = "Rally Tascas";
+    }
+  }, [settings?.rally_theme]);
+
+  // Check if user is authenticated OR if public access is enabled
+  const isAuthenticated = sub !== undefined;
+  const isPublicAccessEnabled = settings?.public_access_enabled === true;
+  
+  // Don't redirect while settings are loading
+  if (!isAuthenticated && !isPublicAccessEnabled && !sessionLoading && !settingsLoading) {
     window.location.href = loginLink;
+  }
+
+  // Show loading while settings are being fetched
+  if (settingsLoading) {
+    return (
+      <div className="font-inter" style={bgStyle}>
+        <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
+          <div className="text-center">
+            <h1 className="font-playfair text-3xl font-bold mb-4">Rally Tascas</h1>
+            <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="font-inter" style={bgStyle}>
       <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
         <h1 className="font-playfair text-3xl font-bold [text-wrap:balance]">
-          Perdidos? Assim é o Rally Tascas
+          {settings?.rally_theme ?? "Rally Tascas"}
         </h1>
         <NavTabs className="mt-4" />
+        <RallyTimeBanner />
         <Outlet />
       </div>
     </div>

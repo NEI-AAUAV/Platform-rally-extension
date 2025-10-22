@@ -9,7 +9,10 @@ function parseJWT(token: string) {
     window
       .atob(base64 ?? "")
       .split("")
-      .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+      .map((c) => {
+        const hex = c.charCodeAt(0).toString(16).padStart(2, '0');
+        return '%' + hex;
+      })
       .join(""),
   );
   return JSON.parse(jsonPayload) as TokenPayload;
@@ -29,10 +32,14 @@ type UserState = TokenPayload & {
   token?: string;
   login: ({ token }: { token: string }) => void;
   logout: () => void;
+  setUser: (userData: Partial<TokenPayload>) => void;
+  clearUser: () => void;
+  isAuthenticated: boolean;
 };
 
 const useUserStore = create<UserState>((set) => ({
   sessionLoading: true,
+  isAuthenticated: false,
 
   login: ({ token }) => {
     const payload: TokenPayload = token ? parseJWT(token) : {};
@@ -43,6 +50,7 @@ const useUserStore = create<UserState>((set) => ({
       ...state,
       token,
       sessionLoading: false,
+      isAuthenticated: !!payload.sub,
       ...payload,
     }));
   },
@@ -50,10 +58,33 @@ const useUserStore = create<UserState>((set) => ({
   logout: () => {
     set(() => ({
       sessionLoading: false,
+      isAuthenticated: false,
       image: undefined,
       sub: undefined,
       name: undefined,
       surname: undefined,
+      token: undefined,
+    }));
+  },
+
+  setUser: (userData: Partial<TokenPayload>) => {
+    set((state) => ({
+      ...state,
+      ...userData,
+      isAuthenticated: !!userData.sub || !!state.sub,
+    }));
+  },
+
+  clearUser: () => {
+    set(() => ({
+      sessionLoading: false,
+      isAuthenticated: false,
+      image: undefined,
+      sub: undefined,
+      name: undefined,
+      surname: undefined,
+      email: undefined,
+      scopes: undefined,
       token: undefined,
     }));
   },

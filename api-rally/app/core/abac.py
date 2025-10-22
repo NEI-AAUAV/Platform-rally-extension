@@ -10,11 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
-from app.models.user import User
-from app.models.checkpoint import CheckPoint
-from app.models.team import Team
 from app.schemas.user import DetailedUser
 from app.api.auth import AuthData
 
@@ -27,6 +23,10 @@ class Action(Enum):
     UPDATE_CHECKPOINT = "update_checkpoint"
     CREATE_TEAM = "create_team"
     UPDATE_TEAM = "update_team"
+    VIEW_RALLY_SETTINGS = "view_rally_settings"
+    UPDATE_RALLY_SETTINGS = "update_rally_settings"
+    CREATE_VERSUS_GROUP = "create_versus_group"
+    VIEW_VERSUS_GROUP = "view_versus_group"
 
 
 class Resource(Enum):
@@ -34,6 +34,8 @@ class Resource(Enum):
     CHECKPOINT = "checkpoint"
     TEAM = "team"
     SCORE = "score"
+    RALLY_SETTINGS = "rally_settings"
+    VERSUS_GROUP = "versus_group"
 
 
 @dataclass
@@ -74,8 +76,13 @@ class ABACEngine:
     
     def _load_default_policies(self):
         """Load default Rally ABAC policies"""
-        
-        # Policy 1: Admins can do everything
+        self._load_admin_policies()
+        self._load_manager_policies()
+        self._load_staff_policies()
+        self._load_default_deny_policy()
+    
+    def _load_admin_policies(self):
+        """Load admin access policies"""
         self.policies.append(Policy(
             name="admin_full_access",
             description="Admins have full access to all Rally resources",
@@ -85,8 +92,10 @@ class ABACEngine:
             },
             priority=100
         ))
-        
-        # Policy 2: Rally managers can manage checkpoints and teams
+    
+    def _load_manager_policies(self):
+        """Load rally manager access policies"""
+        # Rally managers can manage checkpoints and teams
         self.policies.append(Policy(
             name="rally_manager_access",
             description="Rally managers can manage checkpoints and teams",
@@ -103,8 +112,42 @@ class ABACEngine:
             },
             priority=90
         ))
+
+        # Rally managers can manage versus groups
+        self.policies.append(Policy(
+            name="rally_manager_versus_access",
+            description="Rally managers can manage versus team pairings",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "manager-rally"},
+                "action": {"in": [
+                    Action.CREATE_VERSUS_GROUP.value,
+                    Action.VIEW_VERSUS_GROUP.value
+                ]},
+                "resource": {"equals": Resource.VERSUS_GROUP.value}
+            },
+            priority=90
+        ))
         
-        # Policy 3: Staff can only add scores at their assigned checkpoint
+        # Rally managers can manage rally settings
+        self.policies.append(Policy(
+            name="rally_manager_settings_access",
+            description="Rally managers can manage rally settings",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "manager-rally"},
+                "action": {"in": [
+                    Action.UPDATE_RALLY_SETTINGS.value,
+                    Action.VIEW_RALLY_SETTINGS.value
+                ]},
+                "resource": {"equals": Resource.RALLY_SETTINGS.value}
+            },
+            priority=90
+        ))
+    
+    def _load_staff_policies(self):
+        """Load staff access policies"""
+        # Staff can only add scores at their assigned checkpoint
         self.policies.append(Policy(
             name="staff_checkpoint_restriction",
             description="Staff can only add scores at their assigned checkpoint",
@@ -118,7 +161,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 4: Staff can view teams at their checkpoint
+        # Staff can view teams at their checkpoint
         self.policies.append(Policy(
             name="staff_view_checkpoint_teams",
             description="Staff can view teams at their assigned checkpoint",
@@ -132,7 +175,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 5: Deny all other staff actions
+        # Deny all other staff actions
         self.policies.append(Policy(
             name="staff_default_deny",
             description="Deny all other staff actions",
@@ -146,8 +189,9 @@ class ABACEngine:
             },
             priority=70
         ))
-        
-        # Policy 6: Default deny for unauthenticated users
+    
+    def _load_default_deny_policy(self):
+        """Load default deny policy for unauthenticated users"""
         self.policies.append(Policy(
             name="default_deny",
             description="Deny all actions for unauthenticated users",
@@ -185,60 +229,81 @@ class ABACEngine:
     def _evaluate_condition(self, key: str, value: Any, context: Context) -> bool:
         """Evaluate a single condition"""
         
-        # User scope conditions
-        if key == "user_scopes":
-            if "contains" in value:
-                # Handle both string and list cases
-                if isinstance(value["contains"], str):
-                    return value["contains"] in context.auth.scopes
-                else:
-                    return any(scope in context.auth.scopes for scope in value["contains"])
+        # Delegate to specific condition evaluators
+        evaluators = {
+            "user_scopes": self._evaluate_user_scopes,
+            "action": self._evaluate_action,
+            "resource": self._evaluate_resource,
+            "checkpoint_id": self._evaluate_checkpoint_id,
+            "user_staff_checkpoint_id": self._evaluate_user_staff_checkpoint_id,
+            "time_window": self._evaluate_time_window,
+        }
+        
+        evaluator = evaluators.get(key)
+        if evaluator:
+            return evaluator(value, context)
+        
+        return False
+    
+    def _evaluate_user_scopes(self, value: Any, context: Context) -> bool:
+        """Evaluate user scope conditions"""
+        if "contains" in value:
+            scope_to_check = value["contains"]
+            if isinstance(scope_to_check, str):
+                return scope_to_check in context.auth.scopes
+            else:
+                return any(scope in context.auth.scopes for scope in scope_to_check)
+        elif "not_in" in value:
+            return not any(scope in context.auth.scopes for scope in value["not_in"])
+        return False
+    
+    def _evaluate_action(self, value: Any, context: Context) -> bool:
+        """Evaluate action conditions"""
+        if isinstance(value, dict):
+            if "in" in value:
+                return context.action.value in value["in"]
             elif "not_in" in value:
-                return not any(scope in context.auth.scopes for scope in value["not_in"])
-        
-        # Action conditions
-        elif key == "action":
-            if isinstance(value, dict):
-                if "in" in value:
-                    return context.action.value in value["in"]
-                elif "not_in" in value:
-                    return context.action.value not in value["not_in"]
-                elif "equals" in value:
-                    return context.action.value == value["equals"]
-            else:
-                return context.action.value == value
-        
-        # Resource conditions
-        elif key == "resource":
-            if isinstance(value, dict):
-                if "equals" in value:
-                    return context.resource.value == value["equals"]
-            else:
-                return context.resource.value == value
-        
-        # Checkpoint ID conditions
-        elif key == "checkpoint_id":
-            if isinstance(value, dict):
-                if "is_not_null" in value and value["is_not_null"]:
-                    return context.checkpoint_id is not None
-                elif "equals" in value:
-                    return context.checkpoint_id == value["equals"]
-            else:
-                return context.checkpoint_id == value
-        
-        # User staff checkpoint ID conditions
-        elif key == "user_staff_checkpoint_id":
-            if isinstance(value, dict):
-                if "equals" in value and value["equals"] == "checkpoint_id":
-                    return context.user.staff_checkpoint_id == context.checkpoint_id
-                elif "is_not_null" in value and value["is_not_null"]:
-                    return context.user.staff_checkpoint_id is not None
-        
-        # Time-based conditions
-        elif key == "time_window" and "hours" in value:
+                return context.action.value not in value["not_in"]
+            elif "equals" in value:
+                return context.action.value == value["equals"]
+        else:
+            return context.action.value == value
+        return False
+    
+    def _evaluate_resource(self, value: Any, context: Context) -> bool:
+        """Evaluate resource conditions"""
+        if isinstance(value, dict):
+            if "equals" in value:
+                return context.resource.value == value["equals"]
+        else:
+            return context.resource.value == value
+        return False
+    
+    def _evaluate_checkpoint_id(self, value: Any, context: Context) -> bool:
+        """Evaluate checkpoint ID conditions"""
+        if isinstance(value, dict):
+            if "is_not_null" in value and value["is_not_null"]:
+                return context.checkpoint_id is not None
+            elif "equals" in value:
+                return context.checkpoint_id == value["equals"]
+        else:
+            return context.checkpoint_id == value
+        return False
+    
+    def _evaluate_user_staff_checkpoint_id(self, value: Any, context: Context) -> bool:
+        """Evaluate user staff checkpoint ID conditions"""
+        if isinstance(value, dict):
+            if "equals" in value and value["equals"] == "checkpoint_id":
+                return context.user.staff_checkpoint_id == context.checkpoint_id
+            elif "is_not_null" in value and value["is_not_null"]:
+                return context.user.staff_checkpoint_id is not None
+        return False
+    
+    def _evaluate_time_window(self, value: Any, context: Context) -> bool:
+        """Evaluate time-based conditions"""
+        if "hours" in value:
             window_start = context.request_time - timedelta(hours=value["hours"])
             return context.request_time >= window_start
-        
         return False
     
     def add_policy(self, policy: Policy):

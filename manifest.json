@@ -6,7 +6,17 @@
     { "name": "rally-staff", "description": "Staff member for rally checkpoints" }
   ],
   "nav": [
-    { "label": "Rally Tascas", "href": "/rally", "requiresScopes": ["manager-rally", "admin"] }
+    { 
+      "label": "Rally Tascas", 
+      "href": "/rally",
+      "requiresScopes": [],
+      "dynamicVisibility": {
+        "endpoint": "/api/rally/v1/rally/settings/public",
+        "field": "public_access_enabled",
+        "value": true,
+        "fallbackScopes": ["manager-rally", "admin"]
+      }
+    }
   ],
 
   "x_notes": [
@@ -19,13 +29,11 @@
     "canManageCheckpoints": ["manager-rally", "admin"]
   },
 
-  "x_api": {
-    "basePath": "/api/rally/v1",
-    "healthPath": "/health"
+  "api": {
+    "port": 8003
   },
-
-  "x_web": {
-    "basePath": "/rally"
+  "web": {
+    "port": 3003
   },
 
   "api": {

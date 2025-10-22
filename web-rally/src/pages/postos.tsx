@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckPointService } from "@/client";
 import { MapPin, Navigation } from "lucide-react";
 import { useState } from "react";
+import useRallySettings from "@/hooks/useRallySettings";
 
 export default function Postos() {
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<any>(null);
+  const { settings } = useRallySettings();
 
   // Fetch checkpoints
   const { data: checkpoints, isLoading } = useQuery({
@@ -37,7 +39,7 @@ export default function Postos() {
     
     const markers = sortedCheckpoints
       .filter(cp => cp.latitude && cp.longitude)
-      .map((cp, index) => `${cp.latitude},${cp.longitude}`)
+      .map((cp) => `${cp.latitude},${cp.longitude}`)
       .join('|');
     
     return `https://www.google.com/maps?q=${markers}&center=${centerLat},${centerLng}&zoom=12`;
@@ -76,14 +78,17 @@ export default function Postos() {
         ) : (
           <div className="space-y-3">
             {sortedCheckpoints.map((checkpoint: any) => (
-              <div
+              <button
                 key={checkpoint.id}
-                className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                type="button"
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
                   selectedCheckpoint?.id === checkpoint.id
                     ? 'bg-[rgb(255,255,255,0.08)] border-[rgb(255,255,255,0.3)]'
                     : 'bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.04)]'
                 }`}
                 onClick={() => setSelectedCheckpoint(checkpoint)}
+                aria-pressed={selectedCheckpoint?.id === checkpoint.id}
+                aria-label={`Selecionar checkpoint ${checkpoint.name}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -99,17 +104,17 @@ export default function Postos() {
                       </div>
                     </div>
                     
-                    {(checkpoint.latitude || checkpoint.longitude) && (
+                    {settings?.show_checkpoint_map !== false && (checkpoint.latitude || checkpoint.longitude) && (
                       <div className="flex items-center gap-2 text-sm text-[rgb(255,255,255,0.6)]">
                         <MapPin className="w-4 h-4" />
                         <span>
-                          {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
+                          {checkpoint.latitude?.toFixed(6) ?? 'N/A'}, {checkpoint.longitude?.toFixed(6) ?? 'N/A'}
                         </span>
                       </div>
                     )}
                   </div>
                   
-                  {(checkpoint.latitude && checkpoint.longitude) && (
+                  {settings?.show_checkpoint_map !== false && (checkpoint.latitude && checkpoint.longitude) && (
                     <a
                       href={`https://www.google.com/maps?q=${checkpoint.latitude},${checkpoint.longitude}`}
                       target="_blank"
@@ -122,14 +127,14 @@ export default function Postos() {
                     </a>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
       {/* Map Section */}
-      {hasCoordinates && (
+      {settings?.show_checkpoint_map !== false && hasCoordinates && (
         <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Navigation className="w-5 h-5" />
@@ -152,7 +157,7 @@ export default function Postos() {
                 Abrir Mapa Completo
               </a>
               
-              {selectedCheckpoint && selectedCheckpoint.latitude && selectedCheckpoint.longitude && (
+              {settings?.show_checkpoint_map !== false && selectedCheckpoint?.latitude && selectedCheckpoint?.longitude && (
                 <a
                   href={`https://www.google.com/maps?q=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
                   target="_blank"

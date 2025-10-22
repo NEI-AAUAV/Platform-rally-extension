@@ -52,6 +52,27 @@ const routes: RouteObject[] = [
           return { Component: Assignment };
         },
       },
+      {
+        path: "/versus",
+        async lazy() {
+          const { default: Versus } = await import("@/pages/versus");
+          return { Component: Versus };
+        },
+      },
+      {
+        path: "/settings",
+        async lazy() {
+          const { default: Settings } = await import("@/pages/settings");
+          return { Component: Settings };
+        },
+      },
+      {
+        path: "/team-members",
+        async lazy() {
+          const { default: TeamMembers } = await import("@/pages/team-members");
+          return { Component: TeamMembers };
+        },
+      },
     ],
   },
 ];

@@ -1,5 +1,5 @@
 import { type ComponentProps, useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "../../ui/button";
 import { cn } from "@/lib/utils";
 import Blood from "./blood";
 import { cva, type VariantProps } from "class-variance-authority";

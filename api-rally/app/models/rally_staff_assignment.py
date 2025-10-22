@@ -1,4 +1,3 @@
-from typing import Optional
 from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 

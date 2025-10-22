@@ -13,8 +13,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { BloodyButton } from "@/components/bloody-button";
-import { Edit, Trash2, Users, MapPin, GripVertical } from "lucide-react";
+import { BloodyButton } from "@/components/themes/bloody";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Edit, Trash2, Users, MapPin, GripVertical, AlertCircle } from "lucide-react";
 import useUser from "@/hooks/useUser";
 
 // Team form schema
@@ -60,6 +61,8 @@ export default function Admin() {
   const {
     mutate: createTeam,
     isPending: isCreatingTeam,
+    error: createTeamError,
+    reset: resetCreateTeamError,
   } = useMutation({
     mutationFn: async (teamData: TeamForm) => {
       const response = await fetch("/api/rally/v1/team/", {
@@ -70,12 +73,19 @@ export default function Admin() {
         },
         body: JSON.stringify(teamData),
       });
-      if (!response.ok) throw new Error("Failed to create team");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to create team");
+      }
       return response.json();
     },
     onSuccess: () => {
       refetchTeams();
       teamForm.reset();
+      resetCreateTeamError();
+    },
+    onError: (error: any) => {
+      console.error("Error creating team:", error);
     },
   });
 
@@ -273,6 +283,7 @@ export default function Admin() {
   const startEditTeam = (team: any) => {
     setEditingTeam(team);
     teamForm.setValue("name", team.name);
+    resetCreateTeamError();
   };
 
   const startEditCheckpoint = (checkpoint: any) => {
@@ -289,6 +300,7 @@ export default function Admin() {
     setEditingCheckpoint(null);
     teamForm.reset();
     checkpointForm.reset();
+    resetCreateTeamError();
   };
 
   // Drag and drop handlers
@@ -378,6 +390,14 @@ export default function Admin() {
             </h3>
             <Form {...teamForm}>
               <form onSubmit={teamForm.handleSubmit(handleTeamSubmit)} className="space-y-4">
+                {createTeamError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {createTeamError.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <FormField
                   control={teamForm.control}
                   name="name"
@@ -424,9 +444,9 @@ export default function Admin() {
                 Nenhuma equipa criada ainda.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-3 list-none">
                 {teams?.map((team: any) => (
-                  <div
+                  <li
                     key={team.id}
                     className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)]"
                   >
@@ -453,9 +473,9 @@ export default function Admin() {
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
@@ -594,15 +614,23 @@ export default function Admin() {
                 Nenhum checkpoint criado ainda.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ul className="space-y-3 list-none">
                 {checkpoints?.sort((a, b) => a.order - b.order).map((checkpoint: any) => (
-                  <div
+                  <li
                     key={checkpoint.id}
                     draggable
+                    aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
                     onDragStart={(e) => handleDragStart(e, checkpoint)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, checkpoint)}
                     onDragEnd={handleDragEnd}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        // Focus management for keyboard users
+                        console.log('Keyboard interaction with checkpoint:', checkpoint.name);
+                      }
+                    }}
                     className={`flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)] cursor-move transition-all ${
                       draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : 'hover:bg-[rgb(255,255,255,0.04)]'
                     }`}
@@ -641,9 +669,9 @@ export default function Admin() {
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>

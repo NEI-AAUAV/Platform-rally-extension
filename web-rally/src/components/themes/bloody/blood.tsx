@@ -1,14 +1,16 @@
 import { cn } from "@/lib/utils";
 
+interface BloodProps {
+  readonly className?: string;
+  readonly variant?: "default" | "primary" | "neutral" | null;
+  readonly isHover?: boolean;
+}
+
 export default function Blood({
   className,
   variant,
   isHover,
-}: {
-  className?: string;
-  variant?: "default" | "primary" | "neutral" | null;
-  isHover?: boolean;
-}) {
+}: BloodProps) {
   const variants = {
     default: isHover ? "RGB(255 255 255 / 0.80)" : "RGB(255 255 255 / 0.95)",
     primary: isHover ? "RGB(220 38 37 / 0.6)" : "RGB(220 38 37)",

@@ -6,11 +6,12 @@ from pydantic import BaseModel, ConfigDict
 class UserBase(BaseModel):
     name: Optional[str] = None
     team_id: Optional[int] = None
+    is_captain: Optional[bool] = False
 
 
 class UserCreate(UserBase):
-    id: int
     name: str
+    email: Optional[str] = None
     staff_checkpoint_id: Optional[int] = None
 
 

@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+
 import type { DetailedUser } from '../models/DetailedUser';
 import type { UserUpdate } from '../models/UserUpdate';
 

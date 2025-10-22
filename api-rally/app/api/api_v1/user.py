@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app import crud
-from app.api import deps
+from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_db, get_admin
+from fastapi import Security
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 
@@ -17,7 +19,7 @@ class CheckpointAssignmentUpdate(BaseModel):
 
 @router.get("/staff-assignments")
 async def get_staff_assignments(
-    *, db: Session = Depends(deps.get_db), _: DetailedUser = Depends(deps.get_admin)
+    *, db: Session = Depends(get_db), _: DetailedUser = Depends(get_admin)
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
     Get all users with rally-staff role from NEI platform and their checkpoint assignments.
@@ -71,21 +73,27 @@ async def get_staff_assignments(
 
 
 @router.get("/me")
-async def get_me(*, user: DetailedUser = Depends(deps.get_participant)) -> DetailedUser:
+async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> dict:
     """
     Get current user information.
-    User management is handled by the NEI platform.
+    Returns the authenticated user from the NEI platform.
     """
-    return user
+    return {
+        "id": auth.sub,
+        "name": f"{auth.name} {auth.surname}",
+        "email": auth.email,
+        "scopes": auth.scopes,
+        "disabled": False
+    }
 
 
 @router.put("/{user_id}/checkpoint-assignment")
 async def update_checkpoint_assignment(
     *,
-    db: Session = Depends(deps.get_db),
+    db: Session = Depends(get_db),
     user_id: int,
     assignment: CheckpointAssignmentUpdate,
-    _: DetailedUser = Depends(deps.get_admin)
+    _: DetailedUser = Depends(get_admin)
 ) -> RallyStaffAssignmentWithCheckpoint:
     """
     Update a user's checkpoint assignment.
