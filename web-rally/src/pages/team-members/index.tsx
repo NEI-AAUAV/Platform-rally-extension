@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Plus, Trash2, UserPlus, AlertCircle } from "lucide-react";
+import { Users, Trash2, UserPlus, AlertCircle } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 
@@ -57,7 +57,7 @@ export default function TeamMembers() {
   });
 
   // Fetch teams
-  const { data: teams, refetch: refetchTeams } = useQuery({
+  const { data: teams } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/team/");

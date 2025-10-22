@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { RallySettingsService, type RallySettingsResponse } from "@/client";
+import { type RallySettingsResponse } from "@/client";
 
 export default function useRallySettings() {
   const { data, isLoading, error, refetch } = useQuery<RallySettingsResponse>({

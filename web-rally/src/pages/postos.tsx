@@ -164,7 +164,7 @@ export default function Postos() {
                 Abrir Mapa Completo
               </a>
               
-              {settings?.show_checkpoint_map !== false && selectedCheckpoint && selectedCheckpoint.latitude && selectedCheckpoint.longitude && (
+              {settings?.show_checkpoint_map !== false && selectedCheckpoint?.latitude && selectedCheckpoint?.longitude && (
                 <a
                   href={`https://www.google.com/maps?q=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
                   target="_blank"

@@ -3,17 +3,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Calendar, Clock, Users, MapPin, Eye, EyeOff, Settings, Save, RotateCcw } from "lucide-react";
-import { RallySettingsService, type RallySettingsResponse, type RallySettingsUpdate } from "@/client";
+import { Calendar, Clock, Users, MapPin, Eye, Settings, Save, RotateCcw } from "lucide-react";
+import { RallySettingsService, type RallySettingsUpdate } from "@/client";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { 
   localDatetimeLocalToUTCISOString, 
   utcISOStringToLocalDatetimeLocal 

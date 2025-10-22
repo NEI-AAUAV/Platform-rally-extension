@@ -203,9 +203,9 @@ export default function Versus() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Equipa A</label>
+              <label htmlFor="team-a-select" className="text-sm font-medium">Equipa A</label>
               <Select value={selectedTeamA} onValueChange={setSelectedTeamA}>
-                <SelectTrigger>
+                <SelectTrigger id="team-a-select">
                   <SelectValue placeholder="Selecionar equipa A" />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,9 +219,9 @@ export default function Versus() {
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-medium">Equipa B</label>
+              <label htmlFor="team-b-select" className="text-sm font-medium">Equipa B</label>
               <Select value={selectedTeamB} onValueChange={setSelectedTeamB}>
-                <SelectTrigger>
+                <SelectTrigger id="team-b-select">
                   <SelectValue placeholder="Selecionar equipa B" />
                 </SelectTrigger>
                 <SelectContent>
