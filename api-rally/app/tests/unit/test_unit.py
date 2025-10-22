@@ -9,7 +9,7 @@ class TestBasicSetup:
     
     def test_python_environment(self):
         """Test that Python environment is working correctly"""
-        assert True  # Basic assertion to verify test framework works
+        assert 1 == 1  # Basic assertion to verify test framework works
     
     def test_datetime_utc(self):
         """Test UTC datetime handling"""

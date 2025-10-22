@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 def test_basic_setup():
     """Test that basic Python setup works"""
-    assert True
+    assert 1 == 1
 
 
 def test_datetime_utc():

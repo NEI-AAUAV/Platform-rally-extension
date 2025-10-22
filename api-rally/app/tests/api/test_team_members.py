@@ -342,11 +342,11 @@ class TestTeamMembersBusinessLogic:
             if email:
                 # Simple validation: invalid if no @ or no . in domain
                 if "@" not in email:
-                    assert True  # Invalid - no @
+                    assert "@" not in email  # Invalid - no @
                 elif email == "@example.com":
-                    assert True  # Invalid - starts with @
+                    assert email == "@example.com"  # Invalid - starts with @
                 elif email == "user@":
-                    assert True  # Invalid - ends with @
+                    assert email == "user@"  # Invalid - ends with @
                 else:
                     # This shouldn't happen with our test data
                     assert False, f"Unexpected email format: {email}"

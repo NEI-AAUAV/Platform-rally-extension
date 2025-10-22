@@ -19,3 +19,4 @@ openssl ec -in jwt.key -pubout -out jwt.key.pub
 
 ## Security Note:
 The private key (`jwt.key`) is excluded from version control via `.gitignore` to prevent accidental exposure. Only the public key (`jwt.key.pub`) is tracked in git as it's safe to share publicly.
+
