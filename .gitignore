@@ -39,3 +39,6 @@ docker-data/test_timezone_conversion.js
 __pycache__/
 *.pyc
 *.log
+
+# JWT keys (keep private key secret)
+dev-keys/jwt.key

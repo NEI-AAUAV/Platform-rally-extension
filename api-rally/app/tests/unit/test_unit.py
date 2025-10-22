@@ -87,3 +87,4 @@ class TestTimezoneHandling:
         assert checkpoint_time.tzinfo is not None
         assert checkpoint_time.tzinfo.utcoffset(checkpoint_time).total_seconds() == 0
 
+
