@@ -5,7 +5,6 @@ from sqlalchemy import select
 from collections import defaultdict
 
 
-from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
 from app.models.team import Team
 

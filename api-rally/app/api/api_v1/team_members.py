@@ -5,8 +5,8 @@ from typing import List
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import require_team_management_permission
-from app.schemas.user import DetailedUser, UserCreate, UserUpdate
-from app.schemas.team_members import TeamMemberAdd, TeamMemberRemove, TeamMemberResponse, TeamMemberUpdate
+from app.schemas.user import DetailedUser, UserCreate
+from app.schemas.team_members import TeamMemberAdd, TeamMemberResponse, TeamMemberUpdate
 from app import crud
 from app.models.user import User
 from app.models.team import Team

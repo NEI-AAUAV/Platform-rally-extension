@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
+
 import type { DetailedCheckPoint } from '../models/DetailedCheckPoint';
 import type { ListingTeam } from '../models/ListingTeam';
 

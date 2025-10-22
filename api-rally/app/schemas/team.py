@@ -1,7 +1,7 @@
-from typing import Optional, List, Annotated
+from typing import Optional, List
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from .user import ListingUser
 

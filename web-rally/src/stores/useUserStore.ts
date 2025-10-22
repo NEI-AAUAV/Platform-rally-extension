@@ -37,7 +37,7 @@ type UserState = TokenPayload & {
   isAuthenticated: boolean;
 };
 
-const useUserStore = create<UserState>((set, get) => ({
+const useUserStore = create<UserState>((set) => ({
   sessionLoading: true,
   isAuthenticated: false,
 

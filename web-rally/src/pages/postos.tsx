@@ -39,7 +39,7 @@ export default function Postos() {
     
     const markers = sortedCheckpoints
       .filter(cp => cp.latitude && cp.longitude)
-      .map((cp, index) => `${cp.latitude},${cp.longitude}`)
+      .map((cp) => `${cp.latitude},${cp.longitude}`)
       .join('|');
     
     return `https://www.google.com/maps?q=${markers}&center=${centerLat},${centerLng}&zoom=12`;

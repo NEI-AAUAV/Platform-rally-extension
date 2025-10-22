@@ -1,3 +1,4 @@
+threshold: medium
 fileignoreconfig:
 - filename: api-rally/app/tests/api/test_auth.py
   checksum: e9f69e992bf4dfa4ed0adda687fe4320f1465dc6ade8d5b532111b77687b4a0d
@@ -7,5 +8,8 @@ fileignoreconfig:
   checksum: bc021b8b46bef1c8fc8e1ff11097b2d804cfc65357edf303b004480249a6c8b5
 - filename: web-rally/pnpm-lock.yaml
   checksum: a98bd85dd394c2eb5ffd6cf2b257350ec93842b1a0ef8a5d4b172871c6c7aa9d
-threshold: medium
+- filename: api-rally/app/tests/conftest.py
+  checksum: 635ebf3ba1ffbf0b4091d3b573fa851889d7b4ac0ca8554737f00d2a5349ddc1
+- filename: dev-keys/jwt.key.pub
+  checksum: 11affec0830eb0430370b8a3e119aef51f314b8ff9fcb8db27912d6a91715069
 version: "1.0"

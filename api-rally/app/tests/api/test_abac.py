@@ -3,7 +3,6 @@ Critical ABAC (Access Control) tests
 """
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime, timezone
 
 from app.core.abac import ABACEngine, Policy, Action, Resource, Context
 from app.api.abac_deps import require_permission, get_staff_with_checkpoint_access

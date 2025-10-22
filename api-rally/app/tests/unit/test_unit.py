@@ -1,7 +1,6 @@
 """
 Unit tests for Rally core functionality
 """
-import pytest
 from datetime import datetime, timezone
 
 

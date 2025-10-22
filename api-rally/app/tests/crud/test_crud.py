@@ -2,7 +2,7 @@
 Comprehensive test mocking strategy for Rally CRUD tests
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 

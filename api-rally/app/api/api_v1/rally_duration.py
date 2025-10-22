@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, api_nei_auth

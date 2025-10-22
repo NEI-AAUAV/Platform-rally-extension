@@ -8,7 +8,7 @@ type NavTabsProps = ComponentProps<"ul">;
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
-  const { scopes, sub } = useUserStore((state) => state);
+  const { scopes } = useUserStore((state) => state);
   
   // Check if user has admin/manager privileges
   const isAdminOrManager = scopes !== undefined && 

@@ -1,7 +1,6 @@
 """
 Simple test to verify basic setup works
 """
-import pytest
 from datetime import datetime, timezone
 
 

@@ -10,11 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
-from app.models.user import User
-from app.models.checkpoint import CheckPoint
-from app.models.team import Team
 from app.schemas.user import DetailedUser
 from app.api.auth import AuthData
 
