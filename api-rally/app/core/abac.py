@@ -76,8 +76,13 @@ class ABACEngine:
     
     def _load_default_policies(self):
         """Load default Rally ABAC policies"""
-        
-        # Policy 1: Admins can do everything
+        self._load_admin_policies()
+        self._load_manager_policies()
+        self._load_staff_policies()
+        self._load_default_deny_policy()
+    
+    def _load_admin_policies(self):
+        """Load admin access policies"""
         self.policies.append(Policy(
             name="admin_full_access",
             description="Admins have full access to all Rally resources",
@@ -87,8 +92,10 @@ class ABACEngine:
             },
             priority=100
         ))
-        
-        # Policy 2: Rally managers can manage checkpoints and teams
+    
+    def _load_manager_policies(self):
+        """Load rally manager access policies"""
+        # Rally managers can manage checkpoints and teams
         self.policies.append(Policy(
             name="rally_manager_access",
             description="Rally managers can manage checkpoints and teams",
@@ -106,41 +113,41 @@ class ABACEngine:
             priority=90
         ))
 
-        # Policy 3: Rally managers can manage versus groups
+        # Rally managers can manage versus groups
         self.policies.append(Policy(
             name="rally_manager_versus_access",
             description="Rally managers can manage versus team pairings",
             effect="allow",
             conditions={
-                "user_scopes" : {"contains" : "manager-rally"},
-                "action" : {"in" : [
+                "user_scopes": {"contains": "manager-rally"},
+                "action": {"in": [
                     Action.CREATE_VERSUS_GROUP.value,
                     Action.VIEW_VERSUS_GROUP.value
-                ],
-                "resource" : {"equals" : Resource.VERSUS_GROUP.value}
-                }
+                ]},
+                "resource": {"equals": Resource.VERSUS_GROUP.value}
             },
             priority=90
         ))
         
-        # Policy 4: Rally managers can manage rally settings
+        # Rally managers can manage rally settings
         self.policies.append(Policy(
             name="rally_manager_settings_access",
             description="Rally managers can manage rally settings",
             effect="allow",
             conditions={
-                "user_scopes" : {"contains" : "manager-rally"},
-                "action" : {"in" : [
+                "user_scopes": {"contains": "manager-rally"},
+                "action": {"in": [
                     Action.UPDATE_RALLY_SETTINGS.value,
                     Action.VIEW_RALLY_SETTINGS.value
-                ],
-                "resource" : {"equals" : Resource.RALLY_SETTINGS.value}
-                }
+                ]},
+                "resource": {"equals": Resource.RALLY_SETTINGS.value}
             },
             priority=90
         ))
-
-        # Policy 5: Staff can only add scores at their assigned checkpoint
+    
+    def _load_staff_policies(self):
+        """Load staff access policies"""
+        # Staff can only add scores at their assigned checkpoint
         self.policies.append(Policy(
             name="staff_checkpoint_restriction",
             description="Staff can only add scores at their assigned checkpoint",
@@ -154,7 +161,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 6: Staff can view teams at their checkpoint
+        # Staff can view teams at their checkpoint
         self.policies.append(Policy(
             name="staff_view_checkpoint_teams",
             description="Staff can view teams at their assigned checkpoint",
@@ -168,7 +175,7 @@ class ABACEngine:
             priority=80
         ))
         
-        # Policy 7: Deny all other staff actions
+        # Deny all other staff actions
         self.policies.append(Policy(
             name="staff_default_deny",
             description="Deny all other staff actions",
@@ -182,8 +189,9 @@ class ABACEngine:
             },
             priority=70
         ))
-        
-        # Policy 8: Default deny for unauthenticated users
+    
+    def _load_default_deny_policy(self):
+        """Load default deny policy for unauthenticated users"""
         self.policies.append(Policy(
             name="default_deny",
             description="Deny all actions for unauthenticated users",
