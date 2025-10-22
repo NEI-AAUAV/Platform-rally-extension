@@ -35,4 +35,4 @@ yarn-error.log*
 
 # Docker/local data
 volumes/
-docker-data/
+docker-data/test_timezone_conversion.js
