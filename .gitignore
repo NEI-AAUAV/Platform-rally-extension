@@ -36,3 +36,6 @@ yarn-error.log*
 # Docker/local data
 volumes/
 docker-data/test_timezone_conversion.js
+__pycache__/
+*.pyc
+*.log
