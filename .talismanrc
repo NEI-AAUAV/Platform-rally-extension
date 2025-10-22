@@ -1,1 +1,5 @@
+fileignoreconfig:
+- filename: web-rally/package-lock.json
+  checksum: bc021b8b46bef1c8fc8e1ff11097b2d804cfc65357edf303b004480249a6c8b5
 threshold: medium
+version: "1.0"
