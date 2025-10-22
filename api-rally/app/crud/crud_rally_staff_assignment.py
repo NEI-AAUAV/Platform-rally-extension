@@ -26,7 +26,7 @@ class CRUDRallyStaffAssignment(CRUDBase[RallyStaffAssignment, RallyStaffAssignme
         stmt = select(RallyStaffAssignment).options(selectinload(RallyStaffAssignment.checkpoint))
         return db.scalars(stmt).all()
     
-    def create_or_update(self, db: Session, *, user_id: int, checkpoint_id: Optional[int] = None) -> RallyStaffAssignment:
+    def create_or_update(self, db: Session, *, user_id: int, checkpoint_id: Optional[int] = None) -> Optional[RallyStaffAssignment]:
         """Create or update staff assignment for a user"""
         existing = self.get_by_user_id(db, user_id)
         

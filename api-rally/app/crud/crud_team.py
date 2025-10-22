@@ -38,7 +38,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         ]
 
         min_time_scores = [
-            min(map(lambda s: s if s != 0 else math.inf, scores))
+            min((s if s != 0 else math.inf) for s in scores)
             for scores in zip(*all_time_scores)
         ]
 
