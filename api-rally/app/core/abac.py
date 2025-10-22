@@ -225,61 +225,81 @@ class ABACEngine:
     def _evaluate_condition(self, key: str, value: Any, context: Context) -> bool:
         """Evaluate a single condition"""
         
-        # User scope conditions
-        if key == "user_scopes":
-            if "contains" in value:
-                # Handle both string and list cases
-                if isinstance(value["contains"], str):
-                    return value["contains"] in context.auth.scopes
-                else:
-                    return any(scope in context.auth.scopes for scope in value["contains"])
+        # Delegate to specific condition evaluators
+        evaluators = {
+            "user_scopes": self._evaluate_user_scopes,
+            "action": self._evaluate_action,
+            "resource": self._evaluate_resource,
+            "checkpoint_id": self._evaluate_checkpoint_id,
+            "user_staff_checkpoint_id": self._evaluate_user_staff_checkpoint_id,
+            "time_window": self._evaluate_time_window,
+        }
+        
+        evaluator = evaluators.get(key)
+        if evaluator:
+            return evaluator(value, context)
+        
+        return False
+    
+    def _evaluate_user_scopes(self, value: Any, context: Context) -> bool:
+        """Evaluate user scope conditions"""
+        if "contains" in value:
+            scope_to_check = value["contains"]
+            if isinstance(scope_to_check, str):
+                return scope_to_check in context.auth.scopes
+            else:
+                return any(scope in context.auth.scopes for scope in scope_to_check)
+        elif "not_in" in value:
+            return not any(scope in context.auth.scopes for scope in value["not_in"])
+        return False
+    
+    def _evaluate_action(self, value: Any, context: Context) -> bool:
+        """Evaluate action conditions"""
+        if isinstance(value, dict):
+            if "in" in value:
+                return context.action.value in value["in"]
             elif "not_in" in value:
-                return not any(scope in context.auth.scopes for scope in value["not_in"])
-        
-        # Action conditions
-        elif key == "action":
-            if isinstance(value, dict):
-                if "in" in value:
-                    return context.action.value in value["in"]
-                elif "not_in" in value:
-                    return context.action.value not in value["not_in"]
-                elif "equals" in value:
-                    return context.action.value == value["equals"]
-            else:
-                return context.action.value == value
-        
-        # Resource conditions
-        elif key == "resource":
-            if isinstance(value, dict):
-                if "equals" in value:
-                    return context.resource.value == value["equals"]
-            else:
-                return context.resource.value == value
-        
-        # Checkpoint ID conditions
-        elif key == "checkpoint_id":
-            if isinstance(value, dict):
-                if "is_not_null" in value and value["is_not_null"]:
-                    return context.checkpoint_id is not None
-                elif "equals" in value:
-                    return context.checkpoint_id == value["equals"]
-            else:
-                return context.checkpoint_id == value
-        
-        # User staff checkpoint ID conditions
-        elif key == "user_staff_checkpoint_id":
-            if isinstance(value, dict):
-                if "equals" in value and value["equals"] == "checkpoint_id":
-                    return context.user.staff_checkpoint_id == context.checkpoint_id
-                elif "is_not_null" in value and value["is_not_null"]:
-                    return context.user.staff_checkpoint_id is not None
-        
-        # Time-based conditions
-        elif key == "time_window":
-            if "hours" in value:
-                window_start = context.request_time - timedelta(hours=value["hours"])
-                return context.request_time >= window_start
-        
+                return context.action.value not in value["not_in"]
+            elif "equals" in value:
+                return context.action.value == value["equals"]
+        else:
+            return context.action.value == value
+        return False
+    
+    def _evaluate_resource(self, value: Any, context: Context) -> bool:
+        """Evaluate resource conditions"""
+        if isinstance(value, dict):
+            if "equals" in value:
+                return context.resource.value == value["equals"]
+        else:
+            return context.resource.value == value
+        return False
+    
+    def _evaluate_checkpoint_id(self, value: Any, context: Context) -> bool:
+        """Evaluate checkpoint ID conditions"""
+        if isinstance(value, dict):
+            if "is_not_null" in value and value["is_not_null"]:
+                return context.checkpoint_id is not None
+            elif "equals" in value:
+                return context.checkpoint_id == value["equals"]
+        else:
+            return context.checkpoint_id == value
+        return False
+    
+    def _evaluate_user_staff_checkpoint_id(self, value: Any, context: Context) -> bool:
+        """Evaluate user staff checkpoint ID conditions"""
+        if isinstance(value, dict):
+            if "equals" in value and value["equals"] == "checkpoint_id":
+                return context.user.staff_checkpoint_id == context.checkpoint_id
+            elif "is_not_null" in value and value["is_not_null"]:
+                return context.user.staff_checkpoint_id is not None
+        return False
+    
+    def _evaluate_time_window(self, value: Any, context: Context) -> bool:
+        """Evaluate time-based conditions"""
+        if "hours" in value:
+            window_start = context.request_time - timedelta(hours=value["hours"])
+            return context.request_time >= window_start
         return False
     
     def add_policy(self, policy: Policy):

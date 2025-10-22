@@ -52,7 +52,7 @@ export const createClient = (baseURL?: string) => {
     },
     (error) => {
       // Do something with request error
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     },
   );
 
@@ -89,7 +89,7 @@ export const createClient = (baseURL?: string) => {
           });
         });
       }
-      return Promise.reject(error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     },
   );
   return client;

@@ -9,7 +9,10 @@ function parseJWT(token: string) {
     window
       .atob(base64 ?? "")
       .split("")
-      .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+      .map((c) => {
+        const hex = c.charCodeAt(0).toString(16).padStart(2, '0');
+        return `%${hex}`;
+      })
       .join(""),
   );
   return JSON.parse(jsonPayload) as TokenPayload;

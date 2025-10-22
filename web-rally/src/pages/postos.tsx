@@ -80,12 +80,22 @@ export default function Postos() {
             {sortedCheckpoints.map((checkpoint: any) => (
               <div
                 key={checkpoint.id}
+                role="button"
+                tabIndex={0}
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
                   selectedCheckpoint?.id === checkpoint.id
                     ? 'bg-[rgb(255,255,255,0.08)] border-[rgb(255,255,255,0.3)]'
                     : 'bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.04)]'
                 }`}
                 onClick={() => setSelectedCheckpoint(checkpoint)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedCheckpoint(checkpoint);
+                  }
+                }}
+                aria-pressed={selectedCheckpoint?.id === checkpoint.id}
+                aria-label={`Selecionar checkpoint ${checkpoint.name}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -105,7 +115,7 @@ export default function Postos() {
                       <div className="flex items-center gap-2 text-sm text-[rgb(255,255,255,0.6)]">
                         <MapPin className="w-4 h-4" />
                         <span>
-                          {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
+                          {checkpoint.latitude?.toFixed(6) ?? 'N/A'}, {checkpoint.longitude?.toFixed(6) ?? 'N/A'}
                         </span>
                       </div>
                     )}

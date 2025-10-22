@@ -15,6 +15,74 @@ import useUser from "@/hooks/useUser";
 export default function Assignment() {
   const { isLoading, userStoreStuff } = useUser();
   
+  // Helper function to render assignment content
+  const renderAssignmentContent = () => {
+    if (rallyStaffAssignments.length === 0) {
+      return (
+        <div className="text-center text-[rgb(255,255,255,0.7)] py-8">
+          Nenhuma atribuição de staff encontrada.
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-4">
+        {rallyStaffAssignments.map((assignment: any) => (
+          <div
+            key={assignment.id}
+            className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[rgb(255,255,255,0.1)] rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-semibold">
+                  {assignment.user_name || `User ${assignment.user_id}`}
+                </div>
+                <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                  {assignment.user_email && `${assignment.user_email} • `}ID: {assignment.user_id}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                <span className="text-sm">
+                  Checkpoint: {assignment.checkpoint_name || "Não atribuído"}
+                </span>
+              </div>
+
+              <Select
+                value={assignment.checkpoint_id ? String(assignment.checkpoint_id) : "none"}
+                onValueChange={(value: string) => {
+                  if (value === "none") {
+                    handleUpdateAssignment(assignment.user_id, 0); // Use 0 to indicate no assignment
+                  } else {
+                    handleUpdateAssignment(assignment.user_id, parseInt(value));
+                  }
+                }}
+              >
+                <SelectTrigger className="w-48 rounded-xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]">
+                  <SelectValue placeholder="Reatribuir checkpoint" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Remover atribuição</SelectItem>
+                  {checkpoints?.map((checkpoint: any) => (
+                    <SelectItem key={checkpoint.id} value={String(checkpoint.id)}>
+                      {checkpoint.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+  
   // Check if user is manager-rally or admin
   const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
                    userStoreStuff.scopes?.includes("admin");
@@ -120,65 +188,8 @@ export default function Assignment() {
               Contacte um administrador para resolver este problema.
             </p>
           </div>
-        ) : rallyStaffAssignments.length === 0 ? (
-          <div className="text-center text-[rgb(255,255,255,0.7)] py-8">
-            Nenhuma atribuição de staff encontrada.
-          </div>
         ) : (
-          <div className="space-y-4">
-            {rallyStaffAssignments.map((assignment: any) => (
-              <div
-                key={assignment.id}
-                className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[rgb(255,255,255,0.1)] rounded-full flex items-center justify-center">
-                    <Users className="w-5 h-5" />
-                  </div>
-                         <div>
-                           <div className="font-semibold">
-                             {assignment.user_name || `User ${assignment.user_id}`}
-                           </div>
-                           <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                             {assignment.user_email && `${assignment.user_email} • `}ID: {assignment.user_id}
-                           </div>
-                         </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-sm">
-                      Checkpoint: {assignment.checkpoint_name || "Não atribuído"}
-                    </span>
-                  </div>
-
-                  <Select
-                    value={assignment.checkpoint_id ? String(assignment.checkpoint_id) : "none"}
-                    onValueChange={(value: string) => {
-                      if (value === "none") {
-                        handleUpdateAssignment(assignment.user_id, 0); // Use 0 to indicate no assignment
-                      } else {
-                        handleUpdateAssignment(assignment.user_id, parseInt(value));
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-48 rounded-xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]">
-                      <SelectValue placeholder="Reatribuir checkpoint" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Remover atribuição</SelectItem>
-                      {checkpoints?.map((checkpoint: any) => (
-                        <SelectItem key={checkpoint.id} value={String(checkpoint.id)}>
-                          {checkpoint.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ))}
-          </div>
+          renderAssignmentContent()
         )}
 
         {isSuccessUpdate && (

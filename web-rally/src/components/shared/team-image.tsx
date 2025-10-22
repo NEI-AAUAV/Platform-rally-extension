@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-export default function TeamImage({ teamId }: { teamId: number }) {
+interface TeamImageProps {
+  readonly teamId: number;
+}
+
+export default function TeamImage({ teamId }: TeamImageProps) {
   const [image, setImage] = useState<null | string>(null);
   useEffect(() => {
     import(`@/public/team-images/team-${teamId}.png`)
@@ -17,7 +21,7 @@ export default function TeamImage({ teamId }: { teamId: number }) {
       <img
         className="h-full object-cover object-top pt-4 text-center font-light"
         src={image ?? ""}
-        alt="Picture"
+        alt={`Team ${teamId}`}
       />
     </div>
   );

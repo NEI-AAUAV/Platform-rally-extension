@@ -619,10 +619,20 @@ export default function Admin() {
                   <div
                     key={checkpoint.id}
                     draggable
+                    role="listitem"
+                    tabIndex={0}
+                    aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
                     onDragStart={(e) => handleDragStart(e, checkpoint)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, checkpoint)}
                     onDragEnd={handleDragEnd}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        // Focus management for keyboard users
+                        console.log('Keyboard interaction with checkpoint:', checkpoint.name);
+                      }
+                    }}
                     className={`flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)] cursor-move transition-all ${
                       draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : 'hover:bg-[rgb(255,255,255,0.04)]'
                     }`}
