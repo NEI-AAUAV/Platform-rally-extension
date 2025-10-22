@@ -11,7 +11,7 @@ from app.core.config import SettingsDep
 
 @cached()
 @no_type_check
-def get_public_key(settings: SettingsDep) -> str:
+async def get_public_key(settings: SettingsDep) -> str:
     with open(settings.JWT_PUBLIC_KEY_PATH, "r") as file:
         return file.read()
 
@@ -42,7 +42,7 @@ class AuthData(BaseModel):
     scopes: List[str]
 
 
-def api_nei_auth(
+async def api_nei_auth(
     settings: SettingsDep,
     public_key: Annotated[str, Depends(get_public_key)],
     security_scopes: SecurityScopes,

@@ -446,7 +446,7 @@ export default function Admin() {
             ) : (
               <ul className="space-y-3 list-none">
                 {teams?.map((team: any) => (
-                  <div
+                  <li
                     key={team.id}
                     className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)]"
                   >
@@ -454,8 +454,8 @@ export default function Admin() {
                       <div className="font-semibold">{team.name}</div>
                       <div className="text-sm text-[rgb(255,255,255,0.7)]">
                         Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
-                      </li>
-                    </li>
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <BloodyButton
                         variant="neutral"
@@ -472,7 +472,7 @@ export default function Admin() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
-                    </li>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -560,7 +560,7 @@ export default function Admin() {
                       </FormItem>
                     )}
                   />
-                </ul>
+                </div>
                 <FormField
                   control={checkpointForm.control}
                   name="order"
@@ -596,7 +596,7 @@ export default function Admin() {
                       Cancelar
                     </BloodyButton>
                   )}
-                </ul>
+                </div>
               </form>
             </Form>
           </div>
@@ -639,19 +639,19 @@ export default function Admin() {
                       <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
                         <GripVertical className="w-4 h-4" />
                         <span className="text-xs font-mono">{checkpoint.order}</span>
-                      </li>
+                      </div>
                       <div>
                         <div className="font-semibold">{checkpoint.name}</div>
                         <div className="text-sm text-[rgb(255,255,255,0.7)]">
                           {checkpoint.description}
-                        </li>
+                        </div>
                         {(checkpoint.latitude || checkpoint.longitude) && (
                           <div className="text-xs text-[rgb(255,255,255,0.5)]">
                             📍 {checkpoint.latitude}, {checkpoint.longitude}
-                          </li>
+                          </div>
                         )}
-                      </li>
-                    </li>
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <BloodyButton
                         variant="neutral"
@@ -668,7 +668,7 @@ export default function Admin() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </BloodyButton>
-                    </li>
+                    </div>
                   </li>
                 ))}
               </ul>
