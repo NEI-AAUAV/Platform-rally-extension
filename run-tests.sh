@@ -107,3 +107,4 @@ echo "📁 Test artifacts:"
 echo "   - API coverage: extensions/rally/api-rally/coverage/"
 echo "   - Frontend coverage: extensions/rally/web-rally/coverage/"
 echo "   - Test results: extensions/rally/api-rally/test-results.xml"
+

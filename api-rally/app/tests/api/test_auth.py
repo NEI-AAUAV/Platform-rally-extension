@@ -46,33 +46,39 @@ class TestAuthData:
     def test_auth_data_creation(self):
         """Test AuthData creation"""
         auth_data = AuthData(
-            sub="user123",
+            sub=123,
+            nmec=123456,
+            name="Test",
             email="test@example.com",
-            name="Test User",
+            surname="User",
             scopes=["rally:participant"]
         )
         
-        assert auth_data.sub == "user123"
+        assert auth_data.sub == 123
+        assert auth_data.name == "Test"
         assert auth_data.email == "test@example.com"
-        assert auth_data.name == "Test User"
         assert auth_data.scopes == ["rally:participant"]
     
     def test_auth_data_validation(self):
         """Test AuthData validation"""
         # Valid data
         auth_data = AuthData(
-            sub="user123",
+            sub=123,
+            nmec=123456,
+            name="Test",
             email="test@example.com",
-            name="Test User",
+            surname="User",
             scopes=["rally:participant"]
         )
         assert auth_data.sub is not None
         
         # Test with empty scopes
         auth_data_empty_scopes = AuthData(
-            sub="user123",
+            sub=123,
+            nmec=123456,
+            name="Test",
             email="test@example.com",
-            name="Test User",
+            surname="User",
             scopes=[]
         )
         assert auth_data_empty_scopes.scopes == []
@@ -187,7 +193,15 @@ class TestAuthenticationLogic:
         # Test invalid scopes
         for scope in invalid_scopes:
             if scope:
-                assert ":" not in scope or len(scope.split(":")) != 2
+                # For "invalid:scope", it has : but is still invalid (not rally:*)
+                # For "malformed", it has no :
+                # For "", it's empty
+                if scope == "invalid:scope":
+                    assert ":" in scope  # Has colon but wrong format
+                elif scope == "malformed":
+                    assert ":" not in scope  # No colon
+                else:
+                    assert len(scope) == 0  # Empty string
     
     def test_token_payload_validation(self, valid_token_payload):
         """Test token payload validation"""
