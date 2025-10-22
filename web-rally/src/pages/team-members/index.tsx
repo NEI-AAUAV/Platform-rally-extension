@@ -110,9 +110,11 @@ export default function TeamMembers() {
       refetchTeamMembers();
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Error adding member:", error);
-      console.log("Error details:", error.message);
+      if (error instanceof Error) {
+        console.log("Error details:", error.message);
+      }
     },
   });
 

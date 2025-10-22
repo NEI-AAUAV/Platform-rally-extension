@@ -91,7 +91,7 @@ export default function Versus() {
       setSelectedTeamA("");
       setSelectedTeamB("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error("Error creating versus pair:", error);
     },
   });
