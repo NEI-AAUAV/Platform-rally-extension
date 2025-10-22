@@ -12,8 +12,8 @@ class RallySettings(Base):
     enable_versus = Column(Boolean, nullable=False, default=False)
     
     # Rally timing
-    rally_start_time = Column(DateTime, nullable=True)
-    rally_end_time = Column(DateTime, nullable=True)
+    rally_start_time = Column(DateTime(timezone=True), nullable=True)
+    rally_end_time = Column(DateTime(timezone=True), nullable=True)
     
     # Scoring system
     penalty_per_puke = Column(Integer, nullable=False, default=-5)

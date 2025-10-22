@@ -113,3 +113,5 @@ const themeMapping: Record<string, ThemeName> = {
 - Import paths have been updated throughout the codebase
 - Direct imports still work for backward compatibility
 - Theme context is ready for future theme switching implementation
+
+

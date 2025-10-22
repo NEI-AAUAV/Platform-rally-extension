@@ -14,6 +14,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { 
+  localDatetimeLocalToUTCISOString, 
+  utcISOStringToLocalDatetimeLocal 
+} from "@/utils/timezone";
 
 const rallySettingsSchema = z.object({
   // Team management
@@ -92,8 +96,8 @@ export default function RallySettings() {
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
                enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
-        rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
+        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
@@ -134,8 +138,8 @@ export default function RallySettings() {
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
                enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? settings.rally_start_time.substring(0, 16) : null,
-        rally_end_time: settings.rally_end_time ? settings.rally_end_time.substring(0, 16) : null,
+        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
@@ -319,7 +323,7 @@ export default function RallySettings() {
                 id="rally_start_time"
                 type="datetime-local"
                 {...form.register("rally_start_time", {
-                  setValueAs: (value) => value ? new Date(value).toISOString() : null
+                  setValueAs: (value) => value ? localDatetimeLocalToUTCISOString(value) : null
                 })}
                 disabled={!isEditing}
               />
@@ -331,7 +335,7 @@ export default function RallySettings() {
                 id="rally_end_time"
                 type="datetime-local"
                 {...form.register("rally_end_time", {
-                  setValueAs: (value) => value ? new Date(value).toISOString() : null
+                  setValueAs: (value) => value ? localDatetimeLocalToUTCISOString(value) : null
                 })}
                 disabled={!isEditing}
               />

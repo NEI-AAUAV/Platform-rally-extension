@@ -149,8 +149,8 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team = self.get(db=db, id=id, for_update=True)
             settings = rally_settings.get_or_create(db)
 
-            # Time-based validation
-            current_time = datetime.now()
+            # Time-based validation (using UTC)
+            current_time = datetime.utcnow()
             if settings.rally_start_time and current_time < settings.rally_start_time:
                 raise APIException(
                     status_code=400, 
