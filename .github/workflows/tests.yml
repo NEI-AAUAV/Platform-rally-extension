@@ -1,0 +1,231 @@
+name: Rally Extension Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'extensions/rally/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'extensions/rally/**'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - api
+        - frontend
+        - integration
+      coverage:
+        description: 'Generate coverage reports'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'api' || github.event.inputs.test_type == '' }}
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: extensions/rally/api-rally/.venv
+        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        
+    - name: Install dependencies
+      working-directory: extensions/rally/api-rally
+      run: |
+        poetry install --no-interaction --no-root
+        
+    - name: Create test database
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+      env:
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: postgres_test
+        
+    - name: Run API tests
+      working-directory: extensions/rally/api-rally
+      run: |
+        if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
+          poetry run pytest app/tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+        else
+          poetry run pytest app/tests/ -v --junitxml=test-results.xml
+        fi
+      env:
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: postgres_test
+        
+    - name: Upload API test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: api-test-results
+        path: |
+          extensions/rally/api-rally/test-results.xml
+          extensions/rally/api-rally/coverage/
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'frontend' || github.event.inputs.test_type == '' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: extensions/rally/web-rally/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: extensions/rally/web-rally
+      run: npm ci
+      
+    - name: Run frontend tests
+      working-directory: extensions/rally/web-rally
+      run: |
+        if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
+          npm run test -- --run --coverage --reporter=verbose
+        else
+          npm run test -- --run --reporter=verbose
+        fi
+        
+    - name: Upload frontend test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: frontend-test-results
+        path: |
+          extensions/rally/web-rally/coverage/
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-api, test-frontend]
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration' || github.event.inputs.test_type == '' }}
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        
+    - name: Install API dependencies
+      working-directory: extensions/rally/api-rally
+      run: |
+        poetry install --no-interaction --no-root
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: extensions/rally/web-rally/package-lock.json
+        
+    - name: Install frontend dependencies
+      working-directory: extensions/rally/web-rally
+      run: npm ci
+      
+    - name: Download API test results
+      uses: actions/download-artifact@v3
+      with:
+        name: api-test-results
+        path: extensions/rally/api-rally/
+        
+    - name: Download frontend test results
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-test-results
+        path: extensions/rally/web-rally/coverage/
+        
+    - name: Run integration tests
+      working-directory: extensions/rally
+      run: |
+        chmod +x run-tests.sh
+        ./run-tests.sh
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
+        
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: |
+          extensions/rally/api-rally/test-results.xml
+          extensions/rally/api-rally/coverage/
+          extensions/rally/web-rally/coverage/

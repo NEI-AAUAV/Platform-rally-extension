@@ -431,7 +431,7 @@ export default function Admin() {
                       Cancelar
                     </BloodyButton>
                   )}
-                </ul>
+                </div>
               </form>
             </Form>
           </div>
