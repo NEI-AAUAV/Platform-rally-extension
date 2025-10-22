@@ -16,7 +16,9 @@
  * localDatetimeLocalToUTCISOString("2024-01-15T14:30")
  * // Returns: "2024-01-15T13:30:00.000Z" (if in UTC+1 timezone)
  */
-export function localDatetimeLocalToUTCISOString(value: string): string {
+export function localDatetimeLocalToUTCISOString(value: string | null): string | null {
+  if (!value) return null;
+  
   // value format: YYYY-MM-DDTHH:mm
   // Parse the datetime-local string and create a Date object in local timezone
   const [datePart, timePart] = value.split('T');
@@ -41,16 +43,24 @@ export function localDatetimeLocalToUTCISOString(value: string): string {
  * utcISOStringToLocalDatetimeLocal("2024-01-15T13:30:00.000Z")
  * // Returns: "2024-01-15T14:30" (if in UTC+1 timezone)
  */
-export function utcISOStringToLocalDatetimeLocal(utc: string): string {
-  // Convert UTC ISO string to local datetime-local string (YYYY-MM-DDTHH:mm)
-  const d = new Date(utc);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+export function utcISOStringToLocalDatetimeLocal(utc: string | null): string | null {
+  if (!utc) return null;
+  
+  try {
+    // Convert UTC ISO string to local datetime-local string (YYYY-MM-DDTHH:mm)
+    const d = new Date(utc);
+    if (isNaN(d.getTime())) return null;
+    
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -178,5 +188,79 @@ export function isValidDatetimeLocalString(str: string): boolean {
     return !isNaN(d.getTime()) && regex.exec(str) !== null;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Formats a datetime for display purposes
+ * 
+ * @param datetime - UTC ISO string or datetime-local string
+ * @returns Formatted datetime string
+ */
+export function formatDatetimeForDisplay(datetime: string | null): string | null {
+  if (!datetime) return 'N/A';
+  
+  try {
+    const d = new Date(datetime);
+    if (isNaN(d.getTime())) return 'N/A';
+    
+    // Format as MM/DD/YYYY HH:mm
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const year = d.getFullYear();
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${month}/${day}/${year} ${hours}:${minutes}`;
+  } catch {
+    return 'N/A';
+  }
+}
+
+/**
+ * Gets the timezone offset in minutes
+ * 
+ * @returns Timezone offset in minutes
+ */
+export function getTimezoneOffset(): number {
+  return new Date().getTimezoneOffset();
+}
+
+/**
+ * Parses a datetime-local string
+ * 
+ * @param str - datetime-local string
+ * @returns Date object or null if invalid
+ */
+export function parseDatetimeLocal(str: string | null): Date | null {
+  if (!str) return null;
+  
+  try {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Formats a Date object to datetime-local string
+ * 
+ * @param date - Date object
+ * @returns datetime-local string or null if invalid
+ */
+export function formatDatetimeLocal(date: Date | null): string | null {
+  if (!date) return null;
+  
+  try {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return null;
   }
 }

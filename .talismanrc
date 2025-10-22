@@ -1,4 +1,6 @@
 fileignoreconfig:
+- filename: api-rally/poetry.lock
+  checksum: 674ba48dac5cf377bd40865ddf7bc08c881a94b3dd7e3d9be51cc0104cc43289
 - filename: web-rally/package-lock.json
   checksum: bc021b8b46bef1c8fc8e1ff11097b2d804cfc65357edf303b004480249a6c8b5
 - filename: web-rally/pnpm-lock.yaml

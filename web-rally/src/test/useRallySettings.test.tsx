@@ -65,7 +65,7 @@ describe('useRallySettings Hook', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(result.current.data).toEqual(mockSettings)
+    expect(result.current.settings).toEqual(mockSettings)
     expect(result.current.error).toBeNull()
     expect(mockFetch).toHaveBeenCalledWith('/api/rally/v1/rally/settings/public')
   })
@@ -80,7 +80,7 @@ describe('useRallySettings Hook', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(result.current.data).toBeUndefined()
+    expect(result.current.settings).toBeUndefined()
     expect(result.current.error).toBeTruthy()
   })
 
@@ -98,7 +98,7 @@ describe('useRallySettings Hook', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(result.current.data).toBeUndefined()
+    expect(result.current.settings).toBeUndefined()
     expect(result.current.error).toBeTruthy()
   })
 
@@ -109,7 +109,7 @@ describe('useRallySettings Hook', () => {
     const { result } = renderHook(() => useRallySettings(), { wrapper })
 
     expect(result.current.isLoading).toBe(true)
-    expect(result.current.data).toBeUndefined()
+    expect(result.current.settings).toBeUndefined()
     expect(result.current.error).toBeNull()
   })
 
@@ -161,7 +161,7 @@ describe('useRallySettings Hook', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(result.current.data).toBeUndefined()
+    expect(result.current.settings).toBeUndefined()
     expect(result.current.error).toBeTruthy()
   })
 
@@ -191,6 +191,6 @@ describe('useRallySettings Hook', () => {
     })
 
     // Verify the query key is used correctly
-    expect(result.current.data).toEqual(mockSettings)
+    expect(result.current.settings).toEqual(mockSettings)
   })
 })

@@ -32,10 +32,14 @@ type UserState = TokenPayload & {
   token?: string;
   login: ({ token }: { token: string }) => void;
   logout: () => void;
+  setUser: (userData: Partial<TokenPayload>) => void;
+  clearUser: () => void;
+  isAuthenticated: boolean;
 };
 
-const useUserStore = create<UserState>((set) => ({
+const useUserStore = create<UserState>((set, get) => ({
   sessionLoading: true,
+  isAuthenticated: false,
 
   login: ({ token }) => {
     const payload: TokenPayload = token ? parseJWT(token) : {};
@@ -46,6 +50,7 @@ const useUserStore = create<UserState>((set) => ({
       ...state,
       token,
       sessionLoading: false,
+      isAuthenticated: !!payload.sub,
       ...payload,
     }));
   },
@@ -53,10 +58,33 @@ const useUserStore = create<UserState>((set) => ({
   logout: () => {
     set(() => ({
       sessionLoading: false,
+      isAuthenticated: false,
       image: undefined,
       sub: undefined,
       name: undefined,
       surname: undefined,
+      token: undefined,
+    }));
+  },
+
+  setUser: (userData: Partial<TokenPayload>) => {
+    set((state) => ({
+      ...state,
+      ...userData,
+      isAuthenticated: !!userData.sub || !!state.sub,
+    }));
+  },
+
+  clearUser: () => {
+    set(() => ({
+      sessionLoading: false,
+      isAuthenticated: false,
+      image: undefined,
+      sub: undefined,
+      name: undefined,
+      surname: undefined,
+      email: undefined,
+      scopes: undefined,
       token: undefined,
     }));
   },
