@@ -27,6 +27,25 @@ class Action(Enum):
     UPDATE_RALLY_SETTINGS = "update_rally_settings"
     CREATE_VERSUS_GROUP = "create_versus_group"
     VIEW_VERSUS_GROUP = "view_versus_group"
+    
+    # Activity actions
+    CREATE_ACTIVITY = "create_activity"
+    VIEW_ACTIVITY = "view_activity"
+    UPDATE_ACTIVITY = "update_activity"
+    DELETE_ACTIVITY = "delete_activity"
+    CREATE_ACTIVITY_RESULT = "create_activity_result"
+    VIEW_ACTIVITY_RESULT = "view_activity_result"
+    UPDATE_ACTIVITY_RESULT = "update_activity_result"
+    
+    # Rally event actions
+    CREATE_RALLY_EVENT = "create_rally_event"
+    VIEW_RALLY_EVENT = "view_rally_event"
+    UPDATE_RALLY_EVENT = "update_rally_event"
+    
+    # Rally configuration actions
+    VIEW_RALLY_CONFIG = "view_rally_config"
+    UPDATE_RALLY_CONFIG = "update_rally_config"
+    DELETE_RALLY_EVENT = "delete_rally_event"
 
 
 class Resource(Enum):
@@ -36,6 +55,10 @@ class Resource(Enum):
     SCORE = "score"
     RALLY_SETTINGS = "rally_settings"
     VERSUS_GROUP = "versus_group"
+    ACTIVITY = "activity"
+    ACTIVITY_RESULT = "activity_result"
+    RALLY_EVENT = "rally_event"
+    RALLY_CONFIG = "rally_config"
 
 
 @dataclass
@@ -107,7 +130,17 @@ class ABACEngine:
                     Action.UPDATE_CHECKPOINT.value,
                     Action.CREATE_TEAM.value,
                     Action.UPDATE_TEAM.value,
-                    Action.VIEW_CHECKPOINT_TEAMS.value
+                    Action.VIEW_CHECKPOINT_TEAMS.value,
+                    Action.CREATE_ACTIVITY.value,
+                    Action.VIEW_ACTIVITY.value,
+                    Action.UPDATE_ACTIVITY.value,
+                    Action.DELETE_ACTIVITY.value,
+                    Action.CREATE_RALLY_EVENT.value,
+                    Action.VIEW_RALLY_EVENT.value,
+                    Action.UPDATE_RALLY_EVENT.value,
+                    Action.DELETE_RALLY_EVENT.value,
+                    Action.VIEW_RALLY_CONFIG.value,
+                    Action.UPDATE_RALLY_CONFIG.value
                 ]}
             },
             priority=90
@@ -175,6 +208,38 @@ class ABACEngine:
             priority=80
         ))
         
+        # Staff can create and view activity results at their assigned checkpoint
+        self.policies.append(Policy(
+            name="staff_activity_results_access",
+            description="Staff can manage activity results at their assigned checkpoint",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "rally-staff"},
+                "action": {"in": [
+                    Action.CREATE_ACTIVITY_RESULT.value,
+                    Action.VIEW_ACTIVITY_RESULT.value,
+                    Action.UPDATE_ACTIVITY_RESULT.value
+                ]},
+                "user_staff_checkpoint_id": {"equals": "checkpoint_id"},
+                "checkpoint_id": {"is_not_null": True}
+            },
+            priority=80
+        ))
+        
+        # Staff can view activities at their checkpoint
+        self.policies.append(Policy(
+            name="staff_view_activities",
+            description="Staff can view activities at their assigned checkpoint",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "rally-staff"},
+                "action": Action.VIEW_ACTIVITY.value,
+                "user_staff_checkpoint_id": {"equals": "checkpoint_id"},
+                "checkpoint_id": {"is_not_null": True}
+            },
+            priority=80
+        ))
+        
         # Deny all other staff actions
         self.policies.append(Policy(
             name="staff_default_deny",
@@ -184,7 +249,11 @@ class ABACEngine:
                 "user_scopes": {"contains": "rally-staff"},
                 "action": {"not_in": [
                     Action.ADD_CHECKPOINT_SCORE.value,
-                    Action.VIEW_CHECKPOINT_TEAMS.value
+                    Action.VIEW_CHECKPOINT_TEAMS.value,
+                    Action.CREATE_ACTIVITY_RESULT.value,
+                    Action.VIEW_ACTIVITY_RESULT.value,
+                    Action.UPDATE_ACTIVITY_RESULT.value,
+                    Action.VIEW_ACTIVITY.value
                 ]}
             },
             priority=70

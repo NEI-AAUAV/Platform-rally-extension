@@ -40,6 +40,12 @@ class Settings(BaseSettings):
 
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"
+    
+    # Rally scoring penalties and bonuses
+    VOMIT_PENALTY: int = -10  # Points deducted for vomiting
+    DRINK_PENALTY_PER_PERSON: int = -2  # Points deducted per person not drinking
+    EXTRA_SHOT_BONUS: int = 1  # Points added per extra shot
+    MAX_EXTRA_SHOTS_PER_TEAM_MEMBER: int = 1  # Maximum extra shots per team member
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
