@@ -32,7 +32,7 @@ class ScoreBasedActivity(BaseActivity):
         base_score = self.config.get('base_score', 50)
         return base_score * percentage
     
-    def validate_result(self, result_data: Dict[str, Any]) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
         """Validate score-based result data"""
         required_fields = ['achieved_points']
         return all(field in result_data for field in required_fields)

@@ -31,7 +31,7 @@ class BaseActivity(ABC):
         pass
     
     @abstractmethod
-    def validate_result(self, result_data: Dict[str, Any]) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
         """Validate that the result data is correct for this activity type"""
         pass
     
