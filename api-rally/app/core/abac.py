@@ -41,11 +41,11 @@ class Action(Enum):
     CREATE_RALLY_EVENT = "create_rally_event"
     VIEW_RALLY_EVENT = "view_rally_event"
     UPDATE_RALLY_EVENT = "update_rally_event"
+    DELETE_RALLY_EVENT = "delete_rally_event"
     
     # Rally configuration actions
     VIEW_RALLY_CONFIG = "view_rally_config"
     UPDATE_RALLY_CONFIG = "update_rally_config"
-    DELETE_RALLY_EVENT = "delete_rally_event"
 
 
 class Resource(Enum):

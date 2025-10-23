@@ -1,7 +1,7 @@
 """
 Pydantic schemas for activities
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 
@@ -54,8 +54,7 @@ class ActivityResponse(ActivityBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ActivityResultBase(BaseModel):
@@ -93,8 +92,7 @@ class ActivityResultResponse(ActivityResultBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RallyEventBase(BaseModel):
@@ -130,8 +128,7 @@ class RallyEventResponse(RallyEventBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Specific result schemas for different activity types
