@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
 from app.models.activity import Activity, ActivityResult, RallyEvent
+from app.models.team import Team
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate
 
@@ -83,9 +84,8 @@ class CRUDActivityResult:
             raise ValueError("Invalid result data for activity type")
         
         # Calculate base score
-        team_size = len(db.query(activity.team.members).filter(
-            activity.team.id == obj_in.team_id
-        ).first() or [])
+        team = db.query(Team).filter(Team.id == obj_in.team_id).first()
+        team_size = len(team.members) if team else 0
         
         base_score = activity_instance.calculate_score(obj_in.result_data, team_size)
         
@@ -164,9 +164,8 @@ class CRUDActivityResult:
                 activity.config
             )
             
-            team_size = len(db.query(activity.team.members).filter(
-                activity.team.id == db_obj.team_id
-            ).first() or [])
+            team = db.query(Team).filter(Team.id == db_obj.team_id).first()
+            team_size = len(team.members) if team else 0
             
             base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
             modifiers = {
