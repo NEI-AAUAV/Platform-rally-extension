@@ -92,7 +92,6 @@ class CRUDActivityResult:
         # Apply modifiers
         modifiers = {
             'extra_shots': obj_in.extra_shots,
-            'costume_bonus': obj_in.costume_bonus,
             'penalties': obj_in.penalties
         }
         final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
@@ -103,7 +102,6 @@ class CRUDActivityResult:
             team_id=obj_in.team_id,
             result_data=obj_in.result_data,
             extra_shots=obj_in.extra_shots,
-            costume_bonus=obj_in.costume_bonus,
             penalties=obj_in.penalties,
             final_score=final_score,
             is_completed=True,
@@ -170,7 +168,6 @@ class CRUDActivityResult:
             base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
             modifiers = {
                 'extra_shots': db_obj.extra_shots,
-                'costume_bonus': db_obj.costume_bonus,
                 'penalties': db_obj.penalties
             }
             db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers, db)

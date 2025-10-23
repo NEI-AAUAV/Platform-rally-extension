@@ -125,7 +125,6 @@ class ScoringService:
         # Apply modifiers
         modifiers = {
             'extra_shots': result.extra_shots,
-            'costume_bonus': result.costume_bonus,
             'penalties': result.penalties
         }
         
