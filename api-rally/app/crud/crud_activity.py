@@ -95,7 +95,7 @@ class CRUDActivityResult:
             'costume_bonus': obj_in.costume_bonus,
             'penalties': obj_in.penalties
         }
-        final_score = activity_instance.apply_modifiers(base_score, modifiers)
+        final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
         
         # Create result object
         db_obj = ActivityResult(
@@ -173,7 +173,7 @@ class CRUDActivityResult:
                 'costume_bonus': db_obj.costume_bonus,
                 'penalties': db_obj.penalties
             }
-            db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers)
+            db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
         
         db.add(db_obj)
         db.commit()
