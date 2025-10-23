@@ -23,3 +23,6 @@ export { CheckPointService } from './services/CheckPointService';
 export { RallySettingsService } from './services/RallySettingsService';
 export { TeamService } from './services/TeamService';
 export { UserService } from './services/UserService';
+
+// Export RallySettings types
+export type { RallySettingsResponse, RallySettingsUpdate } from './services/RallySettingsService';

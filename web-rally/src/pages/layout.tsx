@@ -1,4 +1,5 @@
 import { NavTabs, RallyTimeBanner } from "@/components/shared";
+import TestLogin from "@/components/TestLogin";
 import useLoginLink from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
@@ -30,7 +31,7 @@ export default function MainLayout() {
   
   // Don't redirect while settings are loading
   if (!isAuthenticated && !isPublicAccessEnabled && !sessionLoading && !settingsLoading) {
-    window.location.href = loginLink;
+    return <TestLogin />;
   }
 
   // Show loading while settings are being fetched
