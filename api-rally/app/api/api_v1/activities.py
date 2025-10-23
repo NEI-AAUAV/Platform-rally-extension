@@ -2,7 +2,7 @@
 API endpoints for activities management
 """
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -38,7 +38,7 @@ def create_activity(
     
     # Validate activity type and config
     try:
-        default_config = ActivityFactory.get_default_config(activity_in.activity_type)
+        default_config = ActivityFactory.get_default_config(activity_in.activity_type.value)
         
         # Merge with provided config
         final_config = {**default_config, **activity_in.config}
@@ -316,7 +316,7 @@ def get_global_ranking(
     
     return GlobalRanking(
         rankings=rankings,
-        last_updated=datetime.utcnow()
+        last_updated=datetime.now(timezone.utc)
     )
 
 
