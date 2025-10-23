@@ -2,6 +2,7 @@
 API endpoints for activities management
 """
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,10 @@ from app.schemas.activity import (
 )
 from app.services.scoring_service import ScoringService
 from app.models.activity_factory import ActivityFactory
+
+# Error message constants
+ACTIVITY_NOT_FOUND = "Activity not found"
+ACTIVITY_RESULT_NOT_FOUND = "Activity result not found"
 
 router = APIRouter()
 
@@ -90,7 +95,7 @@ def get_activity(
     if not db_activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
+            detail=ACTIVITY_NOT_FOUND
         )
     
     return db_activity
@@ -111,7 +116,7 @@ def update_activity(
     if not db_activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
+            detail=ACTIVITY_NOT_FOUND
         )
     
     db_activity = activity.update(db=db, db_obj=db_activity, obj_in=activity_in)
@@ -132,7 +137,7 @@ def delete_activity(
     if not db_activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
+            detail=ACTIVITY_NOT_FOUND
         )
     
     activity.remove(db=db, id=activity_id)
@@ -177,7 +182,7 @@ def get_activity_result(
     if not db_result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity result not found"
+            detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
     return db_result
@@ -198,7 +203,7 @@ def update_activity_result(
     if not db_result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity result not found"
+            detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
     db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
@@ -220,7 +225,7 @@ def apply_extra_shots(
     if not db_result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity result not found"
+            detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
     scoring_service = ScoringService(db)
@@ -253,7 +258,7 @@ def apply_penalty(
     if not db_result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity result not found"
+            detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
     scoring_service = ScoringService(db)
@@ -284,7 +289,7 @@ def get_activity_ranking(
     if not db_activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
+            detail=ACTIVITY_NOT_FOUND
         )
     
     scoring_service = ScoringService(db)
@@ -357,7 +362,7 @@ def get_activity_statistics(
     if not db_activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
+            detail=ACTIVITY_NOT_FOUND
         )
     
     scoring_service = ScoringService(db)
