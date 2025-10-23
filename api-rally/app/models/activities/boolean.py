@@ -9,6 +9,17 @@ from .base import BaseActivity
 class BooleanActivity(BaseActivity):
     """Boolean activities"""
     
+    @classmethod
+    def get_type(cls) -> str:
+        return "BooleanActivity"
+    
+    @classmethod
+    def get_default_config(cls) -> Dict[str, Any]:
+        return {
+            "success_points": 100,
+            "failure_points": 0
+        }
+    
     def calculate_score(self, result_data: Dict[str, Any], team_size: int = 1) -> float:
         """Calculate score based on success/failure"""
         success = result_data.get('success', False)
@@ -18,7 +29,7 @@ class BooleanActivity(BaseActivity):
         else:
             return self.config.get('failure_points', 0)
     
-    def validate_result(self, result_data: Dict[str, Any]) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
         """Validate boolean result data"""
         required_fields = ['success']
         return all(field in result_data for field in required_fields)
