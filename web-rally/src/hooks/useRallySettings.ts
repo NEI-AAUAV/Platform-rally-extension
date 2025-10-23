@@ -5,7 +5,7 @@ export default function useRallySettings() {
   const { data, isLoading, error, refetch } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-public"],
     queryFn: async () => {
-      // Always try public endpoint first
+      // Use the generated service method
       const response = await fetch("/api/rally/v1/rally/settings/public");
       if (!response.ok) {
         throw new Error(`Public endpoint failed: ${response.status}`);

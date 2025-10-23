@@ -19,7 +19,7 @@ export type OpenAPIConfig = {
 };
 
 export const OpenAPI: OpenAPIConfig = {
-    BASE: '',
+    BASE: process.env.NODE_ENV === 'production' ? 'https://nei.web.ua.pt' : 'http://localhost',
     VERSION: '0.1.0',
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',
