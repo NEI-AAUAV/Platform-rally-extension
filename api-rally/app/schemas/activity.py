@@ -64,7 +64,6 @@ class ActivityResultBase(BaseModel):
     team_id: int = Field(..., gt=0)
     result_data: Dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
-    costume_bonus: bool = False
     penalties: Dict[str, int] = Field(default_factory=dict)
 
 
@@ -77,7 +76,6 @@ class ActivityResultUpdate(BaseModel):
     """Schema for updating an activity result"""
     result_data: Optional[Dict[str, Any]] = None
     extra_shots: Optional[int] = Field(None, ge=0)
-    costume_bonus: Optional[bool] = None
     penalties: Optional[Dict[str, int]] = None
     is_completed: Optional[bool] = None
 

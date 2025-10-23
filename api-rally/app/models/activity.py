@@ -60,7 +60,6 @@ class ActivityResult(Base):
     
     # Special scoring modifiers
     extra_shots: Mapped[int] = mapped_column(Integer, default=0)  # Extra shots taken
-    costume_bonus: Mapped[bool] = mapped_column(Boolean, default=False)  # Team costume bonus
     penalties: Mapped[Dict[str, int]] = mapped_column(JSON, default=dict)  # Various penalties
     
     # Final calculated score

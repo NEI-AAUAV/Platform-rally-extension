@@ -41,7 +41,7 @@ class BaseActivity(ABC):
         pass
     
     def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session=None) -> float:
-        """Apply scoring modifiers (extra shots, costume bonus, penalties)"""
+        """Apply scoring modifiers (extra shots, penalties)"""
         final_score = base_score
         
         # Apply extra shots bonus (configurable)
