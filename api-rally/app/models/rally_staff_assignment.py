@@ -17,7 +17,7 @@ class RallyStaffAssignment(Base):
     
     # Reference to Rally checkpoint
     checkpoint_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{settings.SCHEMA_NAME}.check_point.id"),
+        ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"),
         nullable=True
     )
     

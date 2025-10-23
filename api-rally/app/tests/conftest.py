@@ -9,6 +9,19 @@ from app.main import app
 from app.api.deps import get_db
 from app.api.auth import get_public_key
 
+# Global mock for JWT public key to prevent file not found errors
+@pytest.fixture(autouse=True)
+def mock_jwt_public_key():
+    """Automatically mock JWT public key for all tests"""
+    mock_key = """-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8KdO8QqgT2zSM0p1KgJ4Y4vVXlJ7S8wK
+9Y2Z3X4P5Q6R7S8T9U0V1W2X3Y4Z5A6B7C8D9E0F1G2H3I4J5K6L7M8N9O0P1Q2R
+3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X
+-----END PUBLIC KEY-----"""
+    
+    with patch('app.api.auth.get_public_key', return_value=mock_key):
+        yield
+
 # Test database setup - Use SQLite with JSON for array-like data
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -89,5 +102,11 @@ MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8KdO8QqgT2zSM0p1KgJ4Y4vVXlJ7S8wK
 @pytest.fixture
 def client_with_mocked_db():
     """Create test client with mocked database and auth"""
-    with patch('app.api.auth.get_public_key', return_value="mock_public_key"):
+    mock_key = """-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8KdO8QqgT2zSM0p1KgJ4Y4vVXlJ7S8wK
+9Y2Z3X4P5Q6R7S8T9U0V1W2X3Y4Z5A6B7C8D9E0F1G2H3I4J5K6L7M8N9O0P1Q2R
+3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X
+-----END PUBLIC KEY-----"""
+    
+    with patch('app.api.auth.get_public_key', return_value=mock_key):
         return TestClient(app)
