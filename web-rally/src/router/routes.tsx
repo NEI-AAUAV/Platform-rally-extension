@@ -26,10 +26,7 @@ const routes: RouteObject[] = [
       },
       {
         path: "/teams",
-        async lazy() {
-          const { default: Teams } = await import("@/pages/teams");
-          return { Component: Teams };
-        },
+        element: <Navigate to="/scoreboard" replace />,
       },
       {
         path: "/teams/:id",

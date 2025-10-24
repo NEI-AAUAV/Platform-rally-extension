@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.models.activity import ActivityResult
+from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 from app.models.user import User
 from app.models.rally_settings import RallySettings
@@ -41,6 +41,42 @@ class ScoringService:
                 total_score += result.final_score
         
         return total_score
+    
+    def update_team_scores(self, team_id: int) -> bool:
+        """Update team's total and score_per_checkpoint based on activity results"""
+        team = self.db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            return False
+        
+        # Get all activity results for this team
+        results = activity_result.get_by_team(self.db, team_id)
+        
+        # Group results by checkpoint
+        checkpoint_scores = {}
+        total_score = 0
+        
+        for result in results:
+            if result.is_completed and result.final_score is not None:
+                # Get activity to find checkpoint
+                activity = self.db.query(Activity).filter(Activity.id == result.activity_id).first()
+                if activity:
+                    checkpoint_id = activity.checkpoint_id
+                    if checkpoint_id not in checkpoint_scores:
+                        checkpoint_scores[checkpoint_id] = 0
+                    checkpoint_scores[checkpoint_id] += result.final_score
+                    total_score += result.final_score
+        
+        # Update team scores
+        team.total = total_score
+        
+        # Update score_per_checkpoint array to match times array length
+        max_checkpoint = max(checkpoint_scores.keys()) if checkpoint_scores else 0
+        team.score_per_checkpoint = [
+            checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
+        ]
+        
+        self.db.commit()
+        return True
     
     def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
         """Apply extra shots bonus to a team's activity result"""

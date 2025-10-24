@@ -123,6 +123,12 @@ class CRUDActivityResult:
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
+        
+        # Update team scores after creating result
+        from app.services.scoring_service import ScoringService
+        scoring_service = ScoringService(db)
+        scoring_service.update_team_scores(obj_in.team_id)
+        
         return db_obj
     
     def get(self, db: Session, id: int) -> Optional[ActivityResult]:
@@ -175,13 +181,26 @@ class CRUDActivityResult:
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
+        
+        # Update team scores after updating result
+        from app.services.scoring_service import ScoringService
+        scoring_service = ScoringService(db)
+        scoring_service.update_team_scores(db_obj.team_id)
+        
         return db_obj
     
     def remove(self, db: Session, *, id: int) -> ActivityResult:
         """Remove an activity result"""
         obj = db.query(ActivityResult).get(id)
+        team_id = obj.team_id  # Store team_id before deletion
         db.delete(obj)
         db.commit()
+        
+        # Update team scores after removing result
+        from app.services.scoring_service import ScoringService
+        scoring_service = ScoringService(db)
+        scoring_service.update_team_scores(team_id)
+        
         return obj
 
 

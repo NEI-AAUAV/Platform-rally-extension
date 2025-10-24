@@ -276,22 +276,30 @@ export default function StaffEvaluation() {
   });
 
   const handleEvaluateActivity = (activity: Activity) => {
-    // Check if team has completed all activities at current checkpoint
-    const currentCheckpointActivities = allActivities?.activities?.filter(
-      (a: any) => a.checkpoint_id === activity.checkpoint_id
+    // For checkpoint 1, no confirmation needed
+    if (activity.checkpoint_id === 1) {
+      setSelectedActivity(activity);
+      setShowEvaluationForm(true);
+      return;
+    }
+    
+    // For checkpoint 2+, check if team completed all activities at previous checkpoint
+    const previousCheckpointId = activity.checkpoint_id - 1;
+    const previousCheckpointActivities = allActivities?.activities?.filter(
+      (a: any) => a.checkpoint_id === previousCheckpointId
     ) || [];
     
     const teamEvaluations = allEvaluations?.evaluations?.filter(
       (e: any) => e.team_id === selectedTeam?.id && 
-      currentCheckpointActivities.some((a: any) => a.id === e.activity_id)
+      previousCheckpointActivities.some((a: any) => a.id === e.activity_id)
     ) || [];
     
     const completedActivities = teamEvaluations.length;
-    const totalActivities = currentCheckpointActivities.length;
+    const totalActivities = previousCheckpointActivities.length;
     
-    // If team hasn't completed all activities, show confirmation
+    // If team hasn't completed all activities at previous checkpoint, show confirmation
     if (completedActivities < totalActivities) {
-      const confirmMessage = `Team ${selectedTeam?.name} has only completed ${completedActivities} out of ${totalActivities} activities at this checkpoint. Do you want to proceed with the evaluation anyway?`;
+      const confirmMessage = `Team ${selectedTeam?.name} has only completed ${completedActivities} out of ${totalActivities} activities at checkpoint ${previousCheckpointId}. Do you want to proceed with the evaluation anyway?`;
       
       if (window.confirm(confirmMessage)) {
         setSelectedActivity(activity);
@@ -304,22 +312,36 @@ export default function StaffEvaluation() {
   };
 
   const handleManagerEvaluateActivity = (team: any, activity: any) => {
-    // Check if team has completed all activities at current checkpoint
-    const currentCheckpointActivities = allActivities?.activities?.filter(
-      (a: any) => a.checkpoint_id === activity.checkpoint_id
+    // For checkpoint 1, no confirmation needed
+    if (activity.checkpoint_id === 1) {
+      setSelectedTeam(team);
+      setSelectedActivity({
+        ...activity,
+        existing_result: allEvaluations?.evaluations?.find(
+          (evaluation: any) => evaluation.team_id === team.id && evaluation.activity_id === activity.id
+        )
+      });
+      setShowEvaluationForm(true);
+      return;
+    }
+    
+    // For checkpoint 2+, check if team completed all activities at previous checkpoint
+    const previousCheckpointId = activity.checkpoint_id - 1;
+    const previousCheckpointActivities = allActivities?.activities?.filter(
+      (a: any) => a.checkpoint_id === previousCheckpointId
     ) || [];
     
     const teamEvaluations = allEvaluations?.evaluations?.filter(
       (e: any) => e.team_id === team.id && 
-      currentCheckpointActivities.some((a: any) => a.id === e.activity_id)
+      previousCheckpointActivities.some((a: any) => a.id === e.activity_id)
     ) || [];
     
     const completedActivities = teamEvaluations.length;
-    const totalActivities = currentCheckpointActivities.length;
+    const totalActivities = previousCheckpointActivities.length;
     
-    // If team hasn't completed all activities, show confirmation
+    // If team hasn't completed all activities at previous checkpoint, show confirmation
     if (completedActivities < totalActivities) {
-      const confirmMessage = `Team ${team.name} has only completed ${completedActivities} out of ${totalActivities} activities at this checkpoint. Do you want to proceed with the evaluation anyway?`;
+      const confirmMessage = `Team ${team.name} has only completed ${completedActivities} out of ${totalActivities} activities at checkpoint ${previousCheckpointId}. Do you want to proceed with the evaluation anyway?`;
       
       if (window.confirm(confirmMessage)) {
         setSelectedTeam(team);

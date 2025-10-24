@@ -22,8 +22,18 @@ export function localDatetimeLocalToUTCISOString(value: string | null): string |
   // value format: YYYY-MM-DDTHH:mm
   // Parse the datetime-local string and create a Date object in local timezone
   const [datePart, timePart] = value.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hours, minutes] = timePart.split(':').map(Number);
+  if (!datePart || !timePart) return null;
+  
+  const dateParts = datePart.split('-').map(Number);
+  const timeParts = timePart.split(':').map(Number);
+  
+  if (dateParts.length !== 3 || timeParts.length !== 2) return null;
+  
+  const [year, month, day] = dateParts;
+  const [hours, minutes] = timeParts;
+  
+  if (year === undefined || month === undefined || day === undefined || 
+      hours === undefined || minutes === undefined) return null;
   
   // Create Date object using constructor with individual parameters
   // This creates a Date object in the local timezone

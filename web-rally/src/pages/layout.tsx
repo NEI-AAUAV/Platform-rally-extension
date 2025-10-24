@@ -1,5 +1,4 @@
 import { NavTabs, RallyTimeBanner } from "@/components/shared";
-import TestLogin from "@/components/TestLogin";
 import useLoginLink from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
@@ -29,9 +28,10 @@ export default function MainLayout() {
   const isAuthenticated = sub !== undefined;
   const isPublicAccessEnabled = settings?.public_access_enabled === true;
   
-  // Don't redirect while settings are loading
+  // Redirect to main platform login if not authenticated and public access is disabled
   if (!isAuthenticated && !isPublicAccessEnabled && !sessionLoading && !settingsLoading) {
-    return <TestLogin />;
+    window.location.href = loginLink;
+    return null;
   }
 
   // Show loading while settings are being fetched

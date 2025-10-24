@@ -1,5 +1,4 @@
 import { CheckPointService, TeamService } from "@/client";
-import { TeamImage } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft } from "lucide-react";
@@ -78,11 +77,6 @@ export default function TeamsById() {
     return <Navigate to="/teams" />;
   }
 
-  const lastCheckpoint = checkpoints?.[team?.times.length - 1];
-  const lastCheckpointTimeString = team?.times[team.times.length - 1];
-  const lastCheckpointTime =
-    lastCheckpointTimeString && new Date(lastCheckpointTimeString);
-
   return (
     <>
       <Button className="my-16 p-0" variant={"ghost"}>
@@ -104,9 +98,9 @@ export default function TeamsById() {
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Team description and score
           </h2>
-          <div className="mb-8 grid grid-cols-2 gap-16 rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8">
-            <div>
-              <p className="mb-4 min-h-[3.5rem] text-xl font-semibold">
+          <div className="mb-8 rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8">
+            <div className="text-center">
+              <p className="mb-4 text-xl font-semibold">
                 {team.name}
               </p>
               <div>
@@ -117,32 +111,81 @@ export default function TeamsById() {
                 </p>
               </div>
             </div>
-            <TeamImage teamId={team.id} />
           </div>
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Last Checkpoint
+            Checkpoint Progress
           </h2>
-          <div className="mb-8 grid gap-4 rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8">
-            <p className="text-center text-xl font-semibold">
-              {lastCheckpoint?.name}
-            </p>
-            <p className="text-center font-light">
-              {lastCheckpoint?.description}
-            </p>
-            <p className="text-center">
-              {team.score_per_checkpoint[team.score_per_checkpoint.length - 1]}{" "}
-              {lastCheckpointTime && (
-                <span className="font-light text-white/60">
-                  | {formatTime(lastCheckpointTime)}
-                </span>
-              )}
-            </p>
+          <div className="mb-6 rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/70">
+                Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+              </span>
+              <span className="font-medium">
+                Total: {team.total} points
+              </span>
+            </div>
+          </div>
+          <div className="mb-8 space-y-4">
+            {team.times && team.times.length > 0 ? (
+              team.times.map((timeString: string, index: number) => {
+                const checkpoint = checkpoints?.[index];
+                const checkpointTime = new Date(timeString);
+                const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
+                const isLastCheckpoint = index === team.times.length - 1;
+                
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-2xl border-2 p-6 ${
+                      isLastCheckpoint
+                        ? "border-[rgb(255,255,255,0.3)] bg-[rgb(255,255,255,0.08)]"
+                        : "border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-sm font-medium text-white/70">
+                            Checkpoint {index + 1}
+                          </span>
+                          {isLastCheckpoint && (
+                            <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
+                              Current
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-lg font-semibold mb-1">
+                          {checkpoint?.name || `Checkpoint ${index + 1}`}
+                        </h3>
+                        {checkpoint?.description && (
+                          <p className="text-sm text-white/70 mb-2">
+                            {checkpoint.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold mb-1">
+                          {checkpointScore} pts
+                        </div>
+                        <div className="text-sm text-white/60">
+                          {formatTime(checkpointTime)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-center">
+                <p className="text-white/70">No checkpoints visited yet</p>
+              </div>
+            )}
           </div>
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Team Members
           </h2>
           <div className="grid gap-4">
-            {team?.members.map((member) => {
+            {team?.members.map((member: any) => {
               const names = member.name.split(" ");
               const firstName = names[0];
               const lastName = names.slice(1).join(" ");
