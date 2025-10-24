@@ -4,7 +4,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
-import { RallySettingsService, type RallySettingsUpdate } from "@/client";
+import { RallySettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -58,10 +58,13 @@ export default function RallySettings() {
 
   // Fetch current settings
   const { data: settings, refetch: refetchSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
-    queryKey: ["rallySettings"],
+    queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
     queryFn: RallySettingsService.getRallySettings,
     enabled: isManager,
-    retry: false, // Don't retry on auth errors
+    retry: 2, // Retry up to 2 times
+    retryDelay: 1000, // Wait 1 second between retries
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Form setup

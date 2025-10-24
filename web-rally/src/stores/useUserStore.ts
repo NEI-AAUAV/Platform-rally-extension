@@ -37,15 +37,46 @@ type UserState = TokenPayload & {
   isAuthenticated: boolean;
 };
 
-const useUserStore = create<UserState>((set) => ({
-  sessionLoading: true,
-  isAuthenticated: false,
+// Initialize from localStorage on app startup
+const initializeFromStorage = (): Partial<UserState> => {
+  try {
+    const storedToken = localStorage.getItem('rally_token');
+    if (storedToken) {
+      const payload: TokenPayload = parseJWT(storedToken);
+      OpenAPI.HEADERS = {
+        Authorization: `Bearer ${storedToken}`,
+      };
+      return {
+        token: storedToken,
+        sessionLoading: false,
+        isAuthenticated: !!payload.sub,
+        ...payload,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to initialize from localStorage:', error);
+    // Clear invalid token
+    localStorage.removeItem('rally_token');
+  }
+  
+  return {
+    sessionLoading: false,
+    isAuthenticated: false,
+  };
+};
 
+const useUserStore = create<UserState>((set) => ({
+  ...initializeFromStorage(),
+  
   login: ({ token }) => {
     const payload: TokenPayload = token ? parseJWT(token) : {};
     OpenAPI.HEADERS = {
       Authorization: `Bearer ${token}`,
     };
+    
+    // Store token in localStorage
+    localStorage.setItem('rally_token', token);
+    
     set((state) => ({
       ...state,
       token,
@@ -56,6 +87,9 @@ const useUserStore = create<UserState>((set) => ({
   },
 
   logout: () => {
+    // Clear token from localStorage
+    localStorage.removeItem('rally_token');
+    
     set(() => ({
       sessionLoading: false,
       isAuthenticated: false,
@@ -76,6 +110,9 @@ const useUserStore = create<UserState>((set) => ({
   },
 
   clearUser: () => {
+    // Clear token from localStorage
+    localStorage.removeItem('rally_token');
+    
     set(() => ({
       sessionLoading: false,
       isAuthenticated: false,
