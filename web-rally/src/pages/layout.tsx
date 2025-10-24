@@ -1,4 +1,5 @@
 import { NavTabs, RallyTimeBanner } from "@/components/shared";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import useLoginLink from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
@@ -65,6 +66,7 @@ export default function MainLayout() {
         <NavTabs className="mt-4" />
         <RallyTimeBanner />
         <Outlet />
+        <PWAInstallPrompt />
       </div>
     </div>
   );
