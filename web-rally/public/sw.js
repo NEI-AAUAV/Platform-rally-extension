@@ -1,11 +1,13 @@
 // Rally Tascas Service Worker
-const CACHE_NAME = 'rally-tascas-v3';
+const CACHE_NAME = 'rally-tascas-v5';
 const STATIC_CACHE_URLS = [
   '/rally/',
   '/rally/manifest.json',
   '/rally/favicon.ico',
+  '/rally/icon-144.png',
   '/rally/icon-192.png',
   '/rally/icon-512.png',
+  '/rally/apple-touch-icon.png',
   // Add other static assets
 ];
 
