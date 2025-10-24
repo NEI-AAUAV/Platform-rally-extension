@@ -52,7 +52,7 @@ export default function Admin() {
     <div className="mt-16 space-y-8">
       <PageHeader 
         title="Gestão Administrativa"
-        description="Criar e editar equipas e checkpoints do Rally"
+        description="Criar e editar equipas, postos (checkpoints) e atividades do Rally Tascas"
       />
 
       {/* Tab Navigation */}
