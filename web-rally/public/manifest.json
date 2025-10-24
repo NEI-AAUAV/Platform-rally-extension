@@ -43,19 +43,5 @@
   "lang": "pt-PT",
   "dir": "ltr",
   "prefer_related_applications": false,
-  "related_applications": [],
-  "screenshots": [
-    {
-      "src": "/rally/screenshot-mobile.png",
-      "type": "image/png",
-      "sizes": "390x844",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/rally/screenshot-desktop.png", 
-      "type": "image/png",
-      "sizes": "1280x720",
-      "form_factor": "wide"
-    }
-  ]
+  "related_applications": []
 }
