@@ -39,10 +39,14 @@ export default function MainLayout() {
     return (
       <div className="font-inter" style={bgStyle}>
         <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
-          <div className="text-center">
-            <h1 className="font-playfair text-3xl font-bold mb-4">Rally Tascas</h1>
-            <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
-          </div>
+        <div className="text-center">
+          <img 
+            src="/rally/src/public/banner/Halloween_2025.jpeg" 
+            alt="Rally Tascas Banner" 
+            className="mx-auto mb-4 max-h-32 w-auto object-contain"
+          />
+          <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+        </div>
         </div>
       </div>
     );
@@ -51,9 +55,13 @@ export default function MainLayout() {
   return (
     <div className="font-inter" style={bgStyle}>
       <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
-        <h1 className="font-playfair text-3xl font-bold [text-wrap:balance]">
-          {settings?.rally_theme ?? "Rally Tascas"}
-        </h1>
+        <div className="text-center mb-4">
+          <img 
+            src="/rally/src/public/banner/Halloween_2025.jpeg" 
+            alt="Rally Tascas Banner" 
+            className="mx-auto max-h-32 w-auto object-contain"
+          />
+        </div>
         <NavTabs className="mt-4" />
         <RallyTimeBanner />
         <Outlet />

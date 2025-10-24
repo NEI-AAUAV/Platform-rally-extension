@@ -73,6 +73,13 @@ const routes: RouteObject[] = [
           return { Component: TeamMembers };
         },
       },
+      {
+        path: "/staff-evaluation",
+        async lazy() {
+          const { default: StaffEvaluation } = await import("@/pages/staff-evaluation");
+          return { Component: StaffEvaluation };
+        },
+      },
     ],
   },
 ];

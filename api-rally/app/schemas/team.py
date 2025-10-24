@@ -22,6 +22,7 @@ class ListingTeam(TeamBase):
     """
 
     num_members: int
+    times: List[datetime] = []
 
     last_checkpoint_time: Optional[datetime]
     last_checkpoint_score: Optional[int] = None

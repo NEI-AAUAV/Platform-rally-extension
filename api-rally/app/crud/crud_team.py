@@ -1,7 +1,7 @@
 import math
 import random
 from typing import List, Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -190,7 +190,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         with db.begin_nested():
             team = self.get(db=db, id=id, for_update=True)
             settings = rally_settings.get_or_create(db)
-            current_time = datetime.now(datetime.timezone.utc)
+            current_time = datetime.now(timezone.utc)
 
             # Validate timing and order constraints
             self._validate_rally_timing(settings, current_time)
