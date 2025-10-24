@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
+from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission, 
@@ -35,7 +36,14 @@ def get_staff_with_checkpoint_access(
     """
     # Initialize curr_user if not provided
     if curr_user is None:
-        curr_user = deps.get_participant(db)
+        # Get user directly from database using auth.sub (user ID)
+        user = db.get(User, auth.sub)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        curr_user = DetailedUser.model_validate(user)
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
