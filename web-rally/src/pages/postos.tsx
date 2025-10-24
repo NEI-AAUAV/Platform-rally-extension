@@ -31,8 +31,7 @@ export default function Postos() {
   const sortedCheckpoints = checkpoints?.map((cp, index) => ({
     ...cp,
     order: index + 1,
-    latitude: undefined,
-    longitude: undefined,
+    // Preserve existing coordinates from API, don't overwrite with undefined
   })).sort((a: Checkpoint, b: Checkpoint) => a.id - b.id) || [];
 
   if (isLoading) {
