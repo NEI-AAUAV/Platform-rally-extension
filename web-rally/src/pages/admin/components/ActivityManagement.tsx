@@ -87,12 +87,6 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-xl font-semibold mb-2">Gestão de Atividades</h3>
-        <p className="text-[rgb(255,255,255,0.7)]">
-          Criar e gerenciar atividades para os checkpoints
-        </p>
-      </div>
 
       {showActivityForm ? (
         <ActivityForm

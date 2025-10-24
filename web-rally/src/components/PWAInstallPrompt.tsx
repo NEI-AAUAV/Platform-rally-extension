@@ -70,7 +70,7 @@ export default function PWAInstallPrompt() {
             Instalar Rally Tascas
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            Instale o app para acesso rápido e notificações
+            Instala a aplicação para acesso rápido e notificações
           </p>
         </div>
         
