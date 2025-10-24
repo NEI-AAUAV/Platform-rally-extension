@@ -22,10 +22,6 @@ from app.api.auth import get_public_key
 patcher = patch('app.api.auth.get_public_key', return_value=mock_jwt_key)
 patcher.start()
 
-# Also patch the settings to use a dummy path
-settings_patcher = patch('app.core.config.Settings.JWT_PUBLIC_KEY_PATH', '/tmp/dummy_jwt.key.pub')
-settings_patcher.start()
-
 # Test database setup - Use SQLite with JSON for array-like data
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -100,6 +96,5 @@ def client_with_mocked_db():
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Clean up the patchers when all tests are done"""
+    """Clean up the patcher when all tests are done"""
     patcher.stop()
-    settings_patcher.stop()
