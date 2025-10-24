@@ -78,14 +78,19 @@ class ScoringService:
             checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
         ]
         
-        # Only commit if not in a nested transaction (savepoint)
-        # Use get_transaction() to check if we're in a nested transaction
+        # Commit only if we're not in a nested transaction context
+        # This allows the method to work both standalone and within nested transactions
         try:
-            transaction = self.db.get_transaction()
-            if transaction is None or not transaction.is_active:
+            # Check if we're in a nested transaction by looking at the connection's transaction state
+            connection = self.db.connection()
+            if connection.in_transaction() and connection.in_nested_transaction():
+                # We're in a nested transaction, don't commit
+                pass
+            else:
+                # We're in the main transaction, commit
                 self.db.commit()
         except Exception:
-            # If we can't determine transaction state, commit anyway
+            # If we can't determine transaction state, commit anyway for safety
             self.db.commit()
         return True
     
