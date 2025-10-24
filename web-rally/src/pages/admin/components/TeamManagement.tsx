@@ -244,3 +244,4 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
     </div>
   );
 }
+

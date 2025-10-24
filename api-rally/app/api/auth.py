@@ -1,5 +1,4 @@
 from enum import Enum
-from aiocache.decorators import cached
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from pydantic import BaseModel
@@ -9,9 +8,8 @@ from jose import JWTError, jwt
 from app.core.config import SettingsDep
 
 
-@cached()
 @no_type_check
-async def get_public_key(settings: SettingsDep) -> str:
+def get_public_key(settings: SettingsDep) -> str:
     with open(settings.JWT_PUBLIC_KEY_PATH, "r") as file:
         return file.read()
 

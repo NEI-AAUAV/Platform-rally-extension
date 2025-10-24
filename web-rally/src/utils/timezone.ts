@@ -32,12 +32,9 @@ export function localDatetimeLocalToUTCISOString(value: string | null): string |
   const [year, month, day] = dateParts;
   const [hours, minutes] = timeParts;
   
-  if (year === undefined || month === undefined || day === undefined || 
-      hours === undefined || minutes === undefined) return null;
-  
   // Create Date object using constructor with individual parameters
   // This creates a Date object in the local timezone
-  const localDate = new Date(year, month - 1, day, hours, minutes);
+  const localDate = new Date(year!, month! - 1, day!, hours!, minutes!);
   
   // The Date object is already in local timezone, so toISOString() converts to UTC
   return localDate.toISOString();

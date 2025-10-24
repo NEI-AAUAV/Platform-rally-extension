@@ -45,3 +45,4 @@ export default function TeamSelector({ teams, selectedTeam, onTeamChange, classN
     </Card>
   );
 }
+
