@@ -9,7 +9,6 @@ from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 from app.models.user import User
 from app.models.rally_settings import RallySettings
-from app.crud.crud_activity import activity_result
 from app.core.config import settings
 
 
@@ -33,7 +32,9 @@ class ScoringService:
     
     def calculate_team_total_score(self, team_id: int) -> float:
         """Calculate total score for a team including all modifiers"""
-        results = activity_result.get_by_team(self.db, team_id)
+        results = self.db.query(ActivityResult).filter(
+            ActivityResult.team_id == team_id
+        ).all()
         total_score = 0
         
         for result in results:
@@ -49,7 +50,9 @@ class ScoringService:
             return False
         
         # Get all activity results for this team
-        results = activity_result.get_by_team(self.db, team_id)
+        results = self.db.query(ActivityResult).filter(
+            ActivityResult.team_id == team_id
+        ).all()
         
         # Group results by checkpoint
         checkpoint_scores = {}
@@ -94,7 +97,10 @@ class ScoringService:
             return False
         
         # Get or create activity result
-        result = activity_result.get_by_activity_and_team(self.db, activity_id, team_id)
+        result = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team_id
+        ).first()
         if not result:
             return False
         
@@ -109,7 +115,10 @@ class ScoringService:
     
     def apply_penalty(self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int) -> bool:
         """Apply penalty to a team's activity result"""
-        result = activity_result.get_by_activity_and_team(self.db, activity_id, team_id)
+        result = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team_id
+        ).first()
         if not result:
             return False
         
@@ -170,7 +179,9 @@ class ScoringService:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
             # Activity-specific ranking
-            results = activity_result.get_by_activity(self.db, activity_id)
+            results = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id
+        ).all()
             ranking = []
             for i, result in enumerate(results, 1):
                 team = self.db.query(Team).filter(Team.id == result.team_id).first()
@@ -206,7 +217,9 @@ class ScoringService:
     
     def get_activity_statistics(self, activity_id: int) -> Dict[str, Any]:
         """Get statistics for a specific activity"""
-        results = activity_result.get_by_activity(self.db, activity_id)
+        results = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id
+        ).all()
         
         if not results:
             return {
@@ -290,8 +303,11 @@ class ScoringService:
                 result_data=result2_data
             )
             
-            activity_result.create(self.db, obj_in=result1_create)
-            activity_result.create(self.db, obj_in=result2_create)
+            # Create result objects directly
+            result1_obj = ActivityResult(**result1_create.dict())
+            result2_obj = ActivityResult(**result2_create.dict())
+            self.db.add(result1_obj)
+            self.db.add(result2_obj)
             
             return True, "Team vs team results created successfully"
             

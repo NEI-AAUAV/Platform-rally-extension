@@ -51,39 +51,39 @@ export default function StaffEvaluation() {
   const queryClient = useQueryClient();
 
   // Get staff member's assigned checkpoint
-  const { data: myCheckpoint, isLoading: checkpointLoading } = useQuery({
+  const { data: myCheckpoint, isLoading: checkpointLoading } = useQuery<{id: number; name: string; description: string}>({
     queryKey: ["myCheckpoint"],
-    queryFn: async () => {
+    queryFn: async (): Promise<{id: number; name: string; description: string}> => {
       const response = await fetch("/api/rally/v1/staff/my-checkpoint", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch checkpoint");
-      return response.json();
+      return response.json() as Promise<{id: number; name: string; description: string}>;
     },
     enabled: !isRallyAdmin && !!userStoreStuff.token,
   });
 
   // Get teams at staff member's checkpoint
-  const { data: teams, isLoading: teamsLoading } = useQuery({
+  const { data: teams, isLoading: teamsLoading } = useQuery<Team[]>({
     queryKey: ["teams"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Team[]> => {
       const response = await fetch("/api/rally/v1/staff/teams", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch teams");
-      return response.json();
+      return response.json() as Promise<Team[]>;
     },
     enabled: !isRallyAdmin && !!userStoreStuff.token,
   });
 
   // Get team activities for evaluation
-  const { data: teamActivities } = useQuery({
+  const { data: teamActivities } = useQuery<Activity[]>({
     queryKey: ["teamActivities", selectedTeam?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Activity[]> => {
       if (!selectedTeam) return [];
       const response = await fetch(`/api/rally/v1/staff/teams/${selectedTeam.id}/activities`, {
         headers: {
@@ -91,7 +91,7 @@ export default function StaffEvaluation() {
         },
       });
       if (!response.ok) throw new Error("Failed to fetch activities");
-      return response.json();
+      return response.json() as Promise<Activity[]>;
     },
     enabled: !isRallyAdmin && !!userStoreStuff.token && !!selectedTeam,
   });
@@ -99,21 +99,21 @@ export default function StaffEvaluation() {
   // Manager queries
   const { data: allEvaluations } = useQuery<{evaluations: any[]}>({
     queryKey: ["allEvaluations"],
-    queryFn: async () => {
+    queryFn: async (): Promise<{evaluations: any[]}> => {
       const response = await fetch("/api/rally/v1/staff/all-evaluations", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch evaluations");
-      return response.json();
+      return response.json() as Promise<{evaluations: any[]}>;
     },
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });
 
   const { data: allCheckpoints } = useQuery<any[]>({
     queryKey: ["allCheckpoints"],
-    queryFn: async () => {
+    queryFn: async (): Promise<any[]> => {
       const response = await fetch("/api/rally/v1/checkpoint/", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
@@ -128,28 +128,28 @@ export default function StaffEvaluation() {
 
   const { data: allTeams } = useQuery<Team[]>({
     queryKey: ["allTeams"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Team[]> => {
       const response = await fetch("/api/rally/v1/team/", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch teams");
-      return response.json();
+      return response.json() as Promise<Team[]>;
     },
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });
 
   const { data: allActivities } = useQuery<{activities: Activity[]}>({
     queryKey: ["allActivities"],
-    queryFn: async () => {
+    queryFn: async (): Promise<{activities: Activity[]}> => {
       const response = await fetch("/api/rally/v1/activities/", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch activities");
-      return response.json();
+      return response.json() as Promise<{activities: Activity[]}>;
     },
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });

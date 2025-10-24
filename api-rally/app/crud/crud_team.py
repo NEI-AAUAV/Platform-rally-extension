@@ -1,5 +1,4 @@
 import math
-import random
 from typing import List, Sequence
 from datetime import datetime, timezone
 from fastapi import HTTPException

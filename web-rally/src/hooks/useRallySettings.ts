@@ -12,7 +12,10 @@ export default function useRallySettings() {
       }
       return response.json() as Promise<RallySettingsResponse>;
     },
-    retry: false,
+    retry: 2, // Retry up to 2 times
+    retryDelay: 1000, // Wait 1 second between retries
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   return {

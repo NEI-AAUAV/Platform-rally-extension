@@ -1,7 +1,7 @@
 """
 CRUD operations for activities
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
@@ -9,6 +9,7 @@ from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.team import Team
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate
+from app.services.scoring_service import ScoringService
 
 
 class CRUDActivity:
@@ -70,21 +71,45 @@ class CRUDActivityResult:
     
     def create(self, db: Session, *, obj_in: ActivityResultCreate) -> ActivityResult:
         """Create a new activity result"""
-        # Calculate scores using the activity factory
-        activity = db.query(Activity).filter(Activity.id == obj_in.activity_id).first()
-        if not activity:
-            raise ValueError(f"Activity {obj_in.activity_id} not found")
+        # Validate activity exists
+        activity = self._get_activity_for_result(db, obj_in.activity_id)
         
-        # Create activity instance and calculate scores
+        # Create activity instance and validate result data
         activity_instance = ActivityFactory.create_activity(
             activity.activity_type, 
             activity.config
         )
         
-        # Validate result data
         if not activity_instance.validate_result(obj_in.result_data):
             raise ValueError("Invalid result data for activity type")
         
+        # Calculate final score
+        final_score = self._calculate_final_score(db, activity_instance, obj_in)
+        
+        # Create result object
+        db_obj = self._create_result_object(activity, obj_in, final_score)
+        
+        # Set specific score fields based on activity type
+        self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
+        
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        
+        # Update team scores after creating result
+        self._update_team_scores(db, obj_in.team_id)
+        
+        return db_obj
+    
+    def _get_activity_for_result(self, db: Session, activity_id: int) -> Activity:
+        """Get activity and validate it exists"""
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()
+        if not activity:
+            raise ValueError(f"Activity {activity_id} not found")
+        return activity
+    
+    def _calculate_final_score(self, db: Session, activity_instance, obj_in: ActivityResultCreate) -> float:
+        """Calculate the final score for the activity result"""
         # Calculate base score
         team = db.query(Team).filter(Team.id == obj_in.team_id).first()
         team_size = len(team.members) if team else 0
@@ -96,10 +121,11 @@ class CRUDActivityResult:
             'extra_shots': obj_in.extra_shots,
             'penalties': obj_in.penalties
         }
-        final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
-        
-        # Create result object
-        db_obj = ActivityResult(
+        return activity_instance.apply_modifiers(base_score, modifiers, db)
+    
+    def _create_result_object(self, activity: Activity, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
+        """Create the ActivityResult database object"""
+        return ActivityResult(
             activity_id=obj_in.activity_id,
             team_id=obj_in.team_id,
             result_data=obj_in.result_data,
@@ -109,29 +135,24 @@ class CRUDActivityResult:
             is_completed=True,
             completed_at=func.now()
         )
-        
-        # Set specific score fields based on activity type
+    
+    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict) -> None:
+        """Set specific score fields based on activity type"""
         if activity.activity_type == 'TimeBasedActivity':
-            db_obj.time_score = obj_in.result_data.get('completion_time_seconds')
+            db_obj.time_score = result_data.get('completion_time_seconds')
         elif activity.activity_type == 'ScoreBasedActivity':
-            db_obj.points_score = obj_in.result_data.get('achieved_points')
+            db_obj.points_score = result_data.get('achieved_points')
         elif activity.activity_type == 'BooleanActivity':
-            db_obj.boolean_score = obj_in.result_data.get('success')
+            db_obj.boolean_score = result_data.get('success')
         elif activity.activity_type == 'TeamVsActivity':
-            db_obj.team_vs_result = obj_in.result_data.get('result')
+            db_obj.team_vs_result = result_data.get('result')
         elif activity.activity_type == 'GeneralActivity':
-            db_obj.points_score = obj_in.result_data.get('assigned_points')
-        
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        
-        # Update team scores after creating result
-        from app.services.scoring_service import ScoringService
+            db_obj.points_score = result_data.get('assigned_points')
+    
+    def _update_team_scores(self, db: Session, team_id: int) -> None:
+        """Update team scores after activity result changes"""
         scoring_service = ScoringService(db)
-        scoring_service.update_team_scores(obj_in.team_id)
-        
-        return db_obj
+        scoring_service.update_team_scores(team_id)
     
     def get(self, db: Session, id: int) -> Optional[ActivityResult]:
         """Get activity result by ID"""
@@ -164,32 +185,34 @@ class CRUDActivityResult:
         
         # Recalculate final score if result data changed
         if 'result_data' in update_data:
-            activity = db.query(Activity).filter(Activity.id == db_obj.activity_id).first()
-            activity_instance = ActivityFactory.create_activity(
-                activity.activity_type, 
-                activity.config
-            )
-            
-            team = db.query(Team).filter(Team.id == db_obj.team_id).first()
-            team_size = len(team.members) if team else 0
-            
-            base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
-            modifiers = {
-                'extra_shots': db_obj.extra_shots,
-                'penalties': db_obj.penalties
-            }
-            db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
+            self._recalculate_score_for_update(db, db_obj)
         
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
         
         # Update team scores after updating result
-        from app.services.scoring_service import ScoringService
-        scoring_service = ScoringService(db)
-        scoring_service.update_team_scores(db_obj.team_id)
+        self._update_team_scores(db, db_obj.team_id)
         
         return db_obj
+    
+    def _recalculate_score_for_update(self, db: Session, db_obj: ActivityResult) -> None:
+        """Recalculate the final score when result data is updated"""
+        activity = db.query(Activity).filter(Activity.id == db_obj.activity_id).first()
+        activity_instance = ActivityFactory.create_activity(
+            activity.activity_type, 
+            activity.config
+        )
+        
+        team = db.query(Team).filter(Team.id == db_obj.team_id).first()
+        team_size = len(team.members) if team else 0
+        
+        base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
+        modifiers = {
+            'extra_shots': db_obj.extra_shots,
+            'penalties': db_obj.penalties
+        }
+        db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
     
     def remove(self, db: Session, *, id: int) -> Optional[ActivityResult]:
         """Remove an activity result"""
@@ -202,7 +225,6 @@ class CRUDActivityResult:
         db.commit()
         
         # Update team scores after removing result
-        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
         
