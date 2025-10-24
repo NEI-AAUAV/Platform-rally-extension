@@ -48,9 +48,6 @@ class TeamUpdate(BaseModel):
     time_scores: Optional[List[int]] = None
     pukes: Optional[int] = None
     skips: Optional[int] = None
-    card1: Optional[int] = None
-    card2: Optional[int] = None
-    card3: Optional[int] = None
 
 class AdminCheckPointSelect(BaseModel):
     # For admin's only

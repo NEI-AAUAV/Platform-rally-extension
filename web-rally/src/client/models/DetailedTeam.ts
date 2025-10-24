@@ -15,9 +15,6 @@ export type DetailedTeam = {
     times: Array<string>;
     pukes: Array<number>;
     skips: Array<number>;
-    card1: number;
-    card2: number;
-    card3: number;
     score_per_checkpoint: Array<number>;
     members: Array<ListingUser>;
 };

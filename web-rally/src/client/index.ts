@@ -12,7 +12,6 @@ export type { DetailedUser } from './models/DetailedUser';
 export type { HTTPValidationError } from './models/HTTPValidationError';
 export type { ListingTeam } from './models/ListingTeam';
 export type { ListingUser } from './models/ListingUser';
-export type { TeamCardsUpdate } from './models/TeamCardsUpdate';
 export type { TeamCreate } from './models/TeamCreate';
 export type { TeamScoresUpdate } from './models/TeamScoresUpdate';
 export type { TeamUpdate } from './models/TeamUpdate';

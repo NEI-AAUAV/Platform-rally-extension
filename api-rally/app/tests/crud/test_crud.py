@@ -54,10 +54,7 @@ def mock_team_data():
         "question_scores": [True],
         "time_scores": [30],
         "pukes": 0,
-        "skips": 0,
-        "card1": 1,
-        "card2": 2,
-        "card3": 3
+        "skips": 0
     }
 
 
