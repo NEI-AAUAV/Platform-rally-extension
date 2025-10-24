@@ -66,6 +66,13 @@ class ActivityResultBase(BaseModel):
     penalties: Dict[str, int] = Field(default_factory=dict)
 
 
+class ActivityResultEvaluation(BaseModel):
+    """Schema for activity result evaluation (without team_id and activity_id)"""
+    result_data: Dict[str, Any] = Field(default_factory=dict)
+    extra_shots: int = Field(default=0, ge=0)
+    penalties: Dict[str, int] = Field(default_factory=dict)
+
+
 class ActivityResultCreate(ActivityResultBase):
     """Schema for creating an activity result"""
     pass

@@ -34,6 +34,7 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
             name=team.name,
             total=team.total,
             classification=team.classification,
+            times=team.times,
             last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
             last_checkpoint_score=(
                 team.score_per_checkpoint[-1]
