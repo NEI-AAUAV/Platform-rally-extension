@@ -19,6 +19,7 @@ const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
+        retry: false, // Disable retries in tests
         retryDelay: 100, // Faster retries for tests
       },
     },
@@ -59,7 +60,7 @@ describe('useRallySettings Hook', () => {
     })
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -74,11 +75,11 @@ describe('useRallySettings Hook', () => {
     mockFetch.mockRejectedValue(new Error('Network error'))
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
-    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    // Wait for the single attempt to complete (retries disabled in tests)
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(3)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
@@ -97,11 +98,11 @@ describe('useRallySettings Hook', () => {
     })
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
-    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    // Wait for the single attempt to complete (retries disabled in tests)
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(3)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
@@ -116,7 +117,7 @@ describe('useRallySettings Hook', () => {
     mockFetch.mockImplementation(() => new Promise(() => {})) // Never resolves
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
     expect(result.current.isLoading).toBe(true)
     expect(result.current.settings).toBeUndefined()
@@ -142,7 +143,7 @@ describe('useRallySettings Hook', () => {
     })
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -165,11 +166,11 @@ describe('useRallySettings Hook', () => {
     })
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
-    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    // Wait for the single attempt to complete (retries disabled in tests)
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(3)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
@@ -199,7 +200,7 @@ describe('useRallySettings Hook', () => {
     })
 
     const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings(), { wrapper })
+    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
