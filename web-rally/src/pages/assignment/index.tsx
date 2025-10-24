@@ -4,6 +4,22 @@ import useUser from "@/hooks/useUser";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
 
+interface Checkpoint {
+  id: number;
+  name: string;
+  description: string;
+  order: number;
+}
+
+interface StaffAssignment {
+  id: number;
+  user_id: number;
+  user_name?: string;
+  user_email?: string;
+  checkpoint_id?: number;
+  checkpoint_name?: string;
+}
+
 export default function Assignment() {
   const { isLoading, userStoreStuff } = useUser();
   
@@ -11,18 +27,18 @@ export default function Assignment() {
   const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
                    userStoreStuff.scopes?.includes("admin");
 
-  const { data: checkpoints } = useQuery({
+  const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Checkpoint[]> => {
       const response = await fetch("/api/rally/v1/checkpoint/");
       if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      return response.json();
+      return (await response.json()) as Checkpoint[];
     },
   });
 
-  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery({
+  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<StaffAssignment[]>({
     queryKey: ["staffAssignments"],
-    queryFn: async () => {
+    queryFn: async (): Promise<StaffAssignment[]> => {
       const response = await fetch("/api/rally/v1/user/staff-assignments", {
         headers: {
           Authorization: `Bearer ${userStoreStuff.token}`,
@@ -34,7 +50,7 @@ export default function Assignment() {
         }
         throw new Error("Failed to fetch staff assignments");
       }
-      return response.json();
+      return (await response.json()) as StaffAssignment[];
     },
     enabled: isManager,
   });
@@ -63,7 +79,7 @@ export default function Assignment() {
         throw new Error(errorData.detail || "Failed to update assignment");
       }
       
-      return response.json();
+      return (await response.json()) as Checkpoint[];
     },
     onSuccess: () => {
       refetchAssignments(); // Refetch assignments to update UI
@@ -83,7 +99,7 @@ export default function Assignment() {
   }
 
   // Staff assignments are already filtered by the API
-  const rallyStaffAssignments = staffAssignments || [];
+  const rallyStaffAssignments: StaffAssignment[] = staffAssignments || [];
 
   return (
     <div className="mt-16 space-y-8">

@@ -126,3 +126,4 @@ export default function VersusGroupList({ versusGroups, teams, userToken, onSucc
   );
 }
 
+

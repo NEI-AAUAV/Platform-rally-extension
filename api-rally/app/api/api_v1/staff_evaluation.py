@@ -324,9 +324,9 @@ def evaluate_team_activity(
     # Validate access based on user role
     is_admin_or_manager = _is_admin_or_manager(auth)
     if is_admin_or_manager:
-        team_obj, activity_obj = _validate_admin_access(db, team_id, activity_id)
+        _, activity_obj = _validate_admin_access(db, team_id, activity_id)
     else:
-        team_obj, activity_obj = _validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
+        _, activity_obj = _validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
     
     # Check if result already exists
     _check_existing_result(db, activity_id, team_id)
