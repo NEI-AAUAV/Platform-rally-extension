@@ -1,7 +1,7 @@
 import { Activity, ActivityCreate, ActivityUpdate, Checkpoint } from "@/types/activityTypes";
 
 class ActivityService {
-  private baseUrl = "/api/rally/v1";
+  private readonly baseUrl = "/api/rally/v1";
 
   async getActivities(token: string): Promise<Activity[]> {
     const response = await fetch(`${this.baseUrl}/activities/`, {
