@@ -140,24 +140,24 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                 key={evaluation.id}
                 className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)]"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <IconComponent className="w-5 h-5 text-white" />
-                    <div>
-                      <h4 className="font-semibold text-white">{evaluation.activity.name}</h4>
-                      <p className="text-sm text-[rgb(255,255,255,0.6)]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <IconComponent className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-white text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
+                      <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
                         Team: {evaluation.team.name} • Checkpoint {evaluation.activity.checkpoint_id}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <Badge 
                       variant="default"
-                      className="bg-green-500/20 text-green-400"
+                      className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
                     >
                       Score: {evaluation.final_score}
                     </Badge>
-                    <Badge variant="outline" className="text-white border-white/20">
+                    <Badge variant="outline" className="text-white border-white/20 text-xs sm:text-sm w-fit">
                       {new Date(evaluation.completed_at).toLocaleDateString()}
                     </Badge>
                   </div>

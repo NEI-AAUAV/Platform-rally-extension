@@ -60,21 +60,21 @@ export default function AssignedCheckpoints({
             return (
               <div
                 key={checkpoint.id}
-                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] cursor-pointer hover:bg-[rgb(255,255,255,0.1)] transition-colors"
+                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] cursor-pointer hover:bg-[rgb(255,255,255,0.1)] transition-colors active:bg-[rgb(255,255,255,0.15)]"
                 onClick={() => onCheckpointClick(checkpoint)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white">{checkpoint.name}</h3>
-                    <p className="text-sm text-[rgb(255,255,255,0.6)]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white text-lg sm:text-base truncate">{checkpoint.name}</h3>
+                    <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
                       {checkpointActivities.length} activities • {teamsAtCheckpoint.length} teams
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-white border-white/20">
+                  <div className="flex items-center justify-between sm:justify-end gap-2">
+                    <Badge variant="outline" className="text-white border-white/20 text-xs sm:text-sm">
                       Checkpoint {checkpoint.order}
                     </Badge>
-                    <ArrowRight className="w-4 h-4 text-[rgb(255,255,255,0.6)]" />
+                    <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-[rgb(255,255,255,0.6)] flex-shrink-0" />
                   </div>
                 </div>
               </div>

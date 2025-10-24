@@ -543,15 +543,15 @@ export default function StaffEvaluation() {
       <div className="mt-16 space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">Staff Evaluation</h1>
-          <p className="text-[rgb(255,255,255,0.7)]">
-            Evaluate teams at your assigned checkpoint: <strong>{myCheckpoint.name}</strong>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">Staff Evaluation</h1>
+          <p className="text-sm sm:text-base text-[rgb(255,255,255,0.7)] px-4">
+            Evaluate teams at your assigned checkpoint: <strong className="break-words">{myCheckpoint.name}</strong>
           </p>
         </div>
 
         {/* Checkpoint Completion Notification */}
         {checkpointNotification && (
-          <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div className="fixed top-2 left-2 right-2 sm:top-4 sm:right-4 sm:left-auto z-50 max-w-md mx-auto sm:mx-0">
             <Card className="bg-green-600 border-green-500 text-white">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -562,7 +562,7 @@ export default function StaffEvaluation() {
                   </div>
                   <button
                     onClick={() => setCheckpointNotification(null)}
-                    className="text-green-200 hover:text-white transition-colors"
+                    className="text-green-200 hover:text-white transition-colors text-xl leading-none"
                   >
                     ×
                   </button>
