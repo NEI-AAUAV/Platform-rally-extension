@@ -43,7 +43,7 @@ class ScoringService:
         
         return total_score
     
-    def update_team_scores(self, team_id: int) -> bool:
+    def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
         """Update team's total and score_per_checkpoint based on activity results"""
         team = self.db.query(Team).filter(Team.id == team_id).first()
         if not team:
@@ -80,20 +80,13 @@ class ScoringService:
             checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
         ]
         
-        # Commit only if we're not in a nested transaction context
-        # This allows the method to work both standalone and within nested transactions
-        try:
-            # Check if we're in a nested transaction by looking at the connection's transaction state
-            connection = self.db.connection()
-            if connection.in_transaction() and connection.in_nested_transaction():
-                # We're in a nested transaction, don't commit
-                pass
-            else:
-                # We're in the main transaction, commit
+        # Commit only if explicitly requested
+        if should_commit:
+            try:
                 self.db.commit()
-        except Exception:
-            # If we can't determine transaction state, commit anyway for safety
-            self.db.commit()
+            except Exception as e:
+                raise RuntimeError(f"Failed to update team scores: {str(e)}")
+        
         return True
     
     def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
