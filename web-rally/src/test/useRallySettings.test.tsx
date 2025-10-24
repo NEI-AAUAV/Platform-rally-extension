@@ -19,7 +19,7 @@ const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        retry: false,
+        retryDelay: 100, // Faster retries for tests
       },
     },
   })
@@ -71,10 +71,15 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should handle fetch error gracefully', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'))
+    mockFetch.mockRejectedValue(new Error('Network error'))
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings(), { wrapper })
+
+    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -85,7 +90,7 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should handle non-ok response', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       statusText: 'Internal Server Error'
@@ -93,6 +98,11 @@ describe('useRallySettings Hook', () => {
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings(), { wrapper })
+
+    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -147,7 +157,7 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should handle malformed JSON response', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: async () => {
         throw new Error('Invalid JSON')
@@ -156,6 +166,11 @@ describe('useRallySettings Hook', () => {
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings(), { wrapper })
+
+    // Wait for all retries to complete (2 retries + initial attempt = 3 total calls)
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

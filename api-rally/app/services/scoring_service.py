@@ -54,7 +54,7 @@ class ScoringService:
             ActivityResult.team_id == team_id
         ).all()
         
-        # Group results by checkpoint
+        # Group results by checkpoint order (not checkpoint ID)
         checkpoint_scores = {}
         total_score = 0
         
@@ -63,17 +63,19 @@ class ScoringService:
                 # Get activity to find checkpoint
                 activity = self.db.query(Activity).filter(Activity.id == result.activity_id).first()
                 if activity:
-                    checkpoint_id = activity.checkpoint_id
-                    if checkpoint_id not in checkpoint_scores:
-                        checkpoint_scores[checkpoint_id] = 0
-                    checkpoint_scores[checkpoint_id] += result.final_score
+                    # Use checkpoint order instead of checkpoint ID
+                    checkpoint_order = activity.checkpoint.order
+                    if checkpoint_order not in checkpoint_scores:
+                        checkpoint_scores[checkpoint_order] = 0
+                    checkpoint_scores[checkpoint_order] += result.final_score
                     total_score += result.final_score
         
         # Update team scores
         team.total = total_score
         
         # Update score_per_checkpoint array to match times array length
-        max_checkpoint = max(checkpoint_scores.keys()) if checkpoint_scores else 0
+        # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID
+        # The times array represents checkpoint visit order
         team.score_per_checkpoint = [
             checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
         ]

@@ -80,7 +80,7 @@ class CRUDActivityResult:
             activity.config
         )
         
-        if not activity_instance.validate_result(obj_in.result_data):
+        if not activity_instance.validate_result(obj_in.result_data, obj_in.team_id, db):
             raise ValueError("Invalid result data for activity type")
         
         # Calculate final score
