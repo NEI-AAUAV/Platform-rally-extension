@@ -20,7 +20,6 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const navigation = [
     { name: "Pontuação", href: "/scoreboard", show: true },
     { name: "Postos", href: "/postos", show: true },
-    { name: "Equipas", href: "/teams", show: true },
     {
       name: "Admin",
       href: "/admin",

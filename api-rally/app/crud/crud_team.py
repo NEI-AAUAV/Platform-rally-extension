@@ -71,30 +71,28 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         )
 
     def update_classification_unlocked(self, db: Session) -> None:
+        """Update team classifications based on activity results"""
+        from app.services.scoring_service import ScoringService
+        
         teams = list(self.get_multi(db=db, for_update=True))
-        settings = rally_settings.get_or_create(db)
-
-        min_time_scores = self.calculate_min_time_scores(teams)
-
-        for t in teams:
-            t.score_per_checkpoint = [
-                self.calculate_checkpoint_score(
-                    i, team=t, min_time_scores=min_time_scores, penalty_per_puke=settings.penalty_per_puke
-                )
-                for i in range(len(t.times))
-            ]
-            t.total = sum(t.score_per_checkpoint)
-
+        scoring_service = ScoringService(db)
+        
+        # Update scores for all teams based on activity results
+        for team in teams:
+            scoring_service.update_team_scores(team.id)
+            db.refresh(team)  # Refresh to get updated scores
+        
+        # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))
-
+        
+        # Update classifications
         for i, team in enumerate(teams):
             team.classification = i + 1
             db.add(team)
 
     def update_classification(self, db: Session) -> None:
-        with db.begin_nested():
-            self.update_classification_unlocked(db)
-            db.commit()
+        self.update_classification_unlocked(db)
+        db.commit()
 
     def create(self, db: Session, *, obj_in: TeamCreate) -> Team:
         settings = rally_settings.get_or_create(db)
