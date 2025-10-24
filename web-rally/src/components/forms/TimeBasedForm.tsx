@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BloodyButton } from "@/components/themes/bloody";
 
 interface TimeBasedFormProps {
   existingResult?: any;
@@ -145,13 +146,15 @@ export default function TimeBasedForm({ existingResult, onSubmit, isSubmitting }
       </div>
 
       <div className="flex gap-3 mt-6">
-        <button
+        <BloodyButton
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+          variant="primary"
+          blood={true}
+          className="flex-1 px-6 py-3"
         >
           {isSubmitting ? "Saving..." : existingResult ? "Update Evaluation" : "Submit Evaluation"}
-        </button>
+        </BloodyButton>
       </div>
     </form>
   );
