@@ -92,3 +92,4 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
     </div>
   );
 }
+

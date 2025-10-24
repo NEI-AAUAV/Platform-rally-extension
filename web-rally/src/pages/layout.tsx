@@ -41,7 +41,7 @@ export default function MainLayout() {
         <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
         <div className="text-center">
           <img 
-            src="/rally/src/public/banner/Halloween_2025.jpeg" 
+            src="/rally/banner/Halloween_2025.jpeg" 
             alt="Rally Tascas Banner" 
             className="mx-auto mb-4 max-h-32 w-auto object-contain"
           />
@@ -57,7 +57,7 @@ export default function MainLayout() {
       <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
         <div className="text-center mb-4">
           <img 
-            src="/rally/src/public/banner/Halloween_2025.jpeg" 
+            src="/rally/banner/Halloween_2025.jpeg" 
             alt="Rally Tascas Banner" 
             className="mx-auto max-h-32 w-auto object-contain"
           />
