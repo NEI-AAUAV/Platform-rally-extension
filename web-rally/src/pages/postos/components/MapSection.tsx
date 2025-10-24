@@ -21,10 +21,10 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
   const hasCoordinates = checkpoints.some(cp => cp.latitude !== null && cp.latitude !== undefined && cp.longitude !== null && cp.longitude !== undefined);
   
   const mapBounds = hasCoordinates ? {
-    minLat: Math.min(...checkpoints.map(cp => cp.latitude).filter(Boolean)),
-    maxLat: Math.max(...checkpoints.map(cp => cp.latitude).filter(Boolean)),
-    minLng: Math.min(...checkpoints.map(cp => cp.longitude).filter(Boolean)),
-    maxLng: Math.max(...checkpoints.map(cp => cp.longitude).filter(Boolean)),
+    minLat: Math.min(...checkpoints.map(cp => cp.latitude).filter(coord => coord !== null && coord !== undefined)),
+    maxLat: Math.max(...checkpoints.map(cp => cp.latitude).filter(coord => coord !== null && coord !== undefined)),
+    minLng: Math.min(...checkpoints.map(cp => cp.longitude).filter(coord => coord !== null && coord !== undefined)),
+    maxLng: Math.max(...checkpoints.map(cp => cp.longitude).filter(coord => coord !== null && coord !== undefined)),
   } : null;
 
   // Generate Google Maps URL
@@ -35,7 +35,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
     const centerLng = (mapBounds.minLng + mapBounds.maxLng) / 2;
     
     const markers = checkpoints
-      .filter(cp => cp.latitude && cp.longitude)
+      .filter(cp => cp.latitude !== null && cp.latitude !== undefined && cp.longitude !== null && cp.longitude !== undefined)
       .map((cp) => `${cp.latitude},${cp.longitude}`)
       .join('|');
     

@@ -55,9 +55,11 @@ class CRUDActivity:
         db.refresh(db_obj)
         return db_obj
     
-    def remove(self, db: Session, *, id: int) -> Activity:
+    def remove(self, db: Session, *, id: int) -> Optional[Activity]:
         """Remove an activity"""
         obj = db.query(Activity).get(id)
+        if obj is None:
+            return None
         db.delete(obj)
         db.commit()
         return obj
@@ -189,9 +191,12 @@ class CRUDActivityResult:
         
         return db_obj
     
-    def remove(self, db: Session, *, id: int) -> ActivityResult:
+    def remove(self, db: Session, *, id: int) -> Optional[ActivityResult]:
         """Remove an activity result"""
         obj = db.query(ActivityResult).get(id)
+        if obj is None:
+            return None
+        
         team_id = obj.team_id  # Store team_id before deletion
         db.delete(obj)
         db.commit()
@@ -245,9 +250,11 @@ class CRUDRallyEvent:
         db.refresh(db_obj)
         return db_obj
     
-    def remove(self, db: Session, *, id: int) -> RallyEvent:
+    def remove(self, db: Session, *, id: int) -> Optional[RallyEvent]:
         """Remove a rally event"""
         obj = db.query(RallyEvent).get(id)
+        if obj is None:
+            return None
         db.delete(obj)
         db.commit()
         return obj
