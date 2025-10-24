@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 import os
 import sys
+import tempfile
 
 # Mock JWT public key BEFORE any imports that might use it
 mock_jwt_key = """-----BEGIN PUBLIC KEY-----
@@ -13,13 +14,13 @@ MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8KdO8QqgT2zSM0p1KgJ4Y4vVXlJ7S8wK
 3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X
 -----END PUBLIC KEY-----"""
 
-# Patch the function before any imports
-def mock_get_public_key(settings):
-    return mock_jwt_key
+# Create a temporary JWT key file
+temp_jwt_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pub', delete=False)
+temp_jwt_file.write(mock_jwt_key)
+temp_jwt_file.close()
 
-# Apply the patch immediately
-patcher = patch('app.api.auth.get_public_key', side_effect=mock_get_public_key)
-patcher.start()
+# Set environment variable to use the temporary file
+os.environ['JWT_PUBLIC_KEY_PATH'] = temp_jwt_file.name
 
 from app.models.base import Base
 from app.main import app
@@ -100,5 +101,8 @@ def client_with_mocked_db():
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Clean up the patcher when all tests are done"""
-    patcher.stop()
+    """Clean up the temporary JWT key file when all tests are done"""
+    try:
+        os.unlink(temp_jwt_file.name)
+    except OSError:
+        pass  # File might already be deleted
