@@ -29,12 +29,18 @@ export function localDatetimeLocalToUTCISOString(value: string | null): string |
   
   if (dateParts.length !== 3 || timeParts.length !== 2) return null;
   
-  const [year, month, day] = dateParts;
-  const [hours, minutes] = timeParts;
+  // Validate that all parts are valid numbers
+  if (dateParts.some(isNaN) || timeParts.some(isNaN)) return null;
+  
+  const year = dateParts[0]!;
+  const month = dateParts[1]!;
+  const day = dateParts[2]!;
+  const hours = timeParts[0]!;
+  const minutes = timeParts[1]!;
   
   // Create Date object using constructor with individual parameters
   // This creates a Date object in the local timezone
-  const localDate = new Date(year!, month! - 1, day!, hours!, minutes!);
+  const localDate = new Date(year, month - 1, day, hours, minutes);
   
   // The Date object is already in local timezone, so toISOString() converts to UTC
   return localDate.toISOString();

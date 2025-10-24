@@ -79,7 +79,13 @@ class ScoringService:
         ]
         
         # Only commit if not in a nested transaction (savepoint)
-        if not self.db.in_nested_transaction():
+        # Use get_transaction() to check if we're in a nested transaction
+        try:
+            transaction = self.db.get_transaction()
+            if transaction is None or not transaction.is_active:
+                self.db.commit()
+        except Exception:
+            # If we can't determine transaction state, commit anyway
             self.db.commit()
         return True
     
@@ -254,8 +260,15 @@ class ScoringService:
             return False
         
         # Check if teams already have results for this activity
-        result1 = activity_result.get_by_activity_and_team(self.db, activity_id, team1_id)
-        result2 = activity_result.get_by_activity_and_team(self.db, activity_id, team2_id)
+        result1 = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team1_id
+        ).first()
+        
+        result2 = self.db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team2_id
+        ).first()
         
         if result1 and result1.is_completed:
             return False

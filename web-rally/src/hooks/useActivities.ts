@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, ActivityCreate, ActivityUpdate } from "@/types/activityTypes";
+import { ActivityCreate, ActivityUpdate } from "@/types/activityTypes";
 import { activityService } from "@/services/activityService";
 import useUser from "@/hooks/useUser";
 
