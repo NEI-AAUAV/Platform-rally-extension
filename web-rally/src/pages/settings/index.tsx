@@ -91,8 +91,8 @@ export default function RallySettings() {
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
                enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
+        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
@@ -103,7 +103,7 @@ export default function RallySettings() {
         public_access_enabled: settings.public_access_enabled,
       });
     }
-  }, [settings, form]);
+  }, [settings]);
 
   // Update settings mutation
   const {
@@ -133,8 +133,8 @@ export default function RallySettings() {
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
                enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
+        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
         penalty_per_puke: settings.penalty_per_puke,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,

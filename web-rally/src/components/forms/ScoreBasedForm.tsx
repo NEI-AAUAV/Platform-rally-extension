@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
+import { RALLY_DEFAULTS } from "@/config/rallyDefaults";
 
 interface ScoreBasedFormProps {
   existingResult?: any;
@@ -13,16 +14,13 @@ export default function ScoreBasedForm({ existingResult, onSubmit, isSubmitting 
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
 
-  // Calculate max extra shots based on team size (default: 1 per member)
+  // Calculate max extra shots based on team size
   const teamSize = existingResult?.team?.members?.length || 1;
-  const maxExtraShotsPerMember = 1; // Default from backend config
+  const maxExtraShotsPerMember = RALLY_DEFAULTS.EXTRA_SHOTS.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
   
-  // Penalty values from backend config
-  const penaltyValues = {
-    vomit: 5, // Default from RallySettings.penalty_per_puke
-    not_drinking: 2, // Default from RallySettings.penalty_per_not_drinking
-  };
+  // Use penalty values from configuration
+  const penaltyValues = RALLY_DEFAULTS.PENALTY_VALUES;
 
   useEffect(() => {
     if (existingResult?.result_data) {
