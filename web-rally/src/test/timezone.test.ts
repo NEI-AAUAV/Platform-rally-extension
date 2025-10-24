@@ -121,7 +121,7 @@ describe('Timezone Utilities', () => {
       const offset = getTimezoneOffset()
       
       expect(typeof offset).toBe('number')
-      expect(offset % 60).toBe(0) // Should be divisible by 60 (whole hours)
+      expect(Math.abs(offset % 60)).toBe(0) // Should be divisible by 60 (whole hours)
     })
   })
 

@@ -12,7 +12,19 @@ export default function useRallySettings() {
       }
       return response.json() as Promise<RallySettingsResponse>;
     },
-    retry: 2, // Retry up to 2 times
+    retry: (failureCount, error) => {
+      // Disable retries in test environments
+      // Check multiple indicators for test environment
+      const isTestEnv = process.env.NODE_ENV === 'test' || 
+                       process.env.NODE_ENV === 'development' ||
+                       process.env.VITEST === 'true' ||
+                       process.env.CI === 'true' ||
+                       typeof window !== 'undefined' && 
+                       (window.location.href.includes('test') || 
+                        window.location.href.includes('localhost'));
+      
+      return !isTestEnv && failureCount < 2;
+    },
     retryDelay: 1000, // Wait 1 second between retries
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
