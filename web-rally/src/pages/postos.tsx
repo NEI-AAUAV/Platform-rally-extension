@@ -27,8 +27,13 @@ export default function Postos() {
     },
   });
 
-  // Sort checkpoints by order
-  const sortedCheckpoints = checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order) || [];
+  // Sort checkpoints by id and add default order property
+  const sortedCheckpoints = checkpoints?.map((cp, index) => ({
+    ...cp,
+    order: index + 1,
+    latitude: undefined,
+    longitude: undefined,
+  })).sort((a: Checkpoint, b: Checkpoint) => a.id - b.id) || [];
 
   if (isLoading) {
     return <LoadingState message="A carregar postos..." />;

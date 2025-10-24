@@ -97,7 +97,7 @@ export default function StaffEvaluation() {
   });
 
   // Manager queries
-  const { data: allEvaluations } = useQuery({
+  const { data: allEvaluations } = useQuery<{evaluations: any[]}>({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/staff/all-evaluations", {
@@ -111,7 +111,7 @@ export default function StaffEvaluation() {
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });
 
-  const { data: allCheckpoints } = useQuery({
+  const { data: allCheckpoints } = useQuery<any[]>({
     queryKey: ["allCheckpoints"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/checkpoint/", {
@@ -126,7 +126,7 @@ export default function StaffEvaluation() {
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });
 
-  const { data: allTeams } = useQuery({
+  const { data: allTeams } = useQuery<Team[]>({
     queryKey: ["allTeams"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/team/", {
@@ -140,7 +140,7 @@ export default function StaffEvaluation() {
     enabled: isRallyAdmin && !!userStoreStuff.token,
   });
 
-  const { data: allActivities } = useQuery({
+  const { data: allActivities } = useQuery<{activities: Activity[]}>({
     queryKey: ["allActivities"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/activities/", {
@@ -158,7 +158,6 @@ export default function StaffEvaluation() {
   const { mutate: createResult, isPending: isCreating } = useMutation({
     mutationFn: async ({ teamId, activityId, resultData }: { teamId: number; activityId: number; resultData: any }) => {
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
-      console.log("Staff createResult calling URL:", url, "with data:", resultData);
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -213,7 +212,6 @@ export default function StaffEvaluation() {
   const { mutate: createManagerResult, isPending: isCreatingManager } = useMutation({
     mutationFn: async ({ teamId, activityId, resultData }: { teamId: number; activityId: number; resultData: any }) => {
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
-      console.log("Manager createManagerResult calling URL:", url, "with data:", resultData);
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -416,7 +414,6 @@ export default function StaffEvaluation() {
       if (isCheckpointComplete && checkpointActivityIds.length > 0) {
         // Show notification that team completed checkpoint
         const message = `🎉 Team ${teamId} completed all ${checkpointActivityIds.length} activities at Checkpoint ${checkpointId}! They have been automatically advanced to the next checkpoint.`;
-        console.log(message);
         
         // Set notification state
         setCheckpointNotification({
@@ -448,23 +445,10 @@ export default function StaffEvaluation() {
   };
 
   const handleSubmitEvaluation = (resultData: any) => {
-    console.log("handleSubmitEvaluation called with:", {
-      resultData,
-      selectedTeam: selectedTeam?.id,
-      selectedActivity: selectedActivity?.id,
-      isRallyAdmin,
-      hasExistingResult: !!selectedActivity?.existing_result
-    });
     
     if (isRallyAdmin) {
       // Manager evaluation
       if (selectedActivity?.existing_result) {
-        console.log("Updating manager result with:", {
-          teamId: selectedTeam!.id,
-          activityId: selectedActivity!.id,
-          resultId: selectedActivity.existing_result.id,
-          resultData,
-        });
         updateManagerResult({
           teamId: selectedTeam!.id,
           activityId: selectedActivity!.id,
@@ -472,11 +456,6 @@ export default function StaffEvaluation() {
           resultData,
         });
       } else {
-        console.log("Creating manager result with:", {
-          teamId: selectedTeam!.id,
-          activityId: selectedActivity!.id,
-          resultData,
-        });
         createManagerResult({
           teamId: selectedTeam!.id,
           activityId: selectedActivity!.id,
@@ -486,12 +465,6 @@ export default function StaffEvaluation() {
     } else {
       // Staff evaluation
       if (selectedActivity?.existing_result) {
-        console.log("Updating staff result with:", {
-          teamId: selectedTeam!.id,
-          activityId: selectedActivity!.id,
-          resultId: selectedActivity.existing_result.id,
-          resultData,
-        });
         updateResult({
           teamId: selectedTeam!.id,
           activityId: selectedActivity!.id,
@@ -499,11 +472,6 @@ export default function StaffEvaluation() {
           resultData,
         });
       } else {
-        console.log("Creating staff result with:", {
-          teamId: selectedTeam!.id,
-          activityId: selectedActivity!.id,
-          resultData,
-        });
         createResult({
           teamId: selectedTeam!.id,
           activityId: selectedActivity!.id,

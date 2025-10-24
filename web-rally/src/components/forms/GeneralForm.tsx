@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
+import { RALLY_DEFAULTS, getPenaltyValues } from "@/config/rallyDefaults";
+import useRallySettings from "@/hooks/useRallySettings";
 
 interface GeneralFormProps {
   existingResult?: any;
@@ -9,25 +11,25 @@ interface GeneralFormProps {
 }
 
 export default function GeneralForm({ existingResult, config, onSubmit, isSubmitting }: GeneralFormProps) {
-  const [assignedPoints, setAssignedPoints] = useState<number>(config.default_points || 50);
+  const [assignedPoints, setAssignedPoints] = useState<number>(config.default_points || RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
 
-  // Calculate max extra shots based on team size (default: 1 per member)
+  // Get Rally settings for dynamic penalty values
+  const { settings } = useRallySettings();
+
+  // Calculate max extra shots based on team size
   const teamSize = existingResult?.team?.members?.length || 1;
-  const maxExtraShotsPerMember = 1; // Default from backend config
+  const maxExtraShotsPerMember = RALLY_DEFAULTS.EXTRA_SHOTS.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
   
-  // Penalty values from backend config
-  const penaltyValues = {
-    vomit: 5, // Default from RallySettings.penalty_per_puke
-    not_drinking: 2, // Default from RallySettings.penalty_per_not_drinking
-  };
+  // Use penalty values from API settings or fallback to defaults
+  const penaltyValues = getPenaltyValues(settings);
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setAssignedPoints(existingResult.result_data.assigned_points || config.default_points || 50);
+      setAssignedPoints(existingResult.result_data.assigned_points || config.default_points || RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints);
       setNotes(existingResult.result_data.notes || "");
     }
     if (existingResult) {
