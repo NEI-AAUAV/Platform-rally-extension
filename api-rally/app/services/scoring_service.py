@@ -78,7 +78,9 @@ class ScoringService:
             checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
         ]
         
-        self.db.commit()
+        # Only commit if not in a nested transaction (savepoint)
+        if not self.db.in_nested_transaction():
+            self.db.commit()
         return True
     
     def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:

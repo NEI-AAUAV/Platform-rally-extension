@@ -7,6 +7,13 @@ import useUser from "@/hooks/useUser";
 import { PageHeader } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
 
+interface Checkpoint {
+  id: number;
+  name: string;
+  description: string;
+  order: number;
+}
+
 
 export default function Admin() {
   const { isLoading, userStoreStuff } = useUser();

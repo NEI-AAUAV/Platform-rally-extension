@@ -87,7 +87,7 @@ class CRUDActivityResult:
         final_score = self._calculate_final_score(db, activity_instance, obj_in)
         
         # Create result object
-        db_obj = self._create_result_object(activity, obj_in, final_score)
+        db_obj = self._create_result_object(obj_in, final_score)
         
         # Set specific score fields based on activity type
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
@@ -123,7 +123,7 @@ class CRUDActivityResult:
         }
         return activity_instance.apply_modifiers(base_score, modifiers, db)
     
-    def _create_result_object(self, activity: Activity, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
+    def _create_result_object(self, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
         """Create the ActivityResult database object"""
         return ActivityResult(
             activity_id=obj_in.activity_id,

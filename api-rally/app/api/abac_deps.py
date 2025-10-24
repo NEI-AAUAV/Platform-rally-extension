@@ -22,7 +22,7 @@ from app.api.deps import is_admin
 
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    curr_user: DetailedUser = None,
     db: Session = Depends(deps.get_db)
 ) -> DetailedUser:
     """
@@ -33,6 +33,10 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
+    # Initialize curr_user if not provided
+    if curr_user is None:
+        curr_user = deps.get_participant(db)
+    
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
                           for scope in auth.scopes)
