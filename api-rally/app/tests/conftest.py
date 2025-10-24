@@ -13,14 +13,18 @@ MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8KdO8QqgT2zSM0p1KgJ4Y4vVXlJ7S8wK
 3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X
 -----END PUBLIC KEY-----"""
 
+# Patch the function before any imports
+def mock_get_public_key(settings):
+    return mock_jwt_key
+
+# Apply the patch immediately
+patcher = patch('app.api.auth.get_public_key', side_effect=mock_get_public_key)
+patcher.start()
+
 from app.models.base import Base
 from app.main import app
 from app.api.deps import get_db
 from app.api.auth import get_public_key
-
-# Start patching after imports
-patcher = patch('app.api.auth.get_public_key', return_value=mock_jwt_key)
-patcher.start()
 
 # Test database setup - Use SQLite with JSON for array-like data
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
