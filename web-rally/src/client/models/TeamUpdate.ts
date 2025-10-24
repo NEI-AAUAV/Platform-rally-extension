@@ -10,8 +10,5 @@ export type TeamUpdate = {
     times?: (Array<string> | null);
     pukes?: (Array<number> | null);
     skips?: (Array<number> | null);
-    card1?: (number | null);
-    card2?: (number | null);
-    card3?: (number | null);
 };
 

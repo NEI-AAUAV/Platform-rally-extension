@@ -4,7 +4,6 @@
 
 import type { DetailedTeam } from '../models/DetailedTeam';
 import type { ListingTeam } from '../models/ListingTeam';
-import type { TeamCardsUpdate } from '../models/TeamCardsUpdate';
 import type { TeamCreate } from '../models/TeamCreate';
 import type { TeamScoresUpdate } from '../models/TeamScoresUpdate';
 import type { TeamUpdate } from '../models/TeamUpdate';
@@ -119,31 +118,6 @@ export class TeamService {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/api/rally/v1/team/{id}/checkpoint',
-            path: {
-                'id': id,
-            },
-            body: requestBody,
-            mediaType: 'application/json',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-
-    /**
-     * Activate Cards
-     * @param id
-     * @param requestBody
-     * @returns DetailedTeam Successful Response
-     * @throws ApiError
-     */
-    public static activateCardsApiRallyV1TeamIdCardsPut(
-        id: number,
-        requestBody: TeamCardsUpdate,
-    ): CancelablePromise<DetailedTeam> {
-        return __request(OpenAPI, {
-            method: 'PUT',
-            url: '/api/rally/v1/team/{id}/cards',
             path: {
                 'id': id,
             },

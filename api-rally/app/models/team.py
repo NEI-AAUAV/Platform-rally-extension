@@ -27,11 +27,6 @@ class Team(Base):
     pukes: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
     skips: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
 
-    # Card tracking
-    card1: Mapped[int] = mapped_column(default=-1)
-    card2: Mapped[int] = mapped_column(default=-1)
-    card3: Mapped[int] = mapped_column(default=-1)
-
     total: Mapped[int] = mapped_column(default=0)
     classification: Mapped[int] = mapped_column(default=-1)
 

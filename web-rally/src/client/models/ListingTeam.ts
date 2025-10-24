@@ -12,6 +12,7 @@ export type ListingTeam = {
     total: number;
     classification: number;
     num_members: number;
+    times: (string | null)[];
     last_checkpoint_time: (string | null);
     last_checkpoint_score: (number | null);
 };
