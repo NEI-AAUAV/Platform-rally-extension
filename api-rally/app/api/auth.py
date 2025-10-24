@@ -40,7 +40,7 @@ class AuthData(BaseModel):
     scopes: List[str]
 
 
-async def api_nei_auth(
+def api_nei_auth(
     settings: SettingsDep,
     public_key: Annotated[str, Depends(get_public_key)],
     security_scopes: SecurityScopes,
