@@ -4,7 +4,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
-import { RallySettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
+import { SettingsService, type RallySettingsUpdate } from "@/client";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,9 @@ const rallySettingsSchema = z.object({
   
   // Scoring system
   penalty_per_puke: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
+  penalty_per_not_drinking: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
+  bonus_per_extra_shot: z.number().min(0, "Bonus must be positive").max(100, "Bonus too high"),
+  max_extra_shots_per_member: z.number().min(1, "Must allow at least 1 extra shot").max(20, "Maximum 20 extra shots per member"),
   
   // Checkpoint behavior
   checkpoint_order_matters: z.boolean(),
@@ -59,7 +62,7 @@ export default function RallySettings() {
   // Fetch current settings
   const { data: settings, refetch: refetchSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
     queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
-    queryFn: RallySettingsService.getRallySettings,
+    queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
     enabled: isManager,
     retry: 2, // Retry up to 2 times
     retryDelay: 1000, // Wait 1 second between retries
@@ -77,6 +80,9 @@ export default function RallySettings() {
       rally_start_time: null,
       rally_end_time: null,
       penalty_per_puke: -5,
+      penalty_per_not_drinking: -2,
+      bonus_per_extra_shot: 1,
+      max_extra_shots_per_member: 5,
       checkpoint_order_matters: true,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
@@ -97,6 +103,9 @@ export default function RallySettings() {
         rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
         rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
         penalty_per_puke: settings.penalty_per_puke,
+        penalty_per_not_drinking: settings.penalty_per_not_drinking,
+        bonus_per_extra_shot: settings.bonus_per_extra_shot,
+        max_extra_shots_per_member: settings.max_extra_shots_per_member,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
         show_live_leaderboard: settings.show_live_leaderboard,
@@ -106,6 +115,8 @@ export default function RallySettings() {
         public_access_enabled: settings.public_access_enabled,
       });
     }
+    // Note: 'form' is intentionally excluded from dependencies as form methods (reset, etc.) 
+    // are stable references from react-hook-form and don't need to trigger re-renders
   }, [settings]);
 
   // Update settings mutation
@@ -114,7 +125,7 @@ export default function RallySettings() {
     isPending: isUpdating,
   } = useMutation({
     mutationFn: async (settingsData: RallySettingsUpdate) => {
-      return RallySettingsService.updateRallySettings(settingsData);
+      return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(settingsData);
     },
     onSuccess: () => {
       alert("Settings updated successfully!");
@@ -139,6 +150,9 @@ export default function RallySettings() {
         rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
         rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
         penalty_per_puke: settings.penalty_per_puke,
+        penalty_per_not_drinking: settings.penalty_per_not_drinking,
+        bonus_per_extra_shot: settings.bonus_per_extra_shot,
+        max_extra_shots_per_member: settings.max_extra_shots_per_member,
         checkpoint_order_matters: settings.checkpoint_order_matters,
         enable_staff_scoring: settings.enable_staff_scoring,
         show_live_leaderboard: settings.show_live_leaderboard,

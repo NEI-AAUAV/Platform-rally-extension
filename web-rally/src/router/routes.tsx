@@ -77,6 +77,13 @@ const routes: RouteObject[] = [
           return { Component: StaffEvaluation };
         },
       },
+      {
+        path: "/staff-evaluation/checkpoint/:checkpointId",
+        async lazy() {
+          const { default: CheckpointTeamEvaluation } = await import("@/pages/staff-evaluation/components/CheckpointTeamEvaluation");
+          return { Component: CheckpointTeamEvaluation };
+        },
+      },
     ],
   },
 ];

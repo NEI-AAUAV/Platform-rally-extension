@@ -14,8 +14,10 @@ export default function useRallySettings(options?: { retry?: boolean | number })
     },
     retry: options?.retry !== undefined ? options.retry : 2, // Retry up to 2 times by default
     retryDelay: 1000, // Wait 1 second between retries
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    staleTime: 0, // Always consider data stale to force refetch
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Always refetch on mount
   });
 
   return {

@@ -14,6 +14,9 @@ class RallySettingsBase(BaseModel):
     
     # Scoring system
     penalty_per_puke: int
+    penalty_per_not_drinking: int
+    bonus_per_extra_shot: int
+    max_extra_shots_per_member: int
     
     # Checkpoint behavior
     checkpoint_order_matters: bool

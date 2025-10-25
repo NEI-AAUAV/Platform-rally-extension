@@ -11,7 +11,7 @@ export default function useUser() {
 
   const isRallyAdmin =
     !!userStoreStuff.scopes?.includes("admin") ||
-    (data !== undefined && data.staff_checkpoint_id !== null);
+    !!userStoreStuff.scopes?.includes("manager-rally");
 
   return {
     isLoading: isLoading || sessionLoading,

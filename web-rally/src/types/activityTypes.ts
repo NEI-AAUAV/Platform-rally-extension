@@ -14,7 +14,7 @@ export class Activity {
   description?: string;
   activity_type!: ActivityType;
   checkpoint_id!: number;
-  config!: Record<string, any>;
+  config!: ActivityConfig;
   is_active!: boolean;
   order!: number;
   created_at!: string;
@@ -26,7 +26,7 @@ export class ActivityCreate {
   description?: string;
   activity_type!: ActivityType;
   checkpoint_id!: number;
-  config?: Record<string, any>;
+  config?: ActivityConfig;
   is_active?: boolean;
   order?: number;
 }
@@ -36,7 +36,7 @@ export class ActivityUpdate {
   description?: string;
   activity_type?: ActivityType;
   checkpoint_id?: number;
-  config?: Record<string, any>;
+  config?: ActivityConfig;
   is_active?: boolean;
   order?: number;
 }
@@ -50,35 +50,62 @@ export class Checkpoint {
   order!: number;
 }
 
-export class ActivityConfig {
-  [key: string]: any;
+// Base configuration interface with common properties
+export interface BaseActivityConfig {
+  min_points?: number;
+  max_points?: number;
 }
 
-// Activity type configurations
-export class TimeBasedConfig extends ActivityConfig {
+// Activity type configurations with specific properties
+export interface TimeBasedConfig extends BaseActivityConfig {
   max_time_seconds?: number;
   points_per_second?: number;
-  min_points?: number;
 }
 
-export class ScoreBasedConfig extends ActivityConfig {
-  max_points?: number;
+export interface ScoreBasedConfig extends BaseActivityConfig {
   points_per_score?: number;
 }
 
-export class BooleanConfig extends ActivityConfig {
+export interface BooleanConfig extends BaseActivityConfig {
   success_points?: number;
   failure_points?: number;
 }
 
-export class TeamVsConfig extends ActivityConfig {
+export interface TeamVsConfig extends BaseActivityConfig {
   win_points?: number;
   lose_points?: number;
   draw_points?: number;
 }
 
-export class GeneralConfig extends ActivityConfig {
-  min_points?: number;
-  max_points?: number;
+export interface GeneralConfig extends BaseActivityConfig {
   default_points?: number;
+}
+
+// Union type for all possible activity configurations
+export type ActivityConfig = 
+  | TimeBasedConfig 
+  | ScoreBasedConfig 
+  | BooleanConfig 
+  | TeamVsConfig 
+  | GeneralConfig;
+
+// Type guard functions for runtime validation
+export function isTimeBasedConfig(config: ActivityConfig): config is TimeBasedConfig {
+  return 'max_time_seconds' in config || 'points_per_second' in config;
+}
+
+export function isScoreBasedConfig(config: ActivityConfig): config is ScoreBasedConfig {
+  return 'points_per_score' in config;
+}
+
+export function isBooleanConfig(config: ActivityConfig): config is BooleanConfig {
+  return 'success_points' in config || 'failure_points' in config;
+}
+
+export function isTeamVsConfig(config: ActivityConfig): config is TeamVsConfig {
+  return 'win_points' in config || 'lose_points' in config || 'draw_points' in config;
+}
+
+export function isGeneralConfig(config: ActivityConfig): config is GeneralConfig {
+  return 'default_points' in config;
 }

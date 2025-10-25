@@ -29,6 +29,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
         return (
           <TimeBasedForm
             existingResult={activity.existing_result}
+            team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
@@ -38,6 +39,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
         return (
           <ScoreBasedForm
             existingResult={activity.existing_result}
+            team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
@@ -47,6 +49,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
         return (
           <BooleanForm
             existingResult={activity.existing_result}
+            team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
@@ -56,6 +59,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
         return (
           <GeneralForm
             existingResult={activity.existing_result}
+            team={team}
             config={activity.config}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
@@ -66,6 +70,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
         return (
           <TeamVsForm
             existingResult={activity.existing_result}
+            team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
@@ -100,5 +105,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
     </div>
   );
 }
+
+
 
 

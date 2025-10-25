@@ -1,4 +1,4 @@
-import { BloodyButton } from "@/components/themes/bloody";
+import { Button } from "@/components/ui/button";
 import { ActivityForm } from "@/components/forms";
 
 interface EvaluationFormModalProps {
@@ -52,17 +52,19 @@ export default function EvaluationFormModal({
         />
 
         <div className="flex gap-3 mt-6">
-          <BloodyButton 
+          <Button 
             type="button"
             variant="neutral"
             onClick={onCancel}
           >
             Cancel
-          </BloodyButton>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
+
+
 
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ActivityIcon, CheckCircle, Clock, Star, Trophy, Filter, X } from "lucide-react";
+import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X } from "lucide-react";
 
 interface Evaluation {
   id: number;
@@ -31,7 +31,7 @@ const activityTypeIcons = {
   ScoreBasedActivity: Star,
   BooleanActivity: CheckCircle,
   TeamVsActivity: Trophy,
-  GeneralActivity: ActivityIcon,
+  GeneralActivity: Activity,
 };
 
 export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
@@ -55,7 +55,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
       <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <ActivityIcon className="w-5 h-5" />
+            <Activity className="w-5 h-5" />
             All Evaluations
           </CardTitle>
         </CardHeader>
@@ -133,7 +133,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
 
         <div className="space-y-3">
           {filteredEvaluations.map((evaluation) => {
-            const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || ActivityIcon;
+            const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
             
             return (
               <div
@@ -170,3 +170,5 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
     </Card>
   );
 }
+
+export { AllEvaluations };

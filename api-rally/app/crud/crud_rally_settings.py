@@ -10,14 +10,17 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             settings = RallySettings(
                 id=1,
                 # Team management
-                max_teams=16,
-                max_members_per_team=5,
-                enable_versus=False,
+                max_teams=14,
+                max_members_per_team=10,
+                enable_versus=True,
                 # Rally timing
                 rally_start_time=None,
                 rally_end_time=None,
                 # Scoring system
-                penalty_per_puke=-5,
+                penalty_per_puke=-10,
+                penalty_per_not_drinking=-2,
+                bonus_per_extra_shot=1,
+                max_extra_shots_per_member=5,
                 # Checkpoint behavior
                 checkpoint_order_matters=True,
                 # Staff and scoring
@@ -27,9 +30,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 show_team_details=True,
                 show_checkpoint_map=True,
                 # Rally customization
-                rally_theme="Rally Tascas",
+                rally_theme="Rally Tascas - Competição de Equipas",
                 # Access control
-                public_access_enabled=False
+                public_access_enabled=True
             )
             db.add(settings)
             db.commit()

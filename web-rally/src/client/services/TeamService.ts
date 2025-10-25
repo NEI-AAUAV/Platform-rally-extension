@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-
+/* eslint-disable */
 import type { DetailedTeam } from '../models/DetailedTeam';
 import type { ListingTeam } from '../models/ListingTeam';
 import type { TeamCreate } from '../models/TeamCreate';
@@ -98,6 +98,28 @@ export class TeamService {
             },
             body: requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+
+    /**
+     * Delete Team
+     * Delete a team. Only admins can delete teams.
+     * @param id
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static deleteTeamApiRallyV1TeamIdDelete(
+        id: number,
+    ): CancelablePromise<Record<string, any>> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/rally/v1/team/{id}',
+            path: {
+                'id': id,
+            },
             errors: {
                 422: `Validation Error`,
             },

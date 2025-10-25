@@ -1,17 +1,27 @@
 import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
-import { RALLY_DEFAULTS, getPenaltyValues } from "@/config/rallyDefaults";
+import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 
 interface GeneralFormProps {
   existingResult?: any;
+  team?: any;
   config: Record<string, any>;
   onSubmit: (data: any) => void;
   isSubmitting: boolean;
 }
 
-export default function GeneralForm({ existingResult, config, onSubmit, isSubmitting }: GeneralFormProps) {
-  const [assignedPoints, setAssignedPoints] = useState<number>(config.default_points || RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints);
+// Helper function to safely extract default_points from config
+function getDefaultPoints(config: Record<string, any>): number {
+  const defaultPoints = config.default_points;
+  if (typeof defaultPoints === 'number' && !isNaN(defaultPoints)) {
+    return defaultPoints;
+  }
+  return RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints;
+}
+
+export default function GeneralForm({ existingResult, team, config, onSubmit, isSubmitting }: GeneralFormProps) {
+  const [assignedPoints, setAssignedPoints] = useState<number>(getDefaultPoints(config));
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
@@ -20,8 +30,9 @@ export default function GeneralForm({ existingResult, config, onSubmit, isSubmit
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = existingResult?.team?.members?.length || 1;
-  const maxExtraShotsPerMember = RALLY_DEFAULTS.EXTRA_SHOTS.perMember;
+  const teamSize = team?.num_members || team?.members?.length || 1;
+  const extraShotsConfig = getExtraShotsConfig(settings);
+  const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
   
   // Use penalty values from API settings or fallback to defaults
@@ -29,7 +40,7 @@ export default function GeneralForm({ existingResult, config, onSubmit, isSubmit
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setAssignedPoints(existingResult.result_data.assigned_points || config.default_points || RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints);
+      setAssignedPoints(existingResult.result_data.assigned_points || getDefaultPoints(config));
       setNotes(existingResult.result_data.notes || "");
     }
     if (existingResult) {
@@ -134,7 +145,7 @@ export default function GeneralForm({ existingResult, config, onSubmit, isSubmit
           </div>
         </div>
         <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Penalties reduce the final score. Total penalty: -{((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
       

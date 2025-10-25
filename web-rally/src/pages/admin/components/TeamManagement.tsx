@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit, Trash2, Users, AlertCircle } from 'lucide-react';
 import {
   Form,
@@ -36,6 +36,7 @@ interface TeamManagementProps {
 
 export default function TeamManagement({ userStoreStuff }: TeamManagementProps) {
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
+  const queryClient = useQueryClient();
 
   // Teams queries and mutations
   const { data: teams, refetch: refetchTeams } = useQuery({
@@ -45,6 +46,9 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
       if (!response.ok) throw new Error('Failed to fetch teams');
       return response.json();
     },
+    staleTime: 0, // Always consider data stale to force refetch
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Always refetch on mount
   });
 
   const {
@@ -63,18 +67,27 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
         body: JSON.stringify(teamData),
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create team');
+        let errorMessage = 'Failed to create team';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+          // If response is not JSON (e.g., HTML error page), use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       return response.json();
     },
     onSuccess: () => {
-      refetchTeams();
+      // Invalidate and refetch teams data
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.removeQueries({ queryKey: ['teams'] }); // Force complete refetch
       teamForm.reset();
       resetCreateTeamError();
     },
     onError: (error: any) => {
-      console.error('Error creating team:', error);
+      // Error creating team
     },
   });
 
@@ -95,7 +108,7 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
       return response.json();
     },
     onSuccess: () => {
-      refetchTeams();
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
       setEditingTeam(null);
       teamForm.reset();
     },
@@ -115,13 +128,16 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
       if (!response.ok) throw new Error('Failed to delete team');
     },
     onSuccess: () => {
-      refetchTeams();
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
     },
   });
 
   // Form
   const teamForm = useForm<TeamForm>({
     resolver: zodResolver(teamFormSchema),
+    defaultValues: {
+      name: "",
+    },
   });
 
   const handleTeamSubmit = (data: TeamForm) => {
@@ -244,5 +260,6 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
     </div>
   );
 }
+
 
 
