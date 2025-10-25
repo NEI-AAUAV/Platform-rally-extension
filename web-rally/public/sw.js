@@ -1,5 +1,5 @@
 // Rally Tascas Service Worker
-const CACHE_NAME = 'rally-tascas-v5';
+const CACHE_NAME = 'rally-tascas-v8'; // Updated version to force cache refresh
 const STATIC_CACHE_URLS = [
   '/rally/',
   '/rally/manifest.json',
@@ -24,6 +24,9 @@ self.addEventListener('install', (event) => {
         console.log('Service Worker: Installation complete');
         return self.skipWaiting();
       })
+      .catch((error) => {
+        console.error('Service Worker: Installation failed:', error);
+      })
   );
 });
 
@@ -47,10 +50,44 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Listen for messages from the main thread
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.action === 'skipWaiting') {
+    console.log('Service Worker: Received skipWaiting message');
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.action === 'clearCache') {
+    console.log('Service Worker: Clearing all caches');
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => caches.delete(cacheName))
+      );
+    }).then(() => {
+      console.log('Service Worker: All caches cleared');
+    });
+  }
+});
+
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   // Only handle requests within Rally scope
   if (!event.request.url.includes('/rally/')) {
+    return;
+  }
+
+  // Skip caching for API endpoints - always fetch fresh data
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Skip caching for development files (Vite HMR, etc.)
+  if (event.request.url.includes('/src/') || 
+      event.request.url.includes('/node_modules/') ||
+      event.request.url.includes('@vite') ||
+      event.request.url.includes('?v=')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 

@@ -3,7 +3,7 @@ import { BloodyButton } from "../themes/bloody";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 
 type NavTabsProps = ComponentProps<"ul">;
@@ -12,6 +12,24 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Handle click outside to close mobile menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
   
   // Check if user has admin/manager privileges
   const isAdminOrManager = scopes !== undefined && 
@@ -81,7 +99,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       </ul>
 
       {/* Mobile Navigation */}
-      <div className="sm:hidden">
+      <div className="sm:hidden" ref={mobileMenuRef}>
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

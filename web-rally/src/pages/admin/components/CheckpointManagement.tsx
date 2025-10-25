@@ -143,7 +143,6 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
       
       if (!response.ok) {
         const errorData = await response.json() as { detail?: string };
-        console.error('Reorder error response:', errorData);
         throw new Error(errorData.detail || 'Failed to reorder checkpoints');
       }
       
@@ -153,7 +152,6 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
       refetchCheckpoints();
     },
     onError: (error: Error) => {
-      console.error('Failed to reorder checkpoints:', error);
       alert(`Erro ao reordenar checkpoints: ${error.message || error.toString()}`);
     },
   });
@@ -388,7 +386,6 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     // Focus management for keyboard users
-                    console.log('Keyboard interaction with checkpoint:', checkpoint.name);
                   }
                 }}
                 className={`flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)] cursor-move transition-all ${

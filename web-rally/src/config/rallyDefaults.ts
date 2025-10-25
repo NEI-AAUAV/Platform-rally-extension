@@ -11,13 +11,13 @@ export const RALLY_DEFAULTS = {
   
   // Extra shots configuration
   EXTRA_SHOTS: {
-    perMember: 1, // Default extra shots per team member
+    perMember: 5, // Default extra shots per team member (increased from 1)
   },
   
   // Form defaults
   FORM_DEFAULTS: {
     generalPoints: 50, // Default points for General activities
-    maxExtraShotsPerMember: 1,
+    maxExtraShotsPerMember: 5, // Increased to match EXTRA_SHOTS.perMember
   },
 } as const;
 
@@ -36,8 +36,8 @@ export function getPenaltyValues(settings?: any) {
 /**
  * Get extra shots configuration from Rally Settings API or fallback to defaults
  */
-export function getExtraShotsConfig(_settings?: any) {
+export function getExtraShotsConfig(settings?: any) {
   return {
-    perMember: RALLY_DEFAULTS.EXTRA_SHOTS.perMember, // This is typically not configurable
+    perMember: settings?.max_extra_shots_per_member || RALLY_DEFAULTS.EXTRA_SHOTS.perMember,
   };
 }

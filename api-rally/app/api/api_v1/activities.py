@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from app.api.deps import get_db, get_current_user
 from app.api.auth import AuthData, api_nei_auth
@@ -12,6 +13,7 @@ from app.api.abac_deps import require_permission
 from app.schemas.user import DetailedUser
 from app.core.abac import Action, Resource
 from app.crud.crud_activity import activity, activity_result, rally_event
+from app.models.activity import ActivityResult
 from app.schemas.activity import (
     ActivityCreate, ActivityUpdate, ActivityResponse, ActivityListResponse,
     ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse,
@@ -83,6 +85,26 @@ def get_activities(
         page=skip // limit + 1,
         size=limit
     )
+
+
+@router.get("/results", response_model=List[ActivityResultResponse])
+def get_all_activity_results(
+    *,
+    db: Session = Depends(get_db),
+    current_user: DetailedUser = Depends(get_current_user),
+    auth: AuthData = Depends(api_nei_auth)
+):
+    """Get all activity results (evaluations) with team and activity details"""
+    # require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
+    
+    # Get all activity results with related data
+    from sqlalchemy.orm import joinedload
+    results = db.query(ActivityResult).options(
+        joinedload(ActivityResult.activity),
+        joinedload(ActivityResult.team)
+    ).order_by(desc(ActivityResult.completed_at)).all()
+    
+    return results
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
@@ -385,3 +407,4 @@ def get_activity_statistics(
     statistics = scoring_service.get_activity_statistics(activity_id)
     
     return statistics
+

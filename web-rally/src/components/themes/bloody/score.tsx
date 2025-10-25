@@ -38,8 +38,8 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
   const lastCheckpointTime =
     team.last_checkpoint_time && new Date(team.last_checkpoint_time);
   
-  // Calculate checkpoint number from times array length
-  const checkpointNumber = team.times?.length || 0;
+  // Use the actual checkpoint number if available, otherwise fall back to completed checkpoints count
+  const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
   
   return (
     <div

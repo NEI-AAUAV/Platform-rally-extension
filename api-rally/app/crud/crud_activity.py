@@ -9,7 +9,7 @@ from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.team import Team
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate
-from app.services.scoring_service import ScoringService
+# ScoringService imported locally to avoid circular imports
 
 
 class CRUDActivity:
@@ -151,6 +151,7 @@ class CRUDActivityResult:
     
     def _update_team_scores(self, db: Session, team_id: int) -> None:
         """Update team scores after activity result changes"""
+        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
     
@@ -176,6 +177,10 @@ class CRUDActivityResult:
         return db.query(ActivityResult).filter(
             ActivityResult.team_id == team_id
         ).order_by(desc(ActivityResult.final_score)).all()
+    
+    def get_all(self, db: Session) -> List[ActivityResult]:
+        """Get all activity results"""
+        return db.query(ActivityResult).order_by(desc(ActivityResult.completed_at)).all()
     
     def update(self, db: Session, *, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
         """Update an activity result"""
@@ -225,6 +230,7 @@ class CRUDActivityResult:
         db.commit()
         
         # Update team scores after removing result
+        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
         

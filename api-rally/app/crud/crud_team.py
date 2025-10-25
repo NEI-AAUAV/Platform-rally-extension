@@ -115,7 +115,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
             raise
 
-        self.update_classification(db=db)
+        # Only update classification if there are existing teams
+        # This prevents errors when creating the first team
+        try:
+            self.update_classification(db=db)
+        except Exception as e:
+            # Log the error but don't fail team creation
+            print(f"Warning: Failed to update classification during team creation: {e}")
+        
         db.refresh(team)
         return team
 

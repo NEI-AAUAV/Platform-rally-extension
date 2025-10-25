@@ -17,19 +17,23 @@
  * // Returns: "2024-01-15T13:30:00.000Z" (if in UTC+1 timezone)
  */
 export function localDatetimeLocalToUTCISOString(value: string | null): string | null {
+  // Early return: null input results in null output
   if (!value) return null;
   
   // value format: YYYY-MM-DDTHH:mm
   // Parse the datetime-local string and create a Date object in local timezone
   const [datePart, timePart] = value.split('T');
+  
+  // Early return: invalid format - missing date or time part
   if (!datePart || !timePart) return null;
   
   const dateParts = datePart.split('-').map(Number);
   const timeParts = timePart.split(':').map(Number);
   
+  // Early return: invalid format - incorrect number of parts
   if (dateParts.length !== 3 || timeParts.length !== 2) return null;
   
-  // Validate that all parts are valid numbers
+  // Early return: invalid format - non-numeric parts
   if (dateParts.some(isNaN) || timeParts.some(isNaN)) return null;
   
   const year = dateParts[0]!;

@@ -55,20 +55,25 @@ export default function MemberForm({ selectedTeam, userToken, onSuccess, classNa
         }),
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to add member");
+        const errorText = await response.text();
+        let errorMessage = "Failed to add member";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-      return response.json();
+      const result = await response.json();
+      return result;
     },
     onSuccess: () => {
       onSuccess();
       form.reset();
     },
     onError: (error: unknown) => {
-      console.error("Error adding member:", error);
-      if (error instanceof Error) {
-        console.log("Error details:", error.message);
-      }
+      // Error adding member
     },
   });
 
@@ -155,5 +160,6 @@ export default function MemberForm({ selectedTeam, userToken, onSuccess, classNa
     </Card>
   );
 }
+
 
 

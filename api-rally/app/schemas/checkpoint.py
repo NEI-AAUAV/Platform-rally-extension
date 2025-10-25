@@ -21,6 +21,12 @@ class CheckPointUpdate(BaseModel):
     order: int | None = None
 
 
+class CheckPointResponse(CheckPointBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+
 class DetailedCheckPoint(CheckPointBase):
     model_config = ConfigDict(from_attributes=True)
 

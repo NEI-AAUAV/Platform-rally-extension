@@ -23,18 +23,24 @@ export default function TeamMembers() {
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
-  // Fetch teams
-  const { data: teams } = useQuery({
+  // Fetch teams with better error handling
+  const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/team/");
-      if (!response.ok) throw new Error("Failed to fetch teams");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch teams: ${response.status} ${errorText}`);
+      }
       return response.json();
     },
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Always refetch on mount
+    staleTime: 0, // Always consider data stale
   });
 
-  // Fetch team members
-  const { data: teamMembers, refetch: refetchTeamMembers } = useQuery({
+  // Fetch team members with better error handling
+  const { data: teamMembers, refetch: refetchTeamMembers, error: membersError, isLoading: membersLoading } = useQuery({
     queryKey: ["teamMembers", selectedTeam],
     queryFn: async () => {
       if (!selectedTeam) return [];
@@ -43,10 +49,16 @@ export default function TeamMembers() {
           Authorization: `Bearer ${userStoreStuff.token}`,
         },
       });
-      if (!response.ok) throw new Error("Failed to fetch team members");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch team members: ${response.status} ${errorText}`);
+      }
       return response.json() as Promise<TeamMember[]>;
     },
     enabled: !!selectedTeam && isManager,
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnMount: true, // Always refetch on mount
+    staleTime: 0, // Always consider data stale
   });
 
   const handleSuccess = () => {
@@ -61,6 +73,7 @@ export default function TeamMembers() {
     return <Navigate to="/scoreboard" />;
   }
 
+
   return (
     <div className="mt-16 space-y-8">
       <div className="text-center">
@@ -73,6 +86,28 @@ export default function TeamMembers() {
         </p>
       </div>
 
+      {/* Error displays */}
+      {teamsError && (
+        <div className="bg-red-600/20 border border-red-500 rounded-lg p-4">
+          <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar equipas:</h3>
+          <p className="text-red-200 text-sm">{teamsError.message}</p>
+        </div>
+      )}
+
+      {membersError && (
+        <div className="bg-red-600/20 border border-red-500 rounded-lg p-4">
+          <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar membros:</h3>
+          <p className="text-red-200 text-sm">{membersError.message}</p>
+        </div>
+      )}
+
+      {/* Loading states */}
+      {teamsLoading && (
+        <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-4">
+          <p className="text-blue-200">A carregar equipas...</p>
+        </div>
+      )}
+
       <TeamSelector
         teams={teams}
         selectedTeam={selectedTeam}
@@ -81,6 +116,12 @@ export default function TeamMembers() {
 
       {selectedTeam && (
         <>
+          {membersLoading && (
+            <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-4">
+              <p className="text-blue-200">A carregar membros da equipa...</p>
+            </div>
+          )}
+
           <MemberForm
             selectedTeam={selectedTeam}
             userToken={userStoreStuff.token}
@@ -94,6 +135,20 @@ export default function TeamMembers() {
             onSuccess={handleSuccess}
           />
         </>
+      )}
+
+
+      {/* Helpful messages */}
+      {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
+        <div className="bg-yellow-600/20 border border-yellow-500 rounded-lg p-4">
+          <h3 className="text-yellow-300 font-semibold mb-2">Nenhuma equipa encontrada</h3>
+          <p className="text-yellow-200 text-sm mb-2">
+            Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas.
+          </p>
+          <p className="text-yellow-200 text-sm">
+            Vá à página <strong>Admin</strong> para criar equipas primeiro.
+          </p>
+        </div>
       )}
     </div>
   );

@@ -1,29 +1,33 @@
 import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
+import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
+import useRallySettings from "@/hooks/useRallySettings";
 
 interface BooleanFormProps {
   existingResult?: any;
+  team?: any;
   onSubmit: (data: any) => void;
   isSubmitting: boolean;
 }
 
-export default function BooleanForm({ existingResult, onSubmit, isSubmitting }: BooleanFormProps) {
+export default function BooleanForm({ existingResult, team, onSubmit, isSubmitting }: BooleanFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
   const [attempts, setAttempts] = useState<number>(1);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
 
-  // Calculate max extra shots based on team size (default: 1 per member)
-  const teamSize = existingResult?.team?.members?.length || 1;
-  const maxExtraShotsPerMember = 1; // Default from backend config
+  // Get Rally settings for dynamic configuration
+  const { settings } = useRallySettings();
+
+  // Calculate max extra shots based on team size
+  const teamSize = team?.num_members || team?.members?.length || 1;
+  const extraShotsConfig = getExtraShotsConfig(settings);
+  const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
   
-  // Penalty values from backend config
-  const penaltyValues = {
-    vomit: 5, // Default from RallySettings.penalty_per_puke
-    not_drinking: 2, // Default from RallySettings.penalty_per_not_drinking
-  };
+  // Use penalty values from API settings or fallback to defaults
+  const penaltyValues = getPenaltyValues(settings);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -163,7 +167,7 @@ export default function BooleanForm({ existingResult, onSubmit, isSubmitting }: 
           </div>
         </div>
         <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Penalties reduce the final score. Total penalty: -{((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
       

@@ -41,7 +41,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         cancelEdit();
       },
       onError: (error: any) => {
-        console.error('Error creating activity:', error);
+        // Error creating activity
       },
     });
   };
@@ -57,7 +57,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           cancelEdit();
         },
         onError: (error: any) => {
-          console.error('Error updating activity:', error);
+          // Error updating activity
         },
       }
     );
@@ -72,17 +72,17 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
     if (confirm('Tem certeza que deseja deletar esta atividade?')) {
       deleteActivity(id, {
         onError: (error: any) => {
-          console.error('Error deleting activity:', error);
           alert(`Erro ao deletar atividade: ${error.message}`);
         },
       });
     }
   };
 
-  const cancelEdit = () => {
-    setEditingActivity(null);
-    setShowActivityForm(false);
-    resetCreateActivityError();
+  const handleReorderActivities = (activityOrders: Record<number, number>) => {
+    // TODO: Implement activity reordering API call
+    // Reordering activities
+    // For now, just log the reorder request
+    // In a real implementation, this would call an API endpoint to update activity orders
   };
 
   return (
@@ -122,6 +122,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}
+              onReorder={handleReorderActivities}
               isDeleting={isDeletingActivity}
             />
           )}

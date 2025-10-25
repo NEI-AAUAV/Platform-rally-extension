@@ -1,11 +1,11 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
+/* eslint-disable */
 
-
-export type UserUpdate = {
+export type TeamMemberUpdate = {
     name?: (string | null);
-    team_id?: (number | null);
-    staff_checkpoint_id?: (number | null);
+    email?: (string | null);
+    is_captain?: (boolean | null);
 };
 

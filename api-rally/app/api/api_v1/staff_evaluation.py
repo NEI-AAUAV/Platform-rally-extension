@@ -17,6 +17,7 @@ from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate, Act
 from app.schemas.team import ListingTeam
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.models.activity import ActivityResult
+from app.models.team import Team
 
 router = APIRouter()
 
@@ -52,12 +53,13 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
             detail=TEAM_NOT_FOUND
         )
     
-    # Allow staff to evaluate teams at their assigned checkpoint, even if team has advanced
+    # Allow staff to evaluate teams at their checkpoint or previous checkpoints
+    # Block teams at future checkpoints
     team_checkpoint_number = len(team_obj.times)
-    if team_checkpoint_number < current_user.staff_checkpoint_id:
+    if team_checkpoint_number > current_user.staff_checkpoint_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=TEAM_NOT_FOUND_AT_CHECKPOINT
+            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or previous checkpoints"
         )
     
     # Verify activity is at the same checkpoint
@@ -222,7 +224,11 @@ def get_teams_at_my_checkpoint(
             detail=NO_CHECKPOINT_ASSIGNED
         )
     
-    teams = team.get_by_checkpoint(db, checkpoint_id=current_user.staff_checkpoint_id)
+    # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints)
+    # This allows staff to evaluate teams from previous checkpoints if they were missed
+    from sqlalchemy import func, select
+    teams_stmt = select(Team).where(func.cardinality(Team.times) <= current_user.staff_checkpoint_id)
+    teams = db.scalars(teams_stmt).all()
     
     # Convert to the expected format
     teams_data = []
@@ -265,15 +271,35 @@ def get_team_activities_for_evaluation(
             detail=TEAM_NOT_FOUND
         )
     
-    # Check if team is at the correct checkpoint (teams at checkpoint N have visited N checkpoints)
-    team_checkpoint_number = len(team_obj.times)
-    if team_checkpoint_number != current_user.staff_checkpoint_id:
+    # Explicitly load team members to ensure they're available
+    from sqlalchemy.orm import joinedload
+    from app.models.team import Team
+    team_obj = db.query(Team).options(joinedload(Team.members)).filter(Team.id == team_id).first()
+    if not team_obj:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=TEAM_NOT_FOUND_AT_CHECKPOINT
+            detail=TEAM_NOT_FOUND
         )
     
-    # Get activities for this checkpoint
+    # Check if team is at the staff's checkpoint or a previous checkpoint
+    # Staff can evaluate teams at their checkpoint or previous checkpoints
+    team_checkpoint_number = len(team_obj.times)
+    
+    # Allow evaluation if:
+    # 1. Team is at staff's checkpoint (team_checkpoint_number == staff_checkpoint_id)
+    # 2. Team is at a previous checkpoint (team_checkpoint_number < staff_checkpoint_id)
+    # Block evaluation if team is at a future checkpoint (team_checkpoint_number > staff_checkpoint_id)
+    if team_checkpoint_number > current_user.staff_checkpoint_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or previous checkpoints"
+        )
+    
+    # Log the evaluation context for debugging
+    print(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
+    
+    # Always show activities for the staff's assigned checkpoint
+    # This allows staff to evaluate teams from previous checkpoints using their checkpoint activities
     from app.crud.crud_activity import activity
     activities = activity.get_by_checkpoint(db, checkpoint_id=current_user.staff_checkpoint_id)
     

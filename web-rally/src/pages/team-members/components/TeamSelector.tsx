@@ -7,6 +7,7 @@ interface Team {
   name: string;
   total: number;
   classification: number;
+  num_members: number;
 }
 
 interface TeamSelectorProps {
@@ -35,7 +36,7 @@ export default function TeamSelector({ teams, selectedTeam, onTeamChange, classN
             <SelectContent>
               {teams?.map((team: Team) => (
                 <SelectItem key={team.id} value={team.id.toString()}>
-                  {team.name} ({team.total} pontos)
+                  {team.name} ({team.num_members} membros)
                 </SelectItem>
               ))}
             </SelectContent>
@@ -45,5 +46,6 @@ export default function TeamSelector({ teams, selectedTeam, onTeamChange, classN
     </Card>
   );
 }
+
 
 
