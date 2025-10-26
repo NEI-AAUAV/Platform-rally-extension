@@ -46,12 +46,7 @@ export default function ManagerEvaluationPage() {
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
-      const resultsResponse = await fetch("/api/rally/v1/activities/results", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      const results: any[] = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
+      const results: any[] = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
       
       // Transform the results to match the AllEvaluations component interface
       const evaluations = results.map((result: any) => ({

@@ -102,14 +102,11 @@ export default function CheckpointTeamEvaluation() {
       if (!isRallyAdmin) {
         // Try staff endpoint first for staff users
         try {
-          console.log("Trying staff endpoint for team:", selectedTeam.id);
           const data = await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(selectedTeam.id);
           const activities = Array.isArray(data.activities) ? data.activities : [];
-          console.log("Staff endpoint returned", activities.length, "activities:", activities);
           // Staff endpoint already returns activities for the correct checkpoint, no need to filter
           return activities;
         } catch (error) {
-          console.error("Staff endpoint failed:", error);
           // Staff endpoint failed, trying general endpoint
         }
       }
@@ -118,23 +115,13 @@ export default function CheckpointTeamEvaluation() {
       const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
       let activities = Array.isArray(data.activities) ? data.activities : [];
       
-      console.log("All activities from API:", activities);
-      console.log("Current checkpoint:", checkpoint);
-      
       // Filter activities by checkpoint
-      const beforeCount = activities.length;
       activities = activities.filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
-      console.log(`Filtered ${beforeCount} activities down to ${activities.length} for checkpoint ${checkpoint?.id}`);
       
       // Get activity results to determine evaluation status
       let results: any[] = [];
       try {
-        const resultsResponse = await fetch(`/api/rally/v1/activities/results`, {
-          headers: {
-            Authorization: `Bearer ${userStore.token}`,
-          },
-        });
-        results = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
+        results = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
       } catch (error) {
         // If we can't fetch results, just use empty array
         results = [];
@@ -154,8 +141,6 @@ export default function CheckpointTeamEvaluation() {
           )
         };
       });
-      
-      console.log("Filtered activities for checkpoint:", checkpoint?.id, "Activities:", activities);
       
       return activities;
     },
