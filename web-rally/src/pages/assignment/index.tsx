@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
+import { CheckPointService, UserService, type CheckpointAssignmentUpdate } from "@/client";
 
 interface Checkpoint {
   id: number;
@@ -30,27 +31,14 @@ export default function Assignment() {
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<Checkpoint[]> => {
-      const response = await fetch("/api/rally/v1/checkpoint/");
-      if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      return (await response.json()) as Checkpoint[];
+      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet() as Promise<Checkpoint[]>;
     },
   });
 
   const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<StaffAssignment[]>({
     queryKey: ["staffAssignments"],
     queryFn: async (): Promise<StaffAssignment[]> => {
-      const response = await fetch("/api/rally/v1/user/staff-assignments", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Insufficient permissions to view staff assignments. Admin access required.");
-        }
-        throw new Error("Failed to fetch staff assignments");
-      }
-      return (await response.json()) as StaffAssignment[];
+      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet() as Promise<StaffAssignment[]>;
     },
     enabled: isManager,
   });
@@ -63,23 +51,10 @@ export default function Assignment() {
   } = useMutation({
     mutationKey: ["updateStaffAssignment"],
     mutationFn: async ({ userId, checkpointId }: { userId: number; checkpointId: number }) => {
-      const response = await fetch(`/api/rally/v1/user/${userId}/checkpoint-assignment`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify({
-          checkpoint_id: checkpointId === 0 ? null : checkpointId,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json() as { detail?: string };
-        throw new Error(errorData.detail || "Failed to update assignment");
-      }
-      
-      return (await response.json()) as Checkpoint[];
+      const requestBody: CheckpointAssignmentUpdate = {
+        checkpoint_id: checkpointId === 0 ? null : checkpointId,
+      };
+      return UserService.updateCheckpointAssignmentApiRallyV1UserUserIdCheckpointAssignmentPut(userId, requestBody);
     },
     onSuccess: () => {
       refetchAssignments(); // Refetch assignments to update UI

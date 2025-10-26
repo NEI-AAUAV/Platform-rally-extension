@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Trash2 } from "lucide-react";
+import { TeamMembersService } from "@/client";
 
 interface TeamMember {
   id: number;
@@ -26,17 +27,10 @@ export default function MemberList({ teamMembers, selectedTeam, userToken, onSuc
     isPending: isRemovingMember,
   } = useMutation({
     mutationFn: async (userId: number) => {
-      const response = await fetch(`/api/rally/v1/team/${selectedTeam}/members/${userId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to remove member");
-      }
-      return response.json();
+      return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
+        parseInt(selectedTeam),
+        userId
+      );
     },
     onSuccess: () => {
       onSuccess();
@@ -110,6 +104,8 @@ export default function MemberList({ teamMembers, selectedTeam, userToken, onSuc
     </Card>
   );
 }
+
+
 
 
 

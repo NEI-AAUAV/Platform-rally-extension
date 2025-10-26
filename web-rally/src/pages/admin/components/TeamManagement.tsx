@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { BloodyButton } from '@/components/themes/bloody';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/shared';
+import { TeamService, type TeamCreate, type TeamUpdate } from '@/client';
 
 const teamFormSchema = z.object({
   name: z.string().min(1, 'Nome da equipa é obrigatório'),
@@ -43,11 +44,7 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
   // Teams queries and mutations
   const { data: teams, refetch: refetchTeams } = useQuery({
     queryKey: ['teams'],
-    queryFn: async () => {
-      const response = await fetch('/api/rally/v1/team/');
-      if (!response.ok) throw new Error('Failed to fetch teams');
-      return response.json();
-    },
+    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
     staleTime: 0, // Always consider data stale to force refetch
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
@@ -60,26 +57,10 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
     reset: resetCreateTeamError,
   } = useMutation({
     mutationFn: async (teamData: TeamForm) => {
-      const response = await fetch('/api/rally/v1/team/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify(teamData),
-      });
-      if (!response.ok) {
-        let errorMessage = 'Failed to create team';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorMessage;
-        } catch (e) {
-          // If response is not JSON (e.g., HTML error page), use status text
-          errorMessage = `Server error: ${response.status} ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-      return response.json();
+      const requestBody: TeamCreate = {
+        name: teamData.name,
+      };
+      return TeamService.createTeamApiRallyV1TeamPost(requestBody);
     },
     onSuccess: () => {
       // Invalidate and refetch teams data
@@ -98,16 +79,10 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
     isPending: isUpdatingTeam,
   } = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: TeamForm }) => {
-      const response = await fetch(`/api/rally/v1/team/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to update team');
-      return response.json();
+      const requestBody: TeamUpdate = {
+        name: data.name,
+      };
+      return TeamService.updateTeamApiRallyV1TeamIdPut(id, requestBody);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] });
@@ -121,13 +96,7 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
     isPending: isDeletingTeam,
   } = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/rally/v1/team/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to delete team');
+      return TeamService.deleteTeamApiRallyV1TeamIdDelete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] });

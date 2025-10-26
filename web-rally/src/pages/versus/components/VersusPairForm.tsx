@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
+import { VersusService, type VersusPairCreate, type VersusPairResponse } from "@/client";
 
 interface Team {
   id: number;
@@ -31,20 +32,12 @@ export default function VersusPairForm({ teams, userToken, onSuccess, className 
     isPending: isCreatingPair,
     error: createError,
   } = useMutation({
-    mutationFn: async (pairData: { team_a_id: number; team_b_id: number }) => {
-      const response = await fetch("/api/rally/v1/versus/pair", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        },
-        body: JSON.stringify(pairData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create versus pair");
-      }
-      return response.json();
+    mutationFn: async (pairData: { team_a_id: number; team_b_id: number }): Promise<VersusPairResponse> => {
+      const requestBody: VersusPairCreate = {
+        team_a_id: pairData.team_a_id,
+        team_b_id: pairData.team_b_id,
+      };
+      return VersusService.createVersusPairApiRallyV1VersusPairPost(requestBody);
     },
     onSuccess: () => {
       onSuccess();
@@ -144,6 +137,8 @@ export default function VersusPairForm({ teams, userToken, onSuccess, className 
     </Card>
   );
 }
+
+
 
 
 

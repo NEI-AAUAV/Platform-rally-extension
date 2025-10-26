@@ -5,6 +5,7 @@ import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
+import { TeamService, TeamMembersService } from "@/client";
 
 
 interface TeamMember {
@@ -26,14 +27,7 @@ export default function TeamMembers() {
   // Fetch teams with better error handling
   const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery({
     queryKey: ["teams"],
-    queryFn: async () => {
-      const response = await fetch("/api/rally/v1/team/");
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch teams: ${response.status} ${errorText}`);
-      }
-      return response.json();
-    },
+    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
     staleTime: 0, // Always consider data stale
@@ -44,16 +38,7 @@ export default function TeamMembers() {
     queryKey: ["teamMembers", selectedTeam],
     queryFn: async () => {
       if (!selectedTeam) return [];
-      const response = await fetch(`/api/rally/v1/team/${selectedTeam}/members`, {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch team members: ${response.status} ${errorText}`);
-      }
-      return response.json() as Promise<TeamMember[]>;
+      return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(parseInt(selectedTeam));
     },
     enabled: !!selectedTeam && isManager,
     refetchOnWindowFocus: true, // Refetch when window gains focus

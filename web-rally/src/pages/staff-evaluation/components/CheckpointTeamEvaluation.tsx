@@ -59,12 +59,7 @@ export default function CheckpointTeamEvaluation() {
           .filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
         
         // Then get all results
-        const resultsResponse = await fetch(`/api/rally/v1/activities/results`, {
-          headers: {
-            Authorization: `Bearer ${userStore.token}`,
-          },
-        });
-        const results: any[] = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
+        const results = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
         
         // Check if each team has evaluations for ALL activities in this checkpoint
         checkpointTeams.forEach((team: any) => {
