@@ -15,11 +15,11 @@ interface TeamMember {
 }
 
 export default function TeamMembers() {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
-  const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
-                   userStoreStuff.scopes?.includes("admin");
+  const isManager = userStore.scopes?.includes("manager-rally") || 
+                   userStore.scopes?.includes("admin");
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
@@ -46,7 +46,7 @@ export default function TeamMembers() {
       if (!selectedTeam) return [];
       const response = await fetch(`/api/rally/v1/team/${selectedTeam}/members`, {
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) {
@@ -124,14 +124,14 @@ export default function TeamMembers() {
 
           <MemberForm
             selectedTeam={selectedTeam}
-            userToken={userStoreStuff.token}
+            userToken={userStore.token}
             onSuccess={handleSuccess}
           />
 
           <MemberList
             teamMembers={teamMembers}
             selectedTeam={selectedTeam}
-            userToken={userStoreStuff.token}
+            userToken={userStore.token}
             onSuccess={handleSuccess}
           />
         </>

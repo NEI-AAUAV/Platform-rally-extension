@@ -70,7 +70,14 @@ def get_activities(
     auth: AuthData = Depends(api_nei_auth)
 ):
     """Get activities list"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY, Resource.ACTIVITY)
+    # Allow authenticated users with Rally permissions to view activities
+    # Specific permission checks happen at the resource level (results, evaluations)
+    has_rally_access = any(scope in auth.scopes for scope in ["admin", "manager-rally", "rally-staff"])
+    if not has_rally_access:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied: view_activity on activity"
+        )
     
     if checkpoint_id:
         activities = activity.get_by_checkpoint(db, checkpoint_id)

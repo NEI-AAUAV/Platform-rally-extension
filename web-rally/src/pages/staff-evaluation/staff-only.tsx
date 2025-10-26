@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useNavigate } from "react-router-dom";
+import { StaffEvaluationService } from "@/client";
 
 export default function StaffEvaluationPage() {
   const userStore = useUserStore();
@@ -13,13 +14,7 @@ export default function StaffEvaluationPage() {
   const { data: myCheckpoint } = useQuery({
     queryKey: ["myCheckpoint"],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/staff/my-checkpoint", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch checkpoint");
-      return response.json();
+      return await StaffEvaluationService.getMyCheckpointApiRallyV1StaffMyCheckpointGet();
     },
     enabled: !!userStore.token,
   });

@@ -36,10 +36,10 @@ interface Checkpoint {
 }
 
 interface CheckpointManagementProps {
-  userStoreStuff: any;
+  userStore: any;
 }
 
-export default function CheckpointManagement({ userStoreStuff }: CheckpointManagementProps) {
+export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
@@ -49,14 +49,14 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
     queryFn: async () => {
       const response = await fetch('/api/rally/v1/checkpoint/', {
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) throw new Error('Failed to fetch checkpoints');
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!userStoreStuff.token,
+    enabled: !!userStore.token,
   });
 
   const {
@@ -68,7 +68,7 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify({
           ...checkpointData,
@@ -94,7 +94,7 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify({
           ...data,
@@ -120,7 +120,7 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
       const response = await fetch(`/api/rally/v1/checkpoint/${id}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) throw new Error('Failed to delete checkpoint');
@@ -136,7 +136,7 @@ export default function CheckpointManagement({ userStoreStuff }: CheckpointManag
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify(checkpointOrders),
       });
