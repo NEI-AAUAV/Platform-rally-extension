@@ -1,4 +1,3 @@
-import { OpenAPI } from "@/client";
 import { create } from "zustand";
 import { shallow } from "zustand/shallow";
 
@@ -43,9 +42,7 @@ const initializeFromStorage = (): Partial<UserState> => {
     const storedToken = localStorage.getItem('rally_token');
     if (storedToken) {
       const payload: TokenPayload = parseJWT(storedToken);
-      OpenAPI.HEADERS = {
-        Authorization: `Bearer ${storedToken}`,
-      };
+      // Token injection is now handled dynamically in main.tsx via OpenAPI.HEADERS resolver
       return {
         token: storedToken,
         sessionLoading: false,
@@ -70,9 +67,6 @@ const useUserStore = create<UserState>((set) => ({
   
   login: ({ token }) => {
     const payload: TokenPayload = token ? parseJWT(token) : {};
-    OpenAPI.HEADERS = {
-      Authorization: `Bearer ${token}`,
-    };
     
     // Store token in localStorage
     localStorage.setItem('rally_token', token);

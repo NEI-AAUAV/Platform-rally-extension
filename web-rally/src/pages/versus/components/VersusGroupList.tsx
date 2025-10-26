@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
+import { TeamService, type TeamUpdate } from "@/client";
 
 interface VersusPair {
   group_id: number;
@@ -41,18 +42,11 @@ export default function VersusGroupList({ versusGroups, teams, userToken, onSucc
       const teamsInGroup = teams?.filter((team: Team) => team.versus_group_id === groupId) || [];
       
       for (const team of teamsInGroup) {
-        const response = await fetch(`/api/rally/v1/team/${team.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${userToken}`,
-          },
-          body: JSON.stringify({
-            name: team.name,
-            versus_group_id: null,
-          }),
-        });
-        if (!response.ok) throw new Error("Failed to remove versus pair");
+        const updateData: TeamUpdate = {
+          name: team.name,
+          versus_group_id: null,
+        };
+        await TeamService.updateTeamApiRallyV1TeamIdPut(team.id, updateData);
       }
     },
     onSuccess: () => {
@@ -125,6 +119,8 @@ export default function VersusGroupList({ versusGroups, teams, userToken, onSucc
     </Card>
   );
 }
+
+
 
 
 

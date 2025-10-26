@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
+import { TeamMembersService, type TeamMemberAdd } from "@/client";
 
 const addMemberSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -43,30 +44,12 @@ export default function MemberForm({ selectedTeam, userToken, onSuccess, classNa
     error: addError,
   } = useMutation({
     mutationFn: async (memberData: AddMemberForm) => {
-      const response = await fetch(`/api/rally/v1/team/${selectedTeam}/members`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        },
-        body: JSON.stringify({
-          ...memberData,
-          email: memberData.email || null,
-        }),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = "Failed to add member";
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.detail || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      const result = await response.json();
-      return result;
+      const requestBody: TeamMemberAdd = {
+        name: memberData.name,
+        email: memberData.email || null,
+        is_captain: memberData.is_captain,
+      };
+      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(parseInt(selectedTeam), requestBody);
     },
     onSuccess: () => {
       onSuccess();

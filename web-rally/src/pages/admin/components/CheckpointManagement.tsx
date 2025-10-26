@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { BloodyButton } from '@/components/themes/bloody';
 import { EmptyState } from '@/components/shared';
+import { CheckPointService, type CheckPointCreate, type CheckPointUpdate } from '@/client';
 
 const checkpointFormSchema = z.object({
   name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
@@ -49,13 +50,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<Checkpoint[]>({
     queryKey: ['checkpoints'],
     queryFn: async (): Promise<Checkpoint[]> => {
-      const response = await fetch('/api/rally/v1/checkpoint/', {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch checkpoints');
-      const data = await response.json();
+      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return Array.isArray(data) ? (data as Checkpoint[]) : [];
     },
     enabled: !!userStore.token,
@@ -66,20 +61,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     isPending: isCreatingCheckpoint,
   } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) => {
-      const response = await fetch('/api/rally/v1/checkpoint/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify({
-          ...checkpointData,
-          latitude: checkpointData.latitude ? parseFloat(checkpointData.latitude) : null,
-          longitude: checkpointData.longitude ? parseFloat(checkpointData.longitude) : null,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to create checkpoint');
-      return response.json();
+      const requestBody: CheckPointCreate = {
+        name: checkpointData.name,
+        description: checkpointData.description,
+        latitude: checkpointData.latitude ? parseFloat(checkpointData.latitude) : null,
+        longitude: checkpointData.longitude ? parseFloat(checkpointData.longitude) : null,
+        order: checkpointData.order,
+      };
+      return CheckPointService.createCheckpointApiRallyV1CheckpointPost(requestBody);
     },
     onSuccess: () => {
       refetchCheckpoints();
@@ -92,20 +81,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     isPending: isUpdatingCheckpoint,
   } = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CheckpointForm }) => {
-      const response = await fetch(`/api/rally/v1/checkpoint/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          latitude: data.latitude ? parseFloat(data.latitude) : null,
-          longitude: data.longitude ? parseFloat(data.longitude) : null,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to update checkpoint');
-      return response.json();
+      const requestBody: CheckPointUpdate = {
+        name: data.name,
+        description: data.description,
+        latitude: data.latitude ? parseFloat(data.latitude) : null,
+        longitude: data.longitude ? parseFloat(data.longitude) : null,
+        order: data.order,
+      };
+      return CheckPointService.updateCheckpointApiRallyV1CheckpointIdPut(id, requestBody);
     },
     onSuccess: () => {
       refetchCheckpoints();
@@ -119,13 +102,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     isPending: isDeletingCheckpoint,
   } = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/rally/v1/checkpoint/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to delete checkpoint');
+      return CheckPointService.deleteCheckpointApiRallyV1CheckpointIdDelete(id);
     },
     onSuccess: () => {
       refetchCheckpoints();
@@ -134,21 +111,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
 
   const { mutate: reorderCheckpoints } = useMutation({
     mutationFn: async (checkpointOrders: Record<number, number>) => {
-      const response = await fetch('/api/rally/v1/checkpoint/reorder', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify(checkpointOrders),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json() as { detail?: string };
-        throw new Error(errorData.detail || 'Failed to reorder checkpoints');
-      }
-      
-      return response.json();
+      return CheckPointService.reorderCheckpointsApiRallyV1CheckpointReorderPut(checkpointOrders);
     },
     onSuccess: () => {
       refetchCheckpoints();

@@ -5,6 +5,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { Navigate } from "react-router-dom";
 import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
+import { TeamService, VersusService, type VersusGroupListResponse } from "@/client";
 
 interface VersusPair {
   group_id: number;
@@ -28,25 +29,13 @@ export default function Versus() {
   // Fetch teams
   const { data: teams, refetch: refetchTeams } = useQuery({
     queryKey: ["teams"],
-    queryFn: async () => {
-      const response = await fetch("/api/rally/v1/team/");
-      if (!response.ok) throw new Error("Failed to fetch teams");
-      return response.json();
-    },
+    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
   });
 
   // Fetch versus groups
   const { data: versusGroups, refetch: refetchVersusGroups } = useQuery({
     queryKey: ["versusGroups"],
-    queryFn: async () => {
-      const response = await fetch("/api/rally/v1/versus/groups", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch versus groups");
-      return response.json() as Promise<VersusGroupListResponse>;
-    },
+    queryFn: () => VersusService.listVersusGroupsApiRallyV1VersusGroupsGet(),
     enabled: isManager,
   });
 

@@ -6,6 +6,7 @@ import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { PageHeader } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
+import { CheckPointService, type Checkpoint } from "@/client";
 
 interface Checkpoint {
   id: number;
@@ -28,14 +29,8 @@ export default function Admin() {
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<Checkpoint[]> => {
-      const response = await fetch("/api/rally/v1/checkpoint/", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      const data = await response.json();
-      return Array.isArray(data) ? (data as Checkpoint[]) : [];
+      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      return Array.isArray(data) ? data : [];
     },
     enabled: isManager && !!userStore.token,
   });
