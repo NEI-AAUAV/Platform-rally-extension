@@ -109,14 +109,14 @@ export default function TeamMembers() {
 
           <MemberForm
             selectedTeam={selectedTeam}
-            userToken={userStore.token}
+            userToken={userStore.token || ""}
             onSuccess={handleSuccess}
           />
 
           <MemberList
-            teamMembers={teamMembers}
+            teamMembers={teamMembers as any}
             selectedTeam={selectedTeam}
-            userToken={userStore.token}
+            userToken={userStore.token || ""}
             onSuccess={handleSuccess}
           />
         </>
