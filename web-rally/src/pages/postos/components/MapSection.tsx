@@ -41,19 +41,19 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
     maxLng: Math.max(...checkpoints.map(cp => getValidCoordinate(cp, 'longitude')).filter(coord => coord !== null) as number[]),
   } : null;
 
-  // Generate Google Maps URL
+  // Generate Google Maps URL with waypoints for route
   const generateMapUrl = () => {
     if (!hasCoordinates || !mapBounds) return null;
     
-    const centerLat = (mapBounds.minLat + mapBounds.maxLat) / 2;
-    const centerLng = (mapBounds.minLng + mapBounds.maxLng) / 2;
+    const validCheckpoints = checkpoints.filter(hasValidCoordinates);
     
-    const markers = checkpoints
-      .filter(hasValidCoordinates)
+    // Create waypoints for Google Maps directions
+    const waypoints = validCheckpoints
       .map((cp) => `${cp.latitude},${cp.longitude}`)
       .join('|');
     
-    return `https://www.google.com/maps?q=${markers}&center=${centerLat},${centerLng}&zoom=12`;
+    // Use directions API with waypoints to create a route
+    return `https://www.google.com/maps/dir/?api=1&waypoints=${waypoints}`;
   };
 
   const mapUrl = generateMapUrl();
@@ -87,7 +87,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
           
           {selectedCheckpoint?.latitude && selectedCheckpoint?.longitude && (
             <a
-              href={`https://www.google.com/maps?q=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
+              href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 bg-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.2)] rounded-lg text-white font-medium transition-colors"

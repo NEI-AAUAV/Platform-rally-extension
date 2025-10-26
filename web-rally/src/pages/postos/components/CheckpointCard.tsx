@@ -63,7 +63,7 @@ export default function CheckpointCard({
         
         {showMap && hasCoordinates && (
           <a
-            href={`https://www.google.com/maps?q=${checkpoint.latitude},${checkpoint.longitude}`}
+            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 px-3 py-1 bg-[rgb(255,255,255,0.1)] rounded-lg text-sm hover:bg-[rgb(255,255,255,0.2)] transition-colors"
@@ -77,6 +77,7 @@ export default function CheckpointCard({
     </button>
   );
 }
+
 
 
 

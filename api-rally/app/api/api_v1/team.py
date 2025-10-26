@@ -29,10 +29,12 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
     teams = crud.team.get_multi(db)
 
     def build_team(team: Team) -> ListingTeam:
-        # Calculate the actual checkpoint number for the last checkpoint
+        # Calculate the actual checkpoint number and name for the last checkpoint
         last_checkpoint_number = None
+        last_checkpoint_name = None
+        
         if len(team.times) > 0:
-            # Get the last activity result to find the checkpoint number
+            # Get the last activity result to find the checkpoint
             from app.models.activity import ActivityResult
             last_result = db.query(ActivityResult).filter(
                 ActivityResult.team_id == team.id,
@@ -44,6 +46,7 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
                 activity = db.query(Activity).filter(Activity.id == last_result.activity_id).first()
                 if activity:
                     last_checkpoint_number = activity.checkpoint.order
+                    last_checkpoint_name = activity.checkpoint.name
         
         return ListingTeam(
             id=team.id,
@@ -58,6 +61,7 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
                 else None
             ),
             last_checkpoint_number=last_checkpoint_number,
+            last_checkpoint_name=last_checkpoint_name,
             num_members=len(team.members),
         )
 
