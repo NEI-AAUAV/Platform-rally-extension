@@ -17,7 +17,6 @@ class ActivityBase(BaseModel):
     checkpoint_id: int = Field(..., gt=0)
     config: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
-    order: Optional[int] = Field(default=0, ge=0, description="Order of activity within checkpoint (0 = no specific order)")
     
     @validator('activity_type')
     def validate_activity_type(cls, v):
@@ -45,7 +44,6 @@ class ActivityUpdate(BaseModel):
     description: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
-    order: Optional[int] = Field(None, ge=0)
 
 
 class ActivityResponse(ActivityBase):

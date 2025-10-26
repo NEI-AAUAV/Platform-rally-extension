@@ -51,11 +51,11 @@ const rallySettingsSchema = z.object({
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
 
 export default function RallySettings() {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
-  const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
-                   userStoreStuff.scopes?.includes("admin");
+  const isManager = userStore.scopes?.includes("manager-rally") || 
+                   userStore.scopes?.includes("admin");
 
   const [isEditing, setIsEditing] = useState(false);
 
