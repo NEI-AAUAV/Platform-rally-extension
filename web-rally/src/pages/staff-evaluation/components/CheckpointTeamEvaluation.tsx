@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Users, ArrowLeft, Activity, MapPin, Navigation } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
+import { CheckPointService, TeamService, ActivitiesService, StaffEvaluationService } from "@/client";
 
 export default function CheckpointTeamEvaluation() {
   const { checkpointId } = useParams<{ checkpointId: string }>();
@@ -19,14 +20,7 @@ export default function CheckpointTeamEvaluation() {
   const { data: checkpoint } = useQuery({
     queryKey: ["checkpoint", checkpointId],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/checkpoint", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      
-      const checkpoints = await response.json();
+      const checkpoints = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       const checkpoint = checkpoints.find((cp: any) => cp.id === parseInt(checkpointId || '0'));
       
       if (!checkpoint) {
@@ -42,14 +36,7 @@ export default function CheckpointTeamEvaluation() {
   const { data: checkpointTeams } = useQuery({
     queryKey: ["checkpointTeams", checkpointId],
     queryFn: async () => {
-      const response = await fetch(`/api/rally/v1/team`, {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch teams");
-      
-      const allTeams = await response.json();
+      const allTeams = await TeamService.getTeamsApiRallyV1TeamGet();
       // Show all teams, no filtering
       return allTeams;
     },
@@ -67,49 +54,28 @@ export default function CheckpointTeamEvaluation() {
       // Try to get all activity results to check evaluation status
       try {
         // First get activities for this checkpoint
-        const activitiesResponse = await fetch(`/api/rally/v1/activities`, {
+        const activitiesData = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+        const checkpointActivities = (activitiesData.activities || [])
+          .filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
+        
+        // Then get all results
+        const resultsResponse = await fetch(`/api/rally/v1/activities/results`, {
           headers: {
             Authorization: `Bearer ${userStore.token}`,
           },
         });
+        const results: any[] = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
         
-        if (activitiesResponse.ok) {
-          const activitiesData = await activitiesResponse.json();
-          const checkpointActivities = (activitiesData.activities || [])
-            .filter((activity: any) => activity.checkpoint_id === checkpoint.id);
+        // Check if each team has evaluations for ALL activities in this checkpoint
+        checkpointTeams.forEach((team: any) => {
+          const teamResults = results.filter((result: any) => 
+            result.team_id === team.id && 
+            checkpointActivities.some((activity: any) => activity.id === result.activity_id)
+          );
           
-          // Then get all results
-          const resultsResponse = await fetch(`/api/rally/v1/activities/results`, {
-            headers: {
-              Authorization: `Bearer ${userStore.token}`,
-            },
-          });
-          
-          if (resultsResponse.ok) {
-            const results = await resultsResponse.json();
-            
-            // Check if each team has evaluations for ALL activities in this checkpoint
-            checkpointTeams.forEach((team: any) => {
-              const teamResults = results.filter((result: any) => 
-                result.team_id === team.id && 
-                checkpointActivities.some((activity: any) => activity.id === result.activity_id)
-              );
-              
-              // Team is considered evaluated if they have results for ALL activities in the checkpoint
-              evaluationStatus[team.id] = teamResults.length === checkpointActivities.length && checkpointActivities.length > 0;
-            });
-          } else {
-            // Fallback: assume no evaluations
-            checkpointTeams.forEach((team: any) => {
-              evaluationStatus[team.id] = false;
-            });
-          }
-        } else {
-          // Fallback: assume no evaluations
-          checkpointTeams.forEach((team: any) => {
-            evaluationStatus[team.id] = false;
-          });
-        }
+          // Team is considered evaluated if they have results for ALL activities in the checkpoint
+          evaluationStatus[team.id] = teamResults.length === checkpointActivities.length && checkpointActivities.length > 0;
+        });
       } catch (error) {
         // Fallback: assume no evaluations
         checkpointTeams.forEach((team: any) => {
@@ -136,72 +102,60 @@ export default function CheckpointTeamEvaluation() {
       if (!isRallyAdmin) {
         // Try staff endpoint first for staff users
         try {
-          const response = await fetch(`/api/rally/v1/staff/teams/${selectedTeam.id}/activities`, {
-            headers: {
-              Authorization: `Bearer ${userStore.token}`,
-            },
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            const activities = Array.isArray(data.activities) ? data.activities : [];
-            // Filter activities by checkpoint
-            return activities.filter((activity: any) => activity.checkpoint_id === checkpoint.id);
-          }
+          console.log("Trying staff endpoint for team:", selectedTeam.id);
+          const data = await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(selectedTeam.id);
+          const activities = Array.isArray(data.activities) ? data.activities : [];
+          console.log("Staff endpoint returned", activities.length, "activities:", activities);
+          // Staff endpoint already returns activities for the correct checkpoint, no need to filter
+          return activities;
         } catch (error) {
+          console.error("Staff endpoint failed:", error);
           // Staff endpoint failed, trying general endpoint
         }
       }
       
       // Use general activities endpoint (for managers/admins or as fallback)
-      const response = await fetch(`/api/rally/v1/activities`, {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch activities: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
       let activities = Array.isArray(data.activities) ? data.activities : [];
+      
+      console.log("All activities from API:", activities);
+      console.log("Current checkpoint:", checkpoint);
+      
       // Filter activities by checkpoint
-      activities = activities.filter((activity: any) => activity.checkpoint_id === checkpoint.id);
+      const beforeCount = activities.length;
+      activities = activities.filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
+      console.log(`Filtered ${beforeCount} activities down to ${activities.length} for checkpoint ${checkpoint?.id}`);
       
       // Get activity results to determine evaluation status
+      let results: any[] = [];
       try {
         const resultsResponse = await fetch(`/api/rally/v1/activities/results`, {
           headers: {
             Authorization: `Bearer ${userStore.token}`,
           },
         });
-        
-        if (resultsResponse.ok) {
-          const results = await resultsResponse.json();
-          
-          // Add evaluation status to each activity
-          activities = activities.map((activity: any) => {
-            const hasResult = results.some((result: any) => 
-              result.activity_id === activity.id && result.team_id === selectedTeam.id
-            );
-            
-            return {
-              ...activity,
-              evaluation_status: hasResult ? "completed" : "pending",
-              existing_result: results.find((result: any) => 
-                result.activity_id === activity.id && result.team_id === selectedTeam.id
-              )
-            };
-          });
-        }
+        results = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
       } catch (error) {
-        // If we can't fetch results, just mark all as pending
-        activities = activities.map((activity: any) => ({
-          ...activity,
-          evaluation_status: "pending"
-        }));
+        // If we can't fetch results, just use empty array
+        results = [];
       }
+      
+      // Add evaluation status to each activity
+      activities = activities.map((activity: any) => {
+        const hasResult = results.some((result: any) => 
+          result.activity_id === activity.id && result.team_id === selectedTeam.id
+        );
+        
+        return {
+          ...activity,
+          evaluation_status: hasResult ? "completed" : "pending",
+          existing_result: results.find((result: any) => 
+            result.activity_id === activity.id && result.team_id === selectedTeam.id
+          )
+        };
+      });
+      
+      console.log("Filtered activities for checkpoint:", checkpoint?.id, "Activities:", activities);
       
       return activities;
     },
@@ -215,21 +169,11 @@ export default function CheckpointTeamEvaluation() {
       activityId: number;
       resultData: any;
     }) => {
-      const response = await fetch(`/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userStore.token}`,
-        },
-        body: JSON.stringify(resultData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP ${response.status}`);
-      }
-      
-      return response.json();
+      return await StaffEvaluationService.evaluateTeamActivityApiRallyV1StaffTeamsTeamIdActivitiesActivityIdEvaluatePost(
+        teamId, 
+        activityId, 
+        resultData
+      );
     },
     onSuccess: () => {
       // Invalidate relevant queries

@@ -21,11 +21,11 @@ interface StaffAssignment {
 }
 
 export default function Assignment() {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
-  const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
-                   userStoreStuff.scopes?.includes("admin");
+  const isManager = userStore.scopes?.includes("manager-rally") || 
+                   userStore.scopes?.includes("admin");
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -41,7 +41,7 @@ export default function Assignment() {
     queryFn: async (): Promise<StaffAssignment[]> => {
       const response = await fetch("/api/rally/v1/user/staff-assignments", {
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) {
@@ -67,7 +67,7 @@ export default function Assignment() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify({
           checkpoint_id: checkpointId === 0 ? null : checkpointId,

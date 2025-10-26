@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations } from "./components/AllEvaluations";
 import { useNavigate } from "react-router-dom";
+import { CheckPointService, ActivitiesService, TeamService } from "@/client";
 
 export default function ManagerEvaluationPage() {
   const userStore = useUserStore();
@@ -18,13 +19,7 @@ export default function ManagerEvaluationPage() {
   const { data: allCheckpoints } = useQuery({
     queryKey: ["allCheckpoints"],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/checkpoint", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      return response.json();
+      return await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
     },
     enabled: !!userStore.token,
   });
@@ -33,13 +28,7 @@ export default function ManagerEvaluationPage() {
   const { data: allActivities } = useQuery({
     queryKey: ["allActivities"],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/activities", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch activities");
-      return response.json();
+      return await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
     },
     enabled: !!userStore.token,
   });
@@ -48,13 +37,7 @@ export default function ManagerEvaluationPage() {
   const { data: allTeams } = useQuery({
     queryKey: ["allTeams"],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/team", {
-        headers: {
-          Authorization: `Bearer ${userStore.token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch teams");
-      return response.json();
+      return await TeamService.getTeamsApiRallyV1TeamGet();
     },
     enabled: !!userStore.token,
   });
@@ -63,15 +46,12 @@ export default function ManagerEvaluationPage() {
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
-      const response = await fetch("/api/rally/v1/activities/results", {
+      const resultsResponse = await fetch("/api/rally/v1/activities/results", {
         headers: {
           Authorization: `Bearer ${userStore.token}`,
         },
       });
-      if (!response.ok) {
-        throw new Error("Failed to fetch evaluations");
-      }
-      const results = await response.json();
+      const results: any[] = resultsResponse.ok ? (await resultsResponse.json() as any[]) : [];
       
       // Transform the results to match the AllEvaluations component interface
       const evaluations = results.map((result: any) => ({
@@ -227,7 +207,7 @@ export default function ManagerEvaluationPage() {
             <CardContent className="p-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-2">
-                  {allActivities?.activities?.length || allActivities?.length || 0}
+                  {allActivities?.activities?.length || 0}
                 </div>
                 <div className="text-sm text-[rgb(255,255,255,0.7)]">
                   Total Activities

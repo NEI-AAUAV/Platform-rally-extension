@@ -31,10 +31,10 @@ interface Team {
 }
 
 interface TeamManagementProps {
-  userStoreStuff: any;
+  userStore: any;
 }
 
-export default function TeamManagement({ userStoreStuff }: TeamManagementProps) {
+export default function TeamManagement({ userStore }: TeamManagementProps) {
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
 
@@ -62,7 +62,7 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify(teamData),
       });
@@ -100,7 +100,7 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
         body: JSON.stringify(data),
       });
@@ -122,7 +122,7 @@ export default function TeamManagement({ userStoreStuff }: TeamManagementProps) 
       const response = await fetch(`/api/rally/v1/team/${id}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) throw new Error('Failed to delete team');
