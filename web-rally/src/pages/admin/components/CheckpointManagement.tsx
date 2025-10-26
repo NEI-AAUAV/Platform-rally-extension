@@ -35,8 +35,10 @@ interface Checkpoint {
   order: number;
 }
 
+import type { UserState } from "@/stores/useUserStore";
+
 interface CheckpointManagementProps {
-  userStore: any;
+  userStore: UserState;
 }
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
@@ -44,9 +46,9 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
   // Checkpoints queries and mutations
-  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery({
+  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<Checkpoint[]>({
     queryKey: ['checkpoints'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Checkpoint[]> => {
       const response = await fetch('/api/rally/v1/checkpoint/', {
         headers: {
           Authorization: `Bearer ${userStore.token}`,
@@ -54,7 +56,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       });
       if (!response.ok) throw new Error('Failed to fetch checkpoints');
       const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ? (data as Checkpoint[]) : [];
     },
     enabled: !!userStore.token,
   });
@@ -222,7 +224,9 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     // Reorder array
     const reorderedCheckpoints = [...sortedCheckpoints];
     const [draggedItem] = reorderedCheckpoints.splice(draggedIndex, 1);
-    reorderedCheckpoints.splice(targetIndex, 0, draggedItem);
+    if (draggedItem) {
+      reorderedCheckpoints.splice(targetIndex, 0, draggedItem);
+    }
     
     // Create order mapping
     reorderedCheckpoints.forEach((cp, index) => {

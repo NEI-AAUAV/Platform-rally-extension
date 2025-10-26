@@ -3,16 +3,21 @@ import { BloodyButton } from "@/components/themes/bloody";
 import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 
+interface GeneralConfig {
+  default_points?: number;
+  [key: string]: any;
+}
+
 interface GeneralFormProps {
   existingResult?: any;
   team?: any;
-  config: Record<string, any>;
+  config: GeneralConfig;
   onSubmit: (data: any) => void;
   isSubmitting: boolean;
 }
 
 // Helper function to safely extract default_points from config
-function getDefaultPoints(config: Record<string, any>): number {
+function getDefaultPoints(config: GeneralConfig): number {
   const defaultPoints = config.default_points;
   if (typeof defaultPoints === 'number' && !isNaN(defaultPoints)) {
     return defaultPoints;
