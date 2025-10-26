@@ -128,3 +128,6 @@ const useUserStore = create<UserState>((set) => ({
 }));
 
 export { useUserStore, shallow };
+
+// Export types for use in components
+export type { UserState, TokenPayload };

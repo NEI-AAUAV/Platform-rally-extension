@@ -30,8 +30,10 @@ interface Team {
   num_members: number;
 }
 
+import type { UserState } from "@/stores/useUserStore";
+
 interface TeamManagementProps {
-  userStore: any;
+  userStore: UserState;
 }
 
 export default function TeamManagement({ userStore }: TeamManagementProps) {

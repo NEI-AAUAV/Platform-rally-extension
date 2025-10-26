@@ -16,28 +16,28 @@ interface Checkpoint {
 
 
 export default function Admin() {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
-  const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
-                   userStoreStuff.scopes?.includes("admin");
+  const isManager = userStore.scopes?.includes("manager-rally") || 
+                   userStore.scopes?.includes("admin");
 
   const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities">("teams");
 
   // Fetch checkpoints for activities
-  const { data: checkpoints } = useQuery({
+  const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Checkpoint[]> => {
       const response = await fetch("/api/rally/v1/checkpoint/", {
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch checkpoints");
       const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ? (data as Checkpoint[]) : [];
     },
-    enabled: isManager && !!userStoreStuff.token,
+    enabled: isManager && !!userStore.token,
   });
 
   if (isLoading) {
@@ -85,11 +85,11 @@ export default function Admin() {
 
       {/* Tab Content */}
       {activeTab === "teams" && (
-        <TeamManagement userStoreStuff={userStoreStuff} />
+        <TeamManagement userStore={userStore} />
       )}
 
       {activeTab === "checkpoints" && (
-        <CheckpointManagement userStoreStuff={userStoreStuff} />
+        <CheckpointManagement userStore={userStore} />
       )}
 
       {activeTab === "activities" && (
