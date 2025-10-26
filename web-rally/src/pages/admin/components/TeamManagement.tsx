@@ -37,12 +37,12 @@ interface TeamManagementProps {
   userStore: UserState;
 }
 
-export default function TeamManagement({ userStore }: TeamManagementProps) {
+export default function TeamManagement({ userStore: _userStore }: TeamManagementProps) {
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
 
   // Teams queries and mutations
-  const { data: teams, refetch: refetchTeams } = useQuery({
+  const { data: teams } = useQuery({
     queryKey: ['teams'],
     queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
     staleTime: 0, // Always consider data stale to force refetch
@@ -54,7 +54,6 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
     mutate: createTeam,
     isPending: isCreatingTeam,
     error: createTeamError,
-    reset: resetCreateTeamError,
   } = useMutation({
     mutationFn: async (teamData: TeamForm) => {
       const requestBody: TeamCreate = {
@@ -67,10 +66,6 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       queryClient.removeQueries({ queryKey: ['teams'] }); // Force complete refetch
       teamForm.reset();
-      resetCreateTeamError();
-    },
-    onError: (error: any) => {
-      // Error creating team
     },
   });
 
@@ -122,13 +117,11 @@ export default function TeamManagement({ userStore }: TeamManagementProps) {
   const startEditTeam = (team: Team) => {
     setEditingTeam(team);
     teamForm.setValue('name', team.name);
-    resetCreateTeamError();
   };
 
   const cancelEdit = () => {
     setEditingTeam(null);
     teamForm.reset();
-    resetCreateTeamError();
   };
 
   return (

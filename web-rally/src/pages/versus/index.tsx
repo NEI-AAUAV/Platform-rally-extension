@@ -5,18 +5,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { Navigate } from "react-router-dom";
 import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
-import { TeamService, VersusService, type VersusGroupListResponse } from "@/client";
-
-interface VersusPair {
-  group_id: number;
-  team_a_id: number;
-  team_b_id: number;
-}
-
-
-interface VersusGroupListResponse {
-  groups: VersusPair[];
-}
+import { TeamService, VersusService } from "@/client";
 
 export default function Versus() {
   const { isLoading, userStore } = useUser();
@@ -75,14 +64,14 @@ export default function Versus() {
 
       <VersusPairForm
         teams={teams}
-        userToken={userStore.token}
+        userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />
 
       <VersusGroupList
         versusGroups={versusGroups}
         teams={teams}
-        userToken={userStore.token}
+        userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />
     </div>

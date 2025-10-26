@@ -1,4 +1,3 @@
-import React from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import StaffEvaluationPage from "./staff-only";
 import ManagerEvaluationPage from "./manager-only";

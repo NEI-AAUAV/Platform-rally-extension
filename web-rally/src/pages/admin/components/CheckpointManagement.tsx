@@ -338,7 +338,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           />
         ) : (
           <ul className="space-y-3 list-none">
-            {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).map((checkpoint: Checkpoint) => (
+            {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined).map((checkpoint) => (
               <li
                 key={checkpoint.id}
                 draggable
