@@ -27,7 +27,6 @@ class Activity(Base):
     
     # Activity status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    order: Mapped[int] = mapped_column(Integer, default=0)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

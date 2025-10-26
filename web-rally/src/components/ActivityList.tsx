@@ -127,7 +127,6 @@ export default function ActivityList({
                 {onReorder && (
                   <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)] mt-1">
                     <GripVertical className="w-4 h-4" />
-                    <span className="text-xs font-mono">{activity.order}</span>
                   </div>
                 )}
                 <div className="flex-1">
@@ -155,11 +154,6 @@ export default function ActivityList({
                     <span>
                       <strong>Checkpoint:</strong> {getCheckpointName(activity.checkpoint_id)}
                     </span>
-                    {activity.order > 0 && (
-                      <span>
-                        <strong>Ordem:</strong> {activity.order}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>

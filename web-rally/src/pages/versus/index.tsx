@@ -18,12 +18,12 @@ interface VersusGroupListResponse {
 }
 
 export default function Versus() {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   const { settings } = useRallySettings();
   
   // Check if user is manager-rally or admin
-  const isManager = userStoreStuff.scopes?.includes("manager-rally") || 
-                   userStoreStuff.scopes?.includes("admin");
+  const isManager = userStore.scopes?.includes("manager-rally") || 
+                   userStore.scopes?.includes("admin");
 
   // Fetch teams
   const { data: teams, refetch: refetchTeams } = useQuery({
@@ -41,7 +41,7 @@ export default function Versus() {
     queryFn: async () => {
       const response = await fetch("/api/rally/v1/versus/groups", {
         headers: {
-          Authorization: `Bearer ${userStoreStuff.token}`,
+          Authorization: `Bearer ${userStore.token}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch versus groups");
@@ -86,14 +86,14 @@ export default function Versus() {
 
       <VersusPairForm
         teams={teams}
-        userToken={userStoreStuff.token}
+        userToken={userStore.token}
         onSuccess={handleSuccess}
       />
 
       <VersusGroupList
         versusGroups={versusGroups}
         teams={teams}
-        userToken={userStoreStuff.token}
+        userToken={userStore.token}
         onSuccess={handleSuccess}
       />
     </div>

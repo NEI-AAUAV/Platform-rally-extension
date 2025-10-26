@@ -13,14 +13,14 @@ export default function PermissionGuard({
   requiredScopes = ["manager-rally", "admin"], 
   fallbackPath = "/scoreboard" 
 }: PermissionGuardProps) {
-  const { isLoading, userStoreStuff } = useUser();
+  const { isLoading, userStore } = useUser();
   
   if (isLoading) {
     return <div className="mt-16 text-center">Carregando...</div>;
   }
 
   const hasPermission = requiredScopes.some(scope => 
-    userStoreStuff.scopes?.includes(scope)
+    userStore.scopes?.includes(scope)
   );
 
   if (!hasPermission) {

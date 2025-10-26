@@ -19,7 +19,7 @@ interface GeneralFormProps {
 // Helper function to safely extract default_points from config
 function getDefaultPoints(config: GeneralConfig): number {
   const defaultPoints = config.default_points;
-  if (typeof defaultPoints === 'number' && !isNaN(defaultPoints)) {
+  if (typeof defaultPoints === 'number') {
     return defaultPoints;
   }
   return RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints;
