@@ -27,6 +27,7 @@ class ListingTeam(TeamBase):
     last_checkpoint_time: Optional[datetime]
     last_checkpoint_score: Optional[int] = None
     last_checkpoint_number: Optional[int] = None
+    last_checkpoint_name: Optional[str] = None
 
 
 class DetailedTeam(TeamBase):

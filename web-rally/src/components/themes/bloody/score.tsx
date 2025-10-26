@@ -67,14 +67,14 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
       <span className="grow text-center">
         {checkpointNumber > 0 ? (
           <div className="space-y-1">
-            <div className="text-sm text-white/70">
-              Last Checkpoint: #{checkpointNumber}
+            <div className="text-xs text-white/50">
+              {(team as any).last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
             </div>
-            <div className="text-lg font-semibold">
+            <div className="text-sm font-medium text-white/60">
               {team.last_checkpoint_score || 0}pts
             </div>
             {lastCheckpointTime && (
-              <div className="text-sm text-white/60">
+              <div className="text-xs text-white/50">
                 {formatTime(lastCheckpointTime)}
               </div>
             )}
@@ -83,7 +83,7 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
           <div className="text-sm text-white/60">No checkpoints yet</div>
         )}
       </span>
-      <span className="grow text-center text-lg font-bold">
+      <span className="grow text-center text-4xl font-bold text-white">
         {team.total}pts
       </span>
       <Link to={`/teams/${team.id}`}>
