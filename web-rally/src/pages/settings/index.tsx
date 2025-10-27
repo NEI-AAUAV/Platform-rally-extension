@@ -13,6 +13,7 @@ import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } f
 import { 
   utcISOStringToLocalDatetimeLocal 
 } from "@/utils/timezone";
+import { useAppToast } from "@/hooks/use-toast";
 
 const rallySettingsSchema = z.object({
   // Team management
@@ -52,6 +53,7 @@ type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
 
 export default function RallySettings() {
   const { isLoading, userStore } = useUser();
+  const toast = useAppToast();
   
   // Check if user is manager-rally or admin
   const isManager = userStore.scopes?.includes("manager-rally") || 
@@ -128,12 +130,16 @@ export default function RallySettings() {
       return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(settingsData);
     },
     onSuccess: () => {
-      alert("Settings updated successfully!");
+      toast.success("Configurações atualizadas com sucesso!");
       refetchSettings();
       setIsEditing(false);
     },
     onError: (error: any) => {
-      alert(`Failed to update settings: ${error.message}`);
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao atualizar configurações";
+      toast.error(errorMessage);
     },
   });
 

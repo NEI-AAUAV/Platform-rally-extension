@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { BloodyButton } from '@/components/themes/bloody';
 import { EmptyState } from '@/components/shared';
 import { CheckPointService, type CheckPointCreate, type CheckPointUpdate } from '@/client';
+import { useAppToast } from '@/hooks/use-toast';
 
 const checkpointFormSchema = z.object({
   name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
@@ -43,6 +44,7 @@ interface CheckpointManagementProps {
 }
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
+  const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
@@ -73,6 +75,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     onSuccess: () => {
       refetchCheckpoints();
       checkpointForm.reset();
+      toast.success("Checkpoint criado com sucesso!");
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao criar checkpoint";
+      toast.error(errorMessage);
     },
   });
 
@@ -94,6 +104,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       refetchCheckpoints();
       setEditingCheckpoint(null);
       checkpointForm.reset();
+      toast.success("Checkpoint atualizado com sucesso!");
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao atualizar checkpoint";
+      toast.error(errorMessage);
     },
   });
 
@@ -106,6 +124,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     },
     onSuccess: () => {
       refetchCheckpoints();
+      toast.success("Checkpoint deletado com sucesso!");
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao deletar checkpoint";
+      toast.error(errorMessage);
     },
   });
 
@@ -115,9 +141,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     },
     onSuccess: () => {
       refetchCheckpoints();
+      toast.success("Ordem dos checkpoints atualizada com sucesso!");
     },
-    onError: (error: Error) => {
-      alert(`Erro ao reordenar checkpoints: ${error.message || error.toString()}`);
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao reordenar checkpoints";
+      toast.error(errorMessage);
     },
   });
 

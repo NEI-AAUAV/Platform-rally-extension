@@ -8,8 +8,10 @@ import { useUserStore } from "@/stores/useUserStore";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
 import { CheckPointService, TeamService, ActivitiesService, StaffEvaluationService } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 export default function CheckpointTeamEvaluation() {
+  const toast = useAppToast();
   const { checkpointId } = useParams<{ checkpointId: string }>();
   const userStore = useUserStore();
   const queryClient = useQueryClient();
@@ -202,20 +204,24 @@ export default function CheckpointTeamEvaluation() {
       queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
       queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
       queryClient.invalidateQueries({ queryKey: ["allTeams"] });
+      toast.success("Atividade avaliada com sucesso!");
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao avaliar atividade";
+      toast.error(errorMessage);
     },
   });
 
   // Handle activity evaluation
   const handleEvaluateActivity = async (teamId: number, activityId: number, resultData: any) => {
-    try {
-      await evaluateActivityMutation.mutateAsync({
-        teamId,
-        activityId,
-        resultData,
-      });
-    } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    evaluateActivityMutation.mutate({
+      teamId,
+      activityId,
+      resultData,
+    });
   };
 
   if (!checkpoint) {
