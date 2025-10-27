@@ -7,7 +7,6 @@ from .base import BaseActivity
 
 
 class ScoreBasedActivity(BaseActivity):
-    """Score-based activities (e.g., Degeit jogo copos, Grelhados mímica)"""
     
     @classmethod
     def get_type(cls) -> str:

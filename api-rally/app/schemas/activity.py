@@ -175,8 +175,6 @@ class GeneralResult(BaseModel):
 # Activity configuration schemas
 class TimeBasedConfig(BaseModel):
     """Configuration schema for time-based activities"""
-    max_time_seconds: int = Field(default=300, gt=0)
-    time_limit_seconds: int = Field(default=300, gt=0)
     max_points: int = Field(default=100, gt=0)
     min_points: int = Field(default=10, ge=0)
 

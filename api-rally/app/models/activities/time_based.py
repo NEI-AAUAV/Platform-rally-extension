@@ -7,7 +7,6 @@ from .base import BaseActivity
 
 
 class TimeBasedActivity(BaseActivity):
-    """Time-based activities (e.g., Tunel Deti, Descer ponte da biblio)"""
     
     @classmethod
     def get_type(cls) -> str:
@@ -16,8 +15,6 @@ class TimeBasedActivity(BaseActivity):
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         return {
-            "max_time_seconds": 300,
-            "time_limit_seconds": 300,
             "max_points": 100,
             "min_points": 10
         }

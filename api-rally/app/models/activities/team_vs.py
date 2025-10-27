@@ -7,7 +7,6 @@ from .base import BaseActivity
 
 
 class TeamVsActivity(BaseActivity):
-    """Team vs Team activities (e.g., Aristides puxar corda)"""
     
     @classmethod
     def get_type(cls) -> str:
