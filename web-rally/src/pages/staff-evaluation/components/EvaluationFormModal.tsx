@@ -54,7 +54,7 @@ export default function EvaluationFormModal({
         <div className="flex gap-3 mt-6">
           <Button 
             type="button"
-            variant="neutral"
+            variant="outline"
             onClick={onCancel}
           >
             Cancel

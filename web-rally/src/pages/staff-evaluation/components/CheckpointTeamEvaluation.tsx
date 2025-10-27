@@ -262,21 +262,21 @@ export default function CheckpointTeamEvaluation() {
             <CardContent>
               {(() => {
                 // Group teams into 3 categories
-                const teamsToEvaluate = (checkpointTeams || []).filter(team => 
+                const teamsToEvaluate = (checkpointTeams || []).filter((team: any) => 
                   !teamEvaluationStatus?.[team.id] && 
                   (team.last_checkpoint_number === checkpoint.order || 
                    team.last_checkpoint_number === null || 
                    team.last_checkpoint_number === 0)
                 );
                 
-                const teamsAtPreviousCheckpoints = (checkpointTeams || []).filter(team => 
+                const teamsAtPreviousCheckpoints = (checkpointTeams || []).filter((team: any) => 
                   !teamEvaluationStatus?.[team.id] && 
                   team.last_checkpoint_number !== null && 
                   team.last_checkpoint_number > 0 && 
                   team.last_checkpoint_number < checkpoint.order
                 );
                 
-                const teamsAlreadyEvaluated = (checkpointTeams || []).filter(team => 
+                const teamsAlreadyEvaluated = (checkpointTeams || []).filter((team: any) => 
                   teamEvaluationStatus?.[team.id]
                 );
 

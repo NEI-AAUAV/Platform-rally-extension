@@ -63,14 +63,14 @@ export default function Versus() {
       </div>
 
       <VersusPairForm
-        teams={teams}
+        teams={teams as any}
         userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />
 
       <VersusGroupList
         versusGroups={versusGroups}
-        teams={teams}
+        teams={teams as any}
         userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />

@@ -5,7 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
-import type { Activity as ActivityType, ActivityCreate } from '@/types/activityTypes';
+import type { Activity as ActivityType } from '@/types/activityTypes';
+import type { ActivityCreate } from '@/client';
 
 interface Checkpoint {
   id: number;
@@ -77,7 +78,10 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
       {showActivityForm ? (
         <ActivityForm
           checkpoints={checkpoints}
-          onSubmit={editingActivity ? handleUpdateActivity : handleCreateActivity}
+          onSubmit={(data) => {
+            const mutation = editingActivity ? handleUpdateActivity : handleCreateActivity;
+            mutation(data as any);
+          }}
           onCancel={() => {
             setShowActivityForm(false);
             setEditingActivity(null);
@@ -114,7 +118,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={activities || []}
+              activities={(activities?.activities as any) || []}
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}

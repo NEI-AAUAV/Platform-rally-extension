@@ -187,7 +187,9 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     // Reorder array
     const reorderedCheckpoints = [...sortedCheckpoints];
     const [draggedItem] = reorderedCheckpoints.splice(draggedIndex, 1);
-    reorderedCheckpoints.splice(targetIndex, 0, draggedItem);
+    if (draggedItem) {
+      reorderedCheckpoints.splice(targetIndex, 0, draggedItem);
+    }
     
     // Create order mapping
     reorderedCheckpoints.forEach((cp, index) => {

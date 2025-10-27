@@ -7,14 +7,6 @@ import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService } from "@/client";
 
-
-interface TeamMember {
-  id: number;
-  name: string;
-  email?: string;
-  is_captain: boolean;
-}
-
 export default function TeamMembers() {
   const { isLoading, userStore } = useUser();
   
