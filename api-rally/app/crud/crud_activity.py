@@ -236,7 +236,7 @@ class CRUDActivityResult:
     
     def _recalculate_all_results_for_activity(self, db: Session, activity_id: int) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
-        activity, activity_type = self._validate_time_based_activity(db, activity_id)
+        activity, _ = self._validate_time_based_activity(db, activity_id)
         if not activity:
             return
         

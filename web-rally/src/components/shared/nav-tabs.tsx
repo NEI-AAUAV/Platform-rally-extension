@@ -17,7 +17,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   // Handle click outside to close mobile menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+      if (mobileMenuRef.current && event.target instanceof Node && !mobileMenuRef.current.contains(event.target)) {
         setIsMobileMenuOpen(false);
       }
     }

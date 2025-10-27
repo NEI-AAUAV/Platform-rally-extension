@@ -117,8 +117,8 @@ export default function RallySettings() {
         public_access_enabled: settings.public_access_enabled,
       });
     }
-    // Note: 'form' is intentionally excluded from dependencies as form methods (reset, etc.) 
-    // are stable references from react-hook-form and don't need to trigger re-renders
+    // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
+    // Including 'form' would cause this effect to run repeatedly since reset() is called inside the effect.
   }, [settings]);
 
   // Update settings mutation

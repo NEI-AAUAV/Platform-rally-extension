@@ -35,10 +35,22 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
   const hasCoordinates = checkpoints.some(hasValidCoordinates);
   
   const mapBounds = hasCoordinates ? {
-    minLat: Math.min(...checkpoints.map(cp => getValidCoordinate(cp, 'latitude')).filter(coord => coord !== null) as number[]),
-    maxLat: Math.max(...checkpoints.map(cp => getValidCoordinate(cp, 'latitude')).filter(coord => coord !== null) as number[]),
-    minLng: Math.min(...checkpoints.map(cp => getValidCoordinate(cp, 'longitude')).filter(coord => coord !== null) as number[]),
-    maxLng: Math.max(...checkpoints.map(cp => getValidCoordinate(cp, 'longitude')).filter(coord => coord !== null) as number[]),
+    minLat: checkpoints
+      .map(cp => getValidCoordinate(cp, 'latitude'))
+      .filter(coord => coord !== null)
+      .reduce((min, coord) => coord !== null && coord < min ? coord : min, Infinity),
+    maxLat: checkpoints
+      .map(cp => getValidCoordinate(cp, 'latitude'))
+      .filter(coord => coord !== null)
+      .reduce((max, coord) => coord !== null && coord > max ? coord : max, -Infinity),
+    minLng: checkpoints
+      .map(cp => getValidCoordinate(cp, 'longitude'))
+      .filter(coord => coord !== null)
+      .reduce((min, coord) => coord !== null && coord < min ? coord : min, Infinity),
+    maxLng: checkpoints
+      .map(cp => getValidCoordinate(cp, 'longitude'))
+      .filter(coord => coord !== null)
+      .reduce((max, coord) => coord !== null && coord > max ? coord : max, -Infinity),
   } : null;
 
   // Generate Google Maps URL with waypoints for route
