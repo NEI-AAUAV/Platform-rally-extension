@@ -262,45 +262,45 @@ def get_teams_at_my_checkpoint(
     teams = db.scalars(teams_stmt).all()
     
     # Convert to the expected format
-    teams_data = []
-    for team_obj in teams:
-        # Calculate last checkpoint number (where they last completed activities)
-        last_checkpoint_number = len(team_obj.times) if team_obj.times else 0
-        
-        # Check if team has completed all activities at their last checkpoint
-        from app.crud.crud_activity import activity
-        if last_checkpoint_number > 0:
-            # Get checkpoint ID from the team's times (we need to get the checkpoint object)
-            # For now, we'll use the fact that we know checkpoint IDs and order are the same
-            checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_checkpoint_number)
-            team_results = activity_result.get_by_team(db, team_id=team_obj.id)
-            completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
-            
-            # If all activities are completed, they should be at the next checkpoint
-            if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
-                current_checkpoint_number = last_checkpoint_number + 1
-            else:
-                # Still at the current checkpoint
-                current_checkpoint_number = last_checkpoint_number
-        else:
-            # No checkpoint visited yet, next is 1
-            current_checkpoint_number = 1
-        
-        team_data = {
-            "id": team_obj.id,
-            "name": team_obj.name,
-            "total": team_obj.total,
-            "classification": team_obj.classification,
-            "versus_group_id": team_obj.versus_group_id,
-            "num_members": len(team_obj.members) if team_obj.members else 0,
-            "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
-            "last_checkpoint_score": team_obj.score_per_checkpoint[-1] if team_obj.score_per_checkpoint else None,
-            "last_checkpoint_number": last_checkpoint_number,
-            "current_checkpoint_number": current_checkpoint_number,
-        }
-        teams_data.append(team_data)
+    return [_build_team_for_staff(db, team_obj) for team_obj in teams]
+
+
+def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
+    """Build team data for staff evaluation"""
+    last_checkpoint_number = len(team_obj.times) if team_obj.times else 0
+    current_checkpoint_number = _calculate_current_checkpoint_for_staff(
+        db, team_obj, last_checkpoint_number
+    )
     
-    return teams_data
+    return {
+        "id": team_obj.id,
+        "name": team_obj.name,
+        "total": team_obj.total,
+        "classification": team_obj.classification,
+        "versus_group_id": team_obj.versus_group_id,
+        "num_members": len(team_obj.members) if team_obj.members else 0,
+        "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
+        "last_checkpoint_score": team_obj.score_per_checkpoint[-1] if team_obj.score_per_checkpoint else None,
+        "last_checkpoint_number": last_checkpoint_number,
+        "current_checkpoint_number": current_checkpoint_number,
+    }
+
+
+def _calculate_current_checkpoint_for_staff(db: Session, team_obj: Team, last_checkpoint_number: int) -> int:
+    """Calculate current checkpoint number for a team"""
+    if last_checkpoint_number == 0:
+        return 1
+    
+    # Check if team has completed all activities at their last checkpoint
+    from app.crud.crud_activity import activity
+    checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_checkpoint_number)
+    team_results = activity_result.get_by_team(db, team_id=team_obj.id)
+    completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
+    
+    # If all activities completed, move to next checkpoint
+    if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
+        return last_checkpoint_number + 1
+    return last_checkpoint_number
 
 
 @router.get("/teams/{team_id}/activities")

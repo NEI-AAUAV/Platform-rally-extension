@@ -34,9 +34,16 @@ class TimeBasedActivity(BaseActivity):
         if not team_times or team_time not in team_times:
             return 0
         
-        # Sort times (fastest first)
+        # Sort times (fastest first) and handle ties properly
         sorted_times = sorted(team_times)
-        rank = sorted_times.index(team_time) + 1  # 1-based ranking
+        
+        # Count how many times are better (faster) than the current team's time
+        # This handles ties correctly by treating equal times as the same rank
+        better_times_count = sum(1 for time in sorted_times if time < team_time)
+        
+        # Rank is 1-based: how many teams are better + 1
+        rank = better_times_count + 1
+        
         total_teams = len(team_times)
         
         # Get config values
@@ -49,9 +56,10 @@ class TimeBasedActivity(BaseActivity):
         # Calculate score based on ranking
         # 1st place gets max_points, last place gets min_points
         # Others are distributed proportionally
+        # Teams with identical times get the same rank and score
         if rank == 1:
             return max_points
-        elif rank == total_teams:
+        elif rank >= total_teams:
             return min_points
         else:
             # Linear interpolation between max and min
