@@ -50,21 +50,31 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
                     last_checkpoint_name = activity.checkpoint.name
         
         # Calculate current checkpoint (where they should be evaluated)
-        last_visited_checkpoint = len(team.times) if team.times else 0
+        last_visited_checkpoint_order = len(team.times) if team.times else 0
         
         # Check if all activities at last checkpoint are completed
-        if last_visited_checkpoint > 0:
+        if last_visited_checkpoint_order > 0:
             from app.crud.crud_activity import activity, activity_result
-            checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_visited_checkpoint)
-            team_results = activity_result.get_by_team(db, team_id=team.id)
-            completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
+            from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
             
-            # If all activities completed, next checkpoint
-            if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
-                current_checkpoint_number = last_visited_checkpoint + 1
+            # Get the actual checkpoint object by order (not using order as ID)
+            checkpoint_obj = checkpoint_crud.get_by_order(db, last_visited_checkpoint_order)
+            
+            if checkpoint_obj:
+                # Now use the actual checkpoint ID, not the order
+                checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=checkpoint_obj.id)
+                team_results = activity_result.get_by_team(db, team_id=team.id)
+                completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
+                
+                # If all activities completed, next checkpoint
+                if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
+                    current_checkpoint_number = last_visited_checkpoint_order + 1
+                else:
+                    # Still at current checkpoint
+                    current_checkpoint_number = last_visited_checkpoint_order
             else:
-                # Still at current checkpoint
-                current_checkpoint_number = last_visited_checkpoint
+                # Checkpoint not found, default to last visited checkpoint order
+                current_checkpoint_number = last_visited_checkpoint_order
         else:
             # No checkpoint visited yet
             current_checkpoint_number = 1

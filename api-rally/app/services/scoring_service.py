@@ -2,8 +2,8 @@
 Scoring system service for Rally activities
 """
 from typing import Dict, Any, List, Optional, Tuple
-from sqlalchemy.orm import Session
-from datetime import datetime
+from sqlalchemy.orm import Session, joinedload
+from datetime import datetime, timezone
 
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
@@ -61,8 +61,8 @@ class ScoringService:
         for result in results:
             if result.is_completed and result.final_score is not None:
                 # Get activity to find checkpoint
-                activity = self.db.query(Activity).filter(Activity.id == result.activity_id).first()
-                if activity:
+                activity = self.db.query(Activity).options(joinedload(Activity.checkpoint)).filter(Activity.id == result.activity_id).first()
+                if activity and activity.checkpoint:
                     # Use checkpoint order instead of checkpoint ID
                     checkpoint_order = activity.checkpoint.order
                     if checkpoint_order not in checkpoint_scores:
@@ -186,10 +186,12 @@ class ScoringService:
     def get_team_ranking(self, activity_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
-            # Activity-specific ranking
+            # Activity-specific ranking - sort by score descending before assigning ranks
             results = self.db.query(ActivityResult).filter(
             ActivityResult.activity_id == activity_id
         ).all()
+            # Sort results by final_score in descending order, None scores go last
+            results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
             ranking = []
             for i, result in enumerate(results, 1):
                 team = self.db.query(Team).filter(Team.id == result.team_id).first()
@@ -319,20 +321,24 @@ class ScoringService:
             )
             
             # Create result objects directly with required fields
-            from sqlalchemy import func
+            # Use datetime.now(timezone.utc) instead of func.now() for proper datetime value
+            current_time = datetime.now(timezone.utc)
             
             result1_dict = result1_create.dict()
             result1_dict['is_completed'] = True
-            result1_dict['completed_at'] = func.now()
+            result1_dict['completed_at'] = current_time
             
             result2_dict = result2_create.dict()
             result2_dict['is_completed'] = True
-            result2_dict['completed_at'] = func.now()
+            result2_dict['completed_at'] = current_time
             
             result1_obj = ActivityResult(**result1_dict)
             result2_obj = ActivityResult(**result2_dict)
             self.db.add(result1_obj)
             self.db.add(result2_obj)
+            
+            # Commit the transaction to persist results
+            self.db.commit()
             
             return True, "Team vs team results created successfully"
             
