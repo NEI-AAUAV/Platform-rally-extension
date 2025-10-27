@@ -35,7 +35,6 @@ class TeamVsActivity(BaseActivity):
     
     def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
         """Validate team vs team result data with versus group validation"""
-        required_fields = ['result']
         valid_results = ['win', 'lose', 'draw']
         
         # Basic validation - only result is required

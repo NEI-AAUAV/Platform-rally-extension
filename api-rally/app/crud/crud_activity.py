@@ -244,7 +244,7 @@ class CRUDActivityResult:
         db.commit()
         
         # Update team scores for all affected teams
-        affected_team_ids = list(set([r.team_id for r in all_results]))
+        affected_team_ids = {r.team_id for r in all_results}
         for team_id in affected_team_ids:
             self._update_team_scores(db, team_id)
     

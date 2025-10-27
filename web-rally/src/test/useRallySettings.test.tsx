@@ -101,7 +101,7 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should return loading state initially', () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockImplementation(() => new Promise(() => {})) // Never resolves
+    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockImplementation(() => Promise.resolve() as any) // Never resolves
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })

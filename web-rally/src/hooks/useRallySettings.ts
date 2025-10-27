@@ -8,7 +8,7 @@ export default function useRallySettings(options?: { retry?: boolean | number })
       // Use the generated service method
       return SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet();
     },
-    retry: options?.retry !== undefined ? options.retry : 2, // Retry up to 2 times by default
+    retry: options?.retry ?? 2, // Retry up to 2 times by default
     retryDelay: 1000, // Wait 1 second between retries
     staleTime: 0, // Always consider data stale to force refetch
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
