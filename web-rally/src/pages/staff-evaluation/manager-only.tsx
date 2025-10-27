@@ -7,7 +7,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations } from "./components/AllEvaluations";
 import { useNavigate } from "react-router-dom";
-import { CheckPointService, ActivitiesService, TeamService } from "@/client";
+import { CheckPointService, ActivitiesService, TeamService, StaffEvaluationService } from "@/client";
 
 export default function ManagerEvaluationPage() {
   const userStore = useUserStore();
@@ -42,29 +42,39 @@ export default function ManagerEvaluationPage() {
     enabled: !!userStore.token,
   });
 
-  // Get all evaluations using the new dedicated endpoint
+  // Get all evaluations using the dedicated endpoint that includes relationships
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
-      const results: any[] = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
+      const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
+      
+      if (!response || !response.evaluations) return [];
       
       // Transform the results to match the AllEvaluations component interface
-      const evaluations = results.map((result: any) => ({
+      const evaluations = response.evaluations.map((result: any) => ({
         id: result.id,
         team_id: result.team_id,
         activity_id: result.activity_id,
         final_score: result.final_score,
         is_completed: result.is_completed,
         completed_at: result.completed_at,
+        result_data: result.result_data,
+        extra_shots: result.extra_shots,
+        penalties: result.penalties,
+        time_score: result.time_score,
+        points_score: result.points_score,
+        boolean_score: result.boolean_score,
         team: {
           id: result.team?.id || result.team_id,
           name: result.team?.name || `Team ${result.team_id}`,
+          num_members: result.team?.members?.length,
         },
         activity: {
           id: result.activity?.id || result.activity_id,
           name: result.activity?.name || `Activity ${result.activity_id}`,
           activity_type: result.activity?.activity_type || "GeneralActivity",
           checkpoint_id: result.activity?.checkpoint_id || 1,
+          description: result.activity?.description,
         },
       }));
       
