@@ -170,7 +170,7 @@ class ScoringService:
         
         # Get team size
         team = self.db.query(Team).filter(Team.id == result.team_id).first()
-        team_size = len(team.members) if team else 1
+        team_size = len(team.members) if team and team.members else 1
         
         # Calculate base score
         base_score = activity_instance.calculate_score(result.result_data, team_size)
@@ -318,9 +318,19 @@ class ScoringService:
                 result_data=result2_data
             )
             
-            # Create result objects directly
-            result1_obj = ActivityResult(**result1_create.dict())
-            result2_obj = ActivityResult(**result2_create.dict())
+            # Create result objects directly with required fields
+            from sqlalchemy import func
+            
+            result1_dict = result1_create.dict()
+            result1_dict['is_completed'] = True
+            result1_dict['completed_at'] = func.now()
+            
+            result2_dict = result2_create.dict()
+            result2_dict['is_completed'] = True
+            result2_dict['completed_at'] = func.now()
+            
+            result1_obj = ActivityResult(**result1_dict)
+            result2_obj = ActivityResult(**result2_dict)
             self.db.add(result1_obj)
             self.db.add(result2_obj)
             

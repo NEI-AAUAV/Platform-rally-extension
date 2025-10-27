@@ -112,7 +112,7 @@ class CRUDActivityResult:
         """Calculate the final score for the activity result"""
         # Calculate base score
         team = db.query(Team).filter(Team.id == obj_in.team_id).first()
-        team_size = len(team.members) if team else 0
+        team_size = len(team.members) if team and team.members else 1
         
         base_score = activity_instance.calculate_score(obj_in.result_data, team_size)
         
@@ -210,7 +210,7 @@ class CRUDActivityResult:
         )
         
         team = db.query(Team).filter(Team.id == db_obj.team_id).first()
-        team_size = len(team.members) if team else 0
+        team_size = len(team.members) if team and team.members else 1
         
         base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
         modifiers = {
