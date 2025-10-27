@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X } from "lucide-react";
+import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Evaluation {
   id: number;
@@ -10,15 +10,23 @@ interface Evaluation {
   final_score: number;
   is_completed: boolean;
   completed_at: string;
+  result_data?: any;
+  extra_shots?: number;
+  penalties?: Record<string, number>;
+  time_score?: number;
+  points_score?: number;
+  boolean_score?: boolean;
   team: {
     id: number;
     name: string;
+    num_members?: number;
   };
   activity: {
     id: number;
     name: string;
     activity_type: string;
     checkpoint_id: number;
+    description?: string;
   };
 }
 
@@ -37,6 +45,19 @@ const activityTypeIcons = {
 export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("all");
+  const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());
+  
+  const toggleExpand = (evaluationId: number) => {
+    setExpandedEvaluations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(evaluationId)) {
+        newSet.delete(evaluationId);
+      } else {
+        newSet.add(evaluationId);
+      }
+      return newSet;
+    });
+  };
 
   // Get unique teams and checkpoints for filter options
   const uniqueTeams = Array.from(new Set(evaluations.map(e => e.team.name))).sort();
@@ -72,7 +93,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
     <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
       <CardContent>
         {/* Filters */}
-        <div className="mt-4 mb-4 p-3 bg-[rgb(255,255,255,0.05)] rounded-lg border border-[rgb(255,255,255,0.1)]">
+        <div className="mt-4 mb-4 p-2">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-[rgb(255,255,255,0.6)]" />
             <span className="text-sm font-medium text-white">Filters</span>
@@ -134,33 +155,108 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
         <div className="space-y-3">
           {filteredEvaluations.map((evaluation) => {
             const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
+            const isExpanded = expandedEvaluations.has(evaluation.id);
+            const hasDetails = evaluation.result_data || evaluation.extra_shots || evaluation.penalties;
             
             return (
               <div
                 key={evaluation.id}
-                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)]"
+                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] hover:bg-[rgb(255,255,255,0.08)] transition-colors"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <IconComponent className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-white text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
-                      <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
-                        Team: {evaluation.team.name} • Checkpoint {evaluation.activity.checkpoint_id}
-                      </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => hasDetails && toggleExpand(evaluation.id)}>
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
+                        {hasDetails && (
+                          isExpanded ? 
+                            <ChevronUp className="w-4 h-4 text-[rgb(255,255,255,0.5)]" /> :
+                            <ChevronDown className="w-4 h-4 text-[rgb(255,255,255,0.5)]" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-white text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
+                        <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
+                          Team: {evaluation.team.name} • Checkpoint {evaluation.activity.checkpoint_id}
+                          {evaluation.activity.description && (
+                            <span className="block text-xs mt-1">{evaluation.activity.description}</span>
+                          )}
+                        </p>
+                        {evaluation.team.num_members && (
+                          <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">
+                            Team Size: {evaluation.team.num_members} members
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <Badge 
+                        variant="default"
+                        className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
+                      >
+                        Score: {evaluation.final_score?.toFixed(1) || '0'}
+                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
+                          {new Date(evaluation.completed_at).toLocaleDateString()}
+                        </Badge>
+                        <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
+                          {new Date(evaluation.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </Badge>
+                      </div>
+                      {evaluation.extra_shots && evaluation.extra_shots > 0 && (
+                        <Badge className="bg-blue-500/20 text-blue-400 text-xs sm:text-sm w-fit">
+                          +{evaluation.extra_shots} shots
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <Badge 
-                      variant="default"
-                      className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
-                    >
-                      Score: {evaluation.final_score}
-                    </Badge>
-                    <Badge variant="outline" className="text-white border-white/20 text-xs sm:text-sm w-fit">
-                      {new Date(evaluation.completed_at).toLocaleDateString()}
-                    </Badge>
-                  </div>
+                  
+                  {isExpanded && hasDetails && (
+                    <div className="mt-3 pt-3 border-t border-[rgb(255,255,255,0.2)] space-y-2">
+                      {evaluation.result_data && Object.keys(evaluation.result_data).length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-[rgb(255,255,255,0.8)] mb-1">Result Data:</p>
+                          <pre className="text-xs bg-[rgb(255,255,255,0.05)] p-2 rounded text-[rgb(255,255,255,0.7)] overflow-x-auto">
+                            {JSON.stringify(evaluation.result_data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      
+                      {(evaluation.time_score || evaluation.points_score || evaluation.boolean_score !== undefined) && (
+                        <div className="flex flex-wrap gap-2">
+                          {evaluation.time_score && (
+                            <Badge variant="outline" className="text-xs">
+                              Time: {evaluation.time_score.toFixed(2)}s
+                            </Badge>
+                          )}
+                          {evaluation.points_score && (
+                            <Badge variant="outline" className="text-xs">
+                              Points: {evaluation.points_score}
+                            </Badge>
+                          )}
+                          {evaluation.boolean_score !== undefined && (
+                            <Badge variant="outline" className="text-xs">
+                              {evaluation.boolean_score ? 'Completed' : 'Failed'}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      
+                      {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-red-400 mb-1">Penalties:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(evaluation.penalties).map(([key, value]) => (
+                              <Badge key={key} variant="outline" className="text-xs border-red-500/30 text-red-400">
+                                {key}: {value}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
