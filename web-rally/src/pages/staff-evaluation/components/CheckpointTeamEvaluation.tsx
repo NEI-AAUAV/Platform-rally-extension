@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, ArrowLeft, MapPin } from "lucide-react";
+import { Users, ArrowLeft, MapPin, AlertTriangle } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
@@ -15,6 +15,8 @@ export default function CheckpointTeamEvaluation() {
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [showTeamList, setShowTeamList] = useState(true);
+  const [evaluationSummary, setEvaluationSummary] = useState<any>(null);
+  const [showWarningDialog, setShowWarningDialog] = useState(false);
 
   // Get checkpoint details from the list of all checkpoints
   const { data: checkpoint } = useQuery({
@@ -94,15 +96,55 @@ export default function CheckpointTeamEvaluation() {
       const isRallyAdmin = !!userStore.scopes?.includes("admin") || 
                           !!userStore.scopes?.includes("manager-rally");
       
+      // Check checkpoint mismatch first for all users (staff and admin)
+      const teamCheckpoint = selectedTeam?.last_checkpoint_number || selectedTeam?.current_checkpoint_number;
+      const isFromDifferentCheckpoint = teamCheckpoint && teamCheckpoint !== checkpoint?.order;
+      
       if (!isRallyAdmin) {
         // Try staff endpoint first for staff users
         try {
           const data = await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(selectedTeam.id);
           const activities = Array.isArray(data.activities) ? data.activities : [];
-          // Staff endpoint already returns activities for the correct checkpoint, no need to filter
+          
+          // Check if there are incomplete evaluations
+          if (data.evaluation_summary && data.evaluation_summary.has_incomplete || isFromDifferentCheckpoint) {
+            const summaryToShow = data.evaluation_summary || {
+              total_activities: activities.length,
+              completed_activities: 0,
+              pending_activities: activities.length,
+              completion_rate: 0,
+              has_incomplete: true,
+              missing_activities: []
+            };
+            
+            if (isFromDifferentCheckpoint) {
+              summaryToShow.checkpoint_mismatch = true;
+              summaryToShow.team_checkpoint = teamCheckpoint;
+              summaryToShow.current_checkpoint = checkpoint?.order;
+            }
+            
+            setEvaluationSummary(summaryToShow);
+            setShowWarningDialog(true);
+          }
+          
           return activities;
         } catch (error) {
           // Staff endpoint failed, trying general endpoint
+        }
+      } else {
+        // For admins, still check checkpoint mismatch
+        if (isFromDifferentCheckpoint) {
+          const summaryToShow = {
+            checkpoint_mismatch: true,
+            team_checkpoint: teamCheckpoint,
+            current_checkpoint: checkpoint?.order,
+            total_activities: 0,
+            completed_activities: 0,
+            pending_activities: 0
+          };
+          
+          setEvaluationSummary(summaryToShow);
+          setShowWarningDialog(true);
         }
       }
       
@@ -264,16 +306,14 @@ export default function CheckpointTeamEvaluation() {
                 // Group teams into 3 categories
                 const teamsToEvaluate = (checkpointTeams || []).filter((team: any) => 
                   !teamEvaluationStatus?.[team.id] && 
-                  (team.last_checkpoint_number === checkpoint.order || 
-                   team.last_checkpoint_number === null || 
-                   team.last_checkpoint_number === 0)
+                  team.current_checkpoint_number === checkpoint.order
                 );
                 
                 const teamsAtPreviousCheckpoints = (checkpointTeams || []).filter((team: any) => 
                   !teamEvaluationStatus?.[team.id] && 
-                  team.last_checkpoint_number !== null && 
-                  team.last_checkpoint_number > 0 && 
-                  team.last_checkpoint_number < checkpoint.order
+                  team.current_checkpoint_number !== null && 
+                  team.current_checkpoint_number > 0 && 
+                  team.current_checkpoint_number < checkpoint.order
                 );
                 
                 const teamsAlreadyEvaluated = (checkpointTeams || []).filter((team: any) => 
@@ -426,6 +466,72 @@ export default function CheckpointTeamEvaluation() {
               })()}
             </CardContent>
           </Card>
+        )}
+
+        {/* Warning Dialog for Incomplete Evaluations */}
+        {showWarningDialog && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <Card className="max-w-2xl w-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-600">
+                  <AlertTriangle className="w-5 h-5" />
+                  Incomplete Evaluations Detected
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {evaluationSummary && (
+                  <div className="space-y-3">
+                    {evaluationSummary.checkpoint_mismatch ? (
+                      <div>
+                        <p className="text-sm font-semibold mb-2 text-yellow-600">
+                          ⚠️ This team is from a different checkpoint
+                        </p>
+                        <p className="text-sm">
+                          This team is from checkpoint <strong>{evaluationSummary.team_checkpoint}</strong>, 
+                          but you're evaluating them for checkpoint <strong>{evaluationSummary.current_checkpoint}</strong> activities.
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          This allows evaluation of teams from previous checkpoints. Their scores will be based on the activities shown.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm">
+                          This team has <strong>{evaluationSummary.pending_activities}</strong> unevaluated 
+                          {evaluationSummary.pending_activities === 1 ? ' activity' : ' activities'} out of{' '}
+                          <strong>{evaluationSummary.total_activities}</strong> total activities.
+                        </p>
+                        {evaluationSummary.missing_activities && evaluationSummary.missing_activities.length > 0 && (
+                          <div>
+                            <p className="text-sm font-semibold mb-1">Missing activities:</p>
+                            <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
+                              {evaluationSummary.missing_activities.map((activity: string, idx: number) => (
+                                <li key={idx}>{activity}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          Would you like to proceed anyway? You can evaluate the missing activities later.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+              <div className="p-6 flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowWarningDialog(false);
+                    setEvaluationSummary(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </Card>
+          </div>
         )}
       </div>
     </div>

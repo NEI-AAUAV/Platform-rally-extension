@@ -117,15 +117,20 @@ def _create_activity_result(db: Session, team_id: int, activity_id: int, result_
 
 
 def _check_and_advance_team(db: Session, team_id: int, activity_obj) -> None:
-    """Check if team completed all activities and advance to next checkpoint if needed"""
+    """Check if team can advance to next checkpoint based on score accumulation"""
     current_checkpoint_id = activity_obj.checkpoint_id
     from app.crud.crud_activity import activity
-    all_checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=current_checkpoint_id)
-    team_results = activity_result.get_by_team(db, team_id=team_id)
-    completed_activities = [r.activity_id for r in team_results if r.activity_id in [a.id for a in all_checkpoint_activities]]
     
-    # If team completed all activities at current checkpoint, advance them
-    if len(completed_activities) == len(all_checkpoint_activities):
+    # Get all activity results for this team at current checkpoint
+    team_results = activity_result.get_by_team(db, team_id=team_id)
+    checkpoint_results = [
+        r for r in team_results 
+        if r.activity and r.activity.checkpoint_id == current_checkpoint_id and r.final_score is not None
+    ]
+    
+    # If team has any scored results at this checkpoint, allow advancement
+    # This permits teams to advance even if some activities were missed
+    if checkpoint_results:
         _ensure_team_checkpoint_and_advance(db, team_id, current_checkpoint_id)
 
 
@@ -233,6 +238,32 @@ def get_teams_at_my_checkpoint(
     # Convert to the expected format
     teams_data = []
     for team_obj in teams:
+        # Calculate last checkpoint number (where they last completed activities)
+        last_checkpoint_number = len(team_obj.times) if team_obj.times else 0
+        
+        # Current checkpoint is the next checkpoint where they should be evaluated
+        # This is last_checkpoint_number + 1
+        current_checkpoint_number = last_checkpoint_number + 1
+        
+        # Check if team has completed all activities at their last checkpoint
+        from app.crud.crud_activity import activity
+        if last_checkpoint_number > 0:
+            # Get checkpoint ID from the team's times (we need to get the checkpoint object)
+            # For now, we'll use the fact that we know checkpoint IDs and order are the same
+            checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_checkpoint_number)
+            team_results = activity_result.get_by_team(db, team_id=team_obj.id)
+            completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
+            
+            # If all activities are completed, they should be at the next checkpoint
+            if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
+                current_checkpoint_number = last_checkpoint_number + 1
+            else:
+                # Still at the current checkpoint
+                current_checkpoint_number = last_checkpoint_number
+        else:
+            # No checkpoint visited yet, next is 1
+            current_checkpoint_number = 1
+        
         team_data = {
             "id": team_obj.id,
             "name": team_obj.name,
@@ -242,6 +273,8 @@ def get_teams_at_my_checkpoint(
             "num_members": len(team_obj.members) if team_obj.members else 0,
             "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
             "last_checkpoint_score": team_obj.score_per_checkpoint[-1] if team_obj.score_per_checkpoint else None,
+            "last_checkpoint_number": last_checkpoint_number,
+            "current_checkpoint_number": current_checkpoint_number,
         }
         teams_data.append(team_data)
     
@@ -309,7 +342,15 @@ def get_team_activities_for_evaluation(
     
     # Build response with evaluation status
     activities_with_status = []
+    total_activities = len(activities)
+    completed_activities = 0
+    pending_activities = []
+    
     for activity_obj in activities:
+        has_result = activity_obj.id in result_map
+        if has_result:
+            completed_activities += 1
+        
         activity_data = {
             "id": activity_obj.id,
             "name": activity_obj.name,
@@ -317,15 +358,28 @@ def get_team_activities_for_evaluation(
             "activity_type": activity_obj.activity_type,
             "config": activity_obj.config,
             "is_active": activity_obj.is_active,
-            "order": activity_obj.order,
-            "evaluation_status": "completed" if activity_obj.id in result_map else "pending",
+            "evaluation_status": "completed" if has_result else "pending",
             "existing_result": result_map.get(activity_obj.id)
         }
         activities_with_status.append(activity_data)
+        
+        if not has_result:
+            pending_activities.append(activity_obj.name)
+    
+    # Calculate completion ratio
+    has_incomplete = completed_activities < total_activities if total_activities > 0 else False
     
     return {
         "team": team_obj,
-        "activities": activities_with_status
+        "activities": activities_with_status,
+        "evaluation_summary": {
+            "total_activities": total_activities,
+            "completed_activities": completed_activities,
+            "pending_activities": len(pending_activities),
+            "completion_rate": round((completed_activities / total_activities * 100) if total_activities > 0 else 0, 1),
+            "has_incomplete": has_incomplete,
+            "missing_activities": pending_activities
+        }
     }
 
 
@@ -361,8 +415,8 @@ def evaluate_team_activity(
     db_result = _create_activity_result(db, team_id, activity_id, result_in)
     
     # Check if team has completed all activities and advance if needed
-    if is_admin_or_manager:
-        _check_and_advance_team(db, team_id, activity_obj)
+    # Both staff and admins/managers can trigger advancement
+    _check_and_advance_team(db, team_id, activity_obj)
     
     return db_result
 
@@ -439,6 +493,7 @@ def get_all_evaluations(
     *,
     db: Session = Depends(get_db),
     checkpoint_id: Optional[int] = Query(None),
+    team_id: Optional[int] = Query(None),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
 ):
@@ -446,19 +501,25 @@ def get_all_evaluations(
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
     # Get all activity results
-    if checkpoint_id:
+    from sqlalchemy.orm import joinedload
+    query = db.query(ActivityResult).options(
+        joinedload(ActivityResult.activity),
+        joinedload(ActivityResult.team)
+    )
+    
+    if team_id:
+        # Filter by specific team
+        query = query.filter(ActivityResult.team_id == team_id)
+    elif checkpoint_id:
         # Get teams at specific checkpoint
         teams = team.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
         team_ids = [t.id for t in teams]
         
         # Get results for these teams
         from sqlalchemy import and_
-        results = db.query(ActivityResult).filter(
-            ActivityResult.team_id.in_(team_ids)
-        ).all()
-    else:
-        # Get all results
-        results = db.query(ActivityResult).all()
+        query = query.filter(ActivityResult.team_id.in_(team_ids))
+    
+    results = query.order_by(ActivityResult.completed_at.desc()).all()
     
     # Build response with team and activity details
     evaluations = []
@@ -473,8 +534,20 @@ def get_all_evaluations(
             "completed_at": result.completed_at,
             "created_at": result.created_at,
             "updated_at": result.updated_at,
-            "activity": result.activity,
-            "team": result.team
+            "activity": {
+                "id": result.activity.id if result.activity else None,
+                "name": result.activity.name if result.activity else None,
+                "activity_type": result.activity.activity_type if result.activity else None,
+                "checkpoint_id": result.activity.checkpoint_id if result.activity else None,
+                "description": result.activity.description if result.activity else None,
+                "config": result.activity.config if result.activity else None,
+                "is_active": result.activity.is_active if result.activity else None,
+            } if result.activity else None,
+            "team": {
+                "id": result.team.id if result.team else None,
+                "name": result.team.name if result.team else None,
+                "total": result.team.total if result.team else None,
+            } if result.team else None
         }
         evaluations.append(evaluation_data)
     

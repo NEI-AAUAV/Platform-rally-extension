@@ -97,7 +97,7 @@ class ActivityResultResponse(ActivityResultBase):
     created_at: datetime
     updated_at: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, exclude={'activity', 'team'})
 
 
 class RallyEventBase(BaseModel):
@@ -160,7 +160,7 @@ class BooleanResult(BaseModel):
 class TeamVsResult(BaseModel):
     """Schema for team vs team activity results"""
     result: str = Field(..., pattern="^(win|lose|draw)$")
-    opponent_team_id: int = Field(..., gt=0)
+    opponent_team_id: Optional[int] = Field(None, gt=0)  # Optional since validation allows it
     match_duration_seconds: Optional[float] = Field(None, ge=0)
     notes: Optional[str] = None
 
