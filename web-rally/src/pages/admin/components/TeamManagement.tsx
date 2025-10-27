@@ -17,6 +17,7 @@ import { BloodyButton } from '@/components/themes/bloody';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/shared';
 import { TeamService, type TeamCreate, type TeamUpdate } from '@/client';
+import { useAppToast } from '@/hooks/use-toast';
 
 const teamFormSchema = z.object({
   name: z.string().min(1, 'Nome da equipa é obrigatório'),
@@ -40,6 +41,7 @@ interface TeamManagementProps {
 export default function TeamManagement({ userStore: _userStore }: TeamManagementProps) {
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
+  const toast = useAppToast();
 
   // Teams queries and mutations
   const { data: teams } = useQuery({
@@ -66,6 +68,15 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       queryClient.removeQueries({ queryKey: ['teams'] }); // Force complete refetch
       teamForm.reset();
+      toast.success("Equipa criada com sucesso!");
+    },
+    onError: (error: any) => {
+      // Try to extract detailed error message from different error structures
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao criar equipa";
+      toast.error(errorMessage);
     },
   });
 
@@ -83,6 +94,15 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       setEditingTeam(null);
       teamForm.reset();
+      toast.success("Equipa atualizada com sucesso!");
+    },
+    onError: (error: any) => {
+      // Try to extract detailed error message from different error structures
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao atualizar equipa";
+      toast.error(errorMessage);
     },
   });
 
@@ -95,6 +115,15 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] });
+      toast.success("Equipa deletada com sucesso!");
+    },
+    onError: (error: any) => {
+      // Try to extract detailed error message from different error structures
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao deletar equipa";
+      toast.error(errorMessage);
     },
   });
 
@@ -210,7 +239,11 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
                   </BloodyButton>
                   <BloodyButton
                     variant="neutral"
-                    onClick={() => deleteTeam(team.id)}
+                    onClick={() => {
+                      if (confirm('Tem certeza que deseja deletar esta equipa?')) {
+                        deleteTeam(team.id);
+                      }
+                    }}
                     disabled={isDeletingTeam}
                   >
                     <Trash2 className="w-4 h-4" />

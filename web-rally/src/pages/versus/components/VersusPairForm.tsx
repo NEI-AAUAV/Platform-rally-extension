@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
 import { VersusService, type VersusPairCreate, type VersusPairResponse } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 interface Team {
   id: number;
@@ -23,6 +24,7 @@ interface VersusPairFormProps {
 }
 
 export default function VersusPairForm({ teams, userToken, onSuccess, className = "" }: VersusPairFormProps) {
+  const toast = useAppToast();
   const [selectedTeamA, setSelectedTeamA] = useState<string>("");
   const [selectedTeamB, setSelectedTeamB] = useState<string>("");
 
@@ -43,9 +45,14 @@ export default function VersusPairForm({ teams, userToken, onSuccess, className 
       onSuccess();
       setSelectedTeamA("");
       setSelectedTeamB("");
+      toast.success("Par versus criado com sucesso!");
     },
-    onError: (error: Error) => {
-      console.error("Error creating versus pair:", error);
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao criar par versus";
+      toast.error(errorMessage);
     },
   });
 

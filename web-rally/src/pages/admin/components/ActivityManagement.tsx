@@ -7,6 +7,7 @@ import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
 import type { ActivityCreate } from '@/client';
+import { useAppToast } from '@/hooks/use-toast';
 
 interface Checkpoint {
   id: number;
@@ -22,6 +23,7 @@ interface ActivityManagementProps {
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
   const [showActivityForm, setShowActivityForm] = React.useState(false);
+  const toast = useAppToast();
 
   // Activities queries and mutations
   const { data: activities } = useActivities();
@@ -38,6 +40,14 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
       onSuccess: () => {
         setShowActivityForm(false);
         setEditingActivity(null);
+        toast.success("Atividade criada com sucesso!");
+      },
+      onError: (error: any) => {
+        const errorMessage = error?.body?.detail || 
+                            error?.response?.data?.detail || 
+                            error?.message || 
+                            "Erro ao criar atividade";
+        toast.error(errorMessage);
       },
     });
   };
@@ -51,6 +61,14 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         onSuccess: () => {
           setEditingActivity(null);
           setShowActivityForm(false);
+          toast.success("Atividade atualizada com sucesso!");
+        },
+        onError: (error: any) => {
+          const errorMessage = error?.body?.detail || 
+                              error?.response?.data?.detail || 
+                              error?.message || 
+                              "Erro ao atualizar atividade";
+          toast.error(errorMessage);
         },
       }
     );
@@ -64,8 +82,15 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
   const handleDeleteActivity = (id: number) => {
     if (confirm('Tem certeza que deseja deletar esta atividade?')) {
       deleteActivity(id, {
+        onSuccess: () => {
+          toast.success("Atividade deletada com sucesso!");
+        },
         onError: (error: any) => {
-          alert(`Erro ao deletar atividade: ${error.message}`);
+          const errorMessage = error?.body?.detail || 
+                              error?.response?.data?.detail || 
+                              error?.message || 
+                              "Erro ao deletar atividade";
+          toast.error(errorMessage);
         },
       });
     }

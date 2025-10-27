@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
 import { TeamMembersService, type TeamMemberAdd } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 const addMemberSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -27,6 +28,8 @@ interface MemberFormProps {
 }
 
 export default function MemberForm({ selectedTeam, userToken, onSuccess, className = "" }: MemberFormProps) {
+  const toast = useAppToast();
+  
   // Form setup
   const form = useForm<AddMemberForm>({
     resolver: zodResolver(addMemberSchema),
@@ -54,9 +57,14 @@ export default function MemberForm({ selectedTeam, userToken, onSuccess, classNa
     onSuccess: () => {
       onSuccess();
       form.reset();
+      toast.success("Membro adicionado com sucesso!");
     },
-    onError: (error: unknown) => {
-      // Error adding member
+    onError: (error: any) => {
+      const errorMessage = error?.body?.detail || 
+                          error?.response?.data?.detail || 
+                          error?.message || 
+                          "Erro ao adicionar membro";
+      toast.error(errorMessage);
     },
   });
 
