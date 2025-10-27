@@ -6,7 +6,7 @@ import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { PageHeader } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
-import { CheckPointService, type Checkpoint } from "@/client";
+import { CheckPointService } from "@/client";
 
 interface Checkpoint {
   id: number;

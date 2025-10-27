@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
-import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
+import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 
 interface TeamVsFormProps {

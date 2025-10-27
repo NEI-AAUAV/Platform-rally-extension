@@ -5,8 +5,8 @@ interface Checkpoint {
   id: number;
   name: string;
   description: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   order: number;
 }
 

@@ -9,8 +9,8 @@ interface Checkpoint {
   id: number;
   name: string;
   description: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   order: number;
 }
 
@@ -28,11 +28,11 @@ export default function Postos() {
   });
 
   // Sort checkpoints by id and add default order property
-  const sortedCheckpoints = checkpoints?.map((cp, index) => ({
+  const sortedCheckpoints: Checkpoint[] = checkpoints?.map((cp, index) => ({
     ...cp,
     order: index + 1,
     // Preserve existing coordinates from API, don't overwrite with undefined
-  })).sort((a: Checkpoint, b: Checkpoint) => a.id - b.id) || [];
+  })).sort((a, b) => a.id - b.id) as Checkpoint[] || [];
 
   if (isLoading) {
     return <LoadingState message="A carregar postos..." />;
