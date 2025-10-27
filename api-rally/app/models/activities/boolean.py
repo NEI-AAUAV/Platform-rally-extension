@@ -7,7 +7,6 @@ from .base import BaseActivity
 
 
 class BooleanActivity(BaseActivity):
-    """Boolean activities"""
     
     @classmethod
     def get_type(cls) -> str:
