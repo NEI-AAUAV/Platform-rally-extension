@@ -96,7 +96,7 @@ def _build_team_data(db: Session, team: Team) -> ListingTeam:
 @router.get("/", status_code=200)
 def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
     teams = crud.team.get_multi(db)
-    return list(map(lambda team: _build_team_data(db, team), teams))
+    return [_build_team_data(db, team) for team in teams]
 
 
 @router.get("/me", status_code=200)

@@ -37,14 +37,18 @@ class TeamVsActivity(BaseActivity):
         """Validate team vs team result data with versus group validation"""
         valid_results = ['win', 'lose', 'draw']
         
-        # Basic validation - only result is required
+        # Basic validation - result is required
         if 'result' not in result_data or result_data['result'] not in valid_results:
             return False
         
-        # If we have opponent_team_id and both team_id and db_session, validate versus group
-        if 'opponent_team_id' in result_data and result_data['opponent_team_id'] is not None and team_id and db_session:
+        # opponent_team_id is required for validation if we have team_id and db_session
+        if team_id and db_session:
+            if 'opponent_team_id' not in result_data or result_data['opponent_team_id'] is None:
+                return False
             return self._validate_versus_group(team_id, result_data['opponent_team_id'], db_session)
         
+        # If we don't have team_id or db_session, allow validation without opponent check
+        # This is for backwards compatibility
         return True
     
     def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session) -> bool:
