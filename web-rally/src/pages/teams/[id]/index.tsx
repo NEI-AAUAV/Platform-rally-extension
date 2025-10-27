@@ -1,4 +1,4 @@
-import { CheckPointService, TeamService } from "@/client";
+import { CheckPointService, TeamService, StaffEvaluationService } from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft } from "lucide-react";
@@ -73,6 +73,22 @@ export default function TeamsById() {
     queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
   });
 
+  // Fetch activity results to get actual evaluation timestamps
+  const { data: activityResultsData } = useQuery({
+    queryKey: ["activityResults", id],
+    queryFn: async () => {
+      try {
+        const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet({ team_id: Number(id) });
+        return response.evaluations || [];
+      } catch (error) {
+        return [];
+      }
+    },
+    enabled: !!team && !!id,
+  });
+  
+  const activityResults = activityResultsData || [];
+
   if (isNaN(Number(id))) {
     return <Navigate to="/teams" />;
   }
@@ -129,9 +145,27 @@ export default function TeamsById() {
             {team.times && team.times.length > 0 ? (
               team.times.map((timeString: string, index: number) => {
                 const checkpoint = checkpoints?.[index];
-                const checkpointTime = new Date(timeString);
                 const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
                 const isLastCheckpoint = index === team.times.length - 1;
+                
+                // Find the evaluation timestamp from activity results
+                const checkpointId = checkpoint?.id;
+                // Filter results that have a score (are completed) for activities at this checkpoint
+                const evaluationResults = checkpointId ? (activityResults?.filter((result: any) => 
+                  result.activity && result.activity.checkpoint_id === checkpointId && result.final_score != null
+                ) || []) : [];
+                
+                // Get the latest evaluation timestamp
+                let evaluationTime = null;
+                if (evaluationResults.length > 0) {
+                  const latestResult = evaluationResults.reduce((latest: any, current: any) => {
+                    if (!latest) return current;
+                    return new Date(current.completed_at) > new Date(latest.completed_at) ? current : latest;
+                  });
+                  evaluationTime = new Date(latestResult.completed_at);
+                }
+                
+                const hasEvaluations = evaluationResults.length > 0;
                 
                 return (
                   <div
@@ -168,7 +202,9 @@ export default function TeamsById() {
                           {checkpointScore} pts
                         </div>
                         <div className="text-sm text-white/60">
-                          {formatTime(checkpointTime)}
+                          {hasEvaluations && evaluationTime 
+                            ? formatTime(evaluationTime)
+                            : "Not evaluated yet"}
                         </div>
                       </div>
                     </div>

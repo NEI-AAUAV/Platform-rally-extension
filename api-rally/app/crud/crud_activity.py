@@ -23,8 +23,7 @@ class CRUDActivity:
             activity_type=obj_in.activity_type.value,
             checkpoint_id=obj_in.checkpoint_id,
             config=obj_in.config,
-            is_active=obj_in.is_active,
-            order=obj_in.order
+            is_active=obj_in.is_active
         )
         db.add(db_obj)
         db.commit()
@@ -44,7 +43,7 @@ class CRUDActivity:
         return db.query(Activity).filter(
             Activity.checkpoint_id == checkpoint_id,
             Activity.is_active == True
-        ).order_by(Activity.order).all()
+        ).all()
     
     def update(self, db: Session, *, db_obj: Activity, obj_in: ActivityUpdate) -> Activity:
         """Update an activity"""

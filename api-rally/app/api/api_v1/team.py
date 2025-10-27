@@ -32,6 +32,7 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
         # Calculate the actual checkpoint number and name for the last checkpoint
         last_checkpoint_number = None
         last_checkpoint_name = None
+        current_checkpoint_number = None
         
         if len(team.times) > 0:
             # Get the last activity result to find the checkpoint
@@ -48,6 +49,26 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
                     last_checkpoint_number = activity.checkpoint.order
                     last_checkpoint_name = activity.checkpoint.name
         
+        # Calculate current checkpoint (where they should be evaluated)
+        last_visited_checkpoint = len(team.times) if team.times else 0
+        
+        # Check if all activities at last checkpoint are completed
+        if last_visited_checkpoint > 0:
+            from app.crud.crud_activity import activity, activity_result
+            checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_visited_checkpoint)
+            team_results = activity_result.get_by_team(db, team_id=team.id)
+            completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
+            
+            # If all activities completed, next checkpoint
+            if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
+                current_checkpoint_number = last_visited_checkpoint + 1
+            else:
+                # Still at current checkpoint
+                current_checkpoint_number = last_visited_checkpoint
+        else:
+            # No checkpoint visited yet
+            current_checkpoint_number = 1
+        
         return ListingTeam(
             id=team.id,
             name=team.name,
@@ -62,6 +83,7 @@ def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
             ),
             last_checkpoint_number=last_checkpoint_number,
             last_checkpoint_name=last_checkpoint_name,
+            current_checkpoint_number=current_checkpoint_number,
             num_members=len(team.members),
         )
 

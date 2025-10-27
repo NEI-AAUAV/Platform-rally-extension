@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { VersusService } from "@/client";
 
 interface TeamVsFormProps {
   existingResult?: any;
@@ -13,6 +14,7 @@ interface TeamVsFormProps {
 export default function TeamVsForm({ existingResult, team, onSubmit, isSubmitting }: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
+  const [opponentTeamName, setOpponentTeamName] = useState<string>("");
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
@@ -28,6 +30,25 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   
   // Use penalty values from API settings or fallback to defaults
   const penaltyValues = getPenaltyValues(settings);
+
+  // Fetch opponent when team is available
+  useEffect(() => {
+    const fetchOpponent = async () => {
+      if (team?.id && !existingResult?.result_data?.opponent_team_id) {
+        try {
+          const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(team.id);
+          if (opponent?.opponent_id) {
+            setOpponentTeamId(opponent.opponent_id);
+            setOpponentTeamName(opponent.opponent_name || "");
+          }
+        } catch (error) {
+          console.error("Error fetching opponent:", error);
+        }
+      }
+    };
+    
+    fetchOpponent();
+  }, [team, existingResult]);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -80,15 +101,21 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
 
       <div>
         <label className="block text-sm font-medium mb-2 text-white">
-          Opponent Team ID (Optional)
+          Opponent {opponentTeamName && `(${opponentTeamName})`}
         </label>
         <input
           type="number"
           value={opponentTeamId || ""}
           onChange={(e) => setOpponentTeamId(e.target.value ? Number(e.target.value) : undefined)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          disabled={!!opponentTeamId && !!opponentTeamName}
+          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Enter opponent team ID"
         />
+        {opponentTeamName && (
+          <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+            ✓ Opponent automatically set from versus pair
+          </p>
+        )}
       </div>
 
       <div>

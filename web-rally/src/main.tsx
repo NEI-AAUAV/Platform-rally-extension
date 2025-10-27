@@ -7,6 +7,10 @@ import { refreshToken } from "./services/client";
 import { OpenAPI } from "./client/core/OpenAPI";
 import { useUserStore } from "@/stores/useUserStore";
 
+// Configure OpenAPI BASE URL - use empty string to use relative paths
+OpenAPI.BASE = '';
+OpenAPI.VERSION = 'v1';
+
 // Configure OpenAPI to use authentication token
 OpenAPI.HEADERS = async () => {
   const token = useUserStore.getState().token;

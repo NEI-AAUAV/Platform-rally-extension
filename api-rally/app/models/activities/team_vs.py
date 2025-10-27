@@ -36,16 +36,15 @@ class TeamVsActivity(BaseActivity):
     
     def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
         """Validate team vs team result data with versus group validation"""
-        required_fields = ['result', 'opponent_team_id']
+        required_fields = ['result']
         valid_results = ['win', 'lose', 'draw']
         
-        # Basic validation
-        if not (all(field in result_data for field in required_fields) and
-                result_data['result'] in valid_results):
+        # Basic validation - only result is required
+        if 'result' not in result_data or result_data['result'] not in valid_results:
             return False
         
-        # If we have team_id and db_session, validate versus group
-        if team_id and db_session:
+        # If we have opponent_team_id and both team_id and db_session, validate versus group
+        if 'opponent_team_id' in result_data and result_data['opponent_team_id'] is not None and team_id and db_session:
             return self._validate_versus_group(team_id, result_data['opponent_team_id'], db_session)
         
         return True
