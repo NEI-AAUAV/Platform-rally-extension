@@ -27,7 +27,7 @@ TEAM_NOT_FOUND = "Team not found"
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
 
 
-def _serialize_activity(result) -> dict:
+def _serialize_activity(result) -> Optional[dict]:
     """Helper function to serialize activity information"""
     if result.activity:
         return {
@@ -42,7 +42,7 @@ def _serialize_activity(result) -> dict:
     return None
 
 
-def _serialize_team(result) -> dict:
+def _serialize_team(result) -> Optional[dict]:
     """Helper function to serialize team information"""
     if result.team:
         return {
