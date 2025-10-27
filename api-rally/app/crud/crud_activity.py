@@ -112,40 +112,55 @@ class CRUDActivityResult:
             raise ValueError(f"Activity {activity_id} not found")
         return activity
     
+    def _get_team_size(self, db: Session, team_id: int) -> int:
+        """Get team size for scoring"""
+        team = db.query(Team).filter(Team.id == team_id).first()
+        return len(team.members) if team and team.members else 1
+    
+    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: float) -> list:
+        """Get all completion times including current result"""
+        existing_results = db.query(ActivityResult).filter(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.is_completed == True
+        ).all()
+        
+        all_times = [result.time_score for result in existing_results if result.time_score]
+        if current_time:
+            all_times.append(current_time)
+        
+        return all_times
+    
+    def _calculate_with_relative_ranking(self, db: Session, activity_instance, obj_in: ActivityResultCreate) -> float:
+        """Calculate score using relative ranking for time-based activities"""
+        all_times = self._get_all_times_for_ranking(
+            db, 
+            obj_in.activity_id, 
+            obj_in.result_data.get('completion_time_seconds')
+        )
+        
+        if len(all_times) <= 1:
+            team_size = self._get_team_size(db, obj_in.team_id)
+            return activity_instance.calculate_score(obj_in.result_data, team_size)
+        
+        if hasattr(activity_instance, 'calculate_relative_ranking_score'):
+            return activity_instance.calculate_relative_ranking_score(
+                all_times,
+                obj_in.result_data['completion_time_seconds']
+            )
+        
+        team_size = self._get_team_size(db, obj_in.team_id)
+        return activity_instance.calculate_score(obj_in.result_data, team_size)
+    
     def _calculate_final_score(self, db: Session, activity_instance, obj_in: ActivityResultCreate) -> float:
         """Calculate the final score for the activity result"""
-        # Calculate base score
-        team = db.query(Team).filter(Team.id == obj_in.team_id).first()
-        team_size = len(team.members) if team and team.members else 1
+        is_time_based = activity_instance.__class__.__name__ == 'TimeBasedActivity'
         
-        # For TimeBasedActivity, use relative ranking if available
-        base_score = activity_instance.calculate_score(obj_in.result_data, team_size)
-        
-        # If this is a TimeBasedActivity, calculate relative ranking
-        if activity_instance.__class__.__name__ == 'TimeBasedActivity':
-            # Get all current results for this activity to calculate ranking
-            existing_results = db.query(ActivityResult).filter(
-                ActivityResult.activity_id == obj_in.activity_id,
-                ActivityResult.is_completed == True
-            ).all()
-            
-            # Collect all times
-            all_times = []
-            for result in existing_results:
-                if result.time_score:
-                    all_times.append(result.time_score)
-            
-            # Add the current result's time
-            if obj_in.result_data.get('completion_time_seconds'):
-                all_times.append(obj_in.result_data['completion_time_seconds'])
-            
-            # Use relative ranking if we have multiple results
-            if len(all_times) > 1 and obj_in.result_data.get('completion_time_seconds'):
-                if hasattr(activity_instance, 'calculate_relative_ranking_score'):
-                    base_score = activity_instance.calculate_relative_ranking_score(
-                        all_times,
-                        obj_in.result_data['completion_time_seconds']
-                    )
+        # Use relative ranking for time-based activities
+        if is_time_based:
+            base_score = self._calculate_with_relative_ranking(db, activity_instance, obj_in)
+        else:
+            team_size = self._get_team_size(db, obj_in.team_id)
+            base_score = activity_instance.calculate_score(obj_in.result_data, team_size)
         
         # Apply modifiers
         modifiers = {
@@ -180,11 +195,49 @@ class CRUDActivityResult:
         elif activity.activity_type == 'GeneralActivity':
             db_obj.points_score = result_data.get('assigned_points')
     
-    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int) -> None:
-        """Recalculate all results for a time-based activity when a new result is added"""
-        # Get activity
+    def _validate_time_based_activity(self, db: Session, activity_id: int):
+        """Validate that activity is time-based"""
         activity = db.query(Activity).filter(Activity.id == activity_id).first()
         if not activity or activity.activity_type != 'TimeBasedActivity':
+            return None, None
+        return activity, activity.activity_type
+    
+    def _get_all_completed_times(self, all_results):
+        """Extract all completion times from results"""
+        return [result.time_score for result in all_results if result.time_score]
+    
+    def _recalculate_single_result(self, result, activity_instance, max_points):
+        """Recalculate score for a single result with max points"""
+        modifiers = {
+            'extra_shots': result.extra_shots,
+            'penalties': result.penalties
+        }
+        result.final_score = activity_instance.apply_modifiers(
+            max_points,
+            modifiers,
+            self.db
+        )
+    
+    def _recalculate_with_ranking(self, result, activity_instance, all_times):
+        """Recalculate score using relative ranking"""
+        if not result.time_score or not hasattr(activity_instance, 'calculate_relative_ranking_score'):
+            return
+        
+        ranking_score = activity_instance.calculate_relative_ranking_score(
+            all_times,
+            result.time_score
+        )
+        
+        modifiers = {
+            'extra_shots': result.extra_shots,
+            'penalties': result.penalties
+        }
+        result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, self.db)
+    
+    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int) -> None:
+        """Recalculate all results for a time-based activity when a new result is added"""
+        activity, activity_type = self._validate_time_based_activity(db, activity_id)
+        if not activity:
             return
         
         # Get all results for this activity
@@ -197,53 +250,27 @@ class CRUDActivityResult:
             return
         
         # Get all times
-        all_times = []
-        for result in all_results:
-            if result.time_score:
-                all_times.append(result.time_score)
+        all_times = self._get_all_completed_times(all_results)
         
+        # Create activity instance
+        activity_instance = ActivityFactory.create_activity(
+            activity.activity_type,
+            activity.config
+        )
+        
+        # Recalculate scores
         if len(all_times) <= 1:
             # Only one result, give it max points
+            max_points = activity_instance.config.get('max_points', 100)
             for result in all_results:
-                activity_instance = ActivityFactory.create_activity(
-                    activity.activity_type,
-                    activity.config
-                )
-                modifiers = {
-                    'extra_shots': result.extra_shots,
-                    'penalties': result.penalties
-                }
-                result.final_score = activity_instance.apply_modifiers(
-                    activity_instance.config.get('max_points', 100),
-                    modifiers,
-                    db
-                )
+                self._recalculate_single_result(result, activity_instance, max_points)
         else:
-            # Recalculate scores based on relative ranking
-            activity_instance = ActivityFactory.create_activity(
-                activity.activity_type,
-                activity.config
-            )
-            
+            # Multiple results - use ranking
             for result in all_results:
-                if result.time_score and hasattr(activity_instance, 'calculate_relative_ranking_score'):
-                    # Calculate ranking-based score
-                    ranking_score = activity_instance.calculate_relative_ranking_score(
-                        all_times,
-                        result.time_score
-                    )
-                    
-                    # Apply modifiers
-                    modifiers = {
-                        'extra_shots': result.extra_shots,
-                        'penalties': result.penalties
-                    }
-                    result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
+                self._recalculate_with_ranking(result, activity_instance, all_times)
         
-        # Commit all recalculated scores
+        # Commit and update team scores
         db.commit()
-        
-        # Update team scores for all affected teams
         affected_team_ids = {r.team_id for r in all_results}
         for team_id in affected_team_ids:
             self._update_team_scores(db, team_id)
