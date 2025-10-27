@@ -15,7 +15,10 @@ OpenAPI.VERSION = 'v1';
 // Configure OpenAPI to use authentication token
 OpenAPI.HEADERS = async () => {
   const token = useUserStore.getState().token;
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` } as Record<string, string>;
+  }
+  return {} as Record<string, string>;
 };
 
 refreshToken();

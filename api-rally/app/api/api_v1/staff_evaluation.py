@@ -27,6 +27,32 @@ TEAM_NOT_FOUND = "Team not found"
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
 
 
+def _serialize_activity(result) -> dict:
+    """Helper function to serialize activity information"""
+    if result.activity:
+        return {
+            "id": result.activity.id,
+            "name": result.activity.name,
+            "activity_type": result.activity.activity_type,
+            "checkpoint_id": result.activity.checkpoint_id,
+            "description": result.activity.description,
+            "config": result.activity.config,
+            "is_active": result.activity.is_active,
+        }
+    return None
+
+
+def _serialize_team(result) -> dict:
+    """Helper function to serialize team information"""
+    if result.team:
+        return {
+            "id": result.team.id,
+            "name": result.team.name,
+            "total": result.team.total,
+        }
+    return None
+
+
 def _validate_rally_permissions(auth: AuthData) -> bool:
     """Validate that user has rally permissions"""
     return any(scope in auth.scopes for scope in ["rally-staff", "manager-rally", "admin"])
@@ -240,10 +266,6 @@ def get_teams_at_my_checkpoint(
     for team_obj in teams:
         # Calculate last checkpoint number (where they last completed activities)
         last_checkpoint_number = len(team_obj.times) if team_obj.times else 0
-        
-        # Current checkpoint is the next checkpoint where they should be evaluated
-        # This is last_checkpoint_number + 1
-        current_checkpoint_number = last_checkpoint_number + 1
         
         # Check if team has completed all activities at their last checkpoint
         from app.crud.crud_activity import activity
@@ -534,20 +556,8 @@ def get_all_evaluations(
             "completed_at": result.completed_at,
             "created_at": result.created_at,
             "updated_at": result.updated_at,
-            "activity": {
-                "id": result.activity.id if result.activity else None,
-                "name": result.activity.name if result.activity else None,
-                "activity_type": result.activity.activity_type if result.activity else None,
-                "checkpoint_id": result.activity.checkpoint_id if result.activity else None,
-                "description": result.activity.description if result.activity else None,
-                "config": result.activity.config if result.activity else None,
-                "is_active": result.activity.is_active if result.activity else None,
-            } if result.activity else None,
-            "team": {
-                "id": result.team.id if result.team else None,
-                "name": result.team.name if result.team else None,
-                "total": result.team.total if result.team else None,
-            } if result.team else None
+            "activity": _serialize_activity(result) if result.activity else None,
+            "team": _serialize_team(result) if result.team else None
         }
         evaluations.append(evaluation_data)
     
