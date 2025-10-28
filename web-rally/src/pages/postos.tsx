@@ -27,15 +27,11 @@ export default function Postos() {
     },
   });
 
-  // Sort checkpoints by id and add default order property
+  // Sort checkpoints by order property from database
   const sortedCheckpoints: Checkpoint[] = (
     checkpoints
       ?.slice() // make a shallow copy to avoid mutating original
-      .sort((a, b) => a.id - b.id)
-      .map((cp, index) => ({
-        ...cp,
-        order: index + 1,
-      }))
+      .sort((a, b) => a.order - b.order)
     || []
   );
 
