@@ -9,7 +9,7 @@ fileignoreconfig:
 - filename: web-rally/pnpm-lock.yaml
   checksum: a98bd85dd394c2eb5ffd6cf2b257350ec93842b1a0ef8a5d4b172871c6c7aa9d
 - filename: api-rally/app/tests/conftest.py
-  checksum: 0b581fed846de2f1cda8de312819c204b7f145859b94ac66da334ab1181c5e2c
+  checksum: 945efde6e4efd95d493a9dbbb55d9ea7e171d0e630fed899495994ce15e77182
 - filename: dev-keys/jwt.key.pub
   checksum: 11affec0830eb0430370b8a3e119aef51f314b8ff9fcb8db27912d6a91715069
 version: "1.0"
