@@ -38,28 +38,42 @@ type UserState = TokenPayload & {
 
 // Initialize from localStorage on app startup
 const initializeFromStorage = (): Partial<UserState> => {
+  // Start with loading state - we're about to check localStorage
+  let result = {
+    sessionLoading: true,
+    isAuthenticated: false,
+  };
+  
   try {
     const storedToken = localStorage.getItem('rally_token');
     if (storedToken) {
       const payload: TokenPayload = parseJWT(storedToken);
       // Token injection is now handled dynamically in main.tsx via OpenAPI.HEADERS resolver
-      return {
+      result = {
+        ...result,
         token: storedToken,
-        sessionLoading: false,
+        sessionLoading: false, // Session loaded from storage
         isAuthenticated: !!payload.sub,
         ...payload,
+      };
+    } else {
+      // No stored token found
+      result = {
+        ...result,
+        sessionLoading: false,
       };
     }
   } catch (error) {
     console.error('Failed to initialize from localStorage:', error);
     // Clear invalid token
     localStorage.removeItem('rally_token');
+    result = {
+      ...result,
+      sessionLoading: false,
+    };
   }
   
-  return {
-    sessionLoading: false,
-    isAuthenticated: false,
-  };
+  return result;
 };
 
 const useUserStore = create<UserState>((set) => ({
