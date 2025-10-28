@@ -64,7 +64,6 @@ export default function Versus() {
 
       <VersusPairForm
         teams={teams as any}
-        userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />
 
