@@ -68,7 +68,7 @@ class CRUDActivity:
 class CRUDActivityResult:
     """CRUD operations for ActivityResult model"""
     
-    def create(self, db: Session, *, obj_in: ActivityResultCreate) -> ActivityResult:
+    def create(self, db: Session, *, obj_in: ActivityResultCreate, recalc: bool = True, update_team_scores_flag: bool = True) -> ActivityResult:
         """Create a new activity result"""
         # Validate activity exists
         activity = self._get_activity_for_result(db, obj_in.activity_id)
@@ -97,11 +97,12 @@ class CRUDActivityResult:
         
         # If this is a TimeBasedActivity, recalculate ALL existing results for this activity
         # since the ranking has changed
-        if activity.activity_type == 'TimeBasedActivity':
+        if recalc and activity.activity_type == 'TimeBasedActivity':
             self._recalculate_all_results_for_activity(db, activity.id, exclude_result_id=db_obj.id)
         
         # Update team scores after creating result
-        self._update_team_scores(db, obj_in.team_id)
+        if update_team_scores_flag:
+            self._update_team_scores(db, obj_in.team_id)
         
         return db_obj
     

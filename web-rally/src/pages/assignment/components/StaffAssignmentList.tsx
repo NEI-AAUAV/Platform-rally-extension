@@ -90,15 +90,3 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

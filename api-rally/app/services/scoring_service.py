@@ -324,9 +324,9 @@ class ScoringService:
             # Use datetime.now(timezone.utc) instead of func.now() for proper datetime value
             current_time = datetime.now(timezone.utc)
             
-            # Create result objects using CRUD to ensure scoring logic is applied
-            result1_db_obj = activity_crud.create(self.db, obj_in=result1_create)
-            result2_db_obj = activity_crud.create(self.db, obj_in=result2_create)
+            # Create both results but defer recalculation and team score updates to batch correctly
+            result1_db_obj = activity_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
+            result2_db_obj = activity_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
             
             # Mark as completed
             result1_db_obj.is_completed = True
@@ -334,7 +334,12 @@ class ScoringService:
             result2_db_obj.is_completed = True
             result2_db_obj.completed_at = current_time
             
-            # Commit the transaction to persist results
+            # Now perform a single recalculation for this activity and update both teams' scores
+            from app.crud.crud_activity import activity_result as activity_result_crud
+            activity_result_crud._recalculate_all_results_for_activity(self.db, activity_id)
+            activity_result_crud._update_team_scores(self.db, team1_id)
+            activity_result_crud._update_team_scores(self.db, team2_id)
+            # Commit after batch recalculation
             self.db.commit()
             
             return True, "Team vs team results created successfully"
