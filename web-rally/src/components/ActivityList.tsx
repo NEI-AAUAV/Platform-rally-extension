@@ -73,6 +73,11 @@ export default function ActivityList({
     const draggedIndex = checkpointActivities.findIndex(a => a.id === draggedActivity.id);
     const targetIndex = checkpointActivities.findIndex(a => a.id === targetActivity.id);
     
+    // Validate indices before manipulating array
+    if (draggedIndex === -1 || targetIndex === -1) {
+      return;
+    }
+    
     // Reorder array
     const reorderedActivities = [...checkpointActivities];
     const [draggedItem] = reorderedActivities.splice(draggedIndex, 1);

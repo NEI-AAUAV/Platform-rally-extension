@@ -28,11 +28,16 @@ export default function Postos() {
   });
 
   // Sort checkpoints by id and add default order property
-  const sortedCheckpoints: Checkpoint[] = checkpoints?.map((cp, index) => ({
-    ...cp,
-    order: index + 1,
-    // Preserve existing coordinates from API, don't overwrite with undefined
-  })).sort((a, b) => a.id - b.id) as Checkpoint[] || [];
+  const sortedCheckpoints: Checkpoint[] = (
+    checkpoints
+      ?.slice() // make a shallow copy to avoid mutating original
+      .sort((a, b) => a.id - b.id)
+      .map((cp, index) => ({
+        ...cp,
+        order: index + 1,
+      }))
+    || []
+  );
 
   if (isLoading) {
     return <LoadingState message="A carregar postos..." />;

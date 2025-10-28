@@ -78,6 +78,7 @@ export default function PWAInstallPrompt() {
           <button
             onClick={handleDismiss}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            aria-label="Dismiss install prompt"
           >
             Agora não
           </button>

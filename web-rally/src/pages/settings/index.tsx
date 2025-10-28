@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";
 import { 
-  utcISOStringToLocalDatetimeLocal 
+  utcISOStringToLocalDatetimeLocal,
+  localDatetimeLocalToUTCISOString
 } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
 
@@ -119,6 +120,7 @@ export default function RallySettings() {
     }
     // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
     // Including 'form' would cause this effect to run repeatedly since reset() is called inside the effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
   // Update settings mutation
@@ -144,7 +146,13 @@ export default function RallySettings() {
   });
 
   const handleSave = (data: RallySettingsForm) => {
-    updateSettings(data);
+    // Convert datetime-local strings to UTC ISO strings before sending to API
+    const settingsData: RallySettingsUpdate = {
+      ...data,
+      rally_start_time: data.rally_start_time ? localDatetimeLocalToUTCISOString(data.rally_start_time) : null,
+      rally_end_time: data.rally_end_time ? localDatetimeLocalToUTCISOString(data.rally_end_time) : null,
+    };
+    updateSettings(settingsData);
   };
 
   const handleCancel = () => {
