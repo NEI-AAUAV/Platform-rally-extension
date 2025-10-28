@@ -16,8 +16,9 @@ class RallyStaffAssignment(Base):
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     
     # Reference to Rally checkpoint
+    # NOTE: Ensure that a database migration has renamed the table from 'check_point' to 'checkpoints'
     checkpoint_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{settings.SCHEMA_NAME}.check_point.id"),
+        ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"),
         nullable=True
     )
     

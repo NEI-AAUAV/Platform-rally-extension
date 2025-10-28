@@ -31,6 +31,9 @@ def mock_rally_settings_data():
         "max_teams": 10,
         "enable_versus": False,
         "penalty_per_puke": 5,
+        "penalty_per_not_drinking": -2,
+        "bonus_per_extra_shot": 1,
+        "max_extra_shots_per_member": 5,
         "checkpoint_order_matters": True,
         "enable_staff_scoring": False,
         "show_live_leaderboard": True,
@@ -54,10 +57,7 @@ def mock_team_data():
         "question_scores": [True],
         "time_scores": [30],
         "pukes": 0,
-        "skips": 0,
-        "card1": 1,
-        "card2": 2,
-        "card3": 3
+        "skips": 0
     }
 
 

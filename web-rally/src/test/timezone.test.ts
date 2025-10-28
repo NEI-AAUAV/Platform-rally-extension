@@ -121,7 +121,7 @@ describe('Timezone Utilities', () => {
       const offset = getTimezoneOffset()
       
       expect(typeof offset).toBe('number')
-      expect(offset % 60).toBe(0) // Should be divisible by 60 (whole hours)
+      expect(Math.abs(offset % 60)).toBe(0) // Should be divisible by 60 (whole hours)
     })
   })
 
@@ -130,11 +130,14 @@ describe('Timezone Utilities', () => {
       const result = parseDatetimeLocal('2024-01-15T14:30')
       
       expect(result).toBeInstanceOf(Date)
-      expect(result.getFullYear()).toBe(2024)
-      expect(result.getMonth()).toBe(0) // January is month 0
-      expect(result.getDate()).toBe(15)
-      expect(result.getHours()).toBe(14)
-      expect(result.getMinutes()).toBe(30)
+      expect(result).not.toBeNull()
+      if (result) {
+        expect(result.getFullYear()).toBe(2024)
+        expect(result.getMonth()).toBe(0) // January is month 0
+        expect(result.getDate()).toBe(15)
+        expect(result.getHours()).toBe(14)
+        expect(result.getMinutes()).toBe(30)
+      }
     })
 
     it('should handle invalid input', () => {

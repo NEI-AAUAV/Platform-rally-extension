@@ -14,10 +14,10 @@ class User(Base):
     password: Mapped[Optional[str]] = mapped_column(String(255))
     scopes: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     team_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(f"{settings.SCHEMA_NAME}.team.id")
+        ForeignKey(f"{settings.SCHEMA_NAME}.teams.id")
     )
     staff_checkpoint_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(f"{settings.SCHEMA_NAME}.check_point.id")
+        ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id")
     )
     disabled: Mapped[bool] = mapped_column(default=False)
     is_captain: Mapped[bool] = mapped_column(default=False)

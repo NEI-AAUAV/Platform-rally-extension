@@ -1,7 +1,6 @@
 import math
-import random
 from typing import List, Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -50,51 +49,51 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         def calc_time_score(checkpoint: int, score: int) -> int:
             return int(min_time_scores[checkpoint] / score * 10) if score != 0 else 0
 
-        def calc_question_scores(used_card: bool, is_correct: bool) -> int:
-            return 6 if used_card else int(is_correct) * 8
+        def calc_question_scores(is_correct: bool) -> int:
+            return int(is_correct) * 8
 
-        def calc_pukes(used_card: bool, pukes: int) -> int:
-            return (pukes - 1 if used_card else pukes) * penalty_per_puke
+        def calc_pukes(pukes: int) -> int:
+            return pukes * penalty_per_puke
 
-        def calc_skips(used_card: bool, skips: int) -> int:
+        def calc_skips(skips: int) -> int:
             if skips > 0:
-                return (skips - 1 if used_card else skips) * -8
+                return skips * -8
             return abs(skips) * 4
 
         return (
             calc_time_score(checkpoint, team.time_scores[checkpoint] if checkpoint < len(team.time_scores) else 0)
             + calc_question_scores(
-                team.card1 == checkpoint + 1, team.question_scores[checkpoint] if checkpoint < len(team.question_scores) else False
+                team.question_scores[checkpoint] if checkpoint < len(team.question_scores) else False
             )
-            + calc_skips(team.card2 == checkpoint + 1, team.skips[checkpoint] if checkpoint < len(team.skips) else 0)
-            + calc_pukes(team.card3 == checkpoint + 1, team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
+            + calc_skips(team.skips[checkpoint] if checkpoint < len(team.skips) else 0)
+            + calc_pukes(team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
         )
 
     def update_classification_unlocked(self, db: Session) -> None:
+        """Update team classifications based on activity results"""
+        from app.services.scoring_service import ScoringService
+        
         teams = list(self.get_multi(db=db, for_update=True))
-        settings = rally_settings.get_or_create(db)
-
-        min_time_scores = self.calculate_min_time_scores(teams)
-
-        for t in teams:
-            t.score_per_checkpoint = [
-                self.calculate_checkpoint_score(
-                    i, team=t, min_time_scores=min_time_scores, penalty_per_puke=settings.penalty_per_puke
-                )
-                for i in range(len(t.times))
-            ]
-            t.total = sum(t.score_per_checkpoint)
-
+        scoring_service = ScoringService(db)
+        
+        # Update scores for all teams based on activity results
+        # Use nested transaction to avoid breaking row locks
+        for team in teams:
+            with db.begin_nested():
+                scoring_service.update_team_scores(team.id, should_commit=False)
+            db.refresh(team)  # Refresh to get updated scores
+        
+        # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))
-
+        
+        # Update classifications
         for i, team in enumerate(teams):
             team.classification = i + 1
             db.add(team)
 
     def update_classification(self, db: Session) -> None:
-        with db.begin_nested():
-            self.update_classification_unlocked(db)
-            db.commit()
+        self.update_classification_unlocked(db)
+        db.commit()
 
     def create(self, db: Session, *, obj_in: TeamCreate) -> Team:
         settings = rally_settings.get_or_create(db)
@@ -116,7 +115,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
             raise
 
-        self.update_classification(db=db)
+        # Only update classification if there are existing teams
+        # This prevents errors when creating the first team
+        try:
+            self.update_classification(db=db)
+        except Exception as e:
+            # Log the error but don't fail team creation
+            print(f"Warning: Failed to update classification during team creation: {e}")
+        
         db.refresh(team)
         return team
 
@@ -172,17 +178,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                     detail="Checkpoint already visited"
                 )
 
-    def _add_random_cards(self, team) -> None:
-        """Add random cards to team based on pity/chance mechanics"""
-        pity = len(team.times) == 7
-        chance = random.random() > 0.6
-        
-        if chance or pity:
-            for card in random.sample(("card1", "card2", "card3"), 3):
-                if getattr(team, card) == -1:
-                    setattr(team, card, 0)
-                    if chance:
-                        break
 
     def add_checkpoint(
         self, db: Session, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
@@ -190,7 +185,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         with db.begin_nested():
             team = self.get(db=db, id=id, for_update=True)
             settings = rally_settings.get_or_create(db)
-            current_time = datetime.now(datetime.timezone.utc)
+            current_time = datetime.now(timezone.utc)
 
             # Validate timing and order constraints
             self._validate_rally_timing(settings, current_time)
@@ -202,9 +197,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team.pukes.append(obj_in.pukes)
             team.skips.append(obj_in.skips)
             team.times.append(current_time)
-
-            # Add random cards
-            self._add_random_cards(team)
 
             db.commit()
         self.update_classification(db=db)

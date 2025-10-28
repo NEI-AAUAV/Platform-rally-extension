@@ -3,21 +3,21 @@ import { useUserStore } from "@/stores/useUserStore";
 import { useQuery } from "@tanstack/react-query";
 
 export default function useUser() {
-  const { sessionLoading, ...userStoreStuff } = useUserStore((state) => state);
+  const userStore = useUserStore();
   const { data, isLoading, ...rest } = useQuery({
     queryKey: ["userMe"],
     queryFn: UserService.getMeApiRallyV1UserMeGet,
   });
 
   const isRallyAdmin =
-    !!userStoreStuff.scopes?.includes("admin") ||
-    (data !== undefined && data.staff_checkpoint_id !== null);
+    !!userStore.scopes?.includes("admin") ||
+    !!userStore.scopes?.includes("manager-rally");
 
   return {
-    isLoading: isLoading || sessionLoading,
+    isLoading: isLoading || userStore.sessionLoading,
     userData: data,
     isRallyAdmin,
     ...rest,
-    userStoreStuff,
+    userStore,
   };
 }

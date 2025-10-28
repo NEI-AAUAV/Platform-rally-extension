@@ -22,9 +22,13 @@ class ListingTeam(TeamBase):
     """
 
     num_members: int
+    times: List[datetime] = []
 
     last_checkpoint_time: Optional[datetime]
     last_checkpoint_score: Optional[int] = None
+    last_checkpoint_number: Optional[int] = None
+    last_checkpoint_name: Optional[str] = None
+    current_checkpoint_number: Optional[int] = None
 
 
 class DetailedTeam(TeamBase):
@@ -47,9 +51,6 @@ class TeamUpdate(BaseModel):
     time_scores: Optional[List[int]] = None
     pukes: Optional[int] = None
     skips: Optional[int] = None
-    card1: Optional[int] = None
-    card2: Optional[int] = None
-    card3: Optional[int] = None
 
 class AdminCheckPointSelect(BaseModel):
     # For admin's only

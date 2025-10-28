@@ -5,6 +5,9 @@ from .api_v1 import user
 from .api_v1 import rally_settings
 from .api_v1 import versus
 from .api_v1 import team_members
+from .api_v1 import activities
+from .api_v1 import staff_evaluation
+from .api_v1 import rally_duration
 
 api_v1_router = APIRouter()
 
@@ -16,3 +19,6 @@ api_v1_router.include_router(user.router, prefix="/user", tags=["User"])
 api_v1_router.include_router(rally_settings.router, prefix="", tags=["Settings"])
 api_v1_router.include_router(versus.router, prefix="", tags=["Versus"])
 api_v1_router.include_router(team_members.router, prefix="", tags=["Team Members"])
+api_v1_router.include_router(activities.router, prefix="/activities", tags=["Activities"])
+api_v1_router.include_router(staff_evaluation.router, prefix="/staff", tags=["Staff Evaluation"])
+api_v1_router.include_router(rally_duration.router, prefix="", tags=["Rally Duration"])
