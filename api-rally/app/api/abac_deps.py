@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
+from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission, 
@@ -22,7 +23,7 @@ from app.api.deps import is_admin
 
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    curr_user: DetailedUser = None,
     db: Session = Depends(deps.get_db)
 ) -> DetailedUser:
     """
@@ -33,6 +34,17 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
+    # Initialize curr_user if not provided
+    if curr_user is None:
+        # Get user directly from database using auth.sub (user ID)
+        user = db.get(User, auth.sub)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        curr_user = DetailedUser.model_validate(user)
+    
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
                           for scope in auth.scopes)
@@ -44,11 +56,16 @@ def get_staff_with_checkpoint_access(
         )
     
     # For staff users, ensure they have a checkpoint assignment
-    if "rally-staff" in auth.scopes and curr_user.staff_checkpoint_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Staff user must be assigned to a checkpoint"
-        )
+    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+        if not staff_assignment or not staff_assignment.checkpoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff user must be assigned to a checkpoint"
+            )
+        # Add checkpoint_id to user for easy access
+        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
     
     return curr_user
 

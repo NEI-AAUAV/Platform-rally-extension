@@ -37,6 +37,10 @@ const variantClassification = (classification: number) => {
 export function BloodyScore({ className, team, ...props }: ScoreProps) {
   const lastCheckpointTime =
     team.last_checkpoint_time && new Date(team.last_checkpoint_time);
+  
+  // Use the actual checkpoint number if available, otherwise fall back to completed checkpoints count
+  const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
+  
   return (
     <div
       {...props}
@@ -61,14 +65,25 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
 
       <span className="grow text-center text-2xl font-bold">{team.name}</span>
       <span className="grow text-center">
-        {team.last_checkpoint_score}{" "}
-        {lastCheckpointTime && (
-          <span className="font-light text-white/60">
-            | {formatTime(lastCheckpointTime)}
-          </span>
+        {checkpointNumber > 0 ? (
+          <div className="space-y-1">
+            <div className="text-xs text-white/50">
+              {(team as any).last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
+            </div>
+            <div className="text-sm font-medium text-white/60">
+              {team.last_checkpoint_score || 0}pts
+            </div>
+            {lastCheckpointTime && (
+              <div className="text-xs text-white/50">
+                {formatTime(lastCheckpointTime)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-white/60">No checkpoints yet</div>
         )}
       </span>
-      <span className="grow text-center text-lg font-bold">
+      <span className="grow text-center text-4xl font-bold text-white">
         {team.total}pts
       </span>
       <Link to={`/teams/${team.id}`}>

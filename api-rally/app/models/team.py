@@ -10,6 +10,8 @@ from app.models.user import User
 
 
 class Team(Base):
+    __tablename__ = "teams"
+    
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(unique=True)
 
@@ -25,14 +27,11 @@ class Team(Base):
     pukes: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
     skips: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
 
-    # Card tracking
-    card1: Mapped[int] = mapped_column(default=-1)
-    card2: Mapped[int] = mapped_column(default=-1)
-    card3: Mapped[int] = mapped_column(default=-1)
-
     total: Mapped[int] = mapped_column(default=0)
     classification: Mapped[int] = mapped_column(default=-1)
 
     members: Mapped[List[User]] = relationship()
-
     versus_group_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    
+    # Activity relationships
+    activity_results: Mapped[List["ActivityResult"]] = relationship("ActivityResult", back_populates="team")

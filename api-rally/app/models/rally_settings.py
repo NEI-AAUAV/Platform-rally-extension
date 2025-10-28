@@ -17,6 +17,9 @@ class RallySettings(Base):
     
     # Scoring system
     penalty_per_puke = Column(Integer, nullable=False, default=-5)
+    penalty_per_not_drinking = Column(Integer, nullable=False, default=-2)
+    bonus_per_extra_shot = Column(Integer, nullable=False, default=1)
+    max_extra_shots_per_member = Column(Integer, nullable=False, default=1)
     
     # Checkpoint behavior
     checkpoint_order_matters = Column(Boolean, nullable=False, default=True)

@@ -1,20 +1,17 @@
 from enum import Enum
-from aiocache.decorators import cached
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from pydantic import BaseModel
 from typing import Annotated, Any, Union, Dict, List, Optional, no_type_check
 from jose import JWTError, jwt
-import aiofiles
 
 from app.core.config import SettingsDep
 
 
-@cached()
 @no_type_check
-async def get_public_key(settings: SettingsDep) -> str:
-    async with aiofiles.open(settings.JWT_PUBLIC_KEY_PATH, "r") as file:
-        return await file.read()
+def get_public_key(settings: SettingsDep) -> str:
+    with open(settings.JWT_PUBLIC_KEY_PATH, "r") as file:
+        return file.read()
 
 
 class ScopeEnum(str, Enum):

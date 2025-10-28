@@ -24,26 +24,79 @@ from app.schemas.team import (
 router = APIRouter()
 
 
+def _get_last_checkpoint_info(db: Session, team_id: int):
+    """Get last checkpoint number and name from last activity result"""
+    from app.models.activity import ActivityResult, Activity
+    
+    last_result = db.query(ActivityResult).filter(
+        ActivityResult.team_id == team_id,
+        ActivityResult.is_completed == True
+    ).order_by(ActivityResult.completed_at.desc()).first()
+    
+    if last_result:
+        activity = db.query(Activity).filter(Activity.id == last_result.activity_id).first()
+        if activity:
+            return activity.checkpoint.order, activity.checkpoint.name
+    return None, None
+
+
+def _calculate_current_checkpoint_number(db: Session, team: Team) -> int:
+    """Calculate where team should be evaluated next"""
+    last_visited_checkpoint_order = len(team.times) if team.times else 0
+    
+    if last_visited_checkpoint_order == 0:
+        return 1
+    
+    # Check if all activities at last checkpoint are completed
+    from app.crud.crud_activity import activity, activity_result
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+    
+    checkpoint_obj = checkpoint_crud.get_by_order(db, last_visited_checkpoint_order)
+    if not checkpoint_obj:
+        return last_visited_checkpoint_order
+    
+    # Use actual checkpoint ID
+    checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=checkpoint_obj.id)
+    team_results = activity_result.get_by_team(db, team_id=team.id)
+    completed_at_checkpoint = [
+        r for r in team_results 
+        if r.activity_id in [a.id for a in checkpoint_activities]
+    ]
+    
+    # If all activities completed, next checkpoint
+    if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
+        return last_visited_checkpoint_order + 1
+    return last_visited_checkpoint_order
+
+
+def _build_team_data(db: Session, team: Team) -> ListingTeam:
+    """Build team data for listing"""
+    last_checkpoint_number, last_checkpoint_name = _get_last_checkpoint_info(db, team.id)
+    current_checkpoint_number = _calculate_current_checkpoint_number(db, team)
+    
+    return ListingTeam(
+        id=team.id,
+        name=team.name,
+        total=team.total,
+        classification=team.classification,
+        times=team.times,
+        last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
+        last_checkpoint_score=(
+            team.score_per_checkpoint[-1]
+            if len(team.score_per_checkpoint) > 0
+            else None
+        ),
+        last_checkpoint_number=last_checkpoint_number,
+        last_checkpoint_name=last_checkpoint_name,
+        current_checkpoint_number=current_checkpoint_number,
+        num_members=len(team.members),
+    )
+
+
 @router.get("/", status_code=200)
 def get_teams(*, db: Session = Depends(deps.get_db)) -> List[ListingTeam]:
     teams = crud.team.get_multi(db)
-
-    def build_team(team: Team) -> ListingTeam:
-        return ListingTeam(
-            id=team.id,
-            name=team.name,
-            total=team.total,
-            classification=team.classification,
-            last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
-            last_checkpoint_score=(
-                team.score_per_checkpoint[-1]
-                if len(team.score_per_checkpoint) > 0
-                else None
-            ),
-            num_members=len(team.members),
-        )
-
-    return list(map(build_team, teams))
+    return [_build_team_data(db, team) for team in teams]
 
 
 @router.get("/me", status_code=200)

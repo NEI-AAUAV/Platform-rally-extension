@@ -1,0 +1,47 @@
+{
+  "name": "Rally Tascas - NEI",
+  "short_name": "Rally Tascas",
+  "description": "Rally Tascas - Competição de equipas do NEI",
+  "start_url": "/rally/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#dc2626",
+  "orientation": "portrait-primary",
+  "scope": "/rally/",
+  "icons": [
+    {
+      "src": "/rally/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/rally/icon-144.png",
+      "type": "image/png",
+      "sizes": "144x144",
+      "purpose": "any"
+    },
+    {
+      "src": "/rally/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rally/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rally/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["education", "games", "sports"],
+  "lang": "pt-PT",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "related_applications": []
+}

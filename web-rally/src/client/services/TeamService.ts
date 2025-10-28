@@ -1,10 +1,9 @@
 /* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
-
+/* eslint-disable */
 import type { DetailedTeam } from '../models/DetailedTeam';
 import type { ListingTeam } from '../models/ListingTeam';
-import type { TeamCardsUpdate } from '../models/TeamCardsUpdate';
 import type { TeamCreate } from '../models/TeamCreate';
 import type { TeamScoresUpdate } from '../models/TeamScoresUpdate';
 import type { TeamUpdate } from '../models/TeamUpdate';
@@ -106,6 +105,28 @@ export class TeamService {
     }
 
     /**
+     * Delete Team
+     * Delete a team. Only admins can delete teams.
+     * @param id
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static deleteTeamApiRallyV1TeamIdDelete(
+        id: number,
+    ): CancelablePromise<Record<string, any>> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/rally/v1/team/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+
+    /**
      * Add Checkpoint
      * @param id
      * @param requestBody
@@ -119,31 +140,6 @@ export class TeamService {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/api/rally/v1/team/{id}/checkpoint',
-            path: {
-                'id': id,
-            },
-            body: requestBody,
-            mediaType: 'application/json',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-
-    /**
-     * Activate Cards
-     * @param id
-     * @param requestBody
-     * @returns DetailedTeam Successful Response
-     * @throws ApiError
-     */
-    public static activateCardsApiRallyV1TeamIdCardsPut(
-        id: number,
-        requestBody: TeamCardsUpdate,
-    ): CancelablePromise<DetailedTeam> {
-        return __request(OpenAPI, {
-            method: 'PUT',
-            url: '/api/rally/v1/team/{id}/cards',
             path: {
                 'id': id,
             },
