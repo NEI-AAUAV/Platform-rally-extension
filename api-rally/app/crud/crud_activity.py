@@ -98,7 +98,7 @@ class CRUDActivityResult:
         # If this is a TimeBasedActivity, recalculate ALL existing results for this activity
         # since the ranking has changed
         if activity.activity_type == 'TimeBasedActivity':
-            self._recalculate_all_results_for_activity(db, activity.id)
+            self._recalculate_all_results_for_activity(db, activity.id, exclude_result_id=db_obj.id)
         
         # Update team scores after creating result
         self._update_team_scores(db, obj_in.team_id)
@@ -234,23 +234,36 @@ class CRUDActivityResult:
         }
         result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
     
-    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int) -> None:
+    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: int = None) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
         activity, _ = self._validate_time_based_activity(db, activity_id)
         if not activity:
             return
         
-        # Get all results for this activity
-        all_results = db.query(ActivityResult).filter(
+        # Get all results for this activity, excluding the newly created one
+        query = db.query(ActivityResult).filter(
             ActivityResult.activity_id == activity_id,
             ActivityResult.is_completed == True
-        ).all()
+        )
+        
+        # Exclude the newly created result to avoid double-counting
+        if exclude_result_id is not None:
+            query = query.filter(ActivityResult.id != exclude_result_id)
+        
+        all_results = query.all()
         
         if not all_results:
             return
         
-        # Get all times
+        # Get the excluded result to include its time in all_times
+        excluded_result = None
+        if exclude_result_id is not None:
+            excluded_result = db.query(ActivityResult).filter(ActivityResult.id == exclude_result_id).first()
+        
+        # Collect all times (from existing + newly created result)
         all_times = self._get_all_completed_times(all_results)
+        if excluded_result and excluded_result.time_score:
+            all_times.append(excluded_result.time_score)
         
         # Create activity instance
         activity_instance = ActivityFactory.create_activity(
@@ -258,14 +271,14 @@ class CRUDActivityResult:
             activity.config
         )
         
-        # Recalculate scores
+        # Recalculate scores for existing results (excluding the newly created one)
         if len(all_times) <= 1:
             # Only one result, give it max points
             max_points = activity_instance.config.get('max_points', 100)
             for result in all_results:
                 self._recalculate_single_result(result, activity_instance, max_points, db)
         else:
-            # Multiple results - use ranking
+            # Multiple results - use ranking (use all_times including the new result)
             for result in all_results:
                 self._recalculate_with_ranking(result, activity_instance, all_times, db)
         
@@ -340,10 +353,33 @@ class CRUDActivityResult:
             activity.config
         )
         
-        team = db.query(Team).filter(Team.id == db_obj.team_id).first()
-        team_size = len(team.members) if team and team.members else 1
+        # For time-based activities, use relative ranking
+        if activity.activity_type == 'TimeBasedActivity':
+            # Get all results for this activity to calculate ranking
+            all_results = db.query(ActivityResult).filter(
+                ActivityResult.activity_id == db_obj.activity_id,
+                ActivityResult.is_completed == True
+            ).all()
+            
+            all_times = [result.time_score for result in all_results if result.time_score]
+            
+            if len(all_times) > 1 and hasattr(activity_instance, 'calculate_relative_ranking_score'):
+                # Use relative ranking
+                ranking_score = activity_instance.calculate_relative_ranking_score(
+                    all_times,
+                    db_obj.time_score
+                )
+                base_score = ranking_score
+            else:
+                # Single result or fallback
+                team = db.query(Team).filter(Team.id == db_obj.team_id).first()
+                team_size = len(team.members) if team and team.members else 1
+                base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
+        else:
+            team = db.query(Team).filter(Team.id == db_obj.team_id).first()
+            team_size = len(team.members) if team and team.members else 1
+            base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
         
-        base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
         modifiers = {
             'extra_shots': db_obj.extra_shots,
             'penalties': db_obj.penalties
