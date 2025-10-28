@@ -59,7 +59,7 @@ class TimeBasedActivity(BaseActivity):
         # Teams with identical times get the same rank and score
         if rank == 1:
             return max_points
-        elif rank >= total_teams:
+        elif rank == total_teams:
             return min_points
         else:
             # Linear interpolation between max and min
