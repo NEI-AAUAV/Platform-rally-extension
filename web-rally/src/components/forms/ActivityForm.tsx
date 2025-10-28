@@ -105,7 +105,3 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
     </div>
   );
 }
-
-
-
-

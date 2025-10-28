@@ -78,8 +78,3 @@ export default function CheckpointCard({
   );
 }
 
-
-
-
-
-
