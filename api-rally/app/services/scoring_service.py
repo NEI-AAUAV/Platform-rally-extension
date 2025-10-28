@@ -96,7 +96,7 @@ class ScoringService:
         if not team:
             return False
         
-        team_size = len(team.members)
+        team_size = len(team.members) if team and team.members else 1
         
         # Validate extra shots limit (configurable per team member)
         settings = self._get_settings()
@@ -307,6 +307,7 @@ class ScoringService:
         try:
             # Create both results
             from app.schemas.activity import ActivityResultCreate
+            from app.crud.crud_activity import activity as activity_crud
             
             result1_create = ActivityResultCreate(
                 activity_id=activity_id,
@@ -320,22 +321,18 @@ class ScoringService:
                 result_data=result2_data
             )
             
-            # Create result objects directly with required fields
             # Use datetime.now(timezone.utc) instead of func.now() for proper datetime value
             current_time = datetime.now(timezone.utc)
             
-            result1_dict = result1_create.dict()
-            result1_dict['is_completed'] = True
-            result1_dict['completed_at'] = current_time
+            # Create result objects using CRUD to ensure scoring logic is applied
+            result1_db_obj = activity_crud.create(self.db, obj_in=result1_create)
+            result2_db_obj = activity_crud.create(self.db, obj_in=result2_create)
             
-            result2_dict = result2_create.dict()
-            result2_dict['is_completed'] = True
-            result2_dict['completed_at'] = current_time
-            
-            result1_obj = ActivityResult(**result1_dict)
-            result2_obj = ActivityResult(**result2_dict)
-            self.db.add(result1_obj)
-            self.db.add(result2_obj)
+            # Mark as completed
+            result1_db_obj.is_completed = True
+            result1_db_obj.completed_at = current_time
+            result2_db_obj.is_completed = True
+            result2_db_obj.completed_at = current_time
             
             # Commit the transaction to persist results
             self.db.commit()
@@ -343,4 +340,5 @@ class ScoringService:
             return True, "Team vs team results created successfully"
             
         except Exception as e:
+            self.db.rollback()
             return False, f"Error creating team vs team results: {str(e)}"

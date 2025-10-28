@@ -163,10 +163,18 @@ def _check_and_advance_team(db: Session, team_id: int, activity_obj) -> None:
 def _ensure_team_checkpoint_and_advance(db: Session, team_id: int, current_checkpoint_id: int) -> None:
     """Ensure team is checked into current checkpoint and advance to next"""
     team_obj = team.get(db, id=team_id)
-    current_checkpoint_number = len(team_obj.times)
+    current_checkpoint_order = len(team_obj.times)
+    
+    # Convert checkpoint ID to order for comparison
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+    checkpoint_obj = checkpoint_crud.get(db, id=current_checkpoint_id)
+    if not checkpoint_obj:
+        return
+    
+    checkpoint_order = checkpoint_obj.order
     
     # If team hasn't been checked into current checkpoint yet, check them in first
-    if current_checkpoint_number < current_checkpoint_id:
+    if current_checkpoint_order < checkpoint_order:
         _checkin_team_to_checkpoint(db, team_id, current_checkpoint_id)
     
     # Now advance to next checkpoint
@@ -291,10 +299,18 @@ def _calculate_current_checkpoint_for_staff(db: Session, team_obj: Team, last_ch
     if last_checkpoint_number == 0:
         return 1
     
-    # Check if team has completed all activities at their last checkpoint
+    # Get checkpoint by order, not by ID
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
     from app.crud.crud_activity import activity
-    checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=last_checkpoint_number)
-    team_results = activity_result.get_by_team(db, team_id=team_obj.id)
+    from app.crud.crud_activity import activity_result as activity_result_crud
+    
+    checkpoint_obj = checkpoint_crud.get_by_order(db, last_checkpoint_number)
+    if not checkpoint_obj:
+        return last_checkpoint_number
+    
+    # Use actual checkpoint ID to get activities
+    checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=checkpoint_obj.id)
+    team_results = activity_result_crud.get_by_team(db, team_id=team_obj.id)
     completed_at_checkpoint = [r for r in team_results if r.activity_id in [a.id for a in checkpoint_activities]]
     
     # If all activities completed, move to next checkpoint

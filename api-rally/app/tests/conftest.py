@@ -2,7 +2,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
-from unittest.mock import patch, Mock
+from unittest.mock import patch, mock_open, Mock
+import builtins
 
 # Mock the public key BEFORE importing anything that uses it
 mock_key = """-----BEGIN PUBLIC KEY-----
@@ -15,13 +16,17 @@ PQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567
 0abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqr
 -----END PUBLIC KEY-----"""
 
-# Mock the get_public_key function before app is imported
-def mock_get_public_key(settings):
-    return mock_key
+# Mock open() to intercept JWT key file reads globally
+_original_open = builtins.open
 
-# Apply the mock to the target module
-_public_key_patcher = patch('app.api.auth.get_public_key', side_effect=mock_get_public_key)
-_public_key_patcher.start()
+def mock_file_open(*args, **kwargs):
+    # If trying to open a JWT key file, return mock content
+    if len(args) > 0 and ('jwt.key' in str(args[0]) or 'public' in str(args[0]).lower()):
+        return mock_open(read_data=mock_key)(*args, **kwargs)
+    return _original_open(*args, **kwargs)
+
+# Replace builtin open function
+builtins.open = mock_file_open
 
 # Now import app and other dependencies
 from app.models.base import Base
