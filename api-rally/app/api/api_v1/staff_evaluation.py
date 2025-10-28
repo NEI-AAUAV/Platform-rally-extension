@@ -79,13 +79,13 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
             detail=TEAM_NOT_FOUND
         )
     
-    # Allow staff to evaluate teams at their checkpoint or previous checkpoints
-    # Block teams at future checkpoints
+    # Allow staff to evaluate teams at their checkpoint or teams that have already passed it
+    # Block teams that have not yet reached the staff's checkpoint
     team_checkpoint_number = len(team_obj.times)
-    if team_checkpoint_number > current_user.staff_checkpoint_id:
+    if team_checkpoint_number < current_user.staff_checkpoint_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or previous checkpoints"
+            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or later (once they reach it)"
         )
     
     # Verify activity is at the same checkpoint
@@ -352,18 +352,13 @@ def get_team_activities_for_evaluation(
             detail=TEAM_NOT_FOUND
         )
     
-    # Check if team is at the staff's checkpoint or a previous checkpoint
-    # Staff can evaluate teams at their checkpoint or previous checkpoints
+    # Allow evaluation if team has reached the staff's checkpoint (>=) or is exactly at it
+    # Block only when the team has not yet reached the staff's checkpoint (<)
     team_checkpoint_number = len(team_obj.times)
-    
-    # Allow evaluation if:
-    # 1. Team is at staff's checkpoint (team_checkpoint_number == staff_checkpoint_id)
-    # 2. Team is at a previous checkpoint (team_checkpoint_number < staff_checkpoint_id)
-    # Block evaluation if team is at a future checkpoint (team_checkpoint_number > staff_checkpoint_id)
-    if team_checkpoint_number > current_user.staff_checkpoint_id:
+    if team_checkpoint_number < current_user.staff_checkpoint_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or previous checkpoints"
+            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams that have reached checkpoint {current_user.staff_checkpoint_id}"
         )
     
     # Log the evaluation context for debugging
@@ -446,11 +441,17 @@ def evaluate_team_activity(
     else:
         _, activity_obj = _validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
     
-    # Check if result already exists
-    _check_existing_result(db, activity_id, team_id)
-    
-    # Create the result
-    db_result = _create_activity_result(db, team_id, activity_id, result_in)
+    # Create or update the result if it already exists
+    existing_result = activity_result.get_by_activity_and_team(db, activity_id, team_id)
+    if existing_result:
+        update_in = ActivityResultUpdate(
+            result_data=result_in.result_data,
+            extra_shots=result_in.extra_shots,
+            penalties=result_in.penalties,
+        )
+        db_result = activity_result.update(db=db, db_obj=existing_result, obj_in=update_in)
+    else:
+        db_result = _create_activity_result(db, team_id, activity_id, result_in)
     
     # Check if team has completed all activities and advance if needed
     # Both staff and admins/managers can trigger advancement
@@ -487,22 +488,23 @@ def update_team_activity_evaluation(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=NO_CHECKPOINT_ASSIGNED
             )
-        
-        # Verify team is at the staff member's checkpoint
+
+        # Ensure the activity being updated belongs to the staff's checkpoint
+        from app.crud.crud_activity import activity as activity_crud
+        activity_obj = activity_crud.get(db, id=activity_id)
+        if not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Activity not found at your assigned checkpoint"
+            )
+
+        # We intentionally do NOT block updates if the team has advanced to a later checkpoint
+        # as long as the result belongs to this team and this activity at the staff's checkpoint.
         team_obj = team.get(db, id=team_id)
         if not team_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=TEAM_NOT_FOUND
-            )
-        
-        # Allow staff to evaluate teams at their assigned checkpoint, even if team has advanced
-        # Check if team has visited the staff member's checkpoint (team can be at or past this checkpoint)
-        team_checkpoint_number = len(team_obj.times)
-        if team_checkpoint_number < current_user.staff_checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=TEAM_NOT_FOUND_AT_CHECKPOINT
             )
     else:
         # For managers/admins, just verify team exists
