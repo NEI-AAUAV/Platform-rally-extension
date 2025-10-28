@@ -206,7 +206,7 @@ class CRUDActivityResult:
         """Extract all completion times from results"""
         return [result.time_score for result in all_results if result.time_score]
     
-    def _recalculate_single_result(self, result, activity_instance, max_points):
+    def _recalculate_single_result(self, result, activity_instance, max_points, db: Session):
         """Recalculate score for a single result with max points"""
         modifiers = {
             'extra_shots': result.extra_shots,
@@ -215,10 +215,10 @@ class CRUDActivityResult:
         result.final_score = activity_instance.apply_modifiers(
             max_points,
             modifiers,
-            self.db
+            db
         )
     
-    def _recalculate_with_ranking(self, result, activity_instance, all_times):
+    def _recalculate_with_ranking(self, result, activity_instance, all_times, db: Session):
         """Recalculate score using relative ranking"""
         if not result.time_score or not hasattr(activity_instance, 'calculate_relative_ranking_score'):
             return
@@ -232,7 +232,7 @@ class CRUDActivityResult:
             'extra_shots': result.extra_shots,
             'penalties': result.penalties
         }
-        result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, self.db)
+        result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
     
     def _recalculate_all_results_for_activity(self, db: Session, activity_id: int) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
@@ -263,11 +263,11 @@ class CRUDActivityResult:
             # Only one result, give it max points
             max_points = activity_instance.config.get('max_points', 100)
             for result in all_results:
-                self._recalculate_single_result(result, activity_instance, max_points)
+                self._recalculate_single_result(result, activity_instance, max_points, db)
         else:
             # Multiple results - use ranking
             for result in all_results:
-                self._recalculate_with_ranking(result, activity_instance, all_times)
+                self._recalculate_with_ranking(result, activity_instance, all_times, db)
         
         # Commit and update team scores
         db.commit()
