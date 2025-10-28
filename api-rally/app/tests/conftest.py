@@ -17,6 +17,23 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # Export Session for other test files
 Session = TestingSessionLocal
 
+# Mock the public key globally for all tests
+@pytest.fixture(scope="session", autouse=True)
+def mock_public_key():
+    """Mock the JWT public key for all tests"""
+    mock_key = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
+UVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc
+defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuv
+wxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO
+PQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789
+0abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqr
+-----END PUBLIC KEY-----"""
+    
+    with patch('app.api.auth.get_public_key', return_value=mock_key):
+        yield
+
 
 def override_get_db():
     try:
