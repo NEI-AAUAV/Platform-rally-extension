@@ -42,7 +42,7 @@ export default function VersusGroupList({ versusGroups, teams, userToken, onSucc
       const teamsInGroup = teams?.filter((team: Team) => team.versus_group_id === groupId) || [];
       
       for (const team of teamsInGroup) {
-        const updateData: TeamUpdate = {
+        const updateData: any = {
           name: team.name,
           versus_group_id: null,
         };

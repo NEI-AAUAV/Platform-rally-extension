@@ -18,12 +18,11 @@ interface Team {
 
 interface VersusPairFormProps {
   teams: Team[] | undefined;
-  userToken: string;
   onSuccess: () => void;
   className?: string;
 }
 
-export default function VersusPairForm({ teams, userToken, onSuccess, className = "" }: VersusPairFormProps) {
+export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
   const toast = useAppToast();
   const [selectedTeamA, setSelectedTeamA] = useState<string>("");
   const [selectedTeamB, setSelectedTeamB] = useState<string>("");
