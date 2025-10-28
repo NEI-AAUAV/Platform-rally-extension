@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useNavigate } from "react-router-dom";

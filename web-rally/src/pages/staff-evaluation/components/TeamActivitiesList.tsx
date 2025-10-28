@@ -73,7 +73,6 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
               team={team}
               onSubmit={handleFormSubmit}
               isSubmitting={isEvaluating}
-              existingResult={selectedActivity.existing_result}
             />
           </CardContent>
         </Card>

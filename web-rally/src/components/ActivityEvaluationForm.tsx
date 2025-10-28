@@ -94,7 +94,7 @@ export default function ActivityEvaluationForm({
   onCancel,
   isSubmitting,
 }: ActivityEvaluationFormProps) {
-  const [formData, setFormData] = useState<any>({});
+  const [_formData, _setFormData] = useState<any>({});
 
   // Determine which schema to use based on activity type
   const getSchema = () => {
@@ -131,7 +131,7 @@ export default function ActivityEvaluationForm({
   const watchedValues = watch();
 
   useEffect(() => {
-    setFormData(watchedValues);
+    _setFormData(watchedValues);
   }, [watchedValues]);
 
   const handleFormSubmit = (data: any) => {
@@ -165,7 +165,7 @@ export default function ActivityEvaluationForm({
               />
               {errors.completion_time_seconds && (
                 <p className="text-red-400 text-sm mt-1">
-                  {errors.completion_time_seconds.message}
+                  {String(errors.completion_time_seconds?.message || "")}
                 </p>
               )}
             </div>
@@ -201,7 +201,7 @@ export default function ActivityEvaluationForm({
               />
               {errors.achieved_points && (
                 <p className="text-red-400 text-sm mt-1">
-                  {errors.achieved_points.message}
+                  {String(errors.achieved_points?.message || "")}
                 </p>
               )}
             </div>
@@ -225,7 +225,6 @@ export default function ActivityEvaluationForm({
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Switch
-                id="success"
                 checked={watchedValues.success || false}
                 onCheckedChange={(checked) => setValue("success", checked)}
               />
@@ -266,7 +265,7 @@ export default function ActivityEvaluationForm({
               />
               {errors.assigned_points && (
                 <p className="text-red-400 text-sm mt-1">
-                  {errors.assigned_points.message}
+                  {String(errors.assigned_points?.message || "")}
                 </p>
               )}
               <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
@@ -306,7 +305,7 @@ export default function ActivityEvaluationForm({
               </select>
               {errors.result && (
                 <p className="text-red-400 text-sm mt-1">
-                  {errors.result.message}
+                  {String(errors.result?.message || "")}
                 </p>
               )}
             </div>

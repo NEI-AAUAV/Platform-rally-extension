@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
-import { TeamService, type TeamUpdate } from "@/client";
+import { TeamService } from "@/client";
 
 interface VersusPair {
   group_id: number;
@@ -31,7 +31,7 @@ interface VersusGroupListProps {
   className?: string;
 }
 
-export default function VersusGroupList({ versusGroups, teams, userToken, onSuccess, className = "" }: VersusGroupListProps) {
+export default function VersusGroupList({ versusGroups, teams, onSuccess, className = "" }: VersusGroupListProps) {
   // Remove versus pair mutation (by updating teams to remove versus_group_id)
   const {
     mutate: removeVersusPair,

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,7 +54,7 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
         
         <div className="flex items-center space-x-2">
           <Switch
-            id="enable_versus"
+            
             checked={watch('enable_versus')}
             onCheckedChange={(checked) => setValue('enable_versus', checked)}
             disabled={disabled}

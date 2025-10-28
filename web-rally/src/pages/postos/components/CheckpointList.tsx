@@ -1,4 +1,3 @@
-import React from 'react';
 import { MapPin } from 'lucide-react';
 import CheckpointCard from './CheckpointCard';
 import { EmptyState } from '@/components/shared';

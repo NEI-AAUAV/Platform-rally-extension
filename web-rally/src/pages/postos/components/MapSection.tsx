@@ -1,4 +1,3 @@
-import React from 'react';
 import { Navigation, MapPin } from 'lucide-react';
 
 interface Checkpoint {

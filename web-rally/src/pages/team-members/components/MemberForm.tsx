@@ -27,7 +27,7 @@ interface MemberFormProps {
   className?: string;
 }
 
-export default function MemberForm({ selectedTeam, userToken, onSuccess, className = "" }: MemberFormProps) {
+export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
   const toast = useAppToast();
   
   // Form setup
