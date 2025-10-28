@@ -5,10 +5,20 @@ from app.core.config import settings
 from app.models.base import Base
 from .session import engine
 
+# IMPORTANT: Import all models here so they're registered with Base.metadata
+# before create_all() is called. Otherwise tables will be missing columns!
+from app.models import (  # noqa: F401
+    User,
+    Team,
+    CheckPoint,
+    RallyStaffAssignment,
+    Activity,
+    ActivityResult,
+    RallyEvent,
+    RallySettings,
+)
 
-# make sure all SQL Alchemy models are imported (app.db.base) before initializing DB
-# otherwise, SQL Alchemy might fail to initialize relationships properly
-# for more details: https://github.com/tiangolo/full-stack-fastapi-postgresql/issues/28
+# For more details: https://github.com/tiangolo/full-stack-fastapi-postgresql/issues/28
 
 
 def init_db() -> None:
