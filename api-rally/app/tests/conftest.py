@@ -7,7 +7,6 @@ from unittest.mock import patch
 from app.models.base import Base
 from app.main import app
 from app.api.deps import get_db
-from app.api.auth import get_public_key
 
 # Test database setup - Use SQLite with JSON for array-like data
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -17,11 +16,8 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # Export Session for other test files
 Session = TestingSessionLocal
 
-# Mock the public key globally for all tests
-@pytest.fixture(scope="session", autouse=True)
-def mock_public_key():
-    """Mock the JWT public key for all tests"""
-    mock_key = """-----BEGIN PUBLIC KEY-----
+# Mock the public key at module import time - this applies to all tests
+mock_key = """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghijklmnopqrstuvwxyz
 ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
 UVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc
@@ -30,9 +26,10 @@ wxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
 PQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789
 0abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqr
 -----END PUBLIC KEY-----"""
-    
-    with patch('app.api.auth.get_public_key', return_value=mock_key):
-        yield
+
+# Apply the mock immediately when module is imported
+_public_key_patcher = patch('app.api.auth.get_public_key', return_value=mock_key)
+_public_key_patcher.start()
 
 
 def override_get_db():
