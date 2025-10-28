@@ -28,15 +28,3 @@ export default function FeatureDisabledAlert({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
