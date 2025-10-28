@@ -1,4 +1,3 @@
-import React from 'react';
 import { Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -96,7 +95,7 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
         
         <div className="flex items-center space-x-2">
           <Switch
-            id="checkpoint_order_matters"
+            
             checked={watch('checkpoint_order_matters')}
             onCheckedChange={(checked) => setValue('checkpoint_order_matters', checked)}
             disabled={disabled}
@@ -108,7 +107,7 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
         
         <div className="flex items-center space-x-2">
           <Switch
-            id="enable_staff_scoring"
+            
             checked={watch('enable_staff_scoring')}
             onCheckedChange={(checked) => setValue('enable_staff_scoring', checked)}
             disabled={disabled}

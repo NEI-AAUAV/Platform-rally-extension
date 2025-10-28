@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Edit, Trash2, Activity as ActivityIcon, AlertCircle, GripVertical } from "lucide-react";
+import {  } from "@/components/ui/alert";
+import { Edit, Trash2, Activity as ActivityIcon, GripVertical } from "lucide-react";
 import { Activity as ActivityType, Checkpoint } from "@/types/activityTypes";
 
 interface ActivityListProps {
@@ -81,7 +81,9 @@ export default function ActivityList({
     // Reorder array
     const reorderedActivities = [...checkpointActivities];
     const [draggedItem] = reorderedActivities.splice(draggedIndex, 1);
-    reorderedActivities.splice(targetIndex, 0, draggedItem);
+    if (draggedItem) {
+      reorderedActivities.splice(targetIndex, 0, draggedItem);
+    }
     
     // Create order mapping
     reorderedActivities.forEach((activity, index) => {

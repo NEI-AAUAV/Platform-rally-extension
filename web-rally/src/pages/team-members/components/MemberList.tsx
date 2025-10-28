@@ -20,7 +20,7 @@ interface MemberListProps {
   className?: string;
 }
 
-export default function MemberList({ teamMembers, selectedTeam, userToken, onSuccess, className = "" }: MemberListProps) {
+export default function MemberList({ teamMembers, selectedTeam, onSuccess, className = "" }: MemberListProps) {
   // Remove member mutation
   const {
     mutate: removeMember,
