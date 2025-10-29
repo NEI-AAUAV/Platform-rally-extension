@@ -43,14 +43,14 @@ function MainLayoutContent() {
     return (
       <div className="font-inter" style={bgStyle}>
         <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
-        <div className="text-center">
-          <img 
-            src="/rally/banner/Halloween_2025.jpeg" 
-            alt="Rally Tascas Banner" 
-            className="mx-auto mb-4 max-h-32 w-auto object-contain"
-          />
-          <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
-        </div>
+          <div className="text-center">
+            <img
+              src="/rally/banner/Halloween_2025.jpeg"
+              alt="Rally Tascas Banner"
+              className="mx-auto mb-4 max-h-32 w-auto object-contain"
+            />
+            <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+          </div>
         </div>
       </div>
     );
@@ -60,9 +60,9 @@ function MainLayoutContent() {
     <div className="font-inter" style={bgStyle}>
       <div className="mx-2 sm:mx-4 min-h-screen pb-10 pt-16 sm:pt-20 text-[rgb(255,255,255,0.95)] antialiased">
         <div className="text-center mb-4">
-          <img 
-            src="/rally/banner/Halloween_2025.jpeg" 
-            alt="Rally Tascas Banner" 
+          <img
+            src="/rally/banner/Halloween_2025.jpeg"
+            alt="Rally Tascas Banner"
             className="mx-auto max-h-24 sm:max-h-32 w-auto object-contain"
           />
         </div>

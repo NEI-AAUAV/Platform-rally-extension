@@ -15,8 +15,9 @@ export type ListingTeam = {
     num_members: number;
     times?: Array<string>;
     last_checkpoint_time: (string | null);
-    last_checkpoint_name?: (string | null);
     last_checkpoint_score?: (number | null);
     last_checkpoint_number?: (number | null);
+    last_checkpoint_name?: (string | null);
+    current_checkpoint_number?: (number | null);
 };
 
