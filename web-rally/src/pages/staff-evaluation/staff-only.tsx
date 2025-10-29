@@ -28,10 +28,10 @@ export default function StaffEvaluationPage() {
 
   if (!myCheckpoint) {
     return (
-      <div className="p-6">
+      <div className="p-2 sm:p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-center">
                 <h2 className="text-xl font-semibold mb-2">No Checkpoint Assigned</h2>
                 <p className="text-muted-foreground">
@@ -46,10 +46,10 @@ export default function StaffEvaluationPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-2 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="text-center">
               <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>Redirecting to your checkpoint evaluation...</p>

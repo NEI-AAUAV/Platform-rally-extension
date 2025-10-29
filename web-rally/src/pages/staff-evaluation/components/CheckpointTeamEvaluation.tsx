@@ -226,10 +226,10 @@ export default function CheckpointTeamEvaluation() {
 
   if (!checkpoint) {
     return (
-      <div className="p-6">
+      <div className="p-2 sm:p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-center">
                 <h2 className="text-xl font-semibold mb-2">Checkpoint Not Found</h2>
                 <p className="text-muted-foreground">
@@ -244,8 +244,8 @@ export default function CheckpointTeamEvaluation() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-2 sm:p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <Card>
           <CardHeader>
@@ -277,7 +277,7 @@ export default function CheckpointTeamEvaluation() {
             {/* Team Activities */}
             {teamActivitiesLoading ? (
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     <p>Loading team activities...</p>
@@ -339,11 +339,11 @@ export default function CheckpointTeamEvaluation() {
                           <div className="h-px bg-green-500/30 flex-1"></div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                           {teamsToEvaluate.map((team: any) => (
                             <div
                               key={team.id}
-                              className="p-4 rounded-lg border border-green-500/30 bg-green-500/10 cursor-pointer hover:bg-green-500/20 transition-colors"
+                              className="p-3 sm:p-4 rounded-lg border border-green-500/30 bg-green-500/10 cursor-pointer hover:bg-green-500/20 transition-colors"
                               onClick={() => {
                                 setSelectedTeam(team);
                                 setShowTeamList(false);
@@ -383,11 +383,11 @@ export default function CheckpointTeamEvaluation() {
                           <div className="h-px bg-yellow-500/30 flex-1"></div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                           {teamsAtPreviousCheckpoints.map((team: any) => (
                             <div
                               key={team.id}
-                              className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 cursor-pointer hover:bg-yellow-500/20 transition-colors"
+                              className="p-3 sm:p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 cursor-pointer hover:bg-yellow-500/20 transition-colors"
                               onClick={() => {
                                 setSelectedTeam(team);
                                 setShowTeamList(false);
@@ -427,11 +427,11 @@ export default function CheckpointTeamEvaluation() {
                           <div className="h-px bg-gray-500/30 flex-1"></div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                           {teamsAlreadyEvaluated.map((team: any) => (
                             <div
                               key={team.id}
-                              className="p-4 rounded-lg border opacity-75 cursor-pointer hover:opacity-90 transition-opacity"
+                              className="p-3 sm:p-4 rounded-lg border opacity-75 cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => {
                                 setSelectedTeam(team);
                                 setShowTeamList(false);
