@@ -22,15 +22,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Update theme based on rally settings
   useEffect(() => {
     if (settings?.rally_theme) {
-      // Map rally theme names to theme names
-      const themeMapping: Record<string, ThemeName> = {
-        'Rally Tascas': 'bloody',
-        'bloody': 'bloody',
-        'default': 'default',
-      };
+      // Handle legacy 'Rally Tascas' value for backward compatibility
+      const theme = settings.rally_theme === 'Rally Tascas' 
+        ? 'bloody' 
+        : settings.rally_theme;
       
-      const mappedTheme = themeMapping[settings.rally_theme] || 'bloody';
-      setThemeName(mappedTheme);
+      // Validate theme is known, fallback to 'bloody'
+      const validTheme: ThemeName = 
+        theme === 'bloody' || theme === 'nei' || theme === 'default' 
+          ? theme 
+          : 'bloody';
+      
+      setThemeName(validTheme);
     }
   }, [settings?.rally_theme]);
 

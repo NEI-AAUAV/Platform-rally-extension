@@ -1,10 +1,16 @@
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
-import { BloodyBadge } from "./badge";
-import { BloodyButton } from "./button";
+import { NEIBadge } from "./badge";
+import { NEIButton } from "./button";
 import type { ListingTeam } from "@/client";
 import { Link } from "react-router-dom";
 import { formatTime } from "@/utils/timeFormat";
+
+/**
+ * NEI Theme Score Component
+ * 
+ * Team score display using NEI brand color (#008542)
+ */
 
 type ScoreProps = { team: ListingTeam } & ComponentProps<"div">;
 
@@ -34,7 +40,7 @@ const variantClassification = (classification: number) => {
   }
 };
 
-export function BloodyScore({ className, team, ...props }: ScoreProps) {
+export function NEIScore({ className, team, ...props }: ScoreProps) {
   const lastCheckpointTime =
     team.last_checkpoint_time && new Date(team.last_checkpoint_time);
   
@@ -47,21 +53,21 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
       className={cn(
         "grid place-items-center gap-4 self-stretch rounded-2xl border-2 px-4 py-8",
         {
-          "border-transparent bg-[rgb(255,255,255,0.15)]":
+          "border-[#008542]/50 bg-[rgb(255,255,255,0.15)]":
             team.classification === 1,
-          "border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]":
+          "border-[#008542]/20 bg-[rgb(255,255,255,0.04)]":
             team.classification !== 1,
         },
         className,
       )}
     >
-      <BloodyBadge
+      <NEIBadge
         className="flex w-14 justify-center px-8 py-2 text-lg font-bold"
         variant={variantClassification(team.classification)}
       >
         {team.classification}
         {nthNumber(team.classification)}
-      </BloodyBadge>
+      </NEIBadge>
 
       <span className="grow text-center text-2xl font-bold">{team.name}</span>
       <span className="grow text-center">
@@ -87,13 +93,14 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
         {team.total}pts
       </span>
       <Link to={`/teams/${team.id}`}>
-        <BloodyButton variant={"primary"} blood>
+        <NEIButton variant={"primary"}>
           View Team
-        </BloodyButton>
+        </NEIButton>
       </Link>
     </div>
   );
 }
 
 // Keep default export for backward compatibility
-export default BloodyScore;
+export default NEIScore;
+

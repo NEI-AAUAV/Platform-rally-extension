@@ -1,8 +1,8 @@
 import { Eye } from 'lucide-react';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFormContext } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
@@ -29,13 +29,23 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="rally_theme">Tema do Rally</Label>
-          <Input
-            id="rally_theme"
-            placeholder="Ex: Rally Halloween 2024"
+          <Select
+            value={watch('rally_theme') || 'bloody'}
+            onValueChange={(value) => setValue('rally_theme', value)}
             disabled={disabled}
-            {...register('rally_theme')}
-            className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
-          />
+          >
+            <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+              <SelectValue placeholder="Selecione um tema" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nei">NEI Rally (Verde)</SelectItem>
+              <SelectItem value="bloody">Halloween (Bloody)</SelectItem>
+            <SelectItem value="default">Rally Tascas (Legacy)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-white/50">
+            O tema controla as cores e estilo visual da aplicação
+          </p>
         </div>
         
         <div className="flex items-center space-x-2">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { BloodyButton } from "@/components/themes/bloody";
+import { useThemedComponents } from "@/components/themes";
 import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { PageHeader } from "@/components/shared";
@@ -17,6 +17,7 @@ interface Checkpoint {
 
 
 export default function Admin() {
+  const { Button } = useThemedComponents();
   const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
@@ -52,30 +53,27 @@ export default function Admin() {
 
       {/* Tab Navigation */}
       <div className="flex justify-center gap-4">
-        <BloodyButton
-          blood={activeTab === "teams"}
+        <Button
           variant={activeTab === "teams" ? "default" : "neutral"}
           onClick={() => setActiveTab("teams")}
         >
           <Users className="w-4 h-4 mr-2" />
           Equipas
-        </BloodyButton>
-        <BloodyButton
-          blood={activeTab === "checkpoints"}
+        </Button>
+        <Button
           variant={activeTab === "checkpoints" ? "default" : "neutral"}
           onClick={() => setActiveTab("checkpoints")}
         >
           <MapPin className="w-4 h-4 mr-2" />
           Checkpoints
-        </BloodyButton>
-        <BloodyButton
-          blood={activeTab === "activities"}
+        </Button>
+        <Button
           variant={activeTab === "activities" ? "default" : "neutral"}
           onClick={() => setActiveTab("activities")}
         >
           <ActivityIcon className="w-4 h-4 mr-2" />
           Atividades
-        </BloodyButton>
+        </Button>
       </div>
 
       {/* Tab Content */}
