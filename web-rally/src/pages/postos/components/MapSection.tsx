@@ -1,4 +1,5 @@
 import { Navigation, MapPin } from 'lucide-react';
+import { useThemedComponents } from '@/components/themes';
 
 interface Checkpoint {
   id: number;
@@ -30,6 +31,7 @@ function getValidCoordinate(checkpoint: Checkpoint, coordType: 'latitude' | 'lon
 }
 
 export default function MapSection({ checkpoints, selectedCheckpoint, showMap = true }: MapSectionProps) {
+  const { Card } = useThemedComponents();
   // Calculate map bounds if we have coordinates
   const hasCoordinates = checkpoints.some(hasValidCoordinates);
   
@@ -74,7 +76,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
   }
 
   return (
-    <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+    <Card variant="default" padding="lg" rounded="2xl">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <Navigation className="w-5 h-5" />
         Mapa dos Postos
@@ -114,7 +116,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
           {selectedCheckpoint && ` Posto selecionado: ${selectedCheckpoint.name} (Ordem ${selectedCheckpoint.order})`}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 

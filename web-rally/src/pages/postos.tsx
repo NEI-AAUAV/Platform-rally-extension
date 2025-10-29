@@ -4,6 +4,7 @@ import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { CheckpointList, MapSection } from "./postos/components";
+import { useThemedComponents } from "@/components/themes";
 
 interface Checkpoint {
   id: number;
@@ -15,6 +16,7 @@ interface Checkpoint {
 }
 
 export default function Postos() {
+  const { Card } = useThemedComponents();
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
 
@@ -61,7 +63,7 @@ export default function Postos() {
 
       {/* No Coordinates Warning */}
       {!sortedCheckpoints.some((cp: Checkpoint) => cp.latitude && cp.longitude) && sortedCheckpoints.length > 0 && (
-        <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+        <Card variant="default" padding="lg" rounded="2xl">
           <div className="text-center text-[rgb(255,255,255,0.7)]">
             <div className="w-8 h-8 mx-auto mb-2 opacity-50">📍</div>
             <p>Os postos ainda não têm coordenadas configuradas.</p>
@@ -69,7 +71,7 @@ export default function Postos() {
               Contacte um administrador para adicionar localizações aos postos.
             </p>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

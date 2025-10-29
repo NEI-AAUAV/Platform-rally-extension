@@ -9,6 +9,8 @@ export interface ThemeComponents {
   Badge: ComponentType<any>;
   Score: ComponentType<any>;
   Blood: ComponentType<any>;
+  Card: ComponentType<any>;
+  InteractiveCard: ComponentType<any>;
 }
 
 const themes: Record<ThemeName, ThemeComponents> = {
@@ -17,12 +19,16 @@ const themes: Record<ThemeName, ThemeComponents> = {
     Badge: BloodyTheme.BloodyBadge,
     Score: BloodyTheme.BloodyScore,
     Blood: BloodyTheme.BloodyBlood,
+    Card: BloodyTheme.BloodyCard,
+    InteractiveCard: BloodyTheme.BloodyInteractiveCard,
   },
   default: {
     Button: BloodyTheme.BloodyButton, // Fallback to bloody for now
     Badge: BloodyTheme.BloodyBadge,
     Score: BloodyTheme.BloodyScore,
     Blood: BloodyTheme.BloodyBlood,
+    Card: BloodyTheme.BloodyCard, // Fallback to bloody for now
+    InteractiveCard: BloodyTheme.BloodyInteractiveCard, // Fallback to bloody for now
   },
 };
 

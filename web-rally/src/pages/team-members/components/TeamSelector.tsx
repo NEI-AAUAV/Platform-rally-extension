@@ -1,6 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useThemedComponents } from "@/components/themes";
 
 interface Team {
   id: number;
@@ -18,8 +19,9 @@ interface TeamSelectorProps {
 }
 
 export default function TeamSelector({ teams, selectedTeam, onTeamChange, className = "" }: TeamSelectorProps) {
+  const { Card } = useThemedComponents();
   return (
-    <Card className={className}>
+    <Card variant="default" padding="none" rounded="2xl" className={className}>
       <CardHeader>
         <CardTitle>Selecionar Equipa</CardTitle>
         <CardDescription>

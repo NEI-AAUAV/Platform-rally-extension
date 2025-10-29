@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit, Trash2, Users, AlertCircle } from 'lucide-react';
+import { useThemedComponents } from '@/components/themes';
 import {
   Form,
   FormControl,
@@ -39,6 +40,7 @@ interface TeamManagementProps {
 }
 
 export default function TeamManagement({ userStore: _userStore }: TeamManagementProps) {
+  const { Card } = useThemedComponents();
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
   const toast = useAppToast();
@@ -156,7 +158,7 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
   return (
     <div className="space-y-6">
       {/* Create/Edit Team Form */}
-      <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+      <Card variant="default" padding="lg" rounded="2xl">
         <h3 className="text-lg font-semibold mb-4">
           {editingTeam ? 'Editar Equipa' : 'Criar Nova Equipa'}
         </h3>
@@ -206,10 +208,10 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
             </div>
           </form>
         </Form>
-      </div>
+      </Card>
 
       {/* Teams List */}
-      <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+      <Card variant="default" padding="lg" rounded="2xl">
         <h3 className="text-lg font-semibold mb-4">Equipas Existentes</h3>
         {teams?.length === 0 ? (
           <EmptyState
@@ -220,9 +222,12 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
         ) : (
           <ul className="space-y-3 list-none">
             {teams?.map((team: Team) => (
-              <li
+              <Card
                 key={team.id}
-                className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)]"
+                variant="subtle"
+                padding="md"
+                rounded="xl"
+                className="flex items-center justify-between"
               >
                 <div>
                   <div className="font-semibold">{team.name}</div>
@@ -249,11 +254,11 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
                     <Trash2 className="w-4 h-4" />
                   </BloodyButton>
                 </div>
-              </li>
+              </Card>
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

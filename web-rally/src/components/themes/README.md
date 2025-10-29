@@ -42,7 +42,7 @@ function MyComponent() {
 }
 ```
 
-### Using Theme Context (Recommended for Future)
+### Using Theme Context (Recommended)
 ```tsx
 import { ThemeProvider, useThemedComponents } from '@/components/themes';
 
@@ -55,8 +55,41 @@ function App() {
 }
 
 function MyComponent() {
-  const { Button } = useThemedComponents();
-  return <Button>Click me</Button>;
+  const { Button, Card } = useThemedComponents();
+  return (
+    <Card variant="default" padding="lg">
+      <h2>Content</h2>
+      <Button>Click me</Button>
+    </Card>
+  );
+}
+```
+
+### Using Themed Cards
+```tsx
+function StaffPage() {
+  const { Card, InteractiveCard } = useThemedComponents();
+  
+  return (
+    <div>
+      {/* Main content card */}
+      <Card variant="default" padding="lg">
+        <h2>Teams</h2>
+      </Card>
+      
+      {/* Clickable team cards */}
+      {teams.map((team) => (
+        <InteractiveCard
+          key={team.id}
+          status="success"
+          onClick={() => selectTeam(team)}
+          selected={selectedId === team.id}
+        >
+          <h4>{team.name}</h4>
+        </InteractiveCard>
+      ))}
+    </div>
+  );
 }
 ```
 
@@ -91,8 +124,17 @@ interface ThemeComponents {
   Badge: React.ComponentType<any>;
   Score: React.ComponentType<any>;
   Blood: React.ComponentType<any>;
+  Card: React.ComponentType<any>;
+  InteractiveCard: React.ComponentType<any>;
 }
 ```
+
+### Card Components
+
+The theme system now includes card components for consistent styling across different rally events:
+
+- **Card**: Standard card container with variants (default, elevated, subtle, nested)
+- **InteractiveCard**: Clickable cards with status indicators (success, warning, info, etc.)
 
 ## Theme Selection
 

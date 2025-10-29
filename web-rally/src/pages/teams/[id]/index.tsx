@@ -6,6 +6,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
 import { useState } from "react";
+import { useThemedComponents } from "@/components/themes";
 
 const nthNumber = (number: number) => {
   if (number > 3 && number < 21) return "th";
@@ -22,6 +23,7 @@ const nthNumber = (number: number) => {
 };
 
 export default function TeamsById() {
+  const { Card } = useThemedComponents();
   const { id } = useParams<{ id: string }>();
   const { settings } = useRallySettings();
   const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
@@ -41,15 +43,15 @@ export default function TeamsById() {
   const renderTeamContent = () => {
     if (isLoading) {
       return (
-        <div className="mt-16 rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-center">
+        <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
           <div className="text-lg font-semibold">A carregar...</div>
-        </div>
+        </Card>
       );
     }
     
     if (isSuccess) {
       return (
-        <div className="mt-16 rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-center">
+        <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
           <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
           <div className="text-white/70 mt-2 text-sm">
             O organizador desativou a visualização de detalhes das equipas.
@@ -60,7 +62,7 @@ export default function TeamsById() {
               Voltar à lista de equipas
             </Link>
           </div>
-        </div>
+        </Card>
       );
     }
     
@@ -145,7 +147,7 @@ export default function TeamsById() {
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Team description and score
           </h2>
-          <div className="mb-8 rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8">
+          <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
             <div className="text-center">
               <p className="mb-4 text-xl font-semibold">
                 {team.name}
@@ -158,11 +160,11 @@ export default function TeamsById() {
                 </p>
               </div>
             </div>
-          </div>
+          </Card>
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Checkpoint Progress
           </h2>
-          <div className="mb-6 rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-4">
+          <Card variant="default" padding="md" rounded="2xl" className="mb-6">
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/70">
                 Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
@@ -171,7 +173,7 @@ export default function TeamsById() {
                 Total: {team.total} points
               </span>
             </div>
-          </div>
+          </Card>
           <div className="mb-8 space-y-4">
             {team.times && team.times.length > 0 ? (
               team.times.map((_, index: number) => {
@@ -229,12 +231,11 @@ export default function TeamsById() {
                 return (
                   <div key={index}>
                     {/* Checkpoint summary - always visible and clickable */}
-                    <div
-                      className={`rounded-2xl border-2 p-6 cursor-pointer transition-all ${
-                        isLastCheckpoint
-                          ? "border-[rgb(255,255,255,0.3)] bg-[rgb(255,255,255,0.08)]"
-                          : "border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]"
-                      }`}
+                    <Card
+                      variant={isLastCheckpoint ? "elevated" : "default"}
+                      padding="lg"
+                      rounded="2xl"
+                      hover
                       onClick={() => evaluationResults.length > 0 && toggleCheckpoint(index)}
                     >
                       <div className="flex items-center justify-between">
@@ -288,7 +289,7 @@ export default function TeamsById() {
                           )}
                         </div>
                       </div>
-                    </div>
+                    </Card>
                     
                     {/* Activity-level cards - only show when expanded */}
                     {isExpanded && evaluationResults.length > 0 && (
@@ -305,9 +306,11 @@ export default function TeamsById() {
                           const isCompletionPending = isTimeBased && completedCount < totalTeams;
                           
                           return (
-                            <div
+                            <Card
                               key={resultIndex}
-                              className="rounded-xl border border-[rgb(255,255,255,0.1)] bg-[rgb(255,255,255,0.02)] p-4"
+                              variant="subtle"
+                              padding="md"
+                              rounded="xl"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -336,7 +339,7 @@ export default function TeamsById() {
                                   </div>
                                 </div>
                               </div>
-                            </div>
+                            </Card>
                           );
                         })}
                       </div>
@@ -345,9 +348,9 @@ export default function TeamsById() {
                 );
               })
             ) : (
-              <div className="rounded-2xl border-2 border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-center">
+              <Card variant="default" padding="lg" rounded="2xl" className="text-center">
                 <p className="text-white/70">No checkpoints visited yet</p>
-              </div>
+              </Card>
             )}
           </div>
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
@@ -359,13 +362,16 @@ export default function TeamsById() {
               const firstName = names[0];
               const lastName = names.slice(1).join(" ");
               return (
-                <div
-                  className="rounded-2xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)] p-8 text-xl"
+                <Card
+                  variant="default"
+                  padding="lg"
+                  rounded="2xl"
+                  className="text-xl"
                   key={member.id}
                 >
                   <span className="font-medium">{firstName}</span>{" "}
                   <span className="font-light">{lastName}</span>
-                </div>
+                </Card>
               );
             })}
           </div>

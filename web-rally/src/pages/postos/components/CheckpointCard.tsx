@@ -1,4 +1,5 @@
 import { MapPin, Navigation } from 'lucide-react';
+import { useThemedComponents } from '@/components/themes';
 
 interface Checkpoint {
   id: number;
@@ -22,16 +23,13 @@ export default function CheckpointCard({
   onSelect, 
   showMap = true 
 }: CheckpointCardProps) {
+  const { InteractiveCard } = useThemedComponents();
   const hasCoordinates = checkpoint.latitude && checkpoint.longitude;
 
   return (
-    <button
-      type="button"
-      className={`w-full text-left p-4 rounded-xl border transition-all ${
-        isSelected
-          ? 'bg-[rgb(255,255,255,0.08)] border-[rgb(255,255,255,0.3)]'
-          : 'bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.04)]'
-      }`}
+    <InteractiveCard
+      status={isSelected ? "info" : "default"}
+      selected={isSelected}
       onClick={() => onSelect(checkpoint)}
       aria-pressed={isSelected}
       aria-label={`Selecionar checkpoint ${checkpoint.name}`}
@@ -73,6 +71,6 @@ export default function CheckpointCard({
           </a>
         )}
       </div>
-    </button>
+    </InteractiveCard>
   );
 }

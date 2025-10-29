@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Edit, Trash2, MapPin, GripVertical } from 'lucide-react';
+import { useThemedComponents } from '@/components/themes';
 import {
   Form,
   FormControl,
@@ -44,6 +45,7 @@ interface CheckpointManagementProps {
 }
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
+  const { Card } = useThemedComponents();
   const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
@@ -239,7 +241,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   return (
     <div className="space-y-6">
       {/* Create/Edit Checkpoint Form */}
-      <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+      <Card variant="default" padding="lg" rounded="2xl">
         <h3 className="text-lg font-semibold mb-4">
           {editingCheckpoint ? 'Editar Checkpoint' : 'Criar Novo Checkpoint'}
         </h3>
@@ -353,10 +355,10 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
             </div>
           </form>
         </Form>
-      </div>
+      </Card>
 
       {/* Checkpoints List */}
-      <div className="bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)]">
+      <Card variant="default" padding="lg" rounded="2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Checkpoints Existentes</h3>
           <p className="text-sm text-[rgb(255,255,255,0.6)]">
@@ -372,10 +374,16 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         ) : (
           <ul className="space-y-3 list-none">
             {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined).map((checkpoint) => (
-              <li
+              <Card
                 key={checkpoint.id}
+                variant="subtle"
+                padding="md"
+                rounded="xl"
+                hover
+                className={`flex items-center justify-between cursor-move transition-all ${
+                  draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
+                }`}
                 draggable
-                aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
                 onDragStart={(e) => handleDragStart(e, checkpoint)}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, checkpoint)}
@@ -386,9 +394,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                     // Focus management for keyboard users
                   }
                 }}
-                className={`flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)] cursor-move transition-all ${
-                  draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : 'hover:bg-[rgb(255,255,255,0.04)]'
-                }`}
+                aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
               >
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
@@ -422,11 +428,11 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                     <Trash2 className="w-4 h-4" />
                   </BloodyButton>
                 </div>
-              </li>
+              </Card>
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
