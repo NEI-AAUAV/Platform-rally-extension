@@ -13,7 +13,7 @@ interface DisplaySettingsProps {
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
   const { Card } = useThemedComponents();
-  const { register, watch, setValue } = useFormContext();
+  const { watch, setValue } = useFormContext();
 
   return (
     <Card variant="default" padding="none" rounded="2xl" className={className}>
