@@ -41,21 +41,21 @@ jobs:
         working-directory: api-rally
         run: |
           poetry run python - << 'PY'
-from app.main import app
-from fastapi.openapi.utils import get_openapi
-import json, os
-
-schema = get_openapi(
-    title=getattr(app, 'title', 'API'),
-    version=getattr(app, 'version', '0.0.0'),
-    routes=app.routes,
-)
-
-out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
-with open(out_path, 'w') as f:
-    json.dump(schema, f)
-print(f"Wrote schema to {out_path}")
-PY
+          from app.main import app
+          from fastapi.openapi.utils import get_openapi
+          import json, os
+          
+          schema = get_openapi(
+              title=getattr(app, 'title', 'API'),
+              version=getattr(app, 'version', '0.0.0'),
+              routes=app.routes,
+          )
+          
+          out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
+          with open(out_path, 'w') as f:
+              json.dump(schema, f)
+          print(f"Wrote schema to {out_path}")
+          PY
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
