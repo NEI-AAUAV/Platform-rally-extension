@@ -6,8 +6,10 @@ import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService } from "@/client";
+import { useThemedComponents } from "@/components/themes";
 
 export default function TeamMembers() {
+  const { Card } = useThemedComponents();
   const { isLoading, userStore } = useUser();
   
   // Check if user is manager-rally or admin
@@ -65,24 +67,24 @@ export default function TeamMembers() {
 
       {/* Error displays */}
       {teamsError && (
-        <div className="bg-red-600/20 border border-red-500 rounded-lg p-4">
+        <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
           <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar equipas:</h3>
           <p className="text-red-200 text-sm">{teamsError.message}</p>
-        </div>
+        </Card>
       )}
 
       {membersError && (
-        <div className="bg-red-600/20 border border-red-500 rounded-lg p-4">
+        <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
           <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar membros:</h3>
           <p className="text-red-200 text-sm">{membersError.message}</p>
-        </div>
+        </Card>
       )}
 
       {/* Loading states */}
       {teamsLoading && (
-        <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-4">
+        <Card variant="default" padding="md" rounded="lg" className="border-blue-500/50 bg-blue-600/10">
           <p className="text-blue-200">A carregar equipas...</p>
-        </div>
+        </Card>
       )}
 
       <TeamSelector
@@ -94,9 +96,9 @@ export default function TeamMembers() {
       {selectedTeam && (
         <>
           {membersLoading && (
-            <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-4">
+            <Card variant="default" padding="md" rounded="lg" className="border-blue-500/50 bg-blue-600/10">
               <p className="text-blue-200">A carregar membros da equipa...</p>
-            </div>
+            </Card>
           )}
 
           <MemberForm
@@ -117,7 +119,7 @@ export default function TeamMembers() {
 
       {/* Helpful messages */}
       {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
-        <div className="bg-yellow-600/20 border border-yellow-500 rounded-lg p-4">
+        <Card variant="default" padding="md" rounded="lg" className="border-yellow-500/50 bg-yellow-600/10">
           <h3 className="text-yellow-300 font-semibold mb-2">Nenhuma equipa encontrada</h3>
           <p className="text-yellow-200 text-sm mb-2">
             Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas.
@@ -125,7 +127,7 @@ export default function TeamMembers() {
           <p className="text-yellow-200 text-sm">
             Vá à página <strong>Admin</strong> para criar equipas primeiro.
           </p>
-        </div>
+        </Card>
       )}
     </div>
   );

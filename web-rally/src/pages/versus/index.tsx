@@ -70,7 +70,6 @@ export default function Versus() {
       <VersusGroupList
         versusGroups={versusGroups}
         teams={teams as any}
-        userToken={userStore.token || ""}
         onSuccess={handleSuccess}
       />
     </div>

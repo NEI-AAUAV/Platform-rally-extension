@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
 import { TeamMembersService, type TeamMemberAdd } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
+import { useThemedComponents } from "@/components/themes";
 
 const addMemberSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -28,6 +29,7 @@ interface MemberFormProps {
 }
 
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
+  const { Card } = useThemedComponents();
   const toast = useAppToast();
   
   // Form setup
@@ -74,7 +76,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
   };
 
   return (
-    <Card className={className}>
+    <Card variant="default" padding="none" rounded="2xl" className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserPlus className="w-5 h-5" />
@@ -122,20 +124,22 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             </div>
           </div>
           
-          <div className="flex items-center justify-between rounded-lg border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.02)] p-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="is_captain" className="text-base">
-                Capitão da Equipa
-              </Label>
-              <p className="text-sm text-[rgb(255,255,255,0.7)]">
-                Marcar este membro como capitão da equipa
-              </p>
+          <Card variant="subtle" padding="md" rounded="lg">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="is_captain" className="text-base">
+                  Capitão da Equipa
+                </Label>
+                <p className="text-sm text-[rgb(255,255,255,0.7)]">
+                  Marcar este membro como capitão da equipa
+                </p>
+              </div>
+              <Switch
+                checked={form.watch("is_captain")}
+                onCheckedChange={(checked) => form.setValue("is_captain", checked)}
+              />
             </div>
-            <Switch
-              checked={form.watch("is_captain")}
-              onCheckedChange={(checked) => form.setValue("is_captain", checked)}
-            />
-          </div>
+          </Card>
           
           <div className="flex justify-center">
             <Button

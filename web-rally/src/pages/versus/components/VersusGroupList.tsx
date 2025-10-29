@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
 import { TeamService } from "@/client";
+import { useThemedComponents } from "@/components/themes";
 
 interface VersusPair {
   group_id: number;
@@ -26,12 +27,12 @@ interface VersusGroupListResponse {
 interface VersusGroupListProps {
   versusGroups: VersusGroupListResponse | undefined;
   teams: Team[] | undefined;
-  userToken: string;
   onSuccess: () => void;
   className?: string;
 }
 
 export default function VersusGroupList({ versusGroups, teams, onSuccess, className = "" }: VersusGroupListProps) {
+  const { Card: ThemedCard } = useThemedComponents();
   // Remove versus pair mutation (by updating teams to remove versus_group_id)
   const {
     mutate: removeVersusPair,
@@ -55,7 +56,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
   });
 
   return (
-    <Card className={className}>
+    <ThemedCard variant="default" padding="none" rounded="2xl" className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
@@ -81,9 +82,12 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
               if (!teamA || !teamB) return null;
               
               return (
-                <div
+                <ThemedCard
                   key={pair.group_id}
-                  className="flex items-center justify-between p-4 bg-[rgb(255,255,255,0.04)] rounded-lg border border-[rgb(255,255,255,0.15)]"
+                  variant="nested"
+                  padding="md"
+                  rounded="lg"
+                  className="flex items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -110,13 +114,13 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                     <Trash2 className="w-4 h-4 mr-2" />
                     Remover
                   </Button>
-                </div>
+                </ThemedCard>
               );
             })}
           </div>
         )}
       </CardContent>
-    </Card>
+    </ThemedCard>
   );
 }
 

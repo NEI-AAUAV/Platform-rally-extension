@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
 import { VersusService, type VersusPairCreate, type VersusPairResponse } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
+import { useThemedComponents } from "@/components/themes";
 
 interface Team {
   id: number;
@@ -23,6 +24,7 @@ interface VersusPairFormProps {
 }
 
 export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
+  const { Card } = useThemedComponents();
   const toast = useAppToast();
   const [selectedTeamA, setSelectedTeamA] = useState<string>("");
   const [selectedTeamB, setSelectedTeamB] = useState<string>("");
@@ -74,7 +76,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
   const availableTeams = teams?.filter((team: Team) => !team.versus_group_id) || [];
 
   return (
-    <Card className={className}>
+    <Card variant="default" padding="none" rounded="2xl" className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="w-5 h-5" />
