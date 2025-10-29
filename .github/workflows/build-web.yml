@@ -21,6 +21,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Start API locally to expose OpenAPI schema for client generation
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install API dependencies
+        working-directory: api-rally
+        run: |
+          poetry install --no-interaction --no-root
+
+      - name: Launch API (background)
+        working-directory: api-rally
+        run: |
+          nohup poetry run uvicorn app.main:app --host 0.0.0.0 --port 8003 &
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8003/openapi.json >/dev/null; then echo "API ready"; exit 0; fi; sleep 1; done
+          echo "API failed to start"; exit 1
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -51,6 +77,10 @@ jobs:
         working-directory: web-rally
         # Some branches may not have pnpm-lock.yaml; avoid failing CI
         run: pnpm install --no-frozen-lockfile
+
+      - name: Generate API client
+        working-directory: web-rally
+        run: pnpm run generate-client
       
       - name: Build web-rally
         working-directory: web-rally
