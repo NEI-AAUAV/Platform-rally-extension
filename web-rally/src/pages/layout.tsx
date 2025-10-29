@@ -7,6 +7,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
 import { useEffect } from "react";
+import { ThemeProvider } from "@/components/themes";
 
 export default function MainLayout() {
   const bgStyle: CSSProperties = {
@@ -39,40 +40,44 @@ export default function MainLayout() {
   // Show loading while settings are being fetched
   if (settingsLoading) {
     return (
-      <div className="font-inter" style={bgStyle}>
-        <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
-        <div className="text-center">
-          <img 
-            src="/rally/banner/Halloween_2025.jpeg" 
-            alt="Rally Tascas Banner" 
-            className="mx-auto mb-4 max-h-32 w-auto object-contain"
-          />
-          <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+      <ThemeProvider>
+        <div className="font-inter" style={bgStyle}>
+          <div className="mx-4 min-h-screen pb-10 pt-20 text-[rgb(255,255,255,0.95)] antialiased">
+          <div className="text-center">
+            <img 
+              src="/rally/banner/Halloween_2025.jpeg" 
+              alt="Rally Tascas Banner" 
+              className="mx-auto mb-4 max-h-32 w-auto object-contain"
+            />
+            <p className="text-[rgb(255,255,255,0.7)]">Carregando...</p>
+          </div>
+          </div>
         </div>
-        </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <div className="font-inter" style={bgStyle}>
-      <div className="mx-2 sm:mx-4 min-h-screen pb-10 pt-16 sm:pt-20 text-[rgb(255,255,255,0.95)] antialiased">
-        <div className="text-center mb-4">
-          <img 
-            src="/rally/banner/Halloween_2025.jpeg" 
-            alt="Rally Tascas Banner" 
-            className="mx-auto max-h-24 sm:max-h-32 w-auto object-contain"
-          />
+    <ThemeProvider>
+      <div className="font-inter" style={bgStyle}>
+        <div className="mx-2 sm:mx-4 min-h-screen pb-10 pt-16 sm:pt-20 text-[rgb(255,255,255,0.95)] antialiased">
+          <div className="text-center mb-4">
+            <img 
+              src="/rally/banner/Halloween_2025.jpeg" 
+              alt="Rally Tascas Banner" 
+              className="mx-auto max-h-24 sm:max-h-32 w-auto object-contain"
+            />
+          </div>
+          <NavTabs className="mt-4" />
+          <RallyTimeBanner />
+          <div className="mt-6">
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
+          <PWAInstallPrompt />
         </div>
-        <NavTabs className="mt-4" />
-        <RallyTimeBanner />
-        <div className="mt-6">
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
-        </div>
-        <PWAInstallPrompt />
       </div>
-    </div>
+    </ThemeProvider>
   );
 }

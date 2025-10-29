@@ -1,6 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, ArrowRight } from "lucide-react";
+import { useThemedComponents } from "@/components/themes";
 
 interface Checkpoint {
   id: number;
@@ -22,9 +23,11 @@ export default function AssignedCheckpoints({
   teams, 
   onCheckpointClick 
 }: AssignedCheckpointsProps) {
+  const { Card, InteractiveCard } = useThemedComponents();
+  
   if (!checkpoints || checkpoints.length === 0) {
     return (
-      <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
+      <Card variant="default" padding="none">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <MapPin className="w-5 h-5" />
@@ -41,7 +44,7 @@ export default function AssignedCheckpoints({
   }
 
   return (
-    <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
+    <Card variant="default" padding="none">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <MapPin className="w-5 h-5" />
@@ -58,9 +61,9 @@ export default function AssignedCheckpoints({
             const teamsAtCheckpoint = teams || [];
             
             return (
-              <div
+              <InteractiveCard
                 key={checkpoint.id}
-                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] cursor-pointer hover:bg-[rgb(255,255,255,0.1)] transition-colors active:bg-[rgb(255,255,255,0.15)]"
+                status="nested"
                 onClick={() => onCheckpointClick(checkpoint)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -77,7 +80,7 @@ export default function AssignedCheckpoints({
                     <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-[rgb(255,255,255,0.6)] flex-shrink-0" />
                   </div>
                 </div>
-              </div>
+              </InteractiveCard>
             );
           })}
         </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -8,11 +8,13 @@ import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations } from "./components/AllEvaluations";
 import { useNavigate } from "react-router-dom";
 import { CheckPointService, ActivitiesService, TeamService, StaffEvaluationService } from "@/client";
+import { useThemedComponents } from "@/components/themes";
 
 export default function ManagerEvaluationPage() {
   const userStore = useUserStore();
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
+  const { Card } = useThemedComponents();
 
 
   // Get all checkpoints
@@ -91,7 +93,7 @@ export default function ManagerEvaluationPage() {
     <div className="p-2 sm:p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
+        <Card variant="default" padding="none">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <Activity className="w-6 h-6" />
@@ -105,9 +107,13 @@ export default function ManagerEvaluationPage() {
 
         {/* All Evaluations Section */}
         <div className="relative">
-          <button
+          <Card
+            variant="default"
+            padding="sm"
+            rounded="lg"
+            hover
             onClick={() => setShowAllEvaluations(!showAllEvaluations)}
-            className="w-full p-3 sm:p-4 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded-lg text-white flex items-center justify-between hover:bg-[rgb(255,255,255,0.15)] transition-colors"
+            className="cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5" />
@@ -119,15 +125,13 @@ export default function ManagerEvaluationPage() {
             <ChevronDown 
               className={`w-5 h-5 transition-transform ${showAllEvaluations ? 'rotate-180' : ''}`} 
             />
-          </button>
+          </Card>
           
           {showAllEvaluations && (
             <div className="mt-2">
               {evaluationsLoading ? (
-                <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-                  <CardContent className="p-4 sm:p-6">
-                    <p className="text-white/70 text-center">Loading evaluations...</p>
-                  </CardContent>
+                <Card variant="default" padding="md">
+                  <p className="text-white/70 text-center">Loading evaluations...</p>
                 </Card>
               ) : (
                 <AllEvaluations evaluations={allEvaluations || []} />
@@ -145,7 +149,7 @@ export default function ManagerEvaluationPage() {
         />
 
         {/* Teams Overview */}
-        <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
+        <Card variant="default" padding="none">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -158,9 +162,11 @@ export default function ManagerEvaluationPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {allTeams?.map((team: any) => (
-                <div
+                <Card
                   key={team.id}
-                  className="p-3 sm:p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)]"
+                  variant="nested"
+                  padding="sm"
+                  rounded="lg"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-white">{team.name}</h4>
@@ -174,7 +180,7 @@ export default function ManagerEvaluationPage() {
                     <p>Classification: {team.classification || 'N/A'}</p>
                     <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </CardContent>
@@ -182,43 +188,37 @@ export default function ManagerEvaluationPage() {
 
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-2">
-                  {allTeams?.length || 0}
-                </div>
-                <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                  Total Teams
-                </div>
+          <Card variant="default" padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-2">
+                {allTeams?.length || 0}
               </div>
-            </CardContent>
+              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                Total Teams
+              </div>
+            </div>
           </Card>
 
-          <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-2">
-                  {allCheckpoints?.length || 0}
-                </div>
-                <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                  Checkpoints
-                </div>
+          <Card variant="default" padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-2">
+                {allCheckpoints?.length || 0}
               </div>
-            </CardContent>
+              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                Checkpoints
+              </div>
+            </div>
           </Card>
 
-          <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-2">
-                  {allActivities?.activities?.length || 0}
-                </div>
-                <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                  Total Activities
-                </div>
+          <Card variant="default" padding="md">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white mb-2">
+                {allActivities?.activities?.length || 0}
               </div>
-            </CardContent>
+              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                Total Activities
+              </div>
+            </div>
           </Card>
         </div>
       </div>

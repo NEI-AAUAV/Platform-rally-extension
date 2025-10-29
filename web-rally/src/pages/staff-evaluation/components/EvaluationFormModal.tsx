@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ActivityForm } from "@/components/forms";
+import { useThemedComponents } from "@/components/themes";
 
 interface EvaluationFormModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export default function EvaluationFormModal({
   onCancel,
   isSubmitting
 }: EvaluationFormModalProps) {
+  const { Card } = useThemedComponents();
+  
   if (!isOpen || !activity || !team) return null;
 
   return (
@@ -33,7 +36,7 @@ export default function EvaluationFormModal({
         backgroundColor: 'rgba(0, 0, 0, 0.8)'
       }}
     >
-      <div className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] backdrop-blur-md text-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <Card variant="elevated" padding="lg" rounded="lg" className="shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-white">Evaluate: {activity.name}</h2>
           <button 
@@ -60,7 +63,7 @@ export default function EvaluationFormModal({
             Cancel
           </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
