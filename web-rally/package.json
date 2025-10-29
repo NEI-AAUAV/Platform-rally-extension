@@ -51,7 +51,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "jsdom": "^23.0.0",
-    "@hey-api/openapi-ts": "^6.0.0",
+    "@hey-api/openapi-ts": "^0.86.8",
     "openapi-typescript-codegen": "^0.25.0",
     "postcss": "^8.4.31",
     "prettier": "^3.0.3",
