@@ -88,8 +88,8 @@ export default function ManagerEvaluationPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="p-2 sm:p-4 md:p-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
           <CardHeader>
@@ -107,7 +107,7 @@ export default function ManagerEvaluationPage() {
         <div className="relative">
           <button
             onClick={() => setShowAllEvaluations(!showAllEvaluations)}
-            className="w-full p-4 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded-lg text-white flex items-center justify-between hover:bg-[rgb(255,255,255,0.15)] transition-colors"
+            className="w-full p-3 sm:p-4 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded-lg text-white flex items-center justify-between hover:bg-[rgb(255,255,255,0.15)] transition-colors"
           >
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5" />
@@ -125,7 +125,7 @@ export default function ManagerEvaluationPage() {
             <div className="mt-2">
               {evaluationsLoading ? (
                 <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <p className="text-white/70 text-center">Loading evaluations...</p>
                   </CardContent>
                 </Card>
@@ -156,11 +156,11 @@ export default function ManagerEvaluationPage() {
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {allTeams?.map((team: any) => (
                 <div
                   key={team.id}
-                  className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)]"
+                  className="p-3 sm:p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)]"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-white">{team.name}</h4>
@@ -181,9 +181,9 @@ export default function ManagerEvaluationPage() {
         </Card>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-2">
                   {allTeams?.length || 0}
@@ -196,7 +196,7 @@ export default function ManagerEvaluationPage() {
           </Card>
 
           <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-2">
                   {allCheckpoints?.length || 0}
@@ -209,7 +209,7 @@ export default function ManagerEvaluationPage() {
           </Card>
 
           <Card className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white mb-2">
                   {allActivities?.activities?.length || 0}

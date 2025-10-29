@@ -161,7 +161,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
             return (
               <div
                 key={evaluation.id}
-                className="p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] hover:bg-[rgb(255,255,255,0.08)] transition-colors"
+                className="p-3 sm:p-4 rounded-lg border border-[rgb(255,255,255,0.2)] bg-[rgb(255,255,255,0.05)] hover:bg-[rgb(255,255,255,0.08)] transition-colors"
               >
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

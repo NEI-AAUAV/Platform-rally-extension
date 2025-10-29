@@ -162,20 +162,30 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                 detail=f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
             )
 
-    def _validate_checkpoint_order(self, team, checkpoint_id: int, settings) -> None:
+    def _validate_checkpoint_order(self, db: Session, team, checkpoint_id: int, settings) -> None:
         """Validate checkpoint order constraints"""
+        from app.models.checkpoint import CheckPoint
+        
+        # Get the checkpoint to find its order
+        checkpoint_obj = db.get(CheckPoint, checkpoint_id)
+        if not checkpoint_obj:
+            raise APIException(status_code=404, detail="Checkpoint not found")
+        
+        checkpoint_order = checkpoint_obj.order
+        
         if settings.checkpoint_order_matters:
-            if len(team.times) != checkpoint_id - 1:
+            # Team should have visited exactly (order - 1) checkpoints
+            if len(team.times) != checkpoint_order - 1:
                 raise APIException(
-                    status_code=400, 
-                    detail="Checkpoint not in order, or already passed. Checkpoint order matters is enabled."
+                    status_code=400,
+                    detail=f"Checkpoint not in order. Expected checkpoint order {len(team.times) + 1}, got {checkpoint_order}"
                 )
         else:
-            # If order doesn't matter, just check if checkpoint already visited
-            if checkpoint_id <= len(team.times):
+            # If order doesn't matter, just check if checkpoint already visited by order
+            if checkpoint_order <= len(team.times):
                 raise APIException(
-                    status_code=400, 
-                    detail="Checkpoint already visited"
+                    status_code=400,
+                    detail=f"Checkpoint {checkpoint_order} already visited"
                 )
 
 
@@ -189,7 +199,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
             # Validate timing and order constraints
             self._validate_rally_timing(settings, current_time)
-            self._validate_checkpoint_order(team, checkpoint_id, settings)
+            self._validate_checkpoint_order(db, team, checkpoint_id, settings)
 
             # Add scores and times
             team.question_scores.append(obj_in.question_score)
@@ -205,7 +215,22 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
 
     def get_by_checkpoint(self, db: Session, checkpoint_id: int) -> Sequence[Team]:
-        stmt = select(Team).where(func.cardinality(Team.times) == checkpoint_id)
+        """Get teams currently at a specific checkpoint.
+        
+        Since team.times is order-based, we need to convert checkpoint_id to order first.
+        Teams are "at" a checkpoint if they've completed that many checkpoints.
+        """
+        from app.models.checkpoint import CheckPoint
+        
+        # Get the checkpoint to find its order
+        checkpoint_obj = db.get(CheckPoint, checkpoint_id)
+        if not checkpoint_obj:
+            return []
+        
+        checkpoint_order = checkpoint_obj.order
+        
+        # Teams at this checkpoint have visited exactly (order) checkpoints
+        stmt = select(Team).where(func.cardinality(Team.times) == checkpoint_order)
         return db.scalars(stmt).all()
 
 
