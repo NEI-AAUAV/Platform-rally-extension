@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { BloodyButton } from "../themes/bloody";
+import { useThemedComponents } from "../themes";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react";
 type NavTabsProps = ComponentProps<"ul">;
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
+  const { Button, config } = useThemedComponents();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -75,19 +76,22 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
 
   const NavItems = () => (
     <>
-      {navigation.map((item) => (
-        <li key={item.name}>
-          <Link to={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-            <BloodyButton
-              blood={location.pathname === item.href}
-              variant={location.pathname === item.href ? "default" : "neutral"}
-              className="w-full sm:w-auto"
-            >
-              {item.name}
-            </BloodyButton>
-          </Link>
-        </li>
-      ))}
+      {navigation.map((item) => {
+        const isActive = location.pathname === item.href;
+        return (
+          <li key={item.name}>
+            <Link to={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+              <Button
+                variant={isActive ? config.nav.activeVariant : "neutral"}
+                className="w-full sm:w-auto"
+                {...(config.nav.useBloodEffect && isActive ? { blood: true } : {})}
+              >
+                {item.name}
+              </Button>
+            </Link>
+          </li>
+        );
+      })}
     </>
   );
 

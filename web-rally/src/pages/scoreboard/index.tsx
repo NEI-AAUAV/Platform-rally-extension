@@ -1,11 +1,10 @@
-import { BloodyScore } from "@/components/themes/bloody";
 import { TeamService } from "@/client";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useThemedComponents } from "@/components/themes";
 
 export default function Scoreboard() {
-  const { Card } = useThemedComponents();
+  const { Card, Score } = useThemedComponents();
   const { settings } = useRallySettings();
   const { data: teams } = useQuery({
     queryKey: ["teams"],
@@ -26,7 +25,7 @@ export default function Scoreboard() {
   }
   return (
     <div className="mt-16 grid gap-4">
-      {sortedTeams?.map((team) => <BloodyScore key={team.id} team={team} />)}
+      {sortedTeams?.map((team) => <Score key={team.id} team={team} />)}
     </div>
   );
 }
