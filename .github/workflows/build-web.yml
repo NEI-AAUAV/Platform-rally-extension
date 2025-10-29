@@ -1,16 +1,13 @@
 name: Build Rally Web Extension
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'web-rally/**'
-      - '.github/workflows/build-web.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'web-rally/**'
-      - '.github/workflows/build-web.yml'
   workflow_dispatch:
 
 jobs:

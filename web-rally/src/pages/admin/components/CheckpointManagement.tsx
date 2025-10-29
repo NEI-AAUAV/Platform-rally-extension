@@ -177,7 +177,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
     checkpointForm.setValue('name', checkpoint.name);
-    checkpointForm.setValue('description', checkpoint.description);
+    checkpointForm.setValue('description', checkpoint.description || undefined);
     checkpointForm.setValue('latitude', checkpoint.latitude?.toString() || '');
     checkpointForm.setValue('longitude', checkpoint.longitude?.toString() || '');
     checkpointForm.setValue('order', checkpoint.order || 1);
@@ -384,11 +384,11 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                   draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
                 }`}
                 draggable
-                onDragStart={(e) => handleDragStart(e, checkpoint)}
+                onDragStart={(e: React.DragEvent) => handleDragStart(e, checkpoint)}
                 onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, checkpoint)}
+                onDrop={(e: React.DragEvent) => handleDrop(e, checkpoint)}
                 onDragEnd={handleDragEnd}
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     // Focus management for keyboard users
