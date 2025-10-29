@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useThemedComponents, useTheme } from "../themes";
+import { useThemedComponents } from "../themes";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -10,7 +10,6 @@ type NavTabsProps = ComponentProps<"ul">;
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { Button, config } = useThemedComponents();
-  const { themeName } = useTheme();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

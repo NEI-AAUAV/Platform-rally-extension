@@ -6,7 +6,7 @@ import { useThemedComponents } from "@/components/themes";
 interface Checkpoint {
   id: number;
   name: string;
-  description?: string;
+  description?: string | null;
   order: number;
 }
 

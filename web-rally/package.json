@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "generate-client": "openapi --input http://localhost:8003/openapi.json --output ./src/client --client axios"
+    "generate-client": "openapi --input ./openapi.json --output ./src/client --client axios"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

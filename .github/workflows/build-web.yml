@@ -1,0 +1,114 @@
+name: Build Rally Web Extension
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'web-rally/**'
+      - '.github/workflows/build-web.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'web-rally/**'
+      - '.github/workflows/build-web.yml'
+  workflow_dispatch:
+
+jobs:
+  build-web-rally:
+    name: Build Rally Web Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Prepare Python environment to generate OpenAPI schema offline (no DB)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install API dependencies
+        working-directory: api-rally
+        run: |
+          poetry install --no-interaction --no-root
+
+      - name: Generate OpenAPI schema (offline)
+        working-directory: api-rally
+        run: |
+          poetry run python - << 'PY'
+from app.main import app
+from fastapi.openapi.utils import get_openapi
+import json, os
+
+schema = get_openapi(
+    title=getattr(app, 'title', 'API'),
+    version=getattr(app, 'version', '0.0.0'),
+    routes=app.routes,
+)
+
+out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
+with open(out_path, 'w') as f:
+    json.dump(schema, f)
+print(f"Wrote schema to {out_path}")
+PY
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+      
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.STORE_PATH }}
+          # Use package.json as fallback when lockfile may be missing
+          key: ${{ runner.os }}-pnpm-store-rally-${{ hashFiles('web-rally/pnpm-lock.yaml', 'web-rally/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-rally-
+      
+      - name: Install dependencies
+        working-directory: web-rally
+        # Some branches may not have pnpm-lock.yaml; avoid failing CI
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate API client
+        working-directory: web-rally
+        run: pnpm run generate-client
+      
+      - name: Build web-rally
+        working-directory: web-rally
+        env:
+          GENERATE_SOURCEMAP: false
+        run: pnpm build
+        
+      - name: Verify build artifacts
+        working-directory: web-rally
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "ERROR: Build directory 'dist' was not created"
+            exit 1
+          fi
+          if [ -z "$(ls -A dist)" ]; then
+            echo "ERROR: Build directory 'dist' is empty"
+            exit 1
+          fi
+          echo "✅ Build successful - dist directory contains files"
