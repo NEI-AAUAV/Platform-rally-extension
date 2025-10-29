@@ -1,4 +1,5 @@
 import { Users } from "lucide-react";
+import { useThemedComponents } from "@/components/themes";
 
 interface AssignmentFormProps {
   assignmentsError: Error | null;
@@ -17,8 +18,9 @@ export default function AssignmentForm({
   children,
   className = "" 
 }: AssignmentFormProps) {
+  const { Card } = useThemedComponents();
   return (
-    <div className={`bg-[rgb(255,255,255,0.04)] rounded-2xl p-6 border border-[rgb(255,255,255,0.15)] ${className}`}>
+    <Card variant="default" padding="lg" rounded="2xl" className={className}>
       <div className="flex items-center gap-2 mb-4">
         <Users className="w-5 h-5" />
         <h3 className="text-lg font-semibold">Staff Rally (rally-staff)</h3>
@@ -46,6 +48,6 @@ export default function AssignmentForm({
           {updateError?.message || "Erro ao atualizar atribuição"}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
