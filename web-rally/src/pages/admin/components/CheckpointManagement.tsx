@@ -20,7 +20,7 @@ import { useAppToast } from '@/hooks/use-toast';
 
 const checkpointFormSchema = z.object({
   name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
-  description: z.string().min(1, 'Descrição é obrigatória'),
+  description: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
   order: z.number().min(1, 'Ordem deve ser maior que 0'),
@@ -31,7 +31,7 @@ type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 interface Checkpoint {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   order: number;
@@ -267,7 +267,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição</FormLabel>
+                  <FormLabel>Descrição (Opcional)</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Descrição do checkpoint..."
