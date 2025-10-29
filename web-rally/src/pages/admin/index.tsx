@@ -11,7 +11,7 @@ import { CheckPointService } from "@/client";
 interface Checkpoint {
   id: number;
   name: string;
-  description: string;
+  description?: string | null;
   order: number;
 }
 

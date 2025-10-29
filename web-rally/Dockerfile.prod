@@ -1,3 +1,15 @@
+FROM python:3.11-slim AS api-schema-stage
+WORKDIR /app
+# Copy only what's needed to generate OpenAPI schema (no DB required)
+# Build context is typically extensions/rally/ (parent of web-rally and api-rally)
+COPY api-rally/pyproject.toml api-rally/poetry.lock* ./
+RUN pip install poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-root --only main && \
+    poetry add fastapi || true
+COPY api-rally/app ./app
+RUN python -c "from app.main import app; from fastapi.openapi.utils import get_openapi; import json; schema = get_openapi(title=app.title, version=getattr(app, 'version', '0.0.0'), routes=app.routes); json.dump(schema, open('/app/openapi.json', 'w'))"
+
 FROM node:18-alpine AS build-stage
 ENV PNPM_HOME="/pnpm" \
     PATH="$PNPM_HOME:$PATH"
@@ -11,8 +23,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+COPY --from=api-schema-stage /app/openapi.json ./openapi.json
 
-RUN GENERATE_SOURCEMAP=false pnpm build
+RUN pnpm run generate-client && \
+    GENERATE_SOURCEMAP=false pnpm build
 
 FROM nginx:1.20-alpine AS runtime
 
