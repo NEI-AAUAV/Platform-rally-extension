@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest",
+    "pretest": "pnpm run generate-client",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "generate-client": "openapi --input ./openapi.json --output ./src/client --client fetch",
