@@ -32,9 +32,9 @@ type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 interface Checkpoint {
   id: number;
   name: string;
-  description?: string;
-  latitude?: number;
-  longitude?: number;
+  description?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   order: number;
 }
 
