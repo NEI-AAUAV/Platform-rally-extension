@@ -32,11 +32,13 @@ RUN npm install -g pnpm
 
 WORKDIR /web_rally
 
-COPY package.json pnpm-lock.yaml ./
+# With build context set to extensions/rally, reference files under web-rally/
+COPY web-rally/package.json web-rally/pnpm-lock.yaml ./
 
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+# Copy web-rally source
+COPY web-rally/ .
 # If client is missing, optionally fetch schema and generate
 ARG OPENAPI_URL=""
 ARG HAS_API_RALLY=0
@@ -60,10 +62,5 @@ RUN if [ ! -f ./src/client/index.ts ]; then \
     fi && \
     GENERATE_SOURCEMAP=false pnpm build
 
-FROM nginx:1.20-alpine AS runtime
-
-COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
-
-COPY --from=build-stage /web_rally/dist /usr/share/nginx/html/rally
-
-EXPOSE 3003
+FROM scratch AS artifact
+COPY --from=build-stage /web_rally/dist /dist
