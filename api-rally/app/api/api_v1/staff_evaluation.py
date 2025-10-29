@@ -43,12 +43,13 @@ def _serialize_activity(result) -> Optional[dict]:
 
 
 def _serialize_team(result) -> Optional[dict]:
-    """Helper function to serialize team information"""
+    """Helper function to serialize team information including member count"""
     if result.team:
         return {
             "id": result.team.id,
             "name": result.team.name,
             "total": result.team.total,
+            "num_members": len(result.team.members) if result.team.members else 0,
         }
     return None
 
@@ -544,7 +545,7 @@ def get_all_evaluations(
     from sqlalchemy.orm import joinedload
     query = db.query(ActivityResult).options(
         joinedload(ActivityResult.activity),
-        joinedload(ActivityResult.team)
+        joinedload(ActivityResult.team).joinedload(Team.members)
     )
     
     if team_id:
@@ -574,6 +575,11 @@ def get_all_evaluations(
             "completed_at": result.completed_at,
             "created_at": result.created_at,
             "updated_at": result.updated_at,
+            "extra_shots": result.extra_shots,
+            "penalties": result.penalties,
+            "time_score": result.time_score,
+            "points_score": result.points_score,
+            "boolean_score": result.boolean_score,
             "activity": _serialize_activity(result) if result.activity else None,
             "team": _serialize_team(result) if result.team else None
         }
