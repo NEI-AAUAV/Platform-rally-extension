@@ -42,13 +42,15 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-rally-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
+          # Use package.json as fallback when lockfile may be missing
+          key: ${{ runner.os }}-pnpm-store-rally-${{ hashFiles('web-rally/pnpm-lock.yaml', 'web-rally/package.json') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-rally-
       
       - name: Install dependencies
         working-directory: web-rally
-        run: pnpm install --frozen-lockfile
+        # Some branches may not have pnpm-lock.yaml; avoid failing CI
+        run: pnpm install --no-frozen-lockfile
       
       - name: Build web-rally
         working-directory: web-rally
