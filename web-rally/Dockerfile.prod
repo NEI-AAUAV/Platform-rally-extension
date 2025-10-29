@@ -19,13 +19,7 @@ RUN if [ -f pyproject.toml ]; then \
     fi
 COPY ${API_RALLY_DIR}/app ./app 2>/dev/null || true
 RUN if [ -d app ]; then \
-      python - << 'PY' 
-from app.main import app
-from fastapi.openapi.utils import get_openapi
-import json
-schema = get_openapi(title=getattr(app, 'title', 'API'), version=getattr(app, 'version', '0.0.0'), routes=app.routes)
-json.dump(schema, open('/app/openapi.json', 'w'))
-PY
+      python -c "from app.main import app; from fastapi.openapi.utils import get_openapi; import json; schema = get_openapi(title=getattr(app, 'title', 'API'), version=getattr(app, 'version', '0.0.0'), routes=app.routes); json.dump(schema, open('/app/openapi.json', 'w'))"; \
     else \
       echo "No api-rally app directory; skipping schema generation"; \
     fi
