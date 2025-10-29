@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "generate-client": "openapi --input ./openapi.json --output ./src/client --client axios"
+    "generate-client": "openapi-ts --input ./openapi.json --output ./src/client"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
@@ -51,6 +51,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "jsdom": "^23.0.0",
+    "@hey-api/openapi-ts": "^6.0.0",
     "openapi-typescript-codegen": "^0.25.0",
     "postcss": "^8.4.31",
     "prettier": "^3.0.3",
