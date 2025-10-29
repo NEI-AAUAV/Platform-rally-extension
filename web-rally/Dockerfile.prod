@@ -11,19 +11,23 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-# Optionally fetch OpenAPI schema if not provided in build context
+# If client is missing, optionally fetch schema and generate
 ARG OPENAPI_URL=""
-RUN if [ ! -f ./openapi.json ]; then \
-      if [ -n "$OPENAPI_URL" ]; then \
-        echo "Fetching OpenAPI schema from $OPENAPI_URL" && \
-        apk add --no-cache curl && \
-        curl -fsSL "$OPENAPI_URL" -o ./openapi.json; \
-      else \
-        echo "ERROR: openapi.json not found and OPENAPI_URL not set" && exit 1; \
+RUN if [ ! -f ./src/client/index.ts ]; then \
+      echo "Generated client not found. Preparing to generate..."; \
+      if [ ! -f ./openapi.json ]; then \
+        if [ -n "$OPENAPI_URL" ]; then \
+          echo "Fetching OpenAPI schema from $OPENAPI_URL" && \
+          apk add --no-cache curl && \
+          curl -fsSL "$OPENAPI_URL" -o ./openapi.json; \
+        else \
+          echo "ERROR: openapi.json not found and OPENAPI_URL not set" && exit 1; \
+        fi; \
       fi; \
-    fi
-
-RUN pnpm run generate-client && \
+      pnpm run generate-client; \
+    else \
+      echo "Using pre-generated client in src/client"; \
+    fi && \
     GENERATE_SOURCEMAP=false pnpm build
 
 FROM nginx:1.20-alpine AS runtime
