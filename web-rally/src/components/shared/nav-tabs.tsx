@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useThemedComponents } from "../themes";
+import { useThemedComponents, useTheme } from "../themes";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -10,6 +10,7 @@ type NavTabsProps = ComponentProps<"ul">;
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { Button, config } = useThemedComponents();
+  const { themeName } = useTheme();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -84,7 +85,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               <Button
                 variant={isActive ? config.nav.activeVariant : "neutral"}
                 className="w-full sm:w-auto"
-                {...(config.nav.useBloodEffect && isActive ? { blood: true } : {})}
+                {...(config.nav.useBloodEffect && isActive && themeName === 'bloody' ? { blood: true } : {})}
               >
                 {item.name}
               </Button>

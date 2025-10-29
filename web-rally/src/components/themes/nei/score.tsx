@@ -74,7 +74,7 @@ export function NEIScore({ className, team, ...props }: ScoreProps) {
         {checkpointNumber > 0 ? (
           <div className="space-y-1">
             <div className="text-xs text-white/50">
-              {(team as any).last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
+              {team.last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
             </div>
             <div className="text-sm font-medium text-white/60">
               {team.last_checkpoint_score || 0}pts
