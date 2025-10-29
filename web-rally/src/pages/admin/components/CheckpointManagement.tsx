@@ -32,9 +32,9 @@ type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 interface Checkpoint {
   id: number;
   name: string;
-  description?: string;
-  latitude?: number;
-  longitude?: number;
+  description?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   order: number;
 }
 
@@ -177,7 +177,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
     checkpointForm.setValue('name', checkpoint.name);
-    checkpointForm.setValue('description', checkpoint.description || undefined);
+    checkpointForm.setValue('description', checkpoint.description ?? '');
     checkpointForm.setValue('latitude', checkpoint.latitude?.toString() || '');
     checkpointForm.setValue('longitude', checkpoint.longitude?.toString() || '');
     checkpointForm.setValue('order', checkpoint.order || 1);

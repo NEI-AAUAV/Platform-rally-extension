@@ -12,7 +12,7 @@ import { useAppToast } from '@/hooks/use-toast';
 interface Checkpoint {
   id: number;
   name: string;
-  description: string;
+  description?: string | null;
   order: number;
 }
 
