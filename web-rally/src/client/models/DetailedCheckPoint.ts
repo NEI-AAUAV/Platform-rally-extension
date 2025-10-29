@@ -5,7 +5,7 @@
 
 export type DetailedCheckPoint = {
     name: string;
-    description: string;
+    description?: (string | null);
     latitude?: (number | null);
     longitude?: (number | null);
     order: number;

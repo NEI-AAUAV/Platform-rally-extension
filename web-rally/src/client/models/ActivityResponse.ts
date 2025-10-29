@@ -18,10 +18,6 @@ export type ActivityResponse = {
     checkpoint_id: number;
     config?: Record<string, any>;
     is_active?: boolean;
-    /**
-     * Order of activity within checkpoint (0 = no specific order)
-     */
-    order?: (number | null);
     id: number;
     created_at: string;
     updated_at: string;

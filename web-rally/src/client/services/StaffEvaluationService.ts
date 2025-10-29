@@ -147,17 +147,20 @@ export class StaffEvaluationService {
      * Get All Evaluations
      * Get all evaluations - accessible by managers only
      * @param checkpointId
+     * @param teamId
      * @returns any Successful Response
      * @throws ApiError
      */
     public static getAllEvaluationsApiRallyV1StaffAllEvaluationsGet(
         checkpointId?: (number | null),
+        teamId?: (number | null),
     ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/rally/v1/staff/all-evaluations',
             query: {
                 'checkpoint_id': checkpointId,
+                'team_id': teamId,
             },
             errors: {
                 422: `Validation Error`,

@@ -10,7 +10,7 @@ class CheckPoint(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
-    description: Mapped[str]
+    description: Mapped[str | None] = mapped_column(default=None)
     latitude: Mapped[float | None] = mapped_column(default=None)
     longitude: Mapped[float | None] = mapped_column(default=None)
     order: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)

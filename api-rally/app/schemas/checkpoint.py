@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict
 
 class CheckPointBase(BaseModel):
     name: str
-    description: str
+    description: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     order: int
