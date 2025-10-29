@@ -7,13 +7,14 @@ import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
 import { Outlet } from "react-router-dom";
 import { useEffect } from "react";
-import { ThemeProvider } from "@/components/themes";
+import { ThemeProvider, useTheme } from "@/components/themes";
 
-export default function MainLayout() {
-  const bgStyle: CSSProperties = {
-    background:
-      "radial-gradient(circle at 90% 20%, rgb(255,0,0,0.12) , transparent 25%), radial-gradient(circle at 10% 50%, rgb(255,0,0,0.12) , transparent 25%) , radial-gradient(circle at 90% 80%, rgb(255,0,0,0.12), transparent 25%)",
-  };
+function MainLayoutContent() {
+  // Get current theme components including background
+  const { components } = useTheme();
+  
+  // Use theme-defined background
+  const bgStyle: CSSProperties = components.background;
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const loginLink = useLoginLink();
@@ -78,6 +79,15 @@ export default function MainLayout() {
           <PWAInstallPrompt />
         </div>
       </div>
+    </ThemeProvider>
+  );
+}
+
+// Main layout wrapper with ThemeProvider
+export default function MainLayout() {
+  return (
+    <ThemeProvider>
+      <MainLayoutContent />
     </ThemeProvider>
   );
 }

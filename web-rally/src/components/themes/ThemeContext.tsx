@@ -26,6 +26,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       const themeMapping: Record<string, ThemeName> = {
         'Rally Tascas': 'bloody',
         'bloody': 'bloody',
+        'NEI Rally': 'nei',
+        'nei': 'nei',
         'default': 'default',
       };
       
