@@ -1,0 +1,70 @@
+name: Build Rally Web Extension
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'web-rally/**'
+      - '.github/workflows/build-web.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'web-rally/**'
+      - '.github/workflows/build-web.yml'
+  workflow_dispatch:
+
+jobs:
+  build-web-rally:
+    name: Build Rally Web Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+      
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-rally-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-rally-
+      
+      - name: Install dependencies
+        working-directory: web-rally
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build web-rally
+        working-directory: web-rally
+        env:
+          GENERATE_SOURCEMAP: false
+        run: pnpm build
+        
+      - name: Verify build artifacts
+        working-directory: web-rally
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "ERROR: Build directory 'dist' was not created"
+            exit 1
+          fi
+          if [ -z "$(ls -A dist)" ]; then
+            echo "ERROR: Build directory 'dist' is empty"
+            exit 1
+          fi
+          echo "✅ Build successful - dist directory contains files"
