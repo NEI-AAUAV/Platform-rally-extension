@@ -1,5 +1,8 @@
 name: Build Rally Web Extension
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
