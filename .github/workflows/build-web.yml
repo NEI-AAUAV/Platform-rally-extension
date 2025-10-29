@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Start API locally to expose OpenAPI schema for client generation
+      # Prepare Python environment to generate OpenAPI schema offline (no DB)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -40,13 +40,25 @@ jobs:
         run: |
           poetry install --no-interaction --no-root
 
-      - name: Launch API (background)
+      - name: Generate OpenAPI schema (offline)
         working-directory: api-rally
         run: |
-          nohup poetry run uvicorn app.main:app --host 0.0.0.0 --port 8003 &
-          for i in {1..30}; do
-            if curl -sSf http://localhost:8003/openapi.json >/dev/null; then echo "API ready"; exit 0; fi; sleep 1; done
-          echo "API failed to start"; exit 1
+          poetry run python - << 'PY'
+from app.main import app
+from fastapi.openapi.utils import get_openapi
+import json, os
+
+schema = get_openapi(
+    title=getattr(app, 'title', 'API'),
+    version=getattr(app, 'version', '0.0.0'),
+    routes=app.routes,
+)
+
+out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
+with open(out_path, 'w') as f:
+    json.dump(schema, f)
+print(f"Wrote schema to {out_path}")
+PY
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
