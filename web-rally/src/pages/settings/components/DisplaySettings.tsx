@@ -1,9 +1,10 @@
 import { Eye } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useFormContext } from 'react-hook-form';
+import { useThemedComponents } from '@/components/themes';
 
 interface DisplaySettingsProps {
   className?: string;
@@ -11,10 +12,11 @@ interface DisplaySettingsProps {
 }
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
+  const { Card } = useThemedComponents();
   const { register, watch, setValue } = useFormContext();
 
   return (
-    <Card className={className}>
+    <Card variant="default" padding="none" rounded="2xl" className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye className="w-5 h-5" />
