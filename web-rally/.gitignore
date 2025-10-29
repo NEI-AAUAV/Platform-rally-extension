@@ -26,3 +26,6 @@ coverage/
 *.sln
 *.sw?
 package-lock.json
+ 
+# Generated API client
+src/client/
