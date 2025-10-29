@@ -177,7 +177,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
     checkpointForm.setValue('name', checkpoint.name);
-    checkpointForm.setValue('description', checkpoint.description || undefined);
+    checkpointForm.setValue('description', checkpoint.description ?? '');
     checkpointForm.setValue('latitude', checkpoint.latitude?.toString() || '');
     checkpointForm.setValue('longitude', checkpoint.longitude?.toString() || '');
     checkpointForm.setValue('order', checkpoint.order || 1);

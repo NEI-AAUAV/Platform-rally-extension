@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "generate-client": "openapi-ts --input ./openapi.json --output ./src/client"
+    "generate-client": "openapi --input ./openapi.json --output ./src/client --client fetch"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
