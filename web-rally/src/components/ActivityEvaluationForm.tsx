@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Clock, Star, CheckCircle, Trophy, Activity as ActivityIcon } from "lucide-react";
+import { useThemedComponents } from "@/components/themes";
 
 interface Activity {
   id: number;
@@ -94,6 +95,7 @@ export default function ActivityEvaluationForm({
   onCancel,
   isSubmitting,
 }: ActivityEvaluationFormProps) {
+  const { Card: ThemedCard } = useThemedComponents();
   const [_formData, _setFormData] = useState<any>({});
 
   // Determine which schema to use based on activity type
@@ -337,7 +339,7 @@ export default function ActivityEvaluationForm({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] backdrop-blur-sm">
+      <ThemedCard variant="elevated" padding="none" rounded="lg" className="w-full max-w-2xl">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
             <IconComponent className="w-5 h-5" />
@@ -352,7 +354,7 @@ export default function ActivityEvaluationForm({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="bg-[rgb(255,255,255,0.05)] p-4 rounded-lg">
+            <ThemedCard variant="subtle" padding="md" rounded="lg">
               <h3 className="font-semibold text-white mb-2">Activity Details</h3>
               <p className="text-[rgb(255,255,255,0.7)] text-sm mb-2">
                 <strong>Type:</strong> {activityTypeLabels[activity.activity_type as keyof typeof activityTypeLabels]}
@@ -365,7 +367,7 @@ export default function ActivityEvaluationForm({
                   <strong>Description:</strong> {activity.description}
                 </p>
               )}
-            </div>
+            </ThemedCard>
 
             <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
               {renderFormFields()}
@@ -390,7 +392,7 @@ export default function ActivityEvaluationForm({
             </form>
           </div>
         </CardContent>
-      </Card>
+      </ThemedCard>
     </div>
   );
 }
