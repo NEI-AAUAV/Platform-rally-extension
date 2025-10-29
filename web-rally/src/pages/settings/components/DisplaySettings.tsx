@@ -40,7 +40,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             <SelectContent>
               <SelectItem value="nei">NEI Rally (Verde)</SelectItem>
               <SelectItem value="bloody">Halloween (Bloody)</SelectItem>
-              <SelectItem value="Rally Tascas">Rally Tascas (Legacy)</SelectItem>
+            <SelectItem value="default">Rally Tascas (Legacy)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-white/50">

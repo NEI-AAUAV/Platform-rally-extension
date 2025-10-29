@@ -85,7 +85,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               <Button
                 variant={isActive ? config.nav.activeVariant : "neutral"}
                 className="w-full sm:w-auto"
-                {...(config.nav.useBloodEffect && isActive && themeName === 'bloody' ? { blood: true } : {})}
+                {...(config.nav.useBloodEffect && isActive ? { blood: true } : {})}
               >
                 {item.name}
               </Button>
