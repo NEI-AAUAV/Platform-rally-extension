@@ -7,12 +7,23 @@ This directory contains the theme system for Rally components, organized to supp
 ```
 components/
 ├── themes/
-│   ├── bloody/              # Current "bloody" theme
+│   ├── bloody/              # "Bloody" theme (Halloween - red with liquid effects)
 │   │   ├── button.tsx       # BloodyButton component
 │   │   ├── badge.tsx        # BloodyBadge component
 │   │   ├── score.tsx        # BloodyScore component
 │   │   ├── blood.tsx        # BloodyBlood component
+│   │   ├── card.tsx         # BloodyCard component
+│   │   ├── interactive-card.tsx  # BloodyInteractiveCard component
+│   │   ├── background.tsx   # Page background configuration (red gradients)
 │   │   └── index.ts         # Export all bloody theme components
+│   ├── nei/                 # "NEI" theme (organization black & green)
+│   │   ├── button.tsx       # NEIButton component (green, no liquid effect)
+│   │   ├── badge.tsx        # NEIBadge component
+│   │   ├── score.tsx        # NEIScore component
+│   │   ├── card.tsx         # NEICard component
+│   │   ├── interactive-card.tsx  # NEIInteractiveCard component
+│   │   ├── background.tsx   # Page background configuration (green gradients)
+│   │   └── index.ts         # Export all NEI theme components
 │   ├── default/             # Future default theme (placeholder)
 │   │   └── index.ts
 │   ├── index.ts             # Theme selector and exports
@@ -107,12 +118,38 @@ function Layout() {
 }
 ```
 
+## Available Themes
+
+### 1. Bloody Theme (Halloween)
+Dark, intense styling with red accents for Halloween/horror-themed rally events.
+- **Colors**: Dark backgrounds with white text and red accents
+- **Special effects**: Liquid/blood drip animation on buttons (using `blood` prop)
+- **Button**: Red `bg-[#dc2625]` with optional blood effect
+- **Background**: Red radial gradients
+- **Use case**: Halloween-themed events with spooky atmosphere
+
+### 2. NEI Theme
+Clean, professional styling with NEI organization branding.
+- **Colors**: Same dark backgrounds as bloody theme but with NEI brand green accents
+- **Brand color**: `#008542` (NEI logo green) - darker, richer green
+- **Special effects**: None - clean, modern design without liquid effects
+- **Button**: NEI green `bg-[#008542]` with darker hover `bg-[#006633]`
+- **Background**: NEI green radial gradients `rgba(0,133,66,0.12)`
+- **Border accents**: NEI green (`#008542`) with various opacity levels instead of red
+- **Use case**: Official NEI-branded rally events
+- **Components**: Full theme implementation (Button, Badge, Score, Card, InteractiveCard, background)
+
+### 3. Default Theme
+Fallback theme (currently uses Bloody theme components).
+
 ## Adding New Themes
 
 1. Create a new theme folder: `themes/my-theme/`
-2. Implement theme components with the same interface as bloody theme
+2. Implement theme components with the same interface:
+   - Required: `Card`, `InteractiveCard`
+   - Optional: `Button`, `Badge`, `Score`, `Blood`
 3. Add theme to the `ThemeName` type and `themes` object in `themes/index.ts`
-4. Update theme mapping in `ThemeContext.tsx` if needed
+4. Update theme mapping in `ThemeContext.tsx` to associate the theme with rally settings
 
 ## Theme Components Interface
 
@@ -144,9 +181,16 @@ Themes are automatically selected based on the `rally_theme` setting from Rally 
 const themeMapping: Record<string, ThemeName> = {
   'Rally Tascas': 'bloody',
   'bloody': 'bloody',
+  'NEI Rally': 'nei',
+  'nei': 'nei',
   'default': 'default',
 };
 ```
+
+To use a specific theme, set the `rally_theme` in Rally settings to one of:
+- `'Rally Tascas'` or `'bloody'` → Bloody theme
+- `'NEI Rally'` or `'nei'` → NEI theme (black & green)
+- `'default'` → Default theme
 
 ## Migration Notes
 
