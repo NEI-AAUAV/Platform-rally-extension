@@ -121,13 +121,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push artifact-only Docker image
-        env:
-          IMAGE: ghcr.io/${{ toLower(github.repository_owner) }}/web-rally-artifact
+        working-directory: web-rally
         run: |
+          OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
+          IMAGE="ghcr.io/${OWNER_LC}/web-rally-artifact"
           docker build \
-            -f web-rally/Dockerfile.prod \
-            -t "$IMAGE:${{ github.sha }}" \
+            -f Dockerfile.prod \
+            -t "$IMAGE:${GITHUB_SHA}" \
             -t "$IMAGE:latest" \
             .
-          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:${GITHUB_SHA}"
           docker push "$IMAGE:latest"
