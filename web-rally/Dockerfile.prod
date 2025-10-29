@@ -11,6 +11,17 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# Optionally fetch OpenAPI schema if not provided in build context
+ARG OPENAPI_URL=""
+RUN if [ ! -f ./openapi.json ]; then \
+      if [ -n "$OPENAPI_URL" ]; then \
+        echo "Fetching OpenAPI schema from $OPENAPI_URL" && \
+        apk add --no-cache curl && \
+        curl -fsSL "$OPENAPI_URL" -o ./openapi.json; \
+      else \
+        echo "ERROR: openapi.json not found and OPENAPI_URL not set" && exit 1; \
+      fi; \
+    fi
 
 RUN pnpm run generate-client && \
     GENERATE_SOURCEMAP=false pnpm build
