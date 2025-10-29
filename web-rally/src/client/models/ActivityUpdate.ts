@@ -11,6 +11,5 @@ export type ActivityUpdate = {
     description?: (string | null);
     config?: (Record<string, any> | null);
     is_active?: (boolean | null);
-    order?: (number | null);
 };
 

@@ -68,6 +68,19 @@ export class ActivitiesService {
     }
 
     /**
+     * Get All Activity Results
+     * Get all activity results (evaluations) with team and activity details
+     * @returns ActivityResultResponse Successful Response
+     * @throws ApiError
+     */
+    public static getAllActivityResultsApiRallyV1ActivitiesResultsGet(): CancelablePromise<Array<ActivityResultResponse>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/rally/v1/activities/results',
+        });
+    }
+
+    /**
      * Get Activity
      * Get activity by ID
      * @param activityId
@@ -152,22 +165,6 @@ export class ActivitiesService {
             url: '/api/rally/v1/activities/results/',
             body: requestBody,
             mediaType: 'application/json',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-
-    /**
-     * Get All Activity Results
-     * Get all activity results (evaluations) with team and activity details
-     * @returns ActivityResultResponse Successful Response
-     * @throws ApiError
-     */
-    public static getAllActivityResultsApiRallyV1ActivitiesResultsGet(): CancelablePromise<Array<ActivityResultResponse>> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/rally/v1/activities/results',
             errors: {
                 422: `Validation Error`,
             },
