@@ -2,6 +2,7 @@ name: Build Rally Web Extension
 
 permissions:
   contents: read
+  packages: write
 
 on:
   push:
@@ -108,3 +109,24 @@ jobs:
             exit 1
           fi
           echo "✅ Build successful - dist directory contains files"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push artifact-only Docker image
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/web-rally-artifact
+          docker build \
+            -f web-rally/Dockerfile.prod \
+            -t $IMAGE:${{ github.sha }} \
+            -t $IMAGE:latest \
+            .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
