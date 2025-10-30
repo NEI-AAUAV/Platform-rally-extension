@@ -14,7 +14,7 @@
         "endpoint": "/api/rally/v1/rally/settings/public",
         "field": "public_access_enabled",
         "value": true,
-        "fallbackScopes": ["manager-rally", "admin"]
+        "fallbackScopes": ["manager-rally", "admin", "rally-staff"]
       }
     }
   ],
