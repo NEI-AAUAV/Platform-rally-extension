@@ -1,0 +1,147 @@
+name: Validate Extension Manifest
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'manifest.json'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'manifest.json'
+  workflow_dispatch:
+
+jobs:
+  validate-manifest:
+    name: Validate manifest.json
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate JSON syntax
+        run: |
+          echo "Validating manifest.json syntax..."
+          if jq empty manifest.json 2>/dev/null; then
+            echo "✅ Valid JSON syntax"
+          else
+            echo "❌ Invalid JSON syntax"
+            exit 1
+          fi
+      
+      - name: Check required fields
+        run: |
+          echo "Checking required fields..."
+          
+          # Check name
+          NAME=$(jq -r '.name // empty' manifest.json)
+          if [ -z "$NAME" ]; then
+            echo "❌ Missing required field: name"
+            exit 1
+          fi
+          echo "✅ name: $NAME"
+          
+          # Check version
+          VERSION=$(jq -r '.version // empty' manifest.json)
+          if [ -z "$VERSION" ]; then
+            echo "❌ Missing required field: version"
+            exit 1
+          fi
+          echo "✅ version: $VERSION"
+          
+          # Check API port
+          API_PORT=$(jq -r '.api.port // empty' manifest.json)
+          if [ -z "$API_PORT" ]; then
+            echo "❌ Missing required field: api.port"
+            exit 1
+          fi
+          echo "✅ api.port: $API_PORT"
+          
+          # Check web port
+          WEB_PORT=$(jq -r '.web.port // empty' manifest.json)
+          if [ -z "$WEB_PORT" ]; then
+            echo "❌ Missing required field: web.port"
+            exit 1
+          fi
+          echo "✅ web.port: $WEB_PORT"
+      
+      - name: Verify port uniqueness
+        run: |
+          echo "Verifying port configuration..."
+          
+          API_PORT=$(jq -r '.api.port' manifest.json)
+          WEB_PORT=$(jq -r '.web.port' manifest.json)
+          
+          if [ "$API_PORT" = "$WEB_PORT" ]; then
+            echo "❌ API and web ports must be different"
+            exit 1
+          fi
+          
+          # Check ports are in valid range
+          if [ "$API_PORT" -lt 1024 ] || [ "$API_PORT" -gt 65535 ]; then
+            echo "❌ API port must be between 1024-65535"
+            exit 1
+          fi
+          
+          if [ "$WEB_PORT" -lt 1024 ] || [ "$WEB_PORT" -gt 65535 ]; then
+            echo "❌ Web port must be between 1024-65535"
+            exit 1
+          fi
+          
+          echo "✅ Ports are valid and unique"
+      
+      - name: Validate scopes structure
+        run: |
+          echo "Validating scopes..."
+          
+          SCOPES=$(jq -r '.scopes // [] | length' manifest.json)
+          if [ "$SCOPES" -eq 0 ]; then
+            echo "⚠️  No scopes defined (optional but recommended)"
+          else
+            echo "✅ $SCOPES scope(s) defined"
+            
+            # Validate each scope has name and description
+            INVALID_SCOPES=$(jq -r '.scopes[] | select(.name == null or .description == null) | .name // "unnamed"' manifest.json)
+            if [ -n "$INVALID_SCOPES" ]; then
+              echo "❌ Some scopes missing required fields (name, description)"
+              exit 1
+            fi
+          fi
+      
+      - name: Validate nav structure
+        run: |
+          echo "Validating navigation entries..."
+          
+          NAV_COUNT=$(jq -r '.nav // [] | length' manifest.json)
+          if [ "$NAV_COUNT" -eq 0 ]; then
+            echo "⚠️  No navigation entries defined (optional but recommended)"
+          else
+            echo "✅ $NAV_COUNT navigation entry(ies) defined"
+            
+            # Validate each nav has label and href
+            INVALID_NAV=$(jq -r '.nav[] | select(.label == null or .href == null) | .label // "unnamed"' manifest.json)
+            if [ -n "$INVALID_NAV" ]; then
+              echo "❌ Some navigation entries missing required fields (label, href)"
+              exit 1
+            fi
+          fi
+      
+      - name: Generate manifest summary
+        run: |
+          echo "## Extension Manifest Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** $(jq -r '.name' manifest.json)" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $(jq -r '.version' manifest.json)" >> $GITHUB_STEP_SUMMARY
+          echo "**API Port:** $(jq -r '.api.port' manifest.json)" >> $GITHUB_STEP_SUMMARY
+          echo "**Web Port:** $(jq -r '.web.port' manifest.json)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Scopes" >> $GITHUB_STEP_SUMMARY
+          jq -r '.scopes[] | "- **\(.name)**: \(.description)"' manifest.json >> $GITHUB_STEP_SUMMARY || echo "None defined" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Navigation" >> $GITHUB_STEP_SUMMARY
+          jq -r '.nav[] | "- [\(.label)](\(.href))"' manifest.json >> $GITHUB_STEP_SUMMARY || echo "None defined" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Final status
+        run: echo "✅ Manifest validation passed!"
+

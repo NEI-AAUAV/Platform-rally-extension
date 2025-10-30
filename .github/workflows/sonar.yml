@@ -4,16 +4,29 @@ permissions:
   pull-requests: write
 
 on:
-  push:
-    branches: main
+  # Trigger after tests complete to reuse their artifacts
+  workflow_run:
+    workflows: ["Rally Extension Tests"]
+    types: [completed]
+    branches: [main]
   pull_request:
     branches: main
   workflow_dispatch:
 
 jobs:
+  # Run tests for PRs (tests.yml only runs on main push via workflow_run)
+  run-tests-for-pr:
+    name: Run Tests (PR only)
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+  
   sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
+    # Wait for tests if running for PR
+    needs: [run-tests-for-pr]
+    if: always() && (github.event_name != 'pull_request' || needs.run-tests-for-pr.result == 'success')
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -61,7 +74,44 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
           
+      - name: Download test artifacts from tests.yml
+        uses: actions/download-artifact@v3
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true
+        with:
+          name: api-test-results
+          path: api-rally/
+          
+      - name: Download frontend test artifacts
+        uses: actions/download-artifact@v3
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true
+        with:
+          name: frontend-test-results
+          path: web-rally/
+      
+      - name: Check if coverage exists
+        id: check_coverage
+        run: |
+          if [ -f "api-rally/coverage.xml" ] || [ -f "api-rally/test-results.xml" ]; then
+            echo "API coverage found from tests.yml"
+            echo "has_api_coverage=true" >> $GITHUB_OUTPUT
+          else
+            echo "No API coverage found, will run tests"
+            echo "has_api_coverage=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ -d "web-rally/coverage" ]; then
+            echo "Web coverage found from tests.yml"
+            echo "has_web_coverage=true" >> $GITHUB_OUTPUT
+          else
+            echo "No web coverage found, will run tests"
+            echo "has_web_coverage=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Only install deps and run tests if coverage not found
       - name: Install Python dependencies (API)
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
           cd api-rally
           poetry install --no-root
@@ -69,6 +119,7 @@ jobs:
           poetry run pip install requests
           
       - name: Cache pnpm store (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
         uses: actions/cache@v3
         with:
           path: ~/.local/share/pnpm/store
@@ -77,11 +128,13 @@ jobs:
             ${{ runner.os }}-pnpm-
             
       - name: Install Node.js dependencies (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
         run: |
           cd web-rally
           pnpm install --frozen-lockfile
           
       - name: Create test database
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
@@ -93,6 +146,7 @@ jobs:
           POSTGRES_DB: postgres_test
           
       - name: Run Python tests with coverage (API)
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
           cd api-rally
           poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
@@ -104,6 +158,7 @@ jobs:
         continue-on-error: true
         
       - name: Run TypeScript tests with coverage (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
         run: |
           cd web-rally
           if grep -q '"test:coverage"' package.json; then
@@ -114,6 +169,20 @@ jobs:
             echo "No test script found, skipping tests"
           fi
         continue-on-error: true
+      
+      - name: Summary
+        run: |
+          echo "## Test Coverage Source" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_coverage.outputs.has_api_coverage }}" == "true" ]; then
+            echo "✅ API: Reused from tests.yml (saved ~2 min)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 API: Ran tests locally" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.check_coverage.outputs.has_web_coverage }}" == "true" ]; then
+            echo "✅ Web: Reused from tests.yml (saved ~1 min)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 Web: Ran tests locally" >> $GITHUB_STEP_SUMMARY
+          fi
         
       - name: Create Custom Trust Store with SonarQube Certificate
         run: |
