@@ -81,5 +81,5 @@ echo "   - Build output: $WEB_DIR/dist/"
 echo ""
 echo "🐳 To build Docker artifact image:"
 echo "   cd $WEB_DIR"
-echo "   docker build -f Dockerfile.prod -t web-rally-artifact ."
+echo "   docker build -f Dockerfile.standalone -t web-rally-artifact ."
 
