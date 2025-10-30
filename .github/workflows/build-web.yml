@@ -142,7 +142,7 @@ jobs:
           
           docker build \
             --progress=plain \
-            -f Dockerfile.prod \
+            -f Dockerfile.standalone \
             -t "$IMAGE:${GITHUB_SHA}" \
             -t "$IMAGE:latest" \
             .
