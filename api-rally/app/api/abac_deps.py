@@ -36,14 +36,26 @@ def get_staff_with_checkpoint_access(
     """
     # Initialize curr_user if not provided
     if curr_user is None:
-        # Get user directly from database using auth.sub (user ID)
-        user = db.get(User, auth.sub)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+        # Build user from auth claims to avoid hard dependency on local User row
+        # Local User may not exist for staff-only access; we still want staff to work.
+        try:
+            curr_user = DetailedUser(
+                id=auth.sub,
+                name=f"{auth.name} {auth.surname}".strip() or auth.email,
+                disabled=False,
+                staff_checkpoint_id=None,
+                team_id=None,
+                is_captain=False,
             )
-        curr_user = DetailedUser.model_validate(user)
+        except Exception:
+            # Fallback: attempt to load from local User if schema changes
+            user = db.get(User, auth.sub)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            curr_user = DetailedUser.model_validate(user)
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
