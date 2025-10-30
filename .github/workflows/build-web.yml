@@ -100,15 +100,19 @@ jobs:
       - name: Verify build artifacts
         working-directory: web-rally
         run: |
+          echo "📦 Verifying build artifacts..."
           if [ ! -d "dist" ]; then
-            echo "ERROR: Build directory 'dist' was not created"
+            echo "❌ ERROR: Build directory 'dist' was not created"
             exit 1
           fi
           if [ -z "$(ls -A dist)" ]; then
-            echo "ERROR: Build directory 'dist' is empty"
+            echo "❌ ERROR: Build directory 'dist' is empty"
             exit 1
           fi
           echo "✅ Build successful - dist directory contains files"
+          echo "📊 Dist contents:"
+          du -sh dist
+          find dist -type f | head -20
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -120,15 +124,35 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug build context before Docker
+        working-directory: web-rally
+        run: |
+          echo "📂 Current directory: $(pwd)"
+          echo "📋 Files in context:"
+          ls -la
+          echo "📦 Dist contents:"
+          ls -la dist/ || echo "❌ dist not found!"
+
       - name: Build and push artifact-only Docker image
         working-directory: web-rally
         run: |
+          echo "🐳 Building Docker artifact image..."
           OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
           IMAGE="ghcr.io/${OWNER_LC}/web-rally-artifact"
+          
           docker build \
-            -f Dockerfile.prod \
+            --progress=plain \
+            -f Dockerfile.standalone \
             -t "$IMAGE:${GITHUB_SHA}" \
             -t "$IMAGE:latest" \
             .
+          
+          echo "✅ Docker build successful"
+          echo "📤 Pushing to GHCR..."
+          
           docker push "$IMAGE:${GITHUB_SHA}"
           docker push "$IMAGE:latest"
+          
+          echo "✅ Published:"
+          echo "   - $IMAGE:${GITHUB_SHA}"
+          echo "   - $IMAGE:latest"
