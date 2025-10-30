@@ -275,11 +275,52 @@ def get_teams_at_my_checkpoint(
 
 
 def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
-    """Build team data for staff evaluation"""
-    last_checkpoint_number = len(team_obj.times) if team_obj.times else 0
-    current_checkpoint_number = _calculate_current_checkpoint_for_staff(
-        db, team_obj, last_checkpoint_number
-    )
+    """Build team data for staff evaluation.
+    last_checkpoint_number must reflect the last checkpoint where all activities
+    for that checkpoint are completed by the team. It should not be derived
+    from the number of activity timestamps, because a checkpoint can contain
+    multiple activities. Compute both last and current consistently using
+    activity completion per checkpoint.
+    """
+
+    def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int]:
+        # Import here to avoid circulars at module import time
+        from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+        from app.crud.crud_activity import activity
+        from app.crud.crud_activity import activity_result as activity_result_crud
+
+        # Load ordered checkpoints and this team's results
+        checkpoints = checkpoint_crud.get_all_ordered(db)
+        team_results = activity_result_crud.get_by_team(db, team_id=team_obj.id)
+
+        # Index results by activity_id for fast lookup of completed state
+        completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
+
+        last_completed_order = 0
+        for cp in checkpoints:
+            cp_activities = activity.get_by_checkpoint(db, checkpoint_id=cp.id)
+            cp_activity_ids = [a.id for a in cp_activities]
+
+            # If checkpoint has no activities, treat it as not completed and stop advancing
+            if not cp_activity_ids:
+                break
+
+            # Completed when every activity has a completed result
+            if all(aid in completed_activity_ids for aid in cp_activity_ids):
+                last_completed_order = cp.order
+            else:
+                break
+
+        # Current checkpoint is the next one after the last fully completed, if it exists; otherwise the same
+        max_order = checkpoints[-1].order if checkpoints else 0
+        if last_completed_order < max_order:
+            current_order = last_completed_order + 1
+        else:
+            current_order = last_completed_order
+
+        return last_completed_order, current_order
+
+    last_checkpoint_number, current_checkpoint_number = _compute_checkpoint_progress(db, team_obj)
     
     return {
         "id": team_obj.id,
