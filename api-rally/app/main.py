@@ -23,6 +23,16 @@ app.add_event_handler("startup", init_db)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 
+@app.get("/health", tags=["health"])
+async def health_check():
+    """Health check endpoint for monitoring and load balancers"""
+    return {
+        "status": "healthy",
+        "service": "rally-api",
+        "version": "1.0.0"
+    }
+
+
 if __name__ == "__main__":
     # Use this for debugging purposes only
     import uvicorn

@@ -3,7 +3,7 @@ version: "3.9"
 services:
   web_nei:
     environment:
-      ENABLE_GALA: 'True'
+      ENABLE_RALLY: 'True'
 
   api_rally:
     image: ghcr.io/nei-aauav/api-rally:${TAG:-latest}
@@ -27,6 +27,25 @@ services:
     networks:
       - backend
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web_rally:
     image: ghcr.io/nei-aauav/web-rally:${TAG:-latest}
@@ -43,3 +62,16 @@ services:
     networks:
       - frontend
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
