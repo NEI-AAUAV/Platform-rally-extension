@@ -3,7 +3,7 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
 interface ScoringSettingsProps {
@@ -13,7 +13,7 @@ interface ScoringSettingsProps {
 
 export default function ScoringSettings({ className = "", disabled = false }: ScoringSettingsProps) {
   const { Card } = useThemedComponents();
-  const { register, watch, setValue } = useFormContext();
+  const { register, control } = useFormContext();
 
   return (
     <Card variant="default" padding="none" rounded="2xl" className={className}>
@@ -96,11 +96,17 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            
-            checked={watch('checkpoint_order_matters')}
-            onCheckedChange={(checked) => setValue('checkpoint_order_matters', checked)}
-            disabled={disabled}
+          <Controller
+            name="checkpoint_order_matters"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="checkpoint_order_matters">
             A ordem dos checkpoints importa para a pontuação
@@ -108,11 +114,17 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            
-            checked={watch('enable_staff_scoring')}
-            onCheckedChange={(checked) => setValue('enable_staff_scoring', checked)}
-            disabled={disabled}
+          <Controller
+            name="enable_staff_scoring"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="enable_staff_scoring">
             Permitir pontuação manual pelos staff

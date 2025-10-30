@@ -3,7 +3,7 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from '@/component
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
 interface DisplaySettingsProps {
@@ -13,7 +13,7 @@ interface DisplaySettingsProps {
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
   const { Card } = useThemedComponents();
-  const { watch, setValue } = useFormContext();
+  const { control } = useFormContext();
 
   return (
     <Card variant="default" padding="none" rounded="2xl" className={className}>
@@ -29,30 +29,44 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="rally_theme">Tema do Rally</Label>
-          <Select
-            value={watch('rally_theme') || 'bloody'}
-            onValueChange={(value) => setValue('rally_theme', value)}
-            disabled={disabled}
-          >
-            <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
-              <SelectValue placeholder="Selecione um tema" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nei">NEI Rally (Verde)</SelectItem>
-              <SelectItem value="bloody">Halloween (Bloody)</SelectItem>
-            <SelectItem value="default">Rally Tascas (Legacy)</SelectItem>
-            </SelectContent>
-          </Select>
+          <Controller
+            name="rally_theme"
+            control={control}
+            defaultValue="bloody"
+            render={({ field }) => (
+              <Select
+                value={field.value || 'bloody'}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                  <SelectValue placeholder="Selecione um tema" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nei">NEI Rally (Verde)</SelectItem>
+                  <SelectItem value="bloody">Halloween (Bloody)</SelectItem>
+                  <SelectItem value="default">Rally Tascas (Legacy)</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
           <p className="text-xs text-white/50">
             O tema controla as cores e estilo visual da aplicação
           </p>
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            checked={watch('show_live_leaderboard')}
-            onCheckedChange={(checked) => setValue('show_live_leaderboard', checked)}
-            disabled={disabled}
+          <Controller
+            name="show_live_leaderboard"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="show_live_leaderboard">
             Mostrar leaderboard em tempo real
@@ -60,10 +74,17 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            checked={watch('show_team_details')}
-            onCheckedChange={(checked) => setValue('show_team_details', checked)}
-            disabled={disabled}
+          <Controller
+            name="show_team_details"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="show_team_details">
             Mostrar detalhes das equipas
@@ -71,10 +92,17 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            checked={watch('show_checkpoint_map')}
-            onCheckedChange={(checked) => setValue('show_checkpoint_map', checked)}
-            disabled={disabled}
+          <Controller
+            name="show_checkpoint_map"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="show_checkpoint_map">
             Mostrar mapa dos checkpoints
@@ -82,10 +110,17 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            checked={watch('public_access_enabled')}
-            onCheckedChange={(checked) => setValue('public_access_enabled', checked)}
-            disabled={disabled}
+          <Controller
+            name="public_access_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="public_access_enabled">
             Permitir acesso público (sem login)
