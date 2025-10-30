@@ -1,0 +1,25 @@
+# web-rally excludes
+web-rally/node_modules
+web-rally/pnpm-store
+web-rally/.pnpm-store
+web-rally/dist
+web-rally/build
+web-rally/src/client
+web-rally/openapi.json
+web-rally/.vite
+
+# api-rally excludes
+api-rally/__pycache__
+api-rally/.pytest_cache
+api-rally/.venv
+api-rally/.mypy_cache
+api-rally/static
+
+# General
+.git
+.gitignore
+*.log
+.DS_Store
+.vscode
+.idea
+

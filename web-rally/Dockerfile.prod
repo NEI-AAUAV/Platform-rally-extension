@@ -14,6 +14,11 @@ RUN pip install --no-cache-dir poetry && \
 
 # Copy API source and generate schema
 COPY api-rally/app ./app
+
+# Create static directory (required by app startup)
+RUN mkdir -p static
+
+# Generate OpenAPI schema
 RUN python -c "\
 from app.main import app; \
 from fastapi.openapi.utils import get_openapi; \
