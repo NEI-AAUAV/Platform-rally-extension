@@ -98,9 +98,10 @@ export default function CheckpointTeamEvaluation() {
       const isRallyAdmin = !!userStore.scopes?.includes("admin") || 
                           !!userStore.scopes?.includes("manager-rally");
       
-      // Check checkpoint mismatch first for all users (staff and admin)
-      const teamCheckpoint = selectedTeam?.last_checkpoint_number || selectedTeam?.current_checkpoint_number;
-      const isFromDifferentCheckpoint = teamCheckpoint && teamCheckpoint !== checkpoint?.order;
+      // Checkpoint mismatch based ONLY on last checkpoint logic:
+      // team is expected here if last_checkpoint_number === checkpoint.order - 1
+      const lastCheckpointNum = selectedTeam?.last_checkpoint_number ?? 0;
+      const isFromDifferentCheckpoint = lastCheckpointNum !== (checkpoint?.order ? checkpoint.order - 1 : 0);
       
       if (!isRallyAdmin) {
         // Try staff endpoint first for staff users
@@ -121,7 +122,7 @@ export default function CheckpointTeamEvaluation() {
             
             if (isFromDifferentCheckpoint) {
               summaryToShow.checkpoint_mismatch = true;
-              summaryToShow.team_checkpoint = teamCheckpoint;
+              summaryToShow.team_checkpoint = lastCheckpointNum;
               summaryToShow.current_checkpoint = checkpoint?.order;
             }
             
@@ -138,7 +139,7 @@ export default function CheckpointTeamEvaluation() {
         if (isFromDifferentCheckpoint) {
           const summaryToShow = {
             checkpoint_mismatch: true,
-            team_checkpoint: teamCheckpoint,
+            team_checkpoint: lastCheckpointNum,
             current_checkpoint: checkpoint?.order,
             total_activities: 0,
             completed_activities: 0,
@@ -309,21 +310,21 @@ export default function CheckpointTeamEvaluation() {
             </CardHeader>
             <CardContent>
               {(() => {
-                // Group teams into 3 categories
+                // Group teams using ONLY last_checkpoint_number for simpler, consistent logic
+                const lastIsPrev = (team: any) => (team.last_checkpoint_number ?? 0) === (checkpoint.order - 1);
+                const lastIsBeforePrev = (team: any) => (team.last_checkpoint_number ?? 0) < (checkpoint.order - 1);
+                const lastIsAtOrBeyond = (team: any) => (team.last_checkpoint_number ?? 0) >= checkpoint.order;
+
                 const teamsToEvaluate = (checkpointTeams || []).filter((team: any) => 
-                  !teamEvaluationStatus?.[team.id] && 
-                  team.current_checkpoint_number === checkpoint.order
+                  !teamEvaluationStatus?.[team.id] && lastIsPrev(team)
                 );
-                
+
                 const teamsAtPreviousCheckpoints = (checkpointTeams || []).filter((team: any) => 
-                  !teamEvaluationStatus?.[team.id] && 
-                  team.current_checkpoint_number !== null && 
-                  team.current_checkpoint_number > 0 && 
-                  team.current_checkpoint_number < checkpoint.order
+                  !teamEvaluationStatus?.[team.id] && lastIsBeforePrev(team)
                 );
-                
+
                 const teamsAlreadyEvaluated = (checkpointTeams || []).filter((team: any) => 
-                  teamEvaluationStatus?.[team.id]
+                  teamEvaluationStatus?.[team.id] || lastIsAtOrBeyond(team)
                 );
 
                 return (
