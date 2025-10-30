@@ -1,0 +1,8 @@
+# Standalone Dockerfile (when dist is pre-built in CI)
+# Build context: web-rally/
+# Requires: dist/ already exists
+
+FROM scratch AS artifact
+# Minimal artifact-only image containing built static assets
+# Build context must be web-rally/ with dist/ already present
+COPY dist /dist
