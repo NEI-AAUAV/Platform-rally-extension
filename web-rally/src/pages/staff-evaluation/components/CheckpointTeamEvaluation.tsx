@@ -65,15 +65,16 @@ export default function CheckpointTeamEvaluation() {
         // Then get all results
         const results = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
         
-        // Check if each team has evaluations for ALL activities in this checkpoint
+        // Check if each team has COMPLETED evaluations for ALL activities in this checkpoint
         checkpointTeams.forEach((team: any) => {
-          const teamResults = results.filter((result: any) => 
-            result.team_id === team.id && 
+          const completedResults = results.filter((result: any) => 
+            result.team_id === team.id &&
+            result.is_completed === true &&
             checkpointActivities.some((activity: any) => activity.id === result.activity_id)
           );
-          
-          // Team is considered evaluated if they have results for ALL activities in the checkpoint
-          evaluationStatus[team.id] = teamResults.length === checkpointActivities.length && checkpointActivities.length > 0;
+
+          // Consider evaluated only when every activity has a completed result
+          evaluationStatus[team.id] = completedResults.length === checkpointActivities.length && checkpointActivities.length > 0;
         });
       } catch (error) {
         // Fallback: assume no evaluations
@@ -311,9 +312,23 @@ export default function CheckpointTeamEvaluation() {
             <CardContent>
               {(() => {
                 // Group teams using ONLY last_checkpoint_number for simpler, consistent logic
-                const lastIsPrev = (team: any) => (team.last_checkpoint_number ?? 0) === (checkpoint.order - 1);
-                const lastIsBeforePrev = (team: any) => (team.last_checkpoint_number ?? 0) < (checkpoint.order - 1);
-                const lastIsAtOrBeyond = (team: any) => (team.last_checkpoint_number ?? 0) >= checkpoint.order;
+                const getNums = (team: any) => {
+                  const last = Number(team?.last_checkpoint_number ?? 0) || 0;
+                  const order = Number(checkpoint?.order ?? 0) || 0;
+                  return { last, order };
+                };
+                const lastIsPrev = (team: any) => {
+                  const { last, order } = getNums(team);
+                  return last === order - 1;
+                };
+                const lastIsBeforePrev = (team: any) => {
+                  const { last, order } = getNums(team);
+                  return last < order - 1;
+                };
+                const lastIsAtOrBeyond = (team: any) => {
+                  const { last, order } = getNums(team);
+                  return last >= order;
+                };
 
                 const teamsToEvaluate = (checkpointTeams || []).filter((team: any) => 
                   !teamEvaluationStatus?.[team.id] && lastIsPrev(team)
@@ -324,7 +339,7 @@ export default function CheckpointTeamEvaluation() {
                 );
 
                 const teamsAlreadyEvaluated = (checkpointTeams || []).filter((team: any) => 
-                  teamEvaluationStatus?.[team.id] || lastIsAtOrBeyond(team)
+                  lastIsAtOrBeyond(team)
                 );
 
                 return (

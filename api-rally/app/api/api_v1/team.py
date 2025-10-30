@@ -24,55 +24,46 @@ from app.schemas.team import (
 router = APIRouter()
 
 
-def _get_last_checkpoint_info(db: Session, team_id: int):
-    """Get last checkpoint number and name from last activity result"""
-    from app.models.activity import ActivityResult, Activity
-    
-    last_result = db.query(ActivityResult).filter(
-        ActivityResult.team_id == team_id,
-        ActivityResult.is_completed == True
-    ).order_by(ActivityResult.completed_at.desc()).first()
-    
-    if last_result:
-        activity = db.query(Activity).filter(Activity.id == last_result.activity_id).first()
-        if activity:
-            return activity.checkpoint.order, activity.checkpoint.name
-    return None, None
+def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int, str | None]:
+    """Compute last fully completed checkpoint and current checkpoint.
+    A checkpoint is considered completed only when all its activities have a
+    completed result for this team.
+    Returns: (last_completed_order, current_order, last_checkpoint_name)
+    """
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+    from app.crud.crud_activity import activity
+    from app.crud.crud_activity import activity_result as activity_result_crud
+
+    checkpoints = checkpoint_crud.get_all_ordered(db)
+    team_results = activity_result_crud.get_by_team(db, team_id=team_obj.id)
+    completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
+
+    last_completed_order = 0
+    last_completed_name: str | None = None
+    for cp in checkpoints:
+        cp_activities = activity.get_by_checkpoint(db, checkpoint_id=cp.id)
+        ids = [a.id for a in cp_activities]
+        if not ids:
+            break
+        if all(aid in completed_activity_ids for aid in ids):
+            last_completed_order = cp.order
+            last_completed_name = cp.name
+        else:
+            break
+
+    max_order = checkpoints[-1].order if checkpoints else 0
+    current_order = last_completed_order + 1 if last_completed_order < max_order else last_completed_order
+    return last_completed_order, current_order, last_completed_name
 
 
 def _calculate_current_checkpoint_number(db: Session, team: Team) -> int:
-    """Calculate where team should be evaluated next"""
-    last_visited_checkpoint_order = len(team.times) if team.times else 0
-    
-    if last_visited_checkpoint_order == 0:
-        return 1
-    
-    # Check if all activities at last checkpoint are completed
-    from app.crud.crud_activity import activity, activity_result
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-    
-    checkpoint_obj = checkpoint_crud.get_by_order(db, last_visited_checkpoint_order)
-    if not checkpoint_obj:
-        return last_visited_checkpoint_order
-    
-    # Use actual checkpoint ID
-    checkpoint_activities = activity.get_by_checkpoint(db, checkpoint_id=checkpoint_obj.id)
-    team_results = activity_result.get_by_team(db, team_id=team.id)
-    completed_at_checkpoint = [
-        r for r in team_results 
-        if r.activity_id in [a.id for a in checkpoint_activities]
-    ]
-    
-    # If all activities completed, next checkpoint
-    if len(completed_at_checkpoint) == len(checkpoint_activities) and checkpoint_activities:
-        return last_visited_checkpoint_order + 1
-    return last_visited_checkpoint_order
+    last_completed_order, current_order, _ = _compute_checkpoint_progress(db, team)
+    return current_order or 1
 
 
 def _build_team_data(db: Session, team: Team) -> ListingTeam:
-    """Build team data for listing"""
-    last_checkpoint_number, last_checkpoint_name = _get_last_checkpoint_info(db, team.id)
-    current_checkpoint_number = _calculate_current_checkpoint_number(db, team)
+    """Build team data for listing using strict completion rules."""
+    last_checkpoint_number, current_checkpoint_number, last_checkpoint_name = _compute_checkpoint_progress(db, team)
     
     return ListingTeam(
         id=team.id,
