@@ -270,11 +270,14 @@ def get_teams_at_my_checkpoint(
     teams_stmt = select(Team).where(func.cardinality(Team.times) <= current_user.staff_checkpoint_id)
     teams = db.scalars(teams_stmt).all()
     
-    # Convert to the expected format
-    return [_build_team_for_staff(db, team_obj) for team_obj in teams]
+    # Convert to the expected format, include evaluated_at_current_checkpoint helper
+    return [
+        _build_team_for_staff(db, team_obj, staff_checkpoint_order=current_user.staff_checkpoint_id)
+        for team_obj in teams
+    ]
 
 
-def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
+def _build_team_for_staff(db: Session, team_obj: Team, staff_checkpoint_order: int | None = None) -> dict:
     """Build team data for staff evaluation.
     last_checkpoint_number must reflect the last checkpoint where all activities
     for that checkpoint are completed by the team. It should not be derived
@@ -283,7 +286,7 @@ def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
     activity completion per checkpoint.
     """
 
-    def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int]:
+    def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int, list[int]]:
         # Import here to avoid circulars at module import time
         from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
         from app.crud.crud_activity import activity
@@ -297,6 +300,7 @@ def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
         completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
 
         last_completed_order = 0
+        completed_orders: list[int] = []
         for cp in checkpoints:
             cp_activities = activity.get_by_checkpoint(db, checkpoint_id=cp.id)
             cp_activity_ids = [a.id for a in cp_activities]
@@ -308,6 +312,7 @@ def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
             # Completed when every activity has a completed result
             if all(aid in completed_activity_ids for aid in cp_activity_ids):
                 last_completed_order = cp.order
+                completed_orders.append(cp.order)
             else:
                 break
 
@@ -318,9 +323,9 @@ def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
         else:
             current_order = last_completed_order
 
-        return last_completed_order, current_order
+        return last_completed_order, current_order, completed_orders
 
-    last_checkpoint_number, current_checkpoint_number = _compute_checkpoint_progress(db, team_obj)
+    last_checkpoint_number, current_checkpoint_number, completed_orders = _compute_checkpoint_progress(db, team_obj)
     
     return {
         "id": team_obj.id,
@@ -333,6 +338,10 @@ def _build_team_for_staff(db: Session, team_obj: Team) -> dict:
         "last_checkpoint_score": team_obj.score_per_checkpoint[-1] if team_obj.score_per_checkpoint else None,
         "last_checkpoint_number": last_checkpoint_number,
         "current_checkpoint_number": current_checkpoint_number,
+        "completed_checkpoint_numbers": completed_orders,
+        "evaluated_at_current_checkpoint": (
+            (staff_checkpoint_order in completed_orders) if staff_checkpoint_order else False
+        ),
     }
 
 

@@ -11,7 +11,8 @@ interface TimeBasedFormProps {
 }
 
 export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmitting }: TimeBasedFormProps) {
-  const [completionTime, setCompletionTime] = useState<number>(0);
+  // Keep as string to allow clearing input and typing like ".5" or "03"
+  const [completionTime, setCompletionTime] = useState<string>("");
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
@@ -30,7 +31,10 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setCompletionTime(existingResult.result_data.completion_time_seconds || 0);
+      const v = existingResult.result_data.completion_time_seconds;
+      setCompletionTime(
+        typeof v === 'number' && !isNaN(v) ? String(v) : (typeof v === 'string' ? v : "")
+      );
       setNotes(existingResult.result_data.notes || "");
     }
     if (existingResult) {
@@ -48,9 +52,17 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
       return;
     }
     
+    // Normalize and validate time (allow comma or dot)
+    const normalized = (completionTime || "").replace(",", ".").trim();
+    const parsed = normalized === "" ? NaN : parseFloat(normalized);
+    if (isNaN(parsed) || parsed < 0) {
+      alert("Please enter a valid non-negative time in seconds.");
+      return;
+    }
+
     onSubmit({
       result_data: {
-        completion_time_seconds: completionTime,
+        completion_time_seconds: parsed,
         notes: notes,
       },
       extra_shots: extraShots,
@@ -65,14 +77,13 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
           Completion Time (seconds)
         </label>
         <input
-          type="number"
-          step="0.1"
-          min="0"
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*[.,]?[0-9]*"
           value={completionTime}
-          onChange={(e) => setCompletionTime(Number(e.target.value))}
+          onChange={(e) => setCompletionTime(e.target.value)}
           className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Enter completion time in seconds"
-          required
         />
       </div>
       
