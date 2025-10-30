@@ -1,4 +1,54 @@
+# Multi-stage Dockerfile for Rally web (when used as Platform submodule)
+# Build context: Platform root (or extensions/rally)
+# Generates OpenAPI schema → builds web → packages artifact
+
+# Stage 1: Generate OpenAPI schema from api-rally
+FROM python:3.11-slim AS schema-generator
+WORKDIR /app
+
+# Copy only what's needed for schema generation
+COPY api-rally/pyproject.toml api-rally/poetry.lock* ./
+RUN pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-root --only main
+
+# Copy API source and generate schema
+COPY api-rally/app ./app
+RUN python -c "\
+from app.main import app; \
+from fastapi.openapi.utils import get_openapi; \
+import json; \
+schema = get_openapi( \
+    title=getattr(app, 'title', 'Rally API'), \
+    version=getattr(app, 'version', '0.0.0'), \
+    routes=app.routes \
+); \
+json.dump(schema, open('/app/openapi.json', 'w'), indent=2); \
+print('✓ Generated OpenAPI schema')"
+
+# Stage 2: Build web frontend
+FROM node:20-alpine AS web-builder
+WORKDIR /web
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Copy package files and install dependencies
+COPY web-rally/package.json web-rally/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+
+# Copy web source and OpenAPI schema
+COPY web-rally/ ./
+COPY --from=schema-generator /app/openapi.json ./openapi.json
+
+# Build (prebuild hook will generate client from openapi.json)
+ENV GENERATE_SOURCEMAP=false
+RUN pnpm build && \
+    echo "✓ Web build complete: $(du -sh dist | cut -f1)"
+
+# Stage 3: Artifact-only image for serving
 FROM scratch AS artifact
-# Minimal artifact-only image containing built static assets
-# Build context must be web-rally/ with dist/ already present
-COPY dist /dist
+COPY --from=web-builder /web/dist /dist
+
+# For nginx deployment, extract with:
+# docker cp $(docker create <image>):/dist ./rally-dist

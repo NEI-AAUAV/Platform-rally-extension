@@ -33,13 +33,7 @@ services:
     build:
       context: extensions/rally
       dockerfile: web-rally/Dockerfile.prod
-      args:
-        HAS_API_RALLY: 1
-        API_RALLY_DIR: api-rally
-        # Optionally set OPENAPI_URL if you prefer fetching from a live endpoint
-        # OPENAPI_URL: "${OPENAPI_URL:-}"
-    ports:
-      - 3003:3003
-    networks:
-      - frontend
+      # Multi-stage build handles: schema gen → web build → artifact
+    # Note: Final image is FROM scratch with only /dist
+    # For serving, extract dist and use external nginx
     restart: always
