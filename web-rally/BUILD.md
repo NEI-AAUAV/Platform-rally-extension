@@ -18,11 +18,11 @@ docker compose -f compose.prod.yml build web_rally
 The Dockerfile will:
 1. Generate OpenAPI schema from api-rally (Python stage)
 2. Generate client and build web (Node stage)
-3. Package dist into minimal artifact (scratch stage)
+3. Serve with nginx on port 3003 (nginx stage)
 
 ### Mode 2: Standalone CI Build (For Rally repo CI)
 
-Rally repo publishes pre-built artifacts to GHCR.
+Rally repo can publish pre-built static artifacts (no nginx) to GHCR for external deployment.
 
 **Build context:** `web-rally/` (dist must already exist)
 
@@ -31,9 +31,11 @@ Rally repo publishes pre-built artifacts to GHCR.
 cd extensions/rally/web-rally
 ./build-local.sh
 
-# Then build artifact-only image
+# Then build artifact-only image (no nginx, just files)
 docker build -f Dockerfile.standalone -t web-rally-artifact .
 ```
+
+**Note:** Platform deployment uses `Dockerfile.prod` (with nginx), not the artifact image.
 
 ## Prerequisites
 
@@ -109,26 +111,36 @@ cd extensions/rally/web-rally
 docker build -f Dockerfile.standalone -t rally-artifact .
 ```
 
-### Extract and Deploy
+### Extract Static Files (from artifact image)
+
+If you need just the static files (e.g., for external nginx):
 
 ```bash
-# Extract dist from artifact image
+# Extract dist from artifact-only image
 id=$(docker create rally-artifact)
 docker cp $id:/dist ./rally-static
 docker rm $id
 
-# Deploy to nginx
+# Deploy to external nginx
 rsync -a --delete ./rally-static/ /var/www/html/rally/
 ```
+
+**Note:** Platform doesn't use this - it runs nginx inside the container.
 
 ## Platform CI/CD Integration
 
 ### Option A: Build in Docker (Current Setup)
 
-Platform's `compose.prod.yml` builds Rally web using multi-stage Dockerfile.
+Platform's `compose.prod.yml` builds Rally web using multi-stage Dockerfile with nginx.
 
-**Pros:** All-in-one build, no separate steps
-**Cons:** Longer build time
+**Pros:** 
+- All-in-one build, no separate steps
+- Nginx serves files directly from container
+- Consistent with web_nei/web_gala pattern
+
+**Cons:** 
+- Longer build time (includes schema gen + web build)
+- Larger image (includes nginx)
 
 ### Option B: Pre-build in CI (Faster)
 

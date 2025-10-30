@@ -33,7 +33,9 @@ services:
     build:
       context: extensions/rally
       dockerfile: web-rally/Dockerfile.prod
-      # Multi-stage build handles: schema gen → web build → artifact
-    # Note: Final image is FROM scratch with only /dist
-    # For serving, extract dist and use external nginx
+      # Multi-stage build handles: schema gen → web build → nginx serve
+    ports:
+      - 3003:3003
+    networks:
+      - frontend
     restart: always
