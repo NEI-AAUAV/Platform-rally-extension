@@ -4,7 +4,7 @@ pnpm-store
 .pnpm-store
 
 # Build output
-dist
+# Note: dist is NOT excluded - needed for Dockerfile.standalone (CI artifact builds)
 build
 
 # Generated files
