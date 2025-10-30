@@ -474,7 +474,7 @@ def evaluate_team_activity(
     team_id: int,
     activity_id: int,
     result_in: ActivityResultEvaluation,
-    current_user: DetailedUser = Depends(get_current_user),
+    current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
 ):
     """Evaluate a team's performance in an activity"""
@@ -519,7 +519,7 @@ def update_team_activity_evaluation(
     activity_id: int,
     result_id: int,
     result_in: ActivityResultUpdate,
-    current_user: DetailedUser = Depends(get_current_user),
+    current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
 ):
     """Update a team's activity evaluation"""
