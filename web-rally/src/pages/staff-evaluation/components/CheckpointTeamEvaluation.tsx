@@ -195,11 +195,26 @@ export default function CheckpointTeamEvaluation() {
       activityId: number;
       resultData: any;
     }) => {
-      return await StaffEvaluationService.evaluateTeamActivityApiRallyV1StaffTeamsTeamIdActivitiesActivityIdEvaluatePost(
-        teamId, 
-        activityId, 
-        resultData
-      );
+      // Force JSON body to avoid null payloads
+      const token = userStore.token;
+      const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
+      // eslint-disable-next-line no-console
+      console.log("POST", url, resultData);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        // Backend currently expects wrapper key `result_in`
+        body: JSON.stringify({ result_in: resultData ?? {} }),
+      });
+      if (!res.ok) {
+        let err: any;
+        try { err = await res.json(); } catch (_) { err = { detail: res.statusText }; }
+        throw err;
+      }
+      return await res.json();
     },
     onSuccess: () => {
       // Invalidate relevant queries
