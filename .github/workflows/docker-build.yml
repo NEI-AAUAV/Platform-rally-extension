@@ -93,7 +93,7 @@ jobs:
       - name: Build web production image
         uses: docker/build-push-action@v5
         with:
-          context: ./web-rally
+          context: .
           file: ./web-rally/Dockerfile.prod
           push: false
           tags: rally-web:prod
