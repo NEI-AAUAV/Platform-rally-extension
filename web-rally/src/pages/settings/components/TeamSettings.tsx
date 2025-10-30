@@ -3,7 +3,7 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
 interface TeamSettingsProps {
@@ -13,7 +13,7 @@ interface TeamSettingsProps {
 
 export default function TeamSettings({ className = "", disabled = false }: TeamSettingsProps) {
   const { Card } = useThemedComponents();
-  const { register, watch, setValue } = useFormContext();
+  const { register, control } = useFormContext();
 
   return (
     <Card variant="default" padding="none" rounded="2xl" className={className}>
@@ -55,11 +55,17 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
         </div>
         
         <div className="flex items-center space-x-2">
-          <Switch
-            
-            checked={watch('enable_versus')}
-            onCheckedChange={(checked) => setValue('enable_versus', checked)}
-            disabled={disabled}
+          <Controller
+            name="enable_versus"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
           />
           <Label htmlFor="enable_versus">
             Ativar modo versus (competição entre equipas)

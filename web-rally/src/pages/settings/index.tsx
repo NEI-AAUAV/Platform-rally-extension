@@ -74,14 +74,15 @@ export default function RallySettings() {
   });
 
   // Form setup
-  const form = useForm({
+  const form = useForm<RallySettingsForm>({
     resolver: zodResolver(rallySettingsSchema),
+    mode: "onChange", // Validate on change to catch errors early
     defaultValues: {
       max_teams: 16,
       max_members_per_team: 10,
       enable_versus: false,
-      rally_start_time: null,
-      rally_end_time: null,
+      rally_start_time: null as any,
+      rally_end_time: null as any,
       penalty_per_puke: -5,
       penalty_per_not_drinking: -2,
       bonus_per_extra_shot: 1,
@@ -91,7 +92,7 @@ export default function RallySettings() {
       show_live_leaderboard: true,
       show_team_details: true,
       show_checkpoint_map: true,
-      rally_theme: "Rally Tascas",
+      rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
     },
   });
@@ -99,6 +100,20 @@ export default function RallySettings() {
   // Update form when settings are loaded
   useEffect(() => {
     if (settings) {
+      // Map theme values - server might have legacy values but select expects "nei", "bloody", or "default"
+      let mappedTheme = settings.rally_theme || "bloody";
+      // Handle various legacy theme names
+      if (mappedTheme.includes("Rally Tascas") || mappedTheme === "default") {
+        mappedTheme = "default";
+      } else if (mappedTheme.includes("NEI") || mappedTheme === "nei") {
+        mappedTheme = "nei";
+      } else if (mappedTheme.includes("Halloween") || mappedTheme.includes("Bloody") || mappedTheme === "bloody") {
+        mappedTheme = "bloody";
+      } else {
+        // Unknown theme, default to bloody
+        mappedTheme = "bloody";
+      }
+      
       form.reset({
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
@@ -114,7 +129,7 @@ export default function RallySettings() {
         show_live_leaderboard: settings.show_live_leaderboard,
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
-        rally_theme: settings.rally_theme,
+        rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
       });
     }
@@ -152,11 +167,35 @@ export default function RallySettings() {
       rally_start_time: data.rally_start_time ? localDatetimeLocalToUTCISOString(data.rally_start_time) : null,
       rally_end_time: data.rally_end_time ? localDatetimeLocalToUTCISOString(data.rally_end_time) : null,
     };
+    
     updateSettings(settingsData);
+  };
+  
+  const handleSubmitError = (errors: any) => {
+    // Show specific error messages
+    const errorMessages = Object.entries(errors)
+      .map(([field, error]: [string, any]) => `${field}: ${error.message}`)
+      .join(", ");
+    
+    toast.error(`Erros no formulário: ${errorMessages}`);
   };
 
   const handleCancel = () => {
     if (settings) {
+      // Map theme values - server might have legacy values but select expects "nei", "bloody", or "default"
+      let mappedTheme = settings.rally_theme || "bloody";
+      // Handle various legacy theme names
+      if (mappedTheme.includes("Rally Tascas") || mappedTheme === "default") {
+        mappedTheme = "default";
+      } else if (mappedTheme.includes("NEI") || mappedTheme === "nei") {
+        mappedTheme = "nei";
+      } else if (mappedTheme.includes("Halloween") || mappedTheme.includes("Bloody") || mappedTheme === "bloody") {
+        mappedTheme = "bloody";
+      } else {
+        // Unknown theme, default to bloody
+        mappedTheme = "bloody";
+      }
+      
       form.reset({
                max_teams: settings.max_teams,
                max_members_per_team: settings.max_members_per_team,
@@ -172,7 +211,7 @@ export default function RallySettings() {
         show_live_leaderboard: settings.show_live_leaderboard,
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
-        rally_theme: settings.rally_theme,
+        rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
       });
     }
@@ -245,7 +284,7 @@ export default function RallySettings() {
       )}
 
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(handleSave)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-8">
           <DisplaySettings disabled={!isEditing} />
           <TeamSettings disabled={!isEditing} />
           <RallyTimingSettings disabled={!isEditing} />
