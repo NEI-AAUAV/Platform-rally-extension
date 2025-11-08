@@ -102,7 +102,7 @@ jobs:
         POSTGRES_DB: postgres_test
         
     - name: Upload API test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: api-test-results
@@ -140,7 +140,7 @@ jobs:
         fi
         
     - name: Upload frontend test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: frontend-test-results
@@ -221,7 +221,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
         
     - name: Upload integration test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: integration-test-results
