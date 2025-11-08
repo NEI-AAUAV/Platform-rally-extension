@@ -33,7 +33,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.22.4",
-    "zustand": "^4.4.4"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@total-typescript/ts-reset": "^0.5.1",
