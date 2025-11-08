@@ -3,6 +3,7 @@ Scoring system service for Rally activities
 """
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session, joinedload
+import logging
 from datetime import datetime, timezone
 
 from app.models.activity import ActivityResult, Activity
@@ -346,4 +347,5 @@ class ScoringService:
             
         except Exception as e:
             self.db.rollback()
-            return False, f"Error creating team vs team results: {str(e)}"
+            logging.exception("Exception occurred in create_team_vs_result")
+            return False, "An internal error occurred while creating the team vs team results."
