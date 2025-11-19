@@ -260,34 +260,33 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* TeamVsActivity Result */}
-                            {(() => {
-                              const result = evaluation.result_data?.result;
-                              const opponentId = evaluation.result_data?.opponent_team_id;
-                              if (evaluation.activity.activity_type === 'TeamVsActivity' && typeof result === 'string' && result) {
-                                return (
-                                  <>
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`text-xs ${
-                                        result === 'win' 
-                                          ? 'border-green-500/50 text-green-400' 
-                                          : result === 'lose'
-                                          ? 'border-red-500/50 text-red-400'
-                                          : 'border-yellow-500/50 text-yellow-400'
-                                      }`}
-                                    >
-                                      {result === 'win' ? '✓ Won' : result === 'lose' ? '✗ Lost' : '= Draw'}
-                                    </Badge>
-                                    {typeof opponentId === 'number' && opponentId && (
-                                      <Badge variant="outline" className="text-xs">
-                                        vs Team #{opponentId}
-                                      </Badge>
-                                    )}
-                                  </>
-                                );
-                              }
-                              return null;
-                            })()}
+                            {evaluation.activity.activity_type === 'TeamVsActivity' && 
+                             evaluation.result_data && 
+                             'result' in evaluation.result_data &&
+                             typeof evaluation.result_data.result === 'string' &&
+                             evaluation.result_data.result && (
+                              <>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    evaluation.result_data.result === 'win' 
+                                      ? 'border-green-500/50 text-green-400' 
+                                      : evaluation.result_data.result === 'lose'
+                                      ? 'border-red-500/50 text-red-400'
+                                      : 'border-yellow-500/50 text-yellow-400'
+                                  }`}
+                                >
+                                  {evaluation.result_data.result === 'win' ? '✓ Won' : evaluation.result_data.result === 'lose' ? '✗ Lost' : '= Draw'}
+                                </Badge>
+                                {'opponent_team_id' in evaluation.result_data && 
+                                 typeof evaluation.result_data.opponent_team_id === 'number' && 
+                                 evaluation.result_data.opponent_team_id && (
+                                  <Badge variant="outline" className="text-xs">
+                                    vs Team #{evaluation.result_data.opponent_team_id}
+                                  </Badge>
+                                )}
+                              </>
+                            )}
                             
                             {/* Notes */}
                             {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
