@@ -8,15 +8,27 @@ The Rally extension uses a comprehensive testing strategy covering unit tests, i
 
 ### Unit Tests
 - **Framework**: Vitest
-- **Location**: `src/test/`
+- **Location**: `tests/unit/`
 - **Coverage**: Business logic, utilities, stores, hooks
 - **Run**: `pnpm test`
+- **Test Files**:
+  - `useUserStore.test.ts` - Zustand store tests (authentication, token management)
+  - `useRallySettings.test.tsx` - Rally settings hook tests
+  - `timezone.test.ts` - Timezone utility tests
 
 ### E2E Tests
 - **Framework**: Playwright
 - **Location**: `tests/e2e/`
 - **Coverage**: Critical user flows, UI interactions, API integration
 - **Run**: `pnpm test:e2e`
+- **Test Files**:
+  - `staff-evaluation.spec.ts` - Staff and manager evaluation flows (41 tests)
+
+### Shared Test Utilities
+- **Location**: `tests/mocks/`
+- **Files**:
+  - `data.ts` - Mock data for tests (checkpoints, teams, activities, tokens)
+  - `handlers.ts` - MSW handlers (legacy, not currently used - using Playwright route mocking)
 
 ## E2E Test Suite
 
@@ -119,7 +131,7 @@ pnpm exec playwright show-report
 
 ### Test Data
 
-Mock data is centralized in `src/test/mocks/data.ts`:
+Mock data is centralized in `tests/mocks/data.ts`:
 - Checkpoints, teams, activities
 - Activity results
 - Rally settings

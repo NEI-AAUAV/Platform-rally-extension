@@ -12,7 +12,7 @@ import {
   MOCK_SCORE_BASED_ACTIVITY,
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
-} from '../../src/test/mocks/data';
+} from '../mocks/data';
 
 test.describe('Staff Evaluation Flow', () => {
   test.beforeEach(async ({ page, context }) => {

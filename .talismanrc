@@ -12,8 +12,8 @@ fileignoreconfig:
   checksum: 26b0fa28dd816ab5d87b9efc26751b7c59b06258f86f349c1cbac1b0bca94187
 - filename: dev-keys/jwt.key.pub
   checksum: 11affec0830eb0430370b8a3e119aef51f314b8ff9fcb8db27912d6a91715069
-- filename: web-rally/src/test/mocks/data.ts
-  checksum: 5ba491bd6b406ba0e795adb4c38bf54350eba526babc7792bbda2f6eff8fec3b
-- filename: web-rally/src/test/mocks/handlers.ts
-  checksum: 44bf55765742c652552d19d700ef370d772831b3ee56249a117ed830048227e7
+- filename: web-rally/tests/mocks/data.ts
+  checksum: 03e2cef1f097a08032242d5938dcf0e95c4c3b0e570fbfbf5cfd7c8cb3d8b223
+- filename: web-rally/tests/mocks/handlers.ts
+  checksum: 24eb8b9a0ced4b9728879a5e0ce1f34e0585f2c2facd5b68e65cfd262a296cc7
 version: "1.0"

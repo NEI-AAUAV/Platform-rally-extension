@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { setupServer } from 'msw/node';
-import { handlers } from '../../src/test/mocks/handlers';
+import { handlers } from '../mocks/handlers';
 
 // Create MSW server for Node.js (Playwright runs in Node)
 const server = setupServer(...handlers);
