@@ -17,6 +17,8 @@ import { ActivityType, ActivityCreate, Checkpoint } from "@/types/activityTypes"
 import { AlertCircle } from "lucide-react";
 import ActivityTypeInfo from "@/components/ActivityTypeInfo";
 
+type ConfigValue = string | number | boolean;
+
 const activityFormSchema = z.object({
   name: z.string().min(1, "Nome da atividade é obrigatório"),
   description: z.string().optional(),
@@ -24,7 +26,7 @@ const activityFormSchema = z.object({
     errorMap: () => ({ message: "Tipo de atividade é obrigatório" }),
   }),
   checkpoint_id: z.number().min(1, "Checkpoint é obrigatório"),
-  config: z.record(z.any()).optional(),
+  config: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
   is_active: z.boolean().default(true),
 });
 
@@ -69,13 +71,13 @@ export default function ActivityForm({
   });
 
   const watchActivityType = form.watch("activity_type");
-  const [configData, setConfigData] = useState<Record<string, any>>(initialData?.config || {});
+  const [configData, setConfigData] = useState<Record<string, ConfigValue>>(initialData?.config ?? {});
 
   const handleSubmit = (data: ActivityForm) => {
     onSubmit({ ...data, config: configData });
   };
   
-  const updateConfig = (key: string, value: any) => {
+  const updateConfig = (key: string, value: ConfigValue) => {
     setConfigData(prev => ({ ...prev, [key]: value }));
   };
 

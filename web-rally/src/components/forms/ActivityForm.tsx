@@ -1,24 +1,16 @@
-import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from './index';
+import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from "./index";
+import type { ActivityResponse, ActivityResultResponse } from "@/client";
+import type { FormSubmitHandler, Team } from "@/types/forms";
+
+interface ActivityWithStatus extends ActivityResponse {
+  evaluation_status: "pending" | "completed";
+  existing_result?: ActivityResultResponse | null;
+}
 
 interface ActivityFormProps {
-  activity: {
-    id: number;
-    name: string;
-    description?: string;
-    activity_type: string;
-    config: Record<string, any>;
-    is_active: boolean;
-    order: number;
-    evaluation_status: "pending" | "completed";
-    existing_result?: any;
-  };
-  team: {
-    id: number;
-    name: string;
-    members: any[];
-    checkpoint_id: number;
-  };
-  onSubmit: (data: any) => void;
+  activity: ActivityWithStatus;
+  team: Team;
+  onSubmit: FormSubmitHandler;
   isSubmitting: boolean;
 }
 
