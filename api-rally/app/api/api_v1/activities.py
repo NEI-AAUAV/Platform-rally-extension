@@ -37,7 +37,7 @@ def create_activity(
     activity_in: ActivityCreate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Create a new activity"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY, Resource.ACTIVITY)
     
@@ -68,7 +68,7 @@ def get_activities(
     checkpoint_id: Optional[int] = Query(None, gt=0),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityListResponse:
     """Get activities list"""
     # Allow authenticated users with Rally permissions to view activities
     # Specific permission checks happen at the resource level (results, evaluations)
@@ -100,7 +100,7 @@ def get_all_activity_results(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> List[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
     # require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -121,7 +121,7 @@ def get_activity(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Get activity by ID"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY, Resource.ACTIVITY)
     
@@ -143,7 +143,7 @@ def update_activity(
     activity_in: ActivityUpdate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Update an activity"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY, Resource.ACTIVITY)
     
@@ -165,7 +165,7 @@ def delete_activity(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Delete an activity"""
     require_permission(current_user, auth, Action.DELETE_ACTIVITY, Resource.ACTIVITY)
     
@@ -187,7 +187,7 @@ def create_activity_result(
     result_in: ActivityResultCreate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Create a new activity result"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -212,7 +212,7 @@ def get_activity_result(
     result_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Get activity result by ID"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -234,7 +234,7 @@ def update_activity_result(
     result_in: ActivityResultUpdate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Update an activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -257,7 +257,7 @@ def apply_extra_shots(
     extra_shots: int = Query(..., ge=0),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Apply extra shots bonus to activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -291,7 +291,7 @@ def apply_penalty(
     penalty_value: int = Query(..., ge=1),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Apply penalty to activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -323,7 +323,7 @@ def get_activity_ranking(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityRanking:
     """Get ranking for a specific activity"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -350,7 +350,7 @@ def get_global_ranking(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> GlobalRanking:
     """Get global team ranking"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -374,7 +374,7 @@ def create_team_vs_result(
     match_data: Dict[str, Any],
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Create team vs team activity results"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -399,7 +399,7 @@ def get_activity_statistics(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, Any]:
     """Get statistics for a specific activity"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     

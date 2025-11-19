@@ -1,3 +1,4 @@
+from typing import Dict, Any
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,7 @@ def get_rally_duration(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[])
-) -> dict:
+) -> Dict[str, Any]:
     """
     Get rally duration and timing information.
     
@@ -33,7 +34,7 @@ def get_team_rally_duration(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[])
-) -> dict:
+) -> Dict[str, Any]:
     """
     Get rally duration information for a specific team.
     

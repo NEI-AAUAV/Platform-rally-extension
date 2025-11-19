@@ -25,7 +25,7 @@ def create_versus_pair(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusPairResponse:
     """Create versus pair"""
     require_permission(
         user=curr_user,
@@ -50,7 +50,7 @@ def get_team_opponent(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusOpponentResponse:
     """Get a team's opponent"""
     require_permission(
         user=curr_user,
@@ -74,7 +74,7 @@ def list_versus_groups(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusGroupListResponse:
     """Get all versus groups"""
     require_permission(
         user=curr_user,
