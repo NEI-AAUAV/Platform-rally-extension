@@ -198,8 +198,6 @@ export default function CheckpointTeamEvaluation() {
       // Force JSON body to avoid null payloads
       const token = userStore.token;
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
-      // eslint-disable-next-line no-console
-      console.log("POST", url, resultData);
       const res = await fetch(url, {
         method: "POST",
         headers: {

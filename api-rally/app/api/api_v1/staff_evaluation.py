@@ -4,6 +4,7 @@ API endpoints for staff evaluation system
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.api.deps import get_db, get_current_user
 from app.api.auth import AuthData, api_nei_auth
@@ -197,9 +198,10 @@ def _checkin_team_to_checkpoint(db: Session, team_id: int, checkpoint_id: int) -
     
     try:
         team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores)
-        print(f"Checked team {team_id} into checkpoint {checkpoint_id}")
+        logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
     except Exception as e:
-        print(f"Failed to check team {team_id} into checkpoint {checkpoint_id}: {e}")
+        logger.error(f"Failed to check team {team_id} into checkpoint {checkpoint_id}: {e}")
+        raise
 
 
 def _advance_team_to_next_checkpoint(db: Session, team_id: int) -> None:
@@ -220,10 +222,11 @@ def _advance_team_to_next_checkpoint(db: Session, team_id: int) -> None:
         
         try:
             team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores)
-            print(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
+            logger.info(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
         except Exception as e:
             # Log error but don't fail the evaluation
-            print(f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}")
+            logger.error(f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}")
+            raise
 
 
 @router.get("/my-checkpoint", response_model=DetailedCheckPoint)
@@ -413,7 +416,7 @@ def get_team_activities_for_evaluation(
         )
     
     # Log the evaluation context for debugging
-    print(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
+    logger.debug(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
     
     # Always show activities for the staff's assigned checkpoint
     # This allows staff to evaluate teams from previous checkpoints using their checkpoint activities

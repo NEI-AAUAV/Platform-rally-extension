@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from loguru import logger
 
 from sqlalchemy.orm import Session
 
@@ -121,7 +122,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             self.update_classification(db=db)
         except Exception as e:
             # Log the error but don't fail team creation
-            print(f"Warning: Failed to update classification during team creation: {e}")
+            logger.warning(f"Failed to update classification during team creation: {e}")
         
         db.refresh(team)
         return team

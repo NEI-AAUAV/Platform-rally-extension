@@ -23,7 +23,7 @@ class ScopeEnum(str, Enum):
 
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="http://localhost:8000/api/nei/v1/auth/login",
+    tokenUrl="http://localhost:8000/api/nei/v1/auth/login",  # Used only for OpenAPI docs
     scopes={
         ScopeEnum.ADMIN: "Full access to everything.",
         ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
