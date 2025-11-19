@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import {
   MOCK_TEAM,
   MOCK_JWT_TOKEN_STAFF,
-  MOCK_JWT_TOKEN_MANAGER,
   MOCK_RALLY_SETTINGS,
 } from '../mocks/data';
 

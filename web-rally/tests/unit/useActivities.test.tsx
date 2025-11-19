@@ -6,8 +6,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
-import { ActivitiesService } from '@/client'
-import { useUserStore } from '@/stores/useUserStore'
+import { ActivitiesService, ActivityType } from '@/client'
 
 // Mock ActivitiesService
 vi.mock('@/client', () => ({
@@ -110,7 +109,7 @@ describe('useActivities Hook', () => {
     mockUseUser.mockReturnValue({
       userStore: {
         scopes: ['manager-rally'],
-        token: null,
+        token: '',
       },
     })
 
@@ -134,7 +133,7 @@ describe('useCreateActivity Hook', () => {
   it('should create activity and invalidate queries', async () => {
     const mockActivity = {
       name: 'New Activity',
-      activity_type: 'GeneralActivity' as const,
+      activity_type: ActivityType.GENERAL_ACTIVITY,
       checkpoint_id: 1,
     }
 
