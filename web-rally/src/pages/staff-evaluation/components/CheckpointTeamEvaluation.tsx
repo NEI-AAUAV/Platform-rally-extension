@@ -214,11 +214,23 @@ export default function CheckpointTeamEvaluation() {
       }
       return await res.json();
     },
-    onSuccess: () => {
-      // Invalidate relevant queries
+    onSuccess: (_data, variables) => {
+      // Invalidate relevant queries so other views pick up latest scores
       queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
       queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
       queryClient.invalidateQueries({ queryKey: ["allTeams"] });
+      queryClient.invalidateQueries({ queryKey: ["allEvaluations"] });
+
+      if (variables?.teamId != null) {
+        const numericKey = Number.isNaN(Number(variables.teamId)) ? undefined : Number(variables.teamId);
+        const stringKey = variables.teamId.toString();
+
+        if (numericKey !== undefined) {
+          queryClient.invalidateQueries({ queryKey: ["team", numericKey] });
+        }
+        queryClient.invalidateQueries({ queryKey: ["team", stringKey] });
+      }
+
       toast.success("Atividade avaliada com sucesso!");
     },
     onError: (error: any) => {

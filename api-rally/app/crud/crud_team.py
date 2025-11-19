@@ -132,15 +132,22 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team = self.get(db=db, id=id, for_update=True)
             update_data = obj_in.model_dump(exclude_unset=True)
 
-            last_size = None
-            for key in locked_arrays:
-                size = len(update_data.get(key) or getattr(team, key))
-                if last_size is not None and last_size != size:
-                    raise APIException(
-                        status_code=400, detail="Lists must have the same size"
-                    )
+            should_validate_locked = any(key in update_data for key in locked_arrays)
 
-                last_size = size
+            if should_validate_locked:
+                last_size = None
+                for key in locked_arrays:
+                    value = update_data.get(key, getattr(team, key))
+                    if value is None:
+                        continue
+
+                    size = len(value)
+                    if last_size is not None and last_size != size:
+                        raise APIException(
+                            status_code=400, detail="Lists must have the same size"
+                        )
+
+                    last_size = size
 
             team = super().update_unlocked(db_obj=team, obj_in=obj_in)
             db.commit()

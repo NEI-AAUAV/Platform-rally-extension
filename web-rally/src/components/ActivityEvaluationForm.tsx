@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,34 +10,8 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Clock, Star, CheckCircle, Trophy, Activity as ActivityIcon } from "lucide-react";
 import { useThemedComponents } from "@/components/themes";
-
-interface Activity {
-  id: number;
-  name: string;
-  description?: string;
-  activity_type: string;
-  config: Record<string, any>;
-  is_active: boolean;
-  order: number;
-  evaluation_status: "pending" | "completed";
-  existing_result?: any;
-}
-
-interface Team {
-  id: number;
-  name: string;
-  members: any[];
-  checkpoint_id: number;
-}
-
-interface ActivityEvaluationFormProps {
-  activity: Activity;
-  team: Team;
-  existingResult?: any;
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-  isSubmitting: boolean;
-}
+import type { ActivityResponse, ActivityResultResponse } from "@/client";
+import type { ActivityResultData, Team } from "@/types/forms";
 
 // Schema for time-based activities
 const timeBasedSchema = z.object({
@@ -87,6 +60,27 @@ const activityTypeIcons = {
   GeneralActivity: ActivityIcon,
 };
 
+type ActivityTypeKey = keyof typeof activityTypeLabels;
+
+type ActivityFormValues = {
+  completion_time_seconds?: number;
+  achieved_points?: number;
+  success?: boolean;
+  assigned_points?: number;
+  result?: "win" | "lose" | "draw";
+  opponent_team_id?: number;
+  notes?: string;
+};
+
+interface ActivityEvaluationFormProps {
+  activity: ActivityResponse;
+  team: Team;
+  existingResult?: ActivityResultResponse;
+  onSubmit: (data: ActivityResultData) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}
+
 export default function ActivityEvaluationForm({
   activity,
   team,
@@ -96,7 +90,6 @@ export default function ActivityEvaluationForm({
   isSubmitting,
 }: ActivityEvaluationFormProps) {
   const { Card: ThemedCard } = useThemedComponents();
-  const [_formData, _setFormData] = useState<any>({});
 
   // Determine which schema to use based on activity type
   const getSchema = () => {
@@ -117,7 +110,8 @@ export default function ActivityEvaluationForm({
   };
 
   const schema = getSchema();
-  const IconComponent = activityTypeIcons[activity.activity_type as keyof typeof activityTypeIcons] || ActivityIcon;
+  const iconKey = activity.activity_type as ActivityTypeKey;
+  const IconComponent = activityTypeIcons[iconKey] || ActivityIcon;
 
   const {
     register,
@@ -125,21 +119,15 @@ export default function ActivityEvaluationForm({
     watch,
     setValue,
     formState: { errors },
-  } = useForm({
+  } = useForm<ActivityFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: existingResult?.result_data || {},
+    defaultValues: (existingResult?.result_data as ActivityFormValues) || {},
   });
 
   const watchedValues = watch();
 
-  useEffect(() => {
-    _setFormData(watchedValues);
-  }, [watchedValues]);
-
-  const handleFormSubmit = (data: any) => {
-    const resultData = {
-      activity_id: activity.id,
-      team_id: team.id,
+  const handleFormSubmit = (data: ActivityFormValues) => {
+    const resultData: ActivityResultData = {
       result_data: data,
       extra_shots: 0,
       penalties: {},
@@ -260,10 +248,10 @@ export default function ActivityEvaluationForm({
                 id="assigned_points"
                 type="number"
                 min="0"
-                max={activity.config.max_points || 100}
+                max={(activity.config?.max_points as number) || 100}
                 {...register("assigned_points", { valueAsNumber: true })}
                 className="mt-1"
-                placeholder={`Enter points (0-${activity.config.max_points || 100})`}
+                placeholder={`Enter points (0-${(activity.config?.max_points as number) || 100})`}
               />
               {errors.assigned_points && (
                 <p className="text-red-400 text-sm mt-1">
@@ -271,7 +259,7 @@ export default function ActivityEvaluationForm({
                 </p>
               )}
               <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-                Range: {activity.config.min_points || 0} - {activity.config.max_points || 100} points
+                Range: {(activity.config?.min_points as number) || 0} - {(activity.config?.max_points as number) || 100} points
               </p>
             </div>
             <div>

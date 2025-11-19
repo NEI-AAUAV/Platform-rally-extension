@@ -33,13 +33,35 @@ interface Team {
   num_members: number;
 }
 
-import type { UserState } from "@/stores/useUserStore";
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") {
+    return fallback;
+  }
 
-interface TeamManagementProps {
-  userStore: UserState;
-}
+  const candidate = error as {
+    body?: { detail?: string };
+    response?: { data?: { detail?: string } };
+    message?: string;
+  };
 
-export default function TeamManagement({ userStore: _userStore }: TeamManagementProps) {
+  const bodyDetail = candidate.body?.detail;
+  if (typeof bodyDetail === "string") {
+    return bodyDetail;
+  }
+
+  const responseDetail = candidate.response?.data?.detail;
+  if (typeof responseDetail === "string") {
+    return responseDetail;
+  }
+
+  if (typeof candidate.message === "string" && candidate.message.length > 0) {
+    return candidate.message;
+  }
+
+  return fallback;
+};
+
+export default function TeamManagement() {
   const { Card } = useThemedComponents();
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
@@ -72,13 +94,8 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
       teamForm.reset();
       toast.success("Equipa criada com sucesso!");
     },
-    onError: (error: any) => {
-      // Try to extract detailed error message from different error structures
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao criar equipa";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao criar equipa"));
     },
   });
 
@@ -98,13 +115,8 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
       teamForm.reset();
       toast.success("Equipa atualizada com sucesso!");
     },
-    onError: (error: any) => {
-      // Try to extract detailed error message from different error structures
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao atualizar equipa";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao atualizar equipa"));
     },
   });
 
@@ -119,13 +131,8 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       toast.success("Equipa deletada com sucesso!");
     },
-    onError: (error: any) => {
-      // Try to extract detailed error message from different error structures
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao deletar equipa";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao deletar equipa"));
     },
   });
 
@@ -175,7 +182,7 @@ export default function TeamManagement({ userStore: _userStore }: TeamManagement
             <FormField
               control={teamForm.control}
               name="name"
-              render={({ field }: { field: any }) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome da Equipa</FormLabel>
                   <FormControl>

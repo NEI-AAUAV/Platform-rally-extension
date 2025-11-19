@@ -78,7 +78,7 @@ export default function Admin() {
 
       {/* Tab Content */}
       {activeTab === "teams" && (
-        <TeamManagement userStore={userStore} />
+        <TeamManagement />
       )}
 
       {activeTab === "checkpoints" && (

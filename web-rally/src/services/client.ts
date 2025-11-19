@@ -33,7 +33,7 @@ export async function refreshToken() {
       useUserStore.getState().login({ token: access_token });
       return access_token;
     })
-    .catch((error) => {
+    .catch(() => {
       // Token refresh failed - user needs to login again
       useUserStore.getState().logout();
       return undefined;
