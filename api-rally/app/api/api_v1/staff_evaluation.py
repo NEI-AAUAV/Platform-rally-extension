@@ -16,7 +16,6 @@ from app.crud.crud_activity import activity_result
 from app.crud.crud_team import team
 from app.crud.crud_checkpoint import checkpoint
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
-from app.schemas.team import ListingTeam
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team

@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import TypeAdapter
@@ -126,9 +126,9 @@ def create_checkpoint(
 def reorder_checkpoints(
     *,
     db: Session = Depends(deps.get_db),
-    checkpoint_orders: dict[int, int],
+    checkpoint_orders: Dict[int, int],
     _: DetailedUser = Depends(deps.get_admin),
-) -> dict:
+) -> Dict[str, str]:
     """Reorder checkpoints by updating their order values."""
     try:
         crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
@@ -159,7 +159,7 @@ def delete_checkpoint(
     db: Session = Depends(deps.get_db),
     id: int,
     _: DetailedUser = Depends(deps.get_admin),
-) -> dict:
+) -> Dict[str, str]:
     """Delete a checkpoint. Only admins can delete checkpoints."""
     try:
         # First, remove any staff assignments to this checkpoint

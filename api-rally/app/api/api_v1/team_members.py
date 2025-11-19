@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
@@ -83,7 +83,7 @@ def remove_team_member(
     db: Session = Depends(deps.get_db),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
-) -> dict:
+) -> Dict[str, str]:
     """
     Remove a member from a team.
     """

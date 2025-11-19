@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple, Optional, Dict
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Security
 
@@ -24,7 +24,7 @@ from app.schemas.team import (
 router = APIRouter()
 
 
-def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int, str | None]:
+def _compute_checkpoint_progress(db: Session, team_obj: Team) -> Tuple[int, int, Optional[str]]:
     """Compute last fully completed checkpoint and current checkpoint.
     A checkpoint is considered completed only when all its activities have a
     completed result for this team.
@@ -173,7 +173,7 @@ def delete_team(
     db: Session = Depends(deps.get_db),
     id: int,
     _: DetailedUser = Depends(deps.get_admin),
-) -> dict:
+) -> Dict[str, str]:
     """Delete a team. Only admins can delete teams."""
     try:
         # Check if team has members before deleting
