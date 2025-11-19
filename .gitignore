@@ -27,6 +27,10 @@ web-rally/dist/
 web-rally/.vite/
 web-rally/.eslintcache
 
+# Generated files (OpenAPI client)
+web-rally/openapi.json
+web-rally/src/client/
+
 # Logs
 *.log
 npm-debug.log*

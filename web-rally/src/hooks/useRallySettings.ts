@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type RallySettingsResponse, SettingsService } from "@/client";
+import { type RallySettingsResponse, SettingsService } from "@/client/index";
 
 export default function useRallySettings(options?: { retry?: boolean | number }) {
   const { data, isLoading, error, refetch } = useQuery({
