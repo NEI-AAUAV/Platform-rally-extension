@@ -1,19 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
-import { VersusService } from "@/client";
+import { VersusService, TeamService } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import type { BaseActivityFormProps } from "@/types/forms";
 import { getTeamSize } from "@/types/forms";
+import type { ListingTeam } from "@/client";
 
 export default function TeamVsForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   const [result, setResult] = useState<string>("win");
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
   const [opponentTeamName, setOpponentTeamName] = useState<string>("");
+  const [isOpponentPreselected, setIsOpponentPreselected] = useState(false);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const [teams, setTeams] = useState<ListingTeam[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const teamsFetchedRef = useRef(false);
   const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
@@ -28,36 +33,80 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   // Use penalty values from API settings or fallback to defaults
   const penaltyValues = getPenaltyValues(settings);
 
-  // Fetch opponent when team is available
+  // Fetch opponent when team is available, then fetch teams if needed
   useEffect(() => {
-    const fetchOpponent = async () => {
-      if (team?.id && !existingResult?.result_data?.opponent_team_id) {
+    const initializeOpponent = async () => {
+      if (!team?.id) return;
+
+      // First, try to fetch opponent from versus pair (if not in existingResult)
+      if (!existingResult?.result_data?.opponent_team_id) {
         try {
           const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(team.id);
           if (opponent?.opponent_id) {
             setOpponentTeamId(opponent.opponent_id);
             setOpponentTeamName(opponent.opponent_name || "");
+            setIsOpponentPreselected(true); // Mark as automatically preselected
+            return; // Opponent is preselected, don't fetch teams
           }
         } catch (error) {
           // Silently fail - opponent is optional
         }
       }
+
+      // If opponent is not preselected, fetch teams list (only once)
+      if (!teamsFetchedRef.current && !isLoadingTeams) {
+        teamsFetchedRef.current = true;
+        setIsLoadingTeams(true);
+        try {
+          const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
+          // Exclude current team from the list
+          const filteredTeams = teamsList.filter((t) => t.id !== team.id);
+          setTeams(filteredTeams);
+          
+          // If we have an opponent ID from existingResult but no name, try to find it now
+          const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
+          if (currentOpponentId) {
+            const foundTeam = filteredTeams.find((t) => t.id === currentOpponentId);
+            if (foundTeam && !opponentTeamName) {
+              setOpponentTeamName(foundTeam.name);
+            }
+          }
+        } catch (error) {
+          toast.error("Failed to load teams list");
+          teamsFetchedRef.current = false; // Allow retry on error
+        } finally {
+          setIsLoadingTeams(false);
+        }
+      }
     };
-    
-    fetchOpponent();
-  }, [team, existingResult]);
+
+    initializeOpponent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team?.id, existingResult?.result_data?.opponent_team_id]); // Only depend on team and existingResult
 
   useEffect(() => {
     if (existingResult?.result_data) {
       setResult(existingResult.result_data.result || "win");
-      setOpponentTeamId(existingResult.result_data.opponent_team_id);
+      const existingOpponentId = existingResult.result_data.opponent_team_id;
+      if (existingOpponentId && !opponentTeamId) {
+        setOpponentTeamId(existingOpponentId);
+        // Try to find team name from teams list if available
+        if (teams.length > 0) {
+          const existingTeam = teams.find((t) => t.id === existingOpponentId);
+          if (existingTeam && !opponentTeamName) {
+            setOpponentTeamName(existingTeam.name);
+          }
+        }
+        // Don't mark as preselected when loading from existingResult - allow editing
+        setIsOpponentPreselected(false);
+      }
       setNotes(existingResult.result_data.notes || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);
       setPenalties(existingResult.penalties || {});
     }
-  }, [existingResult]);
+  }, [existingResult, teams, opponentTeamId, opponentTeamName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,18 +149,43 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
         <label className="block text-sm font-medium mb-2 text-white">
           Opponent {opponentTeamName && `(${opponentTeamName})`}
         </label>
-        <input
-          type="number"
-          value={opponentTeamId || ""}
-          onChange={(e) => setOpponentTeamId(e.target.value ? Number(e.target.value) : undefined)}
-          disabled={!!opponentTeamId && !!opponentTeamName}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          placeholder="Enter opponent team ID"
-        />
-        {opponentTeamName && (
-          <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-            ✓ Opponent automatically set from versus pair
-          </p>
+        {isOpponentPreselected && opponentTeamId && opponentTeamName ? (
+          // Show read-only display when opponent is automatically preselected
+          <div>
+            <input
+              type="text"
+              value={opponentTeamName}
+              disabled
+              className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white opacity-50 cursor-not-allowed"
+            />
+            <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+              ✓ Opponent automatically set from versus pair
+            </p>
+          </div>
+        ) : (
+          // Show select dropdown when opponent is not preselected or manually selected
+          <select
+            value={opponentTeamId || ""}
+            onChange={(e) => {
+              const selectedId = e.target.value ? Number(e.target.value) : undefined;
+              setOpponentTeamId(selectedId);
+              const selectedTeam = teams.find((t) => t.id === selectedId);
+              setOpponentTeamName(selectedTeam?.name || "");
+              setIsOpponentPreselected(false); // Mark as manually selected
+            }}
+            disabled={isLoadingTeams || isSubmitting}
+            className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            required
+          >
+            <option value="" className="bg-gray-800">
+              {isLoadingTeams ? "Loading teams..." : "Select opponent team"}
+            </option>
+            {teams.map((teamOption) => (
+              <option key={teamOption.id} value={teamOption.id} className="bg-gray-800">
+                {teamOption.name}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
