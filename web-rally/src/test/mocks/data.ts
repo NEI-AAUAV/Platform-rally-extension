@@ -47,6 +47,55 @@ export const MOCK_ACTIVITY: ActivityResponse = {
   updated_at: new Date().toISOString(),
 };
 
+// Mock activities for each type
+export const MOCK_TIME_BASED_ACTIVITY: ActivityResponse = {
+  id: 2,
+  name: 'Time-Based Activity',
+  description: 'Complete as fast as possible',
+  activity_type: ActivityType.TIME_BASED_ACTIVITY,
+  checkpoint_id: 1,
+  config: {},
+  is_active: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+export const MOCK_SCORE_BASED_ACTIVITY: ActivityResponse = {
+  id: 3,
+  name: 'Score-Based Activity',
+  description: 'Achieve maximum points',
+  activity_type: ActivityType.SCORE_BASED_ACTIVITY,
+  checkpoint_id: 1,
+  config: {},
+  is_active: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+export const MOCK_BOOLEAN_ACTIVITY: ActivityResponse = {
+  id: 4,
+  name: 'Boolean Activity',
+  description: 'Pass or fail',
+  activity_type: ActivityType.BOOLEAN_ACTIVITY,
+  checkpoint_id: 1,
+  config: {},
+  is_active: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+export const MOCK_TEAM_VS_ACTIVITY: ActivityResponse = {
+  id: 5,
+  name: 'Team vs Team Activity',
+  description: 'Head-to-head competition',
+  activity_type: ActivityType.TEAM_VS_ACTIVITY,
+  checkpoint_id: 1,
+  config: {},
+  is_active: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 // Mock activity list response
 export const MOCK_ACTIVITY_LIST: ActivityListResponse = {
   activities: [MOCK_ACTIVITY],
