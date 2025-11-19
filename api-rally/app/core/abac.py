@@ -75,7 +75,7 @@ class Context:
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.request_time is None:
             self.request_time = datetime.now()
 
@@ -93,18 +93,18 @@ class Policy:
 class ABACEngine:
     """ABAC policy evaluation engine"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.policies: List[Policy] = []
         self._load_default_policies()
     
-    def _load_default_policies(self):
+    def _load_default_policies(self) -> None:
         """Load default Rally ABAC policies"""
         self._load_admin_policies()
         self._load_manager_policies()
         self._load_staff_policies()
         self._load_default_deny_policy()
     
-    def _load_admin_policies(self):
+    def _load_admin_policies(self) -> None:
         """Load admin access policies"""
         self.policies.append(Policy(
             name="admin_full_access",
@@ -116,7 +116,7 @@ class ABACEngine:
             priority=100
         ))
     
-    def _load_manager_policies(self):
+    def _load_manager_policies(self) -> None:
         """Load rally manager access policies"""
         # Rally managers can manage checkpoints and teams
         self.policies.append(Policy(
@@ -178,7 +178,7 @@ class ABACEngine:
             priority=90
         ))
     
-    def _load_staff_policies(self):
+    def _load_staff_policies(self) -> None:
         """Load staff access policies"""
         # Staff can only add scores at their assigned checkpoint
         self.policies.append(Policy(
@@ -259,7 +259,7 @@ class ABACEngine:
             priority=70
         ))
     
-    def _load_default_deny_policy(self):
+    def _load_default_deny_policy(self) -> None:
         """Load default deny policy for unauthenticated users"""
         self.policies.append(Policy(
             name="default_deny",
@@ -330,22 +330,22 @@ class ABACEngine:
         """Evaluate action conditions"""
         if isinstance(value, dict):
             if "in" in value:
-                return context.action.value in value["in"]
+                return bool(context.action.value in value["in"])
             elif "not_in" in value:
-                return context.action.value not in value["not_in"]
+                return bool(context.action.value not in value["not_in"])
             elif "equals" in value:
-                return context.action.value == value["equals"]
+                return bool(context.action.value == value["equals"])
         else:
-            return context.action.value == value
+            return bool(context.action.value == value)
         return False
     
     def _evaluate_resource(self, value: Any, context: Context) -> bool:
         """Evaluate resource conditions"""
         if isinstance(value, dict):
             if "equals" in value:
-                return context.resource.value == value["equals"]
+                return bool(context.resource.value == value["equals"])
         else:
-            return context.resource.value == value
+            return bool(context.resource.value == value)
         return False
     
     def _evaluate_checkpoint_id(self, value: Any, context: Context) -> bool:
@@ -354,9 +354,9 @@ class ABACEngine:
             if "is_not_null" in value and value["is_not_null"]:
                 return context.checkpoint_id is not None
             elif "equals" in value:
-                return context.checkpoint_id == value["equals"]
+                return bool(context.checkpoint_id == value["equals"])
         else:
-            return context.checkpoint_id == value
+            return bool(context.checkpoint_id == value)
         return False
     
     def _evaluate_user_staff_checkpoint_id(self, value: Any, context: Context) -> bool:
@@ -370,16 +370,16 @@ class ABACEngine:
     
     def _evaluate_time_window(self, value: Any, context: Context) -> bool:
         """Evaluate time-based conditions"""
-        if "hours" in value:
+        if "hours" in value and context.request_time is not None:
             window_start = context.request_time - timedelta(hours=value["hours"])
             return context.request_time >= window_start
         return False
     
-    def add_policy(self, policy: Policy):
+    def add_policy(self, policy: Policy) -> None:
         """Add a custom policy"""
         self.policies.append(policy)
     
-    def remove_policy(self, policy_name: str):
+    def remove_policy(self, policy_name: str) -> None:
         """Remove a policy by name"""
         self.policies = [p for p in self.policies if p.name != policy_name]
 
@@ -393,7 +393,7 @@ def check_permission(
     auth: AuthData,
     action: Action,
     resource: Resource,
-    **kwargs
+    **kwargs: Any
 ) -> bool:
     """
     Check if a user has permission to perform an action on a resource
@@ -424,8 +424,8 @@ def require_permission(
     auth: AuthData,
     action: Action,
     resource: Resource,
-    **kwargs
-):
+    **kwargs: Any
+) -> None:
     """
     Require permission or raise HTTPException
     
