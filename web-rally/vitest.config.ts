@@ -16,6 +16,8 @@ export default defineConfig({
       '**/*.d.ts',
       '**/*.config.*',
       '**/vite-env.d.ts',
+      '.pnpm-store/**',
+      '**/.pnpm-store/**',
     ],
     coverage: {
       provider: 'v8',
