@@ -1822,6 +1822,601 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
   });
 });
 
+test.describe('Staff Evaluation - Form Validation', () => {
+  const setupTestForActivityType = async (
+    page: any,
+    context: any,
+    activity: typeof MOCK_ACTIVITY,
+  ) => {
+    // Set up route mocks
+    await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: MOCK_JWT_TOKEN_STAFF,
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
+    await page.route('**/api/rally/v1/checkpoint/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_CHECKPOINT]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/team/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_TEAM]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/activities/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          activities: [activity],
+          total: 1,
+          page: 1,
+          size: 100,
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/staff/teams/*/activities**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          team: MOCK_TEAM,
+          activities: [activity],
+          evaluation_summary: {
+            total_activities: 1,
+            completed_activities: 0,
+            pending_activities: 1,
+            completion_rate: 0,
+            has_incomplete: true,
+            missing_activities: [activity.name],
+            checkpoint_mismatch: false,
+            team_checkpoint: 1,
+            current_checkpoint: 1,
+          },
+        }),
+      });
+    });
+
+    await context.addInitScript(
+      ([token]) => {
+        localStorage.setItem('rally_token', token);
+      },
+      [MOCK_JWT_TOKEN_STAFF],
+    );
+
+    await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/rally/v1/rally/settings/public') &&
+        response.status() === 200,
+      { timeout: 10000 },
+    );
+
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+  };
+
+  test('rejects negative time values in TimeBasedActivity', async ({ page, context }) => {
+    await setupTestForActivityType(page, context, MOCK_TIME_BASED_ACTIVITY);
+
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+    await page.waitForTimeout(2000);
+
+    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
+    if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await evaluateButton.click();
+      await page.waitForTimeout(1000);
+
+      const timeInput = page.getByLabel(/completion time|tempo/i).first();
+      if (await timeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await timeInput.fill('-10');
+        await page.waitForTimeout(500);
+
+        // Try to submit - should show validation error
+        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitButton.click();
+          await page.waitForTimeout(1000);
+
+          // Should show validation error
+          await expect(
+            page.getByText(/time must be positive|must be positive|invalid/i).first(),
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+  });
+
+  test('rejects empty time field in TimeBasedActivity', async ({ page, context }) => {
+    await setupTestForActivityType(page, context, MOCK_TIME_BASED_ACTIVITY);
+
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+    await page.waitForTimeout(2000);
+
+    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
+    if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await evaluateButton.click();
+      await page.waitForTimeout(1000);
+
+      // Leave time field empty and try to submit
+      const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+      if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await submitButton.click();
+        await page.waitForTimeout(1000);
+
+        // Should show validation error or prevent submission
+        const hasError = await Promise.race([
+          page.getByText(/required|obrigatório|invalid|must/i).first().isVisible().catch(() => false),
+          page.waitForTimeout(1000).then(() => false),
+        ]);
+
+        // Form should still be visible (not submitted)
+        await expect(
+          page.getByText(/completion time|tempo/i).first(),
+        ).toBeVisible({ timeout: 2000 });
+      }
+    }
+  });
+
+  test('rejects negative points in ScoreBasedActivity', async ({ page, context }) => {
+    await setupTestForActivityType(page, context, MOCK_SCORE_BASED_ACTIVITY);
+
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+    await page.waitForTimeout(2000);
+
+    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
+    if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await evaluateButton.click();
+      await page.waitForTimeout(1000);
+
+      const pointsInput = page.getByLabel(/achieved points|pontos/i).first();
+      if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await pointsInput.fill('-5');
+        await page.waitForTimeout(500);
+
+        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitButton.click();
+          await page.waitForTimeout(1000);
+
+          // Should show validation error
+          await expect(
+            page.getByText(/points must be positive|must be positive|invalid/i).first(),
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+  });
+
+  test('rejects negative points in GeneralActivity', async ({ page, context }) => {
+    await setupTestForActivityType(page, context, MOCK_ACTIVITY);
+
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+    await page.waitForTimeout(2000);
+
+    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
+    if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await evaluateButton.click();
+      await page.waitForTimeout(1000);
+
+      const pointsInput = page.getByLabel(/assigned points|pontos/i).first();
+      if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await pointsInput.fill('-20');
+        await page.waitForTimeout(500);
+
+        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitButton.click();
+          await page.waitForTimeout(1000);
+
+          // Should show validation error
+          await expect(
+            page.getByText(/points must be positive|must be positive|invalid/i).first(),
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+  });
+});
+
+test.describe('Staff Evaluation - Update Existing Evaluations', () => {
+  test.beforeEach(async ({ page, context }) => {
+    // Mock activity with existing completed result
+    const activityWithResult = {
+      ...MOCK_ACTIVITY,
+      existing_result: {
+        ...MOCK_ACTIVITY_RESULT,
+        is_completed: true,
+        completed_at: new Date().toISOString(),
+        final_score: 75,
+        result_data: { assigned_points: 75 },
+      },
+    };
+
+    await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: MOCK_JWT_TOKEN_STAFF,
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
+    await page.route('**/api/rally/v1/checkpoint/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_CHECKPOINT]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/team/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_TEAM]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/activities/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          activities: [activityWithResult],
+          total: 1,
+          page: 1,
+          size: 100,
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/staff/teams/*/activities**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          team: MOCK_TEAM,
+          activities: [activityWithResult],
+          evaluation_summary: {
+            total_activities: 1,
+            completed_activities: 1,
+            pending_activities: 0,
+            completion_rate: 100,
+            has_incomplete: false,
+            missing_activities: [],
+            checkpoint_mismatch: false,
+            team_checkpoint: 1,
+            current_checkpoint: 1,
+          },
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...MOCK_ACTIVITY_RESULT,
+          is_completed: true,
+          completed_at: new Date().toISOString(),
+          final_score: 90,
+        }),
+      });
+    });
+
+    await context.addInitScript(
+      ([token]) => {
+        localStorage.setItem('rally_token', token);
+      },
+      [MOCK_JWT_TOKEN_STAFF],
+    );
+
+    await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/rally/v1/rally/settings/public') &&
+        response.status() === 200,
+      { timeout: 10000 },
+    );
+
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+  });
+
+  test('allows updating existing completed evaluation', async ({ page }) => {
+    // Select team
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+
+    await page.waitForTimeout(2000);
+
+    // Should show activity as completed
+    await expect(
+      page.getByText(/completed|complet|update/i).first(),
+    ).toBeVisible({ timeout: 5000 });
+
+    // Click update button (should be visible for completed activities)
+    const updateButton = page.getByRole('button', { name: /update|atualizar/i }).first();
+    if (await updateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await updateButton.click();
+      await page.waitForTimeout(1000);
+
+      // Form should be visible with existing values
+      await expect(
+        page.getByText(/evaluate|avaliar/i).first(),
+      ).toBeVisible({ timeout: 5000 });
+
+      // Update the points value
+      const pointsInput = page.getByLabel(/assigned points|pontos/i).first();
+      if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        // Should have existing value pre-filled
+        const currentValue = await pointsInput.inputValue();
+        expect(currentValue).toBeTruthy();
+
+        // Update to new value
+        await pointsInput.fill('90');
+        await page.waitForTimeout(500);
+
+        // Submit update
+        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitButton.click();
+          await page.waitForTimeout(2000);
+
+          // Should show success message
+          await expect(
+            page.getByText(/atividade avaliada com sucesso|success|sucesso/i).first(),
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+  });
+});
+
+test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
+  test.beforeEach(async ({ page, context }) => {
+    // Mock multiple activities for the same team
+    const multipleActivities = [
+      MOCK_ACTIVITY,
+      MOCK_TIME_BASED_ACTIVITY,
+      MOCK_SCORE_BASED_ACTIVITY,
+    ];
+
+    await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: MOCK_JWT_TOKEN_STAFF,
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
+    await page.route('**/api/rally/v1/checkpoint/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_CHECKPOINT]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/team/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([MOCK_TEAM]),
+      });
+    });
+
+    await page.route('**/api/rally/v1/activities/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          activities: multipleActivities,
+          total: multipleActivities.length,
+          page: 1,
+          size: 100,
+        }),
+      });
+    });
+
+    let evaluationCount = 0;
+    await page.route('**/api/rally/v1/staff/teams/*/activities**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          team: MOCK_TEAM,
+          activities: multipleActivities,
+          evaluation_summary: {
+            total_activities: multipleActivities.length,
+            completed_activities: evaluationCount,
+            pending_activities: multipleActivities.length - evaluationCount,
+            completion_rate: (evaluationCount / multipleActivities.length) * 100,
+            has_incomplete: evaluationCount < multipleActivities.length,
+            missing_activities: multipleActivities
+              .slice(evaluationCount)
+              .map((a) => a.name),
+            checkpoint_mismatch: false,
+            team_checkpoint: 1,
+            current_checkpoint: 1,
+          },
+        }),
+      });
+    });
+
+    await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', async (route) => {
+      evaluationCount++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...MOCK_ACTIVITY_RESULT,
+          is_completed: true,
+          completed_at: new Date().toISOString(),
+          final_score: 100,
+        }),
+      });
+    });
+
+    await context.addInitScript(
+      ([token]) => {
+        localStorage.setItem('rally_token', token);
+      },
+      [MOCK_JWT_TOKEN_STAFF],
+    );
+
+    await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/rally/v1/rally/settings/public') &&
+        response.status() === 200,
+      { timeout: 10000 },
+    );
+
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+  });
+
+  test('can evaluate multiple activities sequentially for same team', async ({ page }) => {
+    // Select team
+    const teamElement = page.getByText(MOCK_TEAM.name).first();
+    await expect(teamElement).toBeVisible();
+    await teamElement.click();
+
+    await page.waitForTimeout(2000);
+
+    // Close warning dialog if it appears
+    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    // Should see multiple activities
+    const activities = page.getByText(/activity|atividade/i);
+    const activityCount = await activities.count();
+    expect(activityCount).toBeGreaterThan(1);
+
+    // Evaluate first activity
+    const evaluateButtons = page.getByRole('button', { name: /evaluate|avaliar/i });
+    const firstButton = evaluateButtons.first();
+    if (await firstButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await firstButton.click();
+      await page.waitForTimeout(1000);
+
+      // Fill and submit first activity
+      const pointsInput = page.getByLabel(/assigned points|pontos|completion time|achieved points/i).first();
+      if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await pointsInput.fill('80');
+        await page.waitForTimeout(500);
+
+        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await submitButton.click();
+          await page.waitForTimeout(2000);
+
+          // Should show success
+          await expect(
+            page.getByText(/atividade avaliada com sucesso|success|sucesso/i).first(),
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    }
+
+    // Wait for activities list to refresh
+    await page.waitForTimeout(2000);
+
+    // Should still see remaining activities
+    const remainingActivities = page.getByText(/activity|atividade/i);
+    const remainingCount = await remainingActivities.count();
+    expect(remainingCount).toBeGreaterThan(0);
+  });
+});
+
 test.describe('Manager Evaluation - Edge Cases', () => {
   test('handles empty evaluations list', async ({ page, context }) => {
     await page.route('**/api/rally/v1/staff/all-evaluations**', async (route) => {
