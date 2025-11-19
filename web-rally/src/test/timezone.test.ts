@@ -23,7 +23,7 @@ describe('Timezone Utilities', () => {
     })
 
     it('should handle null input', () => {
-      const result = localDatetimeLocalToUTCISOString(null as any)
+      const result = localDatetimeLocalToUTCISOString(null)
       expect(result).toBeNull()
     })
 
@@ -54,7 +54,7 @@ describe('Timezone Utilities', () => {
     })
 
     it('should handle null input', () => {
-      const result = utcISOStringToLocalDatetimeLocal(null as any)
+      const result = utcISOStringToLocalDatetimeLocal(null)
       expect(result).toBeNull()
     })
 
@@ -106,7 +106,7 @@ describe('Timezone Utilities', () => {
     })
 
     it('should handle null input', () => {
-      const result = formatDatetimeForDisplay(null as any)
+      const result = formatDatetimeForDisplay(null)
       expect(result).toBe('N/A')
     })
 
@@ -155,7 +155,7 @@ describe('Timezone Utilities', () => {
     })
 
     it('should handle null input', () => {
-      const result = formatDatetimeLocal(null as any)
+      const result = formatDatetimeLocal(null)
       expect(result).toBeNull()
     })
 

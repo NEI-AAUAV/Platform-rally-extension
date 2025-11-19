@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports context hooks with provider */
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 
