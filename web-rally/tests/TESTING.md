@@ -28,7 +28,6 @@ The Rally extension uses a comprehensive testing strategy covering unit tests, i
 - **Location**: `tests/mocks/`
 - **Files**:
   - `data.ts` - Mock data for tests (checkpoints, teams, activities, tokens)
-  - `handlers.ts` - MSW handlers (legacy, not currently used - using Playwright route mocking)
 
 ## E2E Test Suite
 
