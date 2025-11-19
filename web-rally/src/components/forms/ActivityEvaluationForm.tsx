@@ -84,7 +84,7 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
           <GeneralForm
             existingResult={activity.existing_result ?? undefined}
             team={team}
-            config={activity.config ?? undefined}
+            config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />

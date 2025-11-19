@@ -238,7 +238,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.max_points || 100}
+                    value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
                     onChange={(e) => updateConfig("max_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="100"
@@ -252,7 +252,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.min_points || 10}
+                    value={typeof configData.min_points === 'number' ? configData.min_points : (configData.min_points ? Number(configData.min_points) : 10)}
                     onChange={(e) => updateConfig("min_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="10"
@@ -274,7 +274,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.max_points || 100}
+                    value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
                     onChange={(e) => updateConfig("max_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="100"
@@ -288,7 +288,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.base_score || 50}
+                    value={typeof configData.base_score === 'number' ? configData.base_score : (configData.base_score ? Number(configData.base_score) : 50)}
                     onChange={(e) => updateConfig("base_score", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="50"
@@ -310,7 +310,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.success_points || 100}
+                    value={typeof configData.success_points === 'number' ? configData.success_points : (configData.success_points ? Number(configData.success_points) : 100)}
                     onChange={(e) => updateConfig("success_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="100"
@@ -324,7 +324,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.failure_points || 0}
+                    value={typeof configData.failure_points === 'number' ? configData.failure_points : (configData.failure_points ? Number(configData.failure_points) : 0)}
                     onChange={(e) => updateConfig("failure_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="0"
@@ -346,7 +346,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.min_points || 0}
+                    value={typeof configData.min_points === 'number' ? configData.min_points : (configData.min_points ? Number(configData.min_points) : 0)}
                     onChange={(e) => updateConfig("min_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="0"
@@ -360,7 +360,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.max_points || 100}
+                    value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
                     onChange={(e) => updateConfig("max_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="100"
@@ -374,7 +374,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.default_points || 50}
+                    value={typeof configData.default_points === 'number' ? configData.default_points : (configData.default_points ? Number(configData.default_points) : 50)}
                     onChange={(e) => updateConfig("default_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="50"
@@ -396,7 +396,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.win_points || 30}
+                    value={typeof configData.win_points === 'number' ? configData.win_points : (configData.win_points ? Number(configData.win_points) : 30)}
                     onChange={(e) => updateConfig("win_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="30"
@@ -410,7 +410,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.draw_points || 15}
+                    value={typeof configData.draw_points === 'number' ? configData.draw_points : (configData.draw_points ? Number(configData.draw_points) : 15)}
                     onChange={(e) => updateConfig("draw_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="15"
@@ -424,7 +424,7 @@ export default function ActivityForm({
                   <Input
                     type="number"
                     min="0"
-                    value={configData.lose_points || 0}
+                    value={typeof configData.lose_points === 'number' ? configData.lose_points : (configData.lose_points ? Number(configData.lose_points) : 0)}
                     onChange={(e) => updateConfig("lose_points", Number(e.target.value))}
                     className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                     placeholder="0"
