@@ -1,3 +1,5 @@
+import type { RallySettingsResponse } from "@/client";
+
 /**
  * Default Rally configuration values
  * These are fallback values when API settings are not available
@@ -26,18 +28,18 @@ export type RallyDefaults = typeof RALLY_DEFAULTS;
 /**
  * Get penalty values from Rally Settings API or fallback to defaults
  */
-export function getPenaltyValues(settings?: any) {
+export function getPenaltyValues(settings?: RallySettingsResponse | null) {
   return {
-    vomit: settings?.penalty_per_puke || RALLY_DEFAULTS.PENALTY_VALUES.vomit,
-    not_drinking: settings?.penalty_per_not_drinking || RALLY_DEFAULTS.PENALTY_VALUES.not_drinking,
+    vomit: settings?.penalty_per_puke ?? RALLY_DEFAULTS.PENALTY_VALUES.vomit,
+    not_drinking: settings?.penalty_per_not_drinking ?? RALLY_DEFAULTS.PENALTY_VALUES.not_drinking,
   };
 }
 
 /**
  * Get extra shots configuration from Rally Settings API or fallback to defaults
  */
-export function getExtraShotsConfig(settings?: any) {
+export function getExtraShotsConfig(settings?: RallySettingsResponse | null) {
   return {
-    perMember: settings?.max_extra_shots_per_member || RALLY_DEFAULTS.EXTRA_SHOTS.perMember,
+    perMember: settings?.max_extra_shots_per_member ?? RALLY_DEFAULTS.EXTRA_SHOTS.perMember,
   };
 }

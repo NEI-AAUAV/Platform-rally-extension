@@ -3,15 +3,10 @@ import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useAppToast } from "@/hooks/use-toast";
+import type { BaseActivityFormProps } from "@/types/forms";
+import { getTeamSize } from "@/types/forms";
 
-interface ScoreBasedFormProps {
-  existingResult?: any;
-  team?: any;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
-
-export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmitting }: ScoreBasedFormProps) {
+export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   const [achievedPoints, setAchievedPoints] = useState<number>(0);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
@@ -22,7 +17,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = team?.num_members || team?.members?.length || 1;
+  const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;

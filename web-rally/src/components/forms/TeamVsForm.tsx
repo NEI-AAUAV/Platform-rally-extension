@@ -4,15 +4,10 @@ import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { VersusService } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
+import type { BaseActivityFormProps } from "@/types/forms";
+import { getTeamSize } from "@/types/forms";
 
-interface TeamVsFormProps {
-  existingResult?: any;
-  team?: any;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
-
-export default function TeamVsForm({ existingResult, team, onSubmit, isSubmitting }: TeamVsFormProps) {
+export default function TeamVsForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   const [result, setResult] = useState<string>("win");
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
   const [opponentTeamName, setOpponentTeamName] = useState<string>("");
@@ -25,7 +20,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = team?.num_members || team?.members?.length || 1;
+  const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;

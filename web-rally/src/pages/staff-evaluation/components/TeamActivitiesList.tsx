@@ -4,11 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, CheckCircle, Clock, Star, Trophy, Edit } from "lucide-react";
 import ActivityForm from "@/components/forms/ActivityForm";
+import type { ActivityResponse } from "@/client";
+import type { Team, ActivityResultData } from "@/types/forms";
 
 interface TeamActivitiesListProps {
-  team: any;
-  activities: any[];
-  onEvaluate: (teamId: number, activityId: number, resultData: any) => void;
+  team: Team;
+  activities: ActivityResponse[];
+  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => void;
   isEvaluating: boolean;
 }
 
@@ -25,15 +27,15 @@ const getActivityTypeIcon = (activityType: string) => {
 };
 
 export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating }: TeamActivitiesListProps) {
-  const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
 
-  const handleEvaluateClick = (activity: any) => {
+  const handleEvaluateClick = (activity: ActivityResponse) => {
     setSelectedActivity(activity);
     setShowEvaluationForm(true);
   };
 
-  const handleFormSubmit = (resultData: any) => {
+  const handleFormSubmit = (resultData: ActivityResultData) => {
     if (selectedActivity) {
       onEvaluate(team.id, selectedActivity.id, resultData);
     }
