@@ -14,6 +14,9 @@ The Rally extension uses a comprehensive testing strategy covering unit tests, i
 - **Test Files**:
   - `useUserStore.test.ts` - Zustand store tests (authentication, token management)
   - `useRallySettings.test.tsx` - Rally settings hook tests
+  - `useActivities.test.tsx` - Activities hooks tests (CRUD operations)
+  - `useUser.test.tsx` - User hook tests (user data fetching, admin detection)
+  - `useLoginLink.test.ts` - Login link utility tests
   - `timezone.test.ts` - Timezone utility tests
 
 ### E2E Tests
@@ -23,6 +26,9 @@ The Rally extension uses a comprehensive testing strategy covering unit tests, i
 - **Run**: `pnpm test:e2e`
 - **Test Files**:
   - `staff-evaluation.spec.ts` - Staff and manager evaluation flows (41 tests)
+  - `scoreboard.spec.ts` - Scoreboard display and leaderboard (5 tests)
+  - `admin.spec.ts` - Admin panel navigation and access control (5 tests)
+  - `settings.spec.ts` - Settings page and configuration (6 tests)
 
 ### Shared Test Utilities
 - **Location**: `tests/mocks/`

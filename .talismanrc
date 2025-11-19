@@ -14,6 +14,8 @@ fileignoreconfig:
   checksum: 11affec0830eb0430370b8a3e119aef51f314b8ff9fcb8db27912d6a91715069
 - filename: web-rally/tests/mocks/data.ts
   checksum: 03e2cef1f097a08032242d5938dcf0e95c4c3b0e570fbfbf5cfd7c8cb3d8b223
-- filename: web-rally/tests/mocks/handlers.ts
-  checksum: 24eb8b9a0ced4b9728879a5e0ce1f34e0585f2c2facd5b68e65cfd262a296cc7
+- filename: web-rally/tests/e2e/admin.spec.ts
+  checksum: c0a8e136cab72e9bc5b54992ea24b7cf1778a054ec21c339a64a41f9627f0db6
+- filename: web-rally/tests/e2e/settings.spec.ts
+  checksum: 59ebd3bcb4ee34a52449de16cc15fc385e135625612defcfbd8b6d764a9c2de6
 version: "1.0"
