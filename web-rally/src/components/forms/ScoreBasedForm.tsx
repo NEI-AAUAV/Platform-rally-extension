@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useAppToast } from "@/hooks/use-toast";
 
 interface ScoreBasedFormProps {
   existingResult?: any;
@@ -15,6 +16,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
   const { settings } = useRallySettings();
@@ -44,7 +46,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     

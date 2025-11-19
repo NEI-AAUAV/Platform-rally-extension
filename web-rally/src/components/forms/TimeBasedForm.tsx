@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useAppToast } from "@/hooks/use-toast";
 
 interface TimeBasedFormProps {
   existingResult?: any;
@@ -16,6 +17,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
   const { settings } = useRallySettings();
@@ -48,7 +50,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     
@@ -56,7 +58,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
     const normalized = (completionTime || "").replace(",", ".").trim();
     const parsed = normalized === "" ? NaN : parseFloat(normalized);
     if (isNaN(parsed) || parsed < 0) {
-      alert("Please enter a valid non-negative time in seconds.");
+      toast.error("Please enter a valid non-negative time in seconds.");
       return;
     }
 

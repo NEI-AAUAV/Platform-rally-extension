@@ -3,6 +3,7 @@ import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { VersusService } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 interface TeamVsFormProps {
   existingResult?: any;
@@ -18,6 +19,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
   const { settings } = useRallySettings();
@@ -42,7 +44,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
             setOpponentTeamName(opponent.opponent_name || "");
           }
         } catch (error) {
-          console.error("Error fetching opponent:", error);
+          // Silently fail - opponent is optional
         }
       }
     };
@@ -67,7 +69,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     
