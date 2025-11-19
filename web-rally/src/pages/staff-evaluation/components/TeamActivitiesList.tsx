@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, CheckCircle, Clock, Star, Trophy, Edit } from "lucide-react";
-import ActivityForm from "@/components/forms/ActivityForm";
+import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
 
@@ -70,7 +70,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
             </p>
           </CardHeader>
           <CardContent>
-            <ActivityForm
+            <ActivityEvaluationForm
               activity={selectedActivity}
               team={team}
               onSubmit={handleFormSubmit}

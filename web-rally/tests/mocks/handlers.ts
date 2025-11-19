@@ -1,3 +1,15 @@
+/**
+ * LEGACY: MSW handlers for Rally API endpoints
+ * 
+ * NOTE: These handlers are NOT currently used. We use Playwright's native
+ * `page.route()` for request mocking in E2E tests (see tests/e2e/staff-evaluation.spec.ts).
+ * 
+ * This file is kept for reference only. If MSW is needed in the future,
+ * these handlers can be adapted for use with MSW's setupServer.
+ * 
+ * @deprecated Use Playwright's page.route() instead
+ */
+
 import { http, HttpResponse } from 'msw';
 import {
   MOCK_CHECKPOINT,
@@ -10,11 +22,6 @@ import {
 
 const API_BASE = '/api/rally/v1';
 const API_NEI_BASE = '/api/nei/v1';
-
-/**
- * MSW handlers for Rally API endpoints
- * These intercept network requests during e2e tests
- */
 export const handlers = [
   // NEI Auth endpoints (required for authentication)
   // Handle both relative and absolute URLs

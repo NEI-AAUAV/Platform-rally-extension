@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ActivityForm } from "@/components/forms";
+import { ActivityEvaluationForm } from "@/components/forms";
 import { useThemedComponents } from "@/components/themes";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
@@ -49,7 +49,7 @@ export default function EvaluationFormModal({
           </button>
         </div>
         
-        <ActivityForm
+        <ActivityEvaluationForm
           activity={activity}
           team={team}
           onSubmit={onSubmit}

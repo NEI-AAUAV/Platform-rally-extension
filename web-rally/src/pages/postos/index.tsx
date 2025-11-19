@@ -3,7 +3,7 @@ import { CheckPointService } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { PageHeader, LoadingState } from "@/components/shared";
-import { CheckpointList, MapSection } from "./postos/components";
+import { CheckpointList, MapSection } from "./components";
 import { useThemedComponents } from "@/components/themes";
 
 interface Checkpoint {

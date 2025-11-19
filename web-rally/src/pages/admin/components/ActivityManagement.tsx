@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, AlertCircle } from 'lucide-react';
 import { BloodyButton } from '@/components/themes/bloody';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import ActivityForm from '@/components/ActivityForm';
+import ActivityForm from '@/components/ActivityCreateForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
