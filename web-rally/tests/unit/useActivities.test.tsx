@@ -19,14 +19,16 @@ vi.mock('@/client', () => ({
   }
 }))
 
-// Mock useUser hook
+// Mock useUser hook - make it dynamic
+const mockUseUser = vi.fn(() => ({
+  userStore: {
+    scopes: ['manager-rally'],
+    token: 'test-token',
+  },
+}))
+
 vi.mock('@/hooks/useUser', () => ({
-  default: () => ({
-    userStore: {
-      scopes: ['manager-rally'],
-      token: 'test-token',
-    },
-  }),
+  default: () => mockUseUser(),
 }))
 
 // Mock useUserStore
@@ -57,11 +59,12 @@ const createWrapper = () => {
 describe('useActivities Hook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useUserStore).mockReturnValue({
-      scopes: ['manager-rally'],
-      token: 'test-token',
-      sessionLoading: false,
-    } as any)
+    mockUseUser.mockReturnValue({
+      userStore: {
+        scopes: ['manager-rally'],
+        token: 'test-token',
+      },
+    })
   })
 
   it('should fetch activities when user is manager', async () => {
@@ -84,33 +87,41 @@ describe('useActivities Hook', () => {
     expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).toHaveBeenCalledTimes(1)
   })
 
-  it('should not fetch activities when user is not manager', () => {
-    vi.mocked(useUserStore).mockReturnValue({
-      scopes: ['rally-staff'],
-      token: 'test-token',
-      sessionLoading: false,
-    } as any)
+  it('should not fetch activities when user is not manager', async () => {
+    mockUseUser.mockReturnValue({
+      userStore: {
+        scopes: ['rally-staff'],
+        token: 'test-token',
+      },
+    })
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.isFetching).toBe(false)
+    await waitFor(() => {
+      expect(result.current.isFetching).toBe(false)
+    }, { timeout: 2000 })
+
     expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).not.toHaveBeenCalled()
   })
 
-  it('should not fetch activities when token is missing', () => {
-    vi.mocked(useUserStore).mockReturnValue({
-      scopes: ['manager-rally'],
-      token: null,
-      sessionLoading: false,
-    } as any)
+  it('should not fetch activities when token is missing', async () => {
+    mockUseUser.mockReturnValue({
+      userStore: {
+        scopes: ['manager-rally'],
+        token: null,
+      },
+    })
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.isFetching).toBe(false)
+    await waitFor(() => {
+      expect(result.current.isFetching).toBe(false)
+    }, { timeout: 2000 })
+
     expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).not.toHaveBeenCalled()
   })
 })
@@ -131,7 +142,16 @@ describe('useCreateActivity Hook', () => {
 
     vi.mocked(ActivitiesService.createActivityApiRallyV1ActivitiesPost).mockResolvedValue(mockCreatedActivity as any)
 
-    const queryClient = new QueryClient()
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    
+    // Set up a query state first
+    queryClient.setQueryData(['activities'], [])
+
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         {children}
@@ -145,7 +165,12 @@ describe('useCreateActivity Hook', () => {
     await result.current.mutateAsync(mockActivity)
 
     expect(ActivitiesService.createActivityApiRallyV1ActivitiesPost).toHaveBeenCalledWith(mockActivity)
-    expect(queryClient.getQueryState(['activities'])?.isInvalidated).toBe(true)
+    
+    // Wait for invalidation to complete
+    await waitFor(() => {
+      const state = queryClient.getQueryState(['activities'])
+      expect(state?.isInvalidated).toBe(true)
+    })
   })
 })
 
@@ -164,7 +189,16 @@ describe('useUpdateActivity Hook', () => {
 
     vi.mocked(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).mockResolvedValue(mockUpdatedActivity as any)
 
-    const queryClient = new QueryClient()
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    
+    // Set up a query state first
+    queryClient.setQueryData(['activities'], [])
+
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         {children}
@@ -178,7 +212,12 @@ describe('useUpdateActivity Hook', () => {
     await result.current.mutateAsync(mockUpdate)
 
     expect(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).toHaveBeenCalledWith(1, mockUpdate.activity)
-    expect(queryClient.getQueryState(['activities'])?.isInvalidated).toBe(true)
+    
+    // Wait for invalidation to complete
+    await waitFor(() => {
+      const state = queryClient.getQueryState(['activities'])
+      expect(state?.isInvalidated).toBe(true)
+    })
   })
 })
 
@@ -190,7 +229,16 @@ describe('useDeleteActivity Hook', () => {
   it('should delete activity and invalidate queries', async () => {
     vi.mocked(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).mockResolvedValue(undefined as any)
 
-    const queryClient = new QueryClient()
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    
+    // Set up a query state first
+    queryClient.setQueryData(['activities'], [])
+
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         {children}
@@ -204,7 +252,12 @@ describe('useDeleteActivity Hook', () => {
     await result.current.mutateAsync(1)
 
     expect(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).toHaveBeenCalledWith(1)
-    expect(queryClient.getQueryState(['activities'])?.isInvalidated).toBe(true)
+    
+    // Wait for invalidation to complete
+    await waitFor(() => {
+      const state = queryClient.getQueryState(['activities'])
+      expect(state?.isInvalidated).toBe(true)
+    })
   })
 })
 
