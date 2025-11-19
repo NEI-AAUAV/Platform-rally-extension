@@ -251,7 +251,7 @@ export default function CheckpointTeamEvaluation() {
 
   // Evaluate activity mutation
   const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
-    mutationFn: async ({ teamId, activityId, resultData }) => {
+    mutationFn: async ({ teamId, activityId, resultData }): Promise<ActivityResultResponse> => {
       // Force JSON body to avoid null payloads
       const token = userStore.token;
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
@@ -273,7 +273,7 @@ export default function CheckpointTeamEvaluation() {
         }
         throw err;
       }
-      return await res.json();
+      return await res.json() as ActivityResultResponse;
     },
     onSuccess: (_data, variables) => {
       // Invalidate relevant queries so other views pick up latest scores
