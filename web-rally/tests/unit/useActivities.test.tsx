@@ -9,14 +9,18 @@ import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity 
 import { ActivitiesService, ActivityType } from '@/client'
 
 // Mock ActivitiesService
-vi.mock('@/client', () => ({
-  ActivitiesService: {
-    getActivitiesApiRallyV1ActivitiesGet: vi.fn(),
-    createActivityApiRallyV1ActivitiesPost: vi.fn(),
-    updateActivityApiRallyV1ActivitiesActivityIdPut: vi.fn(),
-    deleteActivityApiRallyV1ActivitiesActivityIdDelete: vi.fn(),
+vi.mock('@/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/client')>()
+  return {
+    ...actual,
+    ActivitiesService: {
+      getActivitiesApiRallyV1ActivitiesGet: vi.fn(),
+      createActivityApiRallyV1ActivitiesPost: vi.fn(),
+      updateActivityApiRallyV1ActivitiesActivityIdPut: vi.fn(),
+      deleteActivityApiRallyV1ActivitiesActivityIdDelete: vi.fn(),
+    }
   }
-}))
+})
 
 // Mock useUser hook - make it dynamic
 const mockUseUser = vi.fn(() => ({
