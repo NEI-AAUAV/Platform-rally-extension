@@ -44,6 +44,30 @@ const activityTypeIcons = {
   GeneralActivity: Activity,
 };
 
+function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId: number | null }) {
+  return (
+    <>
+      <Badge 
+        variant="outline" 
+        className={`text-xs ${
+          result === 'win' 
+            ? 'border-green-500/50 text-green-400' 
+            : result === 'lose'
+            ? 'border-red-500/50 text-red-400'
+            : 'border-yellow-500/50 text-yellow-400'
+        }`}
+      >
+        {result === 'win' ? '✓ Won' : result === 'lose' ? '✗ Lost' : '= Draw'}
+      </Badge>
+      {opponentId !== null && (
+        <Badge variant="outline" className="text-xs">
+          vs Team #{opponentId}
+        </Badge>
+      )}
+    </>
+  );
+}
+
 export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
   const { Card } = useThemedComponents();
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
@@ -260,33 +284,22 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* TeamVsActivity Result */}
-                            {evaluation.activity.activity_type === 'TeamVsActivity' && 
-                             evaluation.result_data && 
-                             'result' in evaluation.result_data &&
-                             typeof evaluation.result_data.result === 'string' &&
-                             evaluation.result_data.result && (
-                              <>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${
-                                    evaluation.result_data.result === 'win' 
-                                      ? 'border-green-500/50 text-green-400' 
-                                      : evaluation.result_data.result === 'lose'
-                                      ? 'border-red-500/50 text-red-400'
-                                      : 'border-yellow-500/50 text-yellow-400'
-                                  }`}
-                                >
-                                  {evaluation.result_data.result === 'win' ? '✓ Won' : evaluation.result_data.result === 'lose' ? '✗ Lost' : '= Draw'}
-                                </Badge>
-                                {'opponent_team_id' in evaluation.result_data && 
-                                 typeof evaluation.result_data.opponent_team_id === 'number' && 
-                                 evaluation.result_data.opponent_team_id && (
-                                  <Badge variant="outline" className="text-xs">
-                                    vs Team #{evaluation.result_data.opponent_team_id}
-                                  </Badge>
-                                )}
-                              </>
-                            )}
+                            {(() => {
+                              if (evaluation.activity.activity_type === 'TeamVsActivity' && 
+                                  evaluation.result_data && 
+                                  'result' in evaluation.result_data &&
+                                  typeof evaluation.result_data.result === 'string' &&
+                                  evaluation.result_data.result) {
+                                const result: string = evaluation.result_data.result as string;
+                                const opponentId: number | null = 
+                                  'opponent_team_id' in evaluation.result_data &&
+                                  typeof evaluation.result_data.opponent_team_id === 'number'
+                                    ? evaluation.result_data.opponent_team_id
+                                    : null;
+                                return <TeamVsResultBadges result={result} opponentId={opponentId} />;
+                              }
+                              return null;
+                            })() as any}
                             
                             {/* Notes */}
                             {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
