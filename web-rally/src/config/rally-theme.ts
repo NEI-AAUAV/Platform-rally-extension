@@ -142,13 +142,18 @@ export const rallyTheme = {
 export type RallyTheme = typeof rallyTheme;
 
 // Helper function to get theme values
-export const getThemeValue = (path: string) => {
+export const getThemeValue = (path: string): unknown => {
   const keys = path.split(".");
-  let value: any = rallyTheme;
+  let value: unknown = rallyTheme;
+
   for (const key of keys) {
-    value = value[key];
-    if (value === undefined) return "";
+    if (value && typeof value === "object" && key in (value as Record<string, unknown>)) {
+      value = (value as Record<string, unknown>)[key];
+    } else {
+      return "";
+    }
   }
+
   return value;
 };
 

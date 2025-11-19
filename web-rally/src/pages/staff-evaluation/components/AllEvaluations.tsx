@@ -11,7 +11,7 @@ interface Evaluation {
   final_score: number;
   is_completed: boolean;
   completed_at: string;
-  result_data?: any;
+  result_data?: Record<string, unknown>;
   extra_shots?: number;
   penalties?: Record<string, number>;
   time_score?: number;
@@ -28,7 +28,7 @@ interface Evaluation {
     activity_type: string;
     checkpoint_id: number;
     description?: string;
-    config?: any;
+    config?: Record<string, unknown>;
   };
 }
 
@@ -333,3 +333,4 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
 }
 
 export { AllEvaluations };
+export type { Evaluation };

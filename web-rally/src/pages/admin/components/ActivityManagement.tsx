@@ -6,7 +6,7 @@ import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
-import type { ActivityCreate } from '@/client';
+import type { ActivityCreate, ActivityListResponse } from '@/client';
 import { useAppToast } from '@/hooks/use-toast';
 
 interface Checkpoint {
@@ -20,13 +20,39 @@ interface ActivityManagementProps {
   checkpoints: Checkpoint[];
 }
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") {
+    return fallback;
+  }
+
+  const candidate = error as {
+    body?: { detail?: string };
+    response?: { data?: { detail?: string } };
+    message?: string;
+  };
+
+  if (typeof candidate.body?.detail === "string") {
+    return candidate.body.detail;
+  }
+
+  if (typeof candidate.response?.data?.detail === "string") {
+    return candidate.response.data.detail;
+  }
+
+  if (typeof candidate.message === "string" && candidate.message.length > 0) {
+    return candidate.message;
+  }
+
+  return fallback;
+};
+
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
   const [showActivityForm, setShowActivityForm] = React.useState(false);
   const toast = useAppToast();
 
   // Activities queries and mutations
-  const { data: activities } = useActivities();
+  const { data: activitiesData } = useActivities();
   const { 
     mutate: createActivity, 
     isPending: isCreatingActivity, 
@@ -42,12 +68,8 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         setEditingActivity(null);
         toast.success("Atividade criada com sucesso!");
       },
-      onError: (error: any) => {
-        const errorMessage = error?.body?.detail || 
-                            error?.response?.data?.detail || 
-                            error?.message || 
-                            "Erro ao criar atividade";
-        toast.error(errorMessage);
+      onError: (error) => {
+        toast.error(getErrorMessage(error, "Erro ao criar atividade"));
       },
     });
   };
@@ -63,12 +85,8 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           setShowActivityForm(false);
           toast.success("Atividade atualizada com sucesso!");
         },
-        onError: (error: any) => {
-          const errorMessage = error?.body?.detail || 
-                              error?.response?.data?.detail || 
-                              error?.message || 
-                              "Erro ao atualizar atividade";
-          toast.error(errorMessage);
+        onError: (error) => {
+          toast.error(getErrorMessage(error, "Erro ao atualizar atividade"));
         },
       }
     );
@@ -85,12 +103,8 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         onSuccess: () => {
           toast.success("Atividade deletada com sucesso!");
         },
-        onError: (error: any) => {
-          const errorMessage = error?.body?.detail || 
-                              error?.response?.data?.detail || 
-                              error?.message || 
-                              "Erro ao deletar atividade";
-          toast.error(errorMessage);
+        onError: (error) => {
+          toast.error(getErrorMessage(error, "Erro ao deletar atividade"));
         },
       });
     }
@@ -105,7 +119,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           checkpoints={checkpoints}
           onSubmit={(data) => {
             const mutation = editingActivity ? handleUpdateActivity : handleCreateActivity;
-            mutation(data as any);
+            mutation(data);
           }}
           onCancel={() => {
             setShowActivityForm(false);
@@ -143,7 +157,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={(activities?.activities as any) || []}
+              activities={(activitiesData as ActivityListResponse | undefined)?.activities ?? []}
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}

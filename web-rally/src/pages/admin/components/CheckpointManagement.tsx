@@ -1,10 +1,10 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Edit, Trash2, MapPin, GripVertical } from 'lucide-react';
-import { useThemedComponents } from '@/components/themes';
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Edit, Trash2, MapPin, GripVertical } from "lucide-react";
+import { useThemedComponents } from "@/components/themes";
 import {
   Form,
   FormControl,
@@ -12,12 +12,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { BloodyButton } from '@/components/themes/bloody';
-import { EmptyState } from '@/components/shared';
-import { CheckPointService, type CheckPointCreate, type CheckPointUpdate } from '@/client';
-import { useAppToast } from '@/hooks/use-toast';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { BloodyButton } from "@/components/themes/bloody";
+import { EmptyState } from "@/components/shared";
+import {
+  CheckPointService,
+  type CheckPointCreate,
+  type CheckPointUpdate,
+  type DetailedCheckPoint,
+} from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 const checkpointFormSchema = z.object({
   name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
@@ -29,20 +34,39 @@ const checkpointFormSchema = z.object({
 
 type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  order: number;
-}
+type Checkpoint = DetailedCheckPoint;
 
 import type { UserState } from "@/stores/useUserStore";
 
 interface CheckpointManagementProps {
   userStore: UserState;
 }
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") {
+    return fallback;
+  }
+
+  const candidate = error as {
+    body?: { detail?: string };
+    response?: { data?: { detail?: string } };
+    message?: string;
+  };
+
+  if (typeof candidate.body?.detail === "string") {
+    return candidate.body.detail;
+  }
+
+  if (typeof candidate.response?.data?.detail === "string") {
+    return candidate.response.data.detail;
+  }
+
+  if (typeof candidate.message === "string" && candidate.message.length > 0) {
+    return candidate.message;
+  }
+
+  return fallback;
+};
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
   const { Card } = useThemedComponents();
@@ -51,11 +75,11 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
   // Checkpoints queries and mutations
-  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<Checkpoint[]>({
-    queryKey: ['checkpoints'],
-    queryFn: async (): Promise<Checkpoint[]> => {
+  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<DetailedCheckPoint[]>({
+    queryKey: ["checkpoints"],
+    queryFn: async () => {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? (data as Checkpoint[]) : [];
+      return data ?? [];
     },
     enabled: !!userStore.token,
   });
@@ -79,12 +103,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       checkpointForm.reset();
       toast.success("Checkpoint criado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao criar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao criar checkpoint"));
     },
   });
 
@@ -108,12 +128,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       checkpointForm.reset();
       toast.success("Checkpoint atualizado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao atualizar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao atualizar checkpoint"));
     },
   });
 
@@ -128,12 +144,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       refetchCheckpoints();
       toast.success("Checkpoint deletado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao deletar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao deletar checkpoint"));
     },
   });
 
@@ -145,23 +157,19 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       refetchCheckpoints();
       toast.success("Ordem dos checkpoints atualizada com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao reordenar checkpoints";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao reordenar checkpoints"));
     },
   });
 
   // Form
-  const checkpointForm = useForm({
+  const checkpointForm = useForm<CheckpointForm>({
     resolver: zodResolver(checkpointFormSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      latitude: '',
-      longitude: '',
+      name: "",
+      description: "",
+      latitude: "",
+      longitude: "",
       order: 1,
     },
   });
@@ -176,11 +184,11 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
 
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
-    checkpointForm.setValue('name', checkpoint.name);
-    checkpointForm.setValue('description', checkpoint.description ?? '');
-    checkpointForm.setValue('latitude', checkpoint.latitude?.toString() || '');
-    checkpointForm.setValue('longitude', checkpoint.longitude?.toString() || '');
-    checkpointForm.setValue('order', checkpoint.order || 1);
+    checkpointForm.setValue("name", checkpoint.name);
+    checkpointForm.setValue("description", checkpoint.description ?? "");
+    checkpointForm.setValue("latitude", checkpoint.latitude?.toString() || "");
+    checkpointForm.setValue("longitude", checkpoint.longitude?.toString() || "");
+    checkpointForm.setValue("order", checkpoint.order || 1);
   };
 
   const cancelEdit = () => {
@@ -189,17 +197,17 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   };
 
   // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, checkpoint: Checkpoint) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => {
     setDraggedCheckpoint(checkpoint);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, targetCheckpoint: Checkpoint) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetCheckpoint: Checkpoint) => {
     e.preventDefault();
     
     if (!draggedCheckpoint || draggedCheckpoint.id === targetCheckpoint.id) {

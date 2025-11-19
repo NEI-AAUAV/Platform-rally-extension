@@ -28,6 +28,32 @@ interface MemberFormProps {
   className?: string;
 }
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") {
+    return fallback;
+  }
+
+  const candidate = error as {
+    body?: { detail?: string };
+    response?: { data?: { detail?: string } };
+    message?: string;
+  };
+
+  if (typeof candidate.body?.detail === "string") {
+    return candidate.body.detail;
+  }
+
+  if (typeof candidate.response?.data?.detail === "string") {
+    return candidate.response.data.detail;
+  }
+
+  if (typeof candidate.message === "string" && candidate.message.length > 0) {
+    return candidate.message;
+  }
+
+  return fallback;
+};
+
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
   const { Card } = useThemedComponents();
   const toast = useAppToast();
@@ -54,19 +80,15 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
         email: memberData.email || null,
         is_captain: memberData.is_captain,
       };
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(parseInt(selectedTeam), requestBody);
+      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(Number(selectedTeam), requestBody);
     },
     onSuccess: () => {
       onSuccess();
       form.reset();
       toast.success("Membro adicionado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao adicionar membro";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao adicionar membro"));
     },
   });
 
@@ -92,7 +114,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {addError.message}
+                {addError instanceof Error ? addError.message : "Erro desconhecido"}
               </AlertDescription>
             </Alert>
           )}

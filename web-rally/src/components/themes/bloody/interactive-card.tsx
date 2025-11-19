@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from "react";
+import { forwardRef, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -88,29 +88,43 @@ const BloodyInteractiveCard = forwardRef<
     const baseStyles = selected ? currentStatus.selected : currentStatus.base;
     const hoverStyles = !disabled ? currentStatus.hover : "";
 
-    const Component = as;
+    const sharedClassName = cn(
+      "border transition-all",
+      baseStyles,
+      hoverStyles,
+      paddingStyles[padding],
+      roundedStyles[rounded],
+      onClick && !disabled ? "cursor-pointer" : "",
+      disabled ? "opacity-50 cursor-not-allowed" : "",
+      className,
+    );
+
+    if (as === "button") {
+      return (
+        <button
+          ref={ref as Ref<HTMLButtonElement>}
+          onClick={!disabled ? onClick : undefined}
+          disabled={disabled}
+          className={cn(sharedClassName, "w-full text-left")}
+          aria-pressed={selected}
+          type="button"
+        >
+          {children}
+        </button>
+      );
+    }
 
     return (
-      <Component
-        ref={ref as any}
+      <div
+        ref={ref as Ref<HTMLDivElement>}
         onClick={!disabled ? onClick : undefined}
-        disabled={disabled}
-        className={cn(
-          "border transition-all",
-          baseStyles,
-          hoverStyles,
-          paddingStyles[padding],
-          roundedStyles[rounded],
-          onClick && !disabled ? "cursor-pointer" : "",
-          disabled ? "opacity-50 cursor-not-allowed" : "",
-          as === "button" ? "w-full text-left" : "",
-          className
-        )}
+        className={cn(sharedClassName, "w-full text-left")}
         aria-pressed={selected}
-        type={as === "button" ? "button" : undefined}
+        aria-disabled={disabled}
+        role={onClick ? "button" : undefined}
       >
         {children}
-      </Component>
+      </div>
     );
   }
 );

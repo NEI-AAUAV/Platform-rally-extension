@@ -5,9 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
-import { AllEvaluations } from "./components/AllEvaluations";
+import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "react-router-dom";
-import { CheckPointService, ActivitiesService, TeamService, StaffEvaluationService } from "@/client";
+import {
+  CheckPointService,
+  ActivitiesService,
+  TeamService,
+  StaffEvaluationService,
+  type DetailedCheckPoint,
+  type ActivityListResponse,
+  type ListingTeam,
+  type ActivityResultResponse,
+  type ActivityResponse,
+} from "@/client";
 import { useThemedComponents } from "@/components/themes";
 
 export default function ManagerEvaluationPage() {
@@ -18,34 +28,39 @@ export default function ManagerEvaluationPage() {
 
 
   // Get all checkpoints
-  const { data: allCheckpoints } = useQuery({
+  const { data: allCheckpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["allCheckpoints"],
     queryFn: async () => {
-      return await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
     },
     enabled: !!userStore.token,
   });
 
   // Get all activities
-  const { data: allActivities } = useQuery({
+  const { data: allActivities } = useQuery<ActivityListResponse>({
     queryKey: ["allActivities"],
     queryFn: async () => {
-      return await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+      return ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
     },
     enabled: !!userStore.token,
   });
 
   // Get all teams
-  const { data: allTeams } = useQuery({
+  const { data: allTeams } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],
     queryFn: async () => {
-      return await TeamService.getTeamsApiRallyV1TeamGet();
+      return TeamService.getTeamsApiRallyV1TeamGet();
     },
     enabled: !!userStore.token,
   });
 
+type EvaluationResponse = ActivityResultResponse & {
+  team?: ListingTeam & { members?: Array<unknown> };
+  activity?: ActivityResponse;
+};
+
   // Get all evaluations using the dedicated endpoint that includes relationships
-  const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
+  const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery<Evaluation[]>({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
       const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
@@ -53,19 +68,19 @@ export default function ManagerEvaluationPage() {
       if (!response || !response.evaluations) return [];
       
       // Transform the results to match the AllEvaluations component interface
-      const evaluations = response.evaluations.map((result: any) => ({
+      const evaluations = (response.evaluations as EvaluationResponse[]).map((result) => ({
         id: result.id,
         team_id: result.team_id,
         activity_id: result.activity_id,
-        final_score: result.final_score,
-        is_completed: result.is_completed,
-        completed_at: result.completed_at,
-        result_data: result.result_data,
-        extra_shots: result.extra_shots,
-        penalties: result.penalties,
-        time_score: result.time_score,
-        points_score: result.points_score,
-        boolean_score: result.boolean_score,
+        final_score: result.final_score ?? 0,
+        is_completed: Boolean(result.is_completed),
+        completed_at: result.completed_at ?? "",
+        result_data: result.result_data ?? {},
+        extra_shots: result.extra_shots ?? 0,
+        penalties: result.penalties ?? {},
+        time_score: result.time_score ?? undefined,
+        points_score: result.points_score ?? undefined,
+        boolean_score: result.boolean_score ?? undefined,
         team: {
           id: result.team?.id || result.team_id,
           name: result.team?.name || `Team ${result.team_id}`,
@@ -85,7 +100,7 @@ export default function ManagerEvaluationPage() {
     enabled: !!userStore.token,
   });
 
-  const handleCheckpointClick = (checkpoint: any) => {
+  const handleCheckpointClick = (checkpoint: DetailedCheckPoint) => {
     navigate(`/staff-evaluation/checkpoint/${checkpoint.id}`);
   };
 
@@ -161,7 +176,7 @@ export default function ManagerEvaluationPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {allTeams?.map((team: any) => (
+              {allTeams?.map((team) => (
                 <Card
                   key={team.id}
                   variant="nested"
