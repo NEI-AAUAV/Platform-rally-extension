@@ -1,7 +1,8 @@
 """
 API endpoints for staff evaluation system
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple, TypedDict
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -17,7 +18,7 @@ from app.crud.crud_checkpoint import checkpoint
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
 from app.schemas.team import ListingTeam
 from app.schemas.checkpoint import DetailedCheckPoint
-from app.models.activity import ActivityResult
+from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 
 router = APIRouter()
@@ -28,7 +29,7 @@ TEAM_NOT_FOUND = "Team not found"
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
 
 
-def _serialize_activity(result) -> Optional[dict]:
+def _serialize_activity(result: ActivityResult) -> Optional[Dict[str, Any]]:
     """Helper function to serialize activity information"""
     if result.activity:
         return {
@@ -43,7 +44,7 @@ def _serialize_activity(result) -> Optional[dict]:
     return None
 
 
-def _serialize_team(result) -> Optional[dict]:
+def _serialize_team(result: ActivityResult) -> Optional[Dict[str, Any]]:
     """Helper function to serialize team information including member count"""
     if result.team:
         return {
@@ -65,7 +66,7 @@ def _is_admin_or_manager(auth: AuthData) -> bool:
     return any(scope in auth.scopes for scope in ["manager-rally", "admin"])
 
 
-def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, team_id: int, activity_id: int) -> tuple:
+def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, team_id: int, activity_id: int) -> Tuple[Team, Activity]:
     """Validate staff checkpoint access and return team and activity objects"""
     if not current_user.staff_checkpoint_id:
         raise HTTPException(
@@ -102,7 +103,7 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
     return team_obj, activity_obj
 
 
-def _validate_admin_access(db: Session, team_id: int, activity_id: int) -> tuple:
+def _validate_admin_access(db: Session, team_id: int, activity_id: int) -> Tuple[Team, Activity]:
     """Validate admin access and return team and activity objects"""
     team_obj = team.get(db, id=team_id)
     if not team_obj:
@@ -144,7 +145,7 @@ def _create_activity_result(db: Session, team_id: int, activity_id: int, result_
     return activity_result.create(db=db, obj_in=result_create)
 
 
-def _check_and_advance_team(db: Session, team_id: int, activity_obj) -> None:
+def _check_and_advance_team(db: Session, team_id: int, activity_obj: Activity) -> None:
     """Check if team can advance to next checkpoint based on score accumulation"""
     current_checkpoint_id = activity_obj.checkpoint_id
     from app.crud.crud_activity import activity
@@ -235,7 +236,7 @@ def get_my_checkpoint(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> DetailedCheckPoint:
     """Get the checkpoint assigned to the current staff member"""
     if not current_user.staff_checkpoint_id:
         raise HTTPException(
@@ -259,7 +260,7 @@ def get_teams_at_my_checkpoint(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> List[Dict[str, Any]]:
     """Get all teams at the staff member's assigned checkpoint"""
     if not current_user.staff_checkpoint_id:
         raise HTTPException(
@@ -280,7 +281,23 @@ def get_teams_at_my_checkpoint(
     ]
 
 
-def _build_team_for_staff(db: Session, team_obj: Team, staff_checkpoint_order: int | None = None) -> dict:
+class TeamForStaffDict(TypedDict, total=False):
+    """TypedDict for team data returned to staff"""
+    id: int
+    name: str
+    total: float
+    classification: Optional[int]
+    versus_group_id: Optional[int]
+    num_members: int
+    last_checkpoint_time: Optional[datetime]
+    last_checkpoint_score: Optional[float]
+    last_checkpoint_number: int
+    current_checkpoint_number: int
+    completed_checkpoint_numbers: List[int]
+    evaluated_at_current_checkpoint: bool
+
+
+def _build_team_for_staff(db: Session, team_obj: Team, staff_checkpoint_order: Optional[int] = None) -> Dict[str, Any]:
     """Build team data for staff evaluation.
     last_checkpoint_number must reflect the last checkpoint where all activities
     for that checkpoint are completed by the team. It should not be derived
@@ -289,7 +306,7 @@ def _build_team_for_staff(db: Session, team_obj: Team, staff_checkpoint_order: i
     activity completion per checkpoint.
     """
 
-    def _compute_checkpoint_progress(db: Session, team_obj: Team) -> tuple[int, int, list[int]]:
+    def _compute_checkpoint_progress(db: Session, team_obj: Team) -> Tuple[int, int, List[int]]:
         # Import here to avoid circulars at module import time
         from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
         from app.crud.crud_activity import activity
@@ -380,7 +397,7 @@ def get_team_activities_for_evaluation(
     team_id: int,
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, Any]:
     """Get activities for a specific team that can be evaluated by this staff member"""
     if not current_user.staff_checkpoint_id:
         raise HTTPException(
@@ -399,12 +416,13 @@ def get_team_activities_for_evaluation(
     # Explicitly load team members to ensure they're available
     from sqlalchemy.orm import joinedload
     from app.models.team import Team
-    team_obj = db.query(Team).options(joinedload(Team.members)).filter(Team.id == team_id).first()
-    if not team_obj:
+    team_obj_with_members: Optional[Team] = db.query(Team).options(joinedload(Team.members)).filter(Team.id == team_id).first()
+    if not team_obj_with_members:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=TEAM_NOT_FOUND
         )
+    team_obj = team_obj_with_members
     
     # Allow evaluation if team has reached the staff's checkpoint (>=) or is exactly at it
     # Block only when the team has not yet reached the staff's checkpoint (<)
@@ -479,7 +497,7 @@ def evaluate_team_activity(
     result_in: ActivityResultEvaluation,
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Evaluate a team's performance in an activity"""
     # Check if user has rally permissions
     if not _validate_rally_permissions(auth):
@@ -524,7 +542,7 @@ def update_team_activity_evaluation(
     result_in: ActivityResultUpdate,
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Update a team's activity evaluation"""
     # Check if user has rally permissions
     has_rally_access = any(scope in auth.scopes for scope in ["rally-staff", "manager-rally", "admin"])
@@ -590,7 +608,7 @@ def get_all_evaluations(
     team_id: Optional[int] = Query(None),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, Any]:
     """Get all evaluations - accessible by managers only"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
