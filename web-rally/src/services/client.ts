@@ -18,7 +18,24 @@ function processQueue(token?: string) {
   refreshSubscribers = [];
 }
 
-/** Attempt to login with refresh token cookie. */
+/**
+ * Attempts to refresh the authentication token using the refresh endpoint
+ * 
+ * Uses the current token from user store to request a new access token.
+ * Automatically updates the user store on success or logs out on failure.
+ * Implements a queue system to handle concurrent refresh requests.
+ * 
+ * @returns Promise resolving to the new access token, or undefined if refresh fails
+ * @throws Does not throw, but returns undefined on failure
+ * 
+ * @example
+ * ```ts
+ * const token = await refreshToken();
+ * if (token) {
+ *   // Token refreshed successfully
+ * }
+ * ```
+ */
 export async function refreshToken() {
   return axios
     .create({
@@ -40,6 +57,24 @@ export async function refreshToken() {
     });
 }
 
+/**
+ * Creates an axios client with authentication and error handling
+ * 
+ * Features:
+ * - Automatic token injection in request headers
+ * - Automatic token refresh on 401 errors
+ * - Request queue during token refresh to prevent duplicate refresh calls
+ * - Automatic logout on refresh failure
+ * 
+ * @param baseURL - Optional base URL for the API client
+ * @returns Configured axios instance with interceptors
+ * 
+ * @example
+ * ```ts
+ * const client = createClient('https://api.example.com');
+ * const data = await client.get('/endpoint');
+ * ```
+ */
 export const createClient = (baseURL?: string) => {
   const client = axios.create({
     baseURL,

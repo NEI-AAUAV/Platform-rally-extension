@@ -7,20 +7,45 @@ interface ActivityWithStatus extends ActivityResponse {
   existing_result?: ActivityResultResponse | null;
 }
 
+/**
+ * Props for ActivityEvaluationForm component
+ */
 interface ActivityEvaluationFormProps {
+  /** Activity to evaluate with status information */
   activity: ActivityWithStatus;
+  /** Team being evaluated */
   team: Team;
+  /** Callback when form is submitted */
   onSubmit: FormSubmitHandler;
+  /** Whether the form is currently submitting */
   isSubmitting: boolean;
 }
 
-interface ActivityEvaluationFormProps {
-  activity: ActivityWithStatus;
-  team: Team;
-  onSubmit: FormSubmitHandler;
-  isSubmitting: boolean;
-}
-
+/**
+ * Form component for evaluating team activities
+ * 
+ * Renders the appropriate form based on activity type:
+ * - TimeBasedActivity: Time input form
+ * - ScoreBasedActivity: Score input form
+ * - BooleanActivity: Yes/No form
+ * - GeneralActivity: General evaluation form
+ * - TeamVsActivity: Team vs team form
+ * 
+ * Displays activity details and handles form submission with validation.
+ * 
+ * @param props - ActivityEvaluationFormProps
+ * @returns JSX form element
+ * 
+ * @example
+ * ```tsx
+ * <ActivityEvaluationForm
+ *   activity={activity}
+ *   team={team}
+ *   onSubmit={handleSubmit}
+ *   isSubmitting={isLoading}
+ * />
+ * ```
+ */
 export default function ActivityEvaluationForm({ activity, team, onSubmit, isSubmitting }: ActivityEvaluationFormProps) {
   const renderForm = () => {
     switch (activity.activity_type) {

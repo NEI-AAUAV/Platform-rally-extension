@@ -32,12 +32,21 @@ const activityFormSchema = z.object({
 
 type ActivityForm = z.infer<typeof activityFormSchema>;
 
+/**
+ * Props for ActivityCreateForm component
+ */
 interface ActivityFormProps {
+  /** List of available checkpoints to assign the activity to */
   checkpoints: Checkpoint[];
+  /** Callback when form is submitted with valid data */
   onSubmit: (data: ActivityCreate) => void;
+  /** Callback when form is cancelled */
   onCancel: () => void;
+  /** Whether the form is currently submitting */
   isLoading?: boolean;
+  /** Error message to display */
   error?: string;
+  /** Initial form data for editing existing activities */
   initialData?: Partial<ActivityForm>;
 }
 
@@ -48,6 +57,32 @@ const activityTypeLabels = {
   [ActivityType.TEAM_VS]: "Equipa vs Equipa",
   [ActivityType.GENERAL]: "Geral",
 };
+
+/**
+ * Form component for creating and editing activities
+ * 
+ * Provides a comprehensive form with:
+ * - Activity name and description
+ * - Activity type selection
+ * - Checkpoint assignment
+ * - Type-specific configuration fields
+ * - Form validation with error messages
+ * 
+ * Supports both create and edit modes via initialData prop.
+ * 
+ * @param props - ActivityFormProps
+ * @returns JSX form element
+ * 
+ * @example
+ * ```tsx
+ * <ActivityCreateForm
+ *   checkpoints={checkpoints}
+ *   onSubmit={(data) => createActivity(data)}
+ *   onCancel={() => setShowForm(false)}
+ *   initialData={editingActivity}
+ * />
+ * ```
+ */
 
 export default function ActivityForm({
   checkpoints,
