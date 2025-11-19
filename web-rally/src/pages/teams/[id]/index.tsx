@@ -207,7 +207,7 @@ export default function TeamsById() {
                     const activityId = result.activity?.id;
                     if (activityId) {
                       const existing = map.get(activityId);
-                      if (!existing || new Date(result.completed_at) > new Date(existing.completed_at)) {
+                      if (!existing || (result.completed_at && existing.completed_at && new Date(result.completed_at) > new Date(existing.completed_at))) {
                         map.set(activityId, result);
                       }
                     }

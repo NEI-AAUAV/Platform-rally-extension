@@ -382,21 +382,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         ) : (
           <ul className="space-y-3 list-none">
             {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined).map((checkpoint) => (
-              <Card
+              <div
                 key={checkpoint.id}
-                variant="subtle"
-                padding="md"
-                rounded="xl"
-                hover
-                className={`flex items-center justify-between cursor-move transition-all ${
-                  draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
-                }`}
                 draggable
-                onDragStart={(e: React.DragEvent) => handleDragStart(e, checkpoint)}
+                onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleDragStart(e, checkpoint)}
                 onDragOver={handleDragOver}
-                onDrop={(e: React.DragEvent) => handleDrop(e, checkpoint)}
+                onDrop={(e: React.DragEvent<HTMLDivElement>) => handleDrop(e, checkpoint)}
                 onDragEnd={handleDragEnd}
-                onKeyDown={(e: React.KeyboardEvent) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     // Focus management for keyboard users
@@ -404,6 +397,15 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 }}
                 aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
               >
+                <Card
+                  variant="subtle"
+                  padding="md"
+                  rounded="xl"
+                  hover
+                  className={`flex items-center justify-between cursor-move transition-all ${
+                    draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
+                  }`}
+                >
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
                     <GripVertical className="w-4 h-4" />
@@ -436,7 +438,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                     <Trash2 className="w-4 h-4" />
                   </BloodyButton>
                 </div>
-              </Card>
+                </Card>
+              </div>
             ))}
           </ul>
         )}

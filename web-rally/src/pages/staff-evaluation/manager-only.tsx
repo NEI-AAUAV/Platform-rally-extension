@@ -60,9 +60,9 @@ type EvaluationResponse = ActivityResultResponse & {
 };
 
   // Get all evaluations using the dedicated endpoint that includes relationships
-  const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery<Evaluation[]>({
+  const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Evaluation[]> => {
       const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
       
       if (!response || !response.evaluations) return [];
@@ -91,7 +91,7 @@ type EvaluationResponse = ActivityResultResponse & {
           name: result.activity?.name || `Activity ${result.activity_id}`,
           activity_type: result.activity?.activity_type || "GeneralActivity",
           checkpoint_id: result.activity?.checkpoint_id || 1,
-          description: result.activity?.description,
+          description: result.activity?.description ?? undefined,
         },
       }));
       
@@ -134,7 +134,7 @@ type EvaluationResponse = ActivityResultResponse & {
               <CheckCircle className="w-5 h-5" />
               <span className="font-semibold">All Evaluations</span>
               <Badge variant="outline" className="text-white border-white/20">
-                {evaluationsLoading ? "Loading..." : allEvaluations?.length || 0}
+                {evaluationsLoading ? "Loading..." : (allEvaluations as Evaluation[])?.length || 0}
               </Badge>
             </div>
             <ChevronDown 
@@ -149,7 +149,7 @@ type EvaluationResponse = ActivityResultResponse & {
                   <p className="text-white/70 text-center">Loading evaluations...</p>
                 </Card>
               ) : (
-                <AllEvaluations evaluations={allEvaluations || []} />
+                <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
               )}
             </div>
           )}

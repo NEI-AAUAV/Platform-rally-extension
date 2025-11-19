@@ -6,7 +6,9 @@ import ActivityForm from '@/components/ActivityCreateForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
-import type { ActivityCreate, ActivityListResponse } from '@/client';
+import type { ActivityCreate as ClientActivityCreate, ActivityListResponse } from '@/client';
+import { ActivityType as ClientActivityType } from '@/client';
+import type { ActivityCreate as CustomActivityCreate } from '@/types/activityTypes';
 import { useAppToast } from '@/hooks/use-toast';
 
 interface Checkpoint {
@@ -61,7 +63,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
   const { mutate: updateActivity, isPending: isUpdatingActivity } = useUpdateActivity();
   const { mutate: deleteActivity, isPending: isDeletingActivity } = useDeleteActivity();
 
-  const handleCreateActivity = (data: ActivityCreate) => {
+  const handleCreateActivity = (data: ClientActivityCreate) => {
     createActivity(data, {
       onSuccess: () => {
         setShowActivityForm(false);
@@ -74,7 +76,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
     });
   };
 
-  const handleUpdateActivity = (data: ActivityCreate) => {
+  const handleUpdateActivity = (data: ClientActivityCreate) => {
     if (!editingActivity) return;
     
     updateActivity(
@@ -117,9 +119,18 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
       {showActivityForm ? (
         <ActivityForm
           checkpoints={checkpoints}
-          onSubmit={(data) => {
+          onSubmit={(data: CustomActivityCreate) => {
+            // Convert custom types to client types
+            const clientData: ClientActivityCreate = {
+              name: data.name,
+              description: data.description ?? null,
+              activity_type: data.activity_type as unknown as ClientActivityType,
+              checkpoint_id: data.checkpoint_id,
+              config: data.config as Record<string, any>,
+              is_active: data.is_active,
+            };
             const mutation = editingActivity ? handleUpdateActivity : handleCreateActivity;
-            mutation(data);
+            mutation(clientData);
           }}
           onCancel={() => {
             setShowActivityForm(false);
@@ -129,10 +140,10 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           error={createActivityError?.message}
           initialData={editingActivity ? {
             name: editingActivity.name,
-            description: editingActivity.description,
-            activity_type: editingActivity.activity_type,
+            description: editingActivity.description ?? undefined,
+            activity_type: editingActivity.activity_type as any,
             checkpoint_id: editingActivity.checkpoint_id,
-            config: editingActivity.config,
+            config: editingActivity.config as Record<string, string | number | boolean>,
             is_active: editingActivity.is_active,
           } : undefined}
         />
@@ -157,7 +168,10 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={(activitiesData as ActivityListResponse | undefined)?.activities ?? []}
+              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map(activity => ({
+                ...activity,
+                order: (activity as any).order ?? 0,
+              })) as any}
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}

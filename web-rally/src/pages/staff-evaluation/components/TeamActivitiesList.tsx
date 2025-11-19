@@ -71,7 +71,10 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
           </CardHeader>
           <CardContent>
             <ActivityEvaluationForm
-              activity={selectedActivity}
+              activity={{
+                ...selectedActivity,
+                evaluation_status: "pending" as const,
+              }}
               team={team}
               onSubmit={handleFormSubmit}
               isSubmitting={isEvaluating}
@@ -102,7 +105,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
         ) : (
           activities.map((activity) => {
             const IconComponent = getActivityTypeIcon(activity.activity_type);
-            const isCompleted = activity.evaluation_status === "completed";
+            const isCompleted = (activity as any).evaluation_status === "completed";
             
             return (
               <div

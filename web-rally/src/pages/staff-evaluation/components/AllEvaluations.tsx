@@ -260,7 +260,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* TeamVsActivity Result */}
-                            {evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data?.result && (
+                            {evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data && typeof evaluation.result_data.result === 'string' && evaluation.result_data.result && (
                               <>
                                 <Badge 
                                   variant="outline" 
@@ -274,7 +274,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                                 >
                                   {evaluation.result_data.result === 'win' ? '✓ Won' : evaluation.result_data.result === 'lose' ? '✗ Lost' : '= Draw'}
                                 </Badge>
-                                {evaluation.result_data.opponent_team_id && (
+                                {evaluation.result_data.opponent_team_id && typeof evaluation.result_data.opponent_team_id === 'number' && (
                                   <Badge variant="outline" className="text-xs">
                                     vs Team #{evaluation.result_data.opponent_team_id}
                                   </Badge>
@@ -283,7 +283,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* Notes */}
-                            {evaluation.result_data?.notes && evaluation.result_data.notes.trim() !== '' && (
+                            {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
                               <Badge variant="outline" className="text-xs">
                                 Note: {evaluation.result_data.notes}
                               </Badge>

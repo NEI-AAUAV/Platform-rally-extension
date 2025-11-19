@@ -50,7 +50,10 @@ export default function EvaluationFormModal({
         </div>
         
         <ActivityEvaluationForm
-          activity={activity}
+          activity={{
+            ...activity,
+            evaluation_status: "pending" as const,
+          }}
           team={team}
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}

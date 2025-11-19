@@ -117,7 +117,12 @@ export default function TeamMembers() {
           />
 
           <MemberList
-            teamMembers={teamMembers || []}
+            teamMembers={(teamMembers || []).map(member => ({
+              id: member.id,
+              name: member.name,
+              email: member.email ?? undefined,
+              is_captain: member.is_captain ?? false,
+            }))}
             selectedTeam={selectedTeam}
             userToken={userStore.token || ""}
             onSuccess={handleSuccess}
