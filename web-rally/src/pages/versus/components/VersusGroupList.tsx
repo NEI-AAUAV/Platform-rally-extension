@@ -3,30 +3,16 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
-import { TeamService } from "@/client";
+import { TeamService, type ListingTeam, type VersusGroupListResponse, type TeamUpdate } from "@/client";
 import { useThemedComponents } from "@/components/themes";
 
-interface VersusPair {
-  group_id: number;
-  team_a_id: number;
-  team_b_id: number;
-}
-
-interface Team {
-  id: number;
-  name: string;
-  total: number;
-  classification: number;
-  versus_group_id?: number;
-}
-
-interface VersusGroupListResponse {
-  groups: VersusPair[];
-}
+type TeamUpdateWithVersus = TeamUpdate & {
+  versus_group_id?: number | null;
+};
 
 interface VersusGroupListProps {
   versusGroups: VersusGroupListResponse | undefined;
-  teams: Team[] | undefined;
+  teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
 }
@@ -40,10 +26,10 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
   } = useMutation({
     mutationFn: async (groupId: number) => {
       // Find teams in this group and remove their versus_group_id
-      const teamsInGroup = teams?.filter((team: Team) => team.versus_group_id === groupId) || [];
+      const teamsInGroup = teams?.filter((team) => team.versus_group_id === groupId) || [];
       
       for (const team of teamsInGroup) {
-        const updateData: any = {
+        const updateData: TeamUpdateWithVersus = {
           name: team.name,
           versus_group_id: null,
         };
@@ -76,8 +62,8 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
         ) : (
           <div className="space-y-4">
             {versusGroups?.groups.map((pair) => {
-              const teamA = teams?.find((t: Team) => t.id === pair.team_a_id);
-              const teamB = teams?.find((t: Team) => t.id === pair.team_b_id);
+              const teamA = teams?.find((t) => t.id === pair.team_a_id);
+              const teamB = teams?.find((t) => t.id === pair.team_b_id);
               
               if (!teamA || !teamB) return null;
               
