@@ -894,7 +894,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
     // Should show all activities as completed
     // Check for completion indicators - might be badges, status text, or summary
     // The evaluation summary should show 100% completion or all completed
-    const hasCompletionIndicator = await Promise.race([
+    await Promise.race([
       page.getByText(/100%|complet|completed/i).first().isVisible().catch(() => false),
       page.getByText(/1.*1|all.*complete/i).first().isVisible().catch(() => false),
       page.locator('[class*="green"]').first().isVisible().catch(() => false),
@@ -1103,7 +1103,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
 
       // Should show error message (via toast or in form)
       // Toast messages might be transient, so check for error indicators
-      const hasError = await Promise.race([
+      await Promise.race([
         page.getByText(/erro ao avaliar|error|invalid/i).first().isVisible().catch(() => false),
         page.locator('[class*="error"], [class*="red"]').first().isVisible().catch(() => false),
         page.waitForTimeout(1000).then(() => false),
@@ -1985,7 +1985,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
         await page.waitForTimeout(1000);
 
         // Should show validation error or prevent submission
-        const hasError = await Promise.race([
+        await Promise.race([
           page.getByText(/required|obrigatório|invalid|must/i).first().isVisible().catch(() => false),
           page.waitForTimeout(1000).then(() => false),
         ]);

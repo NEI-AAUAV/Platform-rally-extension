@@ -200,6 +200,7 @@ def _checkin_team_to_checkpoint(db: Session, team_id: int, checkpoint_id: int) -
         team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores)
         logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
     except Exception as e:
+        # Log error and propagate - checkpoint advancement is critical
         logger.error(f"Failed to check team {team_id} into checkpoint {checkpoint_id}: {e}")
         raise
 
@@ -224,7 +225,7 @@ def _advance_team_to_next_checkpoint(db: Session, team_id: int) -> None:
             team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores)
             logger.info(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
         except Exception as e:
-            # Log error but don't fail the evaluation
+            # Log error and propagate - checkpoint advancement failure should be visible
             logger.error(f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}")
             raise
 
