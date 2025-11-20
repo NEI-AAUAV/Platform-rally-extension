@@ -26,7 +26,7 @@ def get_current_user(
     if user is None:
         # Create user with auth.sub as ID (set before commit to avoid primary key modification issues)
         # This is needed for NEI platform compatibility where user IDs must match auth.sub
-        user = crud.user.create(
+        user = crud.user.create_with_id(
             db, 
             obj_in=UserCreate(
                 name=f"{auth.name} {auth.surname}",

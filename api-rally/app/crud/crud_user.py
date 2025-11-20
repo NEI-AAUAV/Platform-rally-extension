@@ -14,15 +14,28 @@ _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    def create(self, db: Session, *, obj_in: UserCreate, user_id: Optional[int] = None) -> User:
+    def create(self, db: Session, *, obj_in: UserCreate) -> User:
         """
-        Create a user. If user_id is provided, it will be set before commit.
-        This is needed for NEI platform compatibility where user IDs must match auth.sub.
+        Override default create to keep consistent error handling.
         """
+        return self._create_internal(db, obj_in=obj_in)
+
+    def create_with_id(self, db: Session, *, obj_in: UserCreate, user_id: int) -> User:
+        """
+        Create a user forcing a specific primary key (for NEI auth compatibility).
+        """
+        return self._create_internal(db, obj_in=obj_in, user_id=user_id)
+
+    def _create_internal(
+        self,
+        db: Session,
+        *,
+        obj_in: UserCreate,
+        user_id: Optional[int] = None,
+    ) -> User:
         try:
             obj_in_data = jsonable_encoder(obj_in)
             db_obj = self.model(**obj_in_data)
-            # Set ID before commit if provided (for NEI platform compatibility)
             if user_id is not None:
                 db_obj.id = user_id  # noqa: A001
             db.add(db_obj)

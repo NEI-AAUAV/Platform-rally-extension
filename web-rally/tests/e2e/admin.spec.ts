@@ -89,12 +89,12 @@ test.describe('Admin Panel', () => {
 
     // Click on Activities tab
     await page.getByRole('button', { name: /Atividades/i }).click();
-    await page.waitForTimeout(500);
+    await page.waitForResponse('**/api/rally/v1/activities/**');
+    await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => !document.body.textContent?.includes('Carregando'));
     
     // Verify activities are visible
-    await expect(page.getByText(/Atividade|Activity/i)).toBeVisible({ timeout: 5000 }).catch(() => {
-      expect(page.locator('body')).toContainText(/atividade|activity/i);
-    });
+    await expect(page.getByText(/Atividade|Activity/i)).toBeVisible({ timeout: 5000 });
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
