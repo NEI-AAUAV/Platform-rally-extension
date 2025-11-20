@@ -65,28 +65,23 @@ test.describe('Admin Panel', () => {
     // Navigate to admin panel
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load first (this clears the "Carregando..." state)
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {
-      // User endpoint might already be cached
+    // Wait for user to load (this clears the initial "Carregando..." state)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 10000 }).catch(() => {
+      // User endpoint might already be cached or not called
     });
     
-    // Wait for actual content to appear (more reliable than waiting for loading to disappear)
-    try {
-      await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 });
-    } catch {
-      // If header doesn't appear, try waiting for tabs
-      await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
-    }
+    // Don't wait for content here - let each test wait for what it needs
+    // This avoids timeout issues if API calls are slow or fail
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
-    // Verify page header
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible();
+    // Wait for admin panel to load
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 15000 });
     
     // Verify tabs are visible
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Checkpoints/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Atividades/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /Checkpoints/i })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: /Atividades/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('should switch between tabs', async ({ page }) => {

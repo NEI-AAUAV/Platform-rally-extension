@@ -30,7 +30,7 @@ test.describe('Settings', () => {
       });
     });
 
-    // Mock settings GET endpoint (for fetching current settings)
+    // Mock settings endpoint (GET for fetching, PUT for updating)
     await page.route('**/api/rally/v1/rally/settings**', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -38,12 +38,7 @@ test.describe('Settings', () => {
           contentType: 'application/json',
           body: JSON.stringify(MOCK_RALLY_SETTINGS),
         });
-      }
-    });
-
-    // Mock settings PUT endpoint (for updating)
-    await page.route('**/api/rally/v1/rally/settings**', async (route) => {
-      if (route.request().method() === 'PUT') {
+      } else if (route.request().method() === 'PUT') {
         const body = await route.request().postDataJSON();
         await route.fulfill({
           status: 200,
@@ -53,6 +48,9 @@ test.describe('Settings', () => {
             ...body,
           }),
         });
+      } else {
+        // Continue for other methods
+        await route.continue();
       }
     });
 
@@ -64,42 +62,54 @@ test.describe('Settings', () => {
     // Navigate to settings
     await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load first (this clears the "Carregando..." state)
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {
-      // User endpoint might already be cached
+    // Wait for user to load (this clears the initial "Carregando..." state)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 10000 }).catch(() => {
+      // User endpoint might already be cached or not called
     });
     
-    // Wait for settings API call (GET /api/rally/v1/rally/settings, not /public)
+    // Don't wait for settings content here - let each test wait for what it needs
+    // This avoids timeout issues if the settings API is slow or fails
+  });
+
+  test('should display settings page', async ({ page }) => {
+    // Wait for settings API call to complete
     await page.waitForResponse(
       (response) => 
         response.url().includes('/api/rally/v1/rally/settings') && 
         response.request().method() === 'GET',
-      { timeout: 10000 }
-    ).catch(() => {
-      // If response doesn't come, continue anyway
-    });
+      { timeout: 15000 }
+    );
     
-    // Wait for actual content to appear (more reliable than waiting for loading to disappear)
-    try {
-      await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 10000 });
-    } catch {
-      // If header doesn't appear, try waiting for any settings content
-      await expect(page.locator('body')).toContainText(/Equipas|Teams|Timing|Pontuação|Scoring/i, { timeout: 5000 });
-    }
-  });
-
-  test('should display settings page', async ({ page }) => {
     // Verify page header
-    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 10000 });
   });
 
   test('should display settings sections', async ({ page }) => {
+    // Wait for settings API call to complete
+    await page.waitForResponse(
+      (response) => 
+        response.url().includes('/api/rally/v1/rally/settings') && 
+        response.request().method() === 'GET',
+      { timeout: 15000 }
+    );
+    
     // Verify different settings sections are visible
     // These may be in tabs or accordions
-    await expect(page.locator('body')).toContainText(/Equipas|Teams|Timing|Pontuação|Scoring|Display|Exibição/i, { timeout: 5000 });
+    await expect(page.locator('body')).toContainText(/Equipas|Teams|Timing|Pontuação|Scoring|Display|Exibição/i, { timeout: 10000 });
   });
 
   test('should allow editing settings', async ({ page }) => {
+    // Wait for settings API call to complete
+    await page.waitForResponse(
+      (response) => 
+        response.url().includes('/api/rally/v1/rally/settings') && 
+        response.request().method() === 'GET',
+      { timeout: 15000 }
+    );
+    
+    // Wait for settings content to be visible
+    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 10000 });
+    
     // Look for edit button or form fields
     const editButton = page.getByRole('button', { name: /Editar|Edit|Salvar|Save/i }).first();
     
