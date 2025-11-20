@@ -1,7 +1,7 @@
 """
 API endpoints for staff evaluation system
 """
-from typing import List, Optional, Dict, Any, Tuple, TypedDict
+from typing import List, Optional, Dict, Any, Tuple, TypedDict, Sequence
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
@@ -340,7 +340,7 @@ def _is_checkpoint_completed(db: Session, checkpoint_id: int, completed_activity
     return all(act.id in completed_activity_ids for act in checkpoint_activities)
 
 
-def _determine_current_order(checkpoints: List[Any], last_completed_order: int) -> int:
+def _determine_current_order(checkpoints: Sequence[Any], last_completed_order: int) -> int:
     if not checkpoints:
         return last_completed_order
     max_order = checkpoints[-1].order

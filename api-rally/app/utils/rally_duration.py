@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 from app.crud.crud_rally_settings import rally_settings
 from sqlalchemy.orm import Session
 
@@ -42,12 +42,12 @@ class RallyDurationCalculator:
             "total_duration": None,
         }
 
-    def _extract_datetime(self, value: Optional[datetime]) -> Optional[datetime]:
+    def _extract_datetime(self, value: object) -> Optional[datetime]:
         """
         Convert SQLAlchemy column values to datetime.
         mypy treats ORM columns as ColumnElement, but runtime provides datetime.
         """
-        return value  # type: ignore[return-value]
+        return cast(Optional[datetime], value)
 
     def _build_not_started_status(self, status: Dict[str, Any], start_time: datetime, current_time: datetime) -> Dict[str, Any]:
         time_until_start = start_time - current_time
