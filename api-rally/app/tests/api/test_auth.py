@@ -31,9 +31,11 @@ def valid_token_payload():
     """Valid JWT token payload"""
     now = datetime.now(timezone.utc)
     return {
-        "sub": "user123",
+        "sub": 123,  # Must be integer, not string
+        "nmec": 123456,  # Required by AuthData schema
+        "surname": "User",  # Required by AuthData schema
         "email": "test@example.com",
-        "name": "Test User",
+        "name": "Test",
         "scopes": ["rally:participant"],
         "iat": now,
         "exp": now + timedelta(hours=1)
@@ -163,9 +165,10 @@ class TestApiNeiAuth:
             )
             
             assert isinstance(result, AuthData)
-            assert result.sub == "user123"
+            assert result.sub == 123
             assert result.email == "test@example.com"
-            assert result.name == "Test User"
+            assert result.name == "Test"
+            assert result.surname == "User"
             assert result.scopes == ["rally:participant"]
     
     @pytest.mark.asyncio
@@ -220,7 +223,7 @@ class TestAuthenticationLogic:
     def test_token_payload_validation(self, valid_token_payload):
         """Test token payload validation"""
         # Required fields
-        required_fields = ["sub", "email", "name", "scopes", "iat", "exp"]
+        required_fields = ["sub", "nmec", "surname", "email", "name", "scopes", "iat", "exp"]
         for field in required_fields:
             assert field in valid_token_payload
         
