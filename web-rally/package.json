@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
+    "type-check": "tsc --noEmit",
     "generate-client": "openapi --input ./openapi.json --output ./src/client --client fetch",
     "prebuild": "pnpm run generate-client"
   },

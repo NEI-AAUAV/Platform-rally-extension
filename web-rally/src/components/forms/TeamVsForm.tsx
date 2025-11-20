@@ -60,13 +60,13 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
         try {
           const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
           // Exclude current team from the list
-          const filteredTeams = teamsList.filter((t) => t.id !== team.id);
+          const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== team.id);
           setTeams(filteredTeams);
           
           // If we have an opponent ID from existingResult but no name, try to find it now
           const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
           if (currentOpponentId) {
-            const foundTeam = filteredTeams.find((t) => t.id === currentOpponentId);
+            const foundTeam = filteredTeams.find((t: ListingTeam) => t.id === currentOpponentId);
             if (foundTeam && !opponentTeamName) {
               setOpponentTeamName(foundTeam.name);
             }

@@ -42,9 +42,7 @@ describe('useLoginLink Hook', () => {
     const url = new URL(loginLink)
     const redirectTo = url.searchParams.get('redirect_to')
     
-    // useHref("") returns the current location, which should include the path
-    expect(redirectTo).toBeTruthy()
-    expect(redirectTo).toContain('https://nei.web.ua.pt')
+    expect(redirectTo).toContain('https://nei.web.ua.pt/rally/admin')
   })
 
   it('should use BASE_URL from config', () => {
