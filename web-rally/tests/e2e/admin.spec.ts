@@ -52,6 +52,19 @@ test.describe('Admin Panel', () => {
       });
     });
 
+    // Mock user endpoint (manager has manager-rally scope)
+    await page.route('**/api/nei/v1/user/me**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-123',
+          name: 'Test Manager',
+          scopes: ['manager-rally', 'rally-staff'],
+        }),
+      });
+    });
+
     // Set token in localStorage
     await context.addInitScript((token) => {
       localStorage.setItem('token', token);
@@ -89,16 +102,21 @@ test.describe('Admin Panel', () => {
 
     // Click on Activities tab
     await page.getByRole('button', { name: /Atividades/i }).click();
-    await page.waitForResponse('**/api/rally/v1/activities/**');
-    await page.waitForLoadState('networkidle');
-    await page.waitForFunction(() => !document.body.textContent?.includes('Carregando'));
     
-    // Verify activities are visible
-    await expect(page.getByText(/Atividade|Activity/i)).toBeVisible({ timeout: 5000 });
+    // Wait for API response
+    await page.waitForResponse('**/api/rally/v1/activities/**');
+    
+    // Wait for network to be idle (all requests finished)
+    await page.waitForLoadState('networkidle');
+    
+    // Wait for activity content to appear (more reliable than waiting for loading to disappear)
+    await expect(
+      page.getByText(/Atividade|Activity/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
-    // Use staff token instead of manager
+    // Use staff token instead of manager (no manager-rally scope)
     const staffToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
     
     await context.addInitScript((token) => {
@@ -115,18 +133,50 @@ test.describe('Admin Panel', () => {
       });
     });
 
-    await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
-    await page.waitForResponse('**/api/rally/v1/rally/settings/public**');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    // Mock user endpoint to return staff user (no manager scope)
+    await page.route('**/api/nei/v1/user/me**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-123',
+          name: 'Test User',
+          scopes: ['rally-staff'], // No manager-rally scope
+        }),
+      });
+    });
 
-    // Should redirect to scoreboard
+    // Navigate and wait for redirect to scoreboard
+    await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
+    
+    // Wait for user endpoint to be called (needed for scope check)
+    await page.waitForResponse('**/api/nei/v1/user/me**').catch(() => {
+      // User endpoint might not be called if redirect happens first
+    });
+    
+    // Wait for redirect to scoreboard (use Playwright's built-in URL wait)
+    await page.waitForURL('**/scoreboard**', { timeout: 10000 }).catch(async () => {
+      // If redirect didn't happen via navigation, check URL directly
+      await page.waitForTimeout(2000);
+      if (!page.url().includes('/scoreboard')) {
+        throw new Error(`Expected redirect to /scoreboard but got ${page.url()}`);
+      }
+    });
+
+    // Verify we're on scoreboard
     expect(page.url()).toContain('/scoreboard');
   });
 
   test('should display teams tab by default', async ({ page }) => {
-    // Teams tab should be active by default
-    await expect(page.getByText(/Equipas|Teams/i)).toBeVisible({ timeout: 5000 });
+    // Teams tab button should be visible and active by default
+    const teamsTab = page.getByRole('button', { name: /Equipas/i });
+    await expect(teamsTab).toBeVisible({ timeout: 5000 });
+    
+    // Verify teams content is visible (heading or list)
+    await expect(
+      page.getByRole('heading', { name: /Equipas Existentes|Existing Teams/i })
+        .or(page.getByText(/Criar e editar equipas/i))
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('should handle API errors gracefully', async ({ page }) => {
