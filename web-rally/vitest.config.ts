@@ -29,6 +29,8 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.config.*',
         '**/vite-env.d.ts',
+        '**/webidl-conversions/**',
+        '**/whatwg-url/**',
       ],
     },
     pool: 'forks',
