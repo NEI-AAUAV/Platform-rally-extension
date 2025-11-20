@@ -1,4 +1,4 @@
-import { TeamService } from "@/client";
+import { TeamService, type ListingTeam } from "@/client";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useThemedComponents } from "@/components/themes";
@@ -11,7 +11,7 @@ export default function Scoreboard() {
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
   });
   const sortedTeams = teams?.sort(
-    (a, b) => a.classification - b.classification,
+    (a: ListingTeam, b: ListingTeam) => a.classification - b.classification,
   );
   if (settings?.show_live_leaderboard === false) {
     return (
@@ -25,7 +25,7 @@ export default function Scoreboard() {
   }
   return (
     <div className="mt-16 grid gap-4">
-      {sortedTeams?.map((team) => <Score key={team.id} team={team} />)}
+      {sortedTeams?.map((team: ListingTeam) => <Score key={team.id} team={team} />)}
     </div>
   );
 }

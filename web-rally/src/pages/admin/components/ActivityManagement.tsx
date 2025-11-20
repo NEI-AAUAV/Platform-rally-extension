@@ -6,7 +6,7 @@ import ActivityForm from '@/components/ActivityCreateForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
-import type { ActivityCreate as ClientActivityCreate, ActivityListResponse } from '@/client';
+import type { ActivityCreate as ClientActivityCreate, ActivityListResponse, ActivityResponse } from '@/client';
 import { ActivityType as ClientActivityType } from '@/client';
 import type { ActivityCreate as CustomActivityCreate } from '@/types/activityTypes';
 import { useAppToast } from '@/hooks/use-toast';
@@ -168,7 +168,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map(activity => ({
+              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map((activity: ActivityResponse) => ({
                 ...activity,
                 order: (activity as any).order ?? 0,
               })) as any}

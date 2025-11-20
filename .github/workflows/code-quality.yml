@@ -73,6 +73,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Install API dependencies
+        working-directory: api-rally
+        run: poetry install --no-interaction --no-root
+      
+      - name: Generate OpenAPI schema
+        working-directory: api-rally
+        run: |
+          poetry run python - << 'PY'
+          from app.main import app
+          from fastapi.openapi.utils import get_openapi
+          import json, os
+          
+          schema = get_openapi(
+              title=getattr(app, 'title', 'API'),
+              version=getattr(app, 'version', '0.0.0'),
+              routes=app.routes,
+          )
+          
+          out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')                                                                 
+          with open(out_path, 'w') as f:
+              json.dump(schema, f)
+          print(f"Wrote schema to {out_path}")
+          PY
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -97,6 +133,10 @@ jobs:
       - name: Install dependencies
         working-directory: web-rally
         run: pnpm install --frozen-lockfile
+      
+      - name: Generate API client
+        working-directory: web-rally
+        run: pnpm run generate-client
       
       - name: Run ESLint
         working-directory: web-rally
