@@ -1,7 +1,7 @@
 """
 Score-based activities for Rally extension
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import BaseActivity
 
@@ -31,7 +31,7 @@ class ScoreBasedActivity(BaseActivity):
         base_score = self.config.get('base_score', 50)
         return base_score * percentage
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate score-based result data"""
         required_fields = ['achieved_points']
         return all(field in result_data for field in required_fields)

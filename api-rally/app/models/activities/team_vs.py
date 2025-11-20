@@ -1,7 +1,7 @@
 """
 Team vs Team activities for Rally extension
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import BaseActivity
 
@@ -33,7 +33,7 @@ class TeamVsActivity(BaseActivity):
         else:
             return 0
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate team vs team result data with versus group validation"""
         valid_results = ['win', 'lose', 'draw']
         
@@ -51,7 +51,7 @@ class TeamVsActivity(BaseActivity):
         # This is for backwards compatibility
         return True
     
-    def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session) -> bool:
+    def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session: Any) -> bool:
         """Validate that teams are in the same versus group"""
         try:
             from app.crud.crud_versus import versus
@@ -66,7 +66,7 @@ class TeamVsActivity(BaseActivity):
             # If versus system fails, fall back to basic validation
             return True
     
-    def get_opponent_for_team(self, team_id: int, db_session) -> Dict[str, Any]:
+    def get_opponent_for_team(self, team_id: int, db_session: Any) -> Optional[Dict[str, Any]]:
         """Get opponent team information for a given team"""
         try:
             from app.crud.crud_versus import versus
@@ -83,7 +83,7 @@ class TeamVsActivity(BaseActivity):
         except Exception:
             return None
     
-    def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session) -> Dict[str, Any]:
+    def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session: Any) -> Dict[str, Any]:
         """Create result data for a team in a versus group"""
         opponent_info = self.get_opponent_for_team(team_id, db_session)
         

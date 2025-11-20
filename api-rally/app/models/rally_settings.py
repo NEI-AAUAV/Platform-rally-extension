@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, Boolean, DateTime, String
 from app.models.base import Base
 
 class RallySettings(Base):
-    __tablename__ = "rally_settings"
+    __tablename__ = "rally_settings"  # type: ignore[assignment]
 
     id = Column(Integer, primary_key=True, default=1) # there's only 1 row
     

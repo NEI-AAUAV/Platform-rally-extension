@@ -1,7 +1,7 @@
 """
 General activities for Rally extension - flexible scoring within a range
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import BaseActivity
 
@@ -35,7 +35,7 @@ class GeneralActivity(BaseActivity):
         
         return float(assigned_points)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate general activity result data"""
         required_fields = ['assigned_points']
         

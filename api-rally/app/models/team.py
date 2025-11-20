@@ -10,7 +10,7 @@ from app.models.user import User
 
 
 class Team(Base):
-    __tablename__ = "teams"
+    __tablename__ = "teams"  # type: ignore[assignment]
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(unique=True)

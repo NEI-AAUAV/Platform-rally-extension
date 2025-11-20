@@ -2,7 +2,7 @@
 Base activity class for Rally extension
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.core.config import settings
 
 
@@ -31,7 +31,7 @@ class BaseActivity(ABC):
         pass
     
     @abstractmethod
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate that the result data is correct for this activity type"""
         pass
     
@@ -40,7 +40,7 @@ class BaseActivity(ABC):
         """Return the expected schema for result data"""
         pass
     
-    def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session=None) -> float:
+    def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session: Any = None) -> float:
         """Apply scoring modifiers (extra shots, penalties)"""
         final_score = base_score
         

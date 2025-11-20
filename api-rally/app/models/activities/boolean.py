@@ -1,7 +1,7 @@
 """
 Boolean activities for Rally extension
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import BaseActivity
 
@@ -28,7 +28,7 @@ class BooleanActivity(BaseActivity):
         else:
             return self.config.get('failure_points', 0)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate boolean result data"""
         required_fields = ['success']
         return all(field in result_data for field in required_fields)

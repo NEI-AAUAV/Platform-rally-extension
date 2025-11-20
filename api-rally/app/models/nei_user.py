@@ -11,8 +11,8 @@ class NEIUser(Base):
     Reference to NEI platform users.
     This model points to the main NEI user table (nei.user).
     """
-    __tablename__ = "user"
-    __table_args__ = {"schema": "nei"}  # NEI uses nei schema
+    __tablename__ = "user"  # type: ignore[assignment]
+    __table_args__ = ({"schema": "nei"},)  # NEI uses nei schema
     
     id: Mapped[int] = mapped_column(primary_key=True)
     iupi: Mapped[Optional[str]] = mapped_column(String(36))

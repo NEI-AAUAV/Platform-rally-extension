@@ -1,7 +1,7 @@
 """
 Time-based activities for Rally extension
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from .base import BaseActivity
 
@@ -67,7 +67,7 @@ class TimeBasedActivity(BaseActivity):
             position_ratio = (rank - 1) / (total_teams - 1)
             return max_points - (score_range * position_ratio)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate time-based result data"""
         required_fields = ['completion_time_seconds']
         return all(field in result_data for field in required_fields)
