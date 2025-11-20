@@ -1,7 +1,7 @@
 """
 CRUD operations for activities
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
@@ -118,41 +118,44 @@ class CRUDActivityResult:
         team = db.query(Team).filter(Team.id == team_id).first()
         return len(team.members) if team and team.members else 1
     
-    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: float) -> list:
+    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: Optional[float]) -> List[float]:
         """Get all completion times including current result"""
         existing_results = db.query(ActivityResult).filter(
             ActivityResult.activity_id == activity_id,
             ActivityResult.is_completed == True
         ).all()
         
-        all_times = [result.time_score for result in existing_results if result.time_score]
-        if current_time:
+        all_times = [float(result.time_score) for result in existing_results if result.time_score is not None]
+        if current_time is not None:
             all_times.append(current_time)
         
         return all_times
     
-    def _calculate_with_relative_ranking(self, db: Session, activity_instance, obj_in: ActivityResultCreate) -> float:
+    def _calculate_with_relative_ranking(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
         """Calculate score using relative ranking for time-based activities"""
+        completion_time = obj_in.result_data.get('completion_time_seconds')
+        current_time: Optional[float] = float(completion_time) if completion_time is not None else None
+        
         all_times = self._get_all_times_for_ranking(
             db, 
             obj_in.activity_id, 
-            obj_in.result_data.get('completion_time_seconds')
+            current_time
         )
         
         if len(all_times) <= 1:
             team_size = self._get_team_size(db, obj_in.team_id)
-            return activity_instance.calculate_score(obj_in.result_data, team_size)
+            return float(activity_instance.calculate_score(obj_in.result_data, team_size))
         
         if hasattr(activity_instance, 'calculate_relative_ranking_score'):
-            return activity_instance.calculate_relative_ranking_score(
+            return float(activity_instance.calculate_relative_ranking_score(
                 all_times,
-                obj_in.result_data['completion_time_seconds']
-            )
+                float(obj_in.result_data['completion_time_seconds'])
+            ))
         
         team_size = self._get_team_size(db, obj_in.team_id)
-        return activity_instance.calculate_score(obj_in.result_data, team_size)
+        return float(activity_instance.calculate_score(obj_in.result_data, team_size))
     
-    def _calculate_final_score(self, db: Session, activity_instance, obj_in: ActivityResultCreate) -> float:
+    def _calculate_final_score(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
         """Calculate the final score for the activity result"""
         is_time_based = activity_instance.__class__.__name__ == 'TimeBasedActivity'
         
@@ -161,14 +164,14 @@ class CRUDActivityResult:
             base_score = self._calculate_with_relative_ranking(db, activity_instance, obj_in)
         else:
             team_size = self._get_team_size(db, obj_in.team_id)
-            base_score = activity_instance.calculate_score(obj_in.result_data, team_size)
+            base_score = float(activity_instance.calculate_score(obj_in.result_data, team_size))
         
         # Apply modifiers
         modifiers = {
             'extra_shots': obj_in.extra_shots,
             'penalties': obj_in.penalties
         }
-        return activity_instance.apply_modifiers(base_score, modifiers, db)
+        return float(activity_instance.apply_modifiers(base_score, modifiers, db))
     
     def _create_result_object(self, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
         """Create the ActivityResult database object"""
@@ -183,7 +186,7 @@ class CRUDActivityResult:
             completed_at=func.now()
         )
     
-    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict) -> None:
+    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: Dict[str, Any]) -> None:
         """Set specific score fields based on activity type"""
         if activity.activity_type == 'TimeBasedActivity':
             db_obj.time_score = result_data.get('completion_time_seconds')
@@ -196,18 +199,18 @@ class CRUDActivityResult:
         elif activity.activity_type == 'GeneralActivity':
             db_obj.points_score = result_data.get('assigned_points')
     
-    def _validate_time_based_activity(self, db: Session, activity_id: int):
+    def _validate_time_based_activity(self, db: Session, activity_id: int) -> Tuple[Optional[Activity], Optional[str]]:
         """Validate that activity is time-based"""
         activity = db.query(Activity).filter(Activity.id == activity_id).first()
         if not activity or activity.activity_type != 'TimeBasedActivity':
             return None, None
         return activity, activity.activity_type
     
-    def _get_all_completed_times(self, all_results):
+    def _get_all_completed_times(self, all_results: List[ActivityResult]) -> List[float]:
         """Extract all completion times from results"""
-        return [result.time_score for result in all_results if result.time_score]
+        return [float(result.time_score) for result in all_results if result.time_score is not None]
     
-    def _recalculate_single_result(self, result, activity_instance, max_points, db: Session):
+    def _recalculate_single_result(self, result: ActivityResult, activity_instance: Any, max_points: float, db: Session) -> None:
         """Recalculate score for a single result with max points"""
         modifiers = {
             'extra_shots': result.extra_shots,
@@ -219,7 +222,7 @@ class CRUDActivityResult:
             db
         )
     
-    def _recalculate_with_ranking(self, result, activity_instance, all_times, db: Session):
+    def _recalculate_with_ranking(self, result: ActivityResult, activity_instance: Any, all_times: List[float], db: Session) -> None:
         """Recalculate score using relative ranking"""
         if not result.time_score or not hasattr(activity_instance, 'calculate_relative_ranking_score'):
             return
@@ -235,7 +238,7 @@ class CRUDActivityResult:
         }
         result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
     
-    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: int = None) -> None:
+    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: Optional[int] = None) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
         activity, _ = self._validate_time_based_activity(db, activity_id)
         if not activity:
@@ -275,7 +278,7 @@ class CRUDActivityResult:
         # Recalculate scores for existing results (excluding the newly created one)
         if len(all_times) <= 1:
             # Only one result, give it max points
-            max_points = activity_instance.config.get('max_points', 100)
+            max_points = float(activity_instance.config.get('max_points', 100))
             for result in all_results:
                 self._recalculate_single_result(result, activity_instance, max_points, db)
         else:
@@ -349,6 +352,9 @@ class CRUDActivityResult:
     def _recalculate_score_for_update(self, db: Session, db_obj: ActivityResult) -> None:
         """Recalculate the final score when result data is updated"""
         activity = db.query(Activity).filter(Activity.id == db_obj.activity_id).first()
+        if not activity:
+            return
+        
         activity_instance = ActivityFactory.create_activity(
             activity.activity_type, 
             activity.config
@@ -362,30 +368,30 @@ class CRUDActivityResult:
                 ActivityResult.is_completed == True
             ).all()
             
-            all_times = [result.time_score for result in all_results if result.time_score]
+            all_times = [float(result.time_score) for result in all_results if result.time_score is not None]
             
-            if len(all_times) > 1 and hasattr(activity_instance, 'calculate_relative_ranking_score'):
+            if len(all_times) > 1 and hasattr(activity_instance, 'calculate_relative_ranking_score') and db_obj.time_score is not None:
                 # Use relative ranking
                 ranking_score = activity_instance.calculate_relative_ranking_score(
                     all_times,
-                    db_obj.time_score
+                    float(db_obj.time_score)
                 )
-                base_score = ranking_score
+                base_score = float(ranking_score)
             else:
                 # Single result or fallback
                 team = db.query(Team).filter(Team.id == db_obj.team_id).first()
                 team_size = len(team.members) if team and team.members else 1
-                base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
+                base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
         else:
             team = db.query(Team).filter(Team.id == db_obj.team_id).first()
             team_size = len(team.members) if team and team.members else 1
-            base_score = activity_instance.calculate_score(db_obj.result_data, team_size)
+            base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
         
         modifiers = {
             'extra_shots': db_obj.extra_shots,
             'penalties': db_obj.penalties
         }
-        db_obj.final_score = activity_instance.apply_modifiers(base_score, modifiers, db)
+        db_obj.final_score = float(activity_instance.apply_modifiers(base_score, modifiers, db))
     
     def remove(self, db: Session, *, id: int) -> Optional[ActivityResult]:
         """Remove an activity result"""

@@ -156,7 +156,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         db.refresh(team)
         return team
 
-    def _validate_rally_timing(self, settings, current_time: datetime) -> None:
+    def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
         """Validate rally timing constraints"""
         if settings.rally_start_time and current_time < settings.rally_start_time:
             raise APIException(
@@ -170,7 +170,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                 detail=f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
             )
 
-    def _validate_checkpoint_order(self, db: Session, team, checkpoint_id: int, settings) -> None:
+    def _validate_checkpoint_order(self, db: Session, team: Team, checkpoint_id: int, settings: Any) -> None:
         """Validate checkpoint order constraints"""
         from app.models.checkpoint import CheckPoint
         
@@ -210,7 +210,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             self._validate_checkpoint_order(db, team, checkpoint_id, settings)
 
             # Add scores and times
-            team.question_scores.append(obj_in.question_score)
+            team.question_scores.append(bool(obj_in.question_score))
             team.time_scores.append(obj_in.time_score)
             team.pukes.append(obj_in.pukes)
             team.skips.append(obj_in.skips)
