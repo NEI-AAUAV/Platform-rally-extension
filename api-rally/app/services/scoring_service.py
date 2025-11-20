@@ -18,7 +18,7 @@ class ScoringService:
     
     def __init__(self, db: Session):
         self.db = db
-        self._settings = None
+        self._settings: Optional[RallySettings] = None
     
     def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
@@ -29,6 +29,8 @@ class ScoringService:
                 self._settings = RallySettings()
                 self.db.add(self._settings)
                 self.db.commit()
+        if self._settings is None:
+            raise RuntimeError("Failed to get or create rally settings")
         return self._settings
     
     def calculate_team_total_score(self, team_id: int) -> float:
@@ -56,8 +58,8 @@ class ScoringService:
         ).all()
         
         # Group results by checkpoint order (not checkpoint ID)
-        checkpoint_scores = {}
-        total_score = 0
+        checkpoint_scores: Dict[int, float] = {}
+        total_score = 0.0
         
         for result in results:
             if result.is_completed and result.final_score is not None:
@@ -67,18 +69,18 @@ class ScoringService:
                     # Use checkpoint order instead of checkpoint ID
                     checkpoint_order = activity.checkpoint.order
                     if checkpoint_order not in checkpoint_scores:
-                        checkpoint_scores[checkpoint_order] = 0
+                        checkpoint_scores[checkpoint_order] = 0.0
                     checkpoint_scores[checkpoint_order] += result.final_score
                     total_score += result.final_score
         
         # Update team scores
-        team.total = total_score
+        team.total = int(total_score)
         
         # Update score_per_checkpoint array to match times array length
         # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID
         # The times array represents checkpoint visit order
         team.score_per_checkpoint = [
-            checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
+            int(checkpoint_scores.get(i + 1, 0.0)) for i in range(len(team.times))
         ]
         
         # Commit only if explicitly requested
@@ -218,7 +220,7 @@ class ScoringService:
                 })
             
             # Sort by total score descending
-            ranking.sort(key=lambda x: x['total_score'], reverse=True)
+            ranking.sort(key=lambda x: float(x.get('total_score', 0)), reverse=True)
             
             # Add ranks
             for i, team_rank in enumerate(ranking, 1):
@@ -242,15 +244,15 @@ class ScoringService:
             }
         
         completed_results = [r for r in results if r.is_completed and r.final_score is not None]
-        scores = [r.final_score for r in completed_results]
+        scores = [float(r.final_score) for r in completed_results if r.final_score is not None]
         
         return {
             'total_participants': len(results),
             'completed_participants': len(completed_results),
-            'average_score': sum(scores) / len(scores) if scores else 0,
-            'best_score': max(scores) if scores else 0,
-            'worst_score': min(scores) if scores else 0,
-            'completion_rate': len(completed_results) / len(results) if results else 0
+            'average_score': sum(scores) / len(scores) if scores else 0.0,
+            'best_score': max(scores) if scores else 0.0,
+            'worst_score': min(scores) if scores else 0.0,
+            'completion_rate': len(completed_results) / len(results) if results else 0.0
         }
     
     def validate_team_vs_match(self, team1_id: int, team2_id: int, activity_id: int) -> bool:
@@ -308,7 +310,7 @@ class ScoringService:
         try:
             # Create both results
             from app.schemas.activity import ActivityResultCreate
-            from app.crud.crud_activity import activity as activity_crud
+            from app.crud.crud_activity import activity_result as activity_result_crud
             
             result1_create = ActivityResultCreate(
                 activity_id=activity_id,
@@ -326,8 +328,8 @@ class ScoringService:
             current_time = datetime.now(timezone.utc)
             
             # Create both results but defer recalculation and team score updates to batch correctly
-            result1_db_obj = activity_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
-            result2_db_obj = activity_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
+            result1_db_obj = activity_result_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
+            result2_db_obj = activity_result_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
             
             # Mark as completed
             result1_db_obj.is_completed = True
@@ -336,7 +338,6 @@ class ScoringService:
             result2_db_obj.completed_at = current_time
             
             # Now perform a single recalculation for this activity and update both teams' scores
-            from app.crud.crud_activity import activity_result as activity_result_crud
             activity_result_crud._recalculate_all_results_for_activity(self.db, activity_id)
             activity_result_crud._update_team_scores(self.db, team1_id)
             activity_result_crud._update_team_scores(self.db, team2_id)

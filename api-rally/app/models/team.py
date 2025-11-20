@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy import DateTime, Integer, Boolean
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -7,6 +7,9 @@ from sqlalchemy.ext.mutable import MutableList
 
 from app.models.base import Base
 from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.activity import ActivityResult
 
 
 class Team(Base):

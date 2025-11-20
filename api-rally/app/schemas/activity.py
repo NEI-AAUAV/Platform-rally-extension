@@ -19,7 +19,7 @@ class ActivityBase(BaseModel):
     is_active: bool = True
     
     @validator('activity_type')
-    def validate_activity_type(cls, v):
+    def validate_activity_type(cls, v: Any) -> Any:
         """Validate that activity type is supported by the factory"""
         if isinstance(v, ActivityType):
             # Convert enum to string for factory validation
@@ -97,7 +97,7 @@ class ActivityResultResponse(ActivityResultBase):
     created_at: datetime
     updated_at: datetime
     
-    model_config = ConfigDict(from_attributes=True, exclude={'activity', 'team'})
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RallyEventBase(BaseModel):

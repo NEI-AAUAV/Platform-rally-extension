@@ -25,13 +25,13 @@ class TeamVsActivity(BaseActivity):
         result = result_data.get('result')  # 'win', 'lose', 'draw'
         
         if result == 'win':
-            return self.config.get('win_points', 100)
+            return float(self.config.get('win_points', 100))
         elif result == 'draw':
-            return self.config.get('draw_points', 50)
+            return float(self.config.get('draw_points', 50))
         elif result == 'lose':
-            return self.config.get('lose_points', 0)
+            return float(self.config.get('lose_points', 0))
         else:
-            return 0
+            return 0.0
     
     def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate team vs team result data with versus group validation"""

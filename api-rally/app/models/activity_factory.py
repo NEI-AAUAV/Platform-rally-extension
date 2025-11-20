@@ -25,13 +25,13 @@ class ActivityFactory:
     }
     
     @classmethod
-    def create_activity(cls, activity_type: str, config: Dict[str, Any]):
+    def create_activity(cls, activity_type: str, config: Dict[str, Any]) -> Any:  # Returns BaseActivity subclass
         """Create an activity instance based on type"""
         activity_class = cls._activity_classes.get(activity_type)
         if not activity_class:
             raise ValueError(f"Unknown activity type: {activity_type}")
         
-        return activity_class(config)
+        return activity_class(config)  # type: ignore[abstract]
     
     @classmethod
     def get_available_types(cls) -> list[str]:

@@ -24,9 +24,9 @@ class BooleanActivity(BaseActivity):
         success = result_data.get('success', False)
         
         if success:
-            return self.config.get('success_points', 100)
+            return float(self.config.get('success_points', 100))
         else:
-            return self.config.get('failure_points', 0)
+            return float(self.config.get('failure_points', 0))
     
     def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate boolean result data"""

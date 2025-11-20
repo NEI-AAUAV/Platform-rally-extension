@@ -45,10 +45,10 @@ class GeneralActivity(BaseActivity):
         # Validate that assigned_points is a number
         try:
             points = float(result_data['assigned_points'])
-            min_points = self.config.get('min_points', 0)
-            max_points = self.config.get('max_points', 100)
+            min_points = float(self.config.get('min_points', 0))
+            max_points = float(self.config.get('max_points', 100))
             
-            return min_points <= points <= max_points
+            return bool(min_points <= points <= max_points)
         except (ValueError, TypeError):
             return False
     
