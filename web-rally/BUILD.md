@@ -1,252 +1,85 @@
-# Rally Web Build Guide
+# Rally Web: Build Guide
 
-This guide explains how to build the Rally web frontend.
+This guide covers building, testing, and deploying the Rally web frontend.
 
-## Two Deployment Modes
+## Build Methods
 
-### Mode 1: Platform Submodule (Recommended for Platform repo)
+There are two primary ways to build the Rally web assets.
 
-Rally is a submodule of Platform. Use the multi-stage `Dockerfile.prod`.
+### 1. Local Development (Recommended)
 
-**Build context:** `extensions/rally/` (parent of web-rally and api-rally)
-
-```bash
-# From Platform root
-docker compose -f compose.prod.yml build web_rally
-```
-
-The Dockerfile will:
-1. Generate OpenAPI schema from api-rally (Python stage)
-2. Generate client and build web (Node stage)
-3. Serve with nginx on port 3003 (nginx stage)
-
-### Mode 2: Standalone CI Build (For Rally repo CI)
-
-Rally repo can publish pre-built static artifacts (no nginx) to GHCR for external deployment.
-
-**Build context:** `web-rally/` (dist must already exist)
+The `build-local.sh` script is the fastest way to build the assets. It handles OpenAPI schema generation, dependency installation, and client generation.
 
 ```bash
-# Generate schema and build first
-cd extensions/rally/web-rally
-./build-local.sh
-
-# Then build artifact-only image (no nginx, just files)
-docker build -f Dockerfile.standalone -t web-rally-artifact .
-```
-
-**Note:** Platform deployment uses `Dockerfile.prod` (with nginx), not the artifact image.
-
-## Prerequisites
-
-- **Docker** 20+ with BuildKit
-- **For local builds**: Node 20+, pnpm 9+, Python 3.11+, Poetry
-
-## Local Development Build
-
-### Quick Start Script
-
-```bash
-cd Platform/extensions/rally/web-rally
+# From Platform/extensions/rally/web-rally
 ./build-local.sh
 ```
 
-This script:
-1. Generates `openapi.json` from api-rally (offline, no DB)
-2. Installs dependencies
-3. Generates API client (via prebuild hook)
-4. Builds frontend to `dist/`
+This generates the final assets in the `web-rally/dist/` directory.
 
-### Manual Steps
+### 2. Platform Docker Build
 
-#### 1. Generate OpenAPI Schema
-
-From `extensions/rally/api-rally/`:
+This method builds the web assets inside a Docker container as part of the main platform's `docker compose` workflow. This is how production images are built.
 
 ```bash
-poetry install --no-root --only main
-poetry run python - <<'PY'
-from app.main import app
-from fastapi.openapi.utils import get_openapi
-import json, os
-
-schema = get_openapi(
-    title=getattr(app, 'title', 'Rally API'),
-    version=getattr(app, 'version', '0.0.0'),
-    routes=app.routes,
-)
-
-out = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
-json.dump(schema, open(out, 'w'), indent=2)
-print(f'Generated: {out}')
-PY
-```
-
-#### 2. Build Frontend
-
-From `extensions/rally/web-rally/`:
-
-```bash
-pnpm install
-pnpm build  # prebuild generates client from openapi.json
-```
-
-Output: `dist/` with static assets
-
-## Docker Builds
-
-### Platform Compose (Production)
-
-```bash
-# From Platform root
+# From the Platform repository root
 docker compose -f compose.prod.yml build web_rally
 docker compose -f compose.prod.yml up -d web_rally
 ```
 
-### Standalone Artifact Image
+The build is defined in `web-rally/Dockerfile.prod`, which is a multi-stage Dockerfile that performs the same steps as the local script.
 
+## Deploying Static Assets
+
+After running `./build-local.sh`, you can deploy the static files from the `dist/` directory to any static hosting service or web server.
+
+**Package into a tarball:**
 ```bash
-# After building web locally
-cd extensions/rally/web-rally
-docker build -f Dockerfile.standalone -t rally-artifact .
+tar -czf rally-web.tar.gz -C web-rally/dist .
 ```
 
-### Extract Static Files (from artifact image)
-
-If you need just the static files (e.g., for external nginx):
-
+**Deploy with rsync:**
 ```bash
-# Extract dist from artifact-only image
-id=$(docker create rally-artifact)
-docker cp $id:/dist ./rally-static
-docker rm $id
-
-# Deploy to external nginx
-rsync -a --delete ./rally-static/ /var/www/html/rally/
+rsync -a --delete web-rally/dist/ user@your-server:/var/www/html/rally/
 ```
 
-**Note:** Platform doesn't use this - it runs nginx inside the container.
+## CI/CD Workflows
 
-## Platform CI/CD Integration
+The Rally extension uses two distinct CI workflows for quality and deployment.
 
-### Option A: Build in Docker (Current Setup)
+1.  **`build-web.yml` (Artifact Generation):**
+    *   **Purpose:** To create the official, deployable `dist` artifact.
+    *   **Process:** Runs the `./build-local.sh` script and uploads the resulting `dist` directory as a GitHub Actions artifact.
 
-Platform's `compose.prod.yml` builds Rally web using multi-stage Dockerfile with nginx.
+2.  **`docker-build.yml` (Validation):**
+    *   **Purpose:** To act as a CI quality gate, ensuring that the Dockerfiles can build the services from source.
+    *   **Process:** This workflow intentionally rebuilds from source to catch any breaks in the Docker build process itself. It does *not* use the artifact from `build-web.yml`.
 
-**Pros:** 
-- All-in-one build, no separate steps
-- Nginx serves files directly from container
-- Consistent with web_nei/web_gala pattern
+## Core Concepts
 
-**Cons:** 
-- Longer build time (includes schema gen + web build)
-- Larger image (includes nginx)
-
-### Option B: Pre-build in CI (Faster)
-
-Generate schema and build in CI, then package with Docker:
-
-```yaml
-# .github/workflows/deploy.yml
-- name: Checkout with submodules
-  uses: actions/checkout@v4
-  with:
-    submodules: recursive
-
-- name: Build Rally Web
-  run: |
-    cd extensions/rally/web-rally
-    ./build-local.sh
-
-- name: Package artifact
-  run: |
-    cd extensions/rally/web-rally
-    docker build -f Dockerfile.standalone -t rally-artifact .
-```
-
-## Rally CI (Separate Repo)
-
-Rally repo workflow publishes artifacts to GHCR:
-
-```yaml
-# .github/workflows/build-web.yml
-# Generates schema → builds web → publishes artifact
-# Output: ghcr.io/nei-aauav/web-rally-artifact:latest
-```
-
-Platform can then consume:
-
-```bash
-docker pull ghcr.io/nei-aauav/web-rally-artifact:latest
-# Extract and deploy
-```
+*   **Build Context:** Building via the platform (`docker compose`) requires the build context to be the repository root, as the web Dockerfile needs access to `api-rally/` to generate the OpenAPI schema.
+*   **Generated Files:** Never commit generated files to Git. This includes `openapi.json`, `src/client/`, and the `dist/` directory.
+*   **Offline Schema:** The OpenAPI schema is generated offline from the FastAPI application code, so no database connection is required during the build.
 
 ## Troubleshooting
 
-### Error: `openapi.json` not found during build
+*   **`openapi.json` is missing:** Ensure the Docker build context includes the `api-rally/` directory.
+*   **`pnpm` failures:** Lockfile mismatches are handled automatically by the build scripts.
+*   **Slow Platform builds:** This is expected, as the validation workflow rebuilds from source. The artifact-generation workflow (`build-web.yml`) is much faster.
 
-**Cause:** Schema generation failed or wrong build context
-
-**Solution:**
-- Ensure build context includes both `api-rally/` and `web-rally/`
-- Check Python stage logs for schema generation errors
-
-### Error: `pnpm install` fails with frozen lockfile
-
-**Solution:** Dockerfile uses fallback:
-```dockerfile
-RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
-```
-
-### Error: Docker build can't find api-rally sources
-
-**Cause:** Build context doesn't include parent directory
-
-**Solution:**
-```yaml
-# compose.override.prod.yml
-build:
-  context: extensions/rally  # Parent directory
-  dockerfile: web-rally/Dockerfile.prod
-```
-
-### Build is very slow in Platform
-
-**Solution:** Use CI pre-build approach (Option B above)
-
-## File Overview
+## File Structure
 
 ```
 extensions/rally/
-├── api-rally/              # FastAPI backend
-│   └── app/main.py         # OpenAPI source
-└── web-rally/              # React frontend
-    ├── Dockerfile.prod     # Multi-stage (Platform builds)
-    ├── Dockerfile.standalone  # Artifact-only (CI builds)
-    ├── build-local.sh      # Local dev script
-    ├── openapi.json        # Generated (not committed)
-    ├── src/client/         # Generated (not committed)
-    └── dist/               # Built assets (not committed)
+├── api-rally/      # FastAPI backend (source for schema)
+└── web-rally/      # React frontend
+    ├── Dockerfile        # For local development container
+    ├── Dockerfile.prod   # Multi-stage production build (includes nginx)
+    ├── build-local.sh    # Main build script for local use and CI
+    └── dist/             # (Generated) Final static assets
 ```
 
-## Best Practices
+## Links
 
-✅ **Platform Submodule:**
-- Use multi-stage `Dockerfile.prod`
-- Build context = `extensions/rally/`
-- One workflow, no external dependencies
-
-✅ **Rally Standalone Repo:**
-- Build in CI with `build-local.sh`
-- Publish artifact to GHCR
-- Platform pulls and deploys
-
-✅ **Both:**
-- Never commit generated files (`openapi.json`, `src/client/`, `dist/`)
-- Generate schema offline (no DB required)
-- Use prebuild hook for client generation
-
-## Support
-
-- Rally Extension: https://github.com/NEI-AAUAV/Platform-rally-extension
-- Platform: https://github.com/NEI-AAUAV/Platform
+*   **Rally Repo:** `https://github.com/NEI-AAUAV/Platform-rally-extension`
+*   **Platform Repo:** `https://github.com/NEI-AAUAV/Platform`

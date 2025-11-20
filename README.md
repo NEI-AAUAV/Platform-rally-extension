@@ -1,107 +1,85 @@
 # Rally Extension
 
-The Rally extension provides checkpoint-based competition management for NEI events. It covers team registration, checkpoint operations, activity evaluation, scoring, and live rankings. The system is split into a FastAPI backend and a React/TypeScript frontend.
+Rally is the NEI Platform’s competition module. It handles team rosters, checkpoint progress, activity scoring, staff evaluations, and public leaderboards. The extension is split into:
 
-## Overview
+- `api-rally/` – FastAPI service (Python 3.11, SQLAlchemy, PostgreSQL)
+- `web-rally/` – React/Vite frontend (TypeScript, Tailwind, Zustand)
 
-Core capabilities:
-- Team and member management
-- Checkpoint assignment and progress tracking
-- Activity configuration (time-based, score-based, boolean, and head‑to‑head)
-- Staff evaluation workflows with permission checks
-- Scoring with penalties/bonuses and relative ranking for time‑based activities
-- Public leaderboard and team views
+## Directory Map
 
-## Architecture
-
-Components:
-- Backend (`api-rally`): FastAPI, SQLAlchemy, PostgreSQL, Pydantic
-- Frontend (`web-rally`): React 18 + TypeScript, Vite, Tailwind, Zustand, TanStack Query
-
-Selected folders:
 ```
-api-rally/app/
-  api/         # API routes
-  core/        # settings, auth
-  crud/        # persistence layer
-  models/      # domain models
-  schemas/     # request/response contracts
-  services/    # scoring and domain services
-  tests/       # unit, API, and integration tests
-
-web-rally/src/
-  components/  # UI components
-  pages/       # screens
-  services/    # API client
-  stores/      # state management
-  client/      # generated API models
+extensions/rally/
+├── api-rally/
+│   └── app/
+│       ├── api/        # FastAPI routers
+│       ├── crud/       # DB helpers
+│       ├── models/     # SQLAlchemy models
+│       └── services/   # Scoring + business logic
+└── web-rally/
+    └── src/
+        ├── components/ # UI + themed parts
+        ├── pages/      # Route-level screens
+        ├── services/   # API client + hooks
+        └── stores/     # Zustand state
 ```
 
-## Development
+## Local Setup
 
-Backend:
+### Backend
 ```bash
 cd Platform/extensions/rally/api-rally
 poetry install
 poetry run uvicorn app.main:app --reload
 ```
+Set the usual `POSTGRES_*` env vars and point `JWT_PUBLIC_KEY_PATH` to the NEI key.
 
-Frontend:
+### Frontend
 ```bash
 cd Platform/extensions/rally/web-rally
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
-
-Configuration (backend):
-- `POSTGRES_*` variables for database access
-- `JWT_PUBLIC_KEY_PATH` and `JWT_ALGORITHM` for authentication
+The dev server proxies through the Platform compose stack, so run the backend first.
 
 ## Testing
 
-Backend tests:
 ```bash
-cd Platform/extensions/rally/api-rally
+# API
+cd extensions/rally/api-rally
 poetry run pytest
+
+# Frontend
+cd extensions/rally/web-rally
+pnpm test
 ```
+The backend test suite mocks the JWT verifier and spins up a temporary DB. Frontend tests run under Vitest/jsdom.
 
-Frontend tests:
-```bash
-cd Platform/extensions/rally/web-rally
-npm run test
-```
-
-Notes:
-- Tests rely on `orjson`. It is declared in `pyproject.toml`.
-- Tests mock the JWT public key read at import time to avoid filesystem coupling in CI.
-
-## API
+## API at a Glance
 
 Base path: `/api/rally/v1`
 
-Examples:
-- `GET /teams` — list teams
-- `GET /checkpoints` — list checkpoints
-- `GET /activities` — list activities
-- `POST /activities` — create activity
-- `POST /staff/evaluate` — submit staff evaluation for an activity
+```
+GET  /teams
+GET  /checkpoints
+POST /staff/evaluate
+```
+Generate the OpenAPI schema (`web-rally/openapi.json`) for the full list.
 
-Refer to the OpenAPI schema exposed by the backend for the full surface.
+## Concepts That Matter
 
-## Implementation details
+- **Relative ranking:** Time-based activities assign points based on placement, not raw time.
+- **Head-to-head safety:** Team-vs activities update both teams in a single transaction.
+- **Editable evaluations:** Staff can adjust past results; checkpoint advancement logic handles it.
+- **Caching:** The frontend uses TanStack Query + Zustand to avoid spamming the API.
 
-- Time-based activities use relative ranking. Ties are handled correctly, and last‑place logic avoids awarding minimum points to non‑last ranks.
-- Staff evaluation endpoints permit updating existing results even if a team has progressed past the staff’s checkpoint, provided the activity belongs to that checkpoint.
-- Team‑vs‑team creation batches both results and performs a single recalculation to ensure ranking consistency.
-- Frontend caches common queries (for example, settings) to reduce unnecessary requests.
-- TypeScript client models are kept in sync with backend responses (e.g., `ListingTeam.last_checkpoint_name`).
+## Deployment Notes
 
-## Security
+- Multi-stage Dockerfiles build both services (Python + nginx for the web)
+- Auth flows reuse NEI JWT scopes (admin, rally manager, rally staff, etc.)
+- All request payloads go through Pydantic validation
 
-- JWT authentication integrated with the platform
-- Attribute/role checks on staff endpoints
-- Input validation with Pydantic schemas
+---
 
-## Deployment
-
-Container builds are provided for backend and frontend. Nginx reverse proxy configs are available in the repository to support production deployments, static asset serving, and TLS termination.
+Questions?  
+- Extension repo: https://github.com/NEI-AAUAV/Platform-rally-extension  
+- Platform repo: https://github.com/NEI-AAUAV/Platform

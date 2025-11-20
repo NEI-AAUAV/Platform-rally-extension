@@ -1,27 +1,43 @@
-# React + TypeScript + Vite
+# Rally Web Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the React and TypeScript frontend for the Rally extension, built with Vite.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-   parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-   },
+### 1. Install Dependencies
+```bash
+pnpm install
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+### 2. Run Development Server
+```bash
+pnpm run dev
+```
+The application will be available at `http://localhost:3003`.
+
+### 3. Run Tests
+```bash
+# Run unit tests
+pnpm test
+
+# Run End-to-End tests
+pnpm test:e2e
+```
+
+## Documentation
+
+This README provides the basic commands to get started. For more detailed information, see the following guides:
+
+-   **[Build & Deployment Guide](./BUILD.md):** For detailed instructions on building the application, local development, and CI/CD workflows.
+-   **[API Guide](./API.md):** For documentation on data fetching hooks, authentication, and API interaction.
+-   **[Testing Guide](./tests/TESTING.md):** For a comprehensive overview of our frontend testing strategy.
+
+## Tech Stack
+
+-   **Framework:** React 18
+-   **Language:** TypeScript
+-   **Build Tool:** Vite
+-   **Styling:** Tailwind CSS
+-   **State Management:** Zustand
+-   **Server State:** TanStack Query
+-   **Testing:** Vitest & Playwright

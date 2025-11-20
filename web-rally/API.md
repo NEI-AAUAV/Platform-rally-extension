@@ -1,212 +1,77 @@
-# Rally Extension - API Documentation
+# Rally Frontend: API Guide
 
-## Overview
+This document provides an overview of the frontend's interaction with backend APIs, including authentication, data fetching patterns, and client architecture.
 
-The Rally extension frontend communicates with two main APIs:
-- **Rally API** (`/api/rally/v1/`) - Extension-specific endpoints
-- **NEI API** (`/api/nei/v1/`) - Main platform endpoints (authentication, users)
+## API Endpoints
+
+The frontend consumes two primary APIs, with base URLs configured in `src/config/index.ts`:
+
+-   **Rally API:** Served from `/api/rally/v1`, this provides all extension-specific functionality (e.g., activities, teams, checkpoints).
+-   **NEI Platform API:** Served from `/api/nei/v1`, this is used for core platform services like user authentication and profile information.
 
 ## Authentication
 
-All API requests require authentication via JWT tokens. The client automatically:
-- Injects the Bearer token in request headers
-- Refreshes tokens on 401 errors
-- Queues requests during token refresh
-- Logs out users on refresh failure
+Authentication is managed automatically by the HTTP client. The `useUserStore` holds the JWT, user profile, and associated scopes. On every request, the client:
 
-### Token Management
+1.  Attaches the `Authorization: Bearer <token>` header.
+2.  Handles `401 Unauthorized` responses by attempting a single token refresh.
+3.  Retries the original request upon successful refresh.
+4.  Logs the user out if the token refresh fails.
 
-```typescript
-import { refreshToken } from '@/services/client';
+## Data Fetching with React Query
 
-// Manual token refresh
-const token = await refreshToken();
-```
+The recommended method for fetching and mutating data in UI components is via custom React Query hooks. These hooks abstract away the data-fetching logic and provide caching, invalidation, and server state management.
 
-## HTTP Client
+| Hook | Description |
+| :--- | :--- |
+| `useUser()` | Fetches user profile data from the NEI Platform API. |
+| `useRallySettings()` | Fetches public settings for the Rally extension. |
+| `useLoginLink()` | Constructs the full NEI login URL with a redirect parameter. |
+| `useActivities()` | Fetches the list of all activities. |
+| `useCreateActivity()` | Returns a mutation function to create an activity. |
+| `useUpdateActivity()` | Returns a mutation function to update an existing activity. |
+| `useDeleteActivity()` | Returns a mutation function to delete an activity. |
 
-### `createClient(baseURL?: string)`
-
-Creates an axios client with automatic authentication and error handling.
-
-**Features:**
-- Automatic token injection
-- Automatic token refresh on 401
-- Request queue during refresh
-- 5 second timeout
-
-**Example:**
-```typescript
-import { createClient } from '@/services/client';
-
-const client = createClient('https://api.example.com');
-const data = await client.get('/endpoint');
-```
-
-## React Hooks
-
-### `useActivities()`
-
-Fetches activities list. Only enabled for managers/admins.
-
-**Returns:** React Query result with activities array
-
-**Example:**
+**Example Usage:**
 ```typescript
 const { data: activities, isLoading } = useActivities();
-```
-
-### `useCreateActivity()`
-
-Creates a new activity. Invalidates activities cache on success.
-
-**Returns:** React Query mutation
-
-**Example:**
-```typescript
 const createActivity = useCreateActivity();
-createActivity.mutate({
-  name: "New Activity",
-  activity_type: "GeneralActivity",
-  checkpoint_id: 1
-});
+
+const handleCreate = () => {
+  createActivity.mutate({
+    name: 'New Challenge',
+    activity_type: 'GeneralActivity',
+    checkpoint_id: 1,
+  });
+};
 ```
-
-### `useUpdateActivity()`
-
-Updates an existing activity. Invalidates activities cache on success.
-
-**Returns:** React Query mutation
-
-**Example:**
-```typescript
-const updateActivity = useUpdateActivity();
-updateActivity.mutate({
-  id: 1,
-  activity: { name: "Updated Activity" }
-});
-```
-
-### `useDeleteActivity()`
-
-Deletes an activity. Invalidates activities cache on success.
-
-**Returns:** React Query mutation
-
-**Example:**
-```typescript
-const deleteActivity = useDeleteActivity();
-deleteActivity.mutate(1); // Delete activity with ID 1
-```
-
-### `useUser()`
-
-Fetches current user data and determines admin status.
-
-**Returns:**
-- `userData`: User data from API
-- `isRallyAdmin`: Boolean indicating admin status
-- `isLoading`: Combined loading state
-- `userStore`: Access to full user store
-
-**Example:**
-```typescript
-const { userData, isRallyAdmin, isLoading } = useUser();
-```
-
-### `useRallySettings(options?)`
-
-Fetches public Rally settings.
-
-**Parameters:**
-- `options.retry`: Retry configuration (boolean or number)
-
-**Returns:** React Query result with settings
-
-**Example:**
-```typescript
-const { settings, isLoading } = useRallySettings();
-```
-
-### `useLoginLink()`
-
-Generates login URL with redirect parameter.
-
-**Returns:** Full login URL string
-
-**Example:**
-```typescript
-const loginLink = useLoginLink();
-// Returns: "https://nei.web.ua.pt/auth/login?redirect_to=..."
-```
-
-## Services
-
-### NEIService
-
-Service for NEI platform API endpoints.
-
-#### `getUserById(id: string | number)`
-
-Fetches user data by ID from NEI platform.
-
-**Parameters:**
-- `id`: User ID (string or number)
-
-**Returns:** Promise resolving to user data
-
-**Example:**
-```typescript
-import NEIService from '@/services/NEIService';
-
-const user = await NEIService.getUserById(123);
-```
+On success, mutation hooks like `useCreateActivity` automatically invalidate the `useActivities` query to refetch the list.
 
 ## Generated API Client
 
-The extension uses an auto-generated API client from OpenAPI schema.
+For use cases requiring direct, low-level API access outside the standard React component lifecycle, an auto-generated TypeScript client is available.
 
-**Location:** `src/client/`
+-   **Location:** `src/client/`
+-   **Generation:** The client is generated from the backend's `openapi.json` schema via the `./build-local.sh` script.
 
-**Services:**
-- `ActivitiesService` - Activity management
-- `CheckPointService` - Checkpoint operations
-- `TeamService` - Team management
-- `StaffEvaluationService` - Staff evaluation endpoints
-- `SettingsService` - Rally settings
-- `UserService` - User operations
-- `VersusService` - Versus/matchup operations
-- `TeamMembersService` - Team member management
-
-All services follow the pattern:
+**Example Usage:**
 ```typescript
 import { ActivitiesService } from '@/client';
 
-const activities = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+const fetchAllActivities = async () => {
+  try {
+    const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch activities:", error);
+  }
+};
 ```
 
-## Error Handling
+## Client Architecture
 
-The HTTP client automatically handles:
-- **401 Unauthorized**: Attempts token refresh, retries request
-- **Token refresh failure**: Logs out user, rejects request
-- **Network errors**: Propagates error to caller
-- **Other errors**: Returns error response
+The core client logic is organized as follows:
 
-## Request/Response Interceptors
-
-### Request Interceptor
-- Injects `Authorization: Bearer {token}` header
-- Uses token from `useUserStore`
-
-### Response Interceptor
-- Extracts `response.data` automatically
-- Handles 401 errors with token refresh
-- Queues requests during refresh to prevent duplicate calls
-
-## Configuration
-
-API URLs are configured in `src/config/index.ts`:
-- `API_NEI_URL`: NEI platform API base URL
-- `BASE_URL`: Application base URL
-
+-   **`src/services/client.ts`**: Contains the `axios` factory and interceptors that handle authentication and response processing.
+-   **`src/services/NEIService.ts`**: Provides a set of helper functions for interacting with common NEI Platform API endpoints.
+-   **`src/config/index.ts`**: Centralizes the configuration for API base URLs.
