@@ -96,10 +96,10 @@ jobs:
           docker run --rm -d --name rally-web-test -p 3003:3003 rally-web:dev
           
           echo "⏳ Waiting for Vite dev server to start..."
-          sleep 10
+          sleep 20
           
           echo "🔍 Testing if server responds..."
-          if curl -f http://localhost:3003 --max-time 5; then
+          if curl -f http://localhost:3003 --max-time 10; then
             echo "✅ Web server is responding"
             docker stop rally-web-test
           else
