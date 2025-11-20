@@ -24,7 +24,7 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["health"])
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint for monitoring and load balancers"""
     return {
         "status": "healthy",

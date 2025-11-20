@@ -8,7 +8,7 @@ from sqlalchemy import and_, desc, func
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.team import Team
 from app.models.activity_factory import ActivityFactory
-from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate
+from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
 # ScoringService imported locally to avoid circular imports
 
 
@@ -414,7 +414,7 @@ class CRUDActivityResult:
 class CRUDRallyEvent:
     """CRUD operations for RallyEvent model"""
     
-    def create(self, db: Session, *, obj_in) -> RallyEvent:
+    def create(self, db: Session, *, obj_in: RallyEventCreate) -> RallyEvent:
         """Create a new rally event"""
         db_obj = RallyEvent(
             name=obj_in.name,
@@ -442,7 +442,7 @@ class CRUDRallyEvent:
         """Get multiple rally events"""
         return db.query(RallyEvent).offset(skip).limit(limit).all()
     
-    def update(self, db: Session, *, db_obj: RallyEvent, obj_in) -> RallyEvent:
+    def update(self, db: Session, *, db_obj: RallyEvent, obj_in: RallyEventUpdate) -> RallyEvent:
         """Update a rally event"""
         update_data = obj_in.dict(exclude_unset=True)
         for field, value in update_data.items():

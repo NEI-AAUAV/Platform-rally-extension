@@ -23,7 +23,7 @@ from app.api.deps import is_admin
 
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = None,
+    curr_user: Optional[DetailedUser] = None,
     db: Session = Depends(deps.get_db)
 ) -> DetailedUser:
     """
@@ -88,7 +88,7 @@ def require_checkpoint_score_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     db: Session = Depends(get_db)
-):
+) -> None:
     """
     Require permission to add checkpoint scores
     
@@ -140,7 +140,7 @@ def require_checkpoint_view_permission(
     checkpoint_id: Optional[int],
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access)
-):
+) -> None:
     """
     Require permission to view checkpoint teams
     
@@ -165,7 +165,7 @@ def require_checkpoint_view_permission(
 def require_checkpoint_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
-):
+) -> None:
     """
     Require permission to create/update checkpoints
     """
@@ -180,7 +180,7 @@ def require_checkpoint_management_permission(
 def require_team_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
-):
+) -> None:
     """
     Require permission to create/update teams
     """

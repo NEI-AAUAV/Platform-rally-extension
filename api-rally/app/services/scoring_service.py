@@ -38,11 +38,11 @@ class ScoringService:
         results = self.db.query(ActivityResult).filter(
             ActivityResult.team_id == team_id
         ).all()
-        total_score = 0
+        total_score = 0.0
         
         for result in results:
             if result.is_completed and result.final_score is not None:
-                total_score += result.final_score
+                total_score += float(result.final_score)
         
         return total_score
     
@@ -220,7 +220,10 @@ class ScoringService:
                 })
             
             # Sort by total score descending
-            ranking.sort(key=lambda x: float(x.get('total_score', 0)), reverse=True)
+            def get_score(item: Dict[str, Any]) -> float:
+                score = item.get('total_score', 0)
+                return float(score) if score is not None else 0.0
+            ranking.sort(key=get_score, reverse=True)
             
             # Add ranks
             for i, team_rank in enumerate(ranking, 1):

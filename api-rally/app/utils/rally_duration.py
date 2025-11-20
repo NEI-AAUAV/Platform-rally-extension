@@ -29,19 +29,22 @@ class RallyDurationCalculator:
             status["status"] = "no_start_time"
             return status
             
-        if current_time < self.settings.rally_start_time:
+        start_time = self.settings.rally_start_time
+        end_time = self.settings.rally_end_time
+        
+        if start_time and current_time < start_time:
             # Rally hasn't started yet
-            time_until_start = self.settings.rally_start_time - current_time
+            time_until_start = start_time - current_time
             status.update({
                 "status": "not_started",
                 "time_remaining": self._format_duration(time_until_start),
                 "time_until_start": self._format_duration(time_until_start)
             })
             
-        elif self.settings.rally_end_time and current_time > self.settings.rally_end_time:
+        elif end_time and current_time > end_time:
             # Rally has ended
-            time_since_end = current_time - self.settings.rally_end_time
-            total_duration = self.settings.rally_end_time - self.settings.rally_start_time
+            time_since_end = current_time - end_time
+            total_duration = end_time - start_time
             status.update({
                 "status": "ended",
                 "time_elapsed": self._format_duration(time_since_end),
@@ -51,11 +54,14 @@ class RallyDurationCalculator:
             
         else:
             # Rally is currently active
-            time_elapsed = current_time - self.settings.rally_start_time
+            if start_time:
+                time_elapsed = current_time - start_time
+            else:
+                time_elapsed = timedelta(0)
             
-            if self.settings.rally_end_time:
-                time_remaining = self.settings.rally_end_time - current_time
-                total_duration = self.settings.rally_end_time - self.settings.rally_start_time
+            if end_time and start_time:
+                time_remaining = end_time - current_time
+                total_duration = end_time - start_time
                 status.update({
                     "status": "active",
                     "time_elapsed": self._format_duration(time_elapsed),
@@ -82,8 +88,8 @@ class RallyDurationCalculator:
         team_duration = current_time - team_start_time
         
         # Calculate total rally duration if end time is set
-        total_rally_duration = None
-        if self.settings.rally_end_time:
+        total_rally_duration: Optional[timedelta] = None
+        if self.settings.rally_end_time and self.settings.rally_start_time:
             total_rally_duration = self.settings.rally_end_time - self.settings.rally_start_time
         
         return {
