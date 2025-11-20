@@ -93,22 +93,30 @@ jobs:
       - name: Test web container responds
         run: |
           echo "🚀 Starting web dev container..."
-          docker run --rm -d --name rally-web-test -p 3003:3003 rally-web:dev
+          docker run -d --name rally-web-test -p 3003:3003 rally-web:dev
           
           echo "⏳ Waiting for Vite dev server to start..."
-          sleep 20
+          for i in {1..6}; do
+            if docker ps --filter "name=rally-web-test" --filter "status=running" | grep -q rally-web-test; then
+              if curl -sSf --max-time 10 http://localhost:3003 >/dev/null; then
+                echo "✅ Web server is responding"
+                docker stop rally-web-test >/dev/null
+                docker rm -f rally-web-test >/dev/null
+                exit 0
+              fi
+            else
+              echo "🚨 Container exited early"
+              break
+            fi
+            echo "Still waiting... ($i/6)"
+            sleep 10
+          done
           
-          echo "🔍 Testing if server responds..."
-          if curl -f http://localhost:3003 --max-time 10; then
-            echo "✅ Web server is responding"
-            docker stop rally-web-test
-          else
-            echo "❌ Web server not responding"
-            echo "Container logs:"
-            docker logs rally-web-test || true
-            docker stop rally-web-test || true
-            exit 1
-          fi
+          echo "❌ Web server not responding"
+          echo "Container logs:"
+          docker logs --tail=200 rally-web-test || true
+          docker rm -f rally-web-test || true
+          exit 1
 
   docker-compose-validation:
     name: Validate Docker Compose
