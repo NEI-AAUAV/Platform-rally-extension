@@ -92,7 +92,7 @@ jobs:
       - name: Generate OpenAPI schema
         working-directory: api-rally
         run: |
-          poetry run python - << 'PY'
+          poetry run python - <<'PY'
           from app.main import app
           from fastapi.openapi.utils import get_openapi
           import json, os

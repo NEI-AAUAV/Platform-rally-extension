@@ -140,7 +140,7 @@ jobs:
           if [ ! -f "openapi.json" ]; then
             echo "Generating OpenAPI schema..."
             cd ../api-rally
-            poetry run python - << 'PY'
+            poetry run python - <<'PY'
             from app.main import app
             from fastapi.openapi.utils import get_openapi
             import json, os

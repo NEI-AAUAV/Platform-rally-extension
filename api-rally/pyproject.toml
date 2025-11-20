@@ -11,7 +11,7 @@ SQLAlchemy = "^2.0.44"
 pydantic = "^2.4.2"
 loguru = "^0.7.2"
 python-multipart = "^0.0.20"
-fastapi = "^0.109.1"
+fastapi = "^0.121.0"
 python-jose = "^3.5.0"
 psycopg2-binary = "^2.9.5"
 pydantic-settings = "^2.2.1"
@@ -45,6 +45,10 @@ explicit_package_bases = true
 [[tool.mypy.overrides]]
 module = "aiocache.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sqlalchemy.schema"
+ignore_errors = true
 
 
 [build-system]
