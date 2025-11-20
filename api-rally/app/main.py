@@ -10,7 +10,7 @@ from app.core.config import settings
 
 app = FastAPI(title="Rally Tascas API", default_response_class=ORJSONResponse)
 # CORSMiddleware works correctly at runtime, but mypy type stubs for Starlette 0.50 are outdated
-app.add_middleware(  # type: ignore[call-arg,arg-type]
+app.add_middleware(  # type: ignore[arg-type]
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
