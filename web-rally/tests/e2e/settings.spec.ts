@@ -30,14 +30,6 @@ test.describe('Settings', () => {
       });
     });
 
-    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_RALLY_SETTINGS),
-      });
-    });
-
     // Mock settings GET endpoint (for fetching current settings)
     await page.route('**/api/rally/v1/rally/settings**', async (route) => {
       if (route.request().method() === 'GET') {
@@ -72,12 +64,27 @@ test.describe('Settings', () => {
     // Navigate to settings
     await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
     
-    // Wait for settings to load (with fallback if response doesn't come)
-    await Promise.race([
-      page.waitForResponse('**/api/rally/v1/rally/settings/public**', { timeout: 5000 }),
-      page.waitForTimeout(3000), // Fallback timeout
-    ]).catch(() => {
-      // If neither completes, just continue
+    // Wait for user to load first (this clears the "Carregando..." state)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {
+      // User endpoint might already be cached
+    });
+    
+    // Wait for settings API call (GET /api/rally/v1/rally/settings, not /public)
+    await page.waitForResponse(
+      (response) => 
+        response.url().includes('/api/rally/v1/rally/settings') && 
+        response.request().method() === 'GET',
+      { timeout: 10000 }
+    ).catch(() => {
+      // If response doesn't come, continue anyway
+    });
+    
+    // Wait for loading to disappear
+    await page.waitForFunction(
+      () => !document.body.textContent?.includes('Carregando...'),
+      { timeout: 10000 }
+    ).catch(() => {
+      // If loading doesn't disappear, continue anyway
     });
     
     // Wait a bit for content to render
@@ -149,19 +156,14 @@ test.describe('Settings', () => {
     // Navigate and wait for redirect to scoreboard
     await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
     
-    // Wait for redirect to scoreboard (with timeout)
-    try {
-      await page.waitForURL('**/scoreboard**', { timeout: 5000 });
-    } catch {
-      // If redirect didn't happen, wait a bit more and check
-      await page.waitForTimeout(2000);
-      const url = page.url();
-      if (!url.includes('/scoreboard')) {
-        // Check if we're still on settings page (redirect might not be implemented)
-        // For now, just verify we're not on settings if redirect should happen
-        expect(url).not.toContain('/settings');
-      }
-    }
+    // Wait for user to load (this triggers the redirect check)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait for redirect to scoreboard (React Router Navigate should trigger this)
+    await page.waitForURL('**/scoreboard**', { timeout: 10000 });
+    
+    // Verify we're on scoreboard
+    expect(page.url()).toContain('/scoreboard');
   });
 
   test('should handle save errors gracefully', async ({ page }) => {

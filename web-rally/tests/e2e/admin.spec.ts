@@ -20,14 +20,6 @@ test.describe('Admin Panel', () => {
       });
     });
 
-    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_RALLY_SETTINGS),
-      });
-    });
-
     await page.route('**/api/rally/v1/checkpoint/**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -73,9 +65,20 @@ test.describe('Admin Panel', () => {
     // Navigate to admin panel
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for settings to load
-    await page.waitForResponse('**/api/rally/v1/rally/settings/public**');
-    await page.waitForLoadState('networkidle');
+    // Wait for user to load first (this clears the "Carregando..." state)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {
+      // User endpoint might already be cached
+    });
+    
+    // Wait for loading to disappear
+    await page.waitForFunction(
+      () => !document.body.textContent?.includes('Carregando...'),
+      { timeout: 10000 }
+    ).catch(() => {
+      // If loading doesn't disappear, continue anyway
+    });
+    
+    // Wait a bit for content to render
     await page.waitForTimeout(1000);
   });
 
@@ -108,12 +111,21 @@ test.describe('Admin Panel', () => {
       // If response doesn't come, continue anyway
     });
     
+    // Wait for loading to disappear
+    await page.waitForFunction(
+      () => !document.body.textContent?.includes('Carregando...'),
+      { timeout: 10000 }
+    ).catch(() => {
+      // If loading doesn't disappear, continue anyway
+    });
+    
     // Wait a bit for content to render
     await page.waitForTimeout(1000);
     
     // Check that activity content appears (either heading, list, or any activity text)
+    // Activities might show "Nova Atividade" button, activity list, or checkpoint warning
     const bodyText = await page.locator('body').textContent();
-    expect(bodyText).toMatch(/Atividade|Activity|Lista/i);
+    expect(bodyText).toMatch(/Atividade|Activity|Nova|checkpoint|Checkpoint/i);
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
@@ -150,19 +162,14 @@ test.describe('Admin Panel', () => {
     // Navigate and wait for redirect to scoreboard
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for redirect to scoreboard (with timeout)
-    try {
-      await page.waitForURL('**/scoreboard**', { timeout: 5000 });
-    } catch {
-      // If redirect didn't happen, wait a bit more and check
-      await page.waitForTimeout(2000);
-      const url = page.url();
-      if (!url.includes('/scoreboard')) {
-        // Check if we're still on admin page (redirect might not be implemented)
-        // For now, just verify we're not on admin if redirect should happen
-        expect(url).not.toContain('/admin');
-      }
-    }
+    // Wait for user to load (this triggers the redirect check)
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait for redirect to scoreboard (React Router Navigate should trigger this)
+    await page.waitForURL('**/scoreboard**', { timeout: 10000 });
+    
+    // Verify we're on scoreboard
+    expect(page.url()).toContain('/scoreboard');
   });
 
   test('should display teams tab by default', async ({ page }) => {
@@ -191,7 +198,16 @@ test.describe('Admin Panel', () => {
     });
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
+    
+    // Wait for user to load
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait for loading to disappear
+    await page.waitForFunction(
+      () => !document.body.textContent?.includes('Carregando...'),
+      { timeout: 10000 }
+    ).catch(() => {});
+    
     await page.waitForTimeout(1000);
 
     // Should not crash, admin panel should still render
