@@ -1,0 +1,27 @@
+services:
+  web_nei:
+    image: alpine:3.20
+
+  api_rally:
+    image: alpine:3.20
+
+  web_rally:
+    image: alpine:3.20
+
+  proxy:
+    image: alpine:3.20
+
+  db_pg:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  rally_pnpm_store:
+  rally_modules:
+

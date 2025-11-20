@@ -122,7 +122,7 @@ jobs:
         run: |
           if [ -f compose.override.yml ]; then
             echo "Validating compose.override.yml..."
-            docker compose -f compose.override.yml config > /dev/null
+            docker compose -f .github/compose.stub.yml -f compose.override.yml config > /dev/null
             echo "✅ compose.override.yml is valid"
           else
             echo "⚠️  compose.override.yml not found"
