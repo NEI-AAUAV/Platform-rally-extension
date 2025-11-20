@@ -71,10 +71,12 @@ test.describe('Admin Panel', () => {
     });
     
     // Wait for actual content to appear (more reliable than waiting for loading to disappear)
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 }).catch(() => {
+    try {
+      await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 });
+    } catch {
       // If header doesn't appear, try waiting for tabs
       await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
-    });
+    }
   });
 
   test('should display admin panel with tabs', async ({ page }) => {

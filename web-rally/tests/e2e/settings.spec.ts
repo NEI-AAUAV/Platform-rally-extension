@@ -80,10 +80,12 @@ test.describe('Settings', () => {
     });
     
     // Wait for actual content to appear (more reliable than waiting for loading to disappear)
-    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 10000 }).catch(() => {
+    try {
+      await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 10000 });
+    } catch {
       // If header doesn't appear, try waiting for any settings content
       await expect(page.locator('body')).toContainText(/Equipas|Teams|Timing|Pontuação|Scoring/i, { timeout: 5000 });
-    });
+    }
   });
 
   test('should display settings page', async ({ page }) => {
