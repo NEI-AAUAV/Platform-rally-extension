@@ -210,6 +210,8 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             self._validate_checkpoint_order(db, team, checkpoint_id, settings)
 
             # Add scores and times
+            # question_score is an int in the schema (0 or 1), but stored as bool in the model
+            # Convert to bool: 0 -> False, any non-zero -> True
             team.question_scores.append(bool(obj_in.question_score))
             team.time_scores.append(obj_in.time_score)
             team.pukes.append(obj_in.pukes)

@@ -24,16 +24,17 @@ def get_current_user(
 ) -> DetailedUser:
     user = db.get(User, auth.sub)
     if user is None:
+        # Create user with auth.sub as ID (set before commit to avoid primary key modification issues)
+        # This is needed for NEI platform compatibility where user IDs must match auth.sub
         user = crud.user.create(
-            db, obj_in=UserCreate(
+            db, 
+            obj_in=UserCreate(
                 name=f"{auth.name} {auth.surname}",
-            )
+            ),
+            user_id=auth.sub
         )
-        # Set id and scopes after creation (User model has these fields but schema doesn't)
-        # Note: User.id is auto-increment, but we need to set it to auth.sub for NEI platform compatibility
-        # This is a special case where the User model in the extension needs to match the main platform's user ID
-        user.id = auth.sub  # noqa: A001
-        user.scopes = auth.scopes
+        # Set scopes after creation (User model has this field but schema doesn't)
+        user.scopes = auth.scopes  # type: ignore[assignment]
         db.add(user)
         db.commit()
         db.refresh(user)

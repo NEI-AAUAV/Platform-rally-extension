@@ -81,8 +81,11 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
     };
 
     initializeOpponent();
+    // Note: Intentionally omitting opponentTeamId, opponentTeamName, and teams from dependencies
+    // to avoid infinite loops. These are state variables set by this effect itself.
+    // The effect only needs to run when team.id or existingResult changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team?.id, existingResult?.result_data?.opponent_team_id]); // Only depend on team and existingResult
+  }, [team?.id, existingResult?.result_data?.opponent_team_id]);
 
   useEffect(() => {
     if (existingResult?.result_data) {

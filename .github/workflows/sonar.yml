@@ -151,7 +151,9 @@ jobs:
                 routes=app.routes,
             )
             
-            out_path = os.path.join(os.path.dirname(__file__), '..', 'web-rally', 'openapi.json')
+            # Use os.getcwd() since __file__ is undefined when executing via stdin
+            base_dir = os.getcwd()
+            out_path = os.path.join(base_dir, 'web-rally', 'openapi.json')
             with open(out_path, 'w') as f:
                 json.dump(schema, f)
             print(f"Wrote schema to {out_path}")
