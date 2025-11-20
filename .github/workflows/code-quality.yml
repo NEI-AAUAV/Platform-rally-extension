@@ -53,16 +53,17 @@ jobs:
         run: poetry run flake8 app/
         continue-on-error: true
       
-      - name: Run mypy (type checking)
+      - name: Run mypy (type checking) - BLOCKING
         working-directory: api-rally
         run: poetry run mypy app/
-        continue-on-error: true
+        # Removed continue-on-error: true - this is now a blocking check
       
       - name: Summary
         if: always()
         run: |
           echo "✅ Code quality checks completed"
-          echo "Review any warnings above - they don't fail the build but should be addressed"
+          echo "⚠️  Formatting and linting warnings don't fail the build"
+          echo "❌ Type checking (mypy) failures will block the build"
 
   lint-typescript:
     name: TypeScript Linting & Type Checking
@@ -102,10 +103,10 @@ jobs:
         run: pnpm run lint || true
         continue-on-error: true
       
-      - name: Run TypeScript type checking
+      - name: Run TypeScript type checking - BLOCKING
         working-directory: web-rally
         run: pnpm run type-check || pnpm exec tsc --noEmit
-        continue-on-error: true
+        # Removed continue-on-error: true - this is now a blocking check
       
       - name: Check formatting with Prettier
         working-directory: web-rally
@@ -116,7 +117,8 @@ jobs:
         if: always()
         run: |
           echo "✅ TypeScript quality checks completed"
-          echo "Review any warnings above - they don't fail the build but should be addressed"
+          echo "⚠️  Formatting and linting warnings don't fail the build"
+          echo "❌ Type checking failures will block the build"
 
   security-scan:
     name: Security Vulnerability Scan
