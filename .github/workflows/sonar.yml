@@ -132,34 +132,32 @@ jobs:
           POSTGRES_DB: postgres_test
         continue-on-error: true
 
+      - name: Generate OpenAPI schema
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: api-rally
+        run: |
+          poetry run python -c "
+          from app.main import app
+          from fastapi.openapi.utils import get_openapi
+          import json, os
+          
+          schema = get_openapi(
+              title=getattr(app, 'title', 'API'),
+              version=getattr(app, 'version', '0.0.0'),
+              routes=app.routes,
+          )
+          
+          repo_root = os.path.dirname(os.getcwd())
+          out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
+          with open(out_path, 'w') as f:
+              json.dump(schema, f)
+          print(f'Wrote schema to {out_path}')
+          "
+
       - name: Generate OpenAPI client (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: web-rally
         run: |
-          cd web-rally
-          # Generate OpenAPI schema from API if not exists
-          if [ ! -f "openapi.json" ]; then
-            echo "Generating OpenAPI schema..."
-            cd ../api-rally
-            poetry run python - << 'PY'
-from app.main import app
-from fastapi.openapi.utils import get_openapi
-import json, os
-
-schema = get_openapi(
-    title=getattr(app, 'title', 'API'),
-    version=getattr(app, 'version', '0.0.0'),
-    routes=app.routes,
-)
-
-# Use os.getcwd() since __file__ is undefined when executing via stdin
-# Since working-directory is api-rally, we need to go up one level to repo root
-repo_root = os.path.dirname(os.getcwd())
-out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
-with open(out_path, 'w') as f:
-    json.dump(schema, f)
-print(f"Wrote schema to {out_path}")
-PY
-          fi
           # Generate client if needed
           if [ ! -d "src/client" ] && [ -f "openapi.json" ]; then
             pnpm run generate-client || echo "Client generation failed, continuing..."
