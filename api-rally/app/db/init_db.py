@@ -31,7 +31,8 @@ def init_db() -> None:
     for schema in Base.metadata._schemas:
         if schema not in all_schemas:
             with engine.begin() as connection:
-                connection.execute(CreateSchema(schema))  # type: ignore[no-untyped-call]  # type: ignore[no-untyped-call]
+                # CreateSchema is untyped in SQLAlchemy, ignore type check
+                connection.execute(CreateSchema(schema))  # type: ignore
 
     Base.metadata.reflect(bind=engine, schema=settings.SCHEMA_NAME)
     Base.metadata.create_all(bind=engine, checkfirst=True)
