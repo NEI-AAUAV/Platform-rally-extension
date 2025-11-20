@@ -20,6 +20,20 @@ from app.core.abac import (
 )
 from app.api.deps import is_admin
 
+# Explicit exports for mypy
+__all__ = [
+    "get_staff_with_checkpoint_access",
+    "require_checkpoint_score_permission",
+    "require_checkpoint_view_permission",
+    "require_checkpoint_management_permission",
+    "require_team_management_permission",
+    "validate_checkpoint_access",
+    "validate_settings_update_access",
+    "require_permission",
+    "Action",
+    "Resource",
+]
+
 
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),

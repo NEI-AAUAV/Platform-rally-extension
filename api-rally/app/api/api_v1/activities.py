@@ -56,7 +56,7 @@ def create_activity(
         )
     
     db_activity = activity.create(db=db, obj_in=activity_in)
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.get("/", response_model=ActivityListResponse)
@@ -87,7 +87,7 @@ def get_activities(
         total = len(activities)
     
     return ActivityListResponse(
-        activities=activities,
+        activities=[ActivityResponse.model_validate(a) for a in activities],
         total=total,
         page=skip // limit + 1,
         size=limit
@@ -111,7 +111,7 @@ def get_all_activity_results(
         joinedload(ActivityResult.team)
     ).order_by(desc(ActivityResult.completed_at)).all()
     
-    return results
+    return [ActivityResultResponse.model_validate(r) for r in results]
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
@@ -132,7 +132,7 @@ def get_activity(
             detail=ACTIVITY_NOT_FOUND
         )
     
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.put("/{activity_id}", response_model=ActivityResponse)
@@ -155,7 +155,7 @@ def update_activity(
         )
     
     db_activity = activity.update(db=db, db_obj=db_activity, obj_in=activity_in)
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.delete("/{activity_id}")
@@ -202,7 +202,7 @@ def create_activity_result(
         )
     
     db_result = activity_result.create(db=db, obj_in=result_in)
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.get("/results/{result_id}", response_model=ActivityResultResponse)
@@ -223,7 +223,7 @@ def get_activity_result(
             detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.put("/results/{result_id}", response_model=ActivityResultResponse)
@@ -246,7 +246,7 @@ def update_activity_result(
         )
     
     db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.post("/results/{result_id}/extra-shots")
@@ -335,7 +335,20 @@ def get_activity_ranking(
         )
     
     scoring_service = ScoringService(db)
-    rankings = scoring_service.get_team_ranking(activity_id)
+    rankings_dict = scoring_service.get_team_ranking(activity_id)
+    
+    from app.schemas.activity import TeamRanking
+    # Normalize dict keys to match TeamRanking schema
+    rankings = [
+        TeamRanking(
+            team_id=r.get('team_id', 0),
+            team_name=r.get('team_name', ''),
+            total_score=r.get('score', r.get('total_score', 0.0)),
+            activities_completed=r.get('activities_completed', 0),
+            rank=r.get('rank', 0)
+        )
+        for r in rankings_dict
+    ]
     
     return ActivityRanking(
         activity_id=activity_id,
@@ -355,7 +368,10 @@ def get_global_ranking(
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
     scoring_service = ScoringService(db)
-    rankings = scoring_service.get_team_ranking()
+    rankings_dict = scoring_service.get_team_ranking()
+    
+    from app.schemas.activity import TeamRanking
+    rankings = [TeamRanking(**r) for r in rankings_dict]
     
     return GlobalRanking(
         rankings=rankings,

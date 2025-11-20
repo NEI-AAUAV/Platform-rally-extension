@@ -251,7 +251,7 @@ def get_my_checkpoint(
             detail="Assigned checkpoint not found"
         )
     
-    return checkpoint_obj
+    return DetailedCheckPoint.model_validate(checkpoint_obj)
 
 
 @router.get("/teams")
@@ -529,7 +529,7 @@ def evaluate_team_activity(
     # Both staff and admins/managers can trigger advancement
     _check_and_advance_team(db, team_id, activity_obj)
     
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.put("/teams/{team_id}/activities/{activity_id}/evaluate/{result_id}", response_model=ActivityResultResponse)
@@ -597,7 +597,7 @@ def update_team_activity_evaluation(
     
     # Update the result
     db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.get("/all-evaluations")

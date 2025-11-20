@@ -29,8 +29,9 @@ class RallyDurationCalculator:
             status["status"] = "no_start_time"
             return status
             
-        start_time = self.settings.rally_start_time
-        end_time = self.settings.rally_end_time
+        # Extract datetime values (mypy sees these as ColumnElement, but they're datetime at runtime)
+        start_time: Optional[datetime] = self.settings.rally_start_time  # type: ignore[assignment]
+        end_time: Optional[datetime] = self.settings.rally_end_time  # type: ignore[assignment]
         
         if start_time and current_time < start_time:
             # Rally hasn't started yet
@@ -44,7 +45,7 @@ class RallyDurationCalculator:
         elif end_time and current_time > end_time:
             # Rally has ended
             time_since_end = current_time - end_time
-            total_duration = end_time - start_time
+            total_duration = end_time - start_time if start_time else timedelta(0)
             status.update({
                 "status": "ended",
                 "time_elapsed": self._format_duration(time_since_end),
@@ -89,8 +90,10 @@ class RallyDurationCalculator:
         
         # Calculate total rally duration if end time is set
         total_rally_duration: Optional[timedelta] = None
-        if self.settings.rally_end_time and self.settings.rally_start_time:
-            total_rally_duration = self.settings.rally_end_time - self.settings.rally_start_time
+        end_time: Optional[datetime] = self.settings.rally_end_time  # type: ignore[assignment]
+        start_time: Optional[datetime] = self.settings.rally_start_time  # type: ignore[assignment]
+        if end_time and start_time:
+            total_rally_duration = end_time - start_time
         
         return {
             "team_start_time": team_start_time.isoformat(),

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from collections import defaultdict
 
 from app.crud.crud_versus import versus
-from app.crud.crud_team import Team
+from app.models.team import Team
 from app.api.deps import get_db, get_participant
 from app.api.abac_deps import require_permission, Action, Resource
 from app.schemas.versus import (
@@ -95,7 +95,7 @@ def list_versus_groups(
 
     pairs = []
     for gid, tl in groups.items():
-        if len(tl) == 2:
+        if len(tl) == 2 and gid is not None:
             pairs.append(
                 VersusPairResponse(
                     group_id=gid,

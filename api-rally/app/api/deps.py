@@ -32,8 +32,8 @@ def get_current_user(
         # Set id and scopes after creation (User model has these fields but schema doesn't)
         # Note: User.id is auto-increment, but we need to set it to auth.sub for NEI platform compatibility
         # This is a special case where the User model in the extension needs to match the main platform's user ID
-        user.id = auth.sub  # type: ignore[assignment]  # noqa: A001
-        user.scopes = auth.scopes  # type: ignore[assignment]
+        user.id = auth.sub  # noqa: A001
+        user.scopes = auth.scopes
         db.add(user)
         db.commit()
         db.refresh(user)
