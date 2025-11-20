@@ -4,8 +4,8 @@ permissions:
   pull-requests: write
 
 on:
-  # Note: workflow_run cannot trigger across repositories, so it's disabled
   # This workflow runs independently and will run tests if coverage is not found
+  # It can run on PRs and pushes to main
   pull_request:
     branches: main
   push:
@@ -13,19 +13,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Run tests for PRs (tests.yml only runs on main push via workflow_run)
-  run-tests-for-pr:
-    name: Run Tests (PR only)
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/tests.yml
-    secrets: inherit
-  
   sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
-    # Wait for tests if running for PR
-    needs: [run-tests-for-pr]
-    if: always() && (github.event_name != 'pull_request' || needs.run-tests-for-pr.result == 'success')
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
