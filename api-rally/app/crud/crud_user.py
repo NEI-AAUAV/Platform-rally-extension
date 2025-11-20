@@ -24,7 +24,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             db_obj = self.model(**obj_in_data)
             # Set ID before commit if provided (for NEI platform compatibility)
             if user_id is not None:
-                db_obj.id = user_id  # type: ignore[assignment]  # noqa: A001
+                db_obj.id = user_id  # noqa: A001
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
