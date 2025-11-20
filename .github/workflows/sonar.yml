@@ -140,7 +140,7 @@ jobs:
           if [ ! -f "openapi.json" ]; then
             echo "Generating OpenAPI schema..."
             cd ../api-rally
-            cat > /tmp/generate_openapi.py <<'PYEOF'
+            poetry run python - << 'PY'
 from app.main import app
 from fastapi.openapi.utils import get_openapi
 import json, os
@@ -158,9 +158,7 @@ out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
 with open(out_path, 'w') as f:
     json.dump(schema, f)
 print(f"Wrote schema to {out_path}")
-PYEOF
-            poetry run python /tmp/generate_openapi.py
-            rm -f /tmp/generate_openapi.py
+PY
           fi
           # Generate client if needed
           if [ ! -d "src/client" ] && [ -f "openapi.json" ]; then
