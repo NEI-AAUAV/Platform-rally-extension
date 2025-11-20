@@ -70,16 +70,11 @@ test.describe('Admin Panel', () => {
       // User endpoint might already be cached
     });
     
-    // Wait for loading to disappear
-    await page.waitForFunction(
-      () => !document.body.textContent?.includes('Carregando...'),
-      { timeout: 10000 }
-    ).catch(() => {
-      // If loading doesn't disappear, continue anyway
+    // Wait for actual content to appear (more reliable than waiting for loading to disappear)
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 }).catch(() => {
+      // If header doesn't appear, try waiting for tabs
+      await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
     });
-    
-    // Wait a bit for content to render
-    await page.waitForTimeout(1000);
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
@@ -111,21 +106,11 @@ test.describe('Admin Panel', () => {
       // If response doesn't come, continue anyway
     });
     
-    // Wait for loading to disappear
-    await page.waitForFunction(
-      () => !document.body.textContent?.includes('Carregando...'),
-      { timeout: 10000 }
-    ).catch(() => {
-      // If loading doesn't disappear, continue anyway
-    });
-    
-    // Wait a bit for content to render
-    await page.waitForTimeout(1000);
-    
-    // Check that activity content appears (either heading, list, or any activity text)
+    // Wait for activity content to appear (more reliable than waiting for loading to disappear)
     // Activities might show "Nova Atividade" button, activity list, or checkpoint warning
-    const bodyText = await page.locator('body').textContent();
-    expect(bodyText).toMatch(/Atividade|Activity|Nova|checkpoint|Checkpoint/i);
+    await expect(
+      page.locator('body')
+    ).toContainText(/Atividade|Activity|Nova|checkpoint|Checkpoint/i, { timeout: 10000 });
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
@@ -202,16 +187,8 @@ test.describe('Admin Panel', () => {
     // Wait for user to load
     await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
     
-    // Wait for loading to disappear
-    await page.waitForFunction(
-      () => !document.body.textContent?.includes('Carregando...'),
-      { timeout: 10000 }
-    ).catch(() => {});
-    
-    await page.waitForTimeout(1000);
-
-    // Should not crash, admin panel should still render
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible();
+    // Wait for admin panel to render (more reliable than waiting for loading to disappear)
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 });
   });
 });
 
