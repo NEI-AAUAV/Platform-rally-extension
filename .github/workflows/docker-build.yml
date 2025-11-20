@@ -35,6 +35,7 @@ jobs:
           context: ./api-rally
           file: ./api-rally/Dockerfile
           push: false
+          load: true
           tags: rally-api:dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -72,6 +73,7 @@ jobs:
           context: ./web-rally
           file: ./web-rally/Dockerfile
           push: false
+          load: true
           tags: rally-web:dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
