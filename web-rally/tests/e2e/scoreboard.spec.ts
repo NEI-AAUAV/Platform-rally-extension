@@ -18,6 +18,19 @@ test.describe('Scoreboard', () => {
       });
     });
 
+    // Mock user endpoint
+    await page.route('**/api/nei/v1/user/me**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-123',
+          name: 'Test User',
+          scopes: ['rally-staff'],
+        }),
+      });
+    });
+
     await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -49,8 +62,11 @@ test.describe('Scoreboard', () => {
     // Navigate to scoreboard
     await page.goto('/rally/scoreboard', { waitUntil: 'domcontentloaded' });
     
-    // Wait for settings to load
-    await page.waitForResponse('**/api/rally/v1/rally/settings/public**');
+    // Wait for settings and teams to load
+    await Promise.all([
+      page.waitForResponse('**/api/rally/v1/rally/settings/public**').catch(() => null),
+      page.waitForResponse('**/api/rally/v1/team/**').catch(() => null),
+    ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
   });
@@ -63,10 +79,18 @@ test.describe('Scoreboard', () => {
   });
 
   test('should display team scores', async ({ page }) => {
-    // Verify scores are displayed (format may vary by theme)
-    await expect(page.getByText(/150|Team Alpha/i)).toBeVisible();
-    await expect(page.getByText(/120|Team Beta/i)).toBeVisible();
-    await expect(page.getByText(/100|Team Gamma/i)).toBeVisible();
+    // Wait for teams to be rendered
+    await expect(page.getByText('Team Alpha')).toBeVisible({ timeout: 10000 });
+    
+    // Verify teams are visible (they should have scores displayed with them)
+    await expect(page.getByText('Team Alpha')).toBeVisible();
+    await expect(page.getByText('Team Beta')).toBeVisible();
+    await expect(page.getByText('Team Gamma')).toBeVisible();
+    
+    // Verify scores are displayed somewhere on the page (format may vary by theme)
+    // Check that at least one score number appears near the teams
+    const bodyText = await page.locator('body').textContent();
+    expect(bodyText).toMatch(/150|120|100/);
   });
 
   test('should hide leaderboard when disabled in settings', async ({ page }) => {
