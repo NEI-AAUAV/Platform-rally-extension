@@ -84,20 +84,9 @@ test.describe('Admin Panel', () => {
       // User endpoint might already be cached or not called
     });
     
-    // Wait for page to finish loading (not showing "Carregando..." anymore)
-    // The admin panel shows "Carregando..." while isLoading is true
-    await page.waitForFunction(
-      () => {
-        const bodyText = document.body.textContent || '';
-        return !bodyText.includes('Carregando...');
-      },
-      { timeout: 15000 }
-    ).catch(() => {
-      // If still loading, continue anyway - tests will fail with clear error
-    });
-    
-    // Don't wait for specific content here - let each test wait for what it needs
+    // Don't wait for page content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
+    // Each test will wait for specific content (tabs, headings, etc.)
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
