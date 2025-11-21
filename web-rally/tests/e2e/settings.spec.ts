@@ -78,14 +78,13 @@ test.describe('Settings', () => {
   });
 
   test('should display settings page', async ({ page }) => {
-    // Wait for settings content to appear (more reliable than waiting for API response)
-    // The page might be stuck if API doesn't respond, so we wait for content directly
-    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 20000 });
+    // Wait for settings page heading (more specific than generic text to avoid strict mode violation)
+    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
   });
 
   test('should display settings sections', async ({ page }) => {
-    // Wait for settings content to appear
-    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 20000 });
+    // Wait for settings page heading
+    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
     
     // Verify different settings sections are visible
     // These may be in tabs or accordions
@@ -93,8 +92,8 @@ test.describe('Settings', () => {
   });
 
   test('should allow editing settings', async ({ page }) => {
-    // Wait for settings content to be visible
-    await expect(page.getByText(/Configurações|Settings/i)).toBeVisible({ timeout: 20000 });
+    // Wait for settings page heading
+    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
     
     // Look for edit button or form fields
     const editButton = page.getByRole('button', { name: /Editar|Edit|Salvar|Save/i }).first();
@@ -183,8 +182,18 @@ test.describe('Settings', () => {
   });
 
   test('should validate form inputs', async ({ page }) => {
+    // Wait for settings page heading
+    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
+    
+    // Click edit button to enable the form
+    const editButton = page.getByRole('button', { name: /Editar Configurações|Edit Settings/i });
+    if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await editButton.click();
+      await page.waitForTimeout(500);
+    }
+    
     // Look for number inputs and try invalid values
-    const numberInputs = page.locator('input[type="number"]');
+    const numberInputs = page.locator('input[type="number"]:not([disabled])');
     const count = await numberInputs.count();
     
     if (count > 0) {

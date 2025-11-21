@@ -44,7 +44,21 @@ test.describe('Admin Panel', () => {
       });
     });
 
-    // Mock user endpoint (manager has manager-rally scope)
+    // Mock user endpoints (both NEI and Rally APIs)
+    // Admin panel uses Rally API's user endpoint
+    await page.route('**/api/rally/v1/user/me**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-123',
+          name: 'Test Manager',
+          scopes: ['manager-rally', 'rally-staff'],
+        }),
+      });
+    });
+    
+    // Also mock NEI API user endpoint (for other components)
     await page.route('**/api/nei/v1/user/me**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -65,8 +79,8 @@ test.describe('Admin Panel', () => {
     // Navigate to admin panel
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load (this clears the initial "Carregando..." state)
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 10000 }).catch(() => {
+    // Wait for user to load (admin panel uses Rally API's user endpoint)
+    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 10000 }).catch(() => {
       // User endpoint might already be cached or not called
     });
     
@@ -134,7 +148,21 @@ test.describe('Admin Panel', () => {
       });
     });
 
-    // Mock user endpoint to return staff user (no manager scope)
+    // Mock user endpoints to return staff user (no manager scope)
+    // Admin panel uses Rally API's user endpoint
+    await page.route('**/api/rally/v1/user/me**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-user-123',
+          name: 'Test User',
+          scopes: ['rally-staff'], // No manager-rally scope
+        }),
+      });
+    });
+    
+    // Also mock NEI API user endpoint
     await page.route('**/api/nei/v1/user/me**', async (route) => {
       await route.fulfill({
         status: 200,
