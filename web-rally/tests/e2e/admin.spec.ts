@@ -98,24 +98,25 @@ test.describe('Admin Panel', () => {
       // User endpoint might already be cached or not called - continue anyway
     });
     
-    // Wait for all network requests to complete (like staff-evaluation tests do)
-    await page.waitForLoadState('networkidle');
-    
-    // Verify we're still on admin page (not redirected to scoreboard)
-    const currentUrl = page.url();
-    if (currentUrl.includes('/scoreboard')) {
-      throw new Error('User was redirected to scoreboard (not a manager)');
-    }
-    
-    // Give React time to render after network is idle
-    await page.waitForTimeout(1000);
-    
-    // Don't wait for page content here - let each test wait for what it needs
+    // Don't wait for network idle or content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
     // Each test will wait for specific content (tabs, headings, etc.)
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
+    // First, wait for "Carregando..." to disappear (indicates loading is done)
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 20000 }
+    ).catch(() => {
+      // If still loading, check if we're redirected
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue - let the test assertion handle the failure
+    });
+    
     // Wait for tabs to appear (indicates page has loaded and user is authenticated)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
@@ -128,6 +129,19 @@ test.describe('Admin Panel', () => {
   });
 
   test('should switch between tabs', async ({ page }) => {
+    // First, wait for "Carregando..." to disappear (indicates loading is done)
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 20000 }
+    ).catch(() => {
+      // If still loading, check if we're redirected
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue - let the test assertion handle the failure
+    });
+    
     // Wait for tabs to appear (indicates page has loaded and user is authenticated)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
@@ -231,6 +245,19 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display teams tab by default', async ({ page }) => {
+    // First, wait for "Carregando..." to disappear (indicates loading is done)
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 20000 }
+    ).catch(() => {
+      // If still loading, check if we're redirected
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue - let the test assertion handle the failure
+    });
+    
     // Wait for tabs to appear (indicates page has loaded and user is authenticated)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
@@ -269,8 +296,18 @@ test.describe('Admin Panel', () => {
       { timeout: 5000 }
     ).catch(() => {});
     
-    // Wait a bit for React to process the user data
-    await page.waitForTimeout(500);
+    // Wait for "Carregando..." to disappear (indicates loading is done)
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 20000 }
+    ).catch(() => {
+      // If still loading, check if we're redirected
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue - let the test assertion handle the failure
+    });
     
     // Wait for tabs to appear (indicates page has loaded and user is authenticated)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
