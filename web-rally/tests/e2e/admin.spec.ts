@@ -84,26 +84,37 @@ test.describe('Admin Panel', () => {
       // User endpoint might already be cached or not called
     });
     
-    // Wait a bit for React to process the user data and make API calls
-    await page.waitForTimeout(1000);
+    // Wait for page to finish loading (not showing "Carregando..." anymore)
+    // The admin panel shows "Carregando..." while isLoading is true
+    await page.waitForFunction(
+      () => {
+        const bodyText = document.body.textContent || '';
+        return !bodyText.includes('Carregando...');
+      },
+      { timeout: 15000 }
+    ).catch(() => {
+      // If still loading, continue anyway - tests will fail with clear error
+    });
     
     // Don't wait for specific content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
-    // Wait for admin panel to load (give it more time since API calls might be slow)
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (better indicator that page has loaded than waiting for heading)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
     
-    // Verify tabs are visible
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
+    // Verify all tabs are visible
     await expect(page.getByRole('button', { name: /Checkpoints/i })).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: /Atividades/i })).toBeVisible({ timeout: 5000 });
+    
+    // Verify heading is also visible
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 5000 });
   });
 
   test('should switch between tabs', async ({ page }) => {
-    // Wait for admin panel to load first
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (better indicator that page has loaded)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
     
     // Click on Checkpoints tab
     await page.getByRole('button', { name: /Checkpoints/i }).click();
@@ -189,6 +200,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display teams tab by default', async ({ page }) => {
+    // Wait for tabs to appear first
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
+    
     // Teams tab button should be visible and active by default
     const teamsTab = page.getByRole('button', { name: /Equipas/i });
     await expect(teamsTab).toBeVisible({ timeout: 5000 });
@@ -218,8 +232,8 @@ test.describe('Admin Panel', () => {
     // Wait for user to load
     await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
     
-    // Wait for admin panel to render (more reliable than waiting for loading to disappear)
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 10000 });
+    // Wait for tabs to appear (better indicator that page has loaded)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
   });
 });
 
