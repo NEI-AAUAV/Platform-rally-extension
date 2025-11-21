@@ -8,6 +8,20 @@ import {
 } from '../mocks/data';
 
 test.describe('Admin Panel', () => {
+  // Helper function to wait for admin panel to finish loading
+  async function waitForAdminPanelReady(page: any) {
+    // Wait for page to not show "Carregando..." anymore
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 15000 }
+    ).catch(() => {
+      // If still loading, continue anyway
+    });
+    
+    // Wait a bit for React to finish rendering
+    await page.waitForTimeout(500);
+  }
+
   test.beforeEach(async ({ page, context }) => {
     // Set up route mocks
     await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
@@ -90,6 +104,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
+    // Wait for admin panel to finish loading
+    await waitForAdminPanelReady(page);
+    
     // Wait for tabs to appear (better indicator that page has loaded than waiting for heading)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
     
@@ -102,6 +119,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should switch between tabs', async ({ page }) => {
+    // Wait for admin panel to finish loading
+    await waitForAdminPanelReady(page);
+    
     // Wait for tabs to appear (better indicator that page has loaded)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
     
@@ -189,6 +209,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display teams tab by default', async ({ page }) => {
+    // Wait for admin panel to finish loading
+    await waitForAdminPanelReady(page);
+    
     // Wait for tabs to appear first
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
     
@@ -220,6 +243,9 @@ test.describe('Admin Panel', () => {
     
     // Wait for user to load
     await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait for admin panel to finish loading
+    await waitForAdminPanelReady(page);
     
     // Wait for tabs to appear (better indicator that page has loaded)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
