@@ -9,17 +9,24 @@ import {
 
 test.describe('Admin Panel', () => {
   // Helper function to wait for admin panel to finish loading
+  // Waits for actual content instead of just "Carregando..." to disappear
   async function waitForAdminPanelReady(page: any) {
-    // Wait for page to not show "Carregando..." anymore
-    await page.waitForFunction(
-      () => !(document.body.textContent || '').includes('Carregando...'),
-      { timeout: 15000 }
-    ).catch(() => {
-      // If still loading, continue anyway
-    });
-    
-    // Wait a bit for React to finish rendering
-    await page.waitForTimeout(500);
+    // Wait for admin panel content to appear (tabs or heading)
+    // This is more reliable than waiting for "Carregando..." to disappear
+    try {
+      // Wait for either tabs or heading to appear
+      await Promise.race([
+        page.getByRole('button', { name: /Equipas|Teams/i }).waitFor({ timeout: 15000 }),
+        page.getByRole('heading', { name: /Gestão Administrativa/i }).waitFor({ timeout: 15000 }),
+      ]);
+    } catch (error) {
+      // If content doesn't appear, check if we're redirected or in error state
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue anyway - let the test assertions handle the failure
+    }
   }
 
   test.beforeEach(async ({ page, context }) => {
@@ -85,9 +92,9 @@ test.describe('Admin Panel', () => {
       });
     });
 
-    // Set token in localStorage
+    // Set token in localStorage with correct key for rally extension
     await context.addInitScript((token) => {
-      localStorage.setItem('token', token);
+      localStorage.setItem('rally_token', token);
     }, MOCK_JWT_TOKEN_MANAGER);
 
     // Navigate to admin panel
@@ -97,6 +104,9 @@ test.describe('Admin Panel', () => {
     await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 10000 }).catch(() => {
       // User endpoint might already be cached or not called
     });
+    
+    // Wait a bit for React to process the user data and update the store
+    await page.waitForTimeout(500);
     
     // Don't wait for page content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
@@ -155,7 +165,7 @@ test.describe('Admin Panel', () => {
     const staffToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
     
     await context.addInitScript((token) => {
-      localStorage.setItem('token', token);
+      localStorage.setItem('rally_token', token);
     }, staffToken);
 
     await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
@@ -198,8 +208,12 @@ test.describe('Admin Panel', () => {
     // Navigate and wait for redirect to scoreboard
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load (this triggers the redirect check)
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    // Wait for user to load (admin panel uses Rally API's user endpoint)
+    // This triggers the redirect check when user doesn't have manager-rally scope
+    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait a bit for React to process the user data and trigger redirect
+    await page.waitForTimeout(500);
     
     // Wait for redirect to scoreboard (React Router Navigate should trigger this)
     await page.waitForURL('**/scoreboard**', { timeout: 10000 });
@@ -241,8 +255,11 @@ test.describe('Admin Panel', () => {
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    // Wait for user to load (admin panel uses Rally API's user endpoint)
+    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    
+    // Wait a bit for React to process the user data
+    await page.waitForTimeout(500);
     
     // Wait for admin panel to finish loading
     await waitForAdminPanelReady(page);
