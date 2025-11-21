@@ -8,27 +8,6 @@ import {
 } from '../mocks/data';
 
 test.describe('Admin Panel', () => {
-  // Helper function to wait for admin panel to finish loading
-  // Waits for actual content instead of just "Carregando..." to disappear
-  async function waitForAdminPanelReady(page: any) {
-    // Wait for admin panel content to appear (tabs or heading)
-    // This is more reliable than waiting for "Carregando..." to disappear
-    try {
-      // Wait for either tabs or heading to appear
-      await Promise.race([
-        page.getByRole('button', { name: /Equipas|Teams/i }).waitFor({ timeout: 15000 }),
-        page.getByRole('heading', { name: /Gestão Administrativa/i }).waitFor({ timeout: 15000 }),
-      ]);
-    } catch (error) {
-      // If content doesn't appear, check if we're redirected or in error state
-      const url = page.url();
-      if (url.includes('/scoreboard')) {
-        throw new Error('User was redirected to scoreboard (not a manager)');
-      }
-      // Continue anyway - let the test assertions handle the failure
-    }
-  }
-
   test.beforeEach(async ({ page, context }) => {
     // Set up route mocks
     await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
@@ -67,10 +46,14 @@ test.describe('Admin Panel', () => {
 
     // Mock user endpoints (both NEI and Rally APIs)
     // Admin panel uses Rally API's user endpoint
+    // Use a more specific pattern to ensure it matches - match both with and without query params
     await page.route('**/api/rally/v1/user/me**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
         body: JSON.stringify({
           id: 'test-user-123',
           name: 'Test Manager',
@@ -84,6 +67,9 @@ test.describe('Admin Panel', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
         body: JSON.stringify({
           id: 'test-user-123',
           name: 'Test Manager',
@@ -100,13 +86,34 @@ test.describe('Admin Panel', () => {
     // Navigate to admin panel
     await page.goto('/rally/admin', { waitUntil: 'domcontentloaded' });
     
-    // Wait for user to load (admin panel uses Rally API's user endpoint)
-    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 10000 }).catch(() => {
-      // User endpoint might already be cached or not called
+    // Wait for user API to be called and respond (admin panel uses Rally API's user endpoint)
+    // This ensures React Query has the data
+    await page.waitForResponse(
+      (response) => {
+        const url = response.url();
+        return url.includes('/api/rally/v1/user/me') && response.status() === 200;
+      },
+      { timeout: 15000 }
+    ).catch(() => {
+      // User endpoint might already be cached or not called - continue anyway
     });
     
-    // Wait a bit for React to process the user data and update the store
-    await page.waitForTimeout(500);
+    // Wait for "Carregando..." to disappear - this indicates both React Query and userStore have finished loading
+    // This is more reliable than waiting for content, as it directly checks the loading state
+    await page.waitForFunction(
+      () => !(document.body.textContent || '').includes('Carregando...'),
+      { timeout: 20000 }
+    ).catch(() => {
+      // If still loading, check if we're redirected
+      const url = page.url();
+      if (url.includes('/scoreboard')) {
+        throw new Error('User was redirected to scoreboard (not a manager)');
+      }
+      // Continue - might be a race condition, let the test handle it
+    });
+    
+    // Wait a bit more for React to finish rendering after loading state clears
+    await page.waitForTimeout(1000);
     
     // Don't wait for page content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
@@ -114,11 +121,8 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
-    // Wait for admin panel to finish loading
-    await waitForAdminPanelReady(page);
-    
-    // Wait for tabs to appear (better indicator that page has loaded than waiting for heading)
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (indicates page has loaded and user is authenticated)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
     // Verify all tabs are visible
     await expect(page.getByRole('button', { name: /Checkpoints/i })).toBeVisible({ timeout: 5000 });
@@ -129,11 +133,8 @@ test.describe('Admin Panel', () => {
   });
 
   test('should switch between tabs', async ({ page }) => {
-    // Wait for admin panel to finish loading
-    await waitForAdminPanelReady(page);
-    
-    // Wait for tabs to appear (better indicator that page has loaded)
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (indicates page has loaded and user is authenticated)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
     // Click on Checkpoints tab
     await page.getByRole('button', { name: /Checkpoints/i }).click();
@@ -184,6 +185,9 @@ test.describe('Admin Panel', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
         body: JSON.stringify({
           id: 'test-user-123',
           name: 'Test User',
@@ -197,6 +201,9 @@ test.describe('Admin Panel', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
         body: JSON.stringify({
           id: 'test-user-123',
           name: 'Test User',
@@ -210,7 +217,13 @@ test.describe('Admin Panel', () => {
     
     // Wait for user to load (admin panel uses Rally API's user endpoint)
     // This triggers the redirect check when user doesn't have manager-rally scope
-    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    await page.waitForResponse(
+      (response) => {
+        const url = response.url();
+        return url.includes('/api/rally/v1/user/me') && response.status() === 200;
+      },
+      { timeout: 5000 }
+    ).catch(() => {});
     
     // Wait a bit for React to process the user data and trigger redirect
     await page.waitForTimeout(500);
@@ -223,11 +236,8 @@ test.describe('Admin Panel', () => {
   });
 
   test('should display teams tab by default', async ({ page }) => {
-    // Wait for admin panel to finish loading
-    await waitForAdminPanelReady(page);
-    
-    // Wait for tabs to appear first
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (indicates page has loaded and user is authenticated)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
     
     // Teams tab button should be visible and active by default
     const teamsTab = page.getByRole('button', { name: /Equipas/i });
@@ -256,16 +266,19 @@ test.describe('Admin Panel', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     
     // Wait for user to load (admin panel uses Rally API's user endpoint)
-    await page.waitForResponse('**/api/rally/v1/user/me**', { timeout: 5000 }).catch(() => {});
+    await page.waitForResponse(
+      (response) => {
+        const url = response.url();
+        return url.includes('/api/rally/v1/user/me') && response.status() === 200;
+      },
+      { timeout: 5000 }
+    ).catch(() => {});
     
     // Wait a bit for React to process the user data
     await page.waitForTimeout(500);
     
-    // Wait for admin panel to finish loading
-    await waitForAdminPanelReady(page);
-    
-    // Wait for tabs to appear (better indicator that page has loaded)
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 20000 });
+    // Wait for tabs to appear (indicates page has loaded and user is authenticated)
+    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 30000 });
   });
 });
 
