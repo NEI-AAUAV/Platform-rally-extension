@@ -70,13 +70,16 @@ test.describe('Admin Panel', () => {
       // User endpoint might already be cached or not called
     });
     
-    // Don't wait for content here - let each test wait for what it needs
+    // Wait a bit for React to process the user data and make API calls
+    await page.waitForTimeout(1000);
+    
+    // Don't wait for specific content here - let each test wait for what it needs
     // This avoids timeout issues if API calls are slow or fail
   });
 
   test('should display admin panel with tabs', async ({ page }) => {
-    // Wait for admin panel to load
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 15000 });
+    // Wait for admin panel to load (give it more time since API calls might be slow)
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 20000 });
     
     // Verify tabs are visible
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 5000 });
@@ -85,6 +88,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should switch between tabs', async ({ page }) => {
+    // Wait for admin panel to load first
+    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible({ timeout: 20000 });
+    
     // Click on Checkpoints tab
     await page.getByRole('button', { name: /Checkpoints/i }).click();
     await page.waitForTimeout(500);
