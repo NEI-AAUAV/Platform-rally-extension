@@ -90,8 +90,6 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 export default function RallySettings() {
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
-  
-  const isManager = isRallyAdmin;
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -104,7 +102,7 @@ export default function RallySettings() {
   } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
     queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
-    enabled: isManager,
+    enabled: isRallyAdmin,
     retry: 2, // Retry up to 2 times
     retryDelay: 1000, // Wait 1 second between retries
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
@@ -243,7 +241,7 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 

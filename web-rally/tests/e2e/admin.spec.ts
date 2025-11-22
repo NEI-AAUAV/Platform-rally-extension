@@ -3,6 +3,7 @@ import {
   MOCK_CHECKPOINT,
   MOCK_TEAM,
   MOCK_JWT_TOKEN_MANAGER,
+  MOCK_JWT_TOKEN_STAFF,
   MOCK_RALLY_SETTINGS,
   MOCK_ACTIVITY_LIST,
 } from '../mocks/data';
@@ -93,12 +94,10 @@ test.describe('Admin Panel', () => {
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
     // Use staff token instead of manager (no manager-rally scope)
     // JWT token has only 'rally-staff' scope, not 'manager-rally'
-    const staffToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
-    
     // Set staff token in localStorage - store will parse JWT and see no manager scope
     await context.addInitScript((token) => {
       localStorage.setItem('rally_token', token);
-    }, staffToken);
+    }, MOCK_JWT_TOKEN_STAFF);
 
     // Mock rally settings with public access enabled
     await page.route('**/api/rally/v1/rally/settings**', async (route) => {
