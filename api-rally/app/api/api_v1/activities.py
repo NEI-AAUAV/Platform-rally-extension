@@ -106,10 +106,11 @@ def get_all_activity_results(
     
     # Get all activity results with related data
     from sqlalchemy.orm import joinedload
-    results = db.query(ActivityResult).options(
+    stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
         joinedload(ActivityResult.team)
-    ).order_by(desc(ActivityResult.completed_at)).all()
+    ).order_by(desc(ActivityResult.completed_at))
+    results = list(db.scalars(stmt).all())
     
     return [ActivityResultResponse.model_validate(r) for r in results]
 
