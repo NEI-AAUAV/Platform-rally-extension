@@ -21,10 +21,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /api_rally
 
-# Install system dependencies
+# Install system dependencies and uvicorn[standard] for production
+# Note: uvicorn is in dev dependencies, so install separately for production runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uvicorn[standard]
 
 RUN mkdir static
 
