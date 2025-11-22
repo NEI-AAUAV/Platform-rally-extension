@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -76,7 +76,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -115,7 +115,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -174,7 +174,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -190,7 +190,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       
       - name: Check npm dependencies for vulnerabilities
         working-directory: web-rally

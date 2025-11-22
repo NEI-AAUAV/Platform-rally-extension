@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, select
 
 from app.api.deps import get_db, get_current_user
 from app.api.auth import AuthData, api_nei_auth

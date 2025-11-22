@@ -428,8 +428,10 @@ def get_team_activities_for_evaluation(
     
     # Explicitly load team members to ensure they're available
     from sqlalchemy.orm import joinedload
+    from sqlalchemy import select
     from app.models.team import Team
-    team_obj_with_members: Optional[Team] = db.query(Team).options(joinedload(Team.members)).filter(Team.id == team_id).first()
+    stmt = select(Team).options(joinedload(Team.members)).where(Team.id == team_id)
+    team_obj_with_members: Optional[Team] = db.scalars(stmt).first()
     if not team_obj_with_members:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -627,24 +629,25 @@ def get_all_evaluations(
     
     # Get all activity results
     from sqlalchemy.orm import joinedload
-    query = db.query(ActivityResult).options(
+    from sqlalchemy import select
+    stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
         joinedload(ActivityResult.team).joinedload(Team.members)
     )
     
     if team_id:
         # Filter by specific team
-        query = query.filter(ActivityResult.team_id == team_id)
+        stmt = stmt.where(ActivityResult.team_id == team_id)
     elif checkpoint_id:
         # Get teams at specific checkpoint
         teams = team.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
         team_ids = [t.id for t in teams]
         
         # Get results for these teams
-        from sqlalchemy import and_
-        query = query.filter(ActivityResult.team_id.in_(team_ids))
+        stmt = stmt.where(ActivityResult.team_id.in_(team_ids))
     
-    results = query.order_by(ActivityResult.completed_at.desc()).all()
+    stmt = stmt.order_by(ActivityResult.completed_at.desc())
+    results = list(db.scalars(stmt).all())
     
     # Build response with team and activity details
     evaluations = []
