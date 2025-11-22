@@ -3,7 +3,7 @@ API endpoints for staff evaluation system
 """
 from typing import List, Optional, Dict, Any, Tuple, TypedDict, Sequence
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -147,10 +147,15 @@ def _create_activity_result(db: Session, team_id: int, activity_id: int, result_
 def _check_and_advance_team(db: Session, team_id: int, activity_obj: Activity) -> None:
     """Check if team can advance to next checkpoint based on score accumulation"""
     current_checkpoint_id = activity_obj.checkpoint_id
-    from app.crud.crud_activity import activity
     
-    # Get all activity results for this team at current checkpoint
-    team_results = activity_result.get_by_team(db, team_id=team_id)
+    # Get all activity results for this team at current checkpoint with activity relationship loaded
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import select
+    stmt = select(ActivityResult).options(
+        joinedload(ActivityResult.activity)
+    ).where(ActivityResult.team_id == team_id)
+    team_results = list(db.scalars(stmt).unique().all())
+    
     checkpoint_results = [
         r for r in team_results 
         if r.activity and r.activity.checkpoint_id == current_checkpoint_id and r.final_score is not None
@@ -159,7 +164,10 @@ def _check_and_advance_team(db: Session, team_id: int, activity_obj: Activity) -
     # If team has any scored results at this checkpoint, allow advancement
     # This permits teams to advance even if some activities were missed
     if checkpoint_results:
+        logger.debug(f"Team {team_id} has {len(checkpoint_results)} scored results at checkpoint {current_checkpoint_id}, advancing...")
         _ensure_team_checkpoint_and_advance(db, team_id, current_checkpoint_id)
+    else:
+        logger.debug(f"Team {team_id} has no scored results at checkpoint {current_checkpoint_id}, not advancing")
 
 
 def _ensure_team_checkpoint_and_advance(db: Session, team_id: int, current_checkpoint_id: int) -> None:
@@ -509,16 +517,20 @@ def get_team_activities_for_evaluation(
 @router.post("/teams/{team_id}/activities/{activity_id}/evaluate", response_model=ActivityResultResponse)
 def evaluate_team_activity(
     *,
-    db: Session = Depends(get_db),
     team_id: int,
     activity_id: int,
     result_in: ActivityResultEvaluation,
+    db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     auth: AuthData = Depends(api_nei_auth)
 ) -> ActivityResultResponse:
     """Evaluate a team's performance in an activity"""
+    logger.info(f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}")
+    logger.debug(f"Received result_in: result_data={result_in.result_data}, extra_shots={result_in.extra_shots}, penalties={result_in.penalties}")
+    
     # Check if user has rally permissions
     if not _validate_rally_permissions(auth):
+        logger.warning(f"User {current_user.id} does not have Rally permissions")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not have Rally permissions"
@@ -526,26 +538,51 @@ def evaluate_team_activity(
     
     # Validate access based on user role
     is_admin_or_manager = _is_admin_or_manager(auth)
-    if is_admin_or_manager:
-        _, activity_obj = _validate_admin_access(db, team_id, activity_id)
-    else:
-        _, activity_obj = _validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
+    logger.debug(f"User {current_user.id} is_admin_or_manager={is_admin_or_manager}, staff_checkpoint_id={current_user.staff_checkpoint_id}")
+    
+    try:
+        if is_admin_or_manager:
+            _, activity_obj = _validate_admin_access(db, team_id, activity_id)
+        else:
+            _, activity_obj = _validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
+        logger.debug(f"Access validated: activity_id={activity_obj.id}, checkpoint_id={activity_obj.checkpoint_id}")
+    except HTTPException as e:
+        logger.error(f"Access validation failed: {e.status_code} - {e.detail}")
+        raise
     
     # Create or update the result if it already exists
     existing_result = activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
+        logger.info(f"Updating existing result {existing_result.id} for team {team_id}, activity {activity_id}")
         update_in = ActivityResultUpdate(
             result_data=result_in.result_data,
             extra_shots=result_in.extra_shots,
             penalties=result_in.penalties,
         )
-        db_result = activity_result.update(db=db, db_obj=existing_result, obj_in=update_in)
+        try:
+            db_result = activity_result.update(db=db, db_obj=existing_result, obj_in=update_in)
+            logger.info(f"Successfully updated result {db_result.id}")
+        except Exception as e:
+            logger.error(f"Failed to update result: {str(e)}", exc_info=True)
+            raise
     else:
-        db_result = _create_activity_result(db, team_id, activity_id, result_in)
+        logger.info(f"Creating new result for team {team_id}, activity {activity_id}")
+        try:
+            db_result = _create_activity_result(db, team_id, activity_id, result_in)
+            logger.info(f"Successfully created result {db_result.id}")
+        except Exception as e:
+            logger.error(f"Failed to create result: {str(e)}", exc_info=True)
+            raise
     
     # Check if team has completed all activities and advance if needed
     # Both staff and admins/managers can trigger advancement
-    _check_and_advance_team(db, team_id, activity_obj)
+    try:
+        logger.debug(f"Checking if team {team_id} can advance after activity {activity_id}")
+        _check_and_advance_team(db, team_id, activity_obj)
+    except Exception as e:
+        logger.error(f"Failed to check/advance team: {str(e)}", exc_info=True)
+        # Don't fail the evaluation if advancement fails - log and continue
+        # The evaluation was successful, advancement is a side effect
     
     return ActivityResultResponse.model_validate(db_result)
 
@@ -635,7 +672,7 @@ def get_all_evaluations(
     from sqlalchemy import select
     stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
-        joinedload(ActivityResult.team).joinedload(Team.members)
+        joinedload(ActivityResult.team)
     )
     
     if team_id:

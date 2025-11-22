@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.exceptions import RequestValidationError
+from loguru import logger
 
 from app.db.init_db import init_db
 from app.api.api import api_v1_router
@@ -9,6 +11,16 @@ from app.core.logging import init_logging
 from app.core.config import settings
 
 app = FastAPI(title="Rally Tascas API", default_response_class=ORJSONResponse)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Log validation errors for debugging"""
+    logger.error(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
+    logger.error(f"Request body: {await request.body()}")
+    return ORJSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()}
+    )
 # CORSMiddleware works correctly at runtime, but mypy type stubs for Starlette 0.50 are outdated
 app.add_middleware(  # type: ignore[call-arg]
     CORSMiddleware,  # type: ignore[arg-type]

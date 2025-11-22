@@ -186,7 +186,9 @@ export default function TeamsById() {
           <div className="mb-8 space-y-4">
             {team?.times && team.times.length > 0 ? (
               team.times.map((_, index: number) => {
-                const checkpoint = checkpoints?.[index];
+                // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
+                const checkpointOrder = index + 1;
+                const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
                 const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
                 const isLastCheckpoint = index === team.times.length - 1;
                 

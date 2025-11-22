@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -169,7 +169,30 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const cancelEdit = () => {
     setEditingCheckpoint(null);
     checkpointForm.reset();
+    // Reset to next available order after canceling edit
+    updateOrderForNewCheckpoint();
   };
+
+  // Calculate next available order (max order + 1, or 1 if no checkpoints)
+  const nextOrder = useMemo(() => {
+    if (!checkpoints || checkpoints.length === 0) {
+      return 1;
+    }
+    const maxOrder = Math.max(...checkpoints.map(cp => cp.order || 0));
+    return maxOrder + 1;
+  }, [checkpoints]);
+
+  // Update order field when creating new checkpoint (not editing)
+  const updateOrderForNewCheckpoint = React.useCallback(() => {
+    if (!editingCheckpoint) {
+      checkpointForm.setValue("order", nextOrder);
+    }
+  }, [editingCheckpoint, nextOrder, checkpointForm]);
+
+  // Auto-update order when checkpoints change or when not editing
+  useEffect(() => {
+    updateOrderForNewCheckpoint();
+  }, [updateOrderForNewCheckpoint]);
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => {

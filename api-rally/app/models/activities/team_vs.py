@@ -55,15 +55,27 @@ class TeamVsActivity(BaseActivity):
         """Validate that teams are in the same versus group"""
         try:
             from app.crud.crud_versus import versus
+            from loguru import logger
             
             # Get opponent using versus system
             opponent = versus.get_opponent(db_session, team_id=team_id)
             
             # Check if the opponent matches the provided opponent_team_id
-            return opponent is not None and opponent.id == opponent_team_id
+            if opponent is None:
+                logger.warning(f"Team {team_id} has no opponent in versus system, but opponent_team_id={opponent_team_id} was provided")
+                # Allow validation if no opponent is set (teams might not be in versus mode)
+                return True
             
-        except Exception:
+            if opponent.id != opponent_team_id:
+                logger.warning(f"Team {team_id} opponent mismatch: expected {opponent.id}, got {opponent_team_id}")
+                return False
+            
+            return True
+            
+        except Exception as e:
             # If versus system fails, fall back to basic validation
+            from loguru import logger
+            logger.warning(f"Versus validation failed for team {team_id} vs {opponent_team_id}: {str(e)}, allowing validation")
             return True
     
     def get_opponent_for_team(self, team_id: int, db_session: Any) -> Optional[Dict[str, Any]]:

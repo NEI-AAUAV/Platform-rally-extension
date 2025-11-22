@@ -228,7 +228,13 @@ export default function CheckpointTeamEvaluation() {
   // Evaluate activity mutation
   const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
     mutationFn: async ({ teamId, activityId, resultData }): Promise<ActivityResultResponse> => {
-      // Force JSON body to avoid null payloads
+      // Ensure we have a valid payload structure matching ActivityResultEvaluation schema
+      const payload = {
+        result_data: resultData?.result_data ?? {},
+        extra_shots: resultData?.extra_shots ?? 0,
+        penalties: resultData?.penalties ?? {},
+      };
+      
       const token = userStore.token;
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
       const res = await fetch(url, {
@@ -237,13 +243,19 @@ export default function CheckpointTeamEvaluation() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        // Backend currently expects wrapper key `result_in`
-        body: JSON.stringify({ result_in: resultData ?? {} }),
+        // FastAPI with path parameters expects the body wrapped in the parameter name
+        body: JSON.stringify({ result_in: payload }),
       });
       if (!res.ok) {
         let err: unknown = { detail: res.statusText };
         try {
-          err = await res.json();
+          const errorData = await res.json();
+          err = errorData;
+          // Log validation errors for debugging
+          if (res.status === 422 && errorData.detail) {
+            console.error("Validation error:", errorData.detail);
+            console.error("Request payload:", resultData);
+          }
         } catch {
           // ignore JSON parse failure
         }
