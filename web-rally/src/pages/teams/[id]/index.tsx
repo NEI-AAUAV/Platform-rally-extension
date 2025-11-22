@@ -238,8 +238,11 @@ export default function TeamsById() {
                 
                 const isExpanded = expandedCheckpoints.has(index);
                 
+                // Use checkpoint ID if available, otherwise fall back to index
+                const key = checkpoint?.id ?? `checkpoint-${index}`;
+                
                 return (
-                  <div key={index}>
+                  <div key={key}>
                     {/* Checkpoint summary - always visible and clickable */}
                     <Card
                       variant={isLastCheckpoint ? "elevated" : "default"}

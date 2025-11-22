@@ -584,8 +584,8 @@ export default function CheckpointTeamEvaluation() {
                           <div>
                             <p className="text-sm font-semibold mb-1">Missing activities:</p>
                             <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
-                              {evaluationSummary.missing_activities.map((activity: string, idx: number) => (
-                                <li key={idx}>{activity}</li>
+                              {evaluationSummary.missing_activities.map((activity: string) => (
+                                <li key={activity}>{activity}</li>
                               ))}
                             </ul>
                           </div>
