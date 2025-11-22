@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
-import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint } from "@/client";
+import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
 
 interface StaffAssignment {
   id: number;
