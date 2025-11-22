@@ -5,9 +5,9 @@ This module implements ABAC policies for Rally checkpoint management,
 ensuring staff can only add scores to teams at their assigned checkpoint.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from fastapi import HTTPException, status
 
@@ -77,7 +77,7 @@ class Context:
     
     def __post_init__(self) -> None:
         if self.request_time is None:
-            self.request_time = datetime.now()
+            self.request_time = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -86,7 +86,7 @@ class Policy:
     name: str
     description: str
     effect: str  # "allow" or "deny"
-    conditions: Dict[str, Any]
+    conditions: dict[str, Any]
     priority: int = 0
 
 
@@ -94,7 +94,7 @@ class ABACEngine:
     """ABAC policy evaluation engine"""
     
     def __init__(self) -> None:
-        self.policies: List[Policy] = []
+        self.policies: list[Policy] = []
         self._load_default_policies()
     
     def _load_default_policies(self) -> None:
@@ -286,7 +286,7 @@ class ABACEngine:
         # Default deny if no policy matches
         return False
     
-    def _evaluate_conditions(self, conditions: Dict[str, Any], context: Context) -> bool:
+    def _evaluate_conditions(self, conditions: dict[str, Any], context: Context) -> bool:
         """Evaluate policy conditions against context"""
         
         for condition_key, condition_value in conditions.items():
@@ -446,7 +446,7 @@ def require_permission(
         )
 
 
-def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> List[int]:
+def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> list[int]:
     """
     Get list of checkpoint IDs that the user can access
     

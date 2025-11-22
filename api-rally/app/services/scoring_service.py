@@ -1,8 +1,9 @@
 """
 Scoring system service for Rally activities
 """
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Optional
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
 import logging
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
@@ -26,7 +27,8 @@ class ScoringService:
     def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
         if self._settings is None:
-            self._settings = self.db.query(RallySettings).first()
+            stmt = select(RallySettings)
+            self._settings = self.db.scalars(stmt).first()
             if not self._settings:
                 # Create default settings if none exist
                 self._settings = RallySettings()
@@ -41,9 +43,8 @@ class ScoringService:
     
     def calculate_team_total_score(self, team_id: int) -> float:
         """Calculate total score for a team including all modifiers"""
-        results = self.db.query(ActivityResult).filter(
-            ActivityResult.team_id == team_id
-        ).all()
+        stmt = select(ActivityResult).where(ActivityResult.team_id == team_id)
+        results = self.db.scalars(stmt).all()
         total_score = 0.0
         
         for result in results:
@@ -54,20 +55,19 @@ class ScoringService:
     
     def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
         """Update team's total and score_per_checkpoint based on activity results"""
-        team = self.db.query(Team).filter(Team.id == team_id).first()
+        team = self.db.get(Team, team_id)
         if not team:
             return False
         
         # Get all activity results for this team with activities and checkpoints preloaded
         # Use joinedload to avoid N+1 queries
-        results = self.db.query(ActivityResult).options(
+        stmt = select(ActivityResult).options(
             joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
-        ).filter(
-            ActivityResult.team_id == team_id
-        ).all()
+        ).where(ActivityResult.team_id == team_id)
+        results = self.db.scalars(stmt).all()
         
         # Group results by checkpoint order (not checkpoint ID)
-        checkpoint_scores: Dict[int, float] = {}
+        checkpoint_scores: dict[int, float] = {}
         total_score = 0.0
         
         for result in results:
@@ -107,7 +107,7 @@ class ScoringService:
     def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
         """Apply extra shots bonus to a team's activity result"""
         # Get team size to validate limit
-        team = self.db.query(Team).filter(Team.id == team_id).first()
+        team = self.db.get(Team, team_id)
         if not team:
             return False
         
@@ -120,10 +120,11 @@ class ScoringService:
             return False
         
         # Get or create activity result
-        result = self.db.query(ActivityResult).filter(
+        stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team_id
-        ).first()
+        )
+        result = self.db.scalars(stmt).first()
         if not result:
             return False
         
@@ -173,7 +174,7 @@ class ScoringService:
         from app.models.activity import Activity
         
         # Get activity
-        activity = self.db.query(Activity).filter(Activity.id == result.activity_id).first()
+        activity = self.db.get(Activity, result.activity_id)
         if not activity:
             return
         
@@ -184,7 +185,7 @@ class ScoringService:
         )
         
         # Get team size
-        team = self.db.query(Team).filter(Team.id == result.team_id).first()
+        team = self.db.get(Team, result.team_id)
         if not team:
             logger.warning(f"Team {result.team_id} not found for result {result.id}")
             return
@@ -201,16 +202,15 @@ class ScoringService:
         
         result.final_score = activity_instance.apply_modifiers(base_score, modifiers, self.db)
     
-    def get_team_ranking(self, activity_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_team_ranking(self, activity_id: Optional[int] = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
             # Activity-specific ranking - sort by score descending before assigning ranks
             # Use joinedload to avoid N+1 queries
-            results = self.db.query(ActivityResult).options(
+            stmt = select(ActivityResult).options(
                 joinedload(ActivityResult.team)
-            ).filter(
-                ActivityResult.activity_id == activity_id
-            ).all()
+            ).where(ActivityResult.activity_id == activity_id)
+            results = self.db.scalars(stmt).all()
             # Sort results by final_score in descending order, None scores go last
             results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
             ranking = []
@@ -226,7 +226,8 @@ class ScoringService:
                     })
         else:
             # Global ranking
-            teams = self.db.query(Team).all()
+            stmt = select(Team)
+            teams = self.db.scalars(stmt).all()
             ranking = []
             for team in teams:
                 total_score = self.calculate_team_total_score(team.id)
@@ -238,7 +239,7 @@ class ScoringService:
                 })
             
             # Sort by total score descending
-            def get_score(item: Dict[str, Any]) -> float:
+            def get_score(item: dict[str, Any]) -> float:
                 score = item.get('total_score', 0)
                 return float(score) if score is not None else 0.0
             ranking.sort(key=get_score, reverse=True)
@@ -249,11 +250,10 @@ class ScoringService:
         
         return ranking
     
-    def get_activity_statistics(self, activity_id: int) -> Dict[str, Any]:
+    def get_activity_statistics(self, activity_id: int) -> dict[str, Any]:
         """Get statistics for a specific activity"""
-        results = self.db.query(ActivityResult).filter(
-            ActivityResult.activity_id == activity_id
-        ).all()
+        stmt = select(ActivityResult).where(ActivityResult.activity_id == activity_id)
+        results = self.db.scalars(stmt).all()
         
         if not results:
             return {
@@ -279,22 +279,24 @@ class ScoringService:
     def validate_team_vs_match(self, team1_id: int, team2_id: int, activity_id: int) -> bool:
         """Validate that two teams can compete in a team vs team activity"""
         # Check if both teams exist
-        team1 = self.db.query(Team).filter(Team.id == team1_id).first()
-        team2 = self.db.query(Team).filter(Team.id == team2_id).first()
+        team1 = self.db.get(Team, team1_id)
+        team2 = self.db.get(Team, team2_id)
         
         if not team1 or not team2:
             return False
         
         # Check if teams already have results for this activity
-        result1 = self.db.query(ActivityResult).filter(
+        stmt1 = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team1_id
-        ).first()
+        )
+        result1 = self.db.scalars(stmt1).first()
         
-        result2 = self.db.query(ActivityResult).filter(
+        stmt2 = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team2_id
-        ).first()
+        )
+        result2 = self.db.scalars(stmt2).first()
         
         if result1 and result1.is_completed:
             return False
@@ -305,7 +307,7 @@ class ScoringService:
         return True
     
     def create_team_vs_result(self, team1_id: int, team2_id: int, activity_id: int, 
-                             winner_id: int, match_data: Dict[str, Any]) -> Tuple[bool, str]:
+                             winner_id: int, match_data: dict[str, Any]) -> tuple[bool, str]:
         """Create results for both teams in a team vs team activity"""
         if not self.validate_team_vs_match(team1_id, team2_id, activity_id):
             return False, "Teams cannot compete in this activity"

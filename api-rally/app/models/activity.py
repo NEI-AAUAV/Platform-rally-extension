@@ -4,8 +4,8 @@ Activity models for Rally extension
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
-from typing import Dict, Any, Optional, Union
+from datetime import datetime, timezone
+from typing import Any, Optional, Union
 import uuid
 
 from app.models.base import Base
@@ -23,14 +23,14 @@ class Activity(Base):
     checkpoint_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"), nullable=False)
     
     # Configuration specific to activity type
-    config: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     
     # Activity status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     checkpoint = relationship("CheckPoint", back_populates="activities")
@@ -49,7 +49,7 @@ class ActivityResult(Base):
     team_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.teams.id"), nullable=False)
     
     # Result data - varies by activity type
-    result_data: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    result_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     
     # Calculated scores
     time_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For time-based activities
@@ -59,7 +59,7 @@ class ActivityResult(Base):
     
     # Special scoring modifiers
     extra_shots: Mapped[int] = mapped_column(Integer, default=0)  # Extra shots taken
-    penalties: Mapped[Dict[str, int]] = mapped_column(JSON, default=dict)  # Various penalties
+    penalties: Mapped[dict[str, int]] = mapped_column(JSON, default=dict)  # Various penalties
     
     # Final calculated score
     final_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -69,8 +69,8 @@ class ActivityResult(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     activity = relationship("Activity", back_populates="results")
@@ -89,7 +89,7 @@ class RallyEvent(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     
     # Event configuration
-    config: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     
     # Event status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -100,8 +100,8 @@ class RallyEvent(Base):
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     def __repr__(self) -> str:
         return f"<RallyEvent(id={self.id}, name='{self.name}', active={self.is_active})>"

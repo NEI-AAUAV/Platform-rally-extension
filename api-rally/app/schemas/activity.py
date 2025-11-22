@@ -1,8 +1,8 @@
 """
 Pydantic schemas for activities
 """
-from pydantic import BaseModel, Field, validator, ConfigDict
-from typing import Dict, Any, Optional, List, Union
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Any, Optional, Union
 from datetime import datetime
 
 from app.models.activity_factory import ActivityFactory
@@ -15,10 +15,11 @@ class ActivityBase(BaseModel):
     description: Optional[str] = None
     activity_type: ActivityType = Field(..., description="Activity type enum")
     checkpoint_id: int = Field(..., gt=0)
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
     
-    @validator('activity_type')
+    @field_validator('activity_type')
+    @classmethod
     def validate_activity_type(cls, v: Any) -> Any:
         """Validate that activity type is supported by the factory"""
         if isinstance(v, ActivityType):
@@ -42,7 +43,7 @@ class ActivityUpdate(BaseModel):
     """Schema for updating an activity"""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 
@@ -59,16 +60,16 @@ class ActivityResultBase(BaseModel):
     """Base activity result schema"""
     activity_id: int = Field(..., gt=0)
     team_id: int = Field(..., gt=0)
-    result_data: Dict[str, Any] = Field(default_factory=dict)
+    result_data: dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
-    penalties: Dict[str, int] = Field(default_factory=dict)
+    penalties: dict[str, int] = Field(default_factory=dict)
 
 
 class ActivityResultEvaluation(BaseModel):
     """Schema for activity result evaluation (without team_id and activity_id)"""
-    result_data: Dict[str, Any] = Field(default_factory=dict)
+    result_data: dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
-    penalties: Dict[str, int] = Field(default_factory=dict)
+    penalties: dict[str, int] = Field(default_factory=dict)
 
 
 class ActivityResultCreate(ActivityResultBase):
@@ -78,9 +79,9 @@ class ActivityResultCreate(ActivityResultBase):
 
 class ActivityResultUpdate(BaseModel):
     """Schema for updating an activity result"""
-    result_data: Optional[Dict[str, Any]] = None
+    result_data: Optional[dict[str, Any]] = None
     extra_shots: Optional[int] = Field(None, ge=0)
-    penalties: Optional[Dict[str, int]] = None
+    penalties: Optional[dict[str, int]] = None
     is_completed: Optional[bool] = None
 
 
@@ -104,7 +105,7 @@ class RallyEventBase(BaseModel):
     """Base rally event schema"""
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
     is_current: bool = False
     start_time: Optional[datetime] = None
@@ -120,7 +121,7 @@ class RallyEventUpdate(BaseModel):
     """Schema for updating a rally event"""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[dict[str, Any]] = None
     is_active: Optional[bool] = None
     is_current: Optional[bool] = None
     start_time: Optional[datetime] = None
@@ -208,7 +209,7 @@ class GeneralConfig(BaseModel):
 # Activity list and ranking schemas
 class ActivityListResponse(BaseModel):
     """Schema for activity list response"""
-    activities: List[ActivityResponse]
+    activities: list[ActivityResponse]
     total: int
     page: int
     size: int
@@ -227,10 +228,10 @@ class ActivityRanking(BaseModel):
     """Schema for activity-specific ranking"""
     activity_id: int
     activity_name: str
-    rankings: List[TeamRanking]
+    rankings: list[TeamRanking]
 
 
 class GlobalRanking(BaseModel):
     """Schema for global team ranking"""
-    rankings: List[TeamRanking]
+    rankings: list[TeamRanking]
     last_updated: datetime
