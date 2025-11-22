@@ -200,19 +200,22 @@ class ScoringService:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
             # Activity-specific ranking - sort by score descending before assigning ranks
-            results = self.db.query(ActivityResult).filter(
-            ActivityResult.activity_id == activity_id
-        ).all()
+            # Use joinedload to avoid N+1 queries
+            results = self.db.query(ActivityResult).options(
+                joinedload(ActivityResult.team)
+            ).filter(
+                ActivityResult.activity_id == activity_id
+            ).all()
             # Sort results by final_score in descending order, None scores go last
             results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
             ranking = []
             for i, result in enumerate(results, 1):
-                team = self.db.query(Team).filter(Team.id == result.team_id).first()
-                if team:
+                # Team is already loaded via joinedload, but check if it exists
+                if result.team:
                     ranking.append({
                         'rank': i,
-                        'team_id': team.id,
-                        'team_name': team.name,
+                        'team_id': result.team.id,
+                        'team_name': result.team.name,
                         'score': result.final_score or 0,
                         'completed_at': result.completed_at
                     })
@@ -361,5 +364,6 @@ class ScoringService:
             
         except Exception as e:
             self.db.rollback()
-            logging.exception("Exception occurred in create_team_vs_result")
-            return False, "An internal error occurred while creating the team vs team results."
+            logger.exception(f"Exception occurred in create_team_vs_result: {e}")
+            error_msg = str(e) if e else "Unknown error"
+            return False, f"An internal error occurred while creating the team vs team results: {error_msg}"

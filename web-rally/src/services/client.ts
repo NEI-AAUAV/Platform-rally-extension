@@ -50,8 +50,12 @@ export async function refreshToken() {
       useUserStore.getState().login({ token: access_token });
       return access_token;
     })
-    .catch(() => {
+    .catch((error) => {
       // Token refresh failed - user needs to login again
+      // Log error for debugging but don't expose to user
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Token refresh failed:', error);
+      }
       useUserStore.getState().logout();
       return undefined;
     });
