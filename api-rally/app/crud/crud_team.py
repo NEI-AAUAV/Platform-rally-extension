@@ -80,9 +80,10 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         # Update scores for all teams based on activity results
         # Use nested transaction to avoid breaking row locks
         for team in teams:
-            with db.begin_nested():
+            with db.begin_nested() as nested:
                 scoring_service.update_team_scores(team.id, should_commit=False)
-            db.refresh(team)  # Refresh to get updated scores
+                nested.commit()  # Commit nested transaction to persist changes
+            db.refresh(team)  # Refresh to get updated scores from database
         
         # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))
