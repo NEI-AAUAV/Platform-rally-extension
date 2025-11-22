@@ -47,7 +47,7 @@ class CRUDActivity:
     
     def update(self, db: Session, *, db_obj: Activity, obj_in: ActivityUpdate) -> Activity:
         """Update an activity"""
-        update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)
@@ -58,7 +58,7 @@ class CRUDActivity:
     def remove(self, db: Session, *, id: int) -> Optional[Activity]:
         """Remove an activity"""
         from typing import cast
-        obj = db.query(Activity).get(id)
+        obj = db.get(Activity, id)
         if obj is None:
             return None
         db.delete(obj)
@@ -328,7 +328,7 @@ class CRUDActivityResult:
     
     def update(self, db: Session, *, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
         """Update an activity result"""
-        update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         
@@ -396,7 +396,7 @@ class CRUDActivityResult:
     
     def remove(self, db: Session, *, id: int) -> Optional[ActivityResult]:
         """Remove an activity result"""
-        obj = db.query(ActivityResult).get(id)
+        obj = db.get(ActivityResult, id)
         if obj is None:
             return None
         
@@ -446,7 +446,7 @@ class CRUDRallyEvent:
     
     def update(self, db: Session, *, db_obj: RallyEvent, obj_in: RallyEventUpdate) -> RallyEvent:
         """Update a rally event"""
-        update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)
@@ -458,7 +458,7 @@ class CRUDRallyEvent:
         """Remove a rally event"""
         from typing import cast
         from app.models.activity import RallyEvent
-        obj = db.query(RallyEvent).get(id)
+        obj = db.get(RallyEvent, id)
         if obj is None:
             return None
         db.delete(obj)
