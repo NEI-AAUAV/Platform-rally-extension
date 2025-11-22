@@ -35,6 +35,49 @@ __all__ = [
 ]
 
 
+def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:
+    """Initialize DetailedUser from auth data with fallback to database"""
+    try:
+        return DetailedUser(
+            id=auth.sub,
+            name=f"{auth.name} {auth.surname}".strip() or auth.email,
+            disabled=False,
+            staff_checkpoint_id=None,
+            team_id=None,
+            is_captain=False,
+        )
+    except (ValueError, TypeError, AttributeError):
+        # Fallback: attempt to load from local User if schema changes or validation fails
+        user = db.get(User, auth.sub)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        try:
+            return DetailedUser.model_validate(user)
+        except Exception as validation_error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to validate user data: {str(validation_error)}"
+            )
+
+
+def _validate_staff_checkpoint_assignment(
+    curr_user: DetailedUser, auth: AuthData, db: Session
+) -> None:
+    """Validate and set staff checkpoint assignment"""
+    from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+    
+    staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+    if not staff_assignment or not staff_assignment.checkpoint_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff user must be assigned to a checkpoint"
+        )
+    curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+
+
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: Optional[DetailedUser] = None,
@@ -48,36 +91,8 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
-    # Initialize curr_user if not provided
     if curr_user is None:
-        # Build user from auth claims to avoid hard dependency on local User row
-        # Local User may not exist for staff-only access; we still want staff to work.
-        try:
-            curr_user = DetailedUser(
-                id=auth.sub,
-                name=f"{auth.name} {auth.surname}".strip() or auth.email,
-                disabled=False,
-                staff_checkpoint_id=None,
-                team_id=None,
-                is_captain=False,
-            )
-        except (ValueError, TypeError, AttributeError) as e:
-            # Fallback: attempt to load from local User if schema changes or validation fails
-            # This handles cases where DetailedUser schema doesn't match auth data
-            user = db.get(User, auth.sub)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
-                )
-            try:
-                curr_user = DetailedUser.model_validate(user)
-            except Exception as validation_error:
-                # If validation also fails, raise a more descriptive error
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to validate user data: {str(validation_error)}"
-                )
+        curr_user = _initialize_user_from_auth(auth, db)
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
@@ -91,15 +106,7 @@ def get_staff_with_checkpoint_access(
     
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
-        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
-        if not staff_assignment or not staff_assignment.checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff user must be assigned to a checkpoint"
-            )
-        # Add checkpoint_id to user for easy access
-        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+        _validate_staff_checkpoint_assignment(curr_user, auth, db)
     
     return curr_user
 
