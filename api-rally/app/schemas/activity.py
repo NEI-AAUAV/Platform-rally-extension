@@ -2,7 +2,7 @@
 Pydantic schemas for activities
 """
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Any, Optional, Union
+from typing import Any
 from datetime import datetime
 
 from app.models.activity_factory import ActivityFactory
@@ -12,7 +12,7 @@ from .activity_types import ActivityType
 class ActivityBase(BaseModel):
     """Base activity schema"""
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     activity_type: ActivityType = Field(..., description="Activity type enum")
     checkpoint_id: int = Field(..., gt=0)
     config: dict[str, Any] = Field(default_factory=dict)
@@ -41,10 +41,10 @@ class ActivityCreate(ActivityBase):
 
 class ActivityUpdate(BaseModel):
     """Schema for updating an activity"""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    config: Optional[dict[str, Any]] = None
-    is_active: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    config: dict[str, Any] | None = None
+    is_active: bool | None = None
 
 
 class ActivityResponse(ActivityBase):
@@ -79,22 +79,22 @@ class ActivityResultCreate(ActivityResultBase):
 
 class ActivityResultUpdate(BaseModel):
     """Schema for updating an activity result"""
-    result_data: Optional[dict[str, Any]] = None
-    extra_shots: Optional[int] = Field(None, ge=0)
-    penalties: Optional[dict[str, int]] = None
-    is_completed: Optional[bool] = None
+    result_data: dict[str, Any] | None = None
+    extra_shots: int | None = Field(None, ge=0)
+    penalties: dict[str, int] | None = None
+    is_completed: bool | None = None
 
 
 class ActivityResultResponse(ActivityResultBase):
     """Schema for activity result response"""
     id: int
-    time_score: Optional[float] = None
-    points_score: Optional[int] = None
-    boolean_score: Optional[bool] = None
-    team_vs_result: Optional[str] = None
-    final_score: Optional[float] = None
+    time_score: float | None = None
+    points_score: int | None = None
+    boolean_score: bool | None = None
+    team_vs_result: str | None = None
+    final_score: float | None = None
     is_completed: bool = False
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     
@@ -104,12 +104,12 @@ class ActivityResultResponse(ActivityResultBase):
 class RallyEventBase(BaseModel):
     """Base rally event schema"""
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
     is_current: bool = False
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
 
 
 class RallyEventCreate(RallyEventBase):
@@ -119,13 +119,13 @@ class RallyEventCreate(RallyEventBase):
 
 class RallyEventUpdate(BaseModel):
     """Schema for updating a rally event"""
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    config: Optional[dict[str, Any]] = None
-    is_active: Optional[bool] = None
-    is_current: Optional[bool] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    config: dict[str, Any] | None = None
+    is_active: bool | None = None
+    is_current: bool | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
 
 
 class RallyEventResponse(RallyEventBase):
@@ -141,36 +141,36 @@ class RallyEventResponse(RallyEventBase):
 class TimeBasedResult(BaseModel):
     """Schema for time-based activity results"""
     completion_time_seconds: float = Field(..., ge=0)
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class ScoreBasedResult(BaseModel):
     """Schema for score-based activity results"""
     achieved_points: int = Field(..., ge=0)
-    max_possible_points: Optional[int] = Field(None, gt=0)
-    notes: Optional[str] = None
+    max_possible_points: int | None = Field(None, gt=0)
+    notes: str | None = None
 
 
 class BooleanResult(BaseModel):
     """Schema for boolean activity results"""
     success: bool
     attempts: int = Field(default=1, ge=1)
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class TeamVsResult(BaseModel):
     """Schema for team vs team activity results"""
     result: str = Field(..., pattern="^(win|lose|draw)$")
-    opponent_team_id: Optional[int] = Field(None, gt=0)  # Optional since validation allows it
-    match_duration_seconds: Optional[float] = Field(None, ge=0)
-    notes: Optional[str] = None
+    opponent_team_id: int | None = Field(None, gt=0)  # Optional since validation allows it
+    match_duration_seconds: float | None = Field(None, ge=0)
+    notes: str | None = None
 
 
 class GeneralResult(BaseModel):
     """Schema for general activity results"""
     assigned_points: float = Field(..., ge=0, description="Points assigned by staff within configured range")
-    reasoning: Optional[str] = Field(None, description="Reason for the assigned score")
-    notes: Optional[str] = None
+    reasoning: str | None = Field(None, description="Reason for the assigned score")
+    notes: str | None = None
 
 
 # Activity configuration schemas

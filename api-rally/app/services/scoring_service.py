@@ -1,7 +1,7 @@
 """
 Scoring system service for Rally activities
 """
-from typing import Any, Optional
+from typing import Any
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 import logging
@@ -22,7 +22,7 @@ class ScoringService:
     
     def __init__(self, db: Session):
         self.db = db
-        self._settings: Optional[RallySettings] = None
+        self._settings: RallySettings | None = None
     
     def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
@@ -203,7 +203,7 @@ class ScoringService:
         
         result.final_score = activity_instance.apply_modifiers(base_score, modifiers, self.db)
     
-    def get_team_ranking(self, activity_id: Optional[int] = None) -> list[dict[str, Any]]:
+    def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
             # Activity-specific ranking - sort by score descending before assigning ranks

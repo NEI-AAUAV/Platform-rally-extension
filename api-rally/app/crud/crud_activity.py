@@ -1,7 +1,7 @@
 """
 CRUD operations for activities
 """
-from typing import Optional, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func, select
 
@@ -30,7 +30,7 @@ class CRUDActivity:
         db.refresh(db_obj)
         return db_obj
     
-    def get(self, db: Session, id: int) -> Optional[Activity]:
+    def get(self, db: Session, id: int) -> Activity | None:
         """Get activity by ID"""
         return db.get(Activity, id)
     
@@ -57,7 +57,7 @@ class CRUDActivity:
         db.refresh(db_obj)
         return db_obj
     
-    def remove(self, db: Session, *, id: int) -> Optional[Activity]:
+    def remove(self, db: Session, *, id: int) -> Activity | None:
         """Remove an activity"""
         from typing import cast
         obj = db.get(Activity, id)
@@ -121,7 +121,7 @@ class CRUDActivityResult:
         team = db.get(Team, team_id)
         return len(team.members) if team and team.members else 1
     
-    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: Optional[float]) -> list[float]:
+    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: float | None) -> list[float]:
         """Get all completion times including current result"""
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
@@ -138,7 +138,7 @@ class CRUDActivityResult:
     def _calculate_with_relative_ranking(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
         """Calculate score using relative ranking for time-based activities"""
         completion_time = obj_in.result_data.get('completion_time_seconds')
-        current_time: Optional[float] = float(completion_time) if completion_time is not None else None
+        current_time: float | None = float(completion_time) if completion_time is not None else None
         
         all_times = self._get_all_times_for_ranking(
             db, 
@@ -203,7 +203,7 @@ class CRUDActivityResult:
         elif activity.activity_type == 'GeneralActivity':
             db_obj.points_score = result_data.get('assigned_points')
     
-    def _validate_time_based_activity(self, db: Session, activity_id: int) -> tuple[Optional[Activity], Optional[str]]:
+    def _validate_time_based_activity(self, db: Session, activity_id: int) -> tuple[Activity | None, str | None]:
         """Validate that activity is time-based"""
         activity = db.get(Activity, activity_id)
         if not activity or activity.activity_type != 'TimeBasedActivity':
@@ -242,7 +242,7 @@ class CRUDActivityResult:
         }
         result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
     
-    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: Optional[int] = None) -> None:
+    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: int | None = None) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
         activity, _ = self._validate_time_based_activity(db, activity_id)
         if not activity:
@@ -302,11 +302,11 @@ class CRUDActivityResult:
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
     
-    def get(self, db: Session, id: int) -> Optional[ActivityResult]:
+    def get(self, db: Session, id: int) -> ActivityResult | None:
         """Get activity result by ID"""
         return db.get(ActivityResult, id)
     
-    def get_by_activity_and_team(self, db: Session, activity_id: int, team_id: int) -> Optional[ActivityResult]:
+    def get_by_activity_and_team(self, db: Session, activity_id: int, team_id: int) -> ActivityResult | None:
         """Get activity result by activity and team"""
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
@@ -402,7 +402,7 @@ class CRUDActivityResult:
         }
         db_obj.final_score = float(activity_instance.apply_modifiers(base_score, modifiers, db))
     
-    def remove(self, db: Session, *, id: int) -> Optional[ActivityResult]:
+    def remove(self, db: Session, *, id: int) -> ActivityResult | None:
         """Remove an activity result"""
         obj = db.get(ActivityResult, id)
         if obj is None:
@@ -440,11 +440,11 @@ class CRUDRallyEvent:
         db.refresh(db_obj)
         return db_obj
     
-    def get(self, db: Session, id: int) -> Optional[RallyEvent]:
+    def get(self, db: Session, id: int) -> RallyEvent | None:
         """Get rally event by ID"""
         return db.get(RallyEvent, id)
     
-    def get_current(self, db: Session) -> Optional[RallyEvent]:
+    def get_current(self, db: Session) -> RallyEvent | None:
         """Get current rally event"""
         stmt = select(RallyEvent).where(RallyEvent.is_current == True)
         return db.scalars(stmt).first()
@@ -464,7 +464,7 @@ class CRUDRallyEvent:
         db.refresh(db_obj)
         return db_obj
     
-    def remove(self, db: Session, *, id: int) -> Optional[RallyEvent]:
+    def remove(self, db: Session, *, id: int) -> RallyEvent | None:
         """Remove a rally event"""
         from typing import cast
         from app.models.activity import RallyEvent
