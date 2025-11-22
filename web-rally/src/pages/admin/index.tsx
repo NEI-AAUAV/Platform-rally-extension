@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes";
 import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, LoadingState } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
 import { CheckPointService } from "@/client";
 
@@ -29,11 +29,11 @@ export default function Admin() {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isRallyAdmin && !!userStore.token,
+    enabled: isRallyAdmin,
   });
 
   if (isLoading) {
-    return <div className="mt-16 text-center">Carregando...</div>;
+    return <LoadingState message="Carregando..." />;
   }
 
   if (!isRallyAdmin) {

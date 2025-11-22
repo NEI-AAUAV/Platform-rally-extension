@@ -22,16 +22,13 @@ interface StaffAssignment {
 }
 
 export default function Assignment() {
-  const { isLoading, userStore } = useUser();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const { isLoading, isRallyAdmin, userStore } = useUser();
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<Checkpoint[]> => {
-      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet() as Promise<Checkpoint[]>;
+      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -40,7 +37,7 @@ export default function Assignment() {
     queryFn: async (): Promise<StaffAssignment[]> => {
       return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet() as Promise<StaffAssignment[]>;
     },
-    enabled: isManager,
+    enabled: isRallyAdmin,
   });
 
   const {
@@ -69,7 +66,7 @@ export default function Assignment() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 

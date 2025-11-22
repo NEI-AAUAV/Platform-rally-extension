@@ -10,11 +10,7 @@ import { useThemedComponents } from "@/components/themes";
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();
-  const { isLoading, userStore } = useUser();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const { isLoading, isRallyAdmin, userStore } = useUser();
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
@@ -39,7 +35,7 @@ export default function TeamMembers() {
       if (!selectedTeam) return [];
       return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(Number(selectedTeam));
     },
-    enabled: !!selectedTeam && isManager,
+    enabled: !!selectedTeam && isRallyAdmin,
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
     staleTime: 0, // Always consider data stale
@@ -53,7 +49,7 @@ export default function TeamMembers() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 

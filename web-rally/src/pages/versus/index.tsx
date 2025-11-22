@@ -8,12 +8,8 @@ import { VersusPairForm, VersusGroupList } from "./components";
 import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
 export default function Versus() {
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin, userStore } = useUser();
   const { settings } = useRallySettings();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
 
   // Fetch teams
   const { data: teams, refetch: refetchTeams } = useQuery<ListingTeam[]>({
@@ -25,7 +21,7 @@ export default function Versus() {
   const { data: versusGroups, refetch: refetchVersusGroups } = useQuery<VersusGroupListResponse>({
     queryKey: ["versusGroups"],
     queryFn: () => VersusService.listVersusGroupsApiRallyV1VersusGroupsGet(),
-    enabled: isManager,
+    enabled: isRallyAdmin,
   });
 
   const handleSuccess = () => {
@@ -37,7 +33,7 @@ export default function Versus() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 

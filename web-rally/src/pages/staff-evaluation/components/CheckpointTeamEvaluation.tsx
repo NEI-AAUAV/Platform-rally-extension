@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, AlertTriangle } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
+import useUser from "@/hooks/useUser";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
 import {
@@ -97,6 +98,7 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 export default function CheckpointTeamEvaluation() {
   const toast = useAppToast();
   const { checkpointId } = useParams<{ checkpointId: string }>();
+  const { isRallyAdmin } = useUser();
   const userStore = useUserStore();
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState<ListingTeam | null>(null);
@@ -181,7 +183,6 @@ export default function CheckpointTeamEvaluation() {
         return [];
       }
 
-      const isRallyAdmin = Boolean(userStore.scopes?.includes("admin") || userStore.scopes?.includes("manager-rally"));
       const lastCheckpointNum = selectedTeam.last_checkpoint_number ?? 0;
       const expectedPreviousCheckpoint = checkpoint.order ? checkpoint.order - 1 : 0;
       const isFromDifferentCheckpoint = lastCheckpointNum !== expectedPreviousCheckpoint;

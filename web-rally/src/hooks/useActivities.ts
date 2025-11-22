@@ -16,14 +16,12 @@ import { type ActivityCreate, type ActivityUpdate } from "@/client";
  * ```
  */
 export function useActivities() {
-  const { userStore } = useUser();
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const { isRallyAdmin, userStore } = useUser();
 
   return useQuery({
     queryKey: ["activities"],
     queryFn: () => ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(),
-    enabled: isManager && !!userStore.token,
+    enabled: isRallyAdmin,
   });
 }
 
