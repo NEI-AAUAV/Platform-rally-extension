@@ -105,7 +105,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
         ) : (
           activities.map((activity) => {
             const IconComponent = getActivityTypeIcon(activity.activity_type);
-            const isCompleted = (activity as any).evaluation_status === "completed";
+            const isCompleted = 'evaluation_status' in activity && activity.evaluation_status === "completed";
             
             return (
               <div

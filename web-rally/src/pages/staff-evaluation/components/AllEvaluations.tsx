@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -11,7 +12,11 @@ interface Evaluation {
   final_score: number;
   is_completed: boolean;
   completed_at: string;
-  result_data?: Record<string, unknown>;
+  result_data?: Record<string, unknown> & {
+    result?: string;
+    opponent_team_id?: number;
+    notes?: string;
+  };
   extra_shots?: number;
   penalties?: Record<string, number>;
   time_score?: number;
@@ -183,6 +188,21 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           {filteredEvaluations.map((evaluation) => {
             const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
             const isExpanded = expandedEvaluations.has(evaluation.id);
+            
+            // Compute TeamVsActivity result badge if applicable
+            let teamVsResult: React.ReactNode = null;
+            if (evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data) {
+              const resultValue = evaluation.result_data.result;
+              if (typeof resultValue === 'string' && resultValue) {
+                const result: string = resultValue; // Type assertion after type guard
+                const opponentId = 
+                  'opponent_team_id' in evaluation.result_data &&
+                  typeof evaluation.result_data.opponent_team_id === 'number'
+                    ? evaluation.result_data.opponent_team_id
+                    : null;
+                teamVsResult = <TeamVsResultBadges result={result} opponentId={opponentId} />;
+              }
+            }
             const hasDetails = 
               (evaluation.result_data && Object.keys(evaluation.result_data).length > 0) || 
               (evaluation.extra_shots && evaluation.extra_shots > 0) || 
@@ -284,22 +304,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* TeamVsActivity Result */}
-                            {(() => {
-                              if (evaluation.activity.activity_type === 'TeamVsActivity' && 
-                                  evaluation.result_data && 
-                                  'result' in evaluation.result_data &&
-                                  typeof evaluation.result_data.result === 'string' &&
-                                  evaluation.result_data.result) {
-                                const result: string = evaluation.result_data.result as string;
-                                const opponentId: number | null = 
-                                  'opponent_team_id' in evaluation.result_data &&
-                                  typeof evaluation.result_data.opponent_team_id === 'number'
-                                    ? evaluation.result_data.opponent_team_id
-                                    : null;
-                                return <TeamVsResultBadges result={result} opponentId={opponentId} />;
-                              }
-                              return null;
-                            })() as any}
+                            {teamVsResult}
                             
                             {/* Notes */}
                             {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (

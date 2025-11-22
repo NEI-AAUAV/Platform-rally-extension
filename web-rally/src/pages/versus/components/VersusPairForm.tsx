@@ -8,38 +8,13 @@ import { Plus, AlertCircle } from "lucide-react";
 import { VersusService, type VersusPairCreate, type VersusPairResponse, type ListingTeam } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { useThemedComponents } from "@/components/themes";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 interface VersusPairFormProps {
   teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
 }
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  if (typeof candidate.body?.detail === "string") {
-    return candidate.body.detail;
-  }
-
-  if (typeof candidate.response?.data?.detail === "string") {
-    return candidate.response.data.detail;
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.length > 0) {
-    return candidate.message;
-  }
-
-  return fallback;
-};
 
 export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
   const { Card } = useThemedComponents();

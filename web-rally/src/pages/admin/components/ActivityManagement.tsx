@@ -6,10 +6,12 @@ import ActivityForm from '@/components/ActivityCreateForm';
 import ActivityList from '@/components/ActivityList';
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
 import type { Activity as ActivityType } from '@/types/activityTypes';
+import { ActivityType as CustomActivityType } from '@/types/activityTypes';
 import type { ActivityCreate as ClientActivityCreate, ActivityListResponse, ActivityResponse } from '@/client';
 import { ActivityType as ClientActivityType } from '@/client';
 import type { ActivityCreate as CustomActivityCreate } from '@/types/activityTypes';
 import { useAppToast } from '@/hooks/use-toast';
+import { getErrorMessage } from '@/utils/errorHandling';
 
 interface Checkpoint {
   id: number;
@@ -21,32 +23,6 @@ interface Checkpoint {
 interface ActivityManagementProps {
   checkpoints: Checkpoint[];
 }
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  if (typeof candidate.body?.detail === "string") {
-    return candidate.body.detail;
-  }
-
-  if (typeof candidate.response?.data?.detail === "string") {
-    return candidate.response.data.detail;
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.length > 0) {
-    return candidate.message;
-  }
-
-  return fallback;
-};
 
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
@@ -141,7 +117,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           initialData={editingActivity ? {
             name: editingActivity.name,
             description: editingActivity.description ?? undefined,
-            activity_type: editingActivity.activity_type as any,
+            activity_type: editingActivity.activity_type as unknown as CustomActivityType,
             checkpoint_id: editingActivity.checkpoint_id,
             config: editingActivity.config as Record<string, string | number | boolean>,
             is_active: editingActivity.is_active,
@@ -168,10 +144,18 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map((activity: ActivityResponse) => ({
-                ...activity,
-                order: (activity as any).order ?? 0,
-              })) as any}
+              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map((activity: ActivityResponse): ActivityType => ({
+                id: activity.id,
+                name: activity.name,
+                description: activity.description ?? undefined,
+                activity_type: activity.activity_type as unknown as CustomActivityType,
+                checkpoint_id: activity.checkpoint_id,
+                config: activity.config as Record<string, string | number | boolean>,
+                is_active: activity.is_active ?? true,
+                order: 'order' in activity && typeof activity.order === 'number' ? activity.order : 0,
+                created_at: activity.created_at,
+                updated_at: activity.updated_at,
+              }))}
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}

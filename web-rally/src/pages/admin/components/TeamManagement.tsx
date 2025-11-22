@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit, Trash2, Users, AlertCircle } from 'lucide-react';
 import { useThemedComponents } from '@/components/themes';
+import { getErrorMessage } from '@/utils/errorHandling';
 import {
   Form,
   FormControl,
@@ -32,34 +33,6 @@ interface Team {
   total: number;
   num_members: number;
 }
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  const bodyDetail = candidate.body?.detail;
-  if (typeof bodyDetail === "string") {
-    return bodyDetail;
-  }
-
-  const responseDetail = candidate.response?.data?.detail;
-  if (typeof responseDetail === "string") {
-    return responseDetail;
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.length > 0) {
-    return candidate.message;
-  }
-
-  return fallback;
-};
 
 export default function TeamManagement() {
   const { Card } = useThemedComponents();

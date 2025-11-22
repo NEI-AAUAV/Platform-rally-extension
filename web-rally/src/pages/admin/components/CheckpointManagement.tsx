@@ -37,36 +37,11 @@ type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 type Checkpoint = DetailedCheckPoint;
 
 import type { UserState } from "@/stores/useUserStore";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 interface CheckpointManagementProps {
   userStore: UserState;
 }
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  if (typeof candidate.body?.detail === "string") {
-    return candidate.body.detail;
-  }
-
-  if (typeof candidate.response?.data?.detail === "string") {
-    return candidate.response.data.detail;
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.length > 0) {
-    return candidate.message;
-  }
-
-  return fallback;
-};
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
   const { Card } = useThemedComponents();

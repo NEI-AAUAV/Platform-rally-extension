@@ -61,31 +61,7 @@ const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => 
   return "bloody";
 };
 
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  if (typeof candidate.body?.detail === "string") {
-    return candidate.body.detail;
-  }
-
-  if (typeof candidate.response?.data?.detail === "string") {
-    return candidate.response.data.detail;
-  }
-
-  if (typeof candidate.message === "string" && candidate.message.length > 0) {
-    return candidate.message;
-  }
-
-  return fallback;
-};
+import { getErrorMessage } from "@/utils/errorHandling";
 
 export default function RallySettings() {
   const { isLoading, isRallyAdmin } = useUser();

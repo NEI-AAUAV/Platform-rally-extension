@@ -20,6 +20,7 @@ import {
 } from "@/client";
 import type { ActivityResultData } from "@/types/forms";
 import { useAppToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 type EvaluationSummary = {
   total_activities: number;
@@ -68,32 +69,6 @@ const toEvaluationSummary = (summary?: Partial<EvaluationSummary> | null): Evalu
   team_checkpoint: summary?.team_checkpoint ?? null,
   current_checkpoint: summary?.current_checkpoint ?? null,
 });
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (!error || typeof error !== "object") {
-    return fallback;
-  }
-
-  const candidate = error as {
-    body?: { detail?: string };
-    response?: { data?: { detail?: string } };
-    message?: string;
-  };
-
-  if (typeof candidate.body?.detail === "string") {
-    return candidate.body.detail;
-  }
-
-  if (typeof candidate.response?.data?.detail === "string") {
-    return candidate.response.data.detail;
-  }
-
-  if (typeof candidate.message === "string") {
-    return candidate.message;
-  }
-
-  return fallback;
-};
 
 export default function CheckpointTeamEvaluation() {
   const toast = useAppToast();
