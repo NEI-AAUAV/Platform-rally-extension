@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import useUser from '@/hooks/useUser';
+import { LoadingState } from './LoadingState';
 
 interface PermissionGuardProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ export default function PermissionGuard({
   const { isLoading, userStore } = useUser();
   
   if (isLoading) {
-    return <div className="mt-16 text-center">Carregando...</div>;
+    return <LoadingState message="Carregando..." />;
   }
 
   const hasPermission = requiredScopes.some(scope => 
