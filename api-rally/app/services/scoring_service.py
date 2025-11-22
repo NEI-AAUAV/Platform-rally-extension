@@ -139,10 +139,11 @@ class ScoringService:
     
     def apply_penalty(self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int) -> bool:
         """Apply penalty to a team's activity result"""
-        result = self.db.query(ActivityResult).filter(
+        stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team_id
-        ).first()
+        )
+        result = self.db.scalars(stmt).first()
         if not result:
             return False
         
