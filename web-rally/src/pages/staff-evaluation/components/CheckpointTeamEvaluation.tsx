@@ -249,7 +249,7 @@ export default function CheckpointTeamEvaluation() {
       if (!res.ok) {
         let err: unknown = { detail: res.statusText };
         try {
-          const errorData = await res.json();
+          const errorData = await res.json() as { detail?: unknown };
           err = errorData;
           // Log validation errors for debugging
           if (res.status === 422 && errorData.detail) {
