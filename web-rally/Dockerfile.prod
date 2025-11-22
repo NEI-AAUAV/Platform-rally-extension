@@ -3,7 +3,7 @@
 # Generates OpenAPI schema → builds web → packages artifact
 
 # Stage 1: Generate OpenAPI schema from api-rally
-FROM python:3.12-slim AS schema-generator
+FROM python:3.14-slim AS schema-generator
 WORKDIR /app
 
 # Copy only what's needed for schema generation
