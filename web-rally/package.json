@@ -41,6 +41,10 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@testing-library/jest-dom": "^6.1.0",
+    "@testing-library/react": "^15.0.7",
+    "@testing-library/user-event": "^14.5.0",
     "@total-typescript/ts-reset": "^0.5.1",
     "@types/node": "^20.8.6",
     "@types/react": "^18.2.15",
@@ -50,9 +54,6 @@
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/coverage-v8": "^1.0.0",
     "@vitest/ui": "^1.0.0",
-    "@testing-library/jest-dom": "^6.1.0",
-    "@testing-library/react": "^15.0.7",
-    "@testing-library/user-event": "^14.5.0",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -66,8 +67,7 @@
     "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
     "vite": "^7.2.2",
-    "vitest": "^1.0.0",
-    "@playwright/test": "^1.40.0"
+    "vitest": "^1.0.0"
   },
   "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
 }

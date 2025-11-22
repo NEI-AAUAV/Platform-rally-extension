@@ -88,12 +88,10 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export default function RallySettings() {
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
   
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const isManager = isRallyAdmin;
 
   const [isEditing, setIsEditing] = useState(false);
 

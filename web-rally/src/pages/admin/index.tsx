@@ -18,12 +18,8 @@ interface Checkpoint {
 
 export default function Admin() {
   const { Button } = useThemedComponents();
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin, userStore } = useUser();
   
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
-
   const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities">("teams");
 
   // Fetch checkpoints for activities
@@ -33,14 +29,14 @@ export default function Admin() {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isManager && !!userStore.token,
+    enabled: isRallyAdmin && !!userStore.token,
   });
 
   if (isLoading) {
     return <div className="mt-16 text-center">Carregando...</div>;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
