@@ -58,10 +58,16 @@ class ScoringService:
         if not team:
             return False
         
-        # Get all activity results for this team
-        results = self.db.query(ActivityResult).filter(
+        # Get all activity results for this team with activities and checkpoints preloaded
+        # Use joinedload to avoid N+1 queries
+        results = self.db.query(ActivityResult).options(
+            joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
+        ).filter(
             ActivityResult.team_id == team_id
         ).all()
+        
+        # Get unique activity IDs to load all activities at once
+        activity_ids = {result.activity_id for result in results if result.activity_id}
         
         # Group results by checkpoint order (not checkpoint ID)
         checkpoint_scores: Dict[int, float] = {}
@@ -69,11 +75,10 @@ class ScoringService:
         
         for result in results:
             if result.is_completed and result.final_score is not None:
-                # Get activity to find checkpoint
-                activity = self.db.query(Activity).options(joinedload(Activity.checkpoint)).filter(Activity.id == result.activity_id).first()
-                if activity and activity.checkpoint:
+                # Activity and checkpoint are already loaded via joinedload
+                if result.activity and result.activity.checkpoint:
                     # Use checkpoint order instead of checkpoint ID
-                    checkpoint_order = activity.checkpoint.order
+                    checkpoint_order = result.activity.checkpoint.order
                     if checkpoint_order not in checkpoint_scores:
                         checkpoint_scores[checkpoint_order] = 0.0
                     checkpoint_scores[checkpoint_order] += result.final_score
