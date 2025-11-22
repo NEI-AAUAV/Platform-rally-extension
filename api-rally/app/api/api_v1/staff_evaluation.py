@@ -312,13 +312,15 @@ def _compute_checkpoint_progress(db: Session, team_obj: Team) -> Tuple[int, int,
     last_completed_order = 0
     completed_orders: list[int] = []
     for cp in checkpoints:
+        # Skip checkpoints without activities, but continue to check later checkpoints
         if not _checkpoint_has_activities(db, cp.id):
-            break
+            continue
 
         if _is_checkpoint_completed(db, cp.id, completed_activity_ids):
             last_completed_order = cp.order
             completed_orders.append(cp.order)
         else:
+            # Stop at first incomplete checkpoint (teams must complete in order)
             break
 
     current_order = _determine_current_order(checkpoints, last_completed_order)
@@ -431,7 +433,8 @@ def get_team_activities_for_evaluation(
     from sqlalchemy import select
     from app.models.team import Team
     stmt = select(Team).options(joinedload(Team.members)).where(Team.id == team_id)
-    team_obj_with_members: Optional[Team] = db.scalars(stmt).first()
+    # Use unique() to deduplicate joined rows when team has multiple members
+    team_obj_with_members: Optional[Team] = db.scalars(stmt).unique().first()
     if not team_obj_with_members:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

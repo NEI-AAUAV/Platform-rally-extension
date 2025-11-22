@@ -34,8 +34,8 @@ def get_current_user(
             user_id=auth.sub
         )
         # Set scopes after creation (User model has this field but schema doesn't)
+        # User is already tracked by session after create_with_id, so just update and commit
         user.scopes = auth.scopes
-        db.add(user)
         db.commit()
         db.refresh(user)
     else:

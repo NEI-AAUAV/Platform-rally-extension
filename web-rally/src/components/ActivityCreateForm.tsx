@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -107,6 +107,13 @@ export default function ActivityForm({
 
   const watchActivityType = form.watch("activity_type");
   const [configData, setConfigData] = useState<Record<string, ConfigValue>>(initialData?.config ?? {});
+
+  // Synchronize configData with initialData changes (e.g., when switching between create/edit)
+  useEffect(() => {
+    if (initialData?.config !== undefined) {
+      setConfigData(initialData.config);
+    }
+  }, [initialData?.config]);
 
   const handleSubmit = (data: ActivityForm) => {
     onSubmit({ ...data, config: configData });

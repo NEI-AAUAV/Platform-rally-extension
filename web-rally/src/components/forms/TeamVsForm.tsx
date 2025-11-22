@@ -91,12 +91,13 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
     if (existingResult?.result_data) {
       setResult(existingResult.result_data.result || "win");
       const existingOpponentId = existingResult.result_data.opponent_team_id;
-      if (existingOpponentId && !opponentTeamId) {
+      // Only set opponent if not already set to avoid infinite loops
+      if (existingOpponentId && opponentTeamId === undefined) {
         setOpponentTeamId(existingOpponentId);
         // Try to find team name from teams list if available
         if (teams.length > 0) {
           const existingTeam = teams.find((t) => t.id === existingOpponentId);
-          if (existingTeam && !opponentTeamName) {
+          if (existingTeam && opponentTeamName === "") {
             setOpponentTeamName(existingTeam.name);
           }
         }
@@ -109,7 +110,10 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
       setExtraShots(existingResult.extra_shots || 0);
       setPenalties(existingResult.penalties || {});
     }
-  }, [existingResult, teams, opponentTeamId, opponentTeamName]);
+    // Only depend on existingResult and teams - not on opponentTeamId/opponentTeamName
+    // to avoid infinite loops when these values are set inside the effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingResult, teams]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

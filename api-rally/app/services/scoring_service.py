@@ -218,11 +218,19 @@ class ScoringService:
             for i, result in enumerate(results, 1):
                 # Team is already loaded via joinedload, but check if it exists
                 if result.team:
+                    # Count activities completed for this team (all activities, not just this one)
+                    team_activity_count = len([
+                        r for r in self.db.scalars(
+                            select(ActivityResult).where(ActivityResult.team_id == result.team.id)
+                        ).all()
+                        if r.is_completed
+                    ])
                     ranking.append({
                         'rank': i,
                         'team_id': result.team.id,
                         'team_name': result.team.name,
                         'score': result.final_score or 0,
+                        'activities_completed': team_activity_count,
                         'completed_at': result.completed_at
                     })
         else:
