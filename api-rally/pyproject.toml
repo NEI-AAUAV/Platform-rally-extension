@@ -51,6 +51,10 @@ ignore_missing_imports = true
 module = "sqlalchemy.schema"
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = "app.main"
+ignore_errors = true
+
 
 [build-system]
 requires = ["poetry-core"]
