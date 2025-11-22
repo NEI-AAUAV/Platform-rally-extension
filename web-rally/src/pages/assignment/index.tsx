@@ -3,14 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
-import { CheckPointService, UserService, type CheckpointAssignmentUpdate } from "@/client";
-
-interface Checkpoint {
-  id: number;
-  name: string;
-  description: string;
-  order: number;
-}
+import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
 
 interface StaffAssignment {
   id: number;
@@ -22,25 +15,22 @@ interface StaffAssignment {
 }
 
 export default function Assignment() {
-  const { isLoading, userStore } = useUser();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const { isLoading, isRallyAdmin } = useUser();
 
-  const { data: checkpoints } = useQuery<Checkpoint[]>({
+  const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
-    queryFn: async (): Promise<Checkpoint[]> => {
-      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet() as Promise<Checkpoint[]>;
+    queryFn: async (): Promise<DetailedCheckPoint[]> => {
+      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      return Array.isArray(data) ? data : [];
     },
   });
 
-  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<StaffAssignment[]>({
+  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
     queryKey: ["staffAssignments"],
-    queryFn: async (): Promise<StaffAssignment[]> => {
-      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet() as Promise<StaffAssignment[]>;
+    queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
+      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet();
     },
-    enabled: isManager,
+    enabled: isRallyAdmin,
   });
 
   const {
@@ -69,12 +59,19 @@ export default function Assignment() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
-  // Staff assignments are already filtered by the API
-  const rallyStaffAssignments: StaffAssignment[] = staffAssignments || [];
+  // Map API response to local interface (they're compatible)
+  const rallyStaffAssignments: StaffAssignment[] = (staffAssignments || []).map((assignment) => ({
+    id: assignment.id,
+    user_id: assignment.user_id,
+    user_name: assignment.user_name ?? undefined,
+    user_email: assignment.user_email ?? undefined,
+    checkpoint_id: assignment.checkpoint_id ?? undefined,
+    checkpoint_name: assignment.checkpoint_name ?? undefined,
+  }));
 
   return (
     <div className="mt-16 space-y-8">

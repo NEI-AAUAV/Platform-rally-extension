@@ -1,4 +1,4 @@
-FROM python:3.10-slim AS requirements-stage
+FROM python:3.12-slim AS requirements-stage
 
 WORKDIR /tmp
 
@@ -14,12 +14,19 @@ RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
     && pip install --target=/opt/dependencies --no-compile --no-cache-dir -r requirements.txt
 
 # Runtime stage
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.10-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /api_rally
+
+# Install system dependencies and uvicorn[standard] for production
+# Note: uvicorn is in dev dependencies, so install separately for production runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uvicorn[standard]
 
 RUN mkdir static
 
@@ -29,4 +36,4 @@ ENV PYTHONPATH="${PYTHONPATH}:/opt/dependencies"
 COPY ./app ./app
 
 EXPOSE 8003
-CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:8003", "-k", "uvicorn.workers.UvicornWorker", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--workers", "4", "--forwarded-allow-ips", "*"]

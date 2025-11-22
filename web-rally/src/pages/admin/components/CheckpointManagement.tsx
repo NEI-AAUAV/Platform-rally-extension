@@ -1,10 +1,10 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Edit, Trash2, MapPin, GripVertical } from 'lucide-react';
-import { useThemedComponents } from '@/components/themes';
+import React, { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Edit, Trash2, MapPin, GripVertical } from "lucide-react";
+import { useThemedComponents } from "@/components/themes";
 import {
   Form,
   FormControl,
@@ -12,12 +12,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { BloodyButton } from '@/components/themes/bloody';
-import { EmptyState } from '@/components/shared';
-import { CheckPointService, type CheckPointCreate, type CheckPointUpdate } from '@/client';
-import { useAppToast } from '@/hooks/use-toast';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { BloodyButton } from "@/components/themes/bloody";
+import { EmptyState } from "@/components/shared";
+import {
+  CheckPointService,
+  type CheckPointCreate,
+  type CheckPointUpdate,
+  type DetailedCheckPoint,
+} from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
 
 const checkpointFormSchema = z.object({
   name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
@@ -29,16 +34,10 @@ const checkpointFormSchema = z.object({
 
 type CheckpointForm = z.infer<typeof checkpointFormSchema>;
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  order: number;
-}
+type Checkpoint = DetailedCheckPoint;
 
 import type { UserState } from "@/stores/useUserStore";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 interface CheckpointManagementProps {
   userStore: UserState;
@@ -51,11 +50,11 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
   // Checkpoints queries and mutations
-  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<Checkpoint[]>({
-    queryKey: ['checkpoints'],
-    queryFn: async (): Promise<Checkpoint[]> => {
+  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<DetailedCheckPoint[]>({
+    queryKey: ["checkpoints"],
+    queryFn: async () => {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? (data as Checkpoint[]) : [];
+      return data ?? [];
     },
     enabled: !!userStore.token,
   });
@@ -79,12 +78,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       checkpointForm.reset();
       toast.success("Checkpoint criado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao criar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao criar checkpoint"));
     },
   });
 
@@ -108,12 +103,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       checkpointForm.reset();
       toast.success("Checkpoint atualizado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao atualizar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao atualizar checkpoint"));
     },
   });
 
@@ -128,12 +119,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       refetchCheckpoints();
       toast.success("Checkpoint deletado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao deletar checkpoint";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao deletar checkpoint"));
     },
   });
 
@@ -145,23 +132,19 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       refetchCheckpoints();
       toast.success("Ordem dos checkpoints atualizada com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao reordenar checkpoints";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao reordenar checkpoints"));
     },
   });
 
   // Form
-  const checkpointForm = useForm({
+  const checkpointForm = useForm<CheckpointForm>({
     resolver: zodResolver(checkpointFormSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      latitude: '',
-      longitude: '',
+      name: "",
+      description: "",
+      latitude: "",
+      longitude: "",
       order: 1,
     },
   });
@@ -176,30 +159,53 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
 
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
-    checkpointForm.setValue('name', checkpoint.name);
-    checkpointForm.setValue('description', checkpoint.description ?? '');
-    checkpointForm.setValue('latitude', checkpoint.latitude?.toString() || '');
-    checkpointForm.setValue('longitude', checkpoint.longitude?.toString() || '');
-    checkpointForm.setValue('order', checkpoint.order || 1);
+    checkpointForm.setValue("name", checkpoint.name);
+    checkpointForm.setValue("description", checkpoint.description ?? "");
+    checkpointForm.setValue("latitude", checkpoint.latitude?.toString() || "");
+    checkpointForm.setValue("longitude", checkpoint.longitude?.toString() || "");
+    checkpointForm.setValue("order", checkpoint.order || 1);
   };
 
   const cancelEdit = () => {
     setEditingCheckpoint(null);
     checkpointForm.reset();
+    // Reset to next available order after canceling edit
+    updateOrderForNewCheckpoint();
   };
+
+  // Calculate next available order (max order + 1, or 1 if no checkpoints)
+  const nextOrder = useMemo(() => {
+    if (!checkpoints || checkpoints.length === 0) {
+      return 1;
+    }
+    const maxOrder = Math.max(...checkpoints.map(cp => cp.order || 0));
+    return maxOrder + 1;
+  }, [checkpoints]);
+
+  // Update order field when creating new checkpoint (not editing)
+  const updateOrderForNewCheckpoint = React.useCallback(() => {
+    if (!editingCheckpoint) {
+      checkpointForm.setValue("order", nextOrder);
+    }
+  }, [editingCheckpoint, nextOrder, checkpointForm]);
+
+  // Auto-update order when checkpoints change or when not editing
+  useEffect(() => {
+    updateOrderForNewCheckpoint();
+  }, [updateOrderForNewCheckpoint]);
 
   // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, checkpoint: Checkpoint) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => {
     setDraggedCheckpoint(checkpoint);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, targetCheckpoint: Checkpoint) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetCheckpoint: Checkpoint) => {
     e.preventDefault();
     
     if (!draggedCheckpoint || draggedCheckpoint.id === targetCheckpoint.id) {
@@ -373,22 +379,21 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           />
         ) : (
           <ul className="space-y-3 list-none">
-            {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined).map((checkpoint) => (
-              <Card
+            {(() => {
+              // Sort and filter checkpoints once, not on every render
+              const sortedCheckpoints = (checkpoints || [])
+                .filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined)
+                .sort((a: Checkpoint, b: Checkpoint) => a.order - b.order);
+              
+              return sortedCheckpoints.map((checkpoint) => (
+              <div
                 key={checkpoint.id}
-                variant="subtle"
-                padding="md"
-                rounded="xl"
-                hover
-                className={`flex items-center justify-between cursor-move transition-all ${
-                  draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
-                }`}
                 draggable
-                onDragStart={(e: React.DragEvent) => handleDragStart(e, checkpoint)}
+                onDragStart={(e: React.DragEvent<HTMLDivElement>) => handleDragStart(e, checkpoint)}
                 onDragOver={handleDragOver}
-                onDrop={(e: React.DragEvent) => handleDrop(e, checkpoint)}
+                onDrop={(e: React.DragEvent<HTMLDivElement>) => handleDrop(e, checkpoint)}
                 onDragEnd={handleDragEnd}
-                onKeyDown={(e: React.KeyboardEvent) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     // Focus management for keyboard users
@@ -396,6 +401,15 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 }}
                 aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
               >
+                <Card
+                  variant="subtle"
+                  padding="md"
+                  rounded="xl"
+                  hover
+                  className={`flex items-center justify-between cursor-move transition-all ${
+                    draggedCheckpoint?.id === checkpoint.id ? 'opacity-50 scale-95' : ''
+                  }`}
+                >
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
                     <GripVertical className="w-4 h-4" />
@@ -428,8 +442,10 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                     <Trash2 className="w-4 h-4" />
                   </BloodyButton>
                 </div>
-              </Card>
-            ))}
+                </Card>
+              </div>
+              ));
+            })()}
           </ul>
         )}
       </Card>

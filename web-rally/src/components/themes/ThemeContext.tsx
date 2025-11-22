@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- file exports hooks alongside provider intentionally */
 // Theme context and hook for Rally components
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { getThemeComponents, type ThemeName, type ThemeComponents } from './index';

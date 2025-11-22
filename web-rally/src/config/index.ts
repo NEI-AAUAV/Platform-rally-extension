@@ -21,11 +21,7 @@ const config = {
   PRODUCTION,
   HOST,
   BASE_URL,
-  STATIC_NEI_URL: `${BASE_URL}/static/nei`,
-  API_NEI_URL: `${BASE_URL}/api/nei/v1`,
-  API_TACAUA_URL: `${BASE_URL}/api/tacaua/v1`,
-  API_FAMILY_URL: `${BASE_URL}/api/family/v1`,
-  WEB_NEI_URL: `${BASE_URL}/`,
+  API_NEI_URL: `${BASE_URL}/api/nei/v1`, // For authentication and user data
 };
 
 export default config;

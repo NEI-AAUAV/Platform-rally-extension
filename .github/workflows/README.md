@@ -1,215 +1,63 @@
-# Rally Extension CI/CD Workflows
+# Rally Extension: CI Workflows
 
-This directory contains GitHub Actions workflows for the Rally extension. These workflows ensure code quality, security, and reliability.
+This guide provides an overview of the GitHub Actions workflows used to test and validate the Rally extension.
 
-## 📋 Workflow Overview
+## Workflow Overview
 
-### 1. **tests.yml** - Comprehensive Testing
-**Triggers:** Push to main, PRs, manual dispatch
-**Purpose:** Runs unit, integration, and frontend tests
+Our CI is split into two primary workflows that run on pushes and pull requests to `main`.
 
-**Jobs:**
-- `test-api`: Python/FastAPI tests with PostgreSQL
-- `test-frontend`: React/TypeScript tests with coverage
-- `test-integration`: End-to-end integration tests
+### 1. `build-web.yml` - Web Artifact Generation
 
-**Key Features:**
-- Parallel test execution for speed
-- Coverage reporting (uploadable to SonarQube)
-- Configurable test types via manual dispatch
-- Cached dependencies for faster runs
+-   **Purpose:** To perform a clean build of the frontend application and generate a deployable `dist` artifact.
+-   **Process:**
+    1.  Generates the OpenAPI schema from the API source.
+    2.  Installs `pnpm` dependencies (with caching).
+    3.  Builds the React application.
+    4.  Uploads the resulting `dist/` directory as a GitHub Actions artifact.
 
-### 2. **code-quality.yml** - Code Quality Checks ✨ NEW
-**Triggers:** Push to main, PRs, manual dispatch
-**Purpose:** Enforces code quality standards
+### 2. `docker-build.yml` - Dockerfile Validation
 
-**Jobs:**
-- `lint-python`: Black, isort, flake8, mypy
-- `lint-typescript`: ESLint, Prettier, TypeScript compiler
-- `security-scan`: Dependency vulnerability checking
+-   **Purpose:** To act as a quality gate by ensuring that the `Dockerfile` for both the API and web components can build successfully from source.
+-   **Process:**
+    1.  **API:** Builds the `dev` and `prod` Docker images for `api-rally` and runs a quick smoke test (`python -m compileall`).
+    2.  **Web:** Builds the `dev` and `prod` Docker images for `web-rally`. This intentionally rebuilds from source to validate the entire Docker build process.
+    3.  **Compose:** Validates the syntax of the `docker-compose` override files.
 
-**Key Features:**
-- Non-blocking (warnings don't fail builds)
-- Runs in parallel with tests
-- Provides actionable feedback
+Other workflows for SonarQube analysis and code quality may also be present.
 
-### 3. **build-web.yml** - Web Build Verification
-**Triggers:** Push to main, PRs, manual dispatch
-**Purpose:** Validates web app builds successfully
+## Security: Automated Dependency Updates
 
-**Jobs:**
-- `build-web-rally`: Generates OpenAPI client and builds React app
+This repository uses **Dependabot** to keep dependencies up to date.
 
-**Key Features:**
-- Offline OpenAPI schema generation
-- pnpm caching for speed
-- Build artifact verification
+-   It automatically creates pull requests for security patches and version updates.
+-   It monitors Python, `pnpm`, Docker, and GitHub Actions dependencies.
 
-### 4. **docker-build.yml** - Docker Image Validation ✨ NEW
-**Triggers:** Dockerfile or dependency changes, manual dispatch
-**Purpose:** Ensures Docker images build and start correctly
+Please review and merge Dependabot PRs promptly, especially those related to security vulnerabilities.
 
-**Jobs:**
-- `build-api-docker`: Builds dev & prod API images
-- `build-web-docker`: Builds dev & prod web images
-- `docker-compose-validation`: Validates compose files
+## Best Practices for Developers
 
-**Key Features:**
-- Tests both dev and production Dockerfiles
-- Verifies containers actually start
-- Uses GitHub Actions cache for layers
-- Validates service naming matches manifest
+### Before Pushing
 
-### 5. **validate-manifest.yml** - Manifest Validation ✨ NEW
-**Triggers:** Changes to manifest.json
-**Purpose:** Ensures extension manifest is valid
+We recommend running tests locally to catch issues early.
 
-**Checks:**
-- JSON syntax validation
-- Required fields (name, version, api.port, web.port)
-- Port uniqueness and valid ranges
-- Scopes structure
-- Navigation entries structure
-- Generates summary for PRs
+```bash
+# Run backend tests
+cd Platform/extensions/rally/api-rally
+poetry run pytest
 
-### 6. **sonar.yml** - SonarQube Analysis
-**Triggers:** Push to main, PRs, manual dispatch
-**Purpose:** Code quality and security analysis
-
-**Key Features:**
-- Integrated with NEI's SonarQube instance
-- Custom SSL certificate handling
-- Quality gate enforcement
-- Coverage integration
-
----
-
-## 🔒 Security
-
-### Dependabot Configuration
-**File:** `.github/dependabot.yml` ✨ NEW
-
-**What it does:**
-- Automatically checks for dependency updates
-- Creates PRs for security patches and updates
-- Monitors 5 ecosystems:
-  - Python (Poetry/pip)
-  - npm/pnpm
-  - GitHub Actions
-  - Docker base images
-
-**Schedule:**
-- Dependencies: Weekly (Mondays)
-- GitHub Actions: Monthly
-- Docker images: Monthly
-
-**Limits:**
-- Max 5 open PRs for dependencies
-- Max 3 open PRs for Actions/Docker
-- Ignores major version updates for critical deps
-
----
-
-## 🎯 Best Practices
-
-### For Developers
-
-1. **Before Pushing:**
-   ```bash
-   # Run tests locally
-   cd api-rally && poetry run pytest
-   cd web-rally && pnpm test
-   
-   # Check code quality
-   cd api-rally && poetry run black . && poetry run mypy app/
-   cd web-rally && pnpm run lint
-   ```
-
-2. **For Pull Requests:**
-   - All workflows must pass (green checkmarks)
-   - Code quality warnings should be addressed
-   - Test coverage should not decrease
-
-3. **Manual Workflows:**
-   - Use `workflow_dispatch` to run workflows on-demand
-   - `tests.yml` allows selecting specific test types
-   - Useful for debugging CI issues
-
-### For Maintainers
-
-1. **Reviewing Dependabot PRs:**
-   - Check CHANGELOG/release notes for breaking changes
-   - Run tests locally if unsure
-   - Merge security patches quickly
-
-2. **Workflow Failures:**
-   - Check job summaries for clear error messages
-   - Look at artifact uploads for coverage reports
-   - Re-run failed jobs if transient failure suspected
-
-3. **Updating Workflows:**
-   - Test changes on a branch first
-   - Use `continue-on-error: true` for non-critical checks
-   - Update this documentation when adding workflows
-
----
-
-## 📊 Workflow Status Badges
-
-Add these to your README.md:
-
-```markdown
-![Tests](https://github.com/NEI-AAUAV/rally/actions/workflows/tests.yml/badge.svg)
-![Code Quality](https://github.com/NEI-AAUAV/rally/actions/workflows/code-quality.yml/badge.svg)
-![Docker Build](https://github.com/NEI-AAUAV/rally/actions/workflows/docker-build.yml/badge.svg)
-![SonarQube](https://github.com/NEI-AAUAV/rally/actions/workflows/sonar.yml/badge.svg)
+# Run frontend tests
+cd Platform/extensions/rally/web-rally
+pnpm test
 ```
 
----
+### For Pull Requests
 
-## 🔧 Troubleshooting
+-   Ensure all workflow checks pass before requesting a review.
+-   Address any warnings reported by the code quality and security scans.
+-   Verify that your changes do not negatively impact test coverage.
 
-### Common Issues
+## Troubleshooting Common Issues
 
-**Problem:** Tests fail with "Database connection error"
-**Solution:** PostgreSQL service may not be ready. Add health checks or increase startup delay.
-
-**Problem:** Docker build uses old cache
-**Solution:** Manually clear GitHub Actions cache or add `--no-cache` flag temporarily.
-
-**Problem:** SonarQube SSL certificate errors
-**Solution:** The workflow handles this automatically. If persisting, check SONAR_HOST_URL secret.
-
-**Problem:** pnpm lockfile mismatch
-**Solution:** Run `pnpm install` locally and commit updated lockfile.
-
-**Problem:** Poetry lockfile mismatch
-**Solution:** Run `poetry lock --no-update` locally and commit updated lockfile.
-
----
-
-## 🚀 Future Enhancements
-
-Potential improvements to consider:
-
-1. **Performance Testing:** Add k6 or Locust for load testing
-2. **E2E Testing:** Playwright/Cypress for full browser tests
-3. **Deployment Workflow:** Auto-deploy to staging on main push
-4. **Release Automation:** Auto-create GitHub releases with changelogs
-5. **Database Migration Testing:** Validate Alembic migrations
-6. **API Contract Testing:** Validate OpenAPI schema compliance
-
----
-
-## 📝 Workflow Maintenance
-
-**Last Updated:** 2025-10-30
-**Maintained By:** NEI Platform Team
-**Review Schedule:** Quarterly
-
-When updating workflows:
-1. Test on feature branch first
-2. Update this documentation
-3. Notify team of changes
-4. Monitor first production run
-
+-   **DB Connection Error in CI:** This may indicate the PostgreSQL service in Docker was not fully ready. Re-running the failed job often resolves this.
+-   **pnpm/Poetry Lockfile Mismatch:** If a job fails due to a lockfile mismatch, run `pnpm install` or `poetry lock --no-update` locally and commit the updated lockfile.
+-   **Stale Docker Cache:** If you suspect a stale cache is causing issues, you can manually clear the GitHub Actions cache from the "Actions" tab of the repository.

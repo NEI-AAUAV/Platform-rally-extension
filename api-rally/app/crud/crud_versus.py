@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -74,7 +74,7 @@ class CRUDVersus():
 
         return opponent
     
-    def get_all_versus_pairs(self, db: Session):
+    def get_all_versus_pairs(self, db: Session) -> List[Dict[str, Any]]:
         teams = db.scalars(select(Team).where(Team.versus_group_id.isnot(None))).all()
 
         groups = defaultdict(list)

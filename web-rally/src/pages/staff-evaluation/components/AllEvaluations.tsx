@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -11,7 +12,11 @@ interface Evaluation {
   final_score: number;
   is_completed: boolean;
   completed_at: string;
-  result_data?: any;
+  result_data?: Record<string, unknown> & {
+    result?: string;
+    opponent_team_id?: number;
+    notes?: string;
+  };
   extra_shots?: number;
   penalties?: Record<string, number>;
   time_score?: number;
@@ -28,7 +33,7 @@ interface Evaluation {
     activity_type: string;
     checkpoint_id: number;
     description?: string;
-    config?: any;
+    config?: Record<string, unknown>;
   };
 }
 
@@ -43,6 +48,30 @@ const activityTypeIcons = {
   TeamVsActivity: Trophy,
   GeneralActivity: Activity,
 };
+
+function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId: number | null }) {
+  return (
+    <>
+      <Badge 
+        variant="outline" 
+        className={`text-xs ${
+          result === 'win' 
+            ? 'border-green-500/50 text-green-400' 
+            : result === 'lose'
+            ? 'border-red-500/50 text-red-400'
+            : 'border-yellow-500/50 text-yellow-400'
+        }`}
+      >
+        {result === 'win' ? '✓ Won' : result === 'lose' ? '✗ Lost' : '= Draw'}
+      </Badge>
+      {opponentId !== null && (
+        <Badge variant="outline" className="text-xs">
+          vs Team #{opponentId}
+        </Badge>
+      )}
+    </>
+  );
+}
 
 export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
   const { Card } = useThemedComponents();
@@ -159,6 +188,21 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           {filteredEvaluations.map((evaluation) => {
             const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
             const isExpanded = expandedEvaluations.has(evaluation.id);
+            
+            // Compute TeamVsActivity result badge if applicable
+            let teamVsResult: React.ReactNode = null;
+            if (evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data) {
+              const resultValue = evaluation.result_data.result;
+              if (typeof resultValue === 'string' && resultValue) {
+                const result: string = resultValue; // Type assertion after type guard
+                const opponentId = 
+                  'opponent_team_id' in evaluation.result_data &&
+                  typeof evaluation.result_data.opponent_team_id === 'number'
+                    ? evaluation.result_data.opponent_team_id
+                    : null;
+                teamVsResult = <TeamVsResultBadges result={result} opponentId={opponentId} />;
+              }
+            }
             const hasDetails = 
               (evaluation.result_data && Object.keys(evaluation.result_data).length > 0) || 
               (evaluation.extra_shots && evaluation.extra_shots > 0) || 
@@ -260,30 +304,10 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                             )}
                             
                             {/* TeamVsActivity Result */}
-                            {evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data?.result && (
-                              <>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${
-                                    evaluation.result_data.result === 'win' 
-                                      ? 'border-green-500/50 text-green-400' 
-                                      : evaluation.result_data.result === 'lose'
-                                      ? 'border-red-500/50 text-red-400'
-                                      : 'border-yellow-500/50 text-yellow-400'
-                                  }`}
-                                >
-                                  {evaluation.result_data.result === 'win' ? '✓ Won' : evaluation.result_data.result === 'lose' ? '✗ Lost' : '= Draw'}
-                                </Badge>
-                                {evaluation.result_data.opponent_team_id && (
-                                  <Badge variant="outline" className="text-xs">
-                                    vs Team #{evaluation.result_data.opponent_team_id}
-                                  </Badge>
-                                )}
-                              </>
-                            )}
+                            {teamVsResult}
                             
                             {/* Notes */}
-                            {evaluation.result_data?.notes && evaluation.result_data.notes.trim() !== '' && (
+                            {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
                               <Badge variant="outline" className="text-xs">
                                 Note: {evaluation.result_data.notes}
                               </Badge>
@@ -333,3 +357,4 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
 }
 
 export { AllEvaluations };
+export type { Evaluation };

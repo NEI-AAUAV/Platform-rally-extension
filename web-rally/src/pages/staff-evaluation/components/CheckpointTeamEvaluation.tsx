@@ -5,39 +5,101 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, AlertTriangle } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
+import useUser from "@/hooks/useUser";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
-import { CheckPointService, TeamService, ActivitiesService, StaffEvaluationService } from "@/client";
+import {
+  CheckPointService,
+  TeamService,
+  ActivitiesService,
+  StaffEvaluationService,
+  type ActivityResponse,
+  type ActivityResultResponse,
+  type DetailedCheckPoint,
+  type ListingTeam,
+} from "@/client";
+import type { ActivityResultData } from "@/types/forms";
 import { useAppToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errorHandling";
+
+type EvaluationSummary = {
+  total_activities: number;
+  completed_activities: number;
+  pending_activities: number;
+  completion_rate: number;
+  has_incomplete: boolean;
+  missing_activities: string[];
+  checkpoint_mismatch?: boolean;
+  team_checkpoint?: number | null;
+  current_checkpoint?: number | null;
+};
+
+type TeamActivityWithStatus = ActivityResponse & {
+  evaluation_status?: "completed" | "pending";
+  existing_result?: ActivityResultResponse | null;
+};
+
+type TeamActivitiesResponse = {
+  team?: ListingTeam;
+  activities?: TeamActivityWithStatus[];
+  evaluation_summary?: EvaluationSummary;
+};
+
+type ActivityResultWithRelations = ActivityResultResponse & {
+  activity?: ActivityResponse;
+  team?: ListingTeam;
+};
+
+type TeamEvaluationStatusMap = Record<number, boolean>;
+
+type EvaluatePayload = {
+  teamId: number;
+  activityId: number;
+  resultData: ActivityResultData;
+};
+
+const toEvaluationSummary = (summary?: Partial<EvaluationSummary> | null): EvaluationSummary => ({
+  total_activities: summary?.total_activities ?? 0,
+  completed_activities: summary?.completed_activities ?? 0,
+  pending_activities: summary?.pending_activities ?? 0,
+  completion_rate: summary?.completion_rate ?? 0,
+  has_incomplete: summary?.has_incomplete ?? false,
+  missing_activities: summary?.missing_activities ?? [],
+  checkpoint_mismatch: summary?.checkpoint_mismatch,
+  team_checkpoint: summary?.team_checkpoint ?? null,
+  current_checkpoint: summary?.current_checkpoint ?? null,
+});
 
 export default function CheckpointTeamEvaluation() {
   const toast = useAppToast();
   const { checkpointId } = useParams<{ checkpointId: string }>();
+  const { isRallyAdmin } = useUser();
   const userStore = useUserStore();
   const queryClient = useQueryClient();
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  const [selectedTeam, setSelectedTeam] = useState<ListingTeam | null>(null);
   const [showTeamList, setShowTeamList] = useState(true);
-  const [evaluationSummary, setEvaluationSummary] = useState<any>(null);
+  const [evaluationSummary, setEvaluationSummary] = useState<EvaluationSummary | null>(null);
   const [showWarningDialog, setShowWarningDialog] = useState(false);
 
   // Get checkpoint details from the list of all checkpoints
-  const { data: checkpoint } = useQuery({
+  const { data: checkpoint } = useQuery<DetailedCheckPoint>({
     queryKey: ["checkpoint", checkpointId],
     queryFn: async () => {
       const checkpoints = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      const checkpoint = checkpoints.find((cp: any) => cp.id === parseInt(checkpointId || '0'));
+      const parsedId = Number(checkpointId ?? "0");
+      const checkpointMatch = checkpoints.find((cp) => cp.id === parsedId);
       
-      if (!checkpoint) {
+      if (!checkpointMatch) {
         throw new Error("Checkpoint not found");
       }
       
-      return checkpoint;
+      return checkpointMatch;
     },
     enabled: !!userStore.token && !!checkpointId,
   });
 
   // Get teams for this specific checkpoint
-  const { data: checkpointTeams } = useQuery({
+  const { data: checkpointTeams } = useQuery<ListingTeam[]>({
     queryKey: ["checkpointTeams", checkpointId],
     queryFn: async () => {
       const allTeams = await TeamService.getTeamsApiRallyV1TeamGet();
@@ -48,41 +110,40 @@ export default function CheckpointTeamEvaluation() {
   });
 
   // Get team evaluation status
-  const { data: teamEvaluationStatus } = useQuery({
+  const { data: teamEvaluationStatus } = useQuery<TeamEvaluationStatusMap>({
     queryKey: ["teamEvaluationStatus", checkpointId],
     queryFn: async () => {
-      if (!checkpointTeams) return {};
-      
-      const evaluationStatus: Record<number, boolean> = {};
-      
-      // Try to get all activity results to check evaluation status
+      if (!checkpointTeams || !checkpoint) {
+        return {};
+      }
+
+      const evaluationStatus: TeamEvaluationStatusMap = {};
+
       try {
-        // First get activities for this checkpoint
         const activitiesData = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
-        const checkpointActivities = (activitiesData.activities || [])
-          .filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
-        
-        // Then get all results
-        const results = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
-        
-        // Check if each team has COMPLETED evaluations for ALL activities in this checkpoint
-        checkpointTeams.forEach((team: any) => {
-          const completedResults = results.filter((result: any) => 
-            result.team_id === team.id &&
-            result.is_completed === true &&
-            checkpointActivities.some((activity: any) => activity.id === result.activity_id)
+        const checkpointActivities: ActivityResponse[] = (activitiesData.activities ?? []).filter(
+          (activity) => activity.checkpoint_id === checkpoint.id,
+        );
+
+        const results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+
+        checkpointTeams.forEach((team) => {
+          const completedResults = results.filter(
+            (result) =>
+              result.team_id === team.id &&
+              result.is_completed === true &&
+              checkpointActivities.some((activity) => activity.id === result.activity_id),
           );
 
-          // Consider evaluated only when every activity has a completed result
-          evaluationStatus[team.id] = completedResults.length === checkpointActivities.length && checkpointActivities.length > 0;
+          evaluationStatus[team.id] =
+            checkpointActivities.length > 0 && completedResults.length === checkpointActivities.length;
         });
-      } catch (error) {
-        // Fallback: assume no evaluations
-        checkpointTeams.forEach((team: any) => {
+      } catch {
+        checkpointTeams.forEach((team) => {
           evaluationStatus[team.id] = false;
         });
       }
-      
+
       return evaluationStatus;
     },
     enabled: !!userStore.token && !!checkpoint && !!checkpointTeams,
@@ -90,150 +151,144 @@ export default function CheckpointTeamEvaluation() {
   });
 
   // Get team activities for evaluation (filtered by checkpoint)
-  const { data: teamActivities, isLoading: teamActivitiesLoading } = useQuery({
+  const { data: teamActivities, isLoading: teamActivitiesLoading } = useQuery<TeamActivityWithStatus[]>({
     queryKey: ["teamActivities", selectedTeam?.id, checkpoint?.id],
-    queryFn: async () => {
-      if (!selectedTeam || !checkpoint) return [];
-      
-      // Check if user is admin/manager - if so, skip staff endpoint
-      const isRallyAdmin = !!userStore.scopes?.includes("admin") || 
-                          !!userStore.scopes?.includes("manager-rally");
-      
-      // Checkpoint mismatch based ONLY on last checkpoint logic:
-      // team is expected here if last_checkpoint_number === checkpoint.order - 1
-      const lastCheckpointNum = selectedTeam?.last_checkpoint_number ?? 0;
-      const isFromDifferentCheckpoint = lastCheckpointNum !== (checkpoint?.order ? checkpoint.order - 1 : 0);
-      
+    queryFn: async (): Promise<TeamActivityWithStatus[]> => {
+      if (!selectedTeam || !checkpoint) {
+        return [];
+      }
+
+      const lastCheckpointNum = selectedTeam.last_checkpoint_number ?? 0;
+      const expectedPreviousCheckpoint = checkpoint.order ? checkpoint.order - 1 : 0;
+      const isFromDifferentCheckpoint = lastCheckpointNum !== expectedPreviousCheckpoint;
+
       if (!isRallyAdmin) {
-        // Try staff endpoint first for staff users
         try {
-          const data = await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(selectedTeam.id);
+          const data = (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
+            selectedTeam.id,
+          )) as TeamActivitiesResponse;
+
           const activities = Array.isArray(data.activities) ? data.activities : [];
-          
-          // Check if there are incomplete evaluations
-          if (data.evaluation_summary && data.evaluation_summary.has_incomplete || isFromDifferentCheckpoint) {
-            const summaryToShow = data.evaluation_summary || {
-              total_activities: activities.length,
-              completed_activities: 0,
-              pending_activities: activities.length,
-              completion_rate: 0,
-              has_incomplete: true,
-              missing_activities: []
-            };
-            
-            if (isFromDifferentCheckpoint) {
-              summaryToShow.checkpoint_mismatch = true;
-              summaryToShow.team_checkpoint = lastCheckpointNum;
-              summaryToShow.current_checkpoint = checkpoint?.order;
-            }
-            
+          const summary = data.evaluation_summary ? toEvaluationSummary(data.evaluation_summary) : null;
+
+          if ((summary && summary.has_incomplete) || isFromDifferentCheckpoint) {
+            const summaryToShow = toEvaluationSummary({
+              ...summary,
+              checkpoint_mismatch: summary?.checkpoint_mismatch ?? isFromDifferentCheckpoint,
+              team_checkpoint: summary?.team_checkpoint ?? lastCheckpointNum,
+              current_checkpoint: summary?.current_checkpoint ?? checkpoint.order,
+            });
             setEvaluationSummary(summaryToShow);
             setShowWarningDialog(true);
           }
-          
-          return activities;
-        } catch (error) {
-          // Staff endpoint failed, trying general endpoint
+
+          if (!isFromDifferentCheckpoint) {
+            return activities;
+          }
+        } catch {
+          // Fall through to general endpoint on failure
         }
-      } else {
-        // For admins, still check checkpoint mismatch
-        if (isFromDifferentCheckpoint) {
-          const summaryToShow = {
+      } else if (isFromDifferentCheckpoint) {
+        setEvaluationSummary(
+          toEvaluationSummary({
             checkpoint_mismatch: true,
             team_checkpoint: lastCheckpointNum,
-            current_checkpoint: checkpoint?.order,
-            total_activities: 0,
-            completed_activities: 0,
-            pending_activities: 0
-          };
-          
-          setEvaluationSummary(summaryToShow);
-          setShowWarningDialog(true);
-        }
+            current_checkpoint: checkpoint.order,
+          }),
+        );
+        setShowWarningDialog(true);
       }
-      
-      // Use general activities endpoint (for managers/admins or as fallback)
-      const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
-      let activities = Array.isArray(data.activities) ? data.activities : [];
-      
-      // Filter activities by checkpoint
-      activities = activities.filter((activity: any) => activity.checkpoint_id === checkpoint?.id);
-      
-      // Get activity results to determine evaluation status
-      let results: any[] = [];
+
+      const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(undefined, 100, checkpoint.id);
+      const activities: ActivityResponse[] = (data.activities ?? []).filter(
+        (activity) => activity.checkpoint_id === checkpoint.id,
+      );
+
+      let results: ActivityResultWithRelations[] = [];
       try {
-        results = await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet();
-      } catch (error) {
-        // If we can't fetch results, just use empty array
+        results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+      } catch {
         results = [];
       }
-      
-      // Add evaluation status to each activity
-      activities = activities.map((activity: any) => {
-        const hasResult = results.some((result: any) => 
-          result.activity_id === activity.id && result.team_id === selectedTeam.id
+
+      return activities.map((activity) => {
+        const existingResult = results.find(
+          (result) => result.activity_id === activity.id && result.team_id === selectedTeam.id,
         );
-        
         return {
           ...activity,
-          evaluation_status: hasResult ? "completed" : "pending",
-          existing_result: results.find((result: any) => 
-            result.activity_id === activity.id && result.team_id === selectedTeam.id
-          )
+          evaluation_status: existingResult ? "completed" : "pending",
+          existing_result: existingResult,
         };
       });
-      
-      return activities;
     },
     enabled: !!selectedTeam && !!userStore.token && !!checkpoint,
   });
 
   // Evaluate activity mutation
-  const evaluateActivityMutation = useMutation({
-    mutationFn: async ({ teamId, activityId, resultData }: {
-      teamId: number;
-      activityId: number;
-      resultData: any;
-    }) => {
-      // Force JSON body to avoid null payloads
+  const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
+    mutationFn: async ({ teamId, activityId, resultData }): Promise<ActivityResultResponse> => {
+      // Ensure we have a valid payload structure matching ActivityResultEvaluation schema
+      const payload = {
+        result_data: resultData?.result_data ?? {},
+        extra_shots: resultData?.extra_shots ?? 0,
+        penalties: resultData?.penalties ?? {},
+      };
+      
       const token = userStore.token;
       const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
-      // eslint-disable-next-line no-console
-      console.log("POST", url, resultData);
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        // Backend currently expects wrapper key `result_in`
-        body: JSON.stringify({ result_in: resultData ?? {} }),
+        // FastAPI with path parameters expects the body wrapped in the parameter name
+        body: JSON.stringify({ result_in: payload }),
       });
       if (!res.ok) {
-        let err: any;
-        try { err = await res.json(); } catch (_) { err = { detail: res.statusText }; }
+        let err: unknown = { detail: res.statusText };
+        try {
+          const errorData = await res.json() as { detail?: unknown };
+          err = errorData;
+          // Log validation errors for debugging
+          if (res.status === 422 && errorData.detail) {
+            console.error("Validation error:", errorData.detail);
+            console.error("Request payload:", resultData);
+          }
+        } catch {
+          // ignore JSON parse failure
+        }
         throw err;
       }
-      return await res.json();
+      return await res.json() as ActivityResultResponse;
     },
-    onSuccess: () => {
-      // Invalidate relevant queries
+    onSuccess: (_data, variables) => {
+      // Invalidate relevant queries so other views pick up latest scores
       queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
       queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
       queryClient.invalidateQueries({ queryKey: ["allTeams"] });
+      queryClient.invalidateQueries({ queryKey: ["allEvaluations"] });
+
+      if (variables?.teamId != null) {
+        const numericKey = Number.isNaN(Number(variables.teamId)) ? undefined : Number(variables.teamId);
+        const stringKey = variables.teamId.toString();
+
+        if (numericKey !== undefined) {
+          queryClient.invalidateQueries({ queryKey: ["team", numericKey] });
+        }
+        queryClient.invalidateQueries({ queryKey: ["team", stringKey] });
+      }
+
       toast.success("Atividade avaliada com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao avaliar atividade";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao avaliar atividade"));
     },
   });
 
   // Handle activity evaluation
-  const handleEvaluateActivity = async (teamId: number, activityId: number, resultData: any) => {
+  const handleEvaluateActivity = async (teamId: number, activityId: number, resultData: ActivityResultData) => {
     evaluateActivityMutation.mutate({
       teamId,
       activityId,
@@ -326,36 +381,35 @@ export default function CheckpointTeamEvaluation() {
             </CardHeader>
             <CardContent>
               {(() => {
-                // Group teams using ONLY last_checkpoint_number for simpler, consistent logic
-                const getNums = (team: any) => {
-                  const last = Number(team?.last_checkpoint_number ?? 0) || 0;
+                const getCheckpointNumbers = (team: ListingTeam) => {
+                  const last = Number(team.last_checkpoint_number ?? 0) || 0;
                   const order = Number(checkpoint?.order ?? 0) || 0;
                   return { last, order };
                 };
-                const lastIsPrev = (team: any) => {
-                  const { last, order } = getNums(team);
+                const lastIsPrev = (team: ListingTeam) => {
+                  const { last, order } = getCheckpointNumbers(team);
                   return last === order - 1;
                 };
-                const lastIsBeforePrev = (team: any) => {
-                  const { last, order } = getNums(team);
+                const lastIsBeforePrev = (team: ListingTeam) => {
+                  const { last, order } = getCheckpointNumbers(team);
                   return last < order - 1;
                 };
-                const lastIsAtOrBeyond = (team: any) => {
-                  const { last, order } = getNums(team);
+                const lastIsAtOrBeyond = (team: ListingTeam) => {
+                  const { last, order } = getCheckpointNumbers(team);
                   return last >= order;
                 };
 
-                const teamsToEvaluate = (checkpointTeams || []).filter((team: any) => 
-                  !teamEvaluationStatus?.[team.id] && lastIsPrev(team)
+                const teams = checkpointTeams ?? [];
+
+                const teamsToEvaluate = teams.filter(
+                  (team) => !teamEvaluationStatus?.[team.id] && lastIsPrev(team),
                 );
 
-                const teamsAtPreviousCheckpoints = (checkpointTeams || []).filter((team: any) => 
-                  !teamEvaluationStatus?.[team.id] && lastIsBeforePrev(team)
+                const teamsAtPreviousCheckpoints = teams.filter(
+                  (team) => !teamEvaluationStatus?.[team.id] && lastIsBeforePrev(team),
                 );
 
-                const teamsAlreadyEvaluated = (checkpointTeams || []).filter((team: any) => 
-                  lastIsAtOrBeyond(team)
-                );
+                const teamsAlreadyEvaluated = teams.filter((team) => lastIsAtOrBeyond(team));
 
                 return (
                   <>
@@ -371,7 +425,7 @@ export default function CheckpointTeamEvaluation() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                          {teamsToEvaluate.map((team: any) => (
+                          {teamsToEvaluate.map((team) => (
                             <div
                               key={team.id}
                               className="p-3 sm:p-4 rounded-lg border border-green-500/30 bg-green-500/10 cursor-pointer hover:bg-green-500/20 transition-colors"
@@ -415,7 +469,7 @@ export default function CheckpointTeamEvaluation() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                          {teamsAtPreviousCheckpoints.map((team: any) => (
+                          {teamsAtPreviousCheckpoints.map((team) => (
                             <div
                               key={team.id}
                               className="p-3 sm:p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 cursor-pointer hover:bg-yellow-500/20 transition-colors"
@@ -459,7 +513,7 @@ export default function CheckpointTeamEvaluation() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                          {teamsAlreadyEvaluated.map((team: any) => (
+                          {teamsAlreadyEvaluated.map((team) => (
                             <div
                               key={team.id}
                               className="p-3 sm:p-4 rounded-lg border opacity-75 cursor-pointer hover:opacity-90 transition-opacity"
@@ -542,8 +596,8 @@ export default function CheckpointTeamEvaluation() {
                           <div>
                             <p className="text-sm font-semibold mb-1">Missing activities:</p>
                             <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
-                              {evaluationSummary.missing_activities.map((activity: string, idx: number) => (
-                                <li key={idx}>{activity}</li>
+                              {evaluationSummary.missing_activities.map((activity: string) => (
+                                <li key={activity}>{activity}</li>
                               ))}
                             </ul>
                           </div>

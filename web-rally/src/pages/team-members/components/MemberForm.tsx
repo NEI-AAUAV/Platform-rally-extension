@@ -12,6 +12,7 @@ import { UserPlus, AlertCircle } from "lucide-react";
 import { TeamMembersService, type TeamMemberAdd } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { useThemedComponents } from "@/components/themes";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 const addMemberSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -54,19 +55,15 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
         email: memberData.email || null,
         is_captain: memberData.is_captain,
       };
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(parseInt(selectedTeam), requestBody);
+      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(Number(selectedTeam), requestBody);
     },
     onSuccess: () => {
       onSuccess();
       form.reset();
       toast.success("Membro adicionado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao adicionar membro";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao adicionar membro"));
     },
   });
 
@@ -92,7 +89,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {addError.message}
+                {addError instanceof Error ? addError.message : "Erro desconhecido"}
               </AlertDescription>
             </Alert>
           )}

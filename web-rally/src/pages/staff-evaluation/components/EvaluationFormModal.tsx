@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { ActivityForm } from "@/components/forms";
+import { ActivityEvaluationForm } from "@/components/forms";
 import { useThemedComponents } from "@/components/themes";
+import type { ActivityResponse } from "@/client";
+import type { Team, ActivityResultData } from "@/types/forms";
 
 interface EvaluationFormModalProps {
   isOpen: boolean;
-  activity: any;
-  team: any;
-  onSubmit: (data: any) => void;
+  activity: ActivityResponse;
+  team: Team;
+  onSubmit: (data: ActivityResultData) => void;
   onCancel: () => void;
   isSubmitting: boolean;
 }
@@ -47,8 +49,11 @@ export default function EvaluationFormModal({
           </button>
         </div>
         
-        <ActivityForm
-          activity={activity}
+        <ActivityEvaluationForm
+          activity={{
+            ...activity,
+            evaluation_status: "pending" as const,
+          }}
           team={team}
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}

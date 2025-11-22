@@ -32,7 +32,8 @@ def update_rally_settings(
         400: If validation fails
     """
     validate_settings_update_access(curr_user, auth)
-    return rally_settings.update(db, id=1, obj_in=settings_in)
+    updated = rally_settings.update(db, id=1, obj_in=settings_in)
+    return RallySettingsResponse.model_validate(updated)
 
 
 @router.get("/rally/settings", status_code=200, response_model=RallySettingsResponse)
@@ -43,7 +44,8 @@ def view_rally_settings(
 ) -> RallySettingsResponse:
     """View rally settings"""
     validate_settings_view_access(curr_user, auth)
-    return rally_settings.get_or_create(db)
+    settings = rally_settings.get_or_create(db)
+    return RallySettingsResponse.model_validate(settings)
 
 
 @router.get("/rally/settings/public", status_code=200, response_model=RallySettingsResponse)
@@ -51,4 +53,5 @@ def view_rally_settings_public(
     db: Session = Depends(get_db)
 ) -> RallySettingsResponse:
     """View rally settings (public access - no authentication required)"""
-    return rally_settings.get_or_create(db)
+    settings = rally_settings.get_or_create(db)
+    return RallySettingsResponse.model_validate(settings)

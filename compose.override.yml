@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   web_nei:
     environment:
@@ -52,3 +50,9 @@ volumes:
     driver: local
   rally_modules:
     driver: local
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

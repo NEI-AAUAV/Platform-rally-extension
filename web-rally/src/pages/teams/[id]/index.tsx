@@ -1,4 +1,13 @@
-import { CheckPointService, TeamService, StaffEvaluationService } from "@/client";
+import {
+  CheckPointService,
+  TeamService,
+  StaffEvaluationService,
+  type DetailedTeam,
+  type DetailedCheckPoint,
+  type ListingTeam,
+  type ActivityResponse,
+  type ActivityResultResponse,
+} from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
@@ -20,6 +29,11 @@ const nthNumber = (number: number) => {
     default:
       return "th";
   }
+};
+
+type EvaluationResult = ActivityResultResponse & {
+  activity?: ActivityResponse;
+  team?: ListingTeam;
 };
 
 export default function TeamsById() {
@@ -74,29 +88,24 @@ export default function TeamsById() {
     isLoading,
     isSuccess,
     isError,
-  } = useQuery({
+  } = useQuery<DetailedTeam>({
     queryKey: ["team", id],
-    queryFn: async () => {
-      const response = await TeamService.getTeamByIdApiRallyV1TeamIdGet(
-        Number(id),
-      );
-      return response;
-    },
+    queryFn: async () => TeamService.getTeamByIdApiRallyV1TeamIdGet(Number(id)),
   });
 
-  const { data: checkpoints } = useQuery({
+  const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
     queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
   });
 
   // Fetch all evaluations to check completion status across all teams
-  const { data: allEvaluationsData } = useQuery({
+  const { data: allEvaluationsData } = useQuery<EvaluationResult[]>({
     queryKey: ["allEvaluations"],
     queryFn: async () => {
       try {
         const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
-        return response.evaluations || [];
-      } catch (error) {
+        return (response.evaluations as EvaluationResult[]) || [];
+      } catch {
         return [];
       }
     },
@@ -105,16 +114,16 @@ export default function TeamsById() {
   const allEvaluations = allEvaluationsData || [];
   
   // Filter evaluations for this specific team
-  const activityResults = allEvaluations.filter((result: any) => result.team_id === Number(id));
+  const activityResults = allEvaluations.filter((result) => result.team_id === Number(id));
   
   // Fetch all teams count for completion status
-  const { data: allTeamsData } = useQuery({
+  const { data: allTeamsData } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],
     queryFn: async () => {
       try {
         const response = await TeamService.getTeamsApiRallyV1TeamGet();
         return response || [];
-      } catch (error) {
+      } catch {
         return [];
       }
     },
@@ -175,26 +184,32 @@ export default function TeamsById() {
             </div>
           </Card>
           <div className="mb-8 space-y-4">
-            {team.times && team.times.length > 0 ? (
+            {team?.times && team.times.length > 0 ? (
               team.times.map((_, index: number) => {
-                const checkpoint = checkpoints?.[index];
+                // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
+                const checkpointOrder = index + 1;
+                const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
                 const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
                 const isLastCheckpoint = index === team.times.length - 1;
                 
                 // Find the evaluation timestamp from activity results
                 const checkpointId = checkpoint?.id;
                 // Filter results that have a score (are completed) for activities at this checkpoint
-                const allCheckpointResults = checkpointId ? (activityResults?.filter((result: any) => 
-                  result.activity && result.activity.checkpoint_id === checkpointId && result.final_score != null
-                ) || []) : [];
+                const allCheckpointResults =
+                  checkpointId
+                    ? activityResults.filter(
+                        (result) =>
+                          result.activity?.checkpoint_id === checkpointId && result.final_score != null,
+                      )
+                    : [];
                 
                 // Deduplicate by activity_id, keeping only the latest result for each activity
                 const evaluationResults = Array.from(
-                  allCheckpointResults.reduce((map: Map<number, any>, result: any) => {
+                  allCheckpointResults.reduce((map: Map<number, EvaluationResult>, result) => {
                     const activityId = result.activity?.id;
                     if (activityId) {
                       const existing = map.get(activityId);
-                      if (!existing || new Date(result.completed_at) > new Date(existing.completed_at)) {
+                      if (!existing || (result.completed_at && existing.completed_at && new Date(result.completed_at) > new Date(existing.completed_at))) {
                         map.set(activityId, result);
                       }
                     }
@@ -203,24 +218,21 @@ export default function TeamsById() {
                 );
                 
                 // Get the latest evaluation timestamp
-                let evaluationTime: Date | null = null;
-                if (evaluationResults.length > 0) {
-                  const latestResult: any = evaluationResults.reduce((latest: any, current: any) => {
-                    if (!latest) return current;
-                    return new Date(current.completed_at) > new Date(latest.completed_at) ? current : latest;
-                  });
-                  evaluationTime = new Date(latestResult.completed_at);
-                }
+                const latestResult = evaluationResults.reduce<EvaluationResult | null>((latest, current) => {
+                  if (!latest) return current;
+                  return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0) ? current : latest;
+                }, null);
+                const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
                 
                 const hasEvaluations = evaluationResults.length > 0;
                 
                 // Check if any activity in this checkpoint has pending completion (time-based activities)
-                const hasPendingTimeBasedActivity = evaluationResults.some((result: any) => {
+                const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
                   const activity = result.activity;
                   if (activity?.activity_type !== 'TimeBasedActivity') return false;
                   
-                  const completedCount = allEvaluations.filter((r: any) => 
-                    r.activity?.id === activity?.id && r.final_score != null
+                  const completedCount = allEvaluations.filter(
+                    (r) => r.activity?.id === activity?.id && r.final_score != null,
                   ).length;
                   
                   return completedCount < totalTeams;
@@ -228,8 +240,11 @@ export default function TeamsById() {
                 
                 const isExpanded = expandedCheckpoints.has(index);
                 
+                // Use checkpoint ID if available, otherwise fall back to index
+                const key = checkpoint?.id ?? `checkpoint-${index}`;
+                
                 return (
-                  <div key={index}>
+                  <div key={key}>
                     {/* Checkpoint summary - always visible and clickable */}
                     <Card
                       variant={isLastCheckpoint ? "elevated" : "default"}
@@ -294,13 +309,13 @@ export default function TeamsById() {
                     {/* Activity-level cards - only show when expanded */}
                     {isExpanded && evaluationResults.length > 0 && (
                       <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
-                        {evaluationResults.map((result: any, resultIndex: number) => {
+                        {evaluationResults.map((result, resultIndex: number) => {
                           const activity = result.activity;
                           const isTimeBased = activity?.activity_type === 'TimeBasedActivity';
                           
                           // Get count of teams that have completed this activity across ALL teams
-                          const completedCount = allEvaluations.filter((r: any) => 
-                            r.activity?.id === activity?.id && r.final_score != null
+                          const completedCount = allEvaluations.filter(
+                            (r) => r.activity?.id === activity?.id && r.final_score != null,
                           ).length;
                           
                           const isCompletionPending = isTimeBased && completedCount < totalTeams;
@@ -357,7 +372,7 @@ export default function TeamsById() {
             Team Members
           </h2>
           <div className="grid gap-4">
-            {team?.members.map((member: any) => {
+            {team?.members.map((member) => {
               const names = member.name.split(" ");
               const firstName = names[0];
               const lastName = names.slice(1).join(" ");

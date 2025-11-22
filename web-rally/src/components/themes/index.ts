@@ -1,18 +1,25 @@
 // Theme system for Rally components
 import * as BloodyTheme from './bloody';
 import * as NEITheme from './nei';
-import type { ComponentType, CSSProperties } from 'react';
-import type { ThemeConfig } from './bloody/config';
+import type { CSSProperties } from "react";
+import type { ThemeConfig } from "./bloody/config";
+
+type ThemeButtonComponent = typeof BloodyTheme.BloodyButton;
+type ThemeBadgeComponent = typeof BloodyTheme.BloodyBadge;
+type ThemeScoreComponent = typeof BloodyTheme.BloodyScore;
+type ThemeBloodComponent = typeof BloodyTheme.BloodyBlood;
+type ThemeCardComponent = typeof BloodyTheme.BloodyCard;
+type ThemeInteractiveCardComponent = typeof BloodyTheme.BloodyInteractiveCard;
 
 export type ThemeName = 'bloody' | 'nei' | 'default';
 
 export interface ThemeComponents {
-  Button: ComponentType<any>;
-  Badge: ComponentType<any>;
-  Score: ComponentType<any>;
-  Blood: ComponentType<any>;
-  Card: ComponentType<any>;
-  InteractiveCard: ComponentType<any>;
+  Button: ThemeButtonComponent;
+  Badge: ThemeBadgeComponent;
+  Score: ThemeScoreComponent;
+  Blood: ThemeBloodComponent;
+  Card: ThemeCardComponent;
+  InteractiveCard: ThemeInteractiveCardComponent;
   background: CSSProperties;
   config: ThemeConfig;
 }

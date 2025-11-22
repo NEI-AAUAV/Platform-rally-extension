@@ -1,6 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { type RallySettingsResponse, SettingsService } from "@/client";
+import { type RallySettingsResponse, SettingsService } from "@/client/index";
 
+/**
+ * Hook to fetch Rally settings from the public settings endpoint
+ * 
+ * Fetches settings that are publicly accessible (no authentication required).
+ * Supports custom retry configuration.
+ * 
+ * @param options - Optional configuration
+ * @param options.retry - Retry configuration (boolean or number of retries)
+ * @returns React Query result with Rally settings
+ * 
+ * @example
+ * ```tsx
+ * const { settings, isLoading } = useRallySettings();
+ * if (settings?.show_live_leaderboard) {
+ *   // Show leaderboard
+ * }
+ * ```
+ */
 export default function useRallySettings(options?: { retry?: boolean | number }) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["rallySettings-public"],

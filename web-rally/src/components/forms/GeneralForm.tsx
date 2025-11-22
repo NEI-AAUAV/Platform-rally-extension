@@ -2,22 +2,12 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
-
-interface GeneralConfig {
-  default_points?: number;
-  [key: string]: any;
-}
-
-interface GeneralFormProps {
-  existingResult?: any;
-  team?: any;
-  config: GeneralConfig;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
+import { useAppToast } from "@/hooks/use-toast";
+import type { GeneralFormProps } from "@/types/forms";
+import { getTeamSize } from "@/types/forms";
 
 // Helper function to safely extract default_points from config
-function getDefaultPoints(config: GeneralConfig): number {
+function getDefaultPoints(config: GeneralFormProps["config"]): number {
   const defaultPoints = config.default_points;
   if (typeof defaultPoints === 'number') {
     return defaultPoints;
@@ -30,12 +20,13 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic penalty values
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = team?.num_members || team?.members?.length || 1;
+  const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
@@ -59,7 +50,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     

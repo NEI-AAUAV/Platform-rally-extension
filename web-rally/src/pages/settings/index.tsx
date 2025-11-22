@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
-import { SettingsService, type RallySettingsUpdate } from "@/client";
+import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
 import useUser from "@/hooks/useUser";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -52,21 +52,33 @@ const rallySettingsSchema = z.object({
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
 
+const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => {
+  if (!theme) return "bloody";
+  const normalized = theme.toLowerCase();
+  if (normalized.includes("nei")) return "nei";
+  if (normalized.includes("default") || normalized.includes("rally tascas")) return "default";
+  if (normalized.includes("halloween") || normalized.includes("bloody")) return "bloody";
+  return "bloody";
+};
+
+import { getErrorMessage } from "@/utils/errorHandling";
+
 export default function RallySettings() {
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
 
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch current settings
-  const { data: settings, refetch: refetchSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery({
+  const {
+    data: settings,
+    refetch: refetchSettings,
+    isLoading: isLoadingSettings,
+    error: settingsError,
+  } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
     queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
-    enabled: isManager,
+    enabled: isRallyAdmin,
     retry: 2, // Retry up to 2 times
     retryDelay: 1000, // Wait 1 second between retries
     staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
@@ -81,8 +93,8 @@ export default function RallySettings() {
       max_teams: 16,
       max_members_per_team: 10,
       enable_versus: false,
-      rally_start_time: null as any,
-      rally_end_time: null as any,
+      rally_start_time: null,
+      rally_end_time: null,
       penalty_per_puke: -5,
       penalty_per_not_drinking: -2,
       bonus_per_extra_shot: 1,
@@ -100,26 +112,16 @@ export default function RallySettings() {
   // Update form when settings are loaded
   useEffect(() => {
     if (settings) {
-      // Map theme values - server might have legacy values but select expects "nei", "bloody", or "default"
-      let mappedTheme = settings.rally_theme || "bloody";
-      // Handle various legacy theme names
-      if (mappedTheme.includes("Rally Tascas") || mappedTheme === "default") {
-        mappedTheme = "default";
-      } else if (mappedTheme.includes("NEI") || mappedTheme === "nei") {
-        mappedTheme = "nei";
-      } else if (mappedTheme.includes("Halloween") || mappedTheme.includes("Bloody") || mappedTheme === "bloody") {
-        mappedTheme = "bloody";
-      } else {
-        // Unknown theme, default to bloody
-        mappedTheme = "bloody";
-      }
-      
+      const mappedTheme = normalizeTheme(settings.rally_theme);
+
       form.reset({
-               max_teams: settings.max_teams,
-               max_members_per_team: settings.max_members_per_team,
-               enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
+        max_teams: settings.max_teams,
+        max_members_per_team: settings.max_members_per_team,
+        enable_versus: settings.enable_versus,
+        rally_start_time: settings.rally_start_time
+          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
+          : null,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
         penalty_per_puke: settings.penalty_per_puke,
         penalty_per_not_drinking: settings.penalty_per_not_drinking,
         bonus_per_extra_shot: settings.bonus_per_extra_shot,
@@ -151,12 +153,8 @@ export default function RallySettings() {
       refetchSettings();
       setIsEditing(false);
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao atualizar configurações";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao atualizar configurações"));
     },
   });
 
@@ -171,37 +169,34 @@ export default function RallySettings() {
     updateSettings(settingsData);
   };
   
-  const handleSubmitError = (errors: any) => {
-    // Show specific error messages
+  const handleSubmitError = (errors: FieldErrors<RallySettingsForm>) => {
     const errorMessages = Object.entries(errors)
-      .map(([field, error]: [string, any]) => `${field}: ${error.message}`)
+      .map(([field, error]) => {
+        if (!error) return `${field}: valor inválido`;
+
+        if ("message" in error && error.message) {
+          return `${field}: ${error.message}`;
+        }
+
+        return `${field}: valor inválido`;
+      })
       .join(", ");
-    
+
     toast.error(`Erros no formulário: ${errorMessages}`);
   };
 
   const handleCancel = () => {
     if (settings) {
-      // Map theme values - server might have legacy values but select expects "nei", "bloody", or "default"
-      let mappedTheme = settings.rally_theme || "bloody";
-      // Handle various legacy theme names
-      if (mappedTheme.includes("Rally Tascas") || mappedTheme === "default") {
-        mappedTheme = "default";
-      } else if (mappedTheme.includes("NEI") || mappedTheme === "nei") {
-        mappedTheme = "nei";
-      } else if (mappedTheme.includes("Halloween") || mappedTheme.includes("Bloody") || mappedTheme === "bloody") {
-        mappedTheme = "bloody";
-      } else {
-        // Unknown theme, default to bloody
-        mappedTheme = "bloody";
-      }
-      
+      const mappedTheme = normalizeTheme(settings.rally_theme);
+
       form.reset({
-               max_teams: settings.max_teams,
-               max_members_per_team: settings.max_members_per_team,
-               enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time) : null as any,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null as any,
+        max_teams: settings.max_teams,
+        max_members_per_team: settings.max_members_per_team,
+        enable_versus: settings.enable_versus,
+        rally_start_time: settings.rally_start_time
+          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
+          : null,
+        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
         penalty_per_puke: settings.penalty_per_puke,
         penalty_per_not_drinking: settings.penalty_per_not_drinking,
         bonus_per_extra_shot: settings.bonus_per_extra_shot,
@@ -222,7 +217,7 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
@@ -238,7 +233,7 @@ export default function RallySettings() {
           description="Não foi possível carregar as configurações do Rally"
         />
         <ErrorState 
-          message={`${settingsError.message || 'Erro de autenticação'}. Certifique-se de que está logado e tem permissões de manager-rally ou admin.`}
+          message={`${settingsError instanceof Error ? settingsError.message : "Erro de autenticação"}. Certifique-se de que está logado e tem permissões de manager-rally ou admin.`}
         />
         <div className="flex justify-center">
           <Button 

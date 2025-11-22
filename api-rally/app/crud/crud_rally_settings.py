@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
 from app.crud.base import CRUDBase
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import RallySettingsUpdate
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettingsUpdate]):
-    def get_or_create(self, db):
+    def get_or_create(self, db: "Session") -> RallySettings:
         settings = db.get(RallySettings, 1)
 
         if not settings:

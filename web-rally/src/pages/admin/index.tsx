@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes";
 import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, LoadingState } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
 import { CheckPointService } from "@/client";
 
@@ -18,12 +18,8 @@ interface Checkpoint {
 
 export default function Admin() {
   const { Button } = useThemedComponents();
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin, userStore } = useUser();
   
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
-
   const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities">("teams");
 
   // Fetch checkpoints for activities
@@ -33,14 +29,14 @@ export default function Admin() {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isManager && !!userStore.token,
+    enabled: isRallyAdmin,
   });
 
   if (isLoading) {
-    return <div className="mt-16 text-center">Carregando...</div>;
+    return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
@@ -78,7 +74,7 @@ export default function Admin() {
 
       {/* Tab Content */}
       {activeTab === "teams" && (
-        <TeamManagement userStore={userStore} />
+        <TeamManagement />
       )}
 
       {activeTab === "checkpoints" && (

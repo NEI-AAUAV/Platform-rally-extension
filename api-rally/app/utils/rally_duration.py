@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 from app.crud.crud_rally_settings import rally_settings
 from sqlalchemy.orm import Session
 
@@ -14,8 +14,25 @@ class RallyDurationCalculator:
     def get_rally_status(self) -> Dict[str, Any]:
         """Get current rally status and timing information."""
         current_time = datetime.now(timezone.utc)
-        
-        status = {
+        status = self._build_base_status(current_time)
+
+        start_time = self._extract_datetime(self.settings.rally_start_time)
+        end_time = self._extract_datetime(self.settings.rally_end_time)
+
+        if not start_time:
+            status["status"] = "no_start_time"
+            return status
+
+        if current_time < start_time:
+            return self._build_not_started_status(status, start_time, current_time)
+
+        if end_time and current_time > end_time:
+            return self._build_ended_status(status, start_time, end_time, current_time)
+
+        return self._build_active_status(status, start_time, end_time, current_time)
+
+    def _build_base_status(self, current_time: datetime) -> Dict[str, Any]:
+        return {
             "current_time": current_time.isoformat(),
             "rally_start_time": self.settings.rally_start_time.isoformat() if self.settings.rally_start_time else None,
             "rally_end_time": self.settings.rally_end_time.isoformat() if self.settings.rally_end_time else None,
@@ -24,51 +41,65 @@ class RallyDurationCalculator:
             "time_elapsed": None,
             "total_duration": None,
         }
-        
-        if not self.settings.rally_start_time:
-            status["status"] = "no_start_time"
+
+    def _extract_datetime(self, value: object) -> Optional[datetime]:
+        """
+        Convert SQLAlchemy column values to datetime.
+        mypy treats ORM columns as ColumnElement, but runtime provides datetime.
+        """
+        return cast(Optional[datetime], value)
+
+    def _build_not_started_status(self, status: Dict[str, Any], start_time: datetime, current_time: datetime) -> Dict[str, Any]:
+        time_until_start = start_time - current_time
+        status.update({
+            "status": "not_started",
+            "time_remaining": self._format_duration(time_until_start),
+            "time_until_start": self._format_duration(time_until_start),
+        })
+        return status
+
+    def _build_ended_status(
+        self,
+        status: Dict[str, Any],
+        start_time: datetime,
+        end_time: datetime,
+        current_time: datetime,
+    ) -> Dict[str, Any]:
+        time_since_end = current_time - end_time
+        total_duration = end_time - start_time
+        status.update({
+            "status": "ended",
+            "time_elapsed": self._format_duration(time_since_end),
+            "total_duration": self._format_duration(total_duration),
+            "time_since_end": self._format_duration(time_since_end),
+        })
+        return status
+
+    def _build_active_status(
+        self,
+        status: Dict[str, Any],
+        start_time: datetime,
+        end_time: Optional[datetime],
+        current_time: datetime,
+    ) -> Dict[str, Any]:
+        time_elapsed = current_time - start_time
+
+        if not end_time:
+            status.update({
+                "status": "active_no_end",
+                "time_elapsed": self._format_duration(time_elapsed),
+            })
             return status
-            
-        if current_time < self.settings.rally_start_time:
-            # Rally hasn't started yet
-            time_until_start = self.settings.rally_start_time - current_time
-            status.update({
-                "status": "not_started",
-                "time_remaining": self._format_duration(time_until_start),
-                "time_until_start": self._format_duration(time_until_start)
-            })
-            
-        elif self.settings.rally_end_time and current_time > self.settings.rally_end_time:
-            # Rally has ended
-            time_since_end = current_time - self.settings.rally_end_time
-            total_duration = self.settings.rally_end_time - self.settings.rally_start_time
-            status.update({
-                "status": "ended",
-                "time_elapsed": self._format_duration(time_since_end),
-                "total_duration": self._format_duration(total_duration),
-                "time_since_end": self._format_duration(time_since_end)
-            })
-            
-        else:
-            # Rally is currently active
-            time_elapsed = current_time - self.settings.rally_start_time
-            
-            if self.settings.rally_end_time:
-                time_remaining = self.settings.rally_end_time - current_time
-                total_duration = self.settings.rally_end_time - self.settings.rally_start_time
-                status.update({
-                    "status": "active",
-                    "time_elapsed": self._format_duration(time_elapsed),
-                    "time_remaining": self._format_duration(time_remaining),
-                    "total_duration": self._format_duration(total_duration),
-                    "progress_percentage": self._calculate_progress_percentage(time_elapsed, total_duration)
-                })
-            else:
-                status.update({
-                    "status": "active_no_end",
-                    "time_elapsed": self._format_duration(time_elapsed)
-                })
-        
+
+        time_remaining = end_time - current_time
+        total_duration = end_time - start_time
+        status.update({
+            "status": "active",
+            "time_elapsed": self._format_duration(time_elapsed),
+            "time_remaining": self._format_duration(time_remaining),
+            "total_duration": self._format_duration(total_duration),
+            "progress_percentage": self._calculate_progress_percentage(time_elapsed, total_duration),
+        })
         return status
     
     def get_team_rally_duration(self, team_start_time: datetime) -> Dict[str, Any]:
@@ -82,9 +113,11 @@ class RallyDurationCalculator:
         team_duration = current_time - team_start_time
         
         # Calculate total rally duration if end time is set
-        total_rally_duration = None
-        if self.settings.rally_end_time:
-            total_rally_duration = self.settings.rally_end_time - self.settings.rally_start_time
+        total_rally_duration: Optional[timedelta] = None
+        end_time: Optional[datetime] = self.settings.rally_end_time  # type: ignore[assignment]
+        start_time: Optional[datetime] = self.settings.rally_start_time  # type: ignore[assignment]
+        if end_time and start_time:
+            total_rally_duration = end_time - start_time
         
         return {
             "team_start_time": team_start_time.isoformat(),

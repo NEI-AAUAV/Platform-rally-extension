@@ -5,20 +5,13 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
-import { VersusService, type VersusPairCreate, type VersusPairResponse } from "@/client";
+import { VersusService, type VersusPairCreate, type VersusPairResponse, type ListingTeam } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { useThemedComponents } from "@/components/themes";
-
-interface Team {
-  id: number;
-  name: string;
-  total: number;
-  classification: number;
-  versus_group_id?: number;
-}
+import { getErrorMessage } from "@/utils/errorHandling";
 
 interface VersusPairFormProps {
-  teams: Team[] | undefined;
+  teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
 }
@@ -48,12 +41,8 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
       setSelectedTeamB("");
       toast.success("Par versus criado com sucesso!");
     },
-    onError: (error: any) => {
-      const errorMessage = error?.body?.detail || 
-                          error?.response?.data?.detail || 
-                          error?.message || 
-                          "Erro ao criar par versus";
-      toast.error(errorMessage);
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao criar par versus"));
     },
   });
 
@@ -73,7 +62,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
   };
 
   // Get teams that are not already in versus groups
-  const availableTeams = teams?.filter((team: Team) => !team.versus_group_id) || [];
+  const availableTeams = teams?.filter((team) => !team.versus_group_id) || [];
 
   return (
     <Card variant="default" padding="none" rounded="2xl" className={className}>
@@ -104,7 +93,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
                 <SelectValue placeholder="Selecionar equipa A" />
               </SelectTrigger>
               <SelectContent>
-                {availableTeams.map((team: Team) => (
+                {availableTeams.map((team) => (
                   <SelectItem key={team.id} value={team.id.toString()}>
                     {team.name} ({team.total} pontos)
                   </SelectItem>
@@ -121,8 +110,8 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
               </SelectTrigger>
               <SelectContent>
                 {availableTeams
-                  .filter((team: Team) => team.id.toString() !== selectedTeamA)
-                  .map((team: Team) => (
+                  .filter((team) => team.id.toString() !== selectedTeamA)
+                  .map((team) => (
                     <SelectItem key={team.id} value={team.id.toString()}>
                       {team.name} ({team.total} pontos)
                     </SelectItem>

@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useRallySettings from '@/hooks/useRallySettings'
 import { SettingsService } from '@/client'
+import type { RallySettingsResponse } from '@/client'
 
 // Mock SettingsService
 vi.mock('@/client', () => ({
@@ -45,8 +46,7 @@ describe('useRallySettings Hook', () => {
     mockConsoleError.mockClear()
   })
 
-  it('should fetch rally settings successfully', async () => {
-    const mockSettings = {
+  const createMockSettings = (): RallySettingsResponse => ({
       rally_theme: 'Test Rally',
       max_teams: 10,
       max_members_per_team: 5,
@@ -55,10 +55,20 @@ describe('useRallySettings Hook', () => {
       checkpoint_order_matters: true,
       show_checkpoint_map: true,
       enable_versus: true,
-      public_access_enabled: true
-    }
+      public_access_enabled: true,
+      penalty_per_puke: 0,
+      penalty_per_not_drinking: 0,
+      bonus_per_extra_shot: 0,
+      max_extra_shots_per_member: 0,
+      enable_staff_scoring: true,
+      show_live_leaderboard: true,
+      show_team_details: true
+    })
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings as any)
+  it('should fetch rally settings successfully', async () => {
+    const mockSettings = createMockSettings()
+
+    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -101,7 +111,9 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should return loading state initially', () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockImplementation(() => Promise.resolve() as any) // Never resolves
+    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockImplementation(
+      () => new Promise<RallySettingsResponse>(() => undefined) as any,
+    ) // Never resolves
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -112,19 +124,9 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should provide refetch function', async () => {
-    const mockSettings = {
-      rally_theme: 'Test Rally',
-      max_teams: 10,
-      max_members_per_team: 5,
-      rally_start_time: '2024-01-15T10:00:00Z',
-      rally_end_time: '2024-01-15T18:00:00Z',
-      checkpoint_order_matters: true,
-      show_checkpoint_map: true,
-      enable_versus: true,
-      public_access_enabled: true
-    }
+    const mockSettings = createMockSettings()
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValue(mockSettings as any)
+    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValue(mockSettings)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -156,19 +158,9 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should use correct query key', async () => {
-    const mockSettings = {
-      rally_theme: 'Test Rally',
-      max_teams: 10,
-      max_members_per_team: 5,
-      rally_start_time: '2024-01-15T10:00:00Z',
-      rally_end_time: '2024-01-15T18:00:00Z',
-      checkpoint_order_matters: true,
-      show_checkpoint_map: true,
-      enable_versus: true,
-      public_access_enabled: true
-    }
+    const mockSettings = createMockSettings()
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings as any)
+    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })

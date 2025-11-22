@@ -1,34 +1,58 @@
-import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from './index';
+import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from "./index";
+import type { ActivityResponse, ActivityResultResponse } from "@/client";
+import type { FormSubmitHandler, Team } from "@/types/forms";
 
-interface ActivityFormProps {
-  activity: {
-    id: number;
-    name: string;
-    description?: string;
-    activity_type: string;
-    config: Record<string, any>;
-    is_active: boolean;
-    order: number;
-    evaluation_status: "pending" | "completed";
-    existing_result?: any;
-  };
-  team: {
-    id: number;
-    name: string;
-    members: any[];
-    checkpoint_id: number;
-  };
-  onSubmit: (data: any) => void;
+interface ActivityWithStatus extends ActivityResponse {
+  evaluation_status: "pending" | "completed";
+  existing_result?: ActivityResultResponse | null;
+}
+
+/**
+ * Props for ActivityEvaluationForm component
+ */
+interface ActivityEvaluationFormProps {
+  /** Activity to evaluate with status information */
+  activity: ActivityWithStatus;
+  /** Team being evaluated */
+  team: Team;
+  /** Callback when form is submitted */
+  onSubmit: FormSubmitHandler;
+  /** Whether the form is currently submitting */
   isSubmitting: boolean;
 }
 
-export default function ActivityForm({ activity, team, onSubmit, isSubmitting }: ActivityFormProps) {
+/**
+ * Form component for evaluating team activities
+ * 
+ * Renders the appropriate form based on activity type:
+ * - TimeBasedActivity: Time input form
+ * - ScoreBasedActivity: Score input form
+ * - BooleanActivity: Yes/No form
+ * - GeneralActivity: General evaluation form
+ * - TeamVsActivity: Team vs team form
+ * 
+ * Displays activity details and handles form submission with validation.
+ * 
+ * @param props - ActivityEvaluationFormProps
+ * @returns JSX form element
+ * 
+ * @example
+ * ```tsx
+ * <ActivityEvaluationForm
+ *   activity={activity}
+ *   team={team}
+ *   onSubmit={handleSubmit}
+ *   isSubmitting={isLoading}
+ * />
+ * ```
+ */
+export default function ActivityEvaluationForm({ activity, team, onSubmit, isSubmitting }: ActivityEvaluationFormProps) {
   const renderForm = () => {
     switch (activity.activity_type) {
       case "TimeBasedActivity":
         return (
           <TimeBasedForm
-            existingResult={activity.existing_result}
+            existingResult={activity.existing_result ?? undefined}
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
@@ -38,7 +62,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
       case "ScoreBasedActivity":
         return (
           <ScoreBasedForm
-            existingResult={activity.existing_result}
+            existingResult={activity.existing_result ?? undefined}
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
@@ -48,7 +72,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
       case "BooleanActivity":
         return (
           <BooleanForm
-            existingResult={activity.existing_result}
+            existingResult={activity.existing_result ?? undefined}
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
@@ -58,9 +82,9 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
       case "GeneralActivity":
         return (
           <GeneralForm
-            existingResult={activity.existing_result}
+            existingResult={activity.existing_result ?? undefined}
             team={team}
-            config={activity.config}
+            config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
@@ -69,7 +93,7 @@ export default function ActivityForm({ activity, team, onSubmit, isSubmitting }:
       case "TeamVsActivity":
         return (
           <TeamVsForm
-            existingResult={activity.existing_result}
+            existingResult={activity.existing_result ?? undefined}
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}

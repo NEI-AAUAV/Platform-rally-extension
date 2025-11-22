@@ -1,12 +1,16 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 from sqlalchemy import Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
+if TYPE_CHECKING:
+    from app.models.rally_staff_assignment import RallyStaffAssignment
+    from app.models.activity import Activity
+
 
 class CheckPoint(Base):
-    __tablename__ = "checkpoints"
+    __tablename__ = "checkpoints"  # type: ignore[assignment]
     
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]

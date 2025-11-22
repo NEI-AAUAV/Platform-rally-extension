@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, select
 
 from app.api.deps import get_db, get_current_user
 from app.api.auth import AuthData, api_nei_auth
@@ -37,7 +37,7 @@ def create_activity(
     activity_in: ActivityCreate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Create a new activity"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY, Resource.ACTIVITY)
     
@@ -56,7 +56,7 @@ def create_activity(
         )
     
     db_activity = activity.create(db=db, obj_in=activity_in)
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.get("/", response_model=ActivityListResponse)
@@ -68,7 +68,7 @@ def get_activities(
     checkpoint_id: Optional[int] = Query(None, gt=0),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityListResponse:
     """Get activities list"""
     # Allow authenticated users with Rally permissions to view activities
     # Specific permission checks happen at the resource level (results, evaluations)
@@ -87,7 +87,7 @@ def get_activities(
         total = len(activities)
     
     return ActivityListResponse(
-        activities=activities,
+        activities=[ActivityResponse.model_validate(a) for a in activities],
         total=total,
         page=skip // limit + 1,
         size=limit
@@ -100,18 +100,19 @@ def get_all_activity_results(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> List[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
     # require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
     # Get all activity results with related data
     from sqlalchemy.orm import joinedload
-    results = db.query(ActivityResult).options(
+    stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
         joinedload(ActivityResult.team)
-    ).order_by(desc(ActivityResult.completed_at)).all()
+    ).order_by(desc(ActivityResult.completed_at))
+    results = list(db.scalars(stmt).all())
     
-    return results
+    return [ActivityResultResponse.model_validate(r) for r in results]
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
@@ -121,7 +122,7 @@ def get_activity(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Get activity by ID"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY, Resource.ACTIVITY)
     
@@ -132,7 +133,7 @@ def get_activity(
             detail=ACTIVITY_NOT_FOUND
         )
     
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.put("/{activity_id}", response_model=ActivityResponse)
@@ -143,7 +144,7 @@ def update_activity(
     activity_in: ActivityUpdate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResponse:
     """Update an activity"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY, Resource.ACTIVITY)
     
@@ -155,7 +156,7 @@ def update_activity(
         )
     
     db_activity = activity.update(db=db, db_obj=db_activity, obj_in=activity_in)
-    return db_activity
+    return ActivityResponse.model_validate(db_activity)
 
 
 @router.delete("/{activity_id}")
@@ -165,7 +166,7 @@ def delete_activity(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Delete an activity"""
     require_permission(current_user, auth, Action.DELETE_ACTIVITY, Resource.ACTIVITY)
     
@@ -187,7 +188,7 @@ def create_activity_result(
     result_in: ActivityResultCreate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Create a new activity result"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -202,7 +203,7 @@ def create_activity_result(
         )
     
     db_result = activity_result.create(db=db, obj_in=result_in)
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.get("/results/{result_id}", response_model=ActivityResultResponse)
@@ -212,7 +213,7 @@ def get_activity_result(
     result_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Get activity result by ID"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -223,7 +224,7 @@ def get_activity_result(
             detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.put("/results/{result_id}", response_model=ActivityResultResponse)
@@ -234,7 +235,7 @@ def update_activity_result(
     result_in: ActivityResultUpdate,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityResultResponse:
     """Update an activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -246,7 +247,7 @@ def update_activity_result(
         )
     
     db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
-    return db_result
+    return ActivityResultResponse.model_validate(db_result)
 
 
 @router.post("/results/{result_id}/extra-shots")
@@ -257,7 +258,7 @@ def apply_extra_shots(
     extra_shots: int = Query(..., ge=0),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Apply extra shots bonus to activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -291,7 +292,7 @@ def apply_penalty(
     penalty_value: int = Query(..., ge=1),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Apply penalty to activity result"""
     require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -323,7 +324,7 @@ def get_activity_ranking(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> ActivityRanking:
     """Get ranking for a specific activity"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -335,7 +336,20 @@ def get_activity_ranking(
         )
     
     scoring_service = ScoringService(db)
-    rankings = scoring_service.get_team_ranking(activity_id)
+    rankings_dict = scoring_service.get_team_ranking(activity_id)
+    
+    from app.schemas.activity import TeamRanking
+    # Normalize dict keys to match TeamRanking schema
+    rankings = [
+        TeamRanking(
+            team_id=r.get('team_id', 0),
+            team_name=r.get('team_name', ''),
+            total_score=r.get('score', r.get('total_score', 0.0)),
+            activities_completed=r.get('activities_completed', 0),
+            rank=r.get('rank', 0)
+        )
+        for r in rankings_dict
+    ]
     
     return ActivityRanking(
         activity_id=activity_id,
@@ -350,12 +364,15 @@ def get_global_ranking(
     db: Session = Depends(get_db),
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> GlobalRanking:
     """Get global team ranking"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
     scoring_service = ScoringService(db)
-    rankings = scoring_service.get_team_ranking()
+    rankings_dict = scoring_service.get_team_ranking()
+    
+    from app.schemas.activity import TeamRanking
+    rankings = [TeamRanking(**r) for r in rankings_dict]
     
     return GlobalRanking(
         rankings=rankings,
@@ -374,7 +391,7 @@ def create_team_vs_result(
     match_data: Dict[str, Any],
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, str]:
     """Create team vs team activity results"""
     require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
@@ -399,7 +416,7 @@ def get_activity_statistics(
     activity_id: int,
     current_user: DetailedUser = Depends(get_current_user),
     auth: AuthData = Depends(api_nei_auth)
-):
+) -> Dict[str, Any]:
     """Get statistics for a specific activity"""
     require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     

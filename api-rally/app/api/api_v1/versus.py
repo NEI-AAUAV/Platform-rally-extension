@@ -4,7 +4,7 @@ from sqlalchemy import select
 from collections import defaultdict
 
 from app.crud.crud_versus import versus
-from app.crud.crud_team import Team
+from app.models.team import Team
 from app.api.deps import get_db, get_participant
 from app.api.abac_deps import require_permission, Action, Resource
 from app.schemas.versus import (
@@ -25,7 +25,7 @@ def create_versus_pair(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusPairResponse:
     """Create versus pair"""
     require_permission(
         user=curr_user,
@@ -50,7 +50,7 @@ def get_team_opponent(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusOpponentResponse:
     """Get a team's opponent"""
     require_permission(
         user=curr_user,
@@ -74,7 +74,7 @@ def list_versus_groups(
     db: Session = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
-):
+) -> VersusGroupListResponse:
     """Get all versus groups"""
     require_permission(
         user=curr_user,
@@ -95,7 +95,7 @@ def list_versus_groups(
 
     pairs = []
     for gid, tl in groups.items():
-        if len(tl) == 2:
+        if len(tl) == 2 and gid is not None:
             pairs.append(
                 VersusPairResponse(
                     group_id=gid,

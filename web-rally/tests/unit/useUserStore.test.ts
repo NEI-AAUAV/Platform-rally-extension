@@ -220,10 +220,10 @@ describe('useUserStore', () => {
       // Test with null values
       act(() => {
         useUserStore.getState().setUser({
-          sub: null as any,
-          scopes: null as any,
-          name: null as any,
-          email: null as any
+          sub: null as unknown as string,
+          scopes: null as unknown as string[],
+          name: null as unknown as string,
+          email: null as unknown as string
         })
       })
 

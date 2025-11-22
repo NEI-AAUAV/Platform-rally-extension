@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -53,16 +53,17 @@ jobs:
         run: poetry run flake8 app/
         continue-on-error: true
       
-      - name: Run mypy (type checking)
+      - name: Run mypy (type checking) - BLOCKING
         working-directory: api-rally
         run: poetry run mypy app/
-        continue-on-error: true
+        # Removed continue-on-error: true - this is now a blocking check
       
       - name: Summary
         if: always()
         run: |
           echo "✅ Code quality checks completed"
-          echo "Review any warnings above - they don't fail the build but should be addressed"
+          echo "⚠️  Formatting and linting warnings don't fail the build"
+          echo "❌ Type checking (mypy) failures will block the build"
 
   lint-typescript:
     name: TypeScript Linting & Type Checking
@@ -72,10 +73,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Install API dependencies
+        working-directory: api-rally
+        run: poetry install --no-interaction --no-root
+      
+      - name: Generate OpenAPI schema
+        working-directory: api-rally
+        run: |
+          poetry run python - <<'PY'
+          from app.main import app
+          from fastapi.openapi.utils import get_openapi
+          import json, os
+          
+          schema = get_openapi(
+              title=getattr(app, 'title', 'API'),
+              version=getattr(app, 'version', '0.0.0'),
+              routes=app.routes,
+          )
+          
+          # Use os.getcwd() since __file__ is undefined when executing via stdin
+          # Since working-directory is api-rally, we need to go up one level to repo root
+          repo_root = os.path.dirname(os.getcwd())
+          out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
+          with open(out_path, 'w') as f:
+              json.dump(schema, f)
+          print(f"Wrote schema to {out_path}")
+          PY
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -97,15 +137,19 @@ jobs:
         working-directory: web-rally
         run: pnpm install --frozen-lockfile
       
+      - name: Generate API client
+        working-directory: web-rally
+        run: pnpm run generate-client
+      
       - name: Run ESLint
         working-directory: web-rally
         run: pnpm run lint || true
         continue-on-error: true
       
-      - name: Run TypeScript type checking
+      - name: Run TypeScript type checking - BLOCKING
         working-directory: web-rally
         run: pnpm run type-check || pnpm exec tsc --noEmit
-        continue-on-error: true
+        # Removed continue-on-error: true - this is now a blocking check
       
       - name: Check formatting with Prettier
         working-directory: web-rally
@@ -116,7 +160,8 @@ jobs:
         if: always()
         run: |
           echo "✅ TypeScript quality checks completed"
-          echo "Review any warnings above - they don't fail the build but should be addressed"
+          echo "⚠️  Formatting and linting warnings don't fail the build"
+          echo "❌ Type checking failures will block the build"
 
   security-scan:
     name: Security Vulnerability Scan
@@ -129,7 +174,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -145,7 +190,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
       
       - name: Check npm dependencies for vulnerabilities
         working-directory: web-rally

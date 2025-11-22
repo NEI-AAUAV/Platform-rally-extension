@@ -1,5 +1,5 @@
 import { Badge } from "../../ui/badge";
-import { bloodyButtonVariants } from "./button";
+import { bloodyButtonVariants } from "./button.variants";
 import type { VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";

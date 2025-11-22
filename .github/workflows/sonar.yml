@@ -4,33 +4,22 @@ permissions:
   pull-requests: write
 
 on:
-  # Trigger after tests complete to reuse their artifacts
-  workflow_run:
-    workflows: ["Rally Extension Tests"]
-    types: [completed]
-    branches: [main]
+  # This workflow runs independently and will run tests if coverage is not found
+  # It can run on PRs and pushes to main
   pull_request:
     branches: main
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  # Run tests for PRs (tests.yml only runs on main push via workflow_run)
-  run-tests-for-pr:
-    name: Run Tests (PR only)
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/tests.yml
-    secrets: inherit
-  
   sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
-    # Wait for tests if running for PR
-    needs: [run-tests-for-pr]
-    if: always() && (github.event_name != 'pull_request' || needs.run-tests-for-pr.result == 'success')
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    
+
     services:
       postgres:
         image: postgres:15
@@ -45,70 +34,56 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for better analysis
-          
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-          
+          python-version: '3.12'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      
+          node-version: '24'
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
-          
-      - name: Download test artifacts from tests.yml
-        uses: actions/download-artifact@v3
-        if: github.event_name == 'workflow_run'
-        continue-on-error: true
-        with:
-          name: api-test-results
-          path: api-rally/
-          
-      - name: Download frontend test artifacts
-        uses: actions/download-artifact@v3
-        if: github.event_name == 'workflow_run'
-        continue-on-error: true
-        with:
-          name: frontend-test-results
-          path: web-rally/
-      
+
       - name: Check if coverage exists
         id: check_coverage
         run: |
+          # Check for API coverage
           if [ -f "api-rally/coverage.xml" ] || [ -f "api-rally/test-results.xml" ]; then
-            echo "API coverage found from tests.yml"
+            echo "API coverage found"
             echo "has_api_coverage=true" >> $GITHUB_OUTPUT
           else
             echo "No API coverage found, will run tests"
             echo "has_api_coverage=false" >> $GITHUB_OUTPUT
           fi
-          
-          if [ -d "web-rally/coverage" ]; then
-            echo "Web coverage found from tests.yml"
+
+          # Check for web coverage
+          if [ -d "web-rally/coverage" ] && [ -f "web-rally/coverage/lcov.info" ]; then
+            echo "Web coverage found"
             echo "has_web_coverage=true" >> $GITHUB_OUTPUT
           else
             echo "No web coverage found, will run tests"
             echo "has_web_coverage=false" >> $GITHUB_OUTPUT
           fi
-      
+
       # Only install deps and run tests if coverage not found
       - name: Install Python dependencies (API)
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
@@ -117,7 +92,7 @@ jobs:
           poetry install --no-root
           poetry run pip install pytest-cov
           poetry run pip install requests
-          
+
       - name: Cache pnpm store (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
         uses: actions/cache@v3
@@ -126,13 +101,13 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-            
+
       - name: Install Node.js dependencies (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
         run: |
           cd web-rally
           pnpm install --frozen-lockfile
-          
+
       - name: Create test database
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
@@ -144,7 +119,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres_test
-          
+
       - name: Run Python tests with coverage (API)
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
@@ -156,42 +131,68 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres_test
         continue-on-error: true
-        
+
+      - name: Generate OpenAPI schema
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: api-rally
+        run: |
+          poetry run python -c "
+          from app.main import app
+          from fastapi.openapi.utils import get_openapi
+          import json, os
+          
+          schema = get_openapi(
+              title=getattr(app, 'title', 'API'),
+              version=getattr(app, 'version', '0.0.0'),
+              routes=app.routes,
+          )
+          
+          repo_root = os.path.dirname(os.getcwd())
+          out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
+          with open(out_path, 'w') as f:
+              json.dump(schema, f)
+          print(f'Wrote schema to {out_path}')
+          "
+
+      - name: Generate OpenAPI client (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: web-rally
+        run: |
+          # Generate client if needed
+          if [ ! -d "src/client" ] && [ -f "openapi.json" ]; then
+            pnpm run generate-client || echo "Client generation failed, continuing..."
+          fi
+
       - name: Run TypeScript tests with coverage (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
         run: |
           cd web-rally
-          if grep -q '"test:coverage"' package.json; then
-            npm run test:coverage || true
-          elif grep -q '"test"' package.json; then
-            npm run test -- --run --coverage || true
-          else
-            echo "No test script found, skipping tests"
-          fi
+          # Run tests with coverage using vitest
+          pnpm run test:coverage || pnpm run test:run -- --coverage || true
         continue-on-error: true
-      
+
       - name: Summary
         run: |
           echo "## Test Coverage Source" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.check_coverage.outputs.has_api_coverage }}" == "true" ]; then
-            echo "✅ API: Reused from tests.yml (saved ~2 min)" >> $GITHUB_STEP_SUMMARY
+            echo "✅ API: Coverage found (from previous run or artifacts)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "🔄 API: Ran tests locally" >> $GITHUB_STEP_SUMMARY
+            echo "🔄 API: Ran tests locally to generate coverage" >> $GITHUB_STEP_SUMMARY
           fi
           if [ "${{ steps.check_coverage.outputs.has_web_coverage }}" == "true" ]; then
-            echo "✅ Web: Reused from tests.yml (saved ~1 min)" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Web: Coverage found (from previous run or artifacts)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "🔄 Web: Ran tests locally" >> $GITHUB_STEP_SUMMARY
+            echo "🔄 Web: Ran tests locally to generate coverage" >> $GITHUB_STEP_SUMMARY
           fi
-        
+
       - name: Create Custom Trust Store with SonarQube Certificate
         run: |
           echo "Creating custom trust store with SonarQube certificate..."
-          
+
           # Download the certificate from your SonarQube server
           echo "Downloading certificate from nei.web.ua.pt:443..."
           echo | openssl s_client -servername nei.web.ua.pt -connect nei.web.ua.pt:443 2>/dev/null | openssl x509 -outform PEM > sonarqube.crt
-          
+
           # Check if certificate was downloaded
           if [ -f sonarqube.crt ]; then
             echo "Certificate downloaded successfully"
@@ -201,28 +202,28 @@ jobs:
             echo "ERROR: Failed to download certificate"
             exit 1
           fi
-          
+
           # Create a custom trust store with the SonarQube certificate
           echo "Creating custom trust store..."
           keytool -genkeypair -alias dummy -keyalg RSA -keysize 2048 -storetype JKS -keystore custom-truststore.jks -storepass changeit -keypass changeit -dname "CN=dummy" -validity 1
           keytool -delete -alias dummy -keystore custom-truststore.jks -storepass changeit
-          
+
           echo "Adding SonarQube certificate to trust store..."
           keytool -keystore custom-truststore.jks -storepass changeit -noprompt -trustcacerts -importcert -alias sonarqube-cert -file sonarqube.crt
-          
+
           # Verify the certificate was added
           echo "Verifying certificate in trust store..."
           keytool -keystore custom-truststore.jks -storepass changeit -list | grep sonarqube-cert
-          
+
           echo "Custom trust store created successfully"
-        
+
       - name: Cache SonarQube packages
         uses: actions/cache@v3
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-          
+
       - name: SonarQube Scan (PR)
         if: ${{ github.event_name == 'pull_request' }}
         uses: SonarSource/sonarqube-scan-action@v6
@@ -264,11 +265,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_SCANNER_OPTS: -Djavax.net.ssl.trustStore=custom-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS -Dsonar.ssl.verify=false
-          
+
       - name: SonarQube Quality Gate Check
         run: |
           echo "Checking SonarQube Quality Gate status..."
-          
+
           # Extract CE task ID from report-task.txt
           TASK_ID=$(grep "ceTaskId" .scannerwork/report-task.txt | cut -d'=' -f2)
           echo "Task ID: $TASK_ID"
@@ -309,11 +310,11 @@ jobs:
               "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?analysisId=$ANALYSIS_ID" \
               -o quality-gate-result.json
           fi
-          
+
           # Parse the result
           STATUS=$(cat quality-gate-result.json | jq -r '.projectStatus.status')
           echo "Quality Gate Status: $STATUS"
-          
+
           if [ "$STATUS" = "OK" ]; then
             echo "Quality Gate PASSED"
             exit 0

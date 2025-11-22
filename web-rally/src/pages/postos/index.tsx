@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckPointService } from "@/client";
+import { CheckPointService, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { PageHeader, LoadingState } from "@/components/shared";
-import { CheckpointList, MapSection } from "./postos/components";
+import { CheckpointList, MapSection } from "./components";
 import { useThemedComponents } from "@/components/themes";
 
 interface Checkpoint {
@@ -33,7 +33,7 @@ export default function Postos() {
   const sortedCheckpoints: Checkpoint[] = (
     checkpoints
       ?.slice() // make a shallow copy to avoid mutating original
-      .sort((a, b) => a.order - b.order)
+      .sort((a: DetailedCheckPoint, b: DetailedCheckPoint) => a.order - b.order)
     || []
   );
 

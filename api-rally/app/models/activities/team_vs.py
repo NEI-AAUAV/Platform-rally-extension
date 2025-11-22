@@ -1,7 +1,7 @@
 """
 Team vs Team activities for Rally extension
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .base import BaseActivity
 
@@ -25,15 +25,15 @@ class TeamVsActivity(BaseActivity):
         result = result_data.get('result')  # 'win', 'lose', 'draw'
         
         if result == 'win':
-            return self.config.get('win_points', 100)
+            return float(self.config.get('win_points', 100))
         elif result == 'draw':
-            return self.config.get('draw_points', 50)
+            return float(self.config.get('draw_points', 50))
         elif result == 'lose':
-            return self.config.get('lose_points', 0)
+            return float(self.config.get('lose_points', 0))
         else:
-            return 0
+            return 0.0
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate team vs team result data with versus group validation"""
         valid_results = ['win', 'lose', 'draw']
         
@@ -51,22 +51,34 @@ class TeamVsActivity(BaseActivity):
         # This is for backwards compatibility
         return True
     
-    def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session) -> bool:
+    def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session: Any) -> bool:
         """Validate that teams are in the same versus group"""
         try:
             from app.crud.crud_versus import versus
+            from loguru import logger
             
             # Get opponent using versus system
             opponent = versus.get_opponent(db_session, team_id=team_id)
             
             # Check if the opponent matches the provided opponent_team_id
-            return opponent is not None and opponent.id == opponent_team_id
+            if opponent is None:
+                logger.warning(f"Team {team_id} has no opponent in versus system, but opponent_team_id={opponent_team_id} was provided")
+                # Allow validation if no opponent is set (teams might not be in versus mode)
+                return True
             
-        except Exception:
+            if opponent.id != opponent_team_id:
+                logger.warning(f"Team {team_id} opponent mismatch: expected {opponent.id}, got {opponent_team_id}")
+                return False
+            
+            return True
+            
+        except Exception as e:
             # If versus system fails, fall back to basic validation
+            from loguru import logger
+            logger.warning(f"Versus validation failed for team {team_id} vs {opponent_team_id}: {str(e)}, allowing validation")
             return True
     
-    def get_opponent_for_team(self, team_id: int, db_session) -> Dict[str, Any]:
+    def get_opponent_for_team(self, team_id: int, db_session: Any) -> Optional[Dict[str, Any]]:
         """Get opponent team information for a given team"""
         try:
             from app.crud.crud_versus import versus
@@ -83,7 +95,7 @@ class TeamVsActivity(BaseActivity):
         except Exception:
             return None
     
-    def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session) -> Dict[str, Any]:
+    def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session: Any) -> Dict[str, Any]:
         """Create result data for a team in a versus group"""
         opponent_info = self.get_opponent_for_team(team_id, db_session)
         

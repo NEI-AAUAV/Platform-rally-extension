@@ -2,26 +2,23 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useAppToast } from "@/hooks/use-toast";
+import type { BaseActivityFormProps } from "@/types/forms";
+import { getTeamSize } from "@/types/forms";
 
-interface BooleanFormProps {
-  existingResult?: any;
-  team?: any;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
-
-export default function BooleanForm({ existingResult, team, onSubmit, isSubmitting }: BooleanFormProps) {
+export default function BooleanForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
   const [attempts, setAttempts] = useState<number>(1);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = team?.num_members || team?.members?.length || 1;
+  const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
@@ -46,7 +43,7 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     

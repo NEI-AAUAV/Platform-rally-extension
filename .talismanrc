@@ -7,9 +7,15 @@ fileignoreconfig:
 - filename: web-rally/package.json
   checksum: 03c44693ae62fb7b711972a88071b5182c989223ef02123fb4f4473afc13cd29
 - filename: web-rally/pnpm-lock.yaml
-  checksum: 6f32c0654f6856794c42cebedb0e13474250e0f9d9201bc3e81040e8eb81b0e3
+  checksum: 87449e6fc3a51d6fd2bdac410f230bf1880796cd4ab74640236c363700b95b26
 - filename: api-rally/app/tests/conftest.py
   checksum: 26b0fa28dd816ab5d87b9efc26751b7c59b06258f86f349c1cbac1b0bca94187
 - filename: dev-keys/jwt.key.pub
   checksum: 11affec0830eb0430370b8a3e119aef51f314b8ff9fcb8db27912d6a91715069
+- filename: web-rally/tests/mocks/data.ts
+  checksum: 03e2cef1f097a08032242d5938dcf0e95c4c3b0e570fbfbf5cfd7c8cb3d8b223
+- filename: web-rally/tests/e2e/admin.spec.ts
+  checksum: c0a8e136cab72e9bc5b54992ea24b7cf1778a054ec21c339a64a41f9627f0db6
+- filename: web-rally/tests/e2e/settings.spec.ts
+  checksum: 59ebd3bcb4ee34a52449de16cc15fc385e135625612defcfbd8b6d764a9c2de6
 version: "1.0"

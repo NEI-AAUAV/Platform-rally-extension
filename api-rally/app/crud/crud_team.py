@@ -1,9 +1,10 @@
 import math
-from typing import List, Sequence
+from typing import List, Sequence, Any
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from loguru import logger
 
 from sqlalchemy.orm import Session
 
@@ -79,9 +80,10 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         # Update scores for all teams based on activity results
         # Use nested transaction to avoid breaking row locks
         for team in teams:
-            with db.begin_nested():
+            with db.begin_nested() as nested:
                 scoring_service.update_team_scores(team.id, should_commit=False)
-            db.refresh(team)  # Refresh to get updated scores
+                nested.commit()  # Commit nested transaction to persist changes
+            db.refresh(team)  # Refresh to get updated scores from database
         
         # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))
@@ -121,7 +123,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             self.update_classification(db=db)
         except Exception as e:
             # Log the error but don't fail team creation
-            print(f"Warning: Failed to update classification during team creation: {e}")
+            logger.warning(f"Failed to update classification during team creation: {e}")
         
         db.refresh(team)
         return team
@@ -131,15 +133,22 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team = self.get(db=db, id=id, for_update=True)
             update_data = obj_in.model_dump(exclude_unset=True)
 
-            last_size = None
-            for key in locked_arrays:
-                size = len(update_data.get(key) or getattr(team, key))
-                if last_size is not None and last_size != size:
-                    raise APIException(
-                        status_code=400, detail="Lists must have the same size"
-                    )
+            should_validate_locked = any(key in update_data for key in locked_arrays)
 
-                last_size = size
+            if should_validate_locked:
+                last_size = None
+                for key in locked_arrays:
+                    value = update_data.get(key, getattr(team, key))
+                    if value is None:
+                        continue
+
+                    size = len(value)
+                    if last_size is not None and last_size != size:
+                        raise APIException(
+                            status_code=400, detail="Lists must have the same size"
+                        )
+
+                    last_size = size
 
             team = super().update_unlocked(db_obj=team, obj_in=obj_in)
             db.commit()
@@ -148,7 +157,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         db.refresh(team)
         return team
 
-    def _validate_rally_timing(self, settings, current_time: datetime) -> None:
+    def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
         """Validate rally timing constraints"""
         if settings.rally_start_time and current_time < settings.rally_start_time:
             raise APIException(
@@ -162,7 +171,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                 detail=f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
             )
 
-    def _validate_checkpoint_order(self, db: Session, team, checkpoint_id: int, settings) -> None:
+    def _validate_checkpoint_order(self, db: Session, team: Team, checkpoint_id: int, settings: Any) -> None:
         """Validate checkpoint order constraints"""
         from app.models.checkpoint import CheckPoint
         
@@ -202,7 +211,9 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             self._validate_checkpoint_order(db, team, checkpoint_id, settings)
 
             # Add scores and times
-            team.question_scores.append(obj_in.question_score)
+            # question_score is an int in the schema (0 or 1), but stored as bool in the model
+            # Convert to bool: 0 -> False, any non-zero -> True
+            team.question_scores.append(bool(obj_in.question_score))
             team.time_scores.append(obj_in.time_score)
             team.pukes.append(obj_in.pukes)
             team.skips.append(obj_in.skips)

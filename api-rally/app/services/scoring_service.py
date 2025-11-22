@@ -1,10 +1,12 @@
 """
 Scoring system service for Rally activities
 """
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
 import logging
 from datetime import datetime, timezone
+from fastapi import HTTPException, status
 
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
@@ -12,73 +14,81 @@ from app.models.user import User
 from app.models.rally_settings import RallySettings
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 class ScoringService:
     """Service for handling Rally scoring rules and calculations"""
     
     def __init__(self, db: Session):
         self.db = db
-        self._settings = None
+        self._settings: RallySettings | None = None
     
     def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
         if self._settings is None:
-            self._settings = self.db.query(RallySettings).first()
+            stmt = select(RallySettings)
+            self._settings = self.db.scalars(stmt).first()
             if not self._settings:
                 # Create default settings if none exist
                 self._settings = RallySettings()
                 self.db.add(self._settings)
                 self.db.commit()
+        if self._settings is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get or create rally settings"
+            )
         return self._settings
     
     def calculate_team_total_score(self, team_id: int) -> float:
         """Calculate total score for a team including all modifiers"""
-        results = self.db.query(ActivityResult).filter(
-            ActivityResult.team_id == team_id
-        ).all()
-        total_score = 0
+        stmt = select(ActivityResult).where(ActivityResult.team_id == team_id)
+        results = self.db.scalars(stmt).all()
+        total_score = 0.0
         
         for result in results:
             if result.is_completed and result.final_score is not None:
-                total_score += result.final_score
+                total_score += float(result.final_score)
         
         return total_score
     
     def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
         """Update team's total and score_per_checkpoint based on activity results"""
-        team = self.db.query(Team).filter(Team.id == team_id).first()
+        team = self.db.get(Team, team_id)
         if not team:
             return False
         
-        # Get all activity results for this team
-        results = self.db.query(ActivityResult).filter(
-            ActivityResult.team_id == team_id
-        ).all()
+        # Get all activity results for this team with activities and checkpoints preloaded
+        # Use joinedload to avoid N+1 queries
+        stmt = select(ActivityResult).options(
+            joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
+        ).where(ActivityResult.team_id == team_id)
+        results = self.db.scalars(stmt).all()
         
         # Group results by checkpoint order (not checkpoint ID)
-        checkpoint_scores = {}
-        total_score = 0
+        checkpoint_scores: dict[int, float] = {}
+        total_score = 0.0
         
         for result in results:
             if result.is_completed and result.final_score is not None:
-                # Get activity to find checkpoint
-                activity = self.db.query(Activity).options(joinedload(Activity.checkpoint)).filter(Activity.id == result.activity_id).first()
-                if activity and activity.checkpoint:
+                # Activity and checkpoint are already loaded via joinedload
+                if result.activity and result.activity.checkpoint:
                     # Use checkpoint order instead of checkpoint ID
-                    checkpoint_order = activity.checkpoint.order
+                    checkpoint_order = result.activity.checkpoint.order
                     if checkpoint_order not in checkpoint_scores:
-                        checkpoint_scores[checkpoint_order] = 0
+                        checkpoint_scores[checkpoint_order] = 0.0
                     checkpoint_scores[checkpoint_order] += result.final_score
                     total_score += result.final_score
         
         # Update team scores
-        team.total = total_score
+        team.total = int(total_score)
         
         # Update score_per_checkpoint array to match times array length
         # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID
         # The times array represents checkpoint visit order
         team.score_per_checkpoint = [
-            checkpoint_scores.get(i + 1, 0) for i in range(len(team.times))
+            int(checkpoint_scores.get(i + 1, 0.0)) for i in range(len(team.times))
         ]
         
         # Commit only if explicitly requested
@@ -86,14 +96,18 @@ class ScoringService:
             try:
                 self.db.commit()
             except Exception as e:
-                raise RuntimeError(f"Failed to update team scores: {str(e)}")
+                logger.error(f"Failed to update team scores: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update team scores: {str(e)}"
+                )
         
         return True
     
     def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
         """Apply extra shots bonus to a team's activity result"""
         # Get team size to validate limit
-        team = self.db.query(Team).filter(Team.id == team_id).first()
+        team = self.db.get(Team, team_id)
         if not team:
             return False
         
@@ -106,10 +120,11 @@ class ScoringService:
             return False
         
         # Get or create activity result
-        result = self.db.query(ActivityResult).filter(
+        stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team_id
-        ).first()
+        )
+        result = self.db.scalars(stmt).first()
         if not result:
             return False
         
@@ -124,10 +139,11 @@ class ScoringService:
     
     def apply_penalty(self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int) -> bool:
         """Apply penalty to a team's activity result"""
-        result = self.db.query(ActivityResult).filter(
+        stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team_id
-        ).first()
+        )
+        result = self.db.scalars(stmt).first()
         if not result:
             return False
         
@@ -159,7 +175,7 @@ class ScoringService:
         from app.models.activity import Activity
         
         # Get activity
-        activity = self.db.query(Activity).filter(Activity.id == result.activity_id).first()
+        activity = self.db.get(Activity, result.activity_id)
         if not activity:
             return
         
@@ -170,8 +186,11 @@ class ScoringService:
         )
         
         # Get team size
-        team = self.db.query(Team).filter(Team.id == result.team_id).first()
-        team_size = len(team.members) if team and team.members else 1
+        team = self.db.get(Team, result.team_id)
+        if not team:
+            logger.warning(f"Team {result.team_id} not found for result {result.id}")
+            return
+        team_size = len(team.members) if team.members else 1
         
         # Calculate base score
         base_score = activity_instance.calculate_score(result.result_data, team_size)
@@ -184,29 +203,40 @@ class ScoringService:
         
         result.final_score = activity_instance.apply_modifiers(base_score, modifiers, self.db)
     
-    def get_team_ranking(self, activity_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
             # Activity-specific ranking - sort by score descending before assigning ranks
-            results = self.db.query(ActivityResult).filter(
-            ActivityResult.activity_id == activity_id
-        ).all()
+            # Use joinedload to avoid N+1 queries
+            stmt = select(ActivityResult).options(
+                joinedload(ActivityResult.team)
+            ).where(ActivityResult.activity_id == activity_id)
+            results = self.db.scalars(stmt).all()
             # Sort results by final_score in descending order, None scores go last
             results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
             ranking = []
             for i, result in enumerate(results, 1):
-                team = self.db.query(Team).filter(Team.id == result.team_id).first()
-                if team:
+                # Team is already loaded via joinedload, but check if it exists
+                if result.team:
+                    # Count activities completed for this team (all activities, not just this one)
+                    team_activity_count = len([
+                        r for r in self.db.scalars(
+                            select(ActivityResult).where(ActivityResult.team_id == result.team.id)
+                        ).all()
+                        if r.is_completed
+                    ])
                     ranking.append({
                         'rank': i,
-                        'team_id': team.id,
-                        'team_name': team.name,
+                        'team_id': result.team.id,
+                        'team_name': result.team.name,
                         'score': result.final_score or 0,
+                        'activities_completed': team_activity_count,
                         'completed_at': result.completed_at
                     })
         else:
             # Global ranking
-            teams = self.db.query(Team).all()
+            team_stmt = select(Team).options(joinedload(Team.activity_results))
+            teams: list[Team] = list(self.db.scalars(team_stmt).unique().all())
             ranking = []
             for team in teams:
                 total_score = self.calculate_team_total_score(team.id)
@@ -218,7 +248,10 @@ class ScoringService:
                 })
             
             # Sort by total score descending
-            ranking.sort(key=lambda x: x['total_score'], reverse=True)
+            def get_score(item: dict[str, Any]) -> float:
+                score = item.get('total_score', 0)
+                return float(score) if score is not None else 0.0
+            ranking.sort(key=get_score, reverse=True)
             
             # Add ranks
             for i, team_rank in enumerate(ranking, 1):
@@ -226,11 +259,10 @@ class ScoringService:
         
         return ranking
     
-    def get_activity_statistics(self, activity_id: int) -> Dict[str, Any]:
+    def get_activity_statistics(self, activity_id: int) -> dict[str, Any]:
         """Get statistics for a specific activity"""
-        results = self.db.query(ActivityResult).filter(
-            ActivityResult.activity_id == activity_id
-        ).all()
+        stmt = select(ActivityResult).where(ActivityResult.activity_id == activity_id)
+        results = self.db.scalars(stmt).all()
         
         if not results:
             return {
@@ -242,36 +274,38 @@ class ScoringService:
             }
         
         completed_results = [r for r in results if r.is_completed and r.final_score is not None]
-        scores = [r.final_score for r in completed_results]
+        scores = [float(r.final_score) for r in completed_results if r.final_score is not None]
         
         return {
             'total_participants': len(results),
             'completed_participants': len(completed_results),
-            'average_score': sum(scores) / len(scores) if scores else 0,
-            'best_score': max(scores) if scores else 0,
-            'worst_score': min(scores) if scores else 0,
-            'completion_rate': len(completed_results) / len(results) if results else 0
+            'average_score': sum(scores) / len(scores) if scores else 0.0,
+            'best_score': max(scores) if scores else 0.0,
+            'worst_score': min(scores) if scores else 0.0,
+            'completion_rate': len(completed_results) / len(results) if results else 0.0
         }
     
     def validate_team_vs_match(self, team1_id: int, team2_id: int, activity_id: int) -> bool:
         """Validate that two teams can compete in a team vs team activity"""
         # Check if both teams exist
-        team1 = self.db.query(Team).filter(Team.id == team1_id).first()
-        team2 = self.db.query(Team).filter(Team.id == team2_id).first()
+        team1 = self.db.get(Team, team1_id)
+        team2 = self.db.get(Team, team2_id)
         
         if not team1 or not team2:
             return False
         
         # Check if teams already have results for this activity
-        result1 = self.db.query(ActivityResult).filter(
+        stmt1 = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team1_id
-        ).first()
+        )
+        result1 = self.db.scalars(stmt1).first()
         
-        result2 = self.db.query(ActivityResult).filter(
+        stmt2 = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id,
             ActivityResult.team_id == team2_id
-        ).first()
+        )
+        result2 = self.db.scalars(stmt2).first()
         
         if result1 and result1.is_completed:
             return False
@@ -282,7 +316,7 @@ class ScoringService:
         return True
     
     def create_team_vs_result(self, team1_id: int, team2_id: int, activity_id: int, 
-                             winner_id: int, match_data: Dict[str, Any]) -> Tuple[bool, str]:
+                             winner_id: int, match_data: dict[str, Any]) -> tuple[bool, str]:
         """Create results for both teams in a team vs team activity"""
         if not self.validate_team_vs_match(team1_id, team2_id, activity_id):
             return False, "Teams cannot compete in this activity"
@@ -308,7 +342,7 @@ class ScoringService:
         try:
             # Create both results
             from app.schemas.activity import ActivityResultCreate
-            from app.crud.crud_activity import activity as activity_crud
+            from app.crud.crud_activity import activity_result as activity_result_crud
             
             result1_create = ActivityResultCreate(
                 activity_id=activity_id,
@@ -326,8 +360,8 @@ class ScoringService:
             current_time = datetime.now(timezone.utc)
             
             # Create both results but defer recalculation and team score updates to batch correctly
-            result1_db_obj = activity_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
-            result2_db_obj = activity_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
+            result1_db_obj = activity_result_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
+            result2_db_obj = activity_result_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
             
             # Mark as completed
             result1_db_obj.is_completed = True
@@ -336,7 +370,6 @@ class ScoringService:
             result2_db_obj.completed_at = current_time
             
             # Now perform a single recalculation for this activity and update both teams' scores
-            from app.crud.crud_activity import activity_result as activity_result_crud
             activity_result_crud._recalculate_all_results_for_activity(self.db, activity_id)
             activity_result_crud._update_team_scores(self.db, team1_id)
             activity_result_crud._update_team_scores(self.db, team2_id)
@@ -347,5 +380,6 @@ class ScoringService:
             
         except Exception as e:
             self.db.rollback()
-            logging.exception("Exception occurred in create_team_vs_result")
-            return False, "An internal error occurred while creating the team vs team results."
+            logger.exception(f"Exception occurred in create_team_vs_result: {e}")
+            error_msg = str(e) if e else "Unknown error"
+            return False, f"An internal error occurred while creating the team vs team results: {error_msg}"

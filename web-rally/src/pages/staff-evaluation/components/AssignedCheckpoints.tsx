@@ -2,19 +2,13 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, ArrowRight } from "lucide-react";
 import { useThemedComponents } from "@/components/themes";
-
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  order: number;
-}
+import type { DetailedCheckPoint, ActivityResponse, ListingTeam } from "@/client";
 
 interface AssignedCheckpointsProps {
-  checkpoints: Checkpoint[];
-  activities: any[];
-  teams: any[];
-  onCheckpointClick: (checkpoint: Checkpoint) => void;
+  checkpoints: DetailedCheckPoint[];
+  activities: ActivityResponse[];
+  teams: ListingTeam[];
+  onCheckpointClick: (checkpoint: DetailedCheckPoint) => void;
 }
 
 export default function AssignedCheckpoints({ 
@@ -54,11 +48,10 @@ export default function AssignedCheckpoints({
       <CardContent>
         <div className="grid gap-3">
           {checkpoints.map((checkpoint) => {
-            const checkpointActivities = activities?.filter(
-              (activity: any) => activity.checkpoint_id === checkpoint.id
-            ) || [];
-            // Show all teams for each checkpoint (no filtering by team location)
-            const teamsAtCheckpoint = teams || [];
+            const checkpointActivities = activities.filter(
+              (activity) => activity.checkpoint_id === checkpoint.id,
+            );
+            const teamsAtCheckpoint = teams;
             
             return (
               <InteractiveCard

@@ -1,12 +1,11 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app import crud
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_admin
-from fastapi import Security
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 
@@ -73,7 +72,7 @@ async def get_staff_assignments(
 
 
 @router.get("/me")
-async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> dict:
+async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> Dict[str, Any]:
     """
     Get current user information.
     Returns the authenticated user from the NEI platform.

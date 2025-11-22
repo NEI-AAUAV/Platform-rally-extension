@@ -1,7 +1,7 @@
 """
 Time-based activities for Rally extension
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from .base import BaseActivity
 
@@ -27,7 +27,7 @@ class TimeBasedActivity(BaseActivity):
         
         # For relative ranking system, we need all team results
         # This method will be called by ScoringService with context
-        return completion_time  # Return raw time for ranking calculation
+        return float(completion_time)  # Return raw time for ranking calculation
     
     def calculate_relative_ranking_score(self, team_times: List[float], team_time: float) -> float:
         """Calculate score based on relative ranking among all teams"""
@@ -51,23 +51,23 @@ class TimeBasedActivity(BaseActivity):
         min_points = self.config.get('min_points', 10)
         
         if total_teams == 1:
-            return max_points
+            return float(max_points)
         
         # Calculate score based on ranking
         # 1st place gets max_points, last place gets min_points
         # Others are distributed proportionally
         # Teams with identical times get the same rank and score
         if rank == 1:
-            return max_points
+            return float(max_points)
         elif rank == total_teams:
-            return min_points
+            return float(min_points)
         else:
             # Linear interpolation between max and min
-            score_range = max_points - min_points
+            score_range = float(max_points) - float(min_points)
             position_ratio = (rank - 1) / (total_teams - 1)
-            return max_points - (score_range * position_ratio)
+            return float(max_points) - (score_range * position_ratio)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: int = None, db_session=None) -> bool:
+    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate time-based result data"""
         required_fields = ['completion_time_seconds']
         return all(field in result_data for field in required_fields)

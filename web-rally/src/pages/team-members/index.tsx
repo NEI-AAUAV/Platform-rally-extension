@@ -2,24 +2,22 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
+import { useUserStore } from "@/stores/useUserStore";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
-import { TeamService, TeamMembersService } from "@/client";
+import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";
 import { useThemedComponents } from "@/components/themes";
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();
-  const { isLoading, userStore } = useUser();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
+  const { isLoading, isRallyAdmin } = useUser();
+  const token = useUserStore((state) => state.token);
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
   // Fetch teams with better error handling
-  const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery({
+  const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
     queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
     refetchOnWindowFocus: true, // Refetch when window gains focus
@@ -28,13 +26,18 @@ export default function TeamMembers() {
   });
 
   // Fetch team members with better error handling
-  const { data: teamMembers, refetch: refetchTeamMembers, error: membersError, isLoading: membersLoading } = useQuery({
+  const {
+    data: teamMembers,
+    refetch: refetchTeamMembers,
+    error: membersError,
+    isLoading: membersLoading,
+  } = useQuery<TeamMemberResponse[]>({
     queryKey: ["teamMembers", selectedTeam],
     queryFn: async () => {
       if (!selectedTeam) return [];
-      return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(parseInt(selectedTeam));
+      return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(Number(selectedTeam));
     },
-    enabled: !!selectedTeam && isManager,
+    enabled: !!selectedTeam && isRallyAdmin,
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
     staleTime: 0, // Always consider data stale
@@ -48,7 +51,7 @@ export default function TeamMembers() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
@@ -69,14 +72,18 @@ export default function TeamMembers() {
       {teamsError && (
         <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
           <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar equipas:</h3>
-          <p className="text-red-200 text-sm">{teamsError.message}</p>
+          <p className="text-red-200 text-sm">
+            {teamsError instanceof Error ? teamsError.message : "Erro desconhecido"}
+          </p>
         </Card>
       )}
 
       {membersError && (
         <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
           <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar membros:</h3>
-          <p className="text-red-200 text-sm">{membersError.message}</p>
+          <p className="text-red-200 text-sm">
+            {membersError instanceof Error ? membersError.message : "Erro desconhecido"}
+          </p>
         </Card>
       )}
 
@@ -103,14 +110,19 @@ export default function TeamMembers() {
 
           <MemberForm
             selectedTeam={selectedTeam}
-            userToken={userStore.token || ""}
+            userToken={token || ""}
             onSuccess={handleSuccess}
           />
 
           <MemberList
-            teamMembers={teamMembers as any}
+            teamMembers={(teamMembers || []).map(member => ({
+              id: member.id,
+              name: member.name,
+              email: member.email ?? undefined,
+              is_captain: member.is_captain ?? false,
+            }))}
             selectedTeam={selectedTeam}
-            userToken={userStore.token || ""}
+            userToken={token || ""}
             onSuccess={handleSuccess}
           />
         </>

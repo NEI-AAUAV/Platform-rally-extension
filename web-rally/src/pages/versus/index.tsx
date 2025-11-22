@@ -5,27 +5,23 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { Navigate } from "react-router-dom";
 import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
-import { TeamService, VersusService } from "@/client";
+import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
 export default function Versus() {
-  const { isLoading, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
   const { settings } = useRallySettings();
-  
-  // Check if user is manager-rally or admin
-  const isManager = userStore.scopes?.includes("manager-rally") || 
-                   userStore.scopes?.includes("admin");
 
   // Fetch teams
-  const { data: teams, refetch: refetchTeams } = useQuery({
+  const { data: teams, refetch: refetchTeams } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
     queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
   });
 
   // Fetch versus groups
-  const { data: versusGroups, refetch: refetchVersusGroups } = useQuery({
+  const { data: versusGroups, refetch: refetchVersusGroups } = useQuery<VersusGroupListResponse>({
     queryKey: ["versusGroups"],
     queryFn: () => VersusService.listVersusGroupsApiRallyV1VersusGroupsGet(),
-    enabled: isManager,
+    enabled: isRallyAdmin,
   });
 
   const handleSuccess = () => {
@@ -37,7 +33,7 @@ export default function Versus() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isManager) {
+  if (!isRallyAdmin) {
     return <Navigate to="/scoreboard" />;
   }
 
@@ -62,16 +58,9 @@ export default function Versus() {
         </p>
       </div>
 
-      <VersusPairForm
-        teams={teams as any}
-        onSuccess={handleSuccess}
-      />
+      <VersusPairForm teams={teams} onSuccess={handleSuccess} />
 
-      <VersusGroupList
-        versusGroups={versusGroups}
-        teams={teams as any}
-        onSuccess={handleSuccess}
-      />
+      <VersusGroupList versusGroups={versusGroups} teams={teams} onSuccess={handleSuccess} />
     </div>
   );
 }

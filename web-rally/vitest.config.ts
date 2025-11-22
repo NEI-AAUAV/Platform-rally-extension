@@ -6,24 +6,46 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./tests/unit/setup.ts'],
     globals: true,
+    include: ['tests/unit/**/*.test.{ts,tsx}'],
+    exclude: [
+      'node_modules/',
+      'tests/e2e/',
+      'src/client/',
+      '**/*.d.ts',
+      '**/*.config.*',
+      '**/vite-env.d.ts',
+      '.pnpm-store/**',
+      '**/.pnpm-store/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
-        'src/test/',
+        'tests/',
         'src/client/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/vite-env.d.ts',
+        '**/webidl-conversions/**',
+        '**/whatwg-url/**',
       ],
+    },
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
     },
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  define: {
+    global: 'globalThis',
   },
 })

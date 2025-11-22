@@ -2,26 +2,23 @@ import { useState, useEffect } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useAppToast } from "@/hooks/use-toast";
+import type { BaseActivityFormProps } from "@/types/forms";
+import { getTeamSize } from "@/types/forms";
 
-interface TimeBasedFormProps {
-  existingResult?: any;
-  team?: any;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
-
-export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmitting }: TimeBasedFormProps) {
+export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   // Keep as string to allow clearing input and typing like ".5" or "03"
   const [completionTime, setCompletionTime] = useState<string>("");
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
+  const toast = useAppToast();
 
   // Get Rally settings for dynamic configuration
   const { settings } = useRallySettings();
 
   // Calculate max extra shots based on team size
-  const teamSize = team?.num_members || team?.members?.length || 1;
+  const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
@@ -48,7 +45,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
     
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      alert(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
     
@@ -56,7 +53,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
     const normalized = (completionTime || "").replace(",", ".").trim();
     const parsed = normalized === "" ? NaN : parseFloat(normalized);
     if (isNaN(parsed) || parsed < 0) {
-      alert("Please enter a valid non-negative time in seconds.");
+      toast.error("Please enter a valid non-negative time in seconds.");
       return;
     }
 

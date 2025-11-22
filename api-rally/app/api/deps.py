@@ -24,13 +24,20 @@ def get_current_user(
 ) -> DetailedUser:
     user = db.get(User, auth.sub)
     if user is None:
-        user = crud.user.create(
-            db, obj_in=UserCreate(
-                id=auth.sub, 
+        # Create user with auth.sub as ID (set before commit to avoid primary key modification issues)
+        # This is needed for NEI platform compatibility where user IDs must match auth.sub
+        user = crud.user.create_with_id(
+            db, 
+            obj_in=UserCreate(
                 name=f"{auth.name} {auth.surname}",
-                scopes=auth.scopes
-            )
+            ),
+            user_id=auth.sub
         )
+        # Set scopes after creation (User model has this field but schema doesn't)
+        # User is already tracked by session after create_with_id, so just update and commit
+        user.scopes = auth.scopes
+        db.commit()
+        db.refresh(user)
     else:
         # Update scopes if they've changed
         if user.scopes != auth.scopes:

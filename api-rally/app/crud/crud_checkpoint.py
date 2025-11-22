@@ -39,7 +39,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         """Get the maximum order value among all checkpoints."""
         stmt = select(func.max(CheckPoint.order))
         result = db.scalar(stmt)
-        return result if result is not None else 0
+        return int(result) if result is not None else 0
 
     def reorder_checkpoints(self, db: Session, checkpoint_orders: dict[int, int]) -> None:
         """Reorder checkpoints by updating their order values."""

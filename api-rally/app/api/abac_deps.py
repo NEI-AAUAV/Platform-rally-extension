@@ -20,10 +20,67 @@ from app.core.abac import (
 )
 from app.api.deps import is_admin
 
+# Explicit exports for mypy
+__all__ = [
+    "get_staff_with_checkpoint_access",
+    "require_checkpoint_score_permission",
+    "require_checkpoint_view_permission",
+    "require_checkpoint_management_permission",
+    "require_team_management_permission",
+    "validate_checkpoint_access",
+    "validate_settings_update_access",
+    "require_permission",
+    "Action",
+    "Resource",
+]
+
+
+def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:
+    """Initialize DetailedUser from auth data with fallback to database"""
+    try:
+        return DetailedUser(
+            id=auth.sub,
+            name=f"{auth.name} {auth.surname}".strip() or auth.email,
+            disabled=False,
+            staff_checkpoint_id=None,
+            team_id=None,
+            is_captain=False,
+        )
+    except (ValueError, TypeError, AttributeError):
+        # Fallback: attempt to load from local User if schema changes or validation fails
+        user = db.get(User, auth.sub)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        try:
+            return DetailedUser.model_validate(user)
+        except Exception as validation_error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to validate user data: {str(validation_error)}"
+            )
+
+
+def _validate_staff_checkpoint_assignment(
+    curr_user: DetailedUser, auth: AuthData, db: Session
+) -> None:
+    """Validate and set staff checkpoint assignment"""
+    from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+    
+    staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+    if not staff_assignment or not staff_assignment.checkpoint_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff user must be assigned to a checkpoint"
+        )
+    curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+
 
 def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = None,
+    curr_user: Optional[DetailedUser] = None,
     db: Session = Depends(deps.get_db)
 ) -> DetailedUser:
     """
@@ -34,28 +91,8 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
-    # Initialize curr_user if not provided
     if curr_user is None:
-        # Build user from auth claims to avoid hard dependency on local User row
-        # Local User may not exist for staff-only access; we still want staff to work.
-        try:
-            curr_user = DetailedUser(
-                id=auth.sub,
-                name=f"{auth.name} {auth.surname}".strip() or auth.email,
-                disabled=False,
-                staff_checkpoint_id=None,
-                team_id=None,
-                is_captain=False,
-            )
-        except Exception:
-            # Fallback: attempt to load from local User if schema changes
-            user = db.get(User, auth.sub)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
-                )
-            curr_user = DetailedUser.model_validate(user)
+        curr_user = _initialize_user_from_auth(auth, db)
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
@@ -69,15 +106,7 @@ def get_staff_with_checkpoint_access(
     
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
-        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
-        if not staff_assignment or not staff_assignment.checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff user must be assigned to a checkpoint"
-            )
-        # Add checkpoint_id to user for easy access
-        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+        _validate_staff_checkpoint_assignment(curr_user, auth, db)
     
     return curr_user
 
@@ -88,7 +117,7 @@ def require_checkpoint_score_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     db: Session = Depends(get_db)
-):
+) -> None:
     """
     Require permission to add checkpoint scores
     
@@ -140,7 +169,7 @@ def require_checkpoint_view_permission(
     checkpoint_id: Optional[int],
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access)
-):
+) -> None:
     """
     Require permission to view checkpoint teams
     
@@ -165,7 +194,7 @@ def require_checkpoint_view_permission(
 def require_checkpoint_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
-):
+) -> None:
     """
     Require permission to create/update checkpoints
     """
@@ -180,7 +209,7 @@ def require_checkpoint_management_permission(
 def require_team_management_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant)
-):
+) -> None:
     """
     Require permission to create/update teams
     """
