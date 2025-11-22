@@ -72,7 +72,7 @@ api-rally/
 │   ├── services/        # business logic (scoring, rally duration)
 │   └── tests/           # unit + integration suites
 ├── Dockerfile           # dev image (hot reload)
-├── Dockerfile.prod      # multi-stage production build (gunicorn + uvicorn worker)
+├── Dockerfile.prod      # multi-stage production build (uvicorn with workers)
 └── ACTIVITY_SCORING.md  # scoring rules for each activity type
 ```
 

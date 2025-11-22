@@ -40,8 +40,8 @@ def add_team_member(
     # Check member limit
     from sqlalchemy import select, func
     settings = rally_settings.get_or_create(db)
-    stmt = select(func.count(User.id)).where(User.team_id == team_id)
-    current_member_count = db.scalar(stmt) or 0
+    count_stmt = select(func.count(User.id)).where(User.team_id == team_id)
+    current_member_count = db.scalar(count_stmt) or 0
     
     if current_member_count >= settings.max_members_per_team:
         raise HTTPException(
@@ -51,12 +51,11 @@ def add_team_member(
     
     # If setting as captain, check if team already has a captain
     if member_data.is_captain:
-        from sqlalchemy import select
-        stmt = select(User).where(
+        captain_stmt = select(User).where(
             User.team_id == team_id,
             User.is_captain == True
         )
-        existing_captain = db.scalars(stmt).first()
+        existing_captain = db.scalars(captain_stmt).first()
         if existing_captain:
             raise HTTPException(
                 status_code=400,

@@ -227,8 +227,8 @@ class ScoringService:
                     })
         else:
             # Global ranking
-            stmt = select(Team)
-            teams = self.db.scalars(stmt).all()
+            team_stmt = select(Team).options(joinedload(Team.activity_results))
+            teams: list[Team] = list(self.db.scalars(team_stmt).unique().all())
             ranking = []
             for team in teams:
                 total_score = self.calculate_team_total_score(team.id)

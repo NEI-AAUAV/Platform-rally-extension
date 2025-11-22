@@ -59,13 +59,12 @@ class CRUDActivity:
     
     def remove(self, db: Session, *, id: int) -> Activity | None:
         """Remove an activity"""
-        from typing import cast
         obj = db.get(Activity, id)
         if obj is None:
             return None
         db.delete(obj)
         db.commit()
-        return cast(Activity, obj)
+        return obj
 
 
 class CRUDActivityResult:
@@ -414,11 +413,10 @@ class CRUDActivityResult:
         
         # Update team scores after removing result
         from app.services.scoring_service import ScoringService
-        from typing import cast
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
         
-        return cast(ActivityResult, obj)
+        return obj
 
 
 class CRUDRallyEvent:
@@ -466,14 +464,13 @@ class CRUDRallyEvent:
     
     def remove(self, db: Session, *, id: int) -> RallyEvent | None:
         """Remove a rally event"""
-        from typing import cast
         from app.models.activity import RallyEvent
         obj = db.get(RallyEvent, id)
         if obj is None:
             return None
         db.delete(obj)
         db.commit()
-        return cast(RallyEvent, obj)
+        return obj
 
 
 # Create instances
