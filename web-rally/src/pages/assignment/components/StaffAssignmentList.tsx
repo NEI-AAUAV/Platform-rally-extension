@@ -2,12 +2,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, MapPin } from "lucide-react";
 import { useThemedComponents } from "@/components/themes";
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description: string;
-  order: number;
-}
+import type { DetailedCheckPoint } from "@/client";
+
+type Checkpoint = DetailedCheckPoint;
 
 interface StaffAssignment {
   id: number;

@@ -3,14 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
-import { CheckPointService, UserService, type CheckpointAssignmentUpdate } from "@/client";
-
-interface Checkpoint {
-  id: number;
-  name: string;
-  description: string;
-  order: number;
-}
+import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint } from "@/client";
 
 interface StaffAssignment {
   id: number;
@@ -22,11 +15,11 @@ interface StaffAssignment {
 }
 
 export default function Assignment() {
-  const { isLoading, isRallyAdmin, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
 
-  const { data: checkpoints } = useQuery<Checkpoint[]>({
+  const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
-    queryFn: async (): Promise<Checkpoint[]> => {
+    queryFn: async (): Promise<DetailedCheckPoint[]> => {
       const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return Array.isArray(data) ? data : [];
     },

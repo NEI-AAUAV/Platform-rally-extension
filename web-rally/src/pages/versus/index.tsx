@@ -8,7 +8,7 @@ import { VersusPairForm, VersusGroupList } from "./components";
 import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
 export default function Versus() {
-  const { isLoading, isRallyAdmin, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
   const { settings } = useRallySettings();
 
   // Fetch teams

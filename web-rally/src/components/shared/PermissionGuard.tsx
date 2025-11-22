@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import useUser from '@/hooks/useUser';
-import { LoadingState } from './LoadingState';
+import { LoadingState } from './';
 
 interface PermissionGuardProps {
   children: React.ReactNode;

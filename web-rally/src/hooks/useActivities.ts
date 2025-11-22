@@ -16,7 +16,7 @@ import { type ActivityCreate, type ActivityUpdate } from "@/client";
  * ```
  */
 export function useActivities() {
-  const { isRallyAdmin, userStore } = useUser();
+  const { isRallyAdmin } = useUser();
 
   return useQuery({
     queryKey: ["activities"],
