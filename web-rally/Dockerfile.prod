@@ -32,7 +32,7 @@ json.dump(schema, open('/app/openapi.json', 'w'), indent=2); \
 print('✓ Generated OpenAPI schema')"
 
 # Stage 2: Build web frontend
-FROM node:20-alpine AS web-builder
+FROM node:24-alpine AS web-builder
 WORKDIR /web
 
 # Install pnpm
