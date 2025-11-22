@@ -5,12 +5,15 @@ from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session, joinedload
 import logging
 from datetime import datetime, timezone
+from fastapi import HTTPException, status
 
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 from app.models.user import User
 from app.models.rally_settings import RallySettings
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ScoringService:
@@ -30,7 +33,10 @@ class ScoringService:
                 self.db.add(self._settings)
                 self.db.commit()
         if self._settings is None:
-            raise RuntimeError("Failed to get or create rally settings")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get or create rally settings"
+            )
         return self._settings
     
     def calculate_team_total_score(self, team_id: int) -> float:
@@ -88,7 +94,11 @@ class ScoringService:
             try:
                 self.db.commit()
             except Exception as e:
-                raise RuntimeError(f"Failed to update team scores: {str(e)}")
+                logger.error(f"Failed to update team scores: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update team scores: {str(e)}"
+                )
         
         return True
     

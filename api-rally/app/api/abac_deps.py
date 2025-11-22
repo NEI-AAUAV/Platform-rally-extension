@@ -61,15 +61,23 @@ def get_staff_with_checkpoint_access(
                 team_id=None,
                 is_captain=False,
             )
-        except Exception:
-            # Fallback: attempt to load from local User if schema changes
+        except (ValueError, TypeError, AttributeError) as e:
+            # Fallback: attempt to load from local User if schema changes or validation fails
+            # This handles cases where DetailedUser schema doesn't match auth data
             user = db.get(User, auth.sub)
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
                 )
-            curr_user = DetailedUser.model_validate(user)
+            try:
+                curr_user = DetailedUser.model_validate(user)
+            except Exception as validation_error:
+                # If validation also fails, raise a more descriptive error
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to validate user data: {str(validation_error)}"
+                )
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
