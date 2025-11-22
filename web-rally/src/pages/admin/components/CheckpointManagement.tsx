@@ -356,7 +356,13 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           />
         ) : (
           <ul className="space-y-3 list-none">
-            {checkpoints?.sort((a: Checkpoint, b: Checkpoint) => a.order - b.order).filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined).map((checkpoint) => (
+            {(() => {
+              // Sort and filter checkpoints once, not on every render
+              const sortedCheckpoints = (checkpoints || [])
+                .filter((cp: Checkpoint | undefined): cp is Checkpoint => cp !== undefined)
+                .sort((a: Checkpoint, b: Checkpoint) => a.order - b.order);
+              
+              return sortedCheckpoints.map((checkpoint) => (
               <div
                 key={checkpoint.id}
                 draggable
@@ -415,7 +421,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 </div>
                 </Card>
               </div>
-            ))}
+              ));
+            })()}
           </ul>
         )}
       </Card>

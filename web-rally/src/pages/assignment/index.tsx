@@ -25,10 +25,10 @@ export default function Assignment() {
     },
   });
 
-  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<StaffAssignment[]>({
+  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
     queryKey: ["staffAssignments"],
-    queryFn: async (): Promise<StaffAssignment[]> => {
-      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet() as Promise<StaffAssignment[]>;
+    queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
+      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet();
     },
     enabled: isRallyAdmin,
   });
@@ -63,8 +63,15 @@ export default function Assignment() {
     return <Navigate to="/scoreboard" />;
   }
 
-  // Staff assignments are already filtered by the API
-  const rallyStaffAssignments: StaffAssignment[] = staffAssignments || [];
+  // Map API response to local interface (they're compatible)
+  const rallyStaffAssignments: StaffAssignment[] = (staffAssignments || []).map((assignment) => ({
+    id: assignment.id,
+    user_id: assignment.user_id,
+    user_name: assignment.user_name ?? undefined,
+    user_email: assignment.user_email ?? undefined,
+    checkpoint_id: assignment.checkpoint_id ?? undefined,
+    checkpoint_name: assignment.checkpoint_name ?? undefined,
+  }));
 
   return (
     <div className="mt-16 space-y-8">

@@ -63,7 +63,6 @@ export default function TeamManagement() {
     onSuccess: () => {
       // Invalidate and refetch teams data
       queryClient.invalidateQueries({ queryKey: ['teams'] });
-      queryClient.removeQueries({ queryKey: ['teams'] }); // Force complete refetch
       teamForm.reset();
       toast.success("Equipa criada com sucesso!");
     },

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
+import { useUserStore } from "@/stores/useUserStore";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
@@ -10,7 +11,8 @@ import { useThemedComponents } from "@/components/themes";
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();
-  const { isLoading, isRallyAdmin, userStore } = useUser();
+  const { isLoading, isRallyAdmin } = useUser();
+  const token = useUserStore((state) => state.token);
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
@@ -108,7 +110,7 @@ export default function TeamMembers() {
 
           <MemberForm
             selectedTeam={selectedTeam}
-            userToken={userStore.token || ""}
+            userToken={token || ""}
             onSuccess={handleSuccess}
           />
 
@@ -120,7 +122,7 @@ export default function TeamMembers() {
               is_captain: member.is_captain ?? false,
             }))}
             selectedTeam={selectedTeam}
-            userToken={userStore.token || ""}
+            userToken={token || ""}
             onSuccess={handleSuccess}
           />
         </>
