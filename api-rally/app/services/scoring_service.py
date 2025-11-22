@@ -66,9 +66,6 @@ class ScoringService:
             ActivityResult.team_id == team_id
         ).all()
         
-        # Get unique activity IDs to load all activities at once
-        activity_ids = {result.activity_id for result in results if result.activity_id}
-        
         # Group results by checkpoint order (not checkpoint ID)
         checkpoint_scores: Dict[int, float] = {}
         total_score = 0.0
@@ -188,7 +185,10 @@ class ScoringService:
         
         # Get team size
         team = self.db.query(Team).filter(Team.id == result.team_id).first()
-        team_size = len(team.members) if team and team.members else 1
+        if not team:
+            logger.warning(f"Team {result.team_id} not found for result {result.id}")
+            return
+        team_size = len(team.members) if team.members else 1
         
         # Calculate base score
         base_score = activity_instance.calculate_score(result.result_data, team_size)
