@@ -2,14 +2,14 @@
 
 [[package]]
 name = "aiocache"
-version = "0.12.2"
+version = "0.12.3"
 description = "multi backend asyncio cache"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "aiocache-0.12.2-py2.py3-none-any.whl", hash = "sha256:9b6fa30634ab0bfc3ecc44928a91ff07c6ea16d27d55469636b296ebc6eb5918"},
-    {file = "aiocache-0.12.2.tar.gz", hash = "sha256:b41c9a145b050a5dcbae1599f847db6dd445193b1f3bd172d8e0fe0cb9e96684"},
+    {file = "aiocache-0.12.3-py2.py3-none-any.whl", hash = "sha256:889086fc24710f431937b87ad3720a289f7fc31c4fd8b68e9f918b9bacd8270d"},
+    {file = "aiocache-0.12.3.tar.gz", hash = "sha256:f528b27bf4d436b497a1d0d1a8f59a542c153ab1e37c3621713cb376d44c4713"},
 ]
 
 [package.extras]
@@ -1663,4 +1663,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "91260809b3dc97b9dda72e5f639d9c33d8fab3e328b7992cccfc7fb1fc0b31f4"
+content-hash = "c4caa24bdb5a5a617c339248b17a38634084171349e8485756f7291ed286ddb9"
