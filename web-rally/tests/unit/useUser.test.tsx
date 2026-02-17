@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useUser from '@/hooks/useUser'
 import { UserService } from '@/client'
-import { useUserStore } from '@/stores/useUserStore'
+
 
 // Mock UserService
 vi.mock('@/client', () => ({
@@ -17,8 +17,14 @@ vi.mock('@/client', () => ({
 }))
 
 // Mock useUserStore
+const mockUserStoreState = {
+  scopes: [],
+  token: null,
+  sessionLoading: false,
+};
+
 vi.mock('@/stores/useUserStore', () => ({
-  useUserStore: vi.fn(),
+  useUserStore: vi.fn((selector) => selector ? selector(mockUserStoreState) : mockUserStoreState),
 }))
 
 // Test wrapper for React Query
@@ -30,7 +36,7 @@ const createWrapper = () => {
       },
     },
   })
-  
+
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -51,13 +57,13 @@ describe('useUser Hook', () => {
     }
 
     vi.mocked(UserService.getMeApiRallyV1UserMeGet).mockResolvedValue(mockUser as any)
-    vi.mocked(useUserStore).mockReturnValue({
+    Object.assign(mockUserStoreState, {
       scopes: ['rally-staff'],
       token: 'test-token',
       sessionLoading: false,
-    } as any)
+    })
 
-    const { result } = renderHook(() => useUser(), {
+    const { result } = renderHook(() => useUser({ fetchUserData: true }), {
       wrapper: createWrapper(),
     })
 
@@ -70,11 +76,11 @@ describe('useUser Hook', () => {
   })
 
   it('should identify rally admin correctly', () => {
-    vi.mocked(useUserStore).mockReturnValue({
+    Object.assign(mockUserStoreState, {
       scopes: ['manager-rally'],
       token: 'test-token',
       sessionLoading: false,
-    } as any)
+    })
 
     const { result } = renderHook(() => useUser(), {
       wrapper: createWrapper(),
@@ -84,11 +90,11 @@ describe('useUser Hook', () => {
   })
 
   it('should identify non-admin correctly', () => {
-    vi.mocked(useUserStore).mockReturnValue({
+    Object.assign(mockUserStoreState, {
       scopes: ['rally-staff'],
       token: 'test-token',
       sessionLoading: false,
-    } as any)
+    })
 
     const { result } = renderHook(() => useUser(), {
       wrapper: createWrapper(),
@@ -98,11 +104,11 @@ describe('useUser Hook', () => {
   })
 
   it('should identify admin scope correctly', () => {
-    vi.mocked(useUserStore).mockReturnValue({
+    Object.assign(mockUserStoreState, {
       scopes: ['admin'],
       token: 'test-token',
       sessionLoading: false,
-    } as any)
+    })
 
     const { result } = renderHook(() => useUser(), {
       wrapper: createWrapper(),
@@ -112,11 +118,11 @@ describe('useUser Hook', () => {
   })
 
   it('should return loading state when session is loading', () => {
-    vi.mocked(useUserStore).mockReturnValue({
+    Object.assign(mockUserStoreState, {
       scopes: ['rally-staff'],
       token: 'test-token',
       sessionLoading: true,
-    } as any)
+    })
 
     const { result } = renderHook(() => useUser(), {
       wrapper: createWrapper(),

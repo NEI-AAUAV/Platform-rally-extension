@@ -23,15 +23,22 @@ vi.mock('@/client', async (importOriginal) => {
 })
 
 // Mock useUser hook - make it dynamic
-const mockUseUser = vi.fn(() => ({
-  userStore: {
-    scopes: ['manager-rally'],
-    token: 'test-token',
-  },
-}))
+const mockUseUser = vi.fn((_options?) => {
+  const scopes = ['manager-rally'];
+  const token = 'test-token';
+
+  return {
+    userStore: {
+      scopes,
+      token,
+    },
+    isRallyAdmin: scopes.includes('manager-rally') || scopes.includes('admin'),
+    isLoading: false,
+  }
+})
 
 vi.mock('@/hooks/useUser', () => ({
-  default: () => mockUseUser(),
+  default: (options?: any) => mockUseUser(options),
 }))
 
 // Mock useUserStore
@@ -51,7 +58,7 @@ const createWrapper = () => {
       },
     },
   })
-  
+
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -67,7 +74,9 @@ describe('useActivities Hook', () => {
         scopes: ['manager-rally'],
         token: 'test-token',
       },
-    })
+      isRallyAdmin: true,
+      isLoading: false,
+    } as any)
   })
 
   it('should fetch activities when user is manager', async () => {
@@ -96,7 +105,9 @@ describe('useActivities Hook', () => {
         scopes: ['rally-staff'],
         token: 'test-token',
       },
-    })
+      isRallyAdmin: false,
+      isLoading: false,
+    } as any)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -115,7 +126,8 @@ describe('useActivities Hook', () => {
         scopes: ['manager-rally'],
         token: '',
       },
-    })
+      isRallyAdmin: true,
+    } as any)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -151,7 +163,7 @@ describe('useCreateActivity Hook', () => {
         mutations: { retry: false },
       },
     })
-    
+
     // Set up a query state first
     queryClient.setQueryData(['activities'], [])
 
@@ -168,7 +180,7 @@ describe('useCreateActivity Hook', () => {
     await result.current.mutateAsync(mockActivity)
 
     expect(ActivitiesService.createActivityApiRallyV1ActivitiesPost).toHaveBeenCalledWith(mockActivity)
-    
+
     // Wait for invalidation to complete
     await waitFor(() => {
       const state = queryClient.getQueryState(['activities'])
@@ -198,7 +210,7 @@ describe('useUpdateActivity Hook', () => {
         mutations: { retry: false },
       },
     })
-    
+
     // Set up a query state first
     queryClient.setQueryData(['activities'], [])
 
@@ -215,7 +227,7 @@ describe('useUpdateActivity Hook', () => {
     await result.current.mutateAsync(mockUpdate)
 
     expect(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).toHaveBeenCalledWith(1, mockUpdate.activity)
-    
+
     // Wait for invalidation to complete
     await waitFor(() => {
       const state = queryClient.getQueryState(['activities'])
@@ -238,7 +250,7 @@ describe('useDeleteActivity Hook', () => {
         mutations: { retry: false },
       },
     })
-    
+
     // Set up a query state first
     queryClient.setQueryData(['activities'], [])
 
@@ -255,7 +267,7 @@ describe('useDeleteActivity Hook', () => {
     await result.current.mutateAsync(1)
 
     expect(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).toHaveBeenCalledWith(1)
-    
+
     // Wait for invalidation to complete
     await waitFor(() => {
       const state = queryClient.getQueryState(['activities'])
