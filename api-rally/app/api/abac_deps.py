@@ -8,6 +8,7 @@ for Rally checkpoint and team management.
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
@@ -91,7 +92,6 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
-    from loguru import logger
     
     # Log authentication data for debugging
     logger.info(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
