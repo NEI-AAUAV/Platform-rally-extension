@@ -19,6 +19,7 @@ class Action(Enum):
     """Actions that can be performed on Rally resources"""
     ADD_CHECKPOINT_SCORE = "add_checkpoint_score"
     VIEW_CHECKPOINT_TEAMS = "view_checkpoint_teams"
+    VIEW_TEAM_MEMBERS = "view_team_members"
     CREATE_CHECKPOINT = "create_checkpoint"
     UPDATE_CHECKPOINT = "update_checkpoint"
     CREATE_TEAM = "create_team"
@@ -207,6 +208,18 @@ class ABACEngine:
             },
             priority=80
         ))
+
+        # Staff can view team members at their checkpoint
+        self.policies.append(Policy(
+            name="staff_view_team_members",
+            description="Staff can view team members at their assigned checkpoint",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "rally-staff"},
+                "action": Action.VIEW_TEAM_MEMBERS.value
+            },
+            priority=80
+        ))
         
         # Staff can create and view activity results at their assigned checkpoint
         self.policies.append(Policy(
@@ -250,6 +263,7 @@ class ABACEngine:
                 "action": {"not_in": [
                     Action.ADD_CHECKPOINT_SCORE.value,
                     Action.VIEW_CHECKPOINT_TEAMS.value,
+                    Action.VIEW_TEAM_MEMBERS.value,
                     Action.CREATE_ACTIVITY_RESULT.value,
                     Action.VIEW_ACTIVITY_RESULT.value,
                     Action.UPDATE_ACTIVITY_RESULT.value,

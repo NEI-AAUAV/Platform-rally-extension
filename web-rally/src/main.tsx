@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import Router from "@/router";
 import "@/styles/global.css";
+import "@/styles/print.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { refreshToken } from "./services/client";
 import { OpenAPI } from "./client/core/OpenAPI";
@@ -14,10 +15,18 @@ OpenAPI.VERSION = 'v1';
 
 // Configure OpenAPI to use authentication token
 OpenAPI.HEADERS = async () => {
-  const token = useUserStore.getState().token;
-  if (token) {
-    return { 'Authorization': `Bearer ${token}` } as Record<string, string>;
+  // Check for staff token first
+  const staffToken = useUserStore.getState().token;
+  if (staffToken) {
+    return { 'Authorization': `Bearer ${staffToken}` } as Record<string, string>;
   }
+  
+  // Fall back to team token if no staff token
+  const teamToken = localStorage.getItem('rally_team_token');
+  if (teamToken) {
+    return { 'Authorization': `Bearer ${teamToken}` } as Record<string, string>;
+  }
+  
   return {} as Record<string, string>;
 };
 

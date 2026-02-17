@@ -1,9 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Users, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Users, AlertCircle, X, Printer, QrCode } from 'lucide-react';
 import { useThemedComponents } from '@/components/themes';
 import { getErrorMessage } from '@/utils/errorHandling';
 import {
@@ -18,8 +19,9 @@ import { Input } from '@/components/ui/input';
 import { BloodyButton } from '@/components/themes/bloody';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/shared';
-import { TeamService, type TeamCreate, type TeamUpdate } from '@/client';
+import { TeamService, type TeamCreate, type TeamUpdate, type DetailedTeam } from '@/client';
 import { useAppToast } from '@/hooks/use-toast';
+import QRCodeDisplay from '@/components/QRCodeDisplay';
 
 const teamFormSchema = z.object({
   name: z.string().min(1, 'Nome da equipa é obrigatório'),
@@ -35,8 +37,11 @@ interface Team {
 }
 
 export default function TeamManagement() {
+  const navigate = useNavigate();
   const { Card } = useThemedComponents();
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
+  const [newlyCreatedTeam, setNewlyCreatedTeam] = React.useState<DetailedTeam | null>(null);
+  const [selectedTeamForQR, setSelectedTeamForQR] = React.useState<Team | null>(null);
   const queryClient = useQueryClient();
   const toast = useAppToast();
 
@@ -47,6 +52,16 @@ export default function TeamManagement() {
     staleTime: 0, // Always consider data stale to force refetch
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
+  });
+
+  // Fetch team details for QR code display
+  const { data: teamDetailsForQR, isLoading: isLoadingQRDetails } = useQuery({
+    queryKey: ['teamDetails', selectedTeamForQR?.id],
+    queryFn: () => {
+      if (!selectedTeamForQR?.id) return null;
+      return TeamService.getTeamByIdApiRallyV1TeamIdGet(selectedTeamForQR.id);
+    },
+    enabled: !!selectedTeamForQR?.id,
   });
 
   const {
@@ -60,7 +75,9 @@ export default function TeamManagement() {
       };
       return TeamService.createTeamApiRallyV1TeamPost(requestBody);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store the newly created team to show QR code modal
+      setNewlyCreatedTeam(data as DetailedTeam);
       // Invalidate and refetch teams data
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       teamForm.reset();
@@ -201,43 +218,139 @@ export default function TeamManagement() {
         ) : (
           <ul className="space-y-3 list-none">
             {teams?.map((team: Team) => (
-              <Card
-                key={team.id}
-                variant="subtle"
-                padding="md"
-                rounded="xl"
-                className="flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-semibold">{team.name}</div>
-                  <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                    Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
+              <li key={team.id}>
+                <Card
+                  variant="subtle"
+                  padding="md"
+                  rounded="xl"
+                  className="flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-semibold">{team.name}</div>
+                    <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                      Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <BloodyButton
-                    variant="neutral"
-                    onClick={() => startEditTeam(team)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </BloodyButton>
-                  <BloodyButton
-                    variant="neutral"
-                    onClick={() => {
-                      if (confirm('Tem certeza que deseja deletar esta equipa?')) {
-                        deleteTeam(team.id);
-                      }
-                    }}
-                    disabled={isDeletingTeam}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </BloodyButton>
-                </div>
-              </Card>
+                  <div className="flex gap-2">
+                    <BloodyButton
+                      variant="neutral"
+                      title="Ver QR code e código de acesso"
+                      onClick={() => setSelectedTeamForQR(team)}
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </BloodyButton>
+                    <BloodyButton
+                      variant="neutral"
+                      title="Gerir membros da equipa"
+                      onClick={() => navigate(`/team-members?adminTeamId=${team.id}`)}
+                    >
+                      <Users className="w-4 h-4" />
+                    </BloodyButton>
+                    <BloodyButton
+                      variant="neutral"
+                      onClick={() => startEditTeam(team)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </BloodyButton>
+                    <BloodyButton
+                      variant="neutral"
+                      onClick={() => {
+                        if (confirm('Tem certeza que deseja deletar esta equipa?')) {
+                          deleteTeam(team.id);
+                        }
+                      }}
+                      disabled={isDeletingTeam}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </BloodyButton>
+                  </div>
+                </Card>
+              </li>
             ))}
           </ul>
         )}
       </Card>
+
+      {/* QR Code Modal for Newly Created Team or Selected Team */}
+      {(newlyCreatedTeam || (selectedTeamForQR && teamDetailsForQR)) && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md bg-[rgb(20,20,25)] border-white/20">
+            <div className="p-8 space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {newlyCreatedTeam ? 'Equipa Criada!' : 'Código QR da Equipa'}
+                  </h2>
+                  <p className="text-white/70 text-sm mt-1">
+                    {(newlyCreatedTeam || teamDetailsForQR)?.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setNewlyCreatedTeam(null);
+                    setSelectedTeamForQR(null);
+                  }}
+                  title="Fechar"
+                  className="text-white/50 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Loading State */}
+              {selectedTeamForQR && isLoadingQRDetails && (
+                <div className="flex justify-center p-8">
+                  <p className="text-white/70">A carregar QR code...</p>
+                </div>
+              )}
+
+              {/* QR Code */}
+              {(newlyCreatedTeam || teamDetailsForQR) && (
+                <>
+                  <div className="flex justify-center">
+                    <QRCodeDisplay 
+                      accessCode={(newlyCreatedTeam || teamDetailsForQR)?.access_code || ''} 
+                      size={250} 
+                    />
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="space-y-3 bg-white/5 p-4 rounded-lg border border-white/10">
+                    <p className="text-white text-sm">
+                      <strong>Código de Acesso:</strong> {(newlyCreatedTeam || teamDetailsForQR)?.access_code}
+                    </p>
+                    <p className="text-white/70 text-xs">
+                      Partilhe este código QR ou código de acesso com a equipa para que possam fazer login e acompanhar o progresso.
+                    </p>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-2">
+                    <BloodyButton
+                      variant="neutral"
+                      onClick={() => window.print()}
+                      className="flex-1"
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Imprimir
+                    </BloodyButton>
+                    <BloodyButton
+                      onClick={() => {
+                        setNewlyCreatedTeam(null);
+                        setSelectedTeamForQR(null);
+                      }}
+                      className="flex-1"
+                    >
+                      Concluir
+                    </BloodyButton>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

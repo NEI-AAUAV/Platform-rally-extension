@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     )
     ## Algorithm to use when signing JWT tokens
     JWT_ALGORITHM: str = "ES512"
+    
+    # Team authentication (separate from NEI JWT)
+    ## Secret key for team JWT tokens
+    TEAM_JWT_SECRET_KEY: str = os.getenv(
+        "TEAM_JWT_SECRET_KEY", 
+        "rally-team-secret-key-change-in-production"
+    )
+    TEAM_JWT_ALGORITHM: str = "HS256"
+    ## Token expiration time in hours (24 hours = 1 day)
+    TEAM_TOKEN_EXPIRE_HOURS: int = 24
 
 
 settings = Settings()

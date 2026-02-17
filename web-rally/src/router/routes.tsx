@@ -57,6 +57,20 @@ const routes: RouteObject[] = [
         },
       },
       {
+        path: "/team-login",
+        async lazy() {
+          const { default: TeamLogin } = await import("@/pages/team-login");
+          return { Component: TeamLogin };
+        },
+      },
+      {
+        path: "/team-progress",
+        async lazy() {
+          const { default: TeamProgress } = await import("@/pages/team-progress");
+          return { Component: TeamProgress };
+        },
+      },
+      {
         path: "/settings",
         async lazy() {
           const { default: Settings } = await import("@/pages/settings");
@@ -82,6 +96,13 @@ const routes: RouteObject[] = [
         async lazy() {
           const { default: CheckpointTeamEvaluation } = await import("@/pages/staff-evaluation/components/CheckpointTeamEvaluation");
           return { Component: CheckpointTeamEvaluation };
+        },
+      },
+      {
+        path: "/show-team-code",
+        async lazy() {
+          const { default: ShowTeamCode } = await import("@/pages/show-team-code");
+          return { Component: ShowTeamCode };
         },
       },
     ],

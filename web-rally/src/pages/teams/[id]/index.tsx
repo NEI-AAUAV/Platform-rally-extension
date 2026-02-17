@@ -10,12 +10,13 @@ import {
 } from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
 import { useState } from "react";
 import { useThemedComponents } from "@/components/themes";
+import QRCodeDisplay from "@/components/QRCodeDisplay";
 
 const nthNumber = (number: number) => {
   if (number > 3 && number < 21) return "th";
@@ -41,7 +42,7 @@ export default function TeamsById() {
   const { id } = useParams<{ id: string }>();
   const { settings } = useRallySettings();
   const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
-  
+
   const toggleCheckpoint = (checkpointIndex: number) => {
     setExpandedCheckpoints(prev => {
       const newSet = new Set(prev);
@@ -62,7 +63,7 @@ export default function TeamsById() {
         </Card>
       );
     }
-    
+
     if (isSuccess) {
       return (
         <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
@@ -79,7 +80,7 @@ export default function TeamsById() {
         </Card>
       );
     }
-    
+
     return null;
   };
 
@@ -110,12 +111,12 @@ export default function TeamsById() {
       }
     },
   });
-  
+
   const allEvaluations = allEvaluationsData || [];
-  
+
   // Filter evaluations for this specific team
   const activityResults = allEvaluations.filter((result) => result.team_id === Number(id));
-  
+
   // Fetch all teams count for completion status
   const { data: allTeamsData } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],
@@ -128,7 +129,7 @@ export default function TeamsById() {
       }
     },
   });
-  
+
   const totalTeams = allTeamsData?.length || 0;
 
   if (isNaN(Number(id))) {
@@ -137,25 +138,29 @@ export default function TeamsById() {
 
   return (
     <>
-      <Button className="my-16 p-0" variant={"ghost"}>
-        <Link to="/teams" className="flex">
-          <ArrowBigLeft /> Go back to teams list
-        </Link>
-      </Button>
+      <div className="no-print">
+        <Button className="my-16 p-0" variant={"ghost"}>
+          <Link to="/teams" className="flex">
+            <ArrowBigLeft /> Go back to teams list
+          </Link>
+        </Button>
+      </div>
 
-      {isLoading && <div>Loading...</div>}
-      {isError && (
-        <>
-          <div>Something went wrong!</div>
-          <div>The team you are trying to access may not exist!</div>
-          <div>Try again later</div>
-        </>
-      )}
-      {isSuccess && settings?.show_team_details !== false ? (
-        <>
-          <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Team description and score
-          </h2>
+      {/* Print Button */}
+      {isSuccess && settings?.show_team_details !== false && (
+        <Button
+          className="print-button no-print"
+          onClick={() => window.print()}
+          variant="default"
+        >
+         div className="team-details-print">
+          {/* Team Header - Print Optimized */}
+          <div className="team-print-header">
+            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+              Team description and score
+            </h2>
+          </div>
+
           <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
             <div className="text-center">
               <p className="mb-4 text-xl font-semibold">
@@ -170,6 +175,37 @@ export default function TeamsById() {
               </div>
             </div>
           </Card>
+
+          {/* QR Code and Access Code for Team Login - Print Optimized */}
+          <div className="qr-code-print">
+            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+              Team Access
+            </h2>
+            <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
+              <div className="text-center">
+                <p className="mb-4 text-sm text-white/70 no-print">
+                  Share this QR code or access code with the team to allow them to view their progress.
+                </p>
+                <div className="access-code-print">
+                  <div className="label">Código de Acesso</div>
+                  <div className="code">{team.access_code}</div>
+                </div>
+                <QRCodeDisplay accessCode={team.access_code} size={200} />
+                <div className="mt-6 p-4 bg-white/5 rounded-lg no-print">
+                  <p className="text-xs text-white/50 mb-2">Team Login URL</p>
+                  <a
+                    href={`/rally/team-login?code=${team.access_code}`}
+                    className="text-sm text-primary hover:text-primary/80 break-all"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {window.location.origin}/rally/team-login?code={team.access_code}
+                  </a>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
             Checkpoint Progress
           </h2>
@@ -191,18 +227,18 @@ export default function TeamsById() {
                 const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
                 const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
                 const isLastCheckpoint = index === team.times.length - 1;
-                
+
                 // Find the evaluation timestamp from activity results
                 const checkpointId = checkpoint?.id;
                 // Filter results that have a score (are completed) for activities at this checkpoint
                 const allCheckpointResults =
                   checkpointId
                     ? activityResults.filter(
-                        (result) =>
-                          result.activity?.checkpoint_id === checkpointId && result.final_score != null,
-                      )
+                      (result) =>
+                        result.activity?.checkpoint_id === checkpointId && result.final_score != null,
+                    )
                     : [];
-                
+
                 // Deduplicate by activity_id, keeping only the latest result for each activity
                 const evaluationResults = Array.from(
                   allCheckpointResults.reduce((map: Map<number, EvaluationResult>, result) => {
@@ -216,33 +252,33 @@ export default function TeamsById() {
                     return map;
                   }, new Map()).values()
                 );
-                
+
                 // Get the latest evaluation timestamp
                 const latestResult = evaluationResults.reduce<EvaluationResult | null>((latest, current) => {
                   if (!latest) return current;
                   return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0) ? current : latest;
                 }, null);
                 const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
-                
+
                 const hasEvaluations = evaluationResults.length > 0;
-                
+
                 // Check if any activity in this checkpoint has pending completion (time-based activities)
                 const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
                   const activity = result.activity;
                   if (activity?.activity_type !== 'TimeBasedActivity') return false;
-                  
+
                   const completedCount = allEvaluations.filter(
                     (r) => r.activity?.id === activity?.id && r.final_score != null,
                   ).length;
-                  
+
                   return completedCount < totalTeams;
                 });
-                
+
                 const isExpanded = expandedCheckpoints.has(index);
-                
+
                 // Use checkpoint ID if available, otherwise fall back to index
                 const key = checkpoint?.id ?? `checkpoint-${index}`;
-                
+
                 return (
                   <div key={key}>
                     {/* Checkpoint summary - always visible and clickable */}
@@ -288,7 +324,7 @@ export default function TeamsById() {
                               {checkpointScore} pts
                             </div>
                             <div className="text-sm text-white/60">
-                              {hasEvaluations && evaluationTime 
+                              {hasEvaluations && evaluationTime
                                 ? formatTime(evaluationTime)
                                 : "Not evaluated yet"}
                             </div>
@@ -305,21 +341,21 @@ export default function TeamsById() {
                         </div>
                       </div>
                     </Card>
-                    
+
                     {/* Activity-level cards - only show when expanded */}
                     {isExpanded && evaluationResults.length > 0 && (
                       <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
                         {evaluationResults.map((result, resultIndex: number) => {
                           const activity = result.activity;
                           const isTimeBased = activity?.activity_type === 'TimeBasedActivity';
-                          
+
                           // Get count of teams that have completed this activity across ALL teams
                           const completedCount = allEvaluations.filter(
                             (r) => r.activity?.id === activity?.id && r.final_score != null,
                           ).length;
-                          
+
                           const isCompletionPending = isTimeBased && completedCount < totalTeams;
-                          
+
                           return (
                             <Card
                               key={resultIndex}
@@ -348,7 +384,7 @@ export default function TeamsById() {
                                     {result.final_score?.toFixed(0)} pts
                                   </div>
                                   <div className="text-xs text-white/60">
-                                    {result.completed_at 
+                                    {result.completed_at
                                       ? formatTime(new Date(result.completed_at))
                                       : "Not evaluated yet"}
                                   </div>
@@ -368,29 +404,33 @@ export default function TeamsById() {
               </Card>
             )}
           </div>
-          <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Team Members
-          </h2>
-          <div className="grid gap-4">
-            {team?.members.map((member) => {
-              const names = member.name.split(" ");
-              const firstName = names[0];
-              const lastName = names.slice(1).join(" ");
-              return (
-                <Card
-                  variant="default"
-                  padding="lg"
-                  rounded="2xl"
-                  className="text-xl"
-                  key={member.id}
-                >
-                  <span className="font-medium">{firstName}</span>{" "}
-                  <span className="font-light">{lastName}</span>
-                </Card>
-              );
-            })}
+
+          {/* Team Members - Print Optimized */}
+          <div className="team-members-print">
+            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+              Team Members
+            </h2>
+            <div className="grid gap-4">
+              {team?.members.map((member) => {
+                const names = member.name.split(" ");
+                const firstName = names[0];
+                const lastName = names.slice(1).join(" ");
+                return (
+                  <Card
+                    variant="default"
+                    padding="lg"
+                    rounded="2xl"
+                    className="text-xl"
+                    key={member.id}
+                  >
+                    <span className="font-medium">{firstName}</span>{" "}
+                    <span className="font-light">{lastName}</span>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </>
+        </div>
       ) : (
         renderTeamContent()
       )}

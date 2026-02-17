@@ -84,6 +84,10 @@ const useUserStore = create<UserState>((set) => ({
     // Store token in localStorage
     localStorage.setItem('rally_token', token);
     
+    // Clear team token when staff logs in (prevent accidental fallback)
+    localStorage.removeItem('rally_team_token');
+    localStorage.removeItem('rally_team_data');
+    
     set((state) => ({
       ...state,
       token,
@@ -94,8 +98,10 @@ const useUserStore = create<UserState>((set) => ({
   },
 
   logout: () => {
-    // Clear token from localStorage
+    // Clear both staff and team tokens
     localStorage.removeItem('rally_token');
+    localStorage.removeItem('rally_team_token');
+    localStorage.removeItem('rally_team_data');
     
     set(() => ({
       sessionLoading: false,
@@ -104,6 +110,8 @@ const useUserStore = create<UserState>((set) => ({
       sub: undefined,
       name: undefined,
       surname: undefined,
+      email: undefined,
+      scopes: undefined,
       token: undefined,
     }));
   },
@@ -117,8 +125,10 @@ const useUserStore = create<UserState>((set) => ({
   },
 
   clearUser: () => {
-    // Clear token from localStorage
+    // Clear both staff and team tokens
     localStorage.removeItem('rally_token');
+    localStorage.removeItem('rally_team_token');
+    localStorage.removeItem('rally_team_data');
     
     set(() => ({
       sessionLoading: false,

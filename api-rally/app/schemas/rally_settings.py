@@ -28,6 +28,9 @@ class RallySettingsBase(BaseModel):
     show_live_leaderboard: bool
     show_team_details: bool
     show_checkpoint_map: bool
+    participant_view_enabled: bool
+    show_route_mode: str  # 'focused' or 'complete'
+    show_score_mode: str  # 'hidden', 'individual', or 'competitive'
     
     # Rally customization
     rally_theme: str

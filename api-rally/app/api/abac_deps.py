@@ -27,6 +27,7 @@ __all__ = [
     "require_checkpoint_view_permission",
     "require_checkpoint_management_permission",
     "require_team_management_permission",
+    "require_view_team_members_permission",
     "validate_checkpoint_access",
     "validate_settings_update_access",
     "require_permission",
@@ -238,6 +239,21 @@ def require_team_management_permission(
         user=curr_user,
         auth=auth,
         action=Action.CREATE_TEAM,
+        resource=Resource.TEAM
+    )
+
+
+def require_view_team_members_permission(
+    auth: AuthData = Depends(api_nei_auth),
+    curr_user: DetailedUser = Depends(deps.get_participant)
+) -> None:
+    """
+    Require permission to view team members
+    """
+    require_permission(
+        user=curr_user,
+        auth=auth,
+        action=Action.VIEW_TEAM_MEMBERS,
         resource=Resource.TEAM
     )
 

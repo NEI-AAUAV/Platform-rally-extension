@@ -42,6 +42,9 @@ const rallySettingsSchema = z.object({
   show_live_leaderboard: z.boolean(),
   show_team_details: z.boolean(),
   show_checkpoint_map: z.boolean(),
+  participant_view_enabled: z.boolean(),
+  show_route_mode: z.string().min(1, "Route mode is required"),
+  show_score_mode: z.string().min(1, "Score mode is required"),
   
   // Rally customization
   rally_theme: z.string().min(1, "Theme is required").max(100, "Theme too long"),
@@ -104,6 +107,9 @@ export default function RallySettings() {
       show_live_leaderboard: true,
       show_team_details: true,
       show_checkpoint_map: true,
+      participant_view_enabled: false,
+      show_route_mode: "focused",
+      show_score_mode: "hidden",
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
     },
@@ -131,6 +137,9 @@ export default function RallySettings() {
         show_live_leaderboard: settings.show_live_leaderboard,
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
+        participant_view_enabled: settings.participant_view_enabled,
+        show_route_mode: settings.show_route_mode,
+        show_score_mode: settings.show_score_mode,
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
       });

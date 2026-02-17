@@ -11,6 +11,7 @@ class TeamBase(BaseModel):
 
     id: int
     name: str
+    access_code: str
     total: int
     classification: int
     versus_group_id: Optional[int] = None

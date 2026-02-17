@@ -5,6 +5,8 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from loguru import logger
+import secrets
+import string
 
 from sqlalchemy.orm import Session
 
@@ -29,6 +31,18 @@ locked_arrays = [
 ]
 
 _name_unique_error_regex = unique_key_error_regex(Team.name.name)
+
+
+def _generate_access_code(db: Session) -> str:
+    """Generate a unique, human-readable 8-character code (XXXX-XXXX) for a team."""
+    while True:
+        part1 = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+        part2 = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+        code = f"{part1}-{part2}"
+        
+        # Check for uniqueness in the database
+        if db.query(Team).filter(Team.access_code == code).first() is None:
+            return code
 
 
 class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
@@ -70,6 +84,10 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             + calc_pukes(team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
         )
 
+    def get_by_access_code(self, db: Session, *, access_code: str) -> Team | None:
+        """Get a team by their access code"""
+        return db.query(Team).filter(Team.access_code == access_code).first()
+
     def update_classification_unlocked(self, db: Session) -> None:
         """Update team classifications based on activity results"""
         from app.services.scoring_service import ScoringService
@@ -104,8 +122,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         if current_team_count >= settings.max_teams:
             raise HTTPException(status_code=400, detail="Team limit reached")
         
+        obj_in_data = obj_in.model_dump()
+        obj_in_data["access_code"] = _generate_access_code(db)
+        
+        team = self.model(**obj_in_data)
+
         try:
-            team = super().create(db, obj_in=obj_in)
+            db.add(team)
+            db.commit()
         except IntegrityError as e:
             db.rollback()
 

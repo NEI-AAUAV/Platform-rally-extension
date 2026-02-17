@@ -34,7 +34,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   
   // Check if user has admin/manager privileges
   const isAdminOrManager = scopes !== undefined && 
-    (scopes.includes("admin") || scopes.includes("manager-rally"));
+    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
   
   // Check if user has staff privileges
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
@@ -60,7 +60,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     {
       name: "Membros",
       href: "/team-members",
-      show: isAdminOrManager,
+      show: isAdminOrManager || isStaff,
     },
     {
       name: "Configurações",

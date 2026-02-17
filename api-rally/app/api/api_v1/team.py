@@ -68,8 +68,10 @@ def _build_team_data(db: Session, team: Team) -> ListingTeam:
     return ListingTeam(
         id=team.id,
         name=team.name,
+        access_code=team.access_code,
         total=team.total,
         classification=team.classification,
+        versus_group_id=team.versus_group_id,
         times=team.times,
         last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
         last_checkpoint_score=(

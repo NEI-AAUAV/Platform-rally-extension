@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
-import {  } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Edit, Trash2, Activity as ActivityIcon, GripVertical } from "lucide-react";
 import { Activity as ActivityType, Checkpoint } from "@/types/activityTypes";
 

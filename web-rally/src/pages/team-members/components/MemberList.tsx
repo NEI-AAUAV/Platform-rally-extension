@@ -109,11 +109,3 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
     </Card>
   );
 }
-
-
-
-
-
-
-
-

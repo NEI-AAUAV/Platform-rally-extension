@@ -11,7 +11,7 @@ interface PermissionGuardProps {
 
 export default function PermissionGuard({ 
   children, 
-  requiredScopes = ["manager-rally", "admin"], 
+  requiredScopes = ["manager-rally", "admin", "rally:admin"], 
   fallbackPath = "/scoreboard" 
 }: PermissionGuardProps) {
   const { isLoading, userStore } = useUser();
