@@ -67,7 +67,10 @@ def _is_admin_or_manager(auth: AuthData) -> bool:
 
 def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, team_id: int, activity_id: int) -> Tuple[Team, Activity]:
     """Validate staff checkpoint access and return team and activity objects"""
+    logger.info(f"Validating staff access: user_id={current_user.id}, staff_checkpoint_id={current_user.staff_checkpoint_id}, team_id={team_id}, activity_id={activity_id}")
+    
     if not current_user.staff_checkpoint_id:
+        logger.error(f"User {current_user.id} has no checkpoint assignment")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=NO_CHECKPOINT_ASSIGNED
@@ -76,29 +79,40 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
     # Verify team is at the staff member's checkpoint
     team_obj = team.get(db, id=team_id)
     if not team_obj:
+        logger.error(f"Team {team_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=TEAM_NOT_FOUND
         )
     
-    # Allow staff to evaluate teams at their checkpoint or teams that have already passed it
-    # Block teams that have not yet reached the staff's checkpoint
+    # NOTE: We don't check team checkpoint progress here.
+    # Staff should be able to evaluate any team at their assigned checkpoint,
+    # regardless of whether the team has been formally checked in yet.
+    # The evaluation flow handles check-in automatically via
+    # _check_and_advance_team -> _ensure_team_checkpoint_and_advance -> _checkin_team_to_checkpoint
     team_checkpoint_number = len(team_obj.times)
-    if team_checkpoint_number < current_user.staff_checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams at checkpoint {current_user.staff_checkpoint_id} or later (once they reach it)"
-        )
+    logger.info(f"Team {team_id} currently at checkpoint {team_checkpoint_number}, staff assigned to checkpoint {current_user.staff_checkpoint_id}")
     
     # Verify activity is at the same checkpoint
     from app.crud.crud_activity import activity
     activity_obj = activity.get(db, id=activity_id)
-    if not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
+    if not activity_obj:
+        logger.error(f"Activity {activity_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity not found"
+        )
+    
+    logger.info(f"Activity {activity_id} belongs to checkpoint {activity_obj.checkpoint_id}")
+    
+    if activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
+        logger.warning(f"Activity checkpoint mismatch: {activity_obj.checkpoint_id} != {current_user.staff_checkpoint_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Activity not found at your assigned checkpoint"
         )
     
+    logger.info(f"Validation successful for team {team_id}, activity {activity_id}")
     return team_obj, activity_obj
 
 

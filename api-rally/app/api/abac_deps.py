@@ -91,8 +91,26 @@ def get_staff_with_checkpoint_access(
     - Rally manager (full access) 
     - Rally staff with assigned checkpoint
     """
+    from loguru import logger
+    
+    # Log authentication data for debugging
+    logger.info(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
+    
     if curr_user is None:
-        curr_user = _initialize_user_from_auth(auth, db)
+        # Build user from auth claims to avoid hard dependency on local User row
+        # Local User may not exist for staff-only access; we still want staff to work.
+        try:
+            curr_user = _initialize_user_from_auth(auth, db)
+            logger.info(f"Created DetailedUser from auth: id={curr_user.id}, name={curr_user.name}")
+        except HTTPException:
+            # Re-raise HTTP exceptions from helper
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing user: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to initialize user: {str(e)}"
+            )
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
@@ -106,8 +124,11 @@ def get_staff_with_checkpoint_access(
     
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+        logger.info(f"Checking staff assignment for user_id={auth.sub}")
         _validate_staff_checkpoint_assignment(curr_user, auth, db)
+        logger.info(f"Staff user {auth.sub} assigned to checkpoint {curr_user.staff_checkpoint_id}")
     
+    logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
     return curr_user
 
 
