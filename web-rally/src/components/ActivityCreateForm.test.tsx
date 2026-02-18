@@ -18,9 +18,10 @@ vi.mock('@/components/ActivityTypeInfo', () => ({
 
 describe('ActivityCreateForm', () => {
   const mockCheckpoints: Checkpoint[] = [
-    { id: 1, name: 'CP1', description: 'Desc1', location: 'Loc1', is_active: true },
-    { id: 2, name: 'CP2', description: 'Desc2', location: 'Loc2', is_active: true },
-  ];
+    { id: 1, name: 'CP1', order: 1 },
+    { id: 2, name: 'CP2', order: 2 },
+  ] as unknown as Checkpoint[];
+
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
 

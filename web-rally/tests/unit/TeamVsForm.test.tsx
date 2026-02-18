@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import TeamVsForm from '@/components/forms/TeamVsForm';
-import { ListingTeam } from '@/client';
+import type { ListingTeam } from '@/client';
+
 
 // Use vi.hoisted() so these are initialized before vi.mock factories run
 const { mockUseRallySettings, mockToast, mockVersusService, mockTeamService } = vi.hoisted(() => ({
@@ -207,8 +208,10 @@ describe('TeamVsForm', () => {
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
+        config={{}}
       />
     );
+
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('Team C')).toBeInTheDocument();
