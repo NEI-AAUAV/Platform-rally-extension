@@ -349,11 +349,31 @@ def get_all_evaluations(
     db: Annotated[Session, Depends(get_db)],
     checkpoint_id: Annotated[Optional[int], Query()] = None,
     team_id: Annotated[Optional[int], Query()] = None,
-    current_user: Annotated[DetailedUser, Depends(get_current_user)],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
     auth: Annotated[AuthData, Depends(api_nei_auth)]
 ) -> Dict[str, Any]:
-    """Get all evaluations - accessible by managers only"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
+    """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
+    # Check if user has rally permissions
+    if not validate_rally_permissions(auth):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have Rally permissions"
+        )
+    
+    # Staff members can only view evaluations from their assigned checkpoint
+    # Managers/admins can view all evaluations
+    is_manager = is_admin_or_manager(auth)
+    
+    # If user is staff (not manager/admin), restrict to their checkpoint
+    if not is_manager:
+        if not current_user.staff_checkpoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=NO_CHECKPOINT_ASSIGNED
+            )
+        # Override checkpoint_id filter with staff's assigned checkpoint
+        checkpoint_id = current_user.staff_checkpoint_id
+        logger.debug(f"Staff user {current_user.id} restricted to checkpoint {checkpoint_id}")
     
     # Get all activity results
     from sqlalchemy.orm import joinedload

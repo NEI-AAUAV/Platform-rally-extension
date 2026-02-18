@@ -10,7 +10,7 @@ import {
 } from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer, MapPin, Navigation, Target } from "lucide-react";
+import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, MapPin, Navigation, Target } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -136,29 +136,19 @@ export default function TeamsById() {
 
   return (
     <>
-      <div className="no-print">
-        <Button className="my-16 p-0" variant={"ghost"}>
-          <Link to="/teams" className="flex">
-            <ArrowBigLeft /> Go back to teams list
-          </Link>
-        </Button>
-      </div>
+      <Button className="my-16 p-0" variant={"ghost"}>
+        <Link to="/teams" className="flex">
+          <ArrowBigLeft /> Go back to teams list
+        </Link>
+      </Button>
 
-      {/* Print Button */}
+      {/* Team Details */}
       {isSuccess && settings?.show_team_details !== false ? (
         <>
-          <Button
-            className="print-button no-print"
-            onClick={() => window.print()}
-            variant="default"
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-          <div className="team-details-print">
-            {/* Team Header - Print Optimized */}
-            <div className="team-print-header">
-              <h2 className="mb-4 font-playfair text-2xl font-semibold">
+          <div className="team-details">
+            {/* Team Header */}
+            <div className="team-header">
+              <h2 className="mb-4 text-2xl font-semibold">
                 Team description and score
               </h2>
             </div>
@@ -224,7 +214,7 @@ export default function TeamsById() {
               </>
             ) : null}
 
-            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+            <h2 className="mb-4 text-2xl font-semibold">
               Checkpoint Progress
             </h2>
             <Card variant="default" padding="md" rounded="2xl" className="mb-6">
@@ -425,9 +415,9 @@ export default function TeamsById() {
               )}
             </div>
 
-            {/* Team Members - Print Optimized */}
-            <div className="team-members-print">
-              <h2 className="mb-4 font-playfair text-2xl font-semibold">
+            {/* Team Members */}
+            <div className="team-members">
+              <h2 className="mb-4 text-2xl font-semibold">
                 Team Members
               </h2>
               <div className="grid gap-4">

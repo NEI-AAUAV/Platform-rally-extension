@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Users, AlertCircle, X, Printer, QrCode } from 'lucide-react';
+import { Edit, Trash2, Users, AlertCircle, X, QrCode } from 'lucide-react';
 import { useThemedComponents } from '@/components/themes';
 import { getErrorMessage } from '@/utils/errorHandling';
 import {
@@ -331,14 +331,6 @@ export default function TeamManagement() {
 
                   {/* Buttons */}
                   <div className="flex gap-2">
-                    <BloodyButton
-                      variant="neutral"
-                      onClick={() => window.print()}
-                      className="flex-1"
-                    >
-                      <Printer className="w-4 h-4 mr-2" />
-                      Imprimir
-                    </BloodyButton>
                     <BloodyButton
                       onClick={() => {
                         setNewlyCreatedTeam(null);

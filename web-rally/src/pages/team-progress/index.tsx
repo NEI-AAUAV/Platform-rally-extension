@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes/ThemeContext";
-import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode, Navigation } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, Navigation } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -175,22 +175,6 @@ export default function TeamProgress() {
                                 )}
                             </div>
                         )}
-                    </div>
-
-                    {/* Show Team Code Button */}
-                    <div className="mt-6 flex justify-center">
-                        <Button
-                            onClick={() => navigate("/show-team-code")}
-                            className="gap-2"
-                            style={{
-                                backgroundColor: `${config?.colors?.primary}20`,
-                                color: config?.colors?.primary,
-                                border: `1px solid ${config?.colors?.primary}40`
-                            }}
-                        >
-                            <QrCode className="w-4 h-4" />
-                            Mostrar Código QR
-                        </Button>
                     </div>
                 </Card>
 

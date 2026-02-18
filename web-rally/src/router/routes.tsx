@@ -98,13 +98,6 @@ const routes: RouteObject[] = [
           return { Component: CheckpointTeamEvaluation };
         },
       },
-      {
-        path: "/show-team-code",
-        async lazy() {
-          const { default: ShowTeamCode } = await import("@/pages/show-team-code");
-          return { Component: ShowTeamCode };
-        },
-      },
     ],
   },
 ];
