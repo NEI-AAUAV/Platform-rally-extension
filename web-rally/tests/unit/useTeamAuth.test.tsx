@@ -13,11 +13,11 @@ const TEAM_DATA_KEY = 'rally_team_data'
 // Mock the generated API client
 vi.mock('@/client', () => ({
   TeamService: {
-    getTeamByIdApiRallyV1TeamIdGet: vi.fn(),
+    getTeamByIdApiRallyV1TeamIdGet: vi.fn().mockResolvedValue(null),
   },
   TeamMembersService: {
-    addTeamMemberApiRallyV1TeamTeamIdMembersPost: vi.fn(),
-    removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete: vi.fn(),
+    addTeamMemberApiRallyV1TeamTeamIdMembersPost: vi.fn().mockResolvedValue({}),
+    removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete: vi.fn().mockResolvedValue({}),
   },
 }))
 

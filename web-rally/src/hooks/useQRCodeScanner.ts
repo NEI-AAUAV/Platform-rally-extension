@@ -36,10 +36,16 @@ export function useQRCodeScanner(
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas || !isActive) return;
+    if (!video || !canvas || !isActive) {
+      console.log('Scan aborted: missing refs or inactive', { video: !!video, canvas: !!canvas, isActive })
+      return;
+    }
 
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('Scan aborted: no context')
+      return;
+    }
 
     try {
       canvas.width = video.videoWidth;
