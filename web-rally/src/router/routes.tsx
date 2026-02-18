@@ -1,5 +1,12 @@
 import MainLayout from "@/pages/layout";
 import { Navigate, type RouteObject } from "react-router-dom";
+import useTeamAuth from "@/hooks/useTeamAuth";
+
+/** Redirects team users to /team-progress, everyone else to /scoreboard */
+function RootRedirect() {
+  const { isAuthenticated } = useTeamAuth();
+  return <Navigate to={isAuthenticated ? "/team-progress" : "/scoreboard"} replace />;
+}
 
 const routes: RouteObject[] = [
   {
@@ -8,7 +15,7 @@ const routes: RouteObject[] = [
     children: [
       {
         path: "/",
-        element: <Navigate to="/scoreboard" />,
+        element: <RootRedirect />,
       },
       {
         path: "/scoreboard",

@@ -18,12 +18,11 @@ export default function TeamLogin() {
 
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login, isAuthenticated, isLoggingIn, loginError } = useTeamAuth();
+    const { login, isAuthenticated, teamData, isLoggingIn, loginError } = useTeamAuth();
     const toast = useAppToast();
 
     const [accessCode, setAccessCode] = useState("");
     const [showScanner, setShowScanner] = useState(false);
-
 
     // Pre-fill access code from URL if provided (QR code scan from outside the app)
     useEffect(() => {
@@ -45,12 +44,9 @@ export default function TeamLogin() {
         }
     }, [searchParams, isLoggingIn, login, toast, navigate]);
 
-    // Redirect if already authenticated
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate("/team-progress");
-        }
-    }, [isAuthenticated, navigate]);
+    // Only redirect if authenticated AND not coming from a team-change intent
+    // (i.e., not navigated here via the 'Trocar Equipa' link)
+    // We allow re-entry by not redirecting automatically when already authenticated.
 
     // Extract access code from scanned QR code URL
     const extractCodeFromUrl = (url: string): string | null => {
@@ -142,10 +138,13 @@ export default function TeamLogin() {
                                     className="text-3xl font-bold tracking-tight"
                                     style={{ color: config?.colors?.text }}
                                 >
-                                    Login de Equipa
+                                    {isAuthenticated ? "Trocar Equipa" : "Login de Equipa"}
                                 </h1>
                                 <p className="text-sm font-medium opacity-80" style={{ color: config?.colors?.text }}>
-                                    Introduza o seu código de acesso
+                                    {isAuthenticated && teamData
+                                        ? `Equipa atual: ${teamData.team_name}. Introduza o código da nova equipa.`
+                                        : "Introduza o seu código de acesso"
+                                    }
                                 </p>
                             </div>
                         </div>

@@ -68,21 +68,47 @@ function getCurrentToken(): { token: string; type: 'staff' | 'team' } | null {
 export async function refreshToken() {
   const currentAuth = getCurrentToken();
 
-  // If there is a team token (and no staff token), only try to refresh the team token.
-  // Team auth does not use cookies, so we can skip the NEI endpoint entirely.
-  if (currentAuth?.type === 'team') {
-    return await axios
+  // Always attempt the NEI staff refresh — it relies on the HttpOnly cookie,
+  // so it works even when no staff token is in localStorage yet.
+  // Run it in parallel with the team refresh when both tokens exist.
+  const teamToken = localStorage.getItem(TEAM_TOKEN_KEY);
+
+  const neiRefreshPromise = axios
+    .create({
+      baseURL: config.API_NEI_URL,
+      timeout: 5000,
+      headers: currentAuth?.token
+        ? { Authorization: `Bearer ${currentAuth.token}` }
+        : {},
+    })
+    .post("/auth/refresh/")
+    .then(({ data: { access_token } }) => {
+      useUserStore.getState().login({ token: access_token });
+      return access_token as string;
+    })
+    .catch((error) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Staff token refresh failed:', error);
+      }
+      // Only explicitly logout if there was a known staff session that failed.
+      if (currentAuth?.type === 'staff') {
+        useUserStore.getState().logout();
+      }
+      return undefined;
+    });
+
+  // If there is a team token, refresh it in parallel.
+  if (teamToken) {
+    const teamRefreshPromise = axios
       .create({
         baseURL: config.BASE_URL,
         timeout: 5000,
-        headers: {
-          Authorization: `Bearer ${currentAuth.token}`,
-        },
+        headers: { Authorization: `Bearer ${teamToken}` },
       })
       .post("/api/rally/v1/team-auth/refresh")
       .then(({ data: { access_token } }) => {
         localStorage.setItem(TEAM_TOKEN_KEY, access_token);
-        return access_token;
+        return access_token as string;
       })
       .catch((error) => {
         if (process.env.NODE_ENV === 'development') {
@@ -92,41 +118,16 @@ export async function refreshToken() {
         localStorage.removeItem(TEAM_DATA_KEY);
         return undefined;
       });
+
+    // Wait for both — return the staff token (primary auth)
+    const [staffToken] = await Promise.all([neiRefreshPromise, teamRefreshPromise]);
+    return staffToken;
   }
 
-  // For staff sessions (or when no token exists at all), always try the NEI refresh
-  // endpoint. The NEI backend validates the HttpOnly refresh cookie — the Authorization
-  // header is optional and only sent when a token is already available in memory.
-  //
-  // This is the critical path for users who just logged in via NEI: they have a valid
-  // refresh cookie but rally_token is not yet in localStorage.
-  const staffHeaders: Record<string, string> = currentAuth?.token
-    ? { Authorization: `Bearer ${currentAuth.token}` }
-    : {};
-
-  return await axios
-    .create({
-      baseURL: config.API_NEI_URL,
-      timeout: 5000,
-      headers: staffHeaders,
-    })
-    .post("/auth/refresh/")
-    .then(({ data: { access_token } }) => {
-      useUserStore.getState().login({ token: access_token });
-      return access_token;
-    })
-    .catch((error) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Staff token refresh failed:', error);
-      }
-      // Only explicitly logout if there was a known staff session that failed.
-      // If there was no prior token (fresh visit without a cookie), do nothing.
-      if (currentAuth?.type === 'staff') {
-        useUserStore.getState().logout();
-      }
-      return undefined;
-    });
+  // No team token — just return the NEI refresh result
+  return neiRefreshPromise;
 }
+
 
 
 /**

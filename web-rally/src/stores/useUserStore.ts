@@ -44,7 +44,7 @@ const initializeFromStorage = (): Omit<UserState, 'login' | 'logout' | 'setUser'
     isAuthenticated: false as boolean,
     token: undefined as string | undefined,
   };
-  
+
   try {
     const storedToken = localStorage.getItem('rally_token');
     if (storedToken) {
@@ -77,17 +77,17 @@ const initializeFromStorage = (): Omit<UserState, 'login' | 'logout' | 'setUser'
 
 const useUserStore = create<UserState>((set) => ({
   ...initializeFromStorage(),
-  
+
   login: ({ token }) => {
     const payload: TokenPayload = token ? parseJWT(token) : {};
-    
+
     // Store token in localStorage
     localStorage.setItem('rally_token', token);
-    
-    // Clear team token when staff logs in (prevent accidental fallback)
-    localStorage.removeItem('rally_team_token');
-    localStorage.removeItem('rally_team_data');
-    
+
+    // Note: team token is intentionally NOT cleared here.
+    // Staff/admin users may also have a team token (dual-role),
+    // and the nav toggle handles switching between views.
+
     set((state) => ({
       ...state,
       token,
@@ -102,7 +102,7 @@ const useUserStore = create<UserState>((set) => ({
     localStorage.removeItem('rally_token');
     localStorage.removeItem('rally_team_token');
     localStorage.removeItem('rally_team_data');
-    
+
     set(() => ({
       sessionLoading: false,
       isAuthenticated: false,
@@ -129,7 +129,7 @@ const useUserStore = create<UserState>((set) => ({
     localStorage.removeItem('rally_token');
     localStorage.removeItem('rally_team_token');
     localStorage.removeItem('rally_team_data');
-    
+
     set(() => ({
       sessionLoading: false,
       isAuthenticated: false,
