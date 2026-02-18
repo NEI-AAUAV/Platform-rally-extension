@@ -1,5 +1,5 @@
 import config from "@/config";
-import { useHref } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 /**
  * Hook to generate login link with redirect parameter
@@ -17,9 +17,12 @@ import { useHref } from "react-router-dom";
  * ```
  */
 export default function useLoginLink() {
-  const homePathname = useHref("");
+  const { pathname, search, hash } = useLocation();
   const loginURL = new URL("/auth/login", config.BASE_URL);
-  const redirectUrl = new URL(homePathname, config.BASE_URL);
+
+  // Construct the full redirect path
+  const redirectPath = pathname + search + hash;
+  const redirectUrl = new URL(redirectPath, config.BASE_URL);
 
   loginURL.searchParams.set("redirect_to", redirectUrl.toString());
 

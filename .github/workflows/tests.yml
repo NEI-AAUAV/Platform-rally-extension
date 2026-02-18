@@ -53,7 +53,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Set up Python
       uses: actions/setup-python@v6
@@ -69,7 +69,7 @@ jobs:
         
     - name: Load cached venv
       id: cached-poetry-dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: extensions/rally/api-rally/.venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -120,7 +120,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -173,7 +173,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Set up Python
       uses: actions/setup-python@v6
@@ -204,13 +204,13 @@ jobs:
       run: npm ci
       
     - name: Download API test results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
       with:
         name: api-test-results
         path: extensions/rally/api-rally/
         
     - name: Download frontend test results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
       with:
         name: frontend-test-results
         path: extensions/rally/web-rally/coverage/

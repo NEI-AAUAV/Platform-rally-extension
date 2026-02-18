@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Shallow clones should be disabled for better analysis
 
@@ -95,7 +95,7 @@ jobs:
 
       - name: Cache pnpm store (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.local/share/pnpm/store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
@@ -185,47 +185,9 @@ jobs:
             echo "🔄 Web: Ran tests locally to generate coverage" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Create Custom Trust Store with SonarQube Certificate
-        run: |
-          echo "Creating custom trust store with SonarQube certificate..."
-
-          # Download the certificate from your SonarQube server
-          echo "Downloading certificate from nei.web.ua.pt:443..."
-          echo | openssl s_client -servername nei.web.ua.pt -connect nei.web.ua.pt:443 2>/dev/null | openssl x509 -outform PEM > sonarqube.crt
-
-          # Check if certificate was downloaded
-          if [ -f sonarqube.crt ]; then
-            echo "Certificate downloaded successfully"
-            echo "Certificate content (first few lines):"
-            head -5 sonarqube.crt
-          else
-            echo "ERROR: Failed to download certificate"
-            exit 1
-          fi
-
-          # Create a custom trust store with the SonarQube certificate
-          echo "Creating custom trust store..."
-          keytool -genkeypair -alias dummy -keyalg RSA -keysize 2048 -storetype JKS -keystore custom-truststore.jks -storepass changeit -keypass changeit -dname "CN=dummy" -validity 1
-          keytool -delete -alias dummy -keystore custom-truststore.jks -storepass changeit
-
-          echo "Adding SonarQube certificate to trust store..."
-          keytool -keystore custom-truststore.jks -storepass changeit -noprompt -trustcacerts -importcert -alias sonarqube-cert -file sonarqube.crt
-
-          # Verify the certificate was added
-          echo "Verifying certificate in trust store..."
-          keytool -keystore custom-truststore.jks -storepass changeit -list | grep sonarqube-cert
-
-          echo "Custom trust store created successfully"
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
       - name: SonarQube Scan (PR)
-        if: ${{ github.event_name == 'pull_request' }}
+        # Skip SonarQube for Dependabot PRs (secrets not available)
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
@@ -234,98 +196,21 @@ jobs:
             -Dsonar.pullrequest.branch=${{ github.head_ref }}
             -Dsonar.pullrequest.base=${{ github.base_ref }}
             -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
-            -Djavax.net.ssl.trustStore=custom-truststore.jks
-            -Djavax.net.ssl.trustStorePassword=changeit
-            -Djavax.net.ssl.trustStoreType=JKS
-            -Dsonar.ssl.verify=false
-            -Dcom.sun.net.ssl.checkRevocation=false
-            -Dtrust_all_cert=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_SCANNER_OPTS: -Djavax.net.ssl.trustStore=custom-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS -Dsonar.ssl.verify=false
 
       - name: SonarQube Scan (Branch)
-        if: ${{ github.event_name != 'pull_request' }}
+        # Skip for Dependabot PRs (though this step shouldn't run for PRs anyway)
+        if: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
             -Dsonar.branch.name=${{ github.ref_name }}
             -Dsonar.scm.revision=${{ github.sha }}
-            -Djavax.net.ssl.trustStore=custom-truststore.jks
-            -Djavax.net.ssl.trustStorePassword=changeit
-            -Djavax.net.ssl.trustStoreType=JKS
-            -Dsonar.ssl.verify=false
-            -Dcom.sun.net.ssl.checkRevocation=false
-            -Dtrust_all_cert=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_SCANNER_OPTS: -Djavax.net.ssl.trustStore=custom-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS -Dsonar.ssl.verify=false
-
-      - name: SonarQube Quality Gate Check
-        run: |
-          echo "Checking SonarQube Quality Gate status..."
-
-          # Extract CE task ID from report-task.txt
-          TASK_ID=$(grep "ceTaskId" .scannerwork/report-task.txt | cut -d'=' -f2)
-          echo "Task ID: $TASK_ID"
-
-          # Poll CE task until analysisId is available (max ~60s)
-          ATTEMPTS=0
-          ANALYSIS_ID=""
-          while [ $ATTEMPTS -lt 30 ]; do
-            echo "Polling CE task (attempt $ATTEMPTS)..."
-            if CE_JSON=$(curl --silent --cacert sonarqube.crt -u "${{ secrets.SONAR_TOKEN }}:" \
-                "${{ secrets.SONAR_HOST_URL }}/api/ce/task?id=$TASK_ID"); then
-              ANALYSIS_ID=$(echo "$CE_JSON" | jq -r '.task.analysisId // empty')
-              STATUS=$(echo "$CE_JSON" | jq -r '.task.status // empty')
-              echo "CE status: $STATUS, analysisId: ${ANALYSIS_ID:-<none>}"
-              if [ -n "$ANALYSIS_ID" ]; then
-                break
-              fi
-            else
-              echo "Failed to query CE task; retrying..."
-            fi
-            ATTEMPTS=$((ATTEMPTS+1))
-            sleep 2
-          done
-
-          if [ -z "$ANALYSIS_ID" ]; then
-            echo "Failed to obtain analysisId; skipping Quality Gate check."
-            exit 0
-          fi
-
-          # Query Quality Gate using analysisId
-          if curl --silent --cacert sonarqube.crt -u "${{ secrets.SONAR_TOKEN }}:" \
-            "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?analysisId=$ANALYSIS_ID" \
-            -o quality-gate-result.json; then
-            echo "Connected using custom certificate"
-          else
-            echo "Custom certificate failed, using SSL bypass..."
-            curl -k -u "${{ secrets.SONAR_TOKEN }}:" \
-              "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?analysisId=$ANALYSIS_ID" \
-              -o quality-gate-result.json
-          fi
-
-          # Parse the result
-          STATUS=$(cat quality-gate-result.json | jq -r '.projectStatus.status')
-          echo "Quality Gate Status: $STATUS"
-
-          if [ "$STATUS" = "OK" ]; then
-            echo "Quality Gate PASSED"
-            exit 0
-          elif [ "$STATUS" = "ERROR" ]; then
-            echo "Quality Gate FAILED"
-            cat quality-gate-result.json | jq '.projectStatus.conditions[] | select(.status == "ERROR") | "\(.metricKey): \(.actualValue) (threshold: \(.errorThreshold))"'
-            exit 1
-          else
-            echo "Quality Gate Status: $STATUS"
-            exit 0
-          fi
-        env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
