@@ -43,7 +43,7 @@ export default function TeamLogin() {
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [searchParams]);
+    }, [searchParams, isLoggingIn, login, toast, navigate]);
 
     // Redirect if already authenticated
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
@@ -11,8 +11,8 @@ interface QRCodeScannerProps {
 }
 
 /**
- * Component to scan QR codes using device camera
- * Uses jsqr library (injected via CDN) for QR code detection from canvas
+ * Component to scan QR codes using device camera.
+ * Uses the jsqr library (via the useQRCodeScanner hook) for QR code detection from canvas.
  */
 export default function QRCodeScanner({ onScan, onClose, isOpen = true, className = "" }: QRCodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,6 +24,14 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
     canvasRef,
     onScan
   );
+
+  const stopCamera = useCallback(() => {
+    stopScanning();
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+    }
+  }, [stopScanning]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,15 +80,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
     return () => {
       stopCamera();
     };
-  }, [isOpen, startScanning, stopScanning]);
-
-  const stopCamera = () => {
-    stopScanning();
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-    }
-  };
+  }, [isOpen, startScanning, stopCamera]);
 
   const handleClose = () => {
     stopCamera();
