@@ -58,7 +58,7 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
             isSubmitting={isSubmitting}
           />
         );
-      
+
       case "ScoreBasedActivity":
         return (
           <ScoreBasedForm
@@ -68,7 +68,7 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
             isSubmitting={isSubmitting}
           />
         );
-      
+
       case "BooleanActivity":
         return (
           <BooleanForm
@@ -78,7 +78,7 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
             isSubmitting={isSubmitting}
           />
         );
-      
+
       case "GeneralActivity":
         return (
           <GeneralForm
@@ -89,17 +89,18 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
             isSubmitting={isSubmitting}
           />
         );
-      
+
       case "TeamVsActivity":
         return (
           <TeamVsForm
             existingResult={activity.existing_result ?? undefined}
             team={team}
+            config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
           />
         );
-      
+
       default:
         return (
           <div className="text-center py-8">

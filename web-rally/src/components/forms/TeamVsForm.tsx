@@ -4,17 +4,18 @@ import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { VersusService, TeamService } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
-import type { BaseActivityFormProps } from "@/types/forms";
+import type { TeamVsFormProps } from "@/types/forms";
 import { getTeamSize } from "@/types/forms";
 import type { ListingTeam } from "@/client";
 
-export default function TeamVsForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
+export default function TeamVsForm({ existingResult, team, config = {}, onSubmit, isSubmitting }: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
+  const [completed, setCompleted] = useState<boolean>(true);
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
   const [opponentTeamName, setOpponentTeamName] = useState<string>("");
   const [isOpponentPreselected, setIsOpponentPreselected] = useState(false);
   const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{[key: string]: number}>({});
+  const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
   const [notes, setNotes] = useState<string>("");
   const [teams, setTeams] = useState<ListingTeam[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
@@ -29,7 +30,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
-  
+
   // Use penalty values from API settings or fallback to defaults
   const penaltyValues = getPenaltyValues(settings);
 
@@ -62,7 +63,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
           // Exclude current team from the list
           const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== team.id);
           setTeams(filteredTeams);
-          
+
           // If we have an opponent ID from existingResult but no name, try to find it now
           const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
           if (currentOpponentId) {
@@ -90,6 +91,9 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
   useEffect(() => {
     if (existingResult?.result_data) {
       setResult(existingResult.result_data.result || "win");
+      if (typeof existingResult.result_data.completed === 'boolean') {
+        setCompleted(existingResult.result_data.completed);
+      }
       const existingOpponentId = existingResult.result_data.opponent_team_id;
       // Only set opponent if not already set to avoid infinite loops
       if (existingOpponentId && opponentTeamId === undefined) {
@@ -115,18 +119,30 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingResult, teams]);
 
+  // Compute live score breakdown from config
+  const basePoints = Number(config.base_points ?? 0);
+  const completionPoints = Number(config.completion_points ?? 0);
+  const outcomePoints = result === 'win'
+    ? Number(config.win_points ?? 100)
+    : result === 'draw'
+      ? Number(config.draw_points ?? 50)
+      : Number(config.lose_points ?? 0);
+  const hasTieredScoring = basePoints > 0 || completionPoints > 0;
+  const previewTotal = basePoints + (completed ? completionPoints : 0) + outcomePoints;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
       toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
       return;
     }
-    
+
     onSubmit({
       result_data: {
         result: result,
+        completed: completed,
         opponent_team_id: opponentTeamId,
         notes: notes,
       },
@@ -151,6 +167,59 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
           <option value="draw" className="bg-gray-800">Draw</option>
         </select>
       </div>
+
+      {/* Completed toggle — only shown when activity has tiered scoring configured */}
+      {hasTieredScoring && (
+        <div>
+          <label className="block text-sm font-medium mb-2 text-white">
+            Challenge Completed?
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setCompleted(!completed)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${completed ? 'bg-green-500' : 'bg-[rgb(255,255,255,0.2)]'
+                }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${completed ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+              />
+            </button>
+            <span className="text-[rgb(255,255,255,0.8)] text-sm">
+              {completed ? '✓ Completou o desafio' : '✗ Não completou o desafio'}
+            </span>
+          </div>
+          <p className="text-[rgb(255,255,255,0.5)] text-xs mt-1">
+            +{completionPoints} pts se completou
+          </p>
+        </div>
+      )}
+
+      {/* Live score preview — shown when tiered scoring is configured */}
+      {hasTieredScoring && (
+        <div className="bg-[rgb(255,255,255,0.05)] border border-[rgb(255,255,255,0.1)] rounded p-3 text-sm">
+          <p className="text-[rgb(255,255,255,0.7)] font-medium mb-1">Pontuação estimada</p>
+          <div className="space-y-0.5 text-[rgb(255,255,255,0.6)]">
+            <div className="flex justify-between">
+              <span>Participação</span>
+              <span>+{basePoints} pts</span>
+            </div>
+            <div className={`flex justify-between ${!completed ? 'opacity-40 line-through' : ''}`}>
+              <span>Completou desafio</span>
+              <span>+{completionPoints} pts</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="capitalize">{result === 'win' ? 'Vitória' : result === 'draw' ? 'Empate' : 'Derrota'}</span>
+              <span>+{outcomePoints} pts</span>
+            </div>
+            <div className="flex justify-between font-semibold text-white border-t border-[rgb(255,255,255,0.1)] pt-1 mt-1">
+              <span>Total</span>
+              <span>{previewTotal} pts</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium mb-2 text-white">
@@ -229,7 +298,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
               type="number"
               min="0"
               value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
+              onChange={(e) => setPenalties({ ...penalties, vomit: parseInt(e.target.value, 10) || 0 })}
               className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
@@ -242,7 +311,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
               type="number"
               min="0"
               value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
+              onChange={(e) => setPenalties({ ...penalties, not_drinking: parseInt(e.target.value, 10) || 0 })}
               className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
@@ -255,7 +324,7 @@ export default function TeamVsForm({ existingResult, team, onSubmit, isSubmittin
           Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
-      
+
       <div>
         <label className="block text-sm font-medium mb-2 text-white">
           Notes (Optional)

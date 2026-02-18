@@ -1,7 +1,7 @@
 // Activity types for Rally extension
 export enum ActivityType {
   TIME_BASED = "TimeBasedActivity",
-  SCORE_BASED = "ScoreBasedActivity", 
+  SCORE_BASED = "ScoreBasedActivity",
   BOOLEAN = "BooleanActivity",
   TEAM_VS = "TeamVsActivity",
   GENERAL = "GeneralActivity"
@@ -72,6 +72,8 @@ export interface BooleanConfig extends BaseActivityConfig {
 }
 
 export interface TeamVsConfig extends BaseActivityConfig {
+  base_points?: number;
+  completion_points?: number;
   win_points?: number;
   lose_points?: number;
   draw_points?: number;
@@ -82,11 +84,11 @@ export interface GeneralConfig extends BaseActivityConfig {
 }
 
 // Union type for all possible activity configurations
-export type ActivityConfig = 
-  | TimeBasedConfig 
-  | ScoreBasedConfig 
-  | BooleanConfig 
-  | TeamVsConfig 
+export type ActivityConfig =
+  | TimeBasedConfig
+  | ScoreBasedConfig
+  | BooleanConfig
+  | TeamVsConfig
   | GeneralConfig;
 
 // Type guard functions for runtime validation
@@ -103,7 +105,7 @@ export function isBooleanConfig(config: ActivityConfig): config is BooleanConfig
 }
 
 export function isTeamVsConfig(config: ActivityConfig): config is TeamVsConfig {
-  return 'win_points' in config || 'lose_points' in config || 'draw_points' in config;
+  return 'win_points' in config || 'lose_points' in config || 'draw_points' in config || 'base_points' in config || 'completion_points' in config;
 }
 
 export function isGeneralConfig(config: ActivityConfig): config is GeneralConfig {

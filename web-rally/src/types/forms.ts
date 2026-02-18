@@ -11,6 +11,7 @@ export interface ActivityResultData {
     success?: boolean;
     attempts?: number;
     result?: string;
+    completed?: boolean;
     opponent_team_id?: number;
     notes?: string;
   };
@@ -46,6 +47,20 @@ export interface GeneralFormProps extends BaseActivityFormProps {
     default_points?: number;
     min_points?: number;
     max_points?: number;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Props for TeamVs Activity Form
+ */
+export interface TeamVsFormProps extends BaseActivityFormProps {
+  config: {
+    base_points?: number;
+    completion_points?: number;
+    win_points?: number;
+    draw_points?: number;
+    lose_points?: number;
     [key: string]: unknown;
   };
 }

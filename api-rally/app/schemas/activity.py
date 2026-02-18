@@ -161,6 +161,7 @@ class BooleanResult(BaseModel):
 class TeamVsResult(BaseModel):
     """Schema for team vs team activity results"""
     result: str = Field(..., pattern="^(win|lose|draw)$")
+    completed: bool = Field(default=True, description="Whether the team completed the challenge (awards completion_points)")
     opponent_team_id: int | None = Field(None, gt=0)  # Optional since validation allows it
     match_duration_seconds: float | None = Field(None, ge=0)
     notes: str | None = None
@@ -194,6 +195,10 @@ class BooleanConfig(BaseModel):
 
 class TeamVsConfig(BaseModel):
     """Configuration schema for team vs team activities"""
+    # Tiered scoring
+    base_points: int = Field(default=0, ge=0, description="Points always awarded for participation")
+    completion_points: int = Field(default=0, ge=0, description="Bonus points when team completes the challenge")
+    # Outcome points
     win_points: int = Field(default=100, gt=0)
     draw_points: int = Field(default=50, gt=0)
     lose_points: int = Field(default=0, ge=0)

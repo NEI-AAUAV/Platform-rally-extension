@@ -52,7 +52,7 @@ interface ActivityFormProps {
 
 const activityTypeLabels = {
   [ActivityType.TIME_BASED]: "Baseada em Tempo",
-  [ActivityType.SCORE_BASED]: "Baseada em Pontuação", 
+  [ActivityType.SCORE_BASED]: "Baseada em Pontuação",
   [ActivityType.BOOLEAN]: "Sim/Não",
   [ActivityType.TEAM_VS]: "Equipa vs Equipa",
   [ActivityType.GENERAL]: "Geral",
@@ -118,7 +118,7 @@ export default function ActivityForm({
   const handleSubmit = (data: ActivityForm) => {
     onSubmit({ ...data, config: configData });
   };
-  
+
   const updateConfig = (key: string, value: ConfigValue) => {
     setConfigData(prev => ({ ...prev, [key]: value }));
   };
@@ -130,7 +130,7 @@ export default function ActivityForm({
           {initialData ? "Editar Atividade" : "Criar Nova Atividade"}
         </h3>
         <p className="text-[rgb(255,255,255,0.7)]">
-          {initialData 
+          {initialData
             ? "Modifique os detalhes da atividade"
             : "Configure uma nova atividade para o Rally"
           }
@@ -236,7 +236,7 @@ export default function ActivityForm({
           {watchActivityType === ActivityType.TIME_BASED && (
             <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
               <h4 className="font-medium text-white">Configurações de Atividade Baseada em Tempo</h4>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
@@ -251,7 +251,7 @@ export default function ActivityForm({
                     placeholder="100"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
                     Pontos Mínimos (último lugar)
@@ -272,7 +272,7 @@ export default function ActivityForm({
           {watchActivityType === ActivityType.SCORE_BASED && (
             <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
               <h4 className="font-medium text-white">Configurações de Atividade Baseada em Pontuação</h4>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
@@ -287,7 +287,7 @@ export default function ActivityForm({
                     placeholder="100"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
                     Pontuação Base
@@ -308,7 +308,7 @@ export default function ActivityForm({
           {watchActivityType === ActivityType.BOOLEAN && (
             <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
               <h4 className="font-medium text-white">Configurações de Atividade Sim/Não</h4>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
@@ -323,7 +323,7 @@ export default function ActivityForm({
                     placeholder="100"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
                     Pontos por Falha
@@ -344,7 +344,7 @@ export default function ActivityForm({
           {watchActivityType === ActivityType.GENERAL && (
             <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
               <h4 className="font-medium text-white">Configurações de Atividade Geral</h4>
-              
+
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
@@ -359,7 +359,7 @@ export default function ActivityForm({
                     placeholder="0"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
                     Pontos Máximos
@@ -373,7 +373,7 @@ export default function ActivityForm({
                     placeholder="100"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
                     Pontos Padrão
@@ -394,48 +394,86 @@ export default function ActivityForm({
           {watchActivityType === ActivityType.TEAM_VS && (
             <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
               <h4 className="font-medium text-white">Configurações de Atividade Equipa vs Equipa</h4>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    Pontos por Vitória
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={typeof configData.win_points === 'number' ? configData.win_points : (configData.win_points ? Number(configData.win_points) : 30)}
-                    onChange={(e) => updateConfig("win_points", Number(e.target.value))}
-                    className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
-                    placeholder="30"
-                  />
+
+              <div className="space-y-4">
+                <div className="border-b border-[rgb(255,255,255,0.1)] pb-4 mb-4">
+                  <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)] mb-3">Pontuação Tiered (Opcional)</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        Pontos Base (Participação)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={typeof configData.base_points === 'number' ? configData.base_points : (configData.base_points ? Number(configData.base_points) : 0)}
+                        onChange={(e) => updateConfig("base_points", Number(e.target.value))}
+                        className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">Pontos dados apenas por participar</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        Pontos por Completar
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={typeof configData.completion_points === 'number' ? configData.completion_points : (configData.completion_points ? Number(configData.completion_points) : 0)}
+                        onChange={(e) => updateConfig("completion_points", Number(e.target.value))}
+                        className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">Bônus por completar o desafio</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    Pontos por Empate
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={typeof configData.draw_points === 'number' ? configData.draw_points : (configData.draw_points ? Number(configData.draw_points) : 15)}
-                    onChange={(e) => updateConfig("draw_points", Number(e.target.value))}
-                    className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
-                    placeholder="15"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">
-                    Pontos por Derrota
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={typeof configData.lose_points === 'number' ? configData.lose_points : (configData.lose_points ? Number(configData.lose_points) : 0)}
-                    onChange={(e) => updateConfig("lose_points", Number(e.target.value))}
-                    className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
-                    placeholder="0"
-                  />
+
+                <div className="space-y-3">
+                  <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)]">Pontuação do Resultado</h5>
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Pontos por Vitória
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={typeof configData.win_points === 'number' ? configData.win_points : (configData.win_points ? Number(configData.win_points) : 100)}
+                      onChange={(e) => updateConfig("win_points", Number(e.target.value))}
+                      className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+                      placeholder="100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Pontos por Empate
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={typeof configData.draw_points === 'number' ? configData.draw_points : (configData.draw_points ? Number(configData.draw_points) : 50)}
+                      onChange={(e) => updateConfig("draw_points", Number(e.target.value))}
+                      className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+                      placeholder="50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Pontos por Derrota
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={typeof configData.lose_points === 'number' ? configData.lose_points : (configData.lose_points ? Number(configData.lose_points) : 0)}
+                      onChange={(e) => updateConfig("lose_points", Number(e.target.value))}
+                      className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
