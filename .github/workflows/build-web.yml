@@ -18,7 +18,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Prepare Python environment to generate OpenAPI schema offline (no DB)
       - name: Set up Python
