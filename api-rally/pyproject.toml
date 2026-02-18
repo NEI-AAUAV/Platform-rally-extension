@@ -16,7 +16,7 @@ python-jose = "^3.5.0"
 psycopg2-binary = "^2.9.5"
 pydantic-settings = "^2.2.1"
 orjson = "^3.11.4"
-aiocache = "^0.12.2"
+aiocache = "^0.12.3"
 alembic = "^1.17.1"
 h11 = ">=0.16.0"
 
