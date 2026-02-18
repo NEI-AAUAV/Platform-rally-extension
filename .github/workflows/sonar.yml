@@ -186,7 +186,8 @@ jobs:
           fi
 
       - name: SonarQube Scan (PR)
-        if: ${{ github.event_name == 'pull_request' }}
+        # Skip SonarQube for Dependabot PRs (secrets not available)
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
@@ -201,7 +202,8 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Scan (Branch)
-        if: ${{ github.event_name != 'pull_request' }}
+        # Skip for Dependabot PRs (though this step shouldn't run for PRs anyway)
+        if: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
         uses: SonarSource/sonarqube-scan-action@v6
         with:
           args: >
