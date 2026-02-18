@@ -84,7 +84,7 @@ def get_checkpoint_teams(
         return ListingTeam(
             id=team.id,
             name=team.name,
-            access_code=team.access_code,
+
             total=team.total,
             classification=team.classification,
             versus_group_id=team.versus_group_id,

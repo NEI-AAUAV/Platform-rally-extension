@@ -23,6 +23,7 @@ def create_team_access_token(team_id: int, team_name: str) -> str:
         "exp": expire,
         "type": "team_access"
     }
+    assert settings.TEAM_JWT_SECRET_KEY is not None  # validated at startup
     encoded_jwt = jwt.encode(
         to_encode, 
         settings.TEAM_JWT_SECRET_KEY, 
@@ -34,6 +35,7 @@ def create_team_access_token(team_id: int, team_name: str) -> str:
 def verify_team_token(token: str) -> TeamTokenData:
     """Verify and decode a team JWT token"""
     try:
+        assert settings.TEAM_JWT_SECRET_KEY is not None  # validated at startup
         payload = jwt.decode(
             token,
             settings.TEAM_JWT_SECRET_KEY,
