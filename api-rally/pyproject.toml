@@ -27,7 +27,7 @@ mypy = "1.6.0"
 uvicorn = "^0.38.0"
 types-python-jose = "^3.3.4.8"
 types-passlib = "^1.7.7.20260211"
-black = "^24.3.0"
+black = "^26.1.0"
 
 
 [tool.poetry.group.test.dependencies]
