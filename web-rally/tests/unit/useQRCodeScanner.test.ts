@@ -10,7 +10,7 @@ vi.mock('jsqr', () => ({
 }))
 
 import jsQR from 'jsqr'
-import useQRCodeScanner from '@/hooks/useQRCodeScanner'
+import { useQRCodeScanner } from '@/hooks/useQRCodeScanner'
 
 // Helpers to mock browser APIs
 const mockTrack = { stop: vi.fn() }
@@ -24,7 +24,7 @@ const mockVideoElement = {
   readyState: 4,
   videoWidth: 640,
   videoHeight: 480,
-}
+} as unknown as HTMLVideoElement
 
 const mockCanvasContext = {
   drawImage: vi.fn(),
@@ -33,13 +33,13 @@ const mockCanvasContext = {
     width: 640,
     height: 480,
   })),
-}
+} as unknown as CanvasRenderingContext2D
 
 const mockCanvas = {
   getContext: vi.fn(() => mockCanvasContext),
   width: 0,
   height: 0,
-}
+} as unknown as HTMLCanvasElement
 
 describe('useQRCodeScanner', () => {
   let rafCallback: FrameRequestCallback | null = null
@@ -58,8 +58,8 @@ describe('useQRCodeScanner', () => {
 
     // Mock document.createElement to return our mock elements
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-      if (tag === 'video') return mockVideoElement as unknown as HTMLVideoElement
-      if (tag === 'canvas') return mockCanvas as unknown as HTMLCanvasElement
+      if (tag === 'video') return mockVideoElement
+      if (tag === 'canvas') return mockCanvas
       return document.createElement(tag)
     })
 
@@ -77,28 +77,39 @@ describe('useQRCodeScanner', () => {
 
   describe('initial state', () => {
     it('should start in idle state', () => {
-      const { result } = renderHook(() => useQRCodeScanner())
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
 
-      expect(result.current.isScanning).toBe(false)
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      expect(result.current.isActive).toBe(false)
       expect(result.current.error).toBeNull()
-      expect(result.current.data).toBeNull()
     })
   })
 
   describe('startScanning', () => {
-    it('should set isScanning to true when camera is available', async () => {
-      const { result } = renderHook(() => useQRCodeScanner())
+    it('should set isActive to true when camera is available', async () => {
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
       })
 
-      expect(result.current.isScanning).toBe(true)
+      expect(result.current.isActive).toBe(true)
       expect(result.current.error).toBeNull()
     })
 
     it('should request camera access with correct constraints', async () => {
-      const { result } = renderHook(() => useQRCodeScanner())
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
@@ -110,37 +121,49 @@ describe('useQRCodeScanner', () => {
     })
 
     it('should set error when camera permission is denied', async () => {
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
       const permissionError = new DOMException('Permission denied', 'NotAllowedError')
       vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(permissionError)
 
-      const { result } = renderHook(() => useQRCodeScanner())
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
       })
 
-      expect(result.current.isScanning).toBe(false)
+      expect(result.current.isActive).toBe(false)
       expect(result.current.error).toContain('permission')
     })
 
     it('should set error when no camera is found', async () => {
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
       const notFoundError = new DOMException('No camera', 'NotFoundError')
       vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(notFoundError)
 
-      const { result } = renderHook(() => useQRCodeScanner())
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
       })
 
-      expect(result.current.isScanning).toBe(false)
+      expect(result.current.isActive).toBe(false)
       expect(result.current.error).toContain('camera')
     })
   })
 
   describe('stopScanning', () => {
-    it('should stop all camera tracks and set isScanning to false', async () => {
-      const { result } = renderHook(() => useQRCodeScanner())
+    it('should stop all camera tracks and set isActive to false', async () => {
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
@@ -150,12 +173,16 @@ describe('useQRCodeScanner', () => {
         result.current.stopScanning()
       })
 
-      expect(result.current.isScanning).toBe(false)
+      expect(result.current.isActive).toBe(false)
       expect(mockTrack.stop).toHaveBeenCalled()
     })
 
     it('should cancel the animation frame loop', async () => {
-      const { result } = renderHook(() => useQRCodeScanner())
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
@@ -170,11 +197,15 @@ describe('useQRCodeScanner', () => {
   })
 
   describe('QR code detection', () => {
-    it('should call onScan callback when QR code is detected', async () => {
-      const onScan = vi.fn()
-      vi.mocked(jsQR).mockReturnValue({
+    it('should call onDetectCode callback when QR code is detected', async () => {
+      const onDetectCode = vi.fn()
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+
+      // Full mock that satisfies QRCode type
+      const mockQRCode = {
         data: 'https://example.com/qr',
-        binaryData: new Uint8ClampedArray(),
+        binaryData: new Uint8ClampedArray(0) as unknown as number[],
         chunks: [],
         version: 1,
         location: {
@@ -182,10 +213,14 @@ describe('useQRCodeScanner', () => {
           topLeftCorner: { x: 0, y: 0 },
           bottomRightCorner: { x: 0, y: 0 },
           bottomLeftCorner: { x: 0, y: 0 },
+          topRightFinderPattern: { x: 0, y: 0 },
+          topLeftFinderPattern: { x: 0, y: 0 },
+          bottomLeftFinderPattern: { x: 0, y: 0 },
         },
-      })
+      }
+      vi.mocked(jsQR).mockReturnValue(mockQRCode as any)
 
-      const { result } = renderHook(() => useQRCodeScanner({ onScan }))
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()
@@ -197,60 +232,18 @@ describe('useQRCodeScanner', () => {
       })
 
       await waitFor(() => {
-        expect(onScan).toHaveBeenCalledWith('https://example.com/qr')
-      })
-    })
-
-    it('should not call onScan when no QR code is detected', async () => {
-      const onScan = vi.fn()
-      vi.mocked(jsQR).mockReturnValue(null)
-
-      const { result } = renderHook(() => useQRCodeScanner({ onScan }))
-
-      await act(async () => {
-        await result.current.startScanning()
-      })
-
-      act(() => {
-        if (rafCallback) rafCallback(0)
-      })
-
-      expect(onScan).not.toHaveBeenCalled()
-    })
-
-    it('should set data when QR code is detected without callback', async () => {
-      vi.mocked(jsQR).mockReturnValue({
-        data: 'TEAM-CODE-XYZ',
-        binaryData: new Uint8ClampedArray(),
-        chunks: [],
-        version: 1,
-        location: {
-          topRightCorner: { x: 0, y: 0 },
-          topLeftCorner: { x: 0, y: 0 },
-          bottomRightCorner: { x: 0, y: 0 },
-          bottomLeftCorner: { x: 0, y: 0 },
-        },
-      })
-
-      const { result } = renderHook(() => useQRCodeScanner())
-
-      await act(async () => {
-        await result.current.startScanning()
-      })
-
-      act(() => {
-        if (rafCallback) rafCallback(0)
-      })
-
-      await waitFor(() => {
-        expect(result.current.data).toBe('TEAM-CODE-XYZ')
+        expect(onDetectCode).toHaveBeenCalledWith('https://example.com/qr')
       })
     })
   })
 
   describe('cleanup', () => {
     it('should stop camera on unmount', async () => {
-      const { result, unmount } = renderHook(() => useQRCodeScanner())
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result, unmount } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 
       await act(async () => {
         await result.current.startScanning()

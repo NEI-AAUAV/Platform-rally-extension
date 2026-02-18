@@ -36,9 +36,13 @@ describe('formatTime', () => {
       const result = formatTime(date)
       expect(result).toMatch(/^\d{2}:\d{2}$/)
       // Hours and minutes should be padded
-      const [hours, minutes] = result.split(':')
-      expect(hours.length).toBe(2)
-      expect(minutes.length).toBe(2)
+      const parts = result.split(':')
+      const hours = parts[0]
+      const minutes = parts[1]
+      expect(hours).toBeDefined()
+      expect(minutes).toBeDefined()
+      expect(hours!.length).toBe(2)
+      expect(minutes!.length).toBe(2)
     })
 
     it('should format midnight as 00:00', () => {
