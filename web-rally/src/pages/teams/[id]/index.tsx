@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer, MapPin, Navigation, Check, Target } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
+import useUser from "@/hooks/useUser";
 import { formatTime } from "@/utils/timeFormat";
 import { useState } from "react";
 import { useThemedComponents } from "@/components/themes";
@@ -41,6 +42,8 @@ export default function TeamsById() {
   const { Card } = useThemedComponents();
   const { id } = useParams<{ id: string }>();
   const { settings } = useRallySettings();
+  const { userStore } = useUser();
+  const isStaff = userStore?.scopes?.includes("rally-staff");
   const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
 
   const toggleCheckpoint = (checkpointIndex: number) => {
@@ -146,17 +149,8 @@ export default function TeamsById() {
       </div>
 
       {/* Print Button */}
-      {isSuccess && settings?.show_team_details !== false ? (
-        <>
-          <Button
-            className="print-button no-print"
-            onClick={() => window.print()}
-            variant="default"
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-          <div className="team-details-print">
+      {isSuccess && (settings?.show_team_details !== false || isStaff) ? (
+        <div className="team-details-print">
             {/* Team Header - Print Optimized */}
             <div className="team-print-header">
               <h2 className="mb-4 font-playfair text-2xl font-semibold">
@@ -438,6 +432,7 @@ export default function TeamsById() {
                 </Card>
               )}
             </div>
+            </Card>
 
             {/* Team Members - Print Optimized */}
             <div className="team-members-print">
@@ -465,7 +460,6 @@ export default function TeamsById() {
               </div>
             </div>
           </div>
-        </>
       ) : (
         renderTeamContent()
       )}
