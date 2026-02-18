@@ -58,6 +58,56 @@ class TeamForStaffDict(TypedDict, total=False):
     evaluated_at_current_checkpoint: bool
 
 
+@router.get("/my-checkpoint", response_model=DetailedCheckPoint)
+def get_my_checkpoint(
+    *,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+    auth: Annotated[AuthData, Depends(api_nei_auth)]
+) -> DetailedCheckPoint:
+    """Get the checkpoint assigned to the current staff member"""
+    if not current_user.staff_checkpoint_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=NO_CHECKPOINT_ASSIGNED
+        )
+    
+    checkpoint_obj = checkpoint.get(db, id=current_user.staff_checkpoint_id)
+    if not checkpoint_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assigned checkpoint not found"
+        )
+    
+    return checkpoint_obj
+
+
+@router.get("/teams")
+def get_teams_at_my_checkpoint(
+    *,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+    auth: Annotated[AuthData, Depends(api_nei_auth)]
+) -> List[Dict[str, Any]]:
+    """Get all teams at the staff member's assigned checkpoint"""
+    if not current_user.staff_checkpoint_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=NO_CHECKPOINT_ASSIGNED
+        )
+    
+    # Get all teams at this checkpoint (those whose current checkpoint matches or who have passed it)
+    all_teams = team.get_multi(db)
+    teams_at_checkpoint = []
+    
+    for team_obj in all_teams:
+        team_data = build_team_for_staff(db, team_obj, current_user.staff_checkpoint_id)
+        if team_data:
+            teams_at_checkpoint.append(team_data)
+    
+    return teams_at_checkpoint
+
+
 
 @router.get("/teams/{team_id}/activities")
 def get_team_activities_for_evaluation(
