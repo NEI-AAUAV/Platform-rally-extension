@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { useAppToast } from "@/hooks/use-toast";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
+import type { DetailedTeam } from "@/client";
+
+interface ExtendedDetailedTeam extends DetailedTeam {
+  access_code?: string;
+}
 
 /**
  * Page for teams to view and display their QR code
@@ -28,7 +33,8 @@ export default function ShowTeamCode() {
     );
   }
 
-  const accessCode = team.access_code;
+  const extendedTeam = team as ExtendedDetailedTeam;
+  const accessCode = extendedTeam.access_code || "";
   const loginUrl = `${window.location.origin}/rally/team-login?code=${accessCode}`;
 
   const handleCopyCode = () => {
@@ -58,23 +64,23 @@ export default function ShowTeamCode() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <div
               className="p-3 rounded-full"
-              style={{ backgroundColor: `${config.colors.primary}20` }}
+              style={{ backgroundColor: `${config?.colors?.primary}20` }}
             >
               <QrCode
                 className="w-6 h-6"
-                style={{ color: config.colors.primary }}
+                style={{ color: config?.colors?.primary }}
               />
             </div>
           </div>
           <h1
             className="text-4xl font-bold"
-            style={{ color: config.colors.text }}
+            style={{ color: config?.colors?.text }}
           >
             Código da Equipa
           </h1>
           <p
             className="text-sm opacity-70"
-            style={{ color: config.colors.text }}
+            style={{ color: config?.colors?.text }}
           >
             {team.name}
           </p>
@@ -86,7 +92,7 @@ export default function ShowTeamCode() {
             <div>
               <p
                 className="text-sm font-semibold mb-4 opacity-70"
-                style={{ color: config.colors.text }}
+                style={{ color: config?.colors?.text }}
               >
                 Escaneie este código ou insira o código de acesso
               </p>
@@ -99,7 +105,7 @@ export default function ShowTeamCode() {
               <div className="flex items-center justify-between gap-2">
                 <code
                   className="text-2xl font-mono font-bold tracking-widest flex-1"
-                  style={{ color: config.colors.primary }}
+                  style={{ color: config?.colors?.primary }}
                 >
                   {accessCode}
                 </code>
@@ -110,7 +116,7 @@ export default function ShowTeamCode() {
                   className="gap-2"
                   style={
                     copied
-                      ? { backgroundColor: config.colors.primary }
+                      ? { backgroundColor: config?.colors?.primary }
                       : undefined
                   }
                 >
@@ -152,7 +158,7 @@ export default function ShowTeamCode() {
           <div className="space-y-3">
             <p
               className="text-sm font-semibold opacity-70"
-              style={{ color: config.colors.text }}
+              style={{ color: config?.colors?.text }}
             >
               Link de Login Direto
             </p>
@@ -182,7 +188,7 @@ export default function ShowTeamCode() {
             onClick={handlePrint}
             className="px-6 py-2 gap-2"
             style={{
-              backgroundColor: config.colors.primary,
+              backgroundColor: config?.colors?.primary,
               color: "#ffffff",
             }}
           >

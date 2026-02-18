@@ -7,6 +7,7 @@ const TEAM_TOKEN_KEY = "rally_team_token";
 const TEAM_DATA_KEY = "rally_team_data";
 
 let isRefreshing = false;
+
 let refreshSubscribers: ((token?: string) => void)[] = [];
 
 /** Add new pending request to wait for a new access token. */
@@ -38,15 +39,7 @@ function getCurrentToken(): { token: string; type: 'staff' | 'team' } | null {
   return null;
 }
 
-/** Logout based on token type */
-function logoutByTokenType(type: 'staff' | 'team') {
-  if (type === 'staff') {
-    useUserStore.getState().logout();
-  } else if (type === 'team') {
-    localStorage.removeItem(TEAM_TOKEN_KEY);
-    localStorage.removeItem(TEAM_DATA_KEY);
-  }
-}
+
 
 /**
  * Attempts to refresh the authentication token using the appropriate refresh endpoint
