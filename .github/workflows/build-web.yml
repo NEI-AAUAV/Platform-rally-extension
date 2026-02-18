@@ -18,7 +18,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Prepare Python environment to generate OpenAPI schema offline (no DB)
       - name: Set up Python
@@ -33,7 +33,7 @@ jobs:
         shell: bash
 
       - name: Cache Poetry dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pypoetry
           key: ${{ runner.os }}-poetry-${{ hashFiles('api-rally/poetry.lock') }}
@@ -67,6 +67,8 @@ jobs:
               json.dump(schema, f)
           print(f"Wrote schema to {out_path}")
           PY
+        env:
+          TEAM_JWT_SECRET_KEY: test_secret
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -76,7 +78,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
           run_install: false
       
       - name: Get pnpm store directory
@@ -85,7 +87,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           # Use package.json as fallback when lockfile may be missing

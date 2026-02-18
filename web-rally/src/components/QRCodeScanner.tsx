@@ -19,7 +19,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const { isActive, startScanning, stopScanning, setError } = useQRCodeScanner(
+  const { isActive, startScanning, stopScanning } = useQRCodeScanner(
     videoRef,
     canvasRef,
     onScan
@@ -32,7 +32,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
       try {
         setCameraError(null);
         setPermissionDenied(false);
-        
+
         const constraints = {
           video: {
             facingMode: { ideal: "environment" },
@@ -116,7 +116,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
               <>
                 <div className="absolute inset-0 border-4 border-primary/40 pointer-events-none rounded-lg" />
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-4 border-primary rounded-lg pointer-events-none animate-pulse" />
-                
+
                 {/* Scanning corner guides */}
                 <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-primary" />
                 <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-primary" />

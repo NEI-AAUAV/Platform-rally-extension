@@ -88,7 +88,6 @@ export default function TeamsById() {
     data: team,
     isLoading,
     isSuccess,
-    isError,
   } = useQuery<DetailedTeam>({
     queryKey: ["team", id],
     queryFn: async () => TeamService.getTeamByIdApiRallyV1TeamIdGet(Number(id)),
@@ -147,74 +146,38 @@ export default function TeamsById() {
       </div>
 
       {/* Print Button */}
-      {isSuccess && settings?.show_team_details !== false && (
-        <Button
-          className="print-button no-print"
-          onClick={() => window.print()}
-          variant="default"
-        >
-          Imprimir
-        </Button>
-      )}
-
-      <div className="team-details-print">
-        {/* Team Header - Print Optimized */}
-        <div className="team-print-header">
-          <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Detalhes da Equipa
-          </h2>
-        </div>
-
-        {settings?.show_team_details !== false && (
-          <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
-            <div className="text-center">
-              <p className="mb-4 text-xl font-semibold">
-                {team.name}
-              </p>
-              <div>
-                {settings?.show_score_mode !== "hidden" && (
-                  <>
-                    <p className="mb-2">{team.total} pontos</p>
-                    <p className="text-sm font-light">
-                      {team.classification}
-                      {nthNumber(team.classification)}º lugar
-                    </p>
-                  </>
-                )}
-              </div>
+      {isSuccess && settings?.show_team_details !== false ? (
+        <>
+          <Button
+            className="print-button no-print"
+            onClick={() => window.print()}
+            variant="default"
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          <div className="team-details-print">
+            {/* Team Header - Print Optimized */}
+            <div className="team-print-header">
+              <h2 className="mb-4 font-playfair text-2xl font-semibold">
+                Team description and score
+              </h2>
             </div>
-          </Card>
-        )}
 
-          {/* QR Code and Access Code for Team Login - Print Optimized */}
-          <div className="qr-code-print">
-            <h2 className="mb-4 font-playfair text-2xl font-semibold">
-              Team Access
-            </h2>
             <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
               <div className="text-center">
-                <p className="mb-4 text-sm text-white/70 no-print">
-                  Share this QR code or access code with the team to allow them to view their progress.
+                <p className="mb-4 text-xl font-semibold">
+                  {team.name}
                 </p>
-                <div className="access-code-print">
-                  <div className="label">Código de Acesso</div>
-                  <div className="code">{team.access_code}</div>
-                </div>
-                <QRCodeDisplay accessCode={team.access_code} size={200} />
-                <div className="mt-6 p-4 bg-white/5 rounded-lg no-print">
-                  <p className="text-xs text-white/50 mb-2">Team Login URL</p>
-                  <a
-                    href={`/rally/team-login?code=${team.access_code}`}
-                    className="text-sm text-primary hover:text-primary/80 break-all"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {window.location.origin}/rally/team-login?code={team.access_code}
-                  </a>
+                <div>
+                  <p className="mb-2">{team.total} points</p>
+                  <p className="text-sm font-light">
+                    {team.classification}
+                    {nthNumber(team.classification)} place
+                  </p>
                 </div>
               </div>
             </Card>
-          </div>
 
           {/* Next Checkpoint Section */}
           {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
@@ -276,262 +239,233 @@ export default function TeamsById() {
                 </span>
               )}
             </div>
-          </Card>
-          <div className="mb-8 space-y-4">
-            {team?.times && team.times.length > 0 ? (
-              team.times.map((_, index: number) => {
-                // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
-                const checkpointOrder = index + 1;
-                const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
-                const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
-                const isLastCheckpoint = index === team.times.length - 1;
 
-                // Find the evaluation timestamp from activity results
-                const checkpointId = checkpoint?.id;
-                // Filter results that have a score (are completed) for activities at this checkpoint
-                const allCheckpointResults =
-                  checkpointId
-                    ? activityResults.filter(
-                      (result) =>
-                        result.activity?.checkpoint_id === checkpointId && result.final_score != null,
-                    )
-                    : [];
+            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+              Checkpoint Progress
+            </h2>
+            <Card variant="default" padding="md" rounded="2xl" className="mb-6">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/70">
+                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+                </span>
+                <span className="font-medium">
+                  Total: {team.total} points
+                </span>
+              </div>
+            </Card>
+            <div className="mb-8 space-y-4">
+              {team?.times && team.times.length > 0 ? (
+                team.times.map((_, index: number) => {
+                  // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
+                  const checkpointOrder = index + 1;
+                  const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
+                  const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
+                  const isLastCheckpoint = index === team.times.length - 1;
 
-                // Deduplicate by activity_id, keeping only the latest result for each activity
-                const evaluationResults = Array.from(
-                  allCheckpointResults.reduce((map: Map<number, EvaluationResult>, result) => {
-                    const activityId = result.activity?.id;
-                    if (activityId) {
-                      const existing = map.get(activityId);
-                      if (!existing || (result.completed_at && existing.completed_at && new Date(result.completed_at) > new Date(existing.completed_at))) {
-                        map.set(activityId, result);
+                  // Find the evaluation timestamp from activity results
+                  const checkpointId = checkpoint?.id;
+                  // Filter results that have a score (are completed) for activities at this checkpoint
+                  const allCheckpointResults =
+                    checkpointId
+                      ? activityResults.filter(
+                        (result) =>
+                          result.activity?.checkpoint_id === checkpointId && result.final_score != null,
+                      )
+                      : [];
+
+                  // Deduplicate by activity_id, keeping only the latest result for each activity
+                  const evaluationResults = Array.from(
+                    allCheckpointResults.reduce((map: Map<number, EvaluationResult>, result) => {
+                      const activityId = result.activity?.id;
+                      if (activityId) {
+                        const existing = map.get(activityId);
+                        if (!existing || (result.completed_at && existing.completed_at && new Date(result.completed_at) > new Date(existing.completed_at))) {
+                          map.set(activityId, result);
+                        }
                       }
-                    }
-                    return map;
-                  }, new Map()).values()
-                );
+                      return map;
+                    }, new Map()).values()
+                  );
 
-                // Get the latest evaluation timestamp
-                const latestResult = evaluationResults.reduce<EvaluationResult | null>((latest, current) => {
-                  if (!latest) return current;
-                  return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0) ? current : latest;
-                }, null);
-                const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
+                  // Get the latest evaluation timestamp
+                  const latestResult = evaluationResults.reduce<EvaluationResult | null>((latest, current) => {
+                    if (!latest) return current;
+                    return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0) ? current : latest;
+                  }, null);
+                  const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
 
-                const hasEvaluations = evaluationResults.length > 0;
+                  const hasEvaluations = evaluationResults.length > 0;
 
-                // Check if any activity in this checkpoint has pending completion (time-based activities)
-                const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
-                  const activity = result.activity;
-                  if (activity?.activity_type !== 'TimeBasedActivity') return false;
+                  // Check if any activity in this checkpoint has pending completion (time-based activities)
+                  const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
+                    const activity = result.activity;
+                    if (activity?.activity_type !== 'TimeBasedActivity') return false;
 
-                  const completedCount = allEvaluations.filter(
-                    (r) => r.activity?.id === activity?.id && r.final_score != null,
-                  ).length;
+                    const completedCount = allEvaluations.filter(
+                      (r) => r.activity?.id === activity?.id && r.final_score != null,
+                    ).length;
 
-                  return completedCount < totalTeams;
-                });
+                    return completedCount < totalTeams;
+                  });
 
-                const isExpanded = expandedCheckpoints.has(index);
+                  const isExpanded = expandedCheckpoints.has(index);
 
-                // Use checkpoint ID if available, otherwise fall back to index
-                const key = checkpoint?.id ?? `checkpoint-${index}`;
+                  // Use checkpoint ID if available, otherwise fall back to index
+                  const key = checkpoint?.id ?? `checkpoint-${index}`;
 
-                return (
-                  <div key={key}>
-                    {/* Checkpoint summary - always visible and clickable */}
-                    <Card
-                      variant={isLastCheckpoint ? "elevated" : "default"}
-                      padding="lg"
-                      rounded="2xl"
-                      hover
-                      onClick={() => evaluationResults.length > 0 && toggleCheckpoint(index)}
-                      className={`transition-all duration-300 border-2 ${
-                        isLastCheckpoint
-                          ? 'border-yellow-500/50 bg-yellow-500/10'
-                          : 'border-green-500/50 bg-green-500/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                              isLastCheckpoint
-                                ? 'bg-yellow-500/30 text-yellow-300'
-                                : 'bg-green-500/30 text-green-300'
-                            }`}>
-                              {isLastCheckpoint ? (
-                                <Target className="w-5 h-5" />
-                              ) : (
-                                <Check className="w-5 h-5" />
-                              )}
-                            </div>
-                            <div>
-                              <span className={`text-sm font-semibold ${
-                                isLastCheckpoint ? 'text-yellow-300' : 'text-green-300'
-                              }`}>
+                  return (
+                    <div key={key}>
+                      {/* Checkpoint summary - always visible and clickable */}
+                      <Card
+                        variant={isLastCheckpoint ? "elevated" : "default"}
+                        padding="lg"
+                        rounded="2xl"
+                        hover
+                        onClick={() => evaluationResults.length > 0 && toggleCheckpoint(index)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-sm font-medium text-white/70">
                                 Checkpoint {index + 1}
                               </span>
                               {isLastCheckpoint && (
-                                <span className="text-xs bg-yellow-600/20 text-yellow-300 px-2 py-1 rounded ml-2">
-                                  Próximo
+                                <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
+                                  Current
                                 </span>
                               )}
-                              {!isLastCheckpoint && (
-                                <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded ml-2">
-                                  Concluído
+                              {evaluationResults.length > 0 && (
+                                <span className="text-xs text-white/50">
+                                  {evaluationResults.length} activit{evaluationResults.length === 1 ? 'y' : 'ies'}
                                 </span>
+                              )}
+                              {hasPendingTimeBasedActivity && (
+                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
                               )}
                             </div>
+                            <h3 className="text-lg font-semibold mb-1">
+                              {checkpoint?.name || `Checkpoint ${index + 1}`}
+                            </h3>
+                            {checkpoint?.description && (
+                              <p className="text-sm text-white/70 mb-2">
+                                {checkpoint.description}
+                              </p>
+                            )}
                           </div>
-                          <h3 className="text-lg font-semibold mb-2">
-                            {checkpoint?.name || `Checkpoint ${index + 1}`}
-                          </h3>
-                          {checkpoint?.description && (
-                            <p className="text-sm text-white/70 mb-3">
-                              {checkpoint.description}
-                            </p>
-                          )}
-                          {settings?.show_checkpoint_map !== false && checkpoint?.latitude && checkpoint?.longitude && (
-                            <div className="space-y-2 mb-3">
-                              <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
-                                <MapPin className="w-4 h-4" />
-                                <span className="font-mono">
-                                  {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
-                                </span>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-xl font-bold mb-1">
+                                {checkpointScore} pts
                               </div>
-                              <a
-                                href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${
-                                  isLastCheckpoint
-                                    ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
-                                    : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                                }`}
-                                onClick={(e) => e.stopPropagation()}
+                              <div className="text-sm text-white/60">
+                                {hasEvaluations && evaluationTime
+                                  ? formatTime(evaluationTime)
+                                  : "Not evaluated yet"}
+                              </div>
+                            </div>
+                            {evaluationResults.length > 0 && (
+                              <div>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-5 h-5 text-white/70" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-white/70" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Activity-level cards - only show when expanded */}
+                      {isExpanded && evaluationResults.length > 0 && (
+                        <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
+                          {evaluationResults.map((result, resultIndex: number) => {
+                            const activity = result.activity;
+                            const isTimeBased = activity?.activity_type === 'TimeBasedActivity';
+
+                            // Get count of teams that have completed this activity across ALL teams
+                            const completedCount = allEvaluations.filter(
+                              (r) => r.activity?.id === activity?.id && r.final_score != null,
+                            ).length;
+
+                            const isCompletionPending = isTimeBased && completedCount < totalTeams;
+
+                            return (
+                              <Card
+                                key={resultIndex}
+                                variant="subtle"
+                                padding="md"
+                                rounded="xl"
                               >
-                                <Navigation className="w-4 h-4" />
-                                Abrir no Google Maps
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-end flex-col gap-3 ml-4">
-                          <div className="text-right">
-                            <div className={`text-2xl font-bold mb-1 ${
-                              isLastCheckpoint ? 'text-yellow-300' : 'text-green-300'
-                            }`}>
-                              {checkpointScore} pts
-                            </div>
-                            <div className="text-sm text-white/60">
-                              {hasEvaluations && evaluationTime
-                                ? formatTime(evaluationTime)
-                                : "Not evaluated yet"}
-                            </div>
-                          </div>
-                          {evaluationResults.length > 0 && (
-                            <div>
-                              {isExpanded ? (
-                                <ChevronUp className="w-5 h-5 text-white/70" />
-                              ) : (
-                                <ChevronDown className="w-5 h-5 text-white/70" />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-
-                    {/* Activity-level cards - only show when expanded */}
-                    {isExpanded && evaluationResults.length > 0 && settings?.show_score_mode !== "hidden" && (
-                      <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
-                        {evaluationResults.map((result, resultIndex: number) => {
-                          const activity = result.activity;
-                          const isTimeBased = activity?.activity_type === 'TimeBasedActivity';
-
-                          // Get count of teams that have completed this activity across ALL teams
-                          const completedCount = allEvaluations.filter(
-                            (r) => r.activity?.id === activity?.id && r.final_score != null,
-                          ).length;
-
-                          const isCompletionPending = isTimeBased && completedCount < totalTeams;
-
-                          return (
-                            <Card
-                              key={resultIndex}
-                              variant="subtle"
-                              padding="md"
-                              rounded="xl"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="text-base font-semibold mb-1">
-                                    {activity?.name}
-                                  </h4>
-                                  {activity?.description && (
-                                    <p className="text-sm text-white/60">
-                                      {activity.description}
-                                    </p>
-                                  )}
-                                  {isCompletionPending && (
-                                    <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-300">
-                                      ⚠️ Score may change: {completedCount} of {totalTeams} teams finished (ranking recalculates as more teams complete)
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h4 className="text-base font-semibold mb-1">
+                                      {activity?.name}
+                                    </h4>
+                                    {activity?.description && (
+                                      <p className="text-sm text-white/60">
+                                        {activity.description}
+                                      </p>
+                                    )}
+                                    {isCompletionPending && (
+                                      <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-300">
+                                        ⚠️ Score may change: {completedCount} of {totalTeams} teams finished (ranking recalculates as more teams complete)
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-right ml-4">
+                                    <div className="text-lg font-bold mb-1">
+                                      {result.final_score?.toFixed(0)} pts
                                     </div>
-                                  )}
-                                </div>
-                                <div className="text-right ml-4">
-                                  <div className="text-lg font-bold mb-1">
-                                    {result.final_score?.toFixed(0)} pts
-                                  </div>
-                                  <div className="text-xs text-white/60">
-                                    {result.completed_at
-                                      ? formatTime(new Date(result.completed_at))
-                                      : "Not evaluated yet"}
+                                    <div className="text-xs text-white/60">
+                                      {result.completed_at
+                                        ? formatTime(new Date(result.completed_at))
+                                        : "Not evaluated yet"}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <Card variant="default" padding="lg" rounded="2xl" className="text-center">
-                <p className="text-white/70">No checkpoints visited yet</p>
-              </Card>
-            )}
-          </div>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+                  <p className="text-white/70">No checkpoints visited yet</p>
+                </Card>
+              )}
+            </div>
 
-          {/* Team Members - Print Optimized */}
-          <div className="team-members-print">
-            <h2 className="mb-4 font-playfair text-2xl font-semibold">
-              Team Members
-            </h2>
-            <div className="grid gap-4">
-              {team?.members.map((member) => {
-                const names = member.name.split(" ");
-                const firstName = names[0];
-                const lastName = names.slice(1).join(" ");
-                return (
-                  <Card
-                    variant="default"
-                    padding="lg"
-                    rounded="2xl"
-                    className="text-xl"
-                    key={member.id}
-                  >
-                    <span className="font-medium">{firstName}</span>{" "}
-                    <span className="font-light">{lastName}</span>
-                  </Card>
-                );
-              })}
+            {/* Team Members - Print Optimized */}
+            <div className="team-members-print">
+              <h2 className="mb-4 font-playfair text-2xl font-semibold">
+                Team Members
+              </h2>
+              <div className="grid gap-4">
+                {team?.members.map((member) => {
+                  const names = member.name.split(" ");
+                  const firstName = names[0];
+                  const lastName = names.slice(1).join(" ");
+                  return (
+                    <Card
+                      variant="default"
+                      padding="lg"
+                      rounded="2xl"
+                      className="text-xl"
+                      key={member.id}
+                    >
+                      <span className="font-medium">{firstName}</span>{" "}
+                      <span className="font-light">{lastName}</span>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       ) : (
         renderTeamContent()
       )}

@@ -6,7 +6,7 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector } from "./components";
-import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";
+import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse, type DetailedTeam } from "@/client";
 import { useThemedComponents } from "@/components/themes";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 
@@ -163,10 +163,10 @@ export default function StaffTeamView() {
                   Código QR
                 </h3>
                 <p className="text-sm mb-4 text-center">
-                  Código de acesso: <strong className="text-white">{teamData.access_code}</strong>
+                  Código de acesso: <strong className="text-white">{(teamData as DetailedTeam & { access_code?: string }).access_code}</strong>
                 </p>
                 <div className="flex justify-center p-4 bg-white rounded-lg">
-                  <QRCodeDisplay accessCode={teamData.access_code} size={200} />
+                  <QRCodeDisplay accessCode={(teamData as DetailedTeam & { access_code?: string }).access_code || ''} size={200} />
                 </div>
               </Card>
             )}

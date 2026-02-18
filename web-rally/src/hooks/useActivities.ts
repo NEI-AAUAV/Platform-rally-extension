@@ -16,12 +16,12 @@ import { type ActivityCreate, type ActivityUpdate } from "@/client";
  * ```
  */
 export function useActivities() {
-  const { isRallyAdmin } = useUser();
+  const { isRallyAdmin, userStore } = useUser();
 
   return useQuery({
     queryKey: ["activities"],
     queryFn: () => ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(),
-    enabled: isRallyAdmin,
+    enabled: isRallyAdmin && !!userStore.token,
   });
 }
 
@@ -45,7 +45,7 @@ export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (activity: ActivityCreate) => 
+    mutationFn: (activity: ActivityCreate) =>
       ActivitiesService.createActivityApiRallyV1ActivitiesPost(activity),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });

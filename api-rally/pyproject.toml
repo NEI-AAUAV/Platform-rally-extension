@@ -8,7 +8,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.12"
 SQLAlchemy = "^2.0.44"
-pydantic = "^2.4.2"
+pydantic = "^2.12.5"
 loguru = "^0.7.2"
 python-multipart = "^0.0.20"
 fastapi = "0.121.3"
@@ -16,7 +16,7 @@ python-jose = "^3.5.0"
 psycopg2-binary = "^2.9.5"
 pydantic-settings = "^2.2.1"
 orjson = "^3.11.4"
-aiocache = "^0.12.2"
+aiocache = "^0.12.3"
 alembic = "^1.17.1"
 h11 = ">=0.16.0"
 
@@ -26,8 +26,8 @@ flake8 = "^6.1.0"
 mypy = "1.6.0"
 uvicorn = "^0.38.0"
 types-python-jose = "^3.3.4.8"
-types-passlib = "^1.7.7.13"
-black = "^24.3.0"
+types-passlib = "^1.7.7.20260211"
+black = "^26.1.0"
 
 
 [tool.poetry.group.test.dependencies]

@@ -2,6 +2,7 @@
 Team vs Team activities for Rally extension
 """
 from typing import Dict, Any, Optional
+from loguru import logger
 
 from .base import BaseActivity
 
@@ -55,7 +56,6 @@ class TeamVsActivity(BaseActivity):
         """Validate that teams are in the same versus group"""
         try:
             from app.crud.crud_versus import versus
-            from loguru import logger
             
             # Get opponent using versus system
             opponent = versus.get_opponent(db_session, team_id=team_id)
@@ -74,7 +74,6 @@ class TeamVsActivity(BaseActivity):
             
         except Exception as e:
             # If versus system fails, fall back to basic validation
-            from loguru import logger
             logger.warning(f"Versus validation failed for team {team_id} vs {opponent_team_id}: {str(e)}, allowing validation")
             return True
     

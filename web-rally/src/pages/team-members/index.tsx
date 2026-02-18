@@ -11,6 +11,11 @@ import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberRespo
 import { useThemedComponents } from "@/components/themes";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { QrCode } from "lucide-react";
+import type { DetailedTeam } from "@/client";
+
+interface ExtendedDetailedTeam extends DetailedTeam {
+  access_code?: string;
+}
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();
@@ -190,7 +195,7 @@ export default function TeamMembers() {
                 </div>
               </Card>
 
-              {/* QR Code */}
+
               {teamData && (
                 <Card variant="default" padding="lg" rounded="2xl" className="flex flex-col items-center justify-center">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -198,10 +203,10 @@ export default function TeamMembers() {
                     Código QR
                   </h3>
                   <p className="text-sm text-[rgb(255,255,255,0.6)] mb-4 text-center">
-                    Código de acesso: <strong>{teamData.access_code}</strong>
+                    Código de acesso: <strong>{(teamData as ExtendedDetailedTeam).access_code}</strong>
                   </p>
                   <div className="flex justify-center p-4 bg-white rounded-lg">
-                    <QRCodeDisplay accessCode={teamData.access_code} size={200} />
+                    <QRCodeDisplay accessCode={(teamData as ExtendedDetailedTeam).access_code || ''} size={200} />
                   </div>
                 </Card>
               )}

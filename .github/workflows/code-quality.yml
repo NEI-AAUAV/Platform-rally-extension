@@ -14,7 +14,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -29,7 +29,7 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Cache Python dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: api-rally/.venv
           key: venv-${{ runner.os }}-${{ hashFiles('api-rally/poetry.lock') }}
@@ -71,7 +71,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -111,6 +111,8 @@ jobs:
               json.dump(schema, f)
           print(f"Wrote schema to {out_path}")
           PY
+        env:
+          TEAM_JWT_SECRET_KEY: test_secret
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -127,7 +129,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: Cache pnpm dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
@@ -169,7 +171,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Set up Python
         uses: actions/setup-python@v6

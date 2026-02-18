@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TeamService, TeamMembersService, type DetailedTeam } from "@/client";
 
-interface TeamLoginRequest {
-  access_code: string;
-}
+
 
 interface TeamLoginResponse {
   access_token: string;
@@ -53,7 +51,7 @@ export default function useTeamAuth() {
   // Fetch team members data when authenticated
   const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
     queryKey: ["team", teamData?.team_id],
-    queryFn: () => 
+    queryFn: () =>
       teamData ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id) : Promise.reject(),
     enabled: isAuthenticated && !!teamData?.team_id,
     staleTime: 0,
@@ -71,11 +69,11 @@ export default function useTeamAuth() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { detail?: string };
         throw new Error(error.detail || "Login failed");
       }
 
-      return response.json();
+      return response.json() as Promise<TeamLoginResponse>;
     },
     onSuccess: (data) => {
       // Store token and team data

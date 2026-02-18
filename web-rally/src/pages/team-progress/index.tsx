@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useThemedComponents } from "@/components/themes/ThemeContext"; // Correct import path based on context
-import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode, Navigation } from "lucide-react";
+import { useThemedComponents } from "@/components/themes/ThemeContext";
+import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -12,14 +12,23 @@ import {
     CheckPointService,
     type DetailedTeam,
     type DetailedCheckPoint,
+    type RallySettingsResponse,
 } from "@/client";
+
+// Extended interface to include missing properties
+interface ExtendedRallySettingsResponse extends RallySettingsResponse {
+    participant_view_enabled?: boolean;
+    show_route_mode?: 'focused' | 'complete';
+    show_score_mode?: 'hidden' | 'individual' | 'competitive';
+}
 
 export default function TeamProgress() {
     const components = useThemedComponents();
     const { Card, config } = components;
     const navigate = useNavigate();
     const { isAuthenticated, teamData, isLoading: authLoading } = useTeamAuth();
-    const { settings, isLoading: settingsLoading } = useRallySettings();
+    const { settings: rawSettings, isLoading: settingsLoading } = useRallySettings();
+    const settings = rawSettings as ExtendedRallySettingsResponse | undefined;
     const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
 
     // Redirect to login if not authenticated
@@ -74,7 +83,7 @@ export default function TeamProgress() {
     const nextCheckpoint = checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
 
     // Show route mode: 'focused' (only next) or 'complete' (all checkpoints)
-    const showFullRoute = settings?.show_route_mode === "complete";
+
 
     // Show score mode: 'hidden', 'individual', or 'competitive'
     const showScore = settings?.show_score_mode !== "hidden";
@@ -89,9 +98,9 @@ export default function TeamProgress() {
                 <Card className="text-center p-8 backdrop-blur-md bg-black/40 border-white/10">
                     <Loader2
                         className="w-12 h-12 animate-spin mx-auto mb-4"
-                        style={{ color: config.colors.primary }}
+                        style={{ color: config?.colors?.primary }}
                     />
-                    <div className="text-lg font-semibold" style={{ color: config.colors.text }}>
+                    <div className="text-lg font-semibold" style={{ color: config?.colors?.text }}>
                         A carregar progresso...
                     </div>
                 </Card>
@@ -108,7 +117,7 @@ export default function TeamProgress() {
             >
                 <Card className="text-center max-w-md p-8 backdrop-blur-md bg-black/40 border-white/10">
                     <div className="text-lg font-semibold text-red-400 mb-2">Vista não disponível</div>
-                    <div className="opacity-70" style={{ color: config.colors.text }}>
+                    <div className="opacity-70" style={{ color: config?.colors?.text }}>
                         A vista de participante está atualmente desativada pelos administradores.
                     </div>
                 </Card>
@@ -124,7 +133,7 @@ export default function TeamProgress() {
             >
                 <Card className="text-center max-w-md p-8 backdrop-blur-md bg-black/40 border-white/10">
                     <div className="text-lg font-semibold text-red-400 mb-2">Erro ao carregar</div>
-                    <div className="opacity-70" style={{ color: config.colors.text }}>
+                    <div className="opacity-70" style={{ color: config?.colors?.text }}>
                         Não foi possível carregar o progresso da equipa.
                     </div>
                 </Card>
@@ -143,7 +152,7 @@ export default function TeamProgress() {
                     <div className="text-center">
                         <h1
                             className="text-4xl font-bold mb-2 tracking-tight"
-                            style={{ color: config.colors.text }}
+                            style={{ color: config?.colors?.text }}
                         >
                             {team.name}
                         </h1>
@@ -151,7 +160,7 @@ export default function TeamProgress() {
                             <div className="mt-4 p-4 rounded-xl bg-white/5 inline-block">
                                 <div
                                     className="flex items-center justify-center gap-2 text-3xl font-bold"
-                                    style={{ color: config.colors.primary }}
+                                    style={{ color: config?.colors?.primary }}
                                 >
                                     <Trophy className="w-8 h-8" />
                                     {team.total} <span className="text-lg font-normal opacity-80 self-end mb-1">pontos</span>
@@ -159,7 +168,7 @@ export default function TeamProgress() {
                                 {showRanking && (
                                     <div
                                         className="text-sm mt-1 font-medium px-3 py-1 rounded-full inline-block"
-                                        style={{ backgroundColor: `${config.colors.primary}20`, color: config.colors.primary }}
+                                        style={{ backgroundColor: `${config?.colors?.primary}20`, color: config?.colors?.primary }}
                                     >
                                         {team.classification}º lugar
                                     </div>
@@ -174,9 +183,9 @@ export default function TeamProgress() {
                             onClick={() => navigate("/show-team-code")}
                             className="gap-2"
                             style={{
-                                backgroundColor: `${config.colors.primary}20`,
-                                color: config.colors.primary,
-                                border: `1px solid ${config.colors.primary}40`
+                                backgroundColor: `${config?.colors?.primary}20`,
+                                color: config?.colors?.primary,
+                                border: `1px solid ${config?.colors?.primary}40`
                             }}
                         >
                             <QrCode className="w-4 h-4" />
@@ -189,9 +198,9 @@ export default function TeamProgress() {
                 <Card className="p-6 backdrop-blur-sm bg-black/20 border-white/5">
                     <div className="flex items-center gap-2 mb-4">
                         <div className="p-2 rounded-lg bg-white/5">
-                            <Users className="w-5 h-5" style={{ color: config.colors.primary }} />
+                            <Users className="w-5 h-5" style={{ color: config?.colors?.primary }} />
                         </div>
-                        <h2 className="text-lg font-semibold" style={{ color: config.colors.text }}>Membros da Equipa</h2>
+                        <h2 className="text-lg font-semibold" style={{ color: config?.colors?.text }}>Membros da Equipa</h2>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         {team.members?.map((member) => (
@@ -200,7 +209,7 @@ export default function TeamProgress() {
                                 className="px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/10"
                                 style={{
                                     backgroundColor: 'rgba(255,255,255,0.05)',
-                                    color: config.colors.text
+                                    color: config?.colors?.text
                                 }}
                             >
                                 {member.name}
@@ -211,7 +220,7 @@ export default function TeamProgress() {
 
                 {/* Progress Summary */}
                 <Card className="p-4 backdrop-blur-sm bg-black/20 border-white/5">
-                    <div className="flex items-center justify-between text-sm font-medium" style={{ color: config.colors.text }}>
+                    <div className="flex items-center justify-between text-sm font-medium" style={{ color: config?.colors?.text }}>
                         <span className="opacity-80">
                             Progresso: {completedCheckpointsCount} de {checkpoints?.length || 0} postos
                         </span>
@@ -227,7 +236,7 @@ export default function TeamProgress() {
                             className="h-full transition-all duration-1000 ease-out"
                             style={{
                                 width: `${((completedCheckpointsCount) / (checkpoints?.length || 1)) * 100}%`,
-                                backgroundColor: config.colors.primary
+                                backgroundColor: config?.colors?.primary
                             }}
                         />
                     </div>
@@ -235,33 +244,22 @@ export default function TeamProgress() {
 
                 {/* Next Checkpoint (if exists) */}
                 {nextCheckpoint && (
-                    <Card
-                        className="p-6 border-2 shadow-[0_0_30px_-10px_rgba(0,0,0,0.5)] transform hover:scale-[1.01] transition-all duration-300"
-                        style={{ borderColor: `${config.colors.primary}40`, backgroundColor: 'rgba(0,0,0,0.4)' }}
+                    <div
+                        className="p-6 rounded-lg border-2 shadow-[0_0_30px_-10px_rgba(0,0,0,0.5)] transform hover:scale-[1.01] transition-all duration-300"
+                        style={{ borderColor: `${config?.colors?.primary}40`, backgroundColor: 'rgba(0,0,0,0.4)' }}
                     >
-                        <div className="flex items-center gap-3 mb-4">
-                            <div
-                                className="p-3 rounded-xl shadow-lg animate-pulse"
-                                style={{ backgroundColor: config.colors.primary }}
-                            >
-                                <MapPin className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold" style={{ color: config.colors.text }}>Próximo Posto</h2>
-                                <p className="text-sm opacity-60" style={{ color: config.colors.text }}>Dirija-se a este local</p>
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <p
-                                    className="text-3xl font-bold tracking-tight"
-                                    style={{ color: config.colors.primary }}
+                        <Card className="border-0 bg-transparent shadow-none p-0">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div
+                                    className="p-3 rounded-xl shadow-lg animate-pulse"
+                                    style={{ backgroundColor: config?.colors?.primary }}
                                 >
-                                    {nextCheckpoint.name}
-                                </p>
-                                <p className="text-sm opacity-60 mt-1 font-mono" style={{ color: config.colors.text }}>
-                                    POSTO #{nextCheckpoint.order}
-                                </p>
+                                    <MapPin className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold" style={{ color: config?.colors?.text }}>Próximo Posto</h2>
+                                    <p className="text-sm opacity-60" style={{ color: config?.colors?.text }}>Dirija-se a este local</p>
+                                </div>
                             </div>
                             {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
                                 <>
@@ -293,8 +291,8 @@ export default function TeamProgress() {
                 {/* Completed Checkpoints */}
                 {team.times && team.times.length > 0 && (
                     <div className="space-y-4">
-                        <h2 className="text-xl font-bold flex items-center gap-2 px-2" style={{ color: config.colors.text }}>
-                            <Clock className="w-5 h-5" style={{ color: config.colors.primary }} />
+                        <h2 className="text-xl font-bold flex items-center gap-2 px-2" style={{ color: config?.colors?.text }}>
+                            <Clock className="w-5 h-5" style={{ color: config?.colors?.primary }} />
                             Histórico
                         </h2>
                         <div className="space-y-3">
@@ -315,30 +313,30 @@ export default function TeamProgress() {
                                                 <div className="flex items-center gap-3">
                                                     <div
                                                         className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-white/10"
-                                                        style={{ color: config.colors.text }}
+                                                        style={{ color: config?.colors?.text }}
                                                     >
                                                         {checkpointOrder}
                                                     </div>
-                                                    <span className="text-lg font-semibold" style={{ color: config.colors.text }}>
+                                                    <span className="text-lg font-semibold" style={{ color: config?.colors?.text }}>
                                                         {checkpoint?.name || `Posto ${checkpointOrder}`}
                                                     </span>
                                                 </div>
                                                 {showScore && (
-                                                    <p className="text-sm opacity-60 mt-1 ml-11" style={{ color: config.colors.text }}>
+                                                    <p className="text-sm opacity-60 mt-1 ml-11" style={{ color: config?.colors?.text }}>
                                                         +{checkpointScore} pontos
                                                     </p>
                                                 )}
                                             </div>
                                             {isExpanded ? (
-                                                <ChevronUp className="w-5 h-5 opacity-50" style={{ color: config.colors.text }} />
+                                                <ChevronUp className="w-5 h-5 opacity-50" style={{ color: config?.colors?.text }} />
                                             ) : (
-                                                <ChevronDown className="w-5 h-5 opacity-50" style={{ color: config.colors.text }} />
+                                                <ChevronDown className="w-5 h-5 opacity-50" style={{ color: config?.colors?.text }} />
                                             )}
                                         </div>
 
                                         {isExpanded && (
                                             <div className="px-4 pb-4 pt-0 pl-14 opacity-80 space-y-2 animate-in slide-in-from-top-2">
-                                                <div className="text-sm" style={{ color: config.colors.text }}>
+                                                <div className="text-sm" style={{ color: config?.colors?.text }}>
                                                     <span className="opacity-60">Completado às: </span>
                                                     <span className="font-mono font-medium">{formatTime(team.times[index])}</span>
                                                 </div>

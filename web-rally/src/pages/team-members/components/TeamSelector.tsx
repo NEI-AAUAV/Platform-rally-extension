@@ -30,11 +30,11 @@ export default function TeamSelector({
       <div className="mb-4">
         <h2
           className="text-xl font-bold mb-1"
-          style={{ color: config.colors.text }}
+          style={{ color: config?.colors?.text }}
         >
           Selecionar Equipa
         </h2>
-        <p className="text-sm opacity-70" style={{ color: config.colors.text }}>
+        <p className="text-sm opacity-70" style={{ color: config?.colors?.text }}>
           Escolha uma equipa para gerir os seus membros
         </p>
       </div>
@@ -42,7 +42,7 @@ export default function TeamSelector({
       <div className="space-y-3">
         <Label
           htmlFor="team-select"
-          style={{ color: config.colors.text }}
+          style={{ color: config?.colors?.text }}
         >
           Equipa
         </Label>
@@ -50,7 +50,7 @@ export default function TeamSelector({
           <SelectTrigger
             id="team-select"
             className="bg-black/10 border-white/10"
-            style={{ color: config.colors.text }}
+            style={{ color: config?.colors?.text }}
           >
             <SelectValue placeholder="Selecionar equipa" />
           </SelectTrigger>
