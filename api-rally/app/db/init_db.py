@@ -35,3 +35,12 @@ def init_db() -> None:
 
     Base.metadata.reflect(bind=engine, schema=settings.SCHEMA_NAME)
     Base.metadata.create_all(bind=engine, checkfirst=True)
+
+    from app.db.session import SessionLocal
+    from app.db.seed_data import seed_data
+    
+    db = SessionLocal()
+    try:
+        seed_data(db)
+    finally:
+        db.close()
