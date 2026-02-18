@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     
     # Team authentication (separate from NEI JWT)
     ## Secret key for team JWT tokens
-    TEAM_JWT_SECRET_KEY: str = os.getenv("TEAM_JWT_SECRET_KEY")
+    TEAM_JWT_SECRET_KEY: str = os.getenv("TEAM_JWT_SECRET_KEY", "")
     TEAM_JWT_ALGORITHM: str = "HS256"
     ## Token expiration time in hours (24 hours = 1 day)
     TEAM_TOKEN_EXPIRE_HOURS: int = 24

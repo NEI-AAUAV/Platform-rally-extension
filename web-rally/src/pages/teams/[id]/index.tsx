@@ -226,34 +226,21 @@ export default function TeamsById() {
           ) : null}
 
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Histórico de Postos
+            Checkpoint Progress
           </h2>
           <Card variant="default" padding="md" rounded="2xl" className="mb-6">
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/70">
-                Progresso: {team.times?.length || 0} de {checkpoints?.length || 0} postos
+                Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
               </span>
               {settings?.show_score_mode !== "hidden" && (
                 <span className="font-medium">
-                  Total: {team.total} pontos
+                  Total: {team.total} points
                 </span>
               )}
             </div>
-
-            <h2 className="mb-4 font-playfair text-2xl font-semibold">
-              Checkpoint Progress
-            </h2>
-            <Card variant="default" padding="md" rounded="2xl" className="mb-6">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-white/70">
-                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
-                </span>
-                <span className="font-medium">
-                  Total: {team.total} points
-                </span>
-              </div>
-            </Card>
-            <div className="mb-8 space-y-4">
+          </Card>
+          <div className="mb-8 space-y-4">
               {team?.times && team.times.length > 0 ? (
                 team.times.map((_, index: number) => {
                   // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)

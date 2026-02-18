@@ -40,9 +40,9 @@ def verify_team_token(token: str) -> TeamTokenData:
             settings.TEAM_JWT_SECRET_KEY,
             algorithms=[settings.TEAM_JWT_ALGORITHM]
         )
-        team_id: int = payload.get("team_id")
-        team_name: str = payload.get("team_name")
-        token_type: str = payload.get("type")
+        team_id = payload.get("team_id")
+        team_name = payload.get("team_name")
+        token_type = payload.get("type")
         
         if team_id is None or team_name is None or token_type != "team_access":
             raise HTTPException(
