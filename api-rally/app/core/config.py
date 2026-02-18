@@ -3,8 +3,8 @@ import pathlib
 from urllib.parse import urljoin
 from functools import lru_cache
 
-from fastapi import Depends, Optional
-from typing import Annotated, Any, TypeAlias
+from fastapi import Depends
+from typing import Annotated, Any, Optional, TypeAlias
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 
