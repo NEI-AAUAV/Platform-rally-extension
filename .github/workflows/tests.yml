@@ -204,13 +204,13 @@ jobs:
       run: npm ci
       
     - name: Download API test results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
       with:
         name: api-test-results
         path: extensions/rally/api-rally/
         
     - name: Download frontend test results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v7
       with:
         name: frontend-test-results
         path: extensions/rally/web-rally/coverage/
