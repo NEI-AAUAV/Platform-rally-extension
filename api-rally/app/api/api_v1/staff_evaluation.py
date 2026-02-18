@@ -147,16 +147,11 @@ def get_team_activities_for_evaluation(
         )
     team_obj = team_obj_with_members
     
-    # Allow evaluation if team has reached the staff's checkpoint (>=) or is exactly at it
-    # Block only when the team has not yet reached the staff's checkpoint (<)
+    # NOTE: We don't check team checkpoint progress here.
+    # Staff should be able to evaluate any team at their assigned checkpoint,
+    # regardless of whether the team has formally reached it yet.
+    # This allows for error recovery scenarios where teams need manual evaluation.
     team_checkpoint_number = len(team_obj.times)
-    if team_checkpoint_number < current_user.staff_checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team is at checkpoint {team_checkpoint_number}, but you can only evaluate teams that have reached checkpoint {current_user.staff_checkpoint_id}"
-        )
-    
-    # Log the evaluation context for debugging
     logger.debug(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
     
     # Always show activities for the staff's assigned checkpoint
