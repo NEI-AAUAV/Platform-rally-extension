@@ -95,7 +95,7 @@ jobs:
 
       - name: Cache pnpm store (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.local/share/pnpm/store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
