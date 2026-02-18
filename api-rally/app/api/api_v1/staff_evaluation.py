@@ -58,7 +58,7 @@ class TeamForStaffDict(TypedDict, total=False):
     evaluated_at_current_checkpoint: bool
 
 
-@router.get("/my-checkpoint", response_model=DetailedCheckPoint)
+@router.get("/my-checkpoint")
 def get_my_checkpoint(
     *,
     db: Annotated[Session, Depends(get_db)],
@@ -79,7 +79,8 @@ def get_my_checkpoint(
             detail="Assigned checkpoint not found"
         )
     
-    return checkpoint_obj
+    # Cast to DetailedCheckPoint for response model compatibility
+    return DetailedCheckPoint.model_validate(checkpoint_obj)
 
 
 @router.get("/teams")
@@ -210,7 +211,7 @@ def get_team_activities_for_evaluation(
     }
 
 
-@router.post("/teams/{team_id}/activities/{activity_id}/evaluate", response_model=ActivityResultResponse)
+@router.post("/teams/{team_id}/activities/{activity_id}/evaluate")
 def evaluate_team_activity(
     *,
     team_id: int,
@@ -264,7 +265,7 @@ def evaluate_team_activity(
     else:
         logger.info(f"Creating new result for team {team_id}, activity {activity_id}")
         try:
-            db_result = _create_activity_result(db, team_id, activity_id, result_in)
+            db_result = create_activity_result(db, team_id, activity_id, result_in)
             logger.info(f"Successfully created result {db_result.id}")
         except Exception as e:
             logger.error(f"Failed to create result: {str(e)}", exc_info=True)
@@ -283,7 +284,7 @@ def evaluate_team_activity(
     return ActivityResultResponse.model_validate(db_result)
 
 
-@router.put("/teams/{team_id}/activities/{activity_id}/evaluate/{result_id}", response_model=ActivityResultResponse)
+@router.put("/teams/{team_id}/activities/{activity_id}/evaluate/{result_id}")
 def update_team_activity_evaluation(
     *,
     db: Annotated[Session, Depends(get_db)],
