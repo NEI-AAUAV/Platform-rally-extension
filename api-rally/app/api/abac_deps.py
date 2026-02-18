@@ -255,25 +255,14 @@ def require_view_team_members_permission(
     if "rally-admin" in auth.scopes:
         return
 
-    # For staff, we might want to restrict viewing members to teams at their checkpoint
-    # But currently the requirement is just "staff at assigned checkpoint".
-    # We pass the checkpoint_id to the policy engine if available.
-    
-    context = {}
-    if curr_user.staff_checkpoint_id:
-         context["checkpoint_id"] = curr_user.staff_checkpoint_id
-         context["user_staff_checkpoint_id"] = curr_user.staff_checkpoint_id
-         
-    # If we have a team_id, we could ideally check if the team is at the checkpoint,
-    # but the ABAC policy for VIEW_TEAM_MEMBERS is currently just checking if the staff
-    # has a checkpoint assigned (is an active staff member).
-    
+    # Staff can view team members if they have a checkpoint assignment
+    # Pass staff's checkpoint_id as context for ABAC evaluation
     require_permission(
         user=curr_user,
         auth=auth,
         action=Action.VIEW_TEAM_MEMBERS,
         resource=Resource.TEAM,
-        **context
+        checkpoint_id=curr_user.staff_checkpoint_id
     )
 
 

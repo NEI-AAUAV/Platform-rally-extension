@@ -209,15 +209,14 @@ class ABACEngine:
             priority=80
         ))
 
-        # Staff can view team members at their checkpoint
+        # Staff can view team members if they have a checkpoint assignment
         self.policies.append(Policy(
             name="staff_view_team_members",
-            description="Staff can view team members at their assigned checkpoint",
+            description="Staff can view team members if they have a checkpoint assignment",
             effect="allow",
             conditions={
                 "user_scopes": {"contains": "rally-staff"},
                 "action": Action.VIEW_TEAM_MEMBERS.value,
-                "user_staff_checkpoint_id": {"equals": "checkpoint_id"},
                 "checkpoint_id": {"is_not_null": True}
             },
             priority=80

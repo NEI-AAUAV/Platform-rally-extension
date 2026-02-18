@@ -31,7 +31,7 @@ const routes: RouteObject[] = [
       {
         path: "/teams/:id",
         async lazy() {
-          const { default: TeamsById } = await import("@/pages/teams/[id]");
+          const { default: TeamsById } = await import("@/pages/teams/id");
           return { Component: TeamsById };
         },
       },

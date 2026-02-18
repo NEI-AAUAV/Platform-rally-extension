@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes/ThemeContext";
-import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode, Navigation } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -263,7 +263,7 @@ export default function TeamProgress() {
                             </div>
                             {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
                                 <>
-                                    <div className="flex items-center gap-2 text-sm" style={{ color: config.colors.text }}>
+                                    <div className="flex items-center gap-2 text-sm" style={{ color: config?.colors?.text }}>
                                         <MapPin className="w-4 h-4" />
                                         <span className="font-mono opacity-80">
                                             {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
@@ -275,7 +275,7 @@ export default function TeamProgress() {
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold shadow-lg transition-all hover:brightness-110 active:scale-95"
                                         style={{
-                                            backgroundColor: config.colors.primary,
+                                            backgroundColor: config?.colors?.primary,
                                             color: '#ffffff'
                                         }}
                                     >
@@ -284,8 +284,8 @@ export default function TeamProgress() {
                                     </a>
                                 </>
                             )}
-                        </div>
                     </Card>
+                </div>
                 )}
 
                 {/* Completed Checkpoints */}
@@ -342,7 +342,7 @@ export default function TeamProgress() {
                                                 </div>
                                                 {settings?.show_checkpoint_map !== false && checkpoint?.latitude && checkpoint?.longitude && (
                                                     <>
-                                                        <div className="flex items-center gap-2 text-sm" style={{ color: config.colors.text }}>
+                                                        <div className="flex items-center gap-2 text-sm" style={{ color: config?.colors?.text }}>
                                                             <MapPin className="w-4 h-4" />
                                                             <span className="font-mono opacity-80">
                                                                 {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
@@ -353,7 +353,7 @@ export default function TeamProgress() {
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="inline-flex items-center gap-2 text-sm font-medium hover:underline mt-1"
-                                                            style={{ color: config.colors.primary }}
+                                                            style={{ color: config?.colors?.primary }}
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
                                                             <Navigation className="w-4 h-4" />

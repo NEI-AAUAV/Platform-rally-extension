@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
@@ -8,6 +8,7 @@ import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";
+import { refreshToken } from "@/services/client";
 import { useThemedComponents } from "@/components/themes";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { QrCode } from "lucide-react";
@@ -26,6 +27,7 @@ export default function TeamMembers() {
   const isStaff = userStore?.scopes?.includes("rally-staff");
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
+  const queryClient = useQueryClient();
 
   // Fetch teams with better error handling
   const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery<ListingTeam[]>({
@@ -49,6 +51,18 @@ export default function TeamMembers() {
       return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(Number(selectedTeam));
     },
     enabled: !!selectedTeam && (isRallyAdmin || isStaff),
+    onError: async (error) => {
+      const status = (error as any)?.status ?? (error as any)?.response?.status;
+      if (status === 403) {
+        try {
+          await refreshToken();
+          // Invalidate to trigger refetch with possibly refreshed credentials
+          queryClient.invalidateQueries(["teamMembers", selectedTeam]);
+        } catch (e) {
+          // ignore refresh failures here; the UI will show error
+        }
+      }
+    },
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     staleTime: 0,
