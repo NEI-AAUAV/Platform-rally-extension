@@ -162,10 +162,7 @@ export default function StaffTeamView() {
                   <QrCode className="w-5 h-5" />
                   Código QR
                 </h3>
-                <p className="text-sm mb-4 text-center">
-                  Código de acesso: <strong className="text-white">{(teamData as DetailedTeam & { access_code?: string }).access_code}</strong>
-                </p>
-                <div className="flex justify-center p-4 bg-white rounded-lg">
+                <div className="flex justify-center">
                   <QRCodeDisplay accessCode={(teamData as DetailedTeam & { access_code?: string }).access_code || ''} size={200} />
                 </div>
               </Card>

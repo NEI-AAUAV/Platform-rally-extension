@@ -321,9 +321,6 @@ export default function TeamManagement() {
 
                   {/* Instructions */}
                   <div className="space-y-3 bg-white/5 p-4 rounded-lg border border-white/10">
-                    <p className="text-white text-sm">
-                      <strong>Código de Acesso:</strong> {((newlyCreatedTeam || teamDetailsForQR) as ExtendedDetailedTeam)?.access_code}
-                    </p>
                     <p className="text-white/70 text-xs">
                       Partilhe este código QR ou código de acesso com a equipa para que possam fazer login e acompanhar o progresso.
                     </p>
