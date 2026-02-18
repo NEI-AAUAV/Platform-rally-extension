@@ -36,9 +36,7 @@ interface Team {
   num_members: number;
 }
 
-interface ExtendedDetailedTeam extends DetailedTeam {
-  access_code?: string;
-}
+type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
 
 
 

@@ -17,11 +17,11 @@ import {
 import { useAppToast } from "@/hooks/use-toast";
 
 // Extended interface to include possibly missing properties
-interface ExtendedRallySettingsResponse extends RallySettingsResponse {
+type ExtendedRallySettingsResponse = Omit<RallySettingsResponse, 'participant_view_enabled' | 'show_route_mode' | 'show_score_mode'> & {
   participant_view_enabled?: boolean;
   show_route_mode?: string;
   show_score_mode?: string;
-}
+};
 
 const rallySettingsSchema = z.object({
   // Team management

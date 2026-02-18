@@ -12,9 +12,7 @@ import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { QrCode } from "lucide-react";
 import type { DetailedTeam } from "@/client";
 
-interface ExtendedDetailedTeam extends DetailedTeam {
-  access_code?: string;
-}
+type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();

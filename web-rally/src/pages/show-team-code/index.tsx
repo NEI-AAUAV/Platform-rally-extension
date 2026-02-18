@@ -7,9 +7,7 @@ import { useAppToast } from "@/hooks/use-toast";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import type { DetailedTeam } from "@/client";
 
-interface ExtendedDetailedTeam extends DetailedTeam {
-  access_code?: string;
-}
+type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
 
 /**
  * Page for teams to view and display their QR code

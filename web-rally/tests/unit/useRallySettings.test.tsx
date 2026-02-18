@@ -17,7 +17,7 @@ vi.mock('@/client', () => ({
 }))
 
 // Mock console.error to avoid noise in tests
-const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => { })
 
 // Test wrapper for React Query
 const createWrapper = () => {
@@ -29,7 +29,7 @@ const createWrapper = () => {
       },
     },
   })
-  
+
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -47,23 +47,26 @@ describe('useRallySettings Hook', () => {
   })
 
   const createMockSettings = (): RallySettingsResponse => ({
-      rally_theme: 'Test Rally',
-      max_teams: 10,
-      max_members_per_team: 5,
-      rally_start_time: '2024-01-15T10:00:00Z',
-      rally_end_time: '2024-01-15T18:00:00Z',
-      checkpoint_order_matters: true,
-      show_checkpoint_map: true,
-      enable_versus: true,
-      public_access_enabled: true,
-      penalty_per_puke: 0,
-      penalty_per_not_drinking: 0,
-      bonus_per_extra_shot: 0,
-      max_extra_shots_per_member: 0,
-      enable_staff_scoring: true,
-      show_live_leaderboard: true,
-      show_team_details: true
-    })
+    rally_theme: 'Test Rally',
+    max_teams: 10,
+    max_members_per_team: 5,
+    rally_start_time: '2024-01-15T10:00:00Z',
+    rally_end_time: '2024-01-15T18:00:00Z',
+    checkpoint_order_matters: true,
+    show_checkpoint_map: true,
+    enable_versus: true,
+    public_access_enabled: true,
+    penalty_per_puke: 0,
+    penalty_per_not_drinking: 0,
+    bonus_per_extra_shot: 0,
+    max_extra_shots_per_member: 0,
+    enable_staff_scoring: true,
+    show_live_leaderboard: true,
+    show_team_details: true,
+    participant_view_enabled: true,
+    show_route_mode: 'focused',
+    show_score_mode: 'hidden',
+  })
 
   it('should fetch rally settings successfully', async () => {
     const mockSettings = createMockSettings()
