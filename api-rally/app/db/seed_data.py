@@ -21,14 +21,14 @@ def seed_data(db: Session) -> None:
             logger.info(f"Seeding {len(checkpoints_data)} checkpoints")
             for cp_data in checkpoints_data:
                 # Check if exists by name or order? Name seems safer for updates
-                existing = db.query(CheckPoint).filter(CheckPoint.name == cp_data["name"]).first()
-                if not existing:
+                existing_checkpoint = db.query(CheckPoint).filter(CheckPoint.name == cp_data["name"]).first()
+                if not existing_checkpoint:
                     cp = CheckPoint(**cp_data)
                     db.add(cp)
                 else:
                     # Update existing?
                     for key, value in cp_data.items():
-                        setattr(existing, key, value)
+                        setattr(existing_checkpoint, key, value)
             db.commit()
     else:
         logger.warning(f"Checkpoints seed file not found at {checkpoints_file}")
@@ -55,13 +55,13 @@ def seed_data(db: Session) -> None:
                 if checkpoint:
                     act_data["checkpoint_id"] = checkpoint.id
                     
-                    existing = db.query(Activity).filter(Activity.name == act_data["name"]).first()
-                    if not existing:
+                    existing_activity = db.query(Activity).filter(Activity.name == act_data["name"]).first()
+                    if not existing_activity:
                         activity = Activity(**act_data)
                         db.add(activity)
                     else:
                          for key, value in act_data.items():
-                            setattr(existing, key, value)
+                            setattr(existing_activity, key, value)
                 else:
                     logger.error(f"Checkpoint with order {cp_id} not found for activity {act_data['name']}")
                     

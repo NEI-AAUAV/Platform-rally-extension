@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, Navigati
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
-import { Button } from "@/components/ui/button";
+
 import {
     TeamService,
     CheckPointService,
@@ -268,8 +268,8 @@ export default function TeamProgress() {
                                     </a>
                                 </>
                             )}
-                    </Card>
-                </div>
+                        </Card>
+                    </div>
                 )}
 
                 {/* Completed Checkpoints */}
