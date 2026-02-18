@@ -91,7 +91,8 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
     # The evaluation flow handles check-in automatically via
     # _check_and_advance_team -> _ensure_team_checkpoint_and_advance -> _checkin_team_to_checkpoint
     team_checkpoint_number = len(team_obj.times)
-    logger.info(f"Team {team_id} currently at checkpoint {team_checkpoint_number}, staff assigned to checkpoint {current_user.staff_checkpoint_id}")
+    
+    logger.debug(f"Team {team_id} currently at checkpoint {team_checkpoint_number}, staff assigned to checkpoint {current_user.staff_checkpoint_id}")
     
     # Verify activity is at the same checkpoint
     from app.crud.crud_activity import activity
@@ -103,7 +104,7 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
             detail="Activity not found"
         )
     
-    logger.info(f"Activity {activity_id} belongs to checkpoint {activity_obj.checkpoint_id}")
+    logger.debug(f"Activity {activity_id} belongs to checkpoint {activity_obj.checkpoint_id}")
     
     if activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
         logger.warning(f"Activity checkpoint mismatch: {activity_obj.checkpoint_id} != {current_user.staff_checkpoint_id}")
@@ -112,7 +113,7 @@ def _validate_staff_checkpoint_access(db: Session, current_user: DetailedUser, t
             detail="Activity not found at your assigned checkpoint"
         )
     
-    logger.info(f"Validation successful for team {team_id}, activity {activity_id}")
+    logger.debug(f"Validation successful for team {team_id}, activity {activity_id}")
     return team_obj, activity_obj
 
 

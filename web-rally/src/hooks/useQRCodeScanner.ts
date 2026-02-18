@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
 
 /**
  * Custom hook for QR code scanning
@@ -14,6 +15,7 @@ export function useQRCodeScanner(
   const scanIntervalRef = useRef<number>();
 
   // Inject jsQR library if not already loaded
+  /*
   useEffect(() => {
     if (!(window as any).jsQR) {
       const script = document.createElement("script");
@@ -28,6 +30,7 @@ export function useQRCodeScanner(
       };
     }
   }, []);
+  */
 
   const scan = () => {
     const video = videoRef.current;
@@ -45,17 +48,14 @@ export function useQRCodeScanner(
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      const jsqr = (window as any).jsQR;
-      if (jsqr) {
-        const code = jsqr(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
-        });
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
 
-        if (code) {
-          onDetectCode(code.data);
-          setIsActive(false); // Stop scanning after detection
-          return;
-        }
+      if (code) {
+        onDetectCode(code.data);
+        setIsActive(false); // Stop scanning after detection
+        return;
       }
 
       // Continue scanning

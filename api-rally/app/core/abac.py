@@ -216,7 +216,9 @@ class ABACEngine:
             effect="allow",
             conditions={
                 "user_scopes": {"contains": "rally-staff"},
-                "action": Action.VIEW_TEAM_MEMBERS.value
+                "action": Action.VIEW_TEAM_MEMBERS.value,
+                "user_staff_checkpoint_id": {"equals": "checkpoint_id"},
+                "checkpoint_id": {"is_not_null": True}
             },
             priority=80
         ))

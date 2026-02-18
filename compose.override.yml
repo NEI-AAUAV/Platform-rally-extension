@@ -13,6 +13,7 @@ services:
       POSTGRES_SERVER: db_pg
       POSTGRES_PASSWORD: postgres
       JWT_PUBLIC_KEY_PATH: /jwt.key.pub
+      TEAM_JWT_SECRET_KEY: your-secret-key-for-team-jwt-tokens-change-in-production
     volumes:
       - ./extensions/rally/api-rally:/api_rally
       - ./dev-keys/jwt.key.pub:/jwt.key.pub:ro

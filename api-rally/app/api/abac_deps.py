@@ -95,7 +95,7 @@ def get_staff_with_checkpoint_access(
     from loguru import logger
     
     # Log authentication data for debugging
-    logger.info(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
+    logger.debug(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
     
     if curr_user is None:
         # Build user from auth claims to avoid hard dependency on local User row
@@ -245,16 +245,35 @@ def require_team_management_permission(
 
 def require_view_team_members_permission(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = Depends(deps.get_participant)
+    curr_user: DetailedUser = Depends(deps.get_participant),
+    team_id: int | None = None
 ) -> None:
     """
     Require permission to view team members
     """
+    # If using API key/admin access, bypass further checks
+    if "rally-admin" in auth.scopes:
+        return
+
+    # For staff, we might want to restrict viewing members to teams at their checkpoint
+    # But currently the requirement is just "staff at assigned checkpoint".
+    # We pass the checkpoint_id to the policy engine if available.
+    
+    context = {}
+    if curr_user.staff_checkpoint_id:
+         context["checkpoint_id"] = curr_user.staff_checkpoint_id
+         context["user_staff_checkpoint_id"] = curr_user.staff_checkpoint_id
+         
+    # If we have a team_id, we could ideally check if the team is at the checkpoint,
+    # but the ABAC policy for VIEW_TEAM_MEMBERS is currently just checking if the staff
+    # has a checkpoint assigned (is an active staff member).
+    
     require_permission(
         user=curr_user,
         auth=auth,
         action=Action.VIEW_TEAM_MEMBERS,
-        resource=Resource.TEAM
+        resource=Resource.TEAM,
+        **context
     )
 
 
