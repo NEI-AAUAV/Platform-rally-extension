@@ -6,6 +6,7 @@ import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
 import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
@@ -235,8 +236,9 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
+  const fallbackPath = useFallbackNavigation();
   if (!isRallyAdmin) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   if (isLoadingSettings) {

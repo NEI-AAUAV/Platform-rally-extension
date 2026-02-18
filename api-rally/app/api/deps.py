@@ -45,7 +45,16 @@ def get_current_user(
             db.add(user)
             db.commit()
             db.refresh(user)
-    return DetailedUser.model_validate(user)
+    
+    # Load staff checkpoint assignment if user is staff
+    detailed_user = DetailedUser.model_validate(user)
+    if "rally-staff" in auth.scopes:
+        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+        if staff_assignment:
+            detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+    
+    return detailed_user
 
 
 def get_participant(

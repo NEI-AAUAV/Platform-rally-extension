@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Swords } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useRallySettings from "@/hooks/useRallySettings";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "react-router-dom";
 import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
@@ -10,6 +11,7 @@ import { TeamService, VersusService, type ListingTeam, type VersusGroupListRespo
 export default function Versus() {
   const { isLoading, isRallyAdmin } = useUser();
   const { settings } = useRallySettings();
+  const fallbackPath = useFallbackNavigation();
 
   // Fetch teams
   const { data: teams, refetch: refetchTeams } = useQuery<ListingTeam[]>({
@@ -34,7 +36,7 @@ export default function Versus() {
   }
 
   if (!isRallyAdmin) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   if (!settings?.enable_versus) {

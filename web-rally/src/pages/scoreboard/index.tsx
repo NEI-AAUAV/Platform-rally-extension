@@ -2,6 +2,7 @@ import { TeamService, type ListingTeam } from "@/client";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useThemedComponents } from "@/components/themes";
+import { Navigate } from "react-router-dom";
 
 export default function Scoreboard() {
   const { Card, Score } = useThemedComponents();
@@ -13,6 +14,12 @@ export default function Scoreboard() {
   const sortedTeams = teams?.sort(
     (a: ListingTeam, b: ListingTeam) => a.classification - b.classification,
   );
+  
+  // Se pontuação está totalmente oculta, redirecionar para postos
+  if (settings?.show_score_mode === "hidden") {
+    return <Navigate to="/postos" replace />;
+  }
+  
   if (settings?.show_live_leaderboard === false) {
     return (
       <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">

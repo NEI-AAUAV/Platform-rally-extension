@@ -7,6 +7,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "react-router-dom";
+import useRallySettings from "@/hooks/useRallySettings";
 import {
   CheckPointService,
   ActivitiesService,
@@ -25,6 +26,7 @@ export default function ManagerEvaluationPage() {
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
   const { Card } = useThemedComponents();
+  const { settings } = useRallySettings();
 
 
   // Get all checkpoints
@@ -191,8 +193,12 @@ type EvaluationResponse = ActivityResultResponse & {
                   </div>
                   <div className="space-y-1 text-sm text-[rgb(255,255,255,0.7)]">
                     <p>Members: {team.num_members || 0}</p>
-                    <p>Total Score: {team.total || 0}</p>
-                    <p>Classification: {team.classification || 'N/A'}</p>
+                    {settings?.show_score_mode !== "hidden" && (
+                      <p>Total Score: {team.total || 0}</p>
+                    )}
+                    {settings?.show_score_mode !== "hidden" && (
+                      <p>Classification: {team.classification || 'N/A'}</p>
+                    )}
                     <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
                   </div>
                 </Card>
