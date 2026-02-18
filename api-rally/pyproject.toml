@@ -26,7 +26,7 @@ flake8 = "^6.1.0"
 mypy = "1.6.0"
 uvicorn = "^0.38.0"
 types-python-jose = "^3.3.4.8"
-types-passlib = "^1.7.7.13"
+types-passlib = "^1.7.7.20260211"
 black = "^24.3.0"
 
 
