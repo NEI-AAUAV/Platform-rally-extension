@@ -16,7 +16,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { settings } = useRallySettings();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  
+
   // Handle click outside to close mobile menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -33,20 +33,20 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isMobileMenuOpen]);
-  
+
   // Check if user has admin/manager privileges
-  const isAdminOrManager = scopes !== undefined && 
+  const isAdminOrManager = scopes !== undefined &&
     (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
-  
+
   // Check if user has staff privileges
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  
+
   // Check if score should be visible
   const showScoreMenu = settings?.show_score_mode !== "hidden";
-  
+
   const navigation = [
     { name: "Pontuação", href: "/scoreboard", show: showScoreMenu },
-    { name: "Postos", href: "/postos", show: true },
+    { name: "Postos", href: "/postos", show: (scopes !== undefined) || (settings?.show_checkpoint_map === true) },
     {
       name: "Admin",
       href: "/admin",
@@ -76,6 +76,11 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       name: "Avaliação",
       href: "/staff-evaluation",
       show: isStaff || isAdminOrManager,
+    },
+    {
+      name: "Login",
+      href: "/team-login",
+      show: scopes === undefined,
     },
   ].filter((item) => item.show);
 

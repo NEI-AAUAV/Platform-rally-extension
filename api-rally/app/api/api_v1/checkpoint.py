@@ -23,11 +23,52 @@ router = APIRouter()
 
 
 @router.get("/", status_code=200)
-def get_checkpoints(*, db: Session = Depends(deps.get_db)) -> List[DetailedCheckPoint]:
-    detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-    return detailed_checkpoint_list_adapter.validate_python(
-        crud.checkpoint.get_all_ordered(db=db)
-    )
+def get_checkpoints(
+    *,
+    db: Session = Depends(deps.get_db),
+    # Use optional dependency to allow public access check
+    curr_user: DetailedUser | None = Depends(deps.get_current_user_optional),
+) -> List[DetailedCheckPoint]:
+    # customized logic to show checkpoints based on settings and user role
+    # Fix: Import rally_settings directly if not in app.crud
+    from app.crud.crud_rally_settings import rally_settings
+    settings = rally_settings.get_or_create(db)
+    
+    # 1. Admin/Staff: Always see all
+    is_privileged = False
+    if curr_user:
+        scopes = getattr(curr_user, "scopes", [])
+        is_privileged = deps.is_admin_or_staff(scopes)
+
+    if is_privileged:
+        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+        return detailed_checkpoint_list_adapter.validate_python(
+            crud.checkpoint.get_all_ordered(db=db)
+        )
+
+    # 2. Team
+    if curr_user and curr_user.team_id:
+        if settings.show_checkpoint_map:
+            detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+            return detailed_checkpoint_list_adapter.validate_python(
+                crud.checkpoint.get_all_ordered(db=db)
+            )
+        else:
+            # Show only next checkpoint as a list of 1
+            next_cp = crud.checkpoint.get_next(db=db, team_id=curr_user.team_id)
+            if next_cp:
+                return [DetailedCheckPoint.model_validate(next_cp)]
+            return []
+
+    # 3. Public (No user or user without team/admin roles)
+    if settings.show_checkpoint_map:
+        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+        return detailed_checkpoint_list_adapter.validate_python(
+            crud.checkpoint.get_all_ordered(db=db)
+        )
+
+    # Default: Access Denied
+    raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
 
 
 @router.get("/me", status_code=200)

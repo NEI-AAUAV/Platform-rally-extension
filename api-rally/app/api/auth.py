@@ -84,6 +84,38 @@ def api_nei_auth(
     return auth_data
 
 
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="http://localhost:8000/api/nei/v1/auth/login",
+    scopes={
+        ScopeEnum.ADMIN: "Full access to everything.",
+        ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
+    },
+    auto_error=False,
+)
+
+
+def api_nei_auth_optional(
+    settings: SettingsDep,
+    public_key: Annotated[str, Depends(get_public_key)],
+    security_scopes: SecurityScopes,
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+) -> Optional[AuthData]:
+    """Dependency for optional user authentication"""
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        auth_data = AuthData.model_validate(payload)
+        return auth_data
+    except JWTError:
+        return None
+
+
 auth_responses: Dict[Union[int, str], Dict[str, Any]] = {
     401: {"description": "Not authenticated"},
     403: {"description": "Not enough permissions"},

@@ -114,8 +114,7 @@ def get_staff_with_checkpoint_access(
             )
     
     # Check if user has any Rally permissions
-    has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
-                          for scope in auth.scopes)
+    has_rally_access = deps.is_admin_or_staff(auth.scopes)
     
     if not has_rally_access:
         raise HTTPException(
@@ -124,7 +123,7 @@ def get_staff_with_checkpoint_access(
         )
     
     # For staff users, ensure they have a checkpoint assignment
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+    if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         logger.info(f"Checking staff assignment for user_id={auth.sub}")
         _validate_staff_checkpoint_assignment(curr_user, auth, db)
         logger.info(f"Staff user {auth.sub} assigned to checkpoint {curr_user.staff_checkpoint_id}")
@@ -150,7 +149,7 @@ def require_checkpoint_score_permission(
         curr_user: Current user with staff access
     """
     # For staff users, validate checkpoint order
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+    if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         from app import crud
         
         # Get team to check their progress
