@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes";
 import { Users, MapPin, Activity as ActivityIcon } from "lucide-react";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { TeamManagement, CheckpointManagement, ActivityManagement } from "./components";
 import { CheckPointService } from "@/client";
@@ -19,6 +20,7 @@ interface Checkpoint {
 export default function Admin() {
   const { Button } = useThemedComponents();
   const { isLoading, isRallyAdmin, userStore } = useUser();
+  const fallbackPath = useFallbackNavigation();
   
   const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities">("teams");
 
@@ -37,7 +39,7 @@ export default function Admin() {
   }
 
   if (!isRallyAdmin) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   return (

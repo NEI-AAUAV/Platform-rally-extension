@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
+import useRallySettings from "@/hooks/useRallySettings";
 
 type NavTabsProps = ComponentProps<"ul">;
 
@@ -12,6 +13,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { Button, config } = useThemedComponents();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
+  const { settings } = useRallySettings();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   
@@ -39,8 +41,11 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   // Check if user has staff privileges
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   
+  // Check if score should be visible
+  const showScoreMenu = settings?.show_score_mode !== "hidden";
+  
   const navigation = [
-    { name: "Pontuação", href: "/scoreboard", show: true },
+    { name: "Pontuação", href: "/scoreboard", show: showScoreMenu },
     { name: "Postos", href: "/postos", show: true },
     {
       name: "Admin",

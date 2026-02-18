@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes/ThemeContext"; // Correct import path based on context
-import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, QrCode, Navigation } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -263,20 +263,28 @@ export default function TeamProgress() {
                                     POSTO #{nextCheckpoint.order}
                                 </p>
                             </div>
-                            {nextCheckpoint.coordinates && (
-                                <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${nextCheckpoint.coordinates}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold shadow-lg transition-all hover:brightness-110 active:scale-95"
-                                    style={{
-                                        backgroundColor: config.colors.primary,
-                                        color: '#ffffff'
-                                    }}
-                                >
-                                    <MapPin className="w-5 h-5" />
-                                    Abrir no Google Maps
-                                </a>
+                            {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
+                                <>
+                                    <div className="flex items-center gap-2 text-sm" style={{ color: config.colors.text }}>
+                                        <MapPin className="w-4 h-4" />
+                                        <span className="font-mono opacity-80">
+                                            {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
+                                        </span>
+                                    </div>
+                                    <a
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold shadow-lg transition-all hover:brightness-110 active:scale-95"
+                                        style={{
+                                            backgroundColor: config.colors.primary,
+                                            color: '#ffffff'
+                                        }}
+                                    >
+                                        <Navigation className="w-5 h-5" />
+                                        Abrir no Google Maps
+                                    </a>
+                                </>
                             )}
                         </div>
                     </Card>
@@ -334,18 +342,26 @@ export default function TeamProgress() {
                                                     <span className="opacity-60">Completado às: </span>
                                                     <span className="font-mono font-medium">{formatTime(team.times[index])}</span>
                                                 </div>
-                                                {checkpoint?.coordinates && (
-                                                    <a
-                                                        href={`https://www.google.com/maps/search/?api=1&query=${checkpoint.coordinates}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-2 text-sm font-medium hover:underline mt-1"
-                                                        style={{ color: config.colors.primary }}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <MapPin className="w-4 h-4" />
-                                                        Ver localização
-                                                    </a>
+                                                {settings?.show_checkpoint_map !== false && checkpoint?.latitude && checkpoint?.longitude && (
+                                                    <>
+                                                        <div className="flex items-center gap-2 text-sm" style={{ color: config.colors.text }}>
+                                                            <MapPin className="w-4 h-4" />
+                                                            <span className="font-mono opacity-80">
+                                                                {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
+                                                            </span>
+                                                        </div>
+                                                        <a
+                                                            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-2 text-sm font-medium hover:underline mt-1"
+                                                            style={{ color: config.colors.primary }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <Navigation className="w-4 h-4" />
+                                                            Ver no Mapa
+                                                        </a>
+                                                    </>
                                                 )}
                                             </div>
                                         )}

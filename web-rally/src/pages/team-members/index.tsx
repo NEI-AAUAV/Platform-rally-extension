@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { useUserStore } from "@/stores/useUserStore";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
@@ -15,6 +16,7 @@ export default function TeamMembers() {
   const { Card } = useThemedComponents();
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const token = useUserStore((state) => state.token);
+  const fallbackPath = useFallbackNavigation();
   
   const isStaff = userStore?.scopes?.includes("rally-staff");
 
@@ -63,7 +65,7 @@ export default function TeamMembers() {
   }
 
   if (!isRallyAdmin && !isStaff) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   const selectedTeamData = teams?.find(t => t.id === Number(selectedTeam));

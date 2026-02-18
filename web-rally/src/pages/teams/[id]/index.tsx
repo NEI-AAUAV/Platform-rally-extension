@@ -10,7 +10,7 @@ import {
 } from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer } from "lucide-react";
+import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer, MapPin, Navigation, Check, Target } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -153,28 +153,38 @@ export default function TeamsById() {
           onClick={() => window.print()}
           variant="default"
         >
-         div className="team-details-print">
-          {/* Team Header - Print Optimized */}
-          <div className="team-print-header">
-            <h2 className="mb-4 font-playfair text-2xl font-semibold">
-              Team description and score
-            </h2>
-          </div>
+          Imprimir
+        </Button>
+      )}
 
+      <div className="team-details-print">
+        {/* Team Header - Print Optimized */}
+        <div className="team-print-header">
+          <h2 className="mb-4 font-playfair text-2xl font-semibold">
+            Detalhes da Equipa
+          </h2>
+        </div>
+
+        {settings?.show_team_details !== false && (
           <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
             <div className="text-center">
               <p className="mb-4 text-xl font-semibold">
                 {team.name}
               </p>
               <div>
-                <p className="mb-2">{team.total} points</p>
-                <p className="text-sm font-light">
-                  {team.classification}
-                  {nthNumber(team.classification)} place
-                </p>
+                {settings?.show_score_mode !== "hidden" && (
+                  <>
+                    <p className="mb-2">{team.total} pontos</p>
+                    <p className="text-sm font-light">
+                      {team.classification}
+                      {nthNumber(team.classification)}º lugar
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </Card>
+        )}
 
           {/* QR Code and Access Code for Team Login - Print Optimized */}
           <div className="qr-code-print">
@@ -206,17 +216,65 @@ export default function TeamsById() {
             </Card>
           </div>
 
+          {/* Next Checkpoint Section */}
+          {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
+            <>
+              <h2 className="mb-4 font-playfair text-2xl font-semibold">
+                Próximo Posto
+              </h2>
+              {(() => {
+                const nextCheckpointOrder = (team?.times?.length ?? 0) + 1;
+                const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
+                if (!nextCheckpoint) return null;
+                return (
+                  <Card variant="default" padding="lg" rounded="2xl" className="mb-8 border-2 border-yellow-500/50 bg-yellow-500/10">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Target className="w-5 h-5 text-yellow-300" />
+                        <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
+                      </div>
+                      {nextCheckpoint.description && (
+                        <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
+                      )}
+                      {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
+                        <div className="space-y-2 pt-2">
+                          <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
+                            <MapPin className="w-4 h-4" />
+                            <span className="font-mono">
+                              {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
+                            </span>
+                          </div>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-all"
+                          >
+                            <Navigation className="w-4 h-4" />
+                            Abrir no Google Maps
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })()}
+            </>
+          ) : null}
+
           <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Checkpoint Progress
+            Histórico de Postos
           </h2>
           <Card variant="default" padding="md" rounded="2xl" className="mb-6">
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/70">
-                Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+                Progresso: {team.times?.length || 0} de {checkpoints?.length || 0} postos
               </span>
-              <span className="font-medium">
-                Total: {team.total} points
-              </span>
+              {settings?.show_score_mode !== "hidden" && (
+                <span className="font-medium">
+                  Total: {team.total} pontos
+                </span>
+              )}
             </div>
           </Card>
           <div className="mb-8 space-y-4">
@@ -288,39 +346,82 @@ export default function TeamsById() {
                       rounded="2xl"
                       hover
                       onClick={() => evaluationResults.length > 0 && toggleCheckpoint(index)}
+                      className={`transition-all duration-300 border-2 ${
+                        isLastCheckpoint
+                          ? 'border-yellow-500/50 bg-yellow-500/10'
+                          : 'border-green-500/50 bg-green-500/10'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-sm font-medium text-white/70">
-                              Checkpoint {index + 1}
-                            </span>
-                            {isLastCheckpoint && (
-                              <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
-                                Current
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                              isLastCheckpoint
+                                ? 'bg-yellow-500/30 text-yellow-300'
+                                : 'bg-green-500/30 text-green-300'
+                            }`}>
+                              {isLastCheckpoint ? (
+                                <Target className="w-5 h-5" />
+                              ) : (
+                                <Check className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div>
+                              <span className={`text-sm font-semibold ${
+                                isLastCheckpoint ? 'text-yellow-300' : 'text-green-300'
+                              }`}>
+                                Checkpoint {index + 1}
                               </span>
-                            )}
-                            {evaluationResults.length > 0 && (
-                              <span className="text-xs text-white/50">
-                                {evaluationResults.length} activit{evaluationResults.length === 1 ? 'y' : 'ies'}
-                              </span>
-                            )}
-                            {hasPendingTimeBasedActivity && (
-                              <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                            )}
+                              {isLastCheckpoint && (
+                                <span className="text-xs bg-yellow-600/20 text-yellow-300 px-2 py-1 rounded ml-2">
+                                  Próximo
+                                </span>
+                              )}
+                              {!isLastCheckpoint && (
+                                <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded ml-2">
+                                  Concluído
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <h3 className="text-lg font-semibold mb-1">
+                          <h3 className="text-lg font-semibold mb-2">
                             {checkpoint?.name || `Checkpoint ${index + 1}`}
                           </h3>
                           {checkpoint?.description && (
-                            <p className="text-sm text-white/70 mb-2">
+                            <p className="text-sm text-white/70 mb-3">
                               {checkpoint.description}
                             </p>
                           )}
+                          {settings?.show_checkpoint_map !== false && checkpoint?.latitude && checkpoint?.longitude && (
+                            <div className="space-y-2 mb-3">
+                              <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
+                                <MapPin className="w-4 h-4" />
+                                <span className="font-mono">
+                                  {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
+                                </span>
+                              </div>
+                              <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${
+                                  isLastCheckpoint
+                                    ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
+                                    : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Navigation className="w-4 h-4" />
+                                Abrir no Google Maps
+                              </a>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-end flex-col gap-3 ml-4">
                           <div className="text-right">
-                            <div className="text-xl font-bold mb-1">
+                            <div className={`text-2xl font-bold mb-1 ${
+                              isLastCheckpoint ? 'text-yellow-300' : 'text-green-300'
+                            }`}>
                               {checkpointScore} pts
                             </div>
                             <div className="text-sm text-white/60">
@@ -343,7 +444,7 @@ export default function TeamsById() {
                     </Card>
 
                     {/* Activity-level cards - only show when expanded */}
-                    {isExpanded && evaluationResults.length > 0 && (
+                    {isExpanded && evaluationResults.length > 0 && settings?.show_score_mode !== "hidden" && (
                       <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
                         {evaluationResults.map((result, resultIndex: number) => {
                           const activity = result.activity;

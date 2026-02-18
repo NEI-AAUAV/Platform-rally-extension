@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users, QrCode } from "lucide-react";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "react-router-dom";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector } from "./components";
@@ -12,6 +13,7 @@ import QRCodeDisplay from "@/components/QRCodeDisplay";
 export default function StaffTeamView() {
   const { Card } = useThemedComponents();
   const { isLoading, userStore } = useUser();
+  const fallbackPath = useFallbackNavigation();
   const isStaff = userStore?.scopes?.includes("rally-staff");
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
@@ -54,7 +56,7 @@ export default function StaffTeamView() {
   }
 
   if (!isStaff) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   const selectedTeamData = teams?.find(t => t.id === Number(selectedTeam));

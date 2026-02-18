@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, AlertTriangle } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import useUser from "@/hooks/useUser";
+import useRallySettings from "@/hooks/useRallySettings";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { useParams } from "react-router-dom";
 import {
@@ -76,6 +77,7 @@ export default function CheckpointTeamEvaluation() {
   const { isRallyAdmin } = useUser();
   const userStore = useUserStore();
   const queryClient = useQueryClient();
+  const { settings } = useRallySettings();
   const [selectedTeam, setSelectedTeam] = useState<ListingTeam | null>(null);
   const [showTeamList, setShowTeamList] = useState(true);
   const [evaluationSummary, setEvaluationSummary] = useState<EvaluationSummary | null>(null);
@@ -447,8 +449,12 @@ export default function CheckpointTeamEvaluation() {
                               </div>
                               <div className="space-y-1 text-sm text-muted-foreground">
                                 <p>Members: {team.num_members || 0}</p>
-                                <p>Total Score: {team.total || 0}</p>
-                                <p>Classification: {team.classification || 'N/A'}</p>
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Total Score: {team.total || 0}</p>
+                                )}
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Classification: {team.classification || 'N/A'}</p>
+                                )}
                                 <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
                               </div>
                             </div>
@@ -491,8 +497,12 @@ export default function CheckpointTeamEvaluation() {
                               </div>
                               <div className="space-y-1 text-sm text-muted-foreground">
                                 <p>Members: {team.num_members || 0}</p>
-                                <p>Total Score: {team.total || 0}</p>
-                                <p>Classification: {team.classification || 'N/A'}</p>
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Total Score: {team.total || 0}</p>
+                                )}
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Classification: {team.classification || 'N/A'}</p>
+                                )}
                                 <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
                               </div>
                             </div>
@@ -535,8 +545,12 @@ export default function CheckpointTeamEvaluation() {
                               </div>
                               <div className="space-y-1 text-sm text-muted-foreground">
                                 <p>Members: {team.num_members || 0}</p>
-                                <p>Total Score: {team.total || 0}</p>
-                                <p>Classification: {team.classification || 'N/A'}</p>
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Total Score: {team.total || 0}</p>
+                                )}
+                                {settings?.show_score_mode !== "hidden" && (
+                                  <p>Classification: {team.classification || 'N/A'}</p>
+                                )}
                                 <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
                               </div>
                             </div>
