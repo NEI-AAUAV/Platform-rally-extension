@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes/ThemeContext";
-import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Clock, Loader2, Navigation } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Loader2, Navigation } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
@@ -272,40 +272,56 @@ export default function TeamProgress() {
                     </div>
                 )}
 
-                {/* Completed Checkpoints */}
-                {team.times && team.times.length > 0 && (
+                {/* Route / Trajectory */}
+                {checkpoints && checkpoints.length > 0 && (
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold flex items-center gap-2 px-2" style={{ color: config?.colors?.text }}>
-                            <Clock className="w-5 h-5" style={{ color: config?.colors?.primary }} />
-                            Histórico
+                            <MapPin className="w-5 h-5" style={{ color: config?.colors?.primary }} />
+                            Percurso
                         </h2>
                         <div className="space-y-3">
-                            {team.times.map((_, index: number) => {
-                                const checkpointOrder = index + 1;
-                                const checkpoint = checkpoints?.find((cp) => cp.order === checkpointOrder);
-                                const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
+                            {checkpoints.map((checkpoint, index) => {
+                                const checkpointOrder = checkpoint.order; // Should match index + 1 usually
+                                const completedCount = team?.times?.length || 0;
+                                const isCompleted = index < completedCount;
+                                const isNext = index === completedCount;
+                                const isFuture = index > completedCount;
+
+                                const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[index] ?? 0) : 0;
                                 const isExpanded = expandedCheckpoints.has(index);
 
                                 return (
                                     <Card
-                                        key={checkpoint?.id ?? `checkpoint-${index}`}
-                                        className="cursor-pointer transition-all hover:bg-white/10 active:scale-[0.99] overflow-hidden backdrop-blur-md bg-white/5 border-white/5"
+                                        key={checkpoint.id}
+                                        className={`cursor-pointer transition-all overflow-hidden backdrop-blur-md border-white/5 ${isCompleted ? 'bg-white/5 hover:bg-white/10' :
+                                            isNext ? 'bg-indigo-500/20 border-indigo-500/50 hover:bg-indigo-500/30' :
+                                                'bg-black/20 opacity-60 hover:opacity-100'
+                                            }`}
                                         onClick={() => toggleCheckpoint(index)}
                                     >
                                         <div className="p-4 flex items-center justify-between">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3">
                                                     <div
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-white/10"
-                                                        style={{ color: config?.colors?.text }}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isCompleted ? 'bg-green-500/20 text-green-300' :
+                                                            isNext ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50' :
+                                                                'bg-white/5 text-white/50'
+                                                            }`}
                                                     >
                                                         {checkpointOrder}
                                                     </div>
-                                                    <span className="text-lg font-semibold" style={{ color: config?.colors?.text }}>
-                                                        {checkpoint?.name || `Posto ${checkpointOrder}`}
-                                                    </span>
+                                                    <div>
+                                                        <span className={`text-lg font-semibold ${isFuture ? 'text-white/50' : ''}`} style={{ color: isFuture ? undefined : config?.colors?.text }}>
+                                                            {checkpoint.name}
+                                                        </span>
+                                                        <div className="text-xs flex gap-2">
+                                                            {isCompleted && <span className="text-green-400">Concluído</span>}
+                                                            {isNext && <span className="text-indigo-300 font-medium">EM CURSO</span>}
+                                                            {isFuture && <span className="text-white/40">Pendente</span>}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                {showScore && (
+                                                {showScore && isCompleted && (
                                                     <p className="text-sm opacity-60 mt-1 ml-11" style={{ color: config?.colors?.text }}>
                                                         +{checkpointScore} pontos
                                                     </p>
@@ -320,11 +336,15 @@ export default function TeamProgress() {
 
                                         {isExpanded && (
                                             <div className="px-4 pb-4 pt-0 pl-14 opacity-80 space-y-2 animate-in slide-in-from-top-2">
-                                                <div className="text-sm" style={{ color: config?.colors?.text }}>
-                                                    <span className="opacity-60">Completado às: </span>
-                                                    <span className="font-mono font-medium">{formatTime(team.times[index])}</span>
-                                                </div>
-                                                {settings?.show_checkpoint_map !== false && checkpoint?.latitude && checkpoint?.longitude && (
+                                                {isCompleted && (
+                                                    <div className="text-sm" style={{ color: config?.colors?.text }}>
+                                                        <span className="opacity-60">Completado às: </span>
+                                                        <span className="font-mono font-medium">{formatTime(team.times[index])}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Show map if allowed and has coords */}
+                                                {(settings?.show_checkpoint_map !== false || isCompleted) && checkpoint.latitude && checkpoint.longitude && (
                                                     <>
                                                         <div className="flex items-center gap-2 text-sm" style={{ color: config?.colors?.text }}>
                                                             <MapPin className="w-4 h-4" />
@@ -344,6 +364,10 @@ export default function TeamProgress() {
                                                             Ver no Mapa
                                                         </a>
                                                     </>
+                                                )}
+
+                                                {!isCompleted && !checkpoint.latitude && (
+                                                    <p className="text-sm italic opacity-50">Localização oculta</p>
                                                 )}
                                             </div>
                                         )}

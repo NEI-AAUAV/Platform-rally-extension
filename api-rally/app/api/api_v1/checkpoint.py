@@ -48,19 +48,47 @@ def get_checkpoints(
 
     # 2. Team
     if curr_user and curr_user.team_id:
-        if settings.show_checkpoint_map:
+        # If mode is 'complete', show all
+        if settings.show_route_mode == "complete":
             detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
             return detailed_checkpoint_list_adapter.validate_python(
                 crud.checkpoint.get_all_ordered(db=db)
             )
-        else:
-            # Show only next checkpoint as a list of 1
-            next_cp = crud.checkpoint.get_next(db=db, team_id=curr_user.team_id)
-            if next_cp:
-                return [DetailedCheckPoint.model_validate(next_cp)]
+        
+        # If mode is 'focused' (default), show completed + next
+        # Get all checkpoints first
+        all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+        # Determine team progress
+        team = crud.team.get(db=db, id=curr_user.team_id)
+        if not team:
             return []
+            
+        completed_count = len(team.times)
+        
+        # Log for debugging
+        print(f"DEBUG: Team {team.name} mode={settings.show_route_mode}, completed={completed_count}")
+        
+        # Return first (completed_count + 1) checkpoints
+        # (+1 includes the next one to visit)
+        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+        return detailed_checkpoint_list_adapter.validate_python(
+            all_checkpoints[:completed_count + 1]
+        )
 
     # 3. Public (No user or user without team/admin roles)
+    if settings.public_access_enabled and settings.show_checkpoint_map:
+         # If mode is 'complete', show all (default behavior below)
+         # If mode is 'focused', show only the first checkpoint
+         if settings.show_route_mode == "focused":
+            all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+            if not all_checkpoints:
+                return []
+            # Return only the first one
+            detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
+            return detailed_checkpoint_list_adapter.validate_python([all_checkpoints[0]])
+         
+         pass
+
     if settings.show_checkpoint_map:
         detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
         return detailed_checkpoint_list_adapter.validate_python(

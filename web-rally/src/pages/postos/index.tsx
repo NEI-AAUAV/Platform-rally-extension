@@ -43,8 +43,8 @@ export default function Postos() {
 
   return (
     <div className="mt-8 space-y-6">
-      <PageHeader 
-        title="Postos de Controlo"
+      <PageHeader
+        title="Postos"
         description="Consulte a lista de checkpoints e visualize-os no mapa"
       />
 
