@@ -410,6 +410,7 @@ export default function ActivityForm({
                         onChange={(e) => updateConfig("base_points", Number(e.target.value))}
                         className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                         placeholder="0"
+                        data-testid="input-base-points"
                       />
                       <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">Pontos dados apenas por participar</p>
                     </div>
@@ -425,6 +426,7 @@ export default function ActivityForm({
                         onChange={(e) => updateConfig("completion_points", Number(e.target.value))}
                         className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                         placeholder="0"
+                        data-testid="input-completion-points"
                       />
                       <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">Bônus por completar o desafio</p>
                     </div>
@@ -444,6 +446,7 @@ export default function ActivityForm({
                       onChange={(e) => updateConfig("win_points", Number(e.target.value))}
                       className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
                       placeholder="100"
+                      data-testid="input-win-points"
                     />
                   </div>
 

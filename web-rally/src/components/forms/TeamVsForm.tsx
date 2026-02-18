@@ -158,6 +158,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
           Match Result
         </label>
         <select
+          data-testid="select-result"
           value={result}
           onChange={(e) => setResult(e.target.value)}
           className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
@@ -177,6 +178,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
           <div className="flex items-center gap-3">
             <button
               type="button"
+              data-testid="toggle-completed"
               onClick={() => setCompleted(!completed)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${completed ? 'bg-green-500' : 'bg-[rgb(255,255,255,0.2)]'
                 }`}
