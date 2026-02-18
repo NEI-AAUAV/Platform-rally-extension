@@ -1,5 +1,5 @@
 // Rally Tascas Service Worker
-const CACHE_NAME = 'rally-tascas-v8'; // Updated version to force cache refresh
+const CACHE_NAME = 'carnaval-v9'; // Updated version to force cache refresh
 const STATIC_CACHE_URLS = [
   '/rally/',
   '/rally/manifest.json',
