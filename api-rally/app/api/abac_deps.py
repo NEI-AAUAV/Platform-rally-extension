@@ -245,7 +245,6 @@ def require_team_management_permission(
 def require_view_team_members_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_participant),
-    team_id: int | None = None
 ) -> None:
     """
     Require permission to view team members

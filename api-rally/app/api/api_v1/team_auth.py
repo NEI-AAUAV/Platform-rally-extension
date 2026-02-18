@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from typing import Annotated
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -16,7 +17,7 @@ security = HTTPBearer()
 
 def create_team_access_token(team_id: int, team_name: str) -> str:
     """Create a JWT token for team authentication"""
-    expire = datetime.utcnow() + timedelta(hours=settings.TEAM_TOKEN_EXPIRE_HOURS)
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.TEAM_TOKEN_EXPIRE_HOURS)
     to_encode = {
         "team_id": team_id,
         "team_name": team_name,
@@ -59,10 +60,10 @@ def verify_team_token(token: str) -> TeamTokenData:
         )
 
 
-@router.post("/login", response_model=TeamLoginResponse)
+@router.post("/login")
 def team_login(
     login_data: TeamLoginRequest,
-    db: Session = Depends(deps.get_db)
+    db: Annotated[Session, Depends(deps.get_db)]
 ) -> TeamLoginResponse:
     """
     Authenticate a team using their access code.
@@ -89,7 +90,7 @@ def team_login(
 
 @router.get("/verify")
 def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> TeamTokenData:
     """
     Verify a team JWT token.
@@ -99,9 +100,9 @@ def verify_token(
     return verify_team_token(token)
 
 
-@router.post("/refresh", response_model=TeamLoginResponse)
+@router.post("/refresh")
 def refresh_team_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> TeamLoginResponse:
     """
     Refresh a team JWT token.
