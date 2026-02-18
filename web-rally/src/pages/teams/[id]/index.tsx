@@ -10,13 +10,12 @@ import {
 } from "@/client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer, MapPin, Navigation, Check, Target } from "lucide-react";
+import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, Printer, MapPin, Navigation, Target } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
 import { formatTime } from "@/utils/timeFormat";
 import { useState } from "react";
 import { useThemedComponents } from "@/components/themes";
-import QRCodeDisplay from "@/components/QRCodeDisplay";
 
 const nthNumber = (number: number) => {
   if (number > 3 && number < 21) return "th";
@@ -179,68 +178,68 @@ export default function TeamsById() {
               </div>
             </Card>
 
-          {/* Next Checkpoint Section */}
-          {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
-            <>
-              <h2 className="mb-4 font-playfair text-2xl font-semibold">
-                Próximo Posto
-              </h2>
-              {(() => {
-                const nextCheckpointOrder = (team?.times?.length ?? 0) + 1;
-                const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
-                if (!nextCheckpoint) return null;
-                return (
-                  <Card variant="default" padding="lg" rounded="2xl" className="mb-8 border-2 border-yellow-500/50 bg-yellow-500/10">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-yellow-300" />
-                        <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
-                      </div>
-                      {nextCheckpoint.description && (
-                        <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
-                      )}
-                      {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
-                        <div className="space-y-2 pt-2">
-                          <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
-                            <MapPin className="w-4 h-4" />
-                            <span className="font-mono">
-                              {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
-                            </span>
-                          </div>
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-all"
-                          >
-                            <Navigation className="w-4 h-4" />
-                            Abrir no Google Maps
-                          </a>
+            {/* Next Checkpoint Section */}
+            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
+              <>
+                <h2 className="mb-4 font-playfair text-2xl font-semibold">
+                  Próximo Posto
+                </h2>
+                {(() => {
+                  const nextCheckpointOrder = (team?.times?.length ?? 0) + 1;
+                  const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
+                  if (!nextCheckpoint) return null;
+                  return (
+                    <Card variant="default" padding="lg" rounded="2xl" className="mb-8 border-2 border-yellow-500/50 bg-yellow-500/10">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-5 h-5 text-yellow-300" />
+                          <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
                         </div>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })()}
-            </>
-          ) : null}
+                        {nextCheckpoint.description && (
+                          <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
+                        )}
+                        {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
+                          <div className="space-y-2 pt-2">
+                            <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
+                              <MapPin className="w-4 h-4" />
+                              <span className="font-mono">
+                                {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
+                              </span>
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-all"
+                            >
+                              <Navigation className="w-4 h-4" />
+                              Abrir no Google Maps
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })()}
+              </>
+            ) : null}
 
-          <h2 className="mb-4 font-playfair text-2xl font-semibold">
-            Checkpoint Progress
-          </h2>
-          <Card variant="default" padding="md" rounded="2xl" className="mb-6">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white/70">
-                Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
-              </span>
-              {settings?.show_score_mode !== "hidden" && (
-                <span className="font-medium">
-                  Total: {team.total} points
+            <h2 className="mb-4 font-playfair text-2xl font-semibold">
+              Checkpoint Progress
+            </h2>
+            <Card variant="default" padding="md" rounded="2xl" className="mb-6">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/70">
+                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
                 </span>
-              )}
-            </div>
-          </Card>
-          <div className="mb-8 space-y-4">
+                {settings?.show_score_mode !== "hidden" && (
+                  <span className="font-medium">
+                    Total: {team.total} points
+                  </span>
+                )}
+              </div>
+            </Card>
+            <div className="mb-8 space-y-4">
               {team?.times && team.times.length > 0 ? (
                 team.times.map((_, index: number) => {
                   // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
