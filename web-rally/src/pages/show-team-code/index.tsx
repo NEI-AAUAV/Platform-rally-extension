@@ -14,7 +14,7 @@ type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: 
  * Useful for showing participants the code to scan
  */
 export default function ShowTeamCode() {
-  const { Card, config } = useThemedComponents();
+  const { Card, config, background } = useThemedComponents();
   const { team } = useTeamAuth();
   const toast = useAppToast();
   const [copied, setCopied] = useState(false);
@@ -54,7 +54,7 @@ export default function ShowTeamCode() {
   return (
     <div
       className="min-h-screen p-6 transition-colors duration-500"
-      style={{ ...useThemedComponents().background }}
+      style={{ ...background }}
     >
       <div className="container mx-auto max-w-2xl space-y-8">
         {/* Header */}

@@ -33,7 +33,7 @@ function MainLayoutContent() {
   const isPublicAccessEnabled = settings?.public_access_enabled === true;
 
   // Paths that are accessible for teams or public even if main public access is disabled
-  const publicPaths = ['/team-login', '/team-progress', '/versus'];
+  const publicPaths = ['/team-login', '/team-progress', '/show-team-code', '/versus'];
   // Extract the path after /rally/ since the router basename is already /rally
   const currentPath = window.location.pathname.replace(/^\/rally/, '');
   const isPublicPath = publicPaths.some(path => currentPath.startsWith(path));

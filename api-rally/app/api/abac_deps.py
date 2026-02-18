@@ -252,7 +252,7 @@ def require_view_team_members_permission(
     Require permission to view team members
     """
     # If using API key/admin access, bypass further checks
-    if "rally-admin" in auth.scopes:
+    if is_admin(auth.scopes):
         return
 
     # Staff can view team members if they have a checkpoint assignment

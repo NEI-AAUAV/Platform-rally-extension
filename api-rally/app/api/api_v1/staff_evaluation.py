@@ -83,16 +83,25 @@ def get_teams_at_my_checkpoint(
             detail=NO_CHECKPOINT_ASSIGNED
         )
     
+    # Fetch the checkpoint's order (not the FK id) for correct comparison
+    from sqlalchemy import select
+    checkpoint_obj = checkpoint.get(db, id=current_user.staff_checkpoint_id)
+    if not checkpoint_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assigned checkpoint not found"
+        )
+    staff_checkpoint_order = checkpoint_obj.order
+
     # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints)
-    # This allows staff to evaluate teams from previous checkpoints if they were missed
-    # We use the logic from feat/teams-login which filters via DB query
-    from sqlalchemy import func, select
-    teams_stmt = select(Team).where(func.cardinality(Team.times) <= current_user.staff_checkpoint_id)
+    # Filter by number of completed checkpoints (cardinality of times) <= staff's checkpoint order
+    from sqlalchemy import func
+    teams_stmt = select(Team).where(func.cardinality(Team.times) <= staff_checkpoint_order)
     teams = db.scalars(teams_stmt).all()
-    
+
     # Convert to the expected format using the utils function
     return [
-        build_team_for_staff(db, team_obj, staff_checkpoint_order=current_user.staff_checkpoint_id)
+        build_team_for_staff(db, team_obj, staff_checkpoint_order=staff_checkpoint_order)
         for team_obj in teams
     ]
 

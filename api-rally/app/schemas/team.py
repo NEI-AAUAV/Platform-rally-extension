@@ -11,7 +11,6 @@ class TeamBase(BaseModel):
 
     id: int
     name: str
-    access_code: str
     total: int
     classification: int
     versus_group_id: Optional[int] = None
@@ -33,6 +32,7 @@ class ListingTeam(TeamBase):
 
 
 class DetailedTeam(TeamBase):
+    access_code: str
     times: List[datetime]
 
     score_per_checkpoint: List[int]
