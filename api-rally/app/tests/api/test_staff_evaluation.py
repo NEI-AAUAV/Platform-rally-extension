@@ -194,9 +194,8 @@ class TestStaffEvaluationEdgeCases:
             assert exc_info.value.status_code == 404
             assert "Team not found" in exc_info.value.detail
     
-    def test_team_at_wrong_checkpoint(self):
-        """Test error when team hasn't reached staff's checkpoint"""
-        from fastapi import HTTPException
+    def test_team_at_different_checkpoint_allowed(self):
+        """Test that staff can evaluate teams regardless of checkpoint progress (for error recovery)"""
         from unittest.mock import Mock, patch
         from datetime import datetime, timezone
         
@@ -208,13 +207,16 @@ class TestStaffEvaluationEdgeCases:
         mock_team.times = [datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)]  # Only at checkpoint 1
         mock_team.id = 1
         
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=None):
-                with pytest.raises(HTTPException) as exc_info:
-                    validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                
-                assert exc_info.value.status_code == 404
-                assert "checkpoint" in exc_info.value.detail.lower()
+        mock_activity = Mock()
+        mock_activity.checkpoint_id = 2  # Activity at checkpoint 2
+        mock_activity.id = 1
+        
+        with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
+            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
+                # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
+                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                assert team_obj == mock_team
+                assert activity_obj == mock_activity
     
     def test_activity_not_at_staff_checkpoint(self):
         """Test error when activity is not at staff's checkpoint"""
@@ -483,10 +485,8 @@ class TestStaffEvaluationEdgeCases:
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    def test_team_at_checkpoint_zero(self):
-        """Test edge case: team at checkpoint 0 (hasn't started)"""
-        from datetime import datetime, timezone
-        from fastapi import HTTPException
+    def test_team_at_checkpoint_zero_allowed(self):
+        """Test that staff can evaluate teams at checkpoint 0 (for error recovery)"""
         from unittest.mock import Mock, patch
         
         mock_db = Mock()
@@ -497,13 +497,16 @@ class TestStaffEvaluationEdgeCases:
         mock_team.times = []  # No checkpoints visited yet
         mock_team.id = 1
         
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=None):
-                with pytest.raises(HTTPException) as exc_info:
-                    validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                
-                assert exc_info.value.status_code == 404
-                assert "checkpoint" in exc_info.value.detail.lower()
+        mock_activity = Mock()
+        mock_activity.checkpoint_id = 1  # Activity at checkpoint 1
+        mock_activity.id = 1
+        
+        with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
+            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
+                # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
+                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                assert team_obj == mock_team
+                assert activity_obj == mock_activity
     
     def test_completion_rate_calculation_zero_total(self):
         """Test completion rate calculation with zero total activities (edge case)"""

@@ -141,8 +141,7 @@ class TestGetPublicKey:
 class TestApiNeiAuth:
     """Test api_nei_auth function"""
     
-    @pytest.mark.asyncio
-    async def test_api_nei_auth_success(self, mock_settings, mock_public_key, valid_token_payload):
+    def test_api_nei_auth_success(self, mock_settings, mock_public_key, valid_token_payload):
         """Test successful authentication"""
         # Mock token validation
         mock_token = "mock.valid.token"
@@ -157,7 +156,7 @@ class TestApiNeiAuth:
             mock_security_scopes = Mock()
             mock_security_scopes.scopes = []
             
-            result = await api_nei_auth(
+            result = api_nei_auth(
                 settings=mock_settings,
                 public_key=mock_public_key,
                 security_scopes=mock_security_scopes,
@@ -171,8 +170,7 @@ class TestApiNeiAuth:
             assert result.surname == "User"
             assert result.scopes == ["rally:participant"]
     
-    @pytest.mark.asyncio
-    async def test_api_nei_auth_invalid_token(self, mock_settings, mock_public_key):
+    def test_api_nei_auth_invalid_token(self, mock_settings, mock_public_key):
         """Test authentication with invalid token"""
         invalid_token = "invalid.token.here"
         
@@ -186,7 +184,7 @@ class TestApiNeiAuth:
             mock_security_scopes.scopes = []
             
             with pytest.raises(Exception):  # Should raise HTTPException
-                await api_nei_auth(
+                api_nei_auth(
                     settings=mock_settings,
                     public_key=mock_public_key,
                     security_scopes=mock_security_scopes,
@@ -228,7 +226,7 @@ class TestAuthenticationLogic:
             assert field in valid_token_payload
         
         # Validate data types
-        assert isinstance(valid_token_payload["sub"], str)
+        assert isinstance(valid_token_payload["sub"], int)
         assert isinstance(valid_token_payload["email"], str)
         assert isinstance(valid_token_payload["name"], str)
         assert isinstance(valid_token_payload["scopes"], list)
