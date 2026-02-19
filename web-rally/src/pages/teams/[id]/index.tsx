@@ -112,8 +112,32 @@ export default function TeamsById() {
 
   const allEvaluations = allEvaluationsData || [];
 
-  // Filter evaluations for this specific team
-  const activityResults = allEvaluations.filter((result) => result.team_id === Number(id));
+  // Fetch evaluations for this specific team (accessible to team members)
+  const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
+    queryKey: ["teamEvaluations", id],
+    queryFn: async () => {
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/rally/v1/team/${id}/evaluations`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        return { evaluations: [] };
+      }
+
+      return response.json() as Promise<{ evaluations: EvaluationResult[] }>;
+    },
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
+  const activityResults = teamEvaluationsData?.evaluations || allEvaluations.filter((result) => result.team_id === Number(id));
 
   // Fetch all teams count for completion status
   const { data: allTeamsData } = useQuery<ListingTeam[]>({
@@ -128,7 +152,32 @@ export default function TeamsById() {
     },
   });
 
+  const { data: totalCheckpoints } = useQuery({
+    queryKey: ["checkpoints-count"],
+    queryFn: async () => {
+      // Use user token if available, otherwise try team token
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/rally/v1/checkpoint/count", {
+        headers,
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return response.json() as Promise<number>;
+    },
+    // Only fetch if we are showing team details
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
   const totalTeams = allTeamsData?.length || 0;
+  const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
 
   if (Number.isNaN(Number(id))) {
     return <Navigate to="/teams" />;
@@ -169,7 +218,7 @@ export default function TeamsById() {
             </Card>
 
             {/* Next Checkpoint Section */}
-            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
+            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < totalCount ? (
               <>
                 <h2 className="mb-4 font-playfair text-2xl font-semibold">
                   Próximo Posto
@@ -220,7 +269,7 @@ export default function TeamsById() {
             <Card variant="default" padding="md" rounded="2xl" className="mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/70">
-                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+                  Progress: {team.times?.length || 0} of {totalCount} checkpoints
                 </span>
                 {settings?.show_score_mode !== "hidden" && (
                   <span className="font-medium">

@@ -14,6 +14,7 @@ from app.api.abac_deps import (
 )
 from app.exception import NotFoundException
 from app.schemas.user import DetailedUser
+from app.schemas.team_auth import TeamTokenData
 from app.schemas.team import AdminCheckPointSelect, ListingTeam
 from app.schemas.checkpoint import DetailedCheckPoint, CheckPointCreate, CheckPointUpdate
 from app.models.team import Team
@@ -35,13 +36,13 @@ def _get_all_checkpoints(db: Session) -> List[DetailedCheckPoint]:
 
 
 def _get_checkpoints_for_team(
-    db: Session, curr_user: DetailedUser, settings: Any
+    db: Session, team_id: int, settings: Any
 ) -> List[DetailedCheckPoint]:
     """Return visible checkpoints for a team member."""
     if settings.show_route_mode == "complete":
         return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
     all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
-    team = crud.team.get(db=db, id=curr_user.team_id)
+    team = crud.team.get(db=db, id=team_id)
     if not team:
         return []
     completed_count = len(team.times)
@@ -76,6 +77,7 @@ def get_checkpoints(
     *,
     db: Annotated[Session, Depends(deps.get_db)],
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+    curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
 ) -> List[DetailedCheckPoint]:
     """Return visible checkpoints based on settings and the requesting user's role."""
     from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
@@ -86,25 +88,55 @@ def get_checkpoints(
         if deps.is_admin_or_staff(scopes):
             return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
         if curr_user.team_id:
-            return _get_checkpoints_for_team(db, curr_user, settings)
+            return _get_checkpoints_for_team(db, curr_user.team_id, settings)
+    
+    if curr_team:
+        return _get_checkpoints_for_team(db, curr_team.team_id, settings)
 
+    result = _get_checkpoints_for_public(db, settings)
+    print("DEBUG: Falling back to public access")
     result = _get_checkpoints_for_public(db, settings)
     if result is None:
         raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
     return result
 
 
+@router.get("/count", status_code=200)
+def get_checkpoints_count(
+    db: Session = Depends(deps.get_db),
+    curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
+    curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)] = None,
+) -> int:
+    """Return the total number of checkpoints."""
+    if not curr_user and not curr_team:
+         # Optional: Allow public access if settings permit, otherwise 401
+         # For now, let's allow it if public access is enabled, similar to get_checkpoints
+         from app.crud.crud_rally_settings import rally_settings
+         settings = rally_settings.get_or_create(db)
+         if not settings.public_access_enabled:
+             raise HTTPException(status_code=401, detail="Authentication required")
+
+    return crud.checkpoint.count(db=db)
+
+
 @router.get("/me", status_code=200)
 def get_next_checkpoint(
     *,
     db: Session = Depends(deps.get_db),
-    curr_user: DetailedUser = Depends(deps.get_participant)
+    curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+    curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
 ) -> DetailedCheckPoint:
     """Return the next checkpoint a team must head to."""
-    if curr_user.team_id is None:
-        raise HTTPException(status_code=409, detail="User doesn't belong to a team")
+    team_id = None
+    if curr_user and curr_user.team_id:
+        team_id = curr_user.team_id
+    elif curr_team:
+        team_id = curr_team.team_id
+    
+    if not team_id:
+         raise HTTPException(status_code=401, detail="Authentication required (User with Team or Team Token)")
 
-    checkpoint = crud.checkpoint.get_next(db=db, team_id=curr_user.team_id)
+    checkpoint = crud.checkpoint.get_next(db=db, team_id=team_id)
 
     if checkpoint is None:
         raise NotFoundException(detail="Checkpoint Not Found")

@@ -65,6 +65,25 @@ export default function TeamProgress() {
         refetchInterval: 30000,
     });
 
+    // Fetch total checkpoints count
+    const { data: totalCheckpoints } = useQuery({
+        queryKey: ["checkpoints-count"],
+        queryFn: async () => {
+            const token = localStorage.getItem("rally_team_token");
+            const response = await fetch("/api/rally/v1/checkpoint/count", {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+            if (!response.ok) {
+                return null;
+            }
+            return response.json() as Promise<number>;
+        },
+        refetchInterval: 30000,
+    });
+
     const toggleCheckpoint = (checkpointIndex: number) => {
         setExpandedCheckpoints((prev) => {
             const newSet = new Set(prev);
@@ -141,6 +160,8 @@ export default function TeamProgress() {
         );
     }
 
+    const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
+
     return (
         <div
             className="min-h-screen p-4 pb-20 transition-colors duration-500"
@@ -206,7 +227,7 @@ export default function TeamProgress() {
                 <Card className="p-4 backdrop-blur-sm bg-black/20 border-white/5">
                     <div className="flex items-center justify-between text-sm font-medium" style={{ color: config?.colors?.text }}>
                         <span className="opacity-80">
-                            Progresso: {completedCheckpointsCount} de {checkpoints?.length || 0} postos
+                            Progresso: {completedCheckpointsCount} de {totalCount} postos
                         </span>
                         {showScore && (
                             <span className="opacity-80">
@@ -219,7 +240,7 @@ export default function TeamProgress() {
                         <div
                             className="h-full transition-all duration-1000 ease-out"
                             style={{
-                                width: `${((completedCheckpointsCount) / (checkpoints?.length || 1)) * 100}%`,
+                                width: `${((completedCheckpointsCount) / (totalCount || 1)) * 100}%`,
                                 backgroundColor: config?.colors?.primary
                             }}
                         />
@@ -316,6 +337,11 @@ export default function TeamProgress() {
                                                         </span>
                                                         <div className="text-xs flex gap-2">
                                                             {isCompleted && <span className="text-green-400">Concluído</span>}
+                                                            {isCompleted && index === completedCount - 1 && (
+                                                                <span className="ml-2 text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded border border-green-500/30">
+                                                                    Mais Recente
+                                                                </span>
+                                                            )}
                                                             {isNext && <span className="text-indigo-300 font-medium">EM CURSO</span>}
                                                             {isFuture && <span className="text-white/40">Pendente</span>}
                                                         </div>
