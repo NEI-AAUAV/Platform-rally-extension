@@ -59,6 +59,12 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
       return;
     }
 
+    // Validate non-negative points
+    if (assignedPoints < 0) {
+      toast.error("Points must be positive.");
+      return;
+    }
+
     onSubmit({
       result_data: {
         assigned_points: assignedPoints,
