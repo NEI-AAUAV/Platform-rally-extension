@@ -96,7 +96,12 @@ def get_own_team(
     db: Session = Depends(deps.get_db),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedTeam:
-    return DetailedTeam.model_validate(crud.team.get(db=db, id=curr_user.team_id))
+    team_obj = crud.team.get(db=db, id=curr_user.team_id)
+    last_cp, current_cp, _ = _compute_checkpoint_progress(db, team_obj)
+    result = DetailedTeam.model_validate(team_obj)
+    result.last_checkpoint_number = last_cp
+    result.current_checkpoint_number = current_cp
+    return result
 
 
 @router.get("/{id}", status_code=200)
@@ -105,7 +110,12 @@ def get_team_by_id(
     id: int,
     db: Session = Depends(deps.get_db),
 ) -> DetailedTeam:
-    return DetailedTeam.model_validate(crud.team.get(db=db, id=id))
+    team_obj = crud.team.get(db=db, id=id)
+    last_cp, current_cp, _ = _compute_checkpoint_progress(db, team_obj)
+    result = DetailedTeam.model_validate(team_obj)
+    result.last_checkpoint_number = last_cp
+    result.current_checkpoint_number = current_cp
+    return result
 
 
 @router.put("/{id}/checkpoint", status_code=201)

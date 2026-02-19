@@ -9,7 +9,6 @@ import { formatTime } from "@/utils/timeFormat";
 
 import {
     TeamService,
-    CheckPointService,
     type DetailedTeam,
     type DetailedCheckPoint,
     type RallySettingsResponse,
@@ -58,10 +57,19 @@ export default function TeamProgress() {
         refetchOnWindowFocus: true,
     });
 
-    // Fetch checkpoints
+    // Fetch checkpoints — send team auth token so the backend returns the
+    // correct slice for this team (completed + next), not just checkpoint 1.
     const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
-        queryKey: ["checkpoints"],
-        queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+        queryKey: ["checkpoints", teamData?.team_id],
+        queryFn: async () => {
+            const token = localStorage.getItem("rally_team_token");
+            const response = await fetch("/api/rally/v1/checkpoint/", {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!response.ok) throw new Error("Failed to fetch checkpoints");
+            return response.json() as Promise<DetailedCheckPoint[]>;
+        },
+        enabled: !!teamData?.team_id,
         refetchInterval: 30000,
     });
 
@@ -77,9 +85,11 @@ export default function TeamProgress() {
         });
     };
 
-    // Determine next checkpoint
-    const completedCheckpointsCount = team?.times?.length || 0;
-    const nextCheckpointOrder = completedCheckpointsCount + 1;
+    // Use activity-based completion count (more accurate than times.length,
+    // since times is appended when staff registers a pass but not all
+    // activities may be done yet).
+    const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+    const nextCheckpointOrder = team?.current_checkpoint_number ?? (completedCheckpointsCount + 1);
     const nextCheckpoint = checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
 
     // Show route mode: 'focused' (only next) or 'complete' (all checkpoints)
@@ -281,13 +291,14 @@ export default function TeamProgress() {
                         </h2>
                         <div className="space-y-3">
                             {checkpoints.map((checkpoint, index) => {
-                                const checkpointOrder = checkpoint.order; // Should match index + 1 usually
-                                const completedCount = team?.times?.length || 0;
-                                const isCompleted = index < completedCount;
-                                const isNext = index === completedCount;
-                                const isFuture = index > completedCount;
+                                const checkpointOrder = checkpoint.order;
+                                // Use order-based comparison (1-indexed) so the logic
+                                // stays correct regardless of which slice the API returns.
+                                const isCompleted = checkpointOrder <= completedCheckpointsCount;
+                                const isNext = checkpointOrder === completedCheckpointsCount + 1;
+                                const isFuture = checkpointOrder > completedCheckpointsCount + 1;
 
-                                const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[index] ?? 0) : 0;
+                                const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[checkpointOrder - 1] ?? 0) : 0;
                                 const isExpanded = expandedCheckpoints.has(index);
 
                                 return (
@@ -339,7 +350,7 @@ export default function TeamProgress() {
                                                 {isCompleted && (
                                                     <div className="text-sm" style={{ color: config?.colors?.text }}>
                                                         <span className="opacity-60">Completado às: </span>
-                                                        <span className="font-mono font-medium">{formatTime(team.times[index])}</span>
+                                                        <span className="font-mono font-medium">{formatTime(team.times[checkpointOrder - 1])}</span>
                                                     </div>
                                                 )}
 

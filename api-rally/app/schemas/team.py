@@ -36,8 +36,12 @@ class DetailedTeam(TeamBase):
     times: List[datetime]
 
     score_per_checkpoint: List[int]
-    
+
     members: List[ListingUser]
+
+    # Activity-based completion counters (more reliable than len(times))
+    last_checkpoint_number: Optional[int] = None
+    current_checkpoint_number: Optional[int] = None
 
 
 class TeamCreate(BaseModel):
