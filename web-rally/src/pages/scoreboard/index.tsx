@@ -41,7 +41,7 @@ export default function Scoreboard() {
           <div className="text-white/70 mt-2 text-sm">
             A pontuação está visível apenas para membros das equipas.
             <br />
-            <a href="/team-login" className="text-primary hover:underline mt-2 inline-block">Fazer Login</a>
+            <a href="/rally/team-login" className="text-primary hover:underline mt-2 inline-block">Fazer Login</a>
           </div>
         </Card>
       );
