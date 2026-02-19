@@ -19,17 +19,18 @@ COPY api-rally/app ./app
 RUN mkdir -p static
 
 # Generate OpenAPI schema
+ENV TEAM_JWT_SECRET_KEY=build_dummy_secret
 RUN python -c "\
-from app.main import app; \
-from fastapi.openapi.utils import get_openapi; \
-import json; \
-schema = get_openapi( \
+    from app.main import app; \
+    from fastapi.openapi.utils import get_openapi; \
+    import json; \
+    schema = get_openapi( \
     title=getattr(app, 'title', 'Rally API'), \
     version=getattr(app, 'version', '0.0.0'), \
     routes=app.routes \
-); \
-json.dump(schema, open('/app/openapi.json', 'w'), indent=2); \
-print('✓ Generated OpenAPI schema')"
+    ); \
+    json.dump(schema, open('/app/openapi.json', 'w'), indent=2); \
+    print('✓ Generated OpenAPI schema')"
 
 # Stage 2: Build web frontend
 FROM node:24-alpine AS web-builder

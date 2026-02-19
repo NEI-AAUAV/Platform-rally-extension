@@ -50,6 +50,12 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
       return;
     }
 
+    // Validate non-negative points
+    if (achievedPoints < 0) {
+      toast.error("Points must be positive.");
+      return;
+    }
+
     onSubmit({
       result_data: {
         achieved_points: achievedPoints,
