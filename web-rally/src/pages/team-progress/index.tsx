@@ -241,7 +241,7 @@ export default function TeamProgress() {
                                     <MapPin className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold" style={{ color: config?.colors?.text }}>Próximo Posto</h2>
+                                    <h2 className="text-xl font-bold" style={{ color: config?.colors?.text }}>Próximo Posto - {nextCheckpoint.name}</h2>
                                     <p className="text-sm opacity-60" style={{ color: config?.colors?.text }}>Dirija-se a este local</p>
                                 </div>
                             </div>
