@@ -59,7 +59,8 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
               console.error("Error playing video:", err);
               setCameraError("Erro ao iniciar câmara");
             });
-            startScanning();
+            // Start scanning after video is ready
+            setTimeout(() => startScanning(), 100);
           };
         }
       } catch (err) {
@@ -80,7 +81,8 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
     return () => {
       stopCamera();
     };
-  }, [isOpen, startScanning, stopCamera]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleClose = () => {
     stopCamera();

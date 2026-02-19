@@ -1,10 +1,11 @@
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Security
 
 from app import crud
 from app.api import deps
-from app.api.auth import AuthData, api_nei_auth
+from app.schemas.team_auth import TeamTokenData
+from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.api.abac_deps import (
     require_checkpoint_score_permission,
     require_team_management_permission,
@@ -96,7 +97,14 @@ def get_own_team(
     db: Session = Depends(deps.get_db),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedTeam:
-    return DetailedTeam.model_validate(crud.team.get(db=db, id=curr_user.team_id))
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud  # noqa: PLC0415
+    team_obj = crud.team.get(db=db, id=curr_user.team_id)
+    last_cp, current_cp, _ = _compute_checkpoint_progress(db, team_obj)
+    result = DetailedTeam.model_validate(team_obj)
+    result.last_checkpoint_number = last_cp
+    result.current_checkpoint_number = current_cp
+    result.total_checkpoints = len(checkpoint_crud.get_all_ordered(db))
+    return result
 
 
 @router.get("/{id}", status_code=200)
@@ -105,7 +113,14 @@ def get_team_by_id(
     id: int,
     db: Session = Depends(deps.get_db),
 ) -> DetailedTeam:
-    return DetailedTeam.model_validate(crud.team.get(db=db, id=id))
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud  # noqa: PLC0415
+    team_obj = crud.team.get(db=db, id=id)
+    last_cp, current_cp, _ = _compute_checkpoint_progress(db, team_obj)
+    result = DetailedTeam.model_validate(team_obj)
+    result.last_checkpoint_number = last_cp
+    result.current_checkpoint_number = current_cp
+    result.total_checkpoints = len(checkpoint_crud.get_all_ordered(db))
+    return result
 
 
 @router.put("/{id}/checkpoint", status_code=201)
@@ -192,3 +207,86 @@ def delete_team(
             status_code=400, 
             detail=f"Cannot delete team: {str(e)}"
         )
+
+
+@router.get("/{id}/evaluations", status_code=200)
+def get_team_evaluations(
+    *,
+    db: Session = Depends(deps.get_db),
+    id: int,
+    # Use optional auth to allow either NEI user or Team token
+    current_user: Optional[DetailedUser] = Depends(deps.get_current_user_optional),
+    auth: Optional[AuthData] = Depends(api_nei_auth_optional),
+    current_team: Optional[TeamTokenData] = Depends(deps.get_current_team_optional),
+) -> Dict[str, Any]:
+    """
+    Get evaluations for a specific team.
+    Accessible by:
+    - The team members themselves (via Team Token or linked NEI account)
+    - Staff/Admins/Managers (via NEI account)
+    """
+    # 1. Check if authenticated as staff/admin/manager via NEI Auth
+    is_admin_or_staff = False
+    if auth and auth.scopes:
+        is_admin_or_staff = any(scope in auth.scopes for scope in ["admin", "manager-rally", "rally-staff"])
+
+    # 2. Check if authenticated as the specific team
+    is_own_team = False
+    
+    # Case A: NEI User linked to team
+    if current_user and current_user.team_id == id:
+        is_own_team = True
+        
+    # Case B: Team Token (Simple Auth)
+    if current_team and current_team.team_id == id:
+        is_own_team = True
+
+    if not (is_admin_or_staff or is_own_team):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to view these evaluations"
+        )
+    
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+    from app.models.activity import ActivityResult
+    from app.api.api_v1.staff_evaluation_utils import serialize_activity, serialize_team
+
+    # Fetch results
+    stmt = select(ActivityResult).options(
+        joinedload(ActivityResult.activity),
+        joinedload(ActivityResult.team)
+    ).where(
+        ActivityResult.team_id == id,
+        ActivityResult.is_completed == True
+    ).order_by(ActivityResult.completed_at.desc())
+    
+    results = list(db.scalars(stmt).all())
+    
+    # Serialize results matches staff_evaluation.py format
+    evaluations = []
+    for result in results:
+        evaluation_data = {
+            "id": result.id,
+            "activity_id": result.activity_id,
+            "team_id": result.team_id,
+            "result_data": result.result_data,
+            "final_score": result.final_score,
+            "is_completed": result.is_completed,
+            "completed_at": result.completed_at,
+            "created_at": result.created_at,
+            "updated_at": result.updated_at,
+            "extra_shots": result.extra_shots,
+            "penalties": result.penalties,
+            "time_score": result.time_score,
+            "points_score": result.points_score,
+            "boolean_score": result.boolean_score,
+            "activity": serialize_activity(result) if result.activity else None,
+            "team": serialize_team(result) if result.team else None
+        }
+        evaluations.append(evaluation_data)
+
+    return {
+        "evaluations": evaluations,
+        "total": len(evaluations)
+    }

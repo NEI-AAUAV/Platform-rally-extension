@@ -58,7 +58,6 @@ export function useQRCodeScanner(
   const startScanning = () => {
     setIsActive(true);
     setError(null);
-    scan();
   };
 
   const stopScanning = () => {
@@ -77,7 +76,7 @@ export function useQRCodeScanner(
         cancelAnimationFrame(scanIntervalRef.current);
       }
     };
-  }, [isActive, videoRef, canvasRef]);
+  }, [isActive]);
 
   return {
     isActive,

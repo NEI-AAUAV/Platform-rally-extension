@@ -112,8 +112,32 @@ export default function TeamsById() {
 
   const allEvaluations = allEvaluationsData || [];
 
-  // Filter evaluations for this specific team
-  const activityResults = allEvaluations.filter((result) => result.team_id === Number(id));
+  // Fetch evaluations for this specific team (accessible to team members)
+  const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
+    queryKey: ["teamEvaluations", id],
+    queryFn: async () => {
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/rally/v1/team/${id}/evaluations`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        return { evaluations: [] };
+      }
+
+      return response.json() as Promise<{ evaluations: EvaluationResult[] }>;
+    },
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
+  const activityResults = teamEvaluationsData?.evaluations || allEvaluations.filter((result) => result.team_id === Number(id));
 
   // Fetch all teams count for completion status
   const { data: allTeamsData } = useQuery<ListingTeam[]>({
@@ -128,7 +152,32 @@ export default function TeamsById() {
     },
   });
 
+  const { data: totalCheckpoints } = useQuery({
+    queryKey: ["checkpoints-count"],
+    queryFn: async () => {
+      // Use user token if available, otherwise try team token
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/rally/v1/checkpoint/count", {
+        headers,
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return response.json() as Promise<number>;
+    },
+    // Only fetch if we are showing team details
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
   const totalTeams = allTeamsData?.length || 0;
+  const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
 
   if (Number.isNaN(Number(id))) {
     return <Navigate to="/teams" />;
@@ -169,50 +218,56 @@ export default function TeamsById() {
             </Card>
 
             {/* Next Checkpoint Section */}
-            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
-              <>
-                <h2 className="mb-4 font-playfair text-2xl font-semibold">
-                  Próximo Posto
-                </h2>
-                {(() => {
-                  const nextCheckpointOrder = (team?.times?.length ?? 0) + 1;
-                  const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
-                  if (!nextCheckpoint) return null;
-                  return (
-                    <Card variant="default" padding="lg" rounded="2xl" className="mb-8 border-2 border-yellow-500/50 bg-yellow-500/10">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Target className="w-5 h-5 text-yellow-300" />
-                          <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
-                        </div>
-                        {nextCheckpoint.description && (
-                          <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
-                        )}
-                        {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
-                          <div className="space-y-2 pt-2">
-                            <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
-                              <MapPin className="w-4 h-4" />
-                              <span className="font-mono">
-                                {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
-                              </span>
-                            </div>
-                            <a
-                              href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-all"
-                            >
-                              <Navigation className="w-4 h-4" />
-                              Abrir no Google Maps
-                            </a>
+            {(() => {
+              const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+              const hasMore = completedCheckpointsCount < (totalCount || 0);
+              if (!(settings?.show_route_mode === "complete" || hasMore)) return null;
+              return (
+                <>
+                  <h2 className="mb-4 font-playfair text-2xl font-semibold">
+                    Próximo Posto
+                  </h2>
+                  {(() => {
+                    const completedCheckpointsCount2 = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+                    const nextCheckpointOrder = completedCheckpointsCount2 + 1;
+                    const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
+                    if (!nextCheckpoint) return null;
+                    return (
+                      <Card variant="default" padding="lg" rounded="2xl" className="mb-8 border-2 border-yellow-500/50 bg-yellow-500/10">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Target className="w-5 h-5 text-yellow-300" />
+                            <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
                           </div>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })()}
-              </>
-            ) : null}
+                          {nextCheckpoint.description && (
+                            <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
+                          )}
+                          {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
+                            <div className="space-y-2 pt-2">
+                              <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
+                                <MapPin className="w-4 h-4" />
+                                <span className="font-mono">
+                                  {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
+                                </span>
+                              </div>
+                              <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-all"
+                              >
+                                <Navigation className="w-4 h-4" />
+                                Abrir no Google Maps
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })()}
+                </>
+              );
+            })()}
 
             <h2 className="mb-4 text-2xl font-semibold">
               Checkpoint Progress
@@ -220,15 +275,22 @@ export default function TeamsById() {
             <Card variant="default" padding="md" rounded="2xl" className="mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/70">
-                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+                  Progress: {team.last_checkpoint_number || 0} of {totalCount} checkpoints
                 </span>
                 {settings?.show_score_mode !== "hidden" && (
                   <span className="font-medium">
-                    Total: {team.total} points
+                    {team.total} pts
                   </span>
                 )}
               </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
+                />
+              </div>
             </Card>
+
             <div className="mb-8 space-y-4">
               {team?.times && team.times.length > 0 ? (
                 team.times.map((_, index: number) => {
@@ -236,7 +298,6 @@ export default function TeamsById() {
                   const checkpointOrder = index + 1;
                   const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
                   const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
-                  const isLastCheckpoint = index === team.times.length - 1;
 
                   // Find the evaluation timestamp from activity results
                   const checkpointId = checkpoint?.id;
@@ -270,7 +331,14 @@ export default function TeamsById() {
                   }, null);
                   const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
 
-                  const hasEvaluations = evaluationResults.length > 0;
+                  // isEvaluated: use activity results when available (admin view), fall back
+                  // to score_per_checkpoint when allEvaluations is empty (unauthenticated view).
+                  const activityCompletedCount = team.last_checkpoint_number ?? team.times.length;
+                  const isCurrentCheckpoint = checkpointOrder === activityCompletedCount + 1;
+                  const isCompletedByActivity = checkpointOrder <= activityCompletedCount;
+                  const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
+                  // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
+                  const displayTime = evaluationTime ?? (isCompletedByActivity && team.times[index] ? new Date(team.times[index]) : null);
 
                   // Check if any activity in this checkpoint has pending completion (time-based activities)
                   const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
@@ -293,7 +361,7 @@ export default function TeamsById() {
                     <div key={key}>
                       {/* Checkpoint summary - always visible and clickable */}
                       <Card
-                        variant={isLastCheckpoint ? "elevated" : "default"}
+                        variant={isCurrentCheckpoint ? "elevated" : "default"}
                         padding="lg"
                         rounded="2xl"
                         hover
@@ -305,7 +373,7 @@ export default function TeamsById() {
                               <span className="text-sm font-medium text-white/70">
                                 Checkpoint {index + 1}
                               </span>
-                              {isLastCheckpoint && (
+                              {isCurrentCheckpoint && (
                                 <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
                                   Current
                                 </span>
@@ -334,8 +402,8 @@ export default function TeamsById() {
                                 {checkpointScore} pts
                               </div>
                               <div className="text-sm text-white/60">
-                                {hasEvaluations && evaluationTime
-                                  ? formatTime(evaluationTime)
+                                {hasEvaluations && displayTime
+                                  ? formatTime(displayTime)
                                   : "Not evaluated yet"}
                               </div>
                             </div>
@@ -440,11 +508,12 @@ export default function TeamsById() {
                 })}
               </div>
             </div>
-          </div>
+          </div >
         </>
       ) : (
         renderTeamContent()
-      )}
+      )
+      }
     </>
   );
 }
