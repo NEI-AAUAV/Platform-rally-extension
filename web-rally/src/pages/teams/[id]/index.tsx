@@ -169,13 +169,18 @@ export default function TeamsById() {
             </Card>
 
             {/* Next Checkpoint Section */}
-            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < (checkpoints?.length ?? 0) ? (
+            {(() => {
+              const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+              const hasMore = completedCheckpointsCount < (checkpoints?.length ?? 0);
+              if (!(settings?.show_route_mode === "complete" || hasMore)) return null;
+              return (
               <>
                 <h2 className="mb-4 font-playfair text-2xl font-semibold">
                   Próximo Posto
                 </h2>
                 {(() => {
-                  const nextCheckpointOrder = (team?.times?.length ?? 0) + 1;
+                  const completedCheckpointsCount2 = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+                  const nextCheckpointOrder = completedCheckpointsCount2 + 1;
                   const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
                   if (!nextCheckpoint) return null;
                   return (
@@ -212,7 +217,8 @@ export default function TeamsById() {
                   );
                 })()}
               </>
-            ) : null}
+              );
+            })()}
 
             <h2 className="mb-4 text-2xl font-semibold">
               Checkpoint Progress
@@ -220,7 +226,7 @@ export default function TeamsById() {
             <Card variant="default" padding="md" rounded="2xl" className="mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/70">
-                  Progress: {team.times?.length || 0} of {checkpoints?.length || 0} checkpoints
+                  Progress: {team?.last_checkpoint_number ?? team.times?.length ?? 0} of {team?.total_checkpoints ?? checkpoints?.length ?? 0} checkpoints
                 </span>
                 {settings?.show_score_mode !== "hidden" && (
                   <span className="font-medium">
@@ -236,7 +242,6 @@ export default function TeamsById() {
                   const checkpointOrder = index + 1;
                   const checkpoint = checkpoints?.find(cp => cp.order === checkpointOrder);
                   const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
-                  const isLastCheckpoint = index === team.times.length - 1;
 
                   // Find the evaluation timestamp from activity results
                   const checkpointId = checkpoint?.id;
@@ -270,7 +275,14 @@ export default function TeamsById() {
                   }, null);
                   const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
 
-                  const hasEvaluations = evaluationResults.length > 0;
+                  // isEvaluated: use activity results when available (admin view), fall back
+                  // to score_per_checkpoint when allEvaluations is empty (unauthenticated view).
+                  const activityCompletedCount = team?.last_checkpoint_number ?? team.times.length;
+                  const isCurrentCheckpoint = checkpointOrder === activityCompletedCount + 1;
+                  const isCompletedByActivity = checkpointOrder <= activityCompletedCount;
+                  const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
+                  // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
+                  const displayTime = evaluationTime ?? (isCompletedByActivity ? new Date(team.times[index]) : null);
 
                   // Check if any activity in this checkpoint has pending completion (time-based activities)
                   const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
@@ -293,7 +305,7 @@ export default function TeamsById() {
                     <div key={key}>
                       {/* Checkpoint summary - always visible and clickable */}
                       <Card
-                        variant={isLastCheckpoint ? "elevated" : "default"}
+                        variant={isCurrentCheckpoint ? "elevated" : "default"}
                         padding="lg"
                         rounded="2xl"
                         hover
@@ -305,7 +317,7 @@ export default function TeamsById() {
                               <span className="text-sm font-medium text-white/70">
                                 Checkpoint {index + 1}
                               </span>
-                              {isLastCheckpoint && (
+                              {isCurrentCheckpoint && (
                                 <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
                                   Current
                                 </span>
@@ -334,8 +346,8 @@ export default function TeamsById() {
                                 {checkpointScore} pts
                               </div>
                               <div className="text-sm text-white/60">
-                                {hasEvaluations && evaluationTime
-                                  ? formatTime(evaluationTime)
+                                {hasEvaluations && displayTime
+                                  ? formatTime(displayTime)
                                   : "Not evaluated yet"}
                               </div>
                             </div>

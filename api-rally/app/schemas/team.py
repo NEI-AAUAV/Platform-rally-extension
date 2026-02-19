@@ -42,6 +42,7 @@ class DetailedTeam(TeamBase):
     # Activity-based completion counters (more reliable than len(times))
     last_checkpoint_number: Optional[int] = None
     current_checkpoint_number: Optional[int] = None
+    total_checkpoints: Optional[int] = None
 
 
 class TeamCreate(BaseModel):
