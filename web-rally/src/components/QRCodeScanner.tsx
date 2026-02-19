@@ -3,12 +3,12 @@ import { Camera, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
 
-interface QRCodeScannerProps {
+type QRCodeScannerProps = Readonly<{
   onScan: (data: string) => void;
   onClose?: () => void;
   isOpen?: boolean;
   className?: string;
-}
+}>;
 
 /**
  * Component to scan QR codes using device camera.
@@ -96,12 +96,23 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
+          aria-label="Close QR code scanner"
         >
           <X className="w-5 h-5 text-white" />
         </button>
 
         {/* Video element */}
-        {!permissionDenied ? (
+        {permissionDenied ? (
+          <div className="aspect-square flex flex-col items-center justify-center bg-black/40 gap-4">
+            <Camera className="w-12 h-12 text-red-500/50" />
+            <div className="text-center px-4">
+              <p className="text-white font-semibold mb-2">Permissão Negada</p>
+              <p className="text-white/70 text-sm">
+                {cameraError || "Por favor, ative o acesso à câmara para utilizar o scanner."}
+              </p>
+            </div>
+          </div>
+        ) : (
           <div className="relative bg-black aspect-square">
             <video
               ref={videoRef}
@@ -131,16 +142,6 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
             )}
-          </div>
-        ) : (
-          <div className="aspect-square flex flex-col items-center justify-center bg-black/40 gap-4">
-            <Camera className="w-12 h-12 text-red-500/50" />
-            <div className="text-center px-4">
-              <p className="text-white font-semibold mb-2">Permissão Negada</p>
-              <p className="text-white/70 text-sm">
-                {cameraError || "Por favor, ative o acesso à câmara para utilizar o scanner."}
-              </p>
-            </div>
           </div>
         )}
 

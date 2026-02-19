@@ -97,7 +97,6 @@ oauth2_scheme_optional = OAuth2PasswordBearer(
 def api_nei_auth_optional(
     settings: SettingsDep,
     public_key: Annotated[str, Depends(get_public_key)],
-    security_scopes: SecurityScopes,
     token: Optional[str] = Depends(oauth2_scheme_optional),
 ) -> Optional[AuthData]:
     """Dependency for optional user authentication"""

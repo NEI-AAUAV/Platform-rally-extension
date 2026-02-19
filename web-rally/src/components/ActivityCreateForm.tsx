@@ -35,7 +35,7 @@ type ActivityForm = z.infer<typeof activityFormSchema>;
 /**
  * Props for ActivityCreateForm component
  */
-interface ActivityFormProps {
+type ActivityFormProps = Readonly<{
   /** List of available checkpoints to assign the activity to */
   checkpoints: Checkpoint[];
   /** Callback when form is submitted with valid data */
@@ -48,7 +48,7 @@ interface ActivityFormProps {
   error?: string;
   /** Initial form data for editing existing activities */
   initialData?: Partial<ActivityForm>;
-}
+}>;
 
 const activityTypeLabels = {
   [ActivityType.TIME_BASED]: "Baseada em Tempo",
@@ -57,6 +57,11 @@ const activityTypeLabels = {
   [ActivityType.TEAM_VS]: "Equipa vs Equipa",
   [ActivityType.GENERAL]: "Geral",
 };
+
+function getSubmitButtonLabel(isLoading: boolean, hasInitialData: boolean): string {
+  if (isLoading) return "Salvando...";
+  return hasInitialData ? "Atualizar" : "Criar";
+}
 
 /**
  * Form component for creating and editing activities
@@ -239,10 +244,11 @@ export default function ActivityForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-tb-max-points" className="block text-sm font-medium text-white mb-2">
                     Pontos Máximos (1º lugar)
                   </label>
                   <Input
+                    id="config-tb-max-points"
                     type="number"
                     min="0"
                     value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
@@ -253,10 +259,11 @@ export default function ActivityForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-tb-min-points" className="block text-sm font-medium text-white mb-2">
                     Pontos Mínimos (último lugar)
                   </label>
                   <Input
+                    id="config-tb-min-points"
                     type="number"
                     min="0"
                     value={typeof configData.min_points === 'number' ? configData.min_points : (configData.min_points ? Number(configData.min_points) : 10)}
@@ -275,10 +282,11 @@ export default function ActivityForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-sb-max-points" className="block text-sm font-medium text-white mb-2">
                     Pontuação Máxima
                   </label>
                   <Input
+                    id="config-sb-max-points"
                     type="number"
                     min="0"
                     value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
@@ -289,10 +297,11 @@ export default function ActivityForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-sb-base-score" className="block text-sm font-medium text-white mb-2">
                     Pontuação Base
                   </label>
                   <Input
+                    id="config-sb-base-score"
                     type="number"
                     min="0"
                     value={typeof configData.base_score === 'number' ? configData.base_score : (configData.base_score ? Number(configData.base_score) : 50)}
@@ -311,10 +320,11 @@ export default function ActivityForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-bool-success" className="block text-sm font-medium text-white mb-2">
                     Pontos por Sucesso
                   </label>
                   <Input
+                    id="config-bool-success"
                     type="number"
                     min="0"
                     value={typeof configData.success_points === 'number' ? configData.success_points : (configData.success_points ? Number(configData.success_points) : 100)}
@@ -325,10 +335,11 @@ export default function ActivityForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-bool-failure" className="block text-sm font-medium text-white mb-2">
                     Pontos por Falha
                   </label>
                   <Input
+                    id="config-bool-failure"
                     type="number"
                     min="0"
                     value={typeof configData.failure_points === 'number' ? configData.failure_points : (configData.failure_points ? Number(configData.failure_points) : 0)}
@@ -347,10 +358,11 @@ export default function ActivityForm({
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-gen-min-points" className="block text-sm font-medium text-white mb-2">
                     Pontos Mínimos
                   </label>
                   <Input
+                    id="config-gen-min-points"
                     type="number"
                     min="0"
                     value={typeof configData.min_points === 'number' ? configData.min_points : (configData.min_points ? Number(configData.min_points) : 0)}
@@ -361,10 +373,11 @@ export default function ActivityForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-gen-max-points" className="block text-sm font-medium text-white mb-2">
                     Pontos Máximos
                   </label>
                   <Input
+                    id="config-gen-max-points"
                     type="number"
                     min="0"
                     value={typeof configData.max_points === 'number' ? configData.max_points : (configData.max_points ? Number(configData.max_points) : 100)}
@@ -375,10 +388,11 @@ export default function ActivityForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label htmlFor="config-gen-default-points" className="block text-sm font-medium text-white mb-2">
                     Pontos Padrão
                   </label>
                   <Input
+                    id="config-gen-default-points"
                     type="number"
                     min="0"
                     value={typeof configData.default_points === 'number' ? configData.default_points : (configData.default_points ? Number(configData.default_points) : 50)}
@@ -400,10 +414,11 @@ export default function ActivityForm({
                   <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)] mb-3">Pontuação Tiered (Opcional)</h5>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">
+                      <label htmlFor="config-tv-base-points" className="block text-sm font-medium text-white mb-2">
                         Pontos Base (Participação)
                       </label>
                       <Input
+                        id="config-tv-base-points"
                         type="number"
                         min="0"
                         value={typeof configData.base_points === 'number' ? configData.base_points : (configData.base_points ? Number(configData.base_points) : 0)}
@@ -416,10 +431,11 @@ export default function ActivityForm({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">
+                      <label htmlFor="config-tv-completion-points" className="block text-sm font-medium text-white mb-2">
                         Pontos por Completar
                       </label>
                       <Input
+                        id="config-tv-completion-points"
                         type="number"
                         min="0"
                         value={typeof configData.completion_points === 'number' ? configData.completion_points : (configData.completion_points ? Number(configData.completion_points) : 0)}
@@ -436,10 +452,11 @@ export default function ActivityForm({
                 <div className="space-y-3">
                   <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)]">Pontuação do Resultado</h5>
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="config-tv-win-points" className="block text-sm font-medium text-white mb-2">
                       Pontos por Vitória
                     </label>
                     <Input
+                      id="config-tv-win-points"
                       type="number"
                       min="0"
                       value={typeof configData.win_points === 'number' ? configData.win_points : (configData.win_points ? Number(configData.win_points) : 100)}
@@ -451,10 +468,11 @@ export default function ActivityForm({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="config-tv-draw-points" className="block text-sm font-medium text-white mb-2">
                       Pontos por Empate
                     </label>
                     <Input
+                      id="config-tv-draw-points"
                       type="number"
                       min="0"
                       value={typeof configData.draw_points === 'number' ? configData.draw_points : (configData.draw_points ? Number(configData.draw_points) : 50)}
@@ -465,10 +483,11 @@ export default function ActivityForm({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="config-tv-lose-points" className="block text-sm font-medium text-white mb-2">
                       Pontos por Derrota
                     </label>
                     <Input
+                      id="config-tv-lose-points"
                       type="number"
                       min="0"
                       value={typeof configData.lose_points === 'number' ? configData.lose_points : (configData.lose_points ? Number(configData.lose_points) : 0)}
@@ -488,7 +507,7 @@ export default function ActivityForm({
               disabled={isLoading}
               className="flex-1"
             >
-              {isLoading ? "Salvando..." : initialData ? "Atualizar" : "Criar"}
+              {getSubmitButtonLabel(isLoading, !!initialData)}
             </BloodyButton>
             <BloodyButton
               type="button"

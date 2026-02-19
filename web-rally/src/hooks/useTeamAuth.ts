@@ -52,7 +52,7 @@ export default function useTeamAuth() {
   const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
     queryKey: ["team", teamData?.team_id],
     queryFn: () =>
-      teamData ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id) : Promise.reject(),
+      teamData ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id) : Promise.reject(new Error("No team data")),
     enabled: isAuthenticated && !!teamData?.team_id,
     staleTime: 0,
   });

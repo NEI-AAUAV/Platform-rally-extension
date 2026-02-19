@@ -40,6 +40,7 @@ router = APIRouter()
 
 # Error message constants
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
+NO_RALLY_PERMISSIONS = "User does not have Rally permissions"
 
 
 
@@ -221,7 +222,7 @@ def evaluate_team_activity(
         logger.warning(f"User {current_user.id} does not have Rally permissions")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have Rally permissions"
+            detail=NO_RALLY_PERMISSIONS
         )
     
     # Validate access based on user role
@@ -292,7 +293,7 @@ def update_team_activity_evaluation(
     if not has_rally_access:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have Rally permissions"
+            detail=NO_RALLY_PERMISSIONS
         )
     
     # For staff users, check checkpoint assignment
@@ -357,7 +358,7 @@ def get_all_evaluations(
     if not validate_rally_permissions(auth):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have Rally permissions"
+            detail=NO_RALLY_PERMISSIONS
         )
     
     # Staff members can only view evaluations from their assigned checkpoint

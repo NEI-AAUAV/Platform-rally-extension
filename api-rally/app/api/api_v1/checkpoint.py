@@ -22,76 +22,76 @@ from app.models.team import Team
 router = APIRouter()
 
 
-@router.get("/", status_code=200)
+def _validate_list(items: list, db: Session) -> List[DetailedCheckPoint]:
+    adapter = TypeAdapter(List[DetailedCheckPoint])
+    return adapter.validate_python(items)
+
+
+def _get_all_checkpoints(db: Session) -> List[DetailedCheckPoint]:
+    from app.crud.crud_rally_settings import rally_settings as _rs  # noqa: PLC0415
+    items = crud.checkpoint.get_all_ordered(db=db)
+    adapter = TypeAdapter(List[DetailedCheckPoint])
+    return adapter.validate_python(items)
+
+
+def _get_checkpoints_for_team(
+    db: Session, curr_user: DetailedUser, settings: Any
+) -> List[DetailedCheckPoint]:
+    """Return visible checkpoints for a team member."""
+    if settings.show_route_mode == "complete":
+        return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+    all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+    team = crud.team.get(db=db, id=curr_user.team_id)
+    if not team:
+        return []
+    completed_count = len(team.times)
+    return _validate_list(all_checkpoints[: completed_count + 1], db)
+
+
+def _get_checkpoints_for_public(
+    db: Session, settings: Any
+) -> List[DetailedCheckPoint] | None:
+    """Return visible checkpoints for unauthenticated / public access.
+
+    Returns *None* when access should be denied.
+    """
+    if not (settings.public_access_enabled and settings.show_checkpoint_map):
+        if settings.show_checkpoint_map:
+            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+        return None
+    if settings.show_route_mode == "focused":
+        all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+        if not all_checkpoints:
+            return []
+        return _validate_list([all_checkpoints[0]], db)
+    return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+
+
+@router.get(
+    "/",
+    status_code=200,
+    responses={403: {"description": "Checkpoint map is hidden"}},
+)
 def get_checkpoints(
     *,
-    db: Session = Depends(deps.get_db),
-    # Use optional dependency to allow public access check
-    curr_user: DetailedUser | None = Depends(deps.get_current_user_optional),
+    db: Annotated[Session, Depends(deps.get_db)],
+    curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
 ) -> List[DetailedCheckPoint]:
-    # customized logic to show checkpoints based on settings and user role
-    # Fix: Import rally_settings directly if not in app.crud
-    from app.crud.crud_rally_settings import rally_settings
+    """Return visible checkpoints based on settings and the requesting user's role."""
+    from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
     settings = rally_settings.get_or_create(db)
-    
-    # 1. Admin/Staff: Always see all
-    is_privileged = False
+
     if curr_user:
         scopes = getattr(curr_user, "scopes", [])
-        is_privileged = deps.is_admin_or_staff(scopes)
+        if deps.is_admin_or_staff(scopes):
+            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+        if curr_user.team_id:
+            return _get_checkpoints_for_team(db, curr_user, settings)
 
-    if is_privileged:
-        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-        return detailed_checkpoint_list_adapter.validate_python(
-            crud.checkpoint.get_all_ordered(db=db)
-        )
-
-    # 2. Team
-    if curr_user and curr_user.team_id:
-        # If mode is 'complete', show all
-        if settings.show_route_mode == "complete":
-            detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-            return detailed_checkpoint_list_adapter.validate_python(
-                crud.checkpoint.get_all_ordered(db=db)
-            )
-        
-        # If mode is 'focused' (default), show completed + next
-        # Get all checkpoints first
-        all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
-        # Determine team progress
-        team = crud.team.get(db=db, id=curr_user.team_id)
-        if not team:
-            return []
-            
-        completed_count = len(team.times)
-        
-        # Return first (completed_count + 1) checkpoints
-        # (+1 includes the next one to visit)
-        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-        return detailed_checkpoint_list_adapter.validate_python(
-            all_checkpoints[:completed_count + 1]
-        )
-
-    # 3. Public (No user or user without team/admin roles)
-    if settings.public_access_enabled and settings.show_checkpoint_map:
-         # If mode is 'complete', show all (default behavior below)
-         # If mode is 'focused', show only the first checkpoint
-         if settings.show_route_mode == "focused":
-            all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
-            if not all_checkpoints:
-                return []
-            # Return only the first one
-            detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-            return detailed_checkpoint_list_adapter.validate_python([all_checkpoints[0]])
-
-    if settings.show_checkpoint_map:
-        detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-        return detailed_checkpoint_list_adapter.validate_python(
-            crud.checkpoint.get_all_ordered(db=db)
-        )
-
-    # Default: Access Denied
-    raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
+    result = _get_checkpoints_for_public(db, settings)
+    if result is None:
+        raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
+    return result
 
 
 @router.get("/me", status_code=200)
