@@ -107,8 +107,8 @@ export default function TeamProgress() {
     // Use activity-based completion count (more accurate than times.length,
     // since times is appended when staff registers a pass but not all
     // activities may be done yet).
-    const completedCheckpointsCount = team?.times?.length ?? 0;
-    const nextCheckpointOrder = completedCheckpointsCount + 1;
+    const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+    const nextCheckpointOrder = team?.current_checkpoint_number ?? (completedCheckpointsCount + 1);
     const nextCheckpoint = checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
 
     // Show route mode: 'focused' (only next) or 'complete' (all checkpoints)
