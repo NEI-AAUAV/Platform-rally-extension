@@ -28,7 +28,7 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={
         ScopeEnum.ADMIN: "Full access to everything.",
         ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
-        ScopeEnum.RALLY_STAFF:
+        ScopeEnum.RALLY_STAFF: "Staff access to rally.",
     },
 )
 
