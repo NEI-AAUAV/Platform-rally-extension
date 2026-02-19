@@ -1,0 +1,89 @@
+import { useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
+
+/**
+ * Custom hook for QR code scanning
+ * Uses canvas-based detection with jsQR library
+ */
+export function useQRCodeScanner(
+  videoRef: React.RefObject<HTMLVideoElement>,
+  canvasRef: React.RefObject<HTMLCanvasElement>,
+  onDetectCode: (code: string) => void
+) {
+  const [isActive, setIsActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scanIntervalRef = useRef<number>();
+
+
+  const scan = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || !isActive) {
+      console.log('Scan aborted: missing refs or inactive', { video: !!video, canvas: !!canvas, isActive })
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.log('Scan aborted: no context')
+      return;
+    }
+
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
+
+      if (code) {
+        onDetectCode(code.data);
+        setIsActive(false); // Stop scanning after detection
+        return;
+      }
+
+      // Continue scanning
+      scanIntervalRef.current = globalThis.requestAnimationFrame(scan);
+    } catch (err) {
+      console.error("Scanning error:", err);
+      setError("Erro ao processar câmara");
+    }
+  };
+
+  const startScanning = () => {
+    setIsActive(true);
+    setError(null);
+    scan();
+  };
+
+  const stopScanning = () => {
+    setIsActive(false);
+    if (scanIntervalRef.current) {
+      cancelAnimationFrame(scanIntervalRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (isActive) {
+      scan();
+    }
+    return () => {
+      if (scanIntervalRef.current) {
+        cancelAnimationFrame(scanIntervalRef.current);
+      }
+    };
+  }, [isActive, videoRef, canvasRef]);
+
+  return {
+    isActive,
+    error,
+    startScanning,
+    stopScanning,
+    setError,
+  };
+}

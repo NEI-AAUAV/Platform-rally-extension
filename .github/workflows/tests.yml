@@ -103,6 +103,7 @@ jobs:
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
         POSTGRES_DB: postgres_test
+        TEAM_JWT_SECRET_KEY: test_secret
         
     - name: Upload API test results
       uses: actions/upload-artifact@v5

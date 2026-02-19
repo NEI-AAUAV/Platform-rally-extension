@@ -1,14 +1,15 @@
 import { Users } from "lucide-react";
 import { useThemedComponents } from "@/components/themes";
 
-interface AssignmentFormProps {
+type AssignmentFormProps = Readonly<{
+
   assignmentsError: Error | null;
   isSuccessUpdate: boolean;
   isErrorUpdate: boolean;
   updateError: Error | null;
   children: React.ReactNode;
   className?: string;
-}
+}>
 
 export default function AssignmentForm({ 
   assignmentsError, 

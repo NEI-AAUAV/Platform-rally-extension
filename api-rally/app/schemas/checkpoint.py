@@ -10,7 +10,7 @@ class CheckPointBase(BaseModel):
 
 
 class CheckPointCreate(CheckPointBase):
-    pass
+    ...
 
 
 class CheckPointUpdate(BaseModel):

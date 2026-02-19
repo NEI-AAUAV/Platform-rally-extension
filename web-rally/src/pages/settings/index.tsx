@@ -6,46 +6,57 @@ import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
 import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";
-import { 
+import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString
 } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
+
+// Extended interface to include possibly missing properties
+type ExtendedRallySettingsResponse = Omit<RallySettingsResponse, 'participant_view_enabled' | 'show_route_mode' | 'show_score_mode'> & {
+  participant_view_enabled?: boolean;
+  show_route_mode?: string;
+  show_score_mode?: string;
+};
 
 const rallySettingsSchema = z.object({
   // Team management
   max_teams: z.number().min(1, "Must allow at least 1 team").max(100, "Maximum 100 teams allowed"),
   max_members_per_team: z.number().min(1, "Must allow at least 1 member").max(50, "Maximum 50 members per team"),
   enable_versus: z.boolean(),
-  
+
   // Rally timing
   rally_start_time: z.string().nullable().optional(),
   rally_end_time: z.string().nullable().optional(),
-  
+
   // Scoring system
   penalty_per_puke: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
   penalty_per_not_drinking: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
   bonus_per_extra_shot: z.number().min(0, "Bonus must be positive").max(100, "Bonus too high"),
   max_extra_shots_per_member: z.number().min(1, "Must allow at least 1 extra shot").max(20, "Maximum 20 extra shots per member"),
-  
+
   // Checkpoint behavior
   checkpoint_order_matters: z.boolean(),
-  
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
-  
+
   // Display settings
   show_live_leaderboard: z.boolean(),
   show_team_details: z.boolean(),
   show_checkpoint_map: z.boolean(),
-  
+  participant_view_enabled: z.boolean(),
+  show_route_mode: z.string().min(1, "Route mode is required"),
+  show_score_mode: z.string().min(1, "Score mode is required"),
+
   // Rally customization
   rally_theme: z.string().min(1, "Theme is required").max(100, "Theme too long"),
-  
+
   // Access control
   public_access_enabled: z.boolean(),
 });
@@ -85,6 +96,8 @@ export default function RallySettings() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
+  const extendedSettings = settings as ExtendedRallySettingsResponse | undefined;
+
   // Form setup
   const form = useForm<RallySettingsForm>({
     resolver: zodResolver(rallySettingsSchema),
@@ -104,6 +117,9 @@ export default function RallySettings() {
       show_live_leaderboard: true,
       show_team_details: true,
       show_checkpoint_map: true,
+      participant_view_enabled: false,
+      show_route_mode: "focused",
+      show_score_mode: "hidden",
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
     },
@@ -131,6 +147,9 @@ export default function RallySettings() {
         show_live_leaderboard: settings.show_live_leaderboard,
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
+        participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
+        show_route_mode: extendedSettings?.show_route_mode ?? "focused",
+        show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
       });
@@ -165,10 +184,10 @@ export default function RallySettings() {
       rally_start_time: data.rally_start_time ? localDatetimeLocalToUTCISOString(data.rally_start_time) : null,
       rally_end_time: data.rally_end_time ? localDatetimeLocalToUTCISOString(data.rally_end_time) : null,
     };
-    
+
     updateSettings(settingsData);
   };
-  
+
   const handleSubmitError = (errors: FieldErrors<RallySettingsForm>) => {
     const errorMessages = Object.entries(errors)
       .map(([field, error]) => {
@@ -217,8 +236,9 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
+  const fallbackPath = useFallbackNavigation();
   if (!isRallyAdmin) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   if (isLoadingSettings) {
@@ -228,15 +248,15 @@ export default function RallySettings() {
   if (settingsError) {
     return (
       <div className="mt-16 space-y-4">
-        <PageHeader 
+        <PageHeader
           title="Erro ao Carregar Configurações"
           description="Não foi possível carregar as configurações do Rally"
         />
-        <ErrorState 
+        <ErrorState
           message={`${settingsError instanceof Error ? settingsError.message : "Erro de autenticação"}. Certifique-se de que está logado e tem permissões de manager-rally ou admin.`}
         />
         <div className="flex justify-center">
-          <Button 
+          <Button
             onClick={() => refetchSettings()}
             variant="outline"
           >
@@ -249,11 +269,11 @@ export default function RallySettings() {
 
   return (
     <div className="mt-16 space-y-8">
-      <PageHeader 
+      <PageHeader
         title="Configurações do Rally"
         description="Gerir configurações globais do Rally Tascas"
       />
-      
+
       {/* Edit Button at the top */}
       {!isEditing ? (
         <div className="text-center space-y-3">

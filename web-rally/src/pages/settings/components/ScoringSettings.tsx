@@ -6,10 +6,11 @@ import { Switch } from '@/components/ui/switch';
 import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
-interface ScoringSettingsProps {
+type ScoringSettingsProps = Readonly<{
+
   className?: string;
   disabled?: boolean;
-}
+}>
 
 export default function ScoringSettings({ className = "", disabled = false }: ScoringSettingsProps) {
   const { Card } = useThemedComponents();

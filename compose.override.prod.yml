@@ -16,6 +16,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SECRET_KEY: ${SECRET_KEY}
       JWT_PUBLIC_KEY_PATH: /jwt.key.pub
+      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY}
     volumes: 
       - /deploy/keys/jwt.key.pub:/jwt.key.pub:ro
       - /deploy/api-rally/static:/api_rally/static

@@ -33,6 +33,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 show_live_leaderboard=True,
                 show_team_details=True,
                 show_checkpoint_map=True,
+                participant_view_enabled=False,
+                show_route_mode="focused",
+                show_score_mode="hidden",
                 # Rally customization
                 rally_theme="Rally Tascas - Competição de Equipas",
                 # Access control

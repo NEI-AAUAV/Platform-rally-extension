@@ -3,7 +3,6 @@ services:
     environment:
       ENABLE_RALLY: 'True'
 
-
   api_rally:
     build:
       context: extensions/rally/api-rally
@@ -13,6 +12,7 @@ services:
       POSTGRES_SERVER: db_pg
       POSTGRES_PASSWORD: postgres
       JWT_PUBLIC_KEY_PATH: /jwt.key.pub
+      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
     volumes:
       - ./extensions/rally/api-rally:/api_rally
       - ./dev-keys/jwt.key.pub:/jwt.key.pub:ro

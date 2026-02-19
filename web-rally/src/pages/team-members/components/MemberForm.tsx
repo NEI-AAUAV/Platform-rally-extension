@@ -22,12 +22,13 @@ const addMemberSchema = z.object({
 
 type AddMemberForm = z.infer<typeof addMemberSchema>;
 
-interface MemberFormProps {
+type MemberFormProps = Readonly<{
+
   selectedTeam: string;
   userToken: string;
   onSuccess: () => void;
   className?: string;
-}
+}>
 
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
   const { Card } = useThemedComponents();

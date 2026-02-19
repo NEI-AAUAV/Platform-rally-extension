@@ -13,13 +13,14 @@ interface TeamMember {
   is_captain: boolean;
 }
 
-interface MemberListProps {
+type MemberListProps = Readonly<{
+
   teamMembers: TeamMember[] | undefined;
   selectedTeam: string;
   userToken: string;
   onSuccess: () => void;
   className?: string;
-}
+}>
 
 export default function MemberList({ teamMembers, selectedTeam, onSuccess, className = "" }: MemberListProps) {
   const { Card: ThemedCard } = useThemedComponents();
@@ -30,7 +31,7 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
   } = useMutation({
     mutationFn: async (userId: number) => {
       return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
-        parseInt(selectedTeam),
+        Number.parseInt(selectedTeam),
         userId
       );
     },
@@ -109,11 +110,3 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
     </Card>
   );
 }
-
-
-
-
-
-
-
-

@@ -15,12 +15,13 @@ interface StaffAssignment {
   checkpoint_name?: string;
 }
 
-interface StaffAssignmentListProps {
+type StaffAssignmentListProps = Readonly<{
+
   assignments: StaffAssignment[];
   checkpoints: Checkpoint[] | undefined;
   onUpdateAssignment: (userId: number, checkpointId: number) => void;
   className?: string;
-}
+}>
 
 export default function StaffAssignmentList({ assignments, checkpoints, onUpdateAssignment, className = "" }: StaffAssignmentListProps) {
   const { Card } = useThemedComponents();
@@ -71,7 +72,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
                 if (value === "none") {
                   onUpdateAssignment(assignment.user_id, 0); // Use 0 to indicate no assignment
                 } else {
-                  onUpdateAssignment(assignment.user_id, parseInt(value));
+                  onUpdateAssignment(assignment.user_id, Number.parseInt(value));
                 }
               }}
             >

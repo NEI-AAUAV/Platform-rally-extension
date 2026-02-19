@@ -40,22 +40,9 @@ router = APIRouter()
 
 # Error message constants
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
+NO_RALLY_PERMISSIONS = "User does not have Rally permissions"
 
 
-class TeamForStaffDict(TypedDict, total=False):
-    """TypedDict for team data returned to staff"""
-    id: int
-    name: str
-    total: float
-    classification: Optional[int]
-    versus_group_id: Optional[int]
-    num_members: int
-    last_checkpoint_time: Optional[datetime]
-    last_checkpoint_score: Optional[float]
-    last_checkpoint_number: int
-    current_checkpoint_number: int
-    completed_checkpoint_numbers: List[int]
-    evaluated_at_current_checkpoint: bool
 
 
 @router.get("/my-checkpoint")
@@ -97,17 +84,27 @@ def get_teams_at_my_checkpoint(
             detail=NO_CHECKPOINT_ASSIGNED
         )
     
-    # Get all teams at this checkpoint (those whose current checkpoint matches or who have passed it)
-    all_teams = team.get_multi(db)
-    teams_at_checkpoint = []
-    
-    for team_obj in all_teams:
-        team_data = build_team_for_staff(db, team_obj, current_user.staff_checkpoint_id)
-        if team_data:
-            teams_at_checkpoint.append(team_data)
-    
-    return teams_at_checkpoint
+    # Fetch the checkpoint's order (not the FK id) for correct comparison
+    from sqlalchemy import select
+    checkpoint_obj = checkpoint.get(db, id=current_user.staff_checkpoint_id)
+    if not checkpoint_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assigned checkpoint not found"
+        )
+    staff_checkpoint_order = checkpoint_obj.order
 
+    # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints)
+    # Filter by number of completed checkpoints (cardinality of times) <= staff's checkpoint order
+    from sqlalchemy import func
+    teams_stmt = select(Team).where(func.cardinality(Team.times) <= staff_checkpoint_order)
+    teams = db.scalars(teams_stmt).all()
+
+    # Convert to the expected format using the utils function
+    return [
+        build_team_for_staff(db, team_obj, staff_checkpoint_order=staff_checkpoint_order)
+        for team_obj in teams
+    ]
 
 
 @router.get("/teams/{team_id}/activities")
@@ -225,7 +222,7 @@ def evaluate_team_activity(
         logger.warning(f"User {current_user.id} does not have Rally permissions")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have Rally permissions"
+            detail=NO_RALLY_PERMISSIONS
         )
     
     # Validate access based on user role
@@ -296,7 +293,7 @@ def update_team_activity_evaluation(
     if not has_rally_access:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have Rally permissions"
+            detail=NO_RALLY_PERMISSIONS
         )
     
     # For staff users, check checkpoint assignment
@@ -353,11 +350,31 @@ def get_all_evaluations(
     db: Annotated[Session, Depends(get_db)],
     checkpoint_id: Annotated[Optional[int], Query()] = None,
     team_id: Annotated[Optional[int], Query()] = None,
-    current_user: Annotated[DetailedUser, Depends(get_current_user)],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
     auth: Annotated[AuthData, Depends(api_nei_auth)]
 ) -> Dict[str, Any]:
-    """Get all evaluations - accessible by managers only"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
+    """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
+    # Check if user has rally permissions
+    if not validate_rally_permissions(auth):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=NO_RALLY_PERMISSIONS
+        )
+    
+    # Staff members can only view evaluations from their assigned checkpoint
+    # Managers/admins can view all evaluations
+    is_manager = is_admin_or_manager(auth)
+    
+    # If user is staff (not manager/admin), restrict to their checkpoint
+    if not is_manager:
+        if not current_user.staff_checkpoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=NO_CHECKPOINT_ASSIGNED
+            )
+        # Override checkpoint_id filter with staff's assigned checkpoint
+        checkpoint_id = current_user.staff_checkpoint_id
+        logger.debug(f"Staff user {current_user.id} restricted to checkpoint {checkpoint_id}")
     
     # Get all activity results
     from sqlalchemy.orm import joinedload

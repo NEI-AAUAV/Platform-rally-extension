@@ -130,6 +130,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres_test
+          TEAM_JWT_SECRET_KEY: test_secret
         continue-on-error: true
 
       - name: Generate OpenAPI schema
@@ -153,6 +154,8 @@ jobs:
               json.dump(schema, f)
           print(f'Wrote schema to {out_path}')
           "
+        env:
+          TEAM_JWT_SECRET_KEY: test_secret
 
       - name: Generate OpenAPI client (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'

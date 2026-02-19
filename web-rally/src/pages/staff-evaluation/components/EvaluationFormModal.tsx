@@ -4,14 +4,15 @@ import { useThemedComponents } from "@/components/themes";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
 
-interface EvaluationFormModalProps {
+type EvaluationFormModalProps = Readonly<{
+
   isOpen: boolean;
   activity: ActivityResponse;
   team: Team;
   onSubmit: (data: ActivityResultData) => void;
   onCancel: () => void;
   isSubmitting: boolean;
-}
+}>
 
 export default function EvaluationFormModal({
   isOpen,

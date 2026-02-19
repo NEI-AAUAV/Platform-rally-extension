@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
+import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { LoadingState } from "@/components/shared";
 import { StaffAssignmentList, AssignmentForm } from "./components";
 import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
@@ -16,6 +17,7 @@ interface StaffAssignment {
 
 export default function Assignment() {
   const { isLoading, isRallyAdmin } = useUser();
+  const fallbackPath = useFallbackNavigation();
 
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
@@ -60,7 +62,7 @@ export default function Assignment() {
   }
 
   if (!isRallyAdmin) {
-    return <Navigate to="/scoreboard" />;
+    return <Navigate to={fallbackPath} />;
   }
 
   // Map API response to local interface (they're compatible)

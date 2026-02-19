@@ -10,12 +10,13 @@ interface Checkpoint {
   order: number;
 }
 
-interface CheckpointCardProps {
+type CheckpointCardProps = Readonly<{
+
   checkpoint: Checkpoint;
   isSelected: boolean;
   onSelect: (checkpoint: Checkpoint) => void;
   showMap?: boolean;
-}
+}>
 
 export default function CheckpointCard({ 
   checkpoint, 

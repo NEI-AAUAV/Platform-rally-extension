@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from functools import lru_cache
 
 from fastapi import Depends
-from typing import Annotated, Any, TypeAlias
+from typing import Annotated, Any, Optional, TypeAlias
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 
@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     )
     ## Algorithm to use when signing JWT tokens
     JWT_ALGORITHM: str = "ES512"
+    
+    # Team authentication (separate from NEI JWT)
+    ## Secret key for team JWT tokens
+    TEAM_JWT_SECRET_KEY: Optional[str] = os.getenv("TEAM_JWT_SECRET_KEY")
+    TEAM_JWT_ALGORITHM: str = "HS256"
+    ## Token expiration time in hours (24 hours = 1 day)
+    TEAM_TOKEN_EXPIRE_HOURS: int = 24
+
+    @field_validator("TEAM_JWT_SECRET_KEY")
+    @classmethod
+    def validate_team_jwt_secret_key(cls, v: Optional[str]) -> str:
+        if not v:
+            raise ValueError(
+                "TEAM_JWT_SECRET_KEY environment variable must be set to a non-empty value"
+            )
+        return v
 
 
 settings = Settings()

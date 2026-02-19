@@ -1,4 +1,4 @@
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, List, Dict, Any, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import TypeAdapter
@@ -22,12 +22,76 @@ from app.models.team import Team
 router = APIRouter()
 
 
-@router.get("/", status_code=200)
-def get_checkpoints(*, db: Session = Depends(deps.get_db)) -> List[DetailedCheckPoint]:
-    detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
-    return detailed_checkpoint_list_adapter.validate_python(
-        crud.checkpoint.get_all_ordered(db=db)
-    )
+def _validate_list(items: Sequence[Any], db: Session) -> List[DetailedCheckPoint]:
+    adapter = TypeAdapter(List[DetailedCheckPoint])
+    return adapter.validate_python(items)
+
+
+def _get_all_checkpoints(db: Session) -> List[DetailedCheckPoint]:
+    from app.crud.crud_rally_settings import rally_settings as _rs  # noqa: PLC0415
+    items = crud.checkpoint.get_all_ordered(db=db)
+    adapter = TypeAdapter(List[DetailedCheckPoint])
+    return adapter.validate_python(items)
+
+
+def _get_checkpoints_for_team(
+    db: Session, curr_user: DetailedUser, settings: Any
+) -> List[DetailedCheckPoint]:
+    """Return visible checkpoints for a team member."""
+    if settings.show_route_mode == "complete":
+        return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+    all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+    team = crud.team.get(db=db, id=curr_user.team_id)
+    if not team:
+        return []
+    completed_count = len(team.times)
+    return _validate_list(all_checkpoints[: completed_count + 1], db)
+
+
+def _get_checkpoints_for_public(
+    db: Session, settings: Any
+) -> List[DetailedCheckPoint] | None:
+    """Return visible checkpoints for unauthenticated / public access.
+
+    Returns *None* when access should be denied.
+    """
+    if not (settings.public_access_enabled and settings.show_checkpoint_map):
+        if settings.show_checkpoint_map:
+            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+        return None
+    if settings.show_route_mode == "focused":
+        all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+        if not all_checkpoints:
+            return []
+        return _validate_list([all_checkpoints[0]], db)
+    return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+
+
+@router.get(
+    "/",
+    status_code=200,
+    responses={403: {"description": "Checkpoint map is hidden"}},
+)
+def get_checkpoints(
+    *,
+    db: Annotated[Session, Depends(deps.get_db)],
+    curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+) -> List[DetailedCheckPoint]:
+    """Return visible checkpoints based on settings and the requesting user's role."""
+    from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
+    settings = rally_settings.get_or_create(db)
+
+    if curr_user:
+        scopes = getattr(curr_user, "scopes", [])
+        if deps.is_admin_or_staff(scopes):
+            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+        if curr_user.team_id:
+            return _get_checkpoints_for_team(db, curr_user, settings)
+
+    result = _get_checkpoints_for_public(db, settings)
+    if result is None:
+        raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
+    return result
 
 
 @router.get("/me", status_code=200)
@@ -84,8 +148,10 @@ def get_checkpoint_teams(
         return ListingTeam(
             id=team.id,
             name=team.name,
+
             total=team.total,
             classification=team.classification,
+            versus_group_id=team.versus_group_id,
             times=team.times,
             last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
             last_checkpoint_score=(
@@ -94,6 +160,9 @@ def get_checkpoint_teams(
                 else None
             ),
             num_members=len(team.members),
+            last_checkpoint_number=None,
+            last_checkpoint_name=None,
+            current_checkpoint_number=None,
         )
     
     return list(map(build_team, teams))

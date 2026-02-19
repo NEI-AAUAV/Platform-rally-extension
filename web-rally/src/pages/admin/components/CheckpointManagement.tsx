@@ -39,9 +39,10 @@ type Checkpoint = DetailedCheckPoint;
 import type { UserState } from "@/stores/useUserStore";
 import { getErrorMessage } from "@/utils/errorHandling";
 
-interface CheckpointManagementProps {
+type CheckpointManagementProps = Readonly<{
+
   userStore: UserState;
-}
+}>
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
   const { Card } = useThemedComponents();
@@ -334,7 +335,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                       type="number"
                       placeholder="Ex: 1"
                       {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                       className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
                     />
                   </FormControl>

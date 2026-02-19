@@ -12,18 +12,19 @@ interface Checkpoint {
   order: number;
 }
 
-interface CheckpointListProps {
+type CheckpointListProps = Readonly<{
+
   checkpoints: Checkpoint[];
   selectedCheckpoint: Checkpoint | null;
   onSelectCheckpoint: (checkpoint: Checkpoint) => void;
   showMap?: boolean;
-}
+}>
 
-export default function CheckpointList({ 
-  checkpoints, 
-  selectedCheckpoint, 
-  onSelectCheckpoint, 
-  showMap = true 
+export default function CheckpointList({
+  checkpoints,
+  selectedCheckpoint,
+  onSelectCheckpoint,
+  showMap = true
 }: CheckpointListProps) {
   const { Card } = useThemedComponents();
   return (
@@ -32,11 +33,11 @@ export default function CheckpointList({
         <MapPin className="w-5 h-5" />
         Lista de Postos ({checkpoints.length})
       </h3>
-      
+
       {checkpoints.length === 0 ? (
         <EmptyState
           icon={<MapPin className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
-          title="Nenhum posto de controlo disponível"
+          title="Nenhum posto disponível"
           description="Os postos ainda não foram configurados"
         />
       ) : (

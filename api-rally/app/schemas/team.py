@@ -32,6 +32,7 @@ class ListingTeam(TeamBase):
 
 
 class DetailedTeam(TeamBase):
+    access_code: str
     times: List[datetime]
 
     score_per_checkpoint: List[int]

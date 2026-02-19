@@ -31,6 +31,9 @@ class RallySettings(Base):
     show_live_leaderboard = Column(Boolean, nullable=False, default=True)
     show_team_details = Column(Boolean, nullable=False, default=True)
     show_checkpoint_map = Column(Boolean, nullable=False, default=True)
+    participant_view_enabled = Column(Boolean, nullable=False, default=False)
+    show_route_mode = Column(String(20), nullable=False, default="focused")  # 'focused' or 'complete'
+    show_score_mode = Column(String(20), nullable=False, default="hidden")  # 'hidden', 'individual', or 'competitive'
     
     # Rally customization
     rally_theme = Column(String(100), nullable=False, default="Rally Tascas")

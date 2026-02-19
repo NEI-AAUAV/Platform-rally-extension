@@ -10,18 +10,19 @@ interface Checkpoint {
   order: number;
 }
 
-interface MapSectionProps {
+type MapSectionProps = Readonly<{
+
   checkpoints: Checkpoint[];
   selectedCheckpoint: Checkpoint | null;
   showMap?: boolean;
-}
+}>
 
 // Helper function to validate checkpoint coordinates
 function hasValidCoordinates(checkpoint: Checkpoint): boolean {
-  return checkpoint.latitude !== null && 
-         checkpoint.latitude !== undefined && 
-         checkpoint.longitude !== null && 
-         checkpoint.longitude !== undefined;
+  return checkpoint.latitude !== null &&
+    checkpoint.latitude !== undefined &&
+    checkpoint.longitude !== null &&
+    checkpoint.longitude !== undefined;
 }
 
 // Helper function to filter valid coordinates
@@ -34,7 +35,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
   const { Card } = useThemedComponents();
   // Calculate map bounds if we have coordinates
   const hasCoordinates = checkpoints.some(hasValidCoordinates);
-  
+
   const mapBounds = hasCoordinates ? {
     minLat: checkpoints
       .map(cp => getValidCoordinate(cp, 'latitude'))
@@ -57,14 +58,14 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
   // Generate Google Maps URL with waypoints for route
   const generateMapUrl = () => {
     if (!hasCoordinates || !mapBounds) return null;
-    
+
     const validCheckpoints = checkpoints.filter(hasValidCoordinates);
-    
+
     // Create waypoints for Google Maps directions
     const waypoints = validCheckpoints
       .map((cp) => `${cp.latitude},${cp.longitude}`)
       .join('|');
-    
+
     // Use directions API with waypoints to create a route
     return `https://www.google.com/maps/dir/?api=1&waypoints=${waypoints}`;
   };
@@ -81,12 +82,12 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
         <Navigation className="w-5 h-5" />
         Mapa dos Postos
       </h3>
-      
+
       <div className="space-y-4">
         <p className="text-[rgb(255,255,255,0.7)] text-sm">
-          Clique no botão abaixo para abrir o mapa com todos os postos de controlo:
+          Clique no botão abaixo para abrir o mapa com todos os postos:
         </p>
-        
+
         <div className="flex gap-3">
           <a
             href={mapUrl || '#'}
@@ -97,7 +98,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
             <Navigation className="w-4 h-4" />
             Abrir Mapa Completo
           </a>
-          
+
           {selectedCheckpoint?.latitude && selectedCheckpoint?.longitude && (
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
@@ -110,9 +111,9 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
             </a>
           )}
         </div>
-        
+
         <div className="text-xs text-[rgb(255,255,255,0.5)]">
-          💡 Dica: Os postos estão numerados pela ordem de visitação. 
+          💡 Dica: Os postos estão numerados pela ordem de visitação.
           {selectedCheckpoint && ` Posto selecionado: ${selectedCheckpoint.name} (Ordem ${selectedCheckpoint.order})`}
         </div>
       </div>

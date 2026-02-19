@@ -6,10 +6,11 @@ import { Switch } from '@/components/ui/switch';
 import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
-interface TeamSettingsProps {
+type TeamSettingsProps = Readonly<{
+
   className?: string;
   disabled?: boolean;
-}
+}>
 
 export default function TeamSettings({ className = "", disabled = false }: TeamSettingsProps) {
   const { Card } = useThemedComponents();

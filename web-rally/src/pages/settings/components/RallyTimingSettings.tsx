@@ -5,10 +5,11 @@ import { Label } from '@/components/ui/label';
 import { useFormContext } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
-interface RallyTimingSettingsProps {
+type RallyTimingSettingsProps = Readonly<{
+
   className?: string;
   disabled?: boolean;
-}
+}>
 
 export default function RallyTimingSettings({ className = "", disabled = false }: RallyTimingSettingsProps) {
   const { Card } = useThemedComponents();

@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckPointService, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
+import useTeamAuth from "@/hooks/useTeamAuth";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { CheckpointList, MapSection } from "./components";
 import { useThemedComponents } from "@/components/themes";
+import { Navigate } from "react-router-dom";
 
 interface Checkpoint {
   id: number;
@@ -15,24 +17,41 @@ interface Checkpoint {
   order: number;
 }
 
+import { useUserStore } from "@/stores/useUserStore";
+
 export default function Postos() {
   const { Card } = useThemedComponents();
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
+  const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
+  const { scopes } = useUserStore((state) => state);
 
-  // Fetch checkpoints
+  // Check if user has admin/manager/staff privileges
+  const isPrivileged = scopes !== undefined &&
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin") ||
+      scopes.includes("rally-staff"));
+
+  // Fetch checkpoints (always call hooks before any early returns)
   const { data: checkpoints, isLoading } = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => {
       const response = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return response;
     },
+    enabled: !isTeamAuthenticated || isPrivileged,
   });
+
+  // Redirect team users to their progress page ONLY if they are not privileged
+  if (isTeamAuthenticated && !isPrivileged) {
+    return <Navigate to="/team-progress" replace />;
+  }
 
   // Sort checkpoints by order property from database
   const sortedCheckpoints: Checkpoint[] = (
     checkpoints
-      ?.slice() // make a shallow copy to avoid mutating original
+      ?.slice()
       .sort((a: DetailedCheckPoint, b: DetailedCheckPoint) => a.order - b.order)
     || []
   );
@@ -41,10 +60,11 @@ export default function Postos() {
     return <LoadingState message="A carregar postos..." />;
   }
 
+
   return (
     <div className="mt-8 space-y-6">
-      <PageHeader 
-        title="Postos de Controlo"
+      <PageHeader
+        title="Postos"
         description="Consulte a lista de checkpoints e visualize-os no mapa"
       />
 
@@ -76,5 +96,4 @@ export default function Postos() {
     </div>
   );
 }
-
 

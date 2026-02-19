@@ -4,17 +4,60 @@ import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShieldCheck, Users } from "lucide-react";
+import useRallySettings from "@/hooks/useRallySettings";
+import useTeamAuth from "@/hooks/useTeamAuth";
 
 type NavTabsProps = ComponentProps<"ul">;
+
+const VIEW_MODE_KEY = "rally_view_mode";
+type ViewMode = "team" | "staff";
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { Button, config } = useThemedComponents();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
+  const { settings } = useRallySettings();
+  const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  
+
+  // Check if user has admin/manager privileges
+  const isAdminOrManager = scopes !== undefined &&
+    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+
+  // Check if user has staff privileges
+  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
+
+  const isPrivileged = isAdminOrManager || isStaff;
+
+  // Dual-role: has both a staff/admin account AND a team token
+  const isDualRole = isPrivileged && isTeamAuthenticated;
+
+  // View mode toggle — only relevant for dual-role users
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) ?? "staff";
+    }
+    return "staff";
+  });
+
+  const toggleViewMode = () => {
+    const next: ViewMode = viewMode === "staff" ? "team" : "staff";
+    setViewMode(next);
+    localStorage.setItem(VIEW_MODE_KEY, next);
+    setIsMobileMenuOpen(false);
+  };
+
+  // Determine effective team user status:
+  // - Pure team user (no staff scopes): always team view
+  // - Dual-role: depends on viewMode toggle
+  // - Staff/admin only: always staff view
+  const showTeamView = isTeamAuthenticated && (!isPrivileged || (isDualRole && viewMode === "team"));
+
+  // Check if score should be visible
+  const showScoreMenu = settings?.show_score_mode !== "hidden";
+
   // Handle click outside to close mobile menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -31,47 +74,23 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isMobileMenuOpen]);
-  
-  // Check if user has admin/manager privileges
-  const isAdminOrManager = scopes !== undefined && 
-    (scopes.includes("admin") || scopes.includes("manager-rally"));
-  
-  // Check if user has staff privileges
-  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  
+
   const navigation = [
-    { name: "Pontuação", href: "/scoreboard", show: true },
-    { name: "Postos", href: "/postos", show: true },
-    {
-      name: "Admin",
-      href: "/admin",
-      show: isAdminOrManager,
-    },
-    {
-      name: "Atribuições",
-      href: "/assignment",
-      show: isAdminOrManager,
-    },
-    {
-      name: "Versus",
-      href: "/versus",
-      show: isAdminOrManager,
-    },
-    {
-      name: "Membros",
-      href: "/team-members",
-      show: isAdminOrManager,
-    },
-    {
-      name: "Configurações",
-      href: "/settings",
-      show: isAdminOrManager,
-    },
-    {
-      name: "Avaliação",
-      href: "/staff-evaluation",
-      show: isStaff || isAdminOrManager,
-    },
+    // --- Team view nav ---
+    { name: "Progresso", href: "/team-progress", show: showTeamView },
+    { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
+    { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
+
+    // --- Staff / Admin / Public nav ---
+    { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
+    { name: "Postos", href: "/postos", show: !showTeamView && (isPrivileged || (settings?.show_checkpoint_map === true)) },
+    { name: "Admin", href: "/admin", show: !showTeamView && isAdminOrManager },
+    { name: "Atribuições", href: "/assignment", show: !showTeamView && isAdminOrManager },
+    { name: "Versus", href: "/versus", show: !showTeamView && isAdminOrManager },
+    { name: "Membros", href: "/team-members", show: !showTeamView && (isAdminOrManager || isStaff) },
+    { name: "Configurações", href: "/settings", show: !showTeamView && isAdminOrManager },
+    { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
+    { name: "Login", href: "/team-login", show: !showTeamView && !isTeamAuthenticated && scopes === undefined },
   ].filter((item) => item.show);
 
   const NavItems = () => (
@@ -92,13 +111,27 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           </li>
         );
       })}
+
+      {/* View mode toggle — only for dual-role users */}
+      {isDualRole && (
+        <li>
+          <button
+            onClick={toggleViewMode}
+            title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/20 bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all duration-200 w-full sm:w-auto"
+          >
+            {viewMode === "staff" ? <ShieldCheck className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+            <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
+          </button>
+        </li>
+      )}
     </>
   );
 
   return (
     <div className="relative">
       {/* Desktop Navigation */}
-      <ul {...props} className={cn("hidden sm:flex gap-3", className)}>
+      <ul {...props} className={cn("hidden sm:flex gap-3 items-center", className)}>
         <NavItems />
       </ul>
 
@@ -136,3 +169,4 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     </div>
   );
 }
+

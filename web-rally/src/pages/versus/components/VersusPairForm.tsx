@@ -10,11 +10,12 @@ import { useAppToast } from "@/hooks/use-toast";
 import { useThemedComponents } from "@/components/themes";
 import { getErrorMessage } from "@/utils/errorHandling";
 
-interface VersusPairFormProps {
+type VersusPairFormProps = Readonly<{
+
   teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
-}
+}>
 
 export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
   const { Card } = useThemedComponents();
@@ -56,8 +57,8 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
     }
 
     createVersusPair({
-      team_a_id: parseInt(selectedTeamA),
-      team_b_id: parseInt(selectedTeamB),
+      team_a_id: Number.parseInt(selectedTeamA),
+      team_b_id: Number.parseInt(selectedTeamB),
     });
   };
 

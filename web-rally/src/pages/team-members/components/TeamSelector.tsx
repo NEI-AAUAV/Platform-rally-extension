@@ -1,53 +1,69 @@
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useThemedComponents } from "@/components/themes";
+import { useThemedComponents } from "@/components/themes/ThemeContext";
+import type { ListingTeam } from "@/client";
 
-interface Team {
-  id: number;
-  name: string;
-  total: number;
-  classification: number;
-  num_members: number;
-}
+type TeamSelectorProps = Readonly<{
 
-interface TeamSelectorProps {
-  teams: Team[] | undefined;
+  teams: ListingTeam[] | undefined;
   selectedTeam: string;
   onTeamChange: (value: string) => void;
   className?: string;
-}
+}>
 
-export default function TeamSelector({ teams, selectedTeam, onTeamChange, className = "" }: TeamSelectorProps) {
-  const { Card } = useThemedComponents();
+export default function TeamSelector({
+  teams,
+  selectedTeam,
+  onTeamChange,
+  className = "",
+}: TeamSelectorProps) {
+  const components = useThemedComponents();
+  const { Card, config } = components;
+
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
-      <CardHeader>
-        <CardTitle>Selecionar Equipa</CardTitle>
-        <CardDescription>
+    <Card className={`p-6 border-opacity-50 shadow-lg backdrop-blur-md ${className}`}>
+      <div className="mb-4">
+        <h2
+          className="text-xl font-bold mb-1"
+          style={{ color: config?.colors?.text }}
+        >
+          Selecionar Equipa
+        </h2>
+        <p className="text-sm opacity-70" style={{ color: config?.colors?.text }}>
           Escolha uma equipa para gerir os seus membros
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <Label htmlFor="team-select">Equipa</Label>
-          <Select value={selectedTeam} onValueChange={onTeamChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar equipa" />
-            </SelectTrigger>
-            <SelectContent>
-              {teams?.map((team: Team) => (
-                <SelectItem key={team.id} value={team.id.toString()}>
-                  {team.name} ({team.num_members} membros)
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </CardContent>
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Label
+          htmlFor="team-select"
+          style={{ color: config?.colors?.text }}
+        >
+          Equipa
+        </Label>
+        <Select value={selectedTeam} onValueChange={onTeamChange}>
+          <SelectTrigger
+            id="team-select"
+            className="bg-black/10 border-white/10"
+            style={{ color: config?.colors?.text }}
+          >
+            <SelectValue placeholder="Selecionar equipa" />
+          </SelectTrigger>
+          <SelectContent>
+            {teams?.map((team) => (
+              <SelectItem key={team.id} value={team.id.toString()}>
+                {team.name} ({team.num_members} membros)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </Card>
   );
 }
-
-
-

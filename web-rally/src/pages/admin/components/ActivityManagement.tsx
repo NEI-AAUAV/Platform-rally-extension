@@ -20,9 +20,10 @@ interface Checkpoint {
   order: number;
 }
 
-interface ActivityManagementProps {
+type ActivityManagementProps = Readonly<{
+
   checkpoints: Checkpoint[];
-}
+}>
 
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
@@ -31,13 +32,13 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
 
   // Activities queries and mutations
   const { data: activitiesData } = useActivities();
-  const { 
-    mutate: createActivity, 
-    isPending: isCreatingActivity, 
+  const {
+    mutate: createActivity,
+    isPending: isCreatingActivity,
     error: createActivityError
   } = useCreateActivity();
   const { mutate: updateActivity, isPending: isUpdatingActivity } = useUpdateActivity();
-  const { mutate: deleteActivity, isPending: isDeletingActivity } = useDeleteActivity();
+  const { mutate: deleteActivity } = useDeleteActivity();
 
   const handleCreateActivity = (data: ClientActivityCreate) => {
     createActivity(data, {
@@ -54,7 +55,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
 
   const handleUpdateActivity = (data: ClientActivityCreate) => {
     if (!editingActivity) return;
-    
+
     updateActivity(
       { id: editingActivity.id, activity: data },
       {
@@ -159,7 +160,6 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}
-              isDeleting={isDeletingActivity}
             />
           )}
         </div>

@@ -14,10 +14,18 @@ OpenAPI.VERSION = 'v1';
 
 // Configure OpenAPI to use authentication token
 OpenAPI.HEADERS = async () => {
-  const token = useUserStore.getState().token;
-  if (token) {
-    return { 'Authorization': `Bearer ${token}` } as Record<string, string>;
+  // Check for staff token first
+  const staffToken = useUserStore.getState().token;
+  if (staffToken) {
+    return { 'Authorization': `Bearer ${staffToken}` } as Record<string, string>;
   }
+
+  // Fall back to team token if no staff token
+  const teamToken = localStorage.getItem('rally_team_token');
+  if (teamToken) {
+    return { 'Authorization': `Bearer ${teamToken}` } as Record<string, string>;
+  }
+
   return {} as Record<string, string>;
 };
 
@@ -40,7 +48,7 @@ const queryClient = new QueryClient({
 
 // Register Service Worker for PWA functionality
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  globalThis.addEventListener('load', () => {
     navigator.serviceWorker.register('/rally/sw.js')
       .then((registration) => {
         // Check for updates and force activation
@@ -51,15 +59,15 @@ if ('serviceWorker' in navigator) {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New service worker is available, force activation
                 newWorker.postMessage({ action: 'skipWaiting' });
-                window.location.reload();
+                globalThis.location.reload();
               }
             });
           }
         });
-        
+
         // Add development utility to clear cache
         if (process.env.NODE_ENV === 'development') {
-          window.clearRallyCache = () => {
+          (globalThis as unknown as Record<string, () => void>).clearRallyCache = () => {
             navigator.serviceWorker.controller?.postMessage({ action: 'clearCache' });
             // Also clear browser cache
             if ('caches' in window) {
@@ -68,7 +76,7 @@ if ('serviceWorker' in navigator) {
                   cacheNames.map((cacheName) => caches.delete(cacheName))
                 );
               }).then(() => {
-                window.location.reload();
+                globalThis.location.reload();
               });
             }
           };

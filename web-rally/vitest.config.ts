@@ -4,48 +4,37 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./tests/unit/setup.ts'],
-    globals: true,
-    include: ['tests/unit/**/*.test.{ts,tsx}'],
-    exclude: [
-      'node_modules/',
-      'tests/e2e/',
-      'src/client/',
-      '**/*.d.ts',
-      '**/*.config.*',
-      '**/vite-env.d.ts',
-      '.pnpm-store/**',
-      '**/.pnpm-store/**',
-    ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'tests/',
-        'src/client/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        '**/vite-env.d.ts',
-        '**/webidl-conversions/**',
-        '**/whatwg-url/**',
-      ],
-    },
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  define: {
-    global: 'globalThis',
+  test: {
+    exclude: ['tests/e2e/**', '**/node_modules/**', '**/dist/**', '**/.{idea,git,cache,output,temp}/**'],
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './tests/unit/setup.ts',
+    coverage: {
+      provider: 'istanbul',
+      reporter: ['lcov', 'text', 'json-summary'],
+      include: [
+        'src/**/*.ts',
+        'src/**/*.tsx',
+      ],
+      exclude: [
+        'src/components/ui/**',
+        'src/components/shared/**',
+        'src/components/themes/**',
+        'src/client/**',
+        'src/vite-env.d.ts',
+        'src/main.tsx',
+        '**/*.config.*',
+        '**/dist/**',
+        '**/build/**',
+        '**/node_modules/**',
+      ],
+      all: true,
+    },
+    watch: false,
   },
 })

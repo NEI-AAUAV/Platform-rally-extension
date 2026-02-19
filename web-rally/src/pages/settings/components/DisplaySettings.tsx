@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
-interface DisplaySettingsProps {
+type DisplaySettingsProps = Readonly<{
+
   className?: string;
   disabled?: boolean;
-}
+}>
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
   const { Card } = useThemedComponents();
@@ -54,7 +55,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             O tema controla as cores e estilo visual da aplicação
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Controller
             name="show_live_leaderboard"
@@ -72,7 +73,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Mostrar leaderboard em tempo real
           </Label>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Controller
             name="show_team_details"
@@ -90,7 +91,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Mostrar detalhes das equipas
           </Label>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Controller
             name="show_checkpoint_map"
@@ -108,7 +109,80 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Mostrar mapa dos checkpoints
           </Label>
         </div>
-        
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="participant_view_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <Label htmlFor="participant_view_enabled">
+            Ativar visualização para participantes
+          </Label>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="show_route_mode">Modo de Visualização do Trajeto</Label>
+          <Controller
+            name="show_route_mode"
+            control={control}
+            defaultValue="focused"
+            render={({ field }) => (
+              <Select
+                value={field.value || 'focused'}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                  <SelectValue placeholder="Selecione o modo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="focused">Apenas próximo posto</SelectItem>
+                  <SelectItem value="complete">Trajeto completo</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-white/50">
+            Controla o que as equipas veem do trajeto
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="show_score_mode">Modo de Visualização da Pontuação</Label>
+          <Controller
+            name="show_score_mode"
+            control={control}
+            defaultValue="hidden"
+            render={({ field }) => (
+              <Select
+                value={field.value || 'hidden'}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                  <SelectValue placeholder="Selecione o modo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hidden">Oculto</SelectItem>
+                  <SelectItem value="individual">Apenas própria pontuação</SelectItem>
+                  <SelectItem value="competitive">Classificação completa</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-white/50">
+            Controla o que as equipas veem das pontuações
+          </p>
+        </div>
+
         <div className="flex items-center space-x-2">
           <Controller
             name="public_access_enabled"

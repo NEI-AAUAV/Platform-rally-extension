@@ -8,11 +8,17 @@ import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";
 import { useThemedComponents } from "@/components/themes";
+import QRCodeDisplay from "@/components/QRCodeDisplay";
+import { QrCode } from "lucide-react";
+import type { DetailedTeam } from "@/client";
+
+type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
 
 export default function TeamMembers() {
   const { Card } = useThemedComponents();
-  const { isLoading, isRallyAdmin } = useUser();
+  const { isLoading, isRallyAdmin, userStore } = useUser();
   const token = useUserStore((state) => state.token);
+  const isStaff = userStore?.scopes?.includes("rally-staff");
 
   const [selectedTeam, setSelectedTeam] = useState<string>("");
 
@@ -20,9 +26,9 @@ export default function TeamMembers() {
   const { data: teams, error: teamsError, isLoading: teamsLoading } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
     queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchOnMount: true, // Always refetch on mount
-    staleTime: 0, // Always consider data stale
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   // Fetch team members with better error handling
@@ -31,16 +37,23 @@ export default function TeamMembers() {
     refetch: refetchTeamMembers,
     error: membersError,
     isLoading: membersLoading,
-  } = useQuery<TeamMemberResponse[]>({
+  } = useQuery({
     queryKey: ["teamMembers", selectedTeam],
-    queryFn: async () => {
+    queryFn: async (): Promise<TeamMemberResponse[]> => {
       if (!selectedTeam) return [];
       return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(Number(selectedTeam));
     },
-    enabled: !!selectedTeam && isRallyAdmin,
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchOnMount: true, // Always refetch on mount
-    staleTime: 0, // Always consider data stale
+    enabled: !!selectedTeam && (isRallyAdmin || isStaff),
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0,
+  });
+
+  // Fetch team data for QR code (staff only)
+  const { data: teamData } = useQuery({
+    queryKey: ["team", selectedTeam],
+    queryFn: () => TeamService.getTeamByIdApiRallyV1TeamIdGet(Number(selectedTeam)),
+    enabled: !!selectedTeam && isStaff,
   });
 
   const handleSuccess = () => {
@@ -51,20 +64,23 @@ export default function TeamMembers() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin) {
+  if (!isRallyAdmin && !isStaff) {
     return <Navigate to="/scoreboard" />;
   }
 
+  const selectedTeamData = teams?.find(t => t.id === Number(selectedTeam));
 
   return (
     <div className="mt-16 space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
           <Users className="w-6 h-6" />
-          Gestão de Membros das Equipas
+          {isRallyAdmin ? "Gestão de Membros das Equipas" : "Consultar Equipas"}
         </h2>
         <p className="text-[rgb(255,255,255,0.7)]">
-          Adicionar e remover membros das equipas do Rally
+          {isRallyAdmin
+            ? "Adicionar e remover membros das equipas do Rally"
+            : "Visualizar membros e código QR das equipas do Rally"}
         </p>
       </div>
 
@@ -108,36 +124,97 @@ export default function TeamMembers() {
             </Card>
           )}
 
-          <MemberForm
-            selectedTeam={selectedTeam}
-            userToken={token || ""}
-            onSuccess={handleSuccess}
-          />
+          {/* Admin View */}
+          {isRallyAdmin && (
+            <>
+              <MemberForm
+                selectedTeam={selectedTeam}
+                userToken={token || ""}
+                onSuccess={handleSuccess}
+              />
 
-          <MemberList
-            teamMembers={(teamMembers || []).map(member => ({
-              id: member.id,
-              name: member.name,
-              email: member.email ?? undefined,
-              is_captain: member.is_captain ?? false,
-            }))}
-            selectedTeam={selectedTeam}
-            userToken={token || ""}
-            onSuccess={handleSuccess}
-          />
+              <MemberList
+                teamMembers={(teamMembers || []).map(member => ({
+                  id: member.id,
+                  name: member.name,
+                  email: member.email ?? undefined,
+                  is_captain: member.is_captain ?? false,
+                }))}
+                selectedTeam={selectedTeam}
+                userToken={token || ""}
+                onSuccess={handleSuccess}
+              />
+            </>
+          )}
+
+          {/* Staff View */}
+          {isStaff && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Team Members */}
+              <Card variant="default" padding="lg" rounded="2xl">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Membros da Equipa
+                </h3>
+                <p className="text-sm text-[rgb(255,255,255,0.6)] mb-4">
+                  {selectedTeamData?.name} • {teamMembers?.length || 0} membros
+                </p>
+                <div className="space-y-2">
+                  {teamMembers?.length === 0 ? (
+                    <p className="text-center opacity-50">Nenhum membro registado</p>
+                  ) : (
+                    teamMembers?.map((member) => (
+                      <div
+                        key={member.id}
+                        className="p-3 rounded-lg bg-black/20 border border-white/10"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold">
+                            {member.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{member.name}</p>
+                            {member.email && (
+                              <p className="text-xs text-[rgb(255,255,255,0.5)]">{member.email}</p>
+                            )}
+                          </div>
+                          {member.is_captain && (
+                            <span className="text-xs bg-yellow-600/30 text-yellow-300 px-2 py-1 rounded">
+                              Capitão
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Card>
+
+
+              {teamData && (
+                <Card variant="default" padding="lg" rounded="2xl" className="flex flex-col items-center justify-center">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <QrCode className="w-5 h-5" />
+                    Código QR
+                  </h3>
+                  <div className="flex justify-center">
+                    <QRCodeDisplay accessCode={(teamData as ExtendedDetailedTeam).access_code || ''} size={200} />
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
         </>
       )}
-
 
       {/* Helpful messages */}
       {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
         <Card variant="default" padding="md" rounded="lg" className="border-yellow-500/50 bg-yellow-600/10">
           <h3 className="text-yellow-300 font-semibold mb-2">Nenhuma equipa encontrada</h3>
-          <p className="text-yellow-200 text-sm mb-2">
-            Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas.
-          </p>
           <p className="text-yellow-200 text-sm">
-            Vá à página <strong>Admin</strong> para criar equipas primeiro.
+            {isRallyAdmin
+              ? "Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas."
+              : "Não existem equipas criadas ainda. Contacte um administrador."}
           </p>
         </Card>
       )}

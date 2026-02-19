@@ -60,14 +60,21 @@ def serialize_team(result: ActivityResult) -> Optional[Dict[str, Any]]:
 # Permission Validation
 # =============================================================================
 
+from app.api import deps
+
+
+# =============================================================================
+# Permission Validation
+# =============================================================================
+
 def validate_rally_permissions(auth: AuthData) -> bool:
     """Validate that user has rally permissions"""
-    return any(scope in auth.scopes for scope in ["rally-staff", "manager-rally", "admin"])
+    return deps.is_admin_or_staff(auth.scopes)
 
 
 def is_admin_or_manager(auth: AuthData) -> bool:
     """Check if user is admin or manager"""
-    return any(scope in auth.scopes for scope in ["manager-rally", "admin"])
+    return deps.is_admin(auth.scopes)
 
 
 def validate_staff_checkpoint_access(

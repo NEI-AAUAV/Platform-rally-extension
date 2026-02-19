@@ -7,12 +7,13 @@ import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
 
-interface TeamActivitiesListProps {
+type TeamActivitiesListProps = Readonly<{
+
   team: Team;
   activities: ActivityResponse[];
   onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => void;
   isEvaluating: boolean;
-}
+}>
 
 const activityTypeIcons = {
   TimeBasedActivity: Clock,

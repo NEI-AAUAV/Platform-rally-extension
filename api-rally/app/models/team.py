@@ -17,6 +17,7 @@ class Team(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(unique=True)
+    access_code: Mapped[str] = mapped_column(unique=True, index=True)
 
     times: Mapped[List[datetime]] = mapped_column(
         MutableList.as_mutable(ARRAY(DateTime(timezone=False))), default=[]

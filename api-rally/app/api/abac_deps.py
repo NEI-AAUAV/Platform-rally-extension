@@ -28,6 +28,7 @@ __all__ = [
     "require_checkpoint_view_permission",
     "require_checkpoint_management_permission",
     "require_team_management_permission",
+    "require_view_team_members_permission",
     "validate_checkpoint_access",
     "validate_settings_update_access",
     "require_permission",
@@ -113,8 +114,7 @@ def get_staff_with_checkpoint_access(
             )
     
     # Check if user has any Rally permissions
-    has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
-                          for scope in auth.scopes)
+    has_rally_access = deps.is_admin_or_staff(auth.scopes)
     
     if not has_rally_access:
         raise HTTPException(
@@ -123,7 +123,7 @@ def get_staff_with_checkpoint_access(
         )
     
     # For staff users, ensure they have a checkpoint assignment
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+    if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         logger.info(f"Checking staff assignment for user_id={auth.sub}")
         _validate_staff_checkpoint_assignment(curr_user, auth, db)
         logger.info(f"Staff user {auth.sub} assigned to checkpoint {curr_user.staff_checkpoint_id}")
@@ -149,7 +149,7 @@ def require_checkpoint_score_permission(
         curr_user: Current user with staff access
     """
     # For staff users, validate checkpoint order
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+    if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         from app import crud
         
         # Get team to check their progress
@@ -239,6 +239,28 @@ def require_team_management_permission(
         auth=auth,
         action=Action.CREATE_TEAM,
         resource=Resource.TEAM
+    )
+
+
+def require_view_team_members_permission(
+    auth: AuthData = Depends(api_nei_auth),
+    curr_user: DetailedUser = Depends(deps.get_participant),
+) -> None:
+    """
+    Require permission to view team members
+    """
+    # If using API key/admin access, bypass further checks
+    if is_admin(auth.scopes):
+        return
+
+    # Staff can view team members if they have a checkpoint assignment
+    # Pass staff's checkpoint_id as context for ABAC evaluation
+    require_permission(
+        user=curr_user,
+        auth=auth,
+        action=Action.VIEW_TEAM_MEMBERS,
+        resource=Resource.TEAM,
+        checkpoint_id=curr_user.staff_checkpoint_id
     )
 
 

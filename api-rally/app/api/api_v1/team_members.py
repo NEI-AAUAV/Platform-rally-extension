@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
-from app.api.abac_deps import require_team_management_permission
+from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
 from app.schemas.user import DetailedUser, UserCreate
 from app.schemas.team_members import TeamMemberAdd, TeamMemberResponse, TeamMemberUpdate
 from app import crud
@@ -189,7 +189,7 @@ def get_team_members(
     """
     Get all members of a team.
     """
-    require_team_management_permission(auth=auth, curr_user=curr_user)
+    require_view_team_members_permission(auth=auth, curr_user=curr_user)
     
     # Check if team exists
     team = db.get(Team, team_id)

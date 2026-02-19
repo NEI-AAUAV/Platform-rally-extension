@@ -67,6 +67,8 @@ jobs:
               json.dump(schema, f)
           print(f"Wrote schema to {out_path}")
           PY
+        env:
+          TEAM_JWT_SECRET_KEY: test_secret
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -76,7 +78,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
           run_install: false
       
       - name: Get pnpm store directory
