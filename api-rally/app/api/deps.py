@@ -122,3 +122,40 @@ def get_admin_or_staff(
     if not is_admin(auth.scopes) and curr_user.staff_checkpoint_id is None:
         raise HTTPException(status_code=403, detail="User without permissions")
     return curr_user
+
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from app.core.config import settings
+from app.schemas.team_auth import TeamTokenData
+
+team_security_optional = HTTPBearer(auto_error=False)
+
+
+def get_current_team_optional(
+    token: Annotated[Optional[HTTPAuthorizationCredentials], Depends(team_security_optional)],
+) -> Optional[TeamTokenData]:
+    """Dependency for optional team authentication"""
+    if not token:
+        return None
+
+    try:
+        if not settings.TEAM_JWT_SECRET_KEY:
+            return None
+            
+        payload = jwt.decode(
+            token.credentials,
+            settings.TEAM_JWT_SECRET_KEY,
+            algorithms=[settings.TEAM_JWT_ALGORITHM],
+        )
+        
+        team_id = payload.get("team_id")
+        team_name = payload.get("team_name")
+        token_type = payload.get("type")
+        
+        if team_id is None or team_name is None or token_type != "team_access":
+            return None
+            
+        return TeamTokenData(team_id=team_id, team_name=team_name)
+    except JWTError:
+        return None

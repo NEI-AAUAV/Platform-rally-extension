@@ -112,8 +112,32 @@ export default function TeamsById() {
 
   const allEvaluations = allEvaluationsData || [];
 
-  // Filter evaluations for this specific team
-  const activityResults = allEvaluations.filter((result) => result.team_id === Number(id));
+  // Fetch evaluations for this specific team (accessible to team members)
+  const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
+    queryKey: ["teamEvaluations", id],
+    queryFn: async () => {
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/rally/v1/team/${id}/evaluations`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        return { evaluations: [] };
+      }
+
+      return response.json() as Promise<{ evaluations: EvaluationResult[] }>;
+    },
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
+  const activityResults = teamEvaluationsData?.evaluations || allEvaluations.filter((result) => result.team_id === Number(id));
 
   // Fetch all teams count for completion status
   const { data: allTeamsData } = useQuery<ListingTeam[]>({
@@ -128,7 +152,32 @@ export default function TeamsById() {
     },
   });
 
+  const { data: totalCheckpoints } = useQuery({
+    queryKey: ["checkpoints-count"],
+    queryFn: async () => {
+      // Use user token if available, otherwise try team token
+      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/rally/v1/checkpoint/count", {
+        headers,
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return response.json() as Promise<number>;
+    },
+    // Only fetch if we are showing team details
+    enabled: isSuccess && settings?.show_team_details !== false,
+  });
+
   const totalTeams = allTeamsData?.length || 0;
+  const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
 
   if (Number.isNaN(Number(id))) {
     return <Navigate to="/teams" />;
@@ -169,17 +218,13 @@ export default function TeamsById() {
             </Card>
 
             {/* Next Checkpoint Section */}
-            {(() => {
-              const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
-              const hasMore = completedCheckpointsCount < (checkpoints?.length ?? 0);
-              if (!(settings?.show_route_mode === "complete" || hasMore)) return null;
-              return (
+            {settings?.show_route_mode === "complete" || (team?.times?.length ?? 0) < totalCount ? (
               <>
                 <h2 className="mb-4 font-playfair text-2xl font-semibold">
                   Próximo Posto
                 </h2>
                 {(() => {
-                  const completedCheckpointsCount2 = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+                  const completedCheckpointsCount2 = team?.times?.length ?? 0;
                   const nextCheckpointOrder = completedCheckpointsCount2 + 1;
                   const nextCheckpoint = checkpoints?.find(cp => cp.order === nextCheckpointOrder);
                   if (!nextCheckpoint) return null;
@@ -217,8 +262,7 @@ export default function TeamsById() {
                   );
                 })()}
               </>
-              );
-            })()}
+            ) : null}
 
             <h2 className="mb-4 text-2xl font-semibold">
               Checkpoint Progress
@@ -226,7 +270,7 @@ export default function TeamsById() {
             <Card variant="default" padding="md" rounded="2xl" className="mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/70">
-                  Progress: {team?.last_checkpoint_number ?? team.times?.length ?? 0} of {team?.total_checkpoints ?? checkpoints?.length ?? 0} checkpoints
+                  Progress: {team.times?.length || 0} of {totalCount} checkpoints
                 </span>
                 {settings?.show_score_mode !== "hidden" && (
                   <span className="font-medium">
@@ -277,12 +321,12 @@ export default function TeamsById() {
 
                   // isEvaluated: use activity results when available (admin view), fall back
                   // to score_per_checkpoint when allEvaluations is empty (unauthenticated view).
-                  const activityCompletedCount = team?.last_checkpoint_number ?? team.times.length;
+                  const activityCompletedCount = team.times.length;
                   const isCurrentCheckpoint = checkpointOrder === activityCompletedCount + 1;
                   const isCompletedByActivity = checkpointOrder <= activityCompletedCount;
                   const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
                   // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
-                  const displayTime = evaluationTime ?? (isCompletedByActivity ? new Date(team.times[index]) : null);
+                  const displayTime = evaluationTime ?? (isCompletedByActivity && team.times[index] ? new Date(team.times[index]) : null);
 
                   // Check if any activity in this checkpoint has pending completion (time-based activities)
                   const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
