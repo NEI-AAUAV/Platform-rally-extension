@@ -19,6 +19,7 @@ class ScopeEnum(str, Enum):
 
     ADMIN = "admin"
     MANAGER_RALLY = "manager-rally"
+    RALLY_STAFF = "rally-staff"
     DEFAULT = "default"
 
 
@@ -27,6 +28,7 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={
         ScopeEnum.ADMIN: "Full access to everything.",
         ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
+        ScopeEnum.RALLY_STAFF:
     },
 )
 
@@ -89,6 +91,7 @@ oauth2_scheme_optional = OAuth2PasswordBearer(
     scopes={
         ScopeEnum.ADMIN: "Full access to everything.",
         ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
+        ScopeEnum.RALLY_STAFF: "Staff access to rally.",
     },
     auto_error=False,
 )

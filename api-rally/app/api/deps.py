@@ -67,6 +67,13 @@ def get_current_user_optional(
     user = db.get(User, auth.sub)
     if user is None:
         return None
+
+    # Update scopes if they've changed (Sync with Auth Service)
+    if user.scopes != auth.scopes:
+        user.scopes = auth.scopes
+        db.add(user)
+        db.commit()
+        db.refresh(user)
         
     # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
@@ -92,7 +99,7 @@ def is_admin(scopes: List[str]) -> bool:
 
 
 def is_staff(scopes: List[str]) -> bool:
-    return "rally-staff" in scopes
+    return ScopeEnum.RALLY_STAFF in scopes
 
 
 def is_admin_or_staff(scopes: List[str]) -> bool:

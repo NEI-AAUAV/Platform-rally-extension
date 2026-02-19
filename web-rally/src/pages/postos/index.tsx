@@ -17,11 +17,21 @@ interface Checkpoint {
   order: number;
 }
 
+import { useUserStore } from "@/stores/useUserStore";
+
 export default function Postos() {
   const { Card } = useThemedComponents();
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
+  const { scopes } = useUserStore((state) => state);
+
+  // Check if user has admin/manager/staff privileges
+  const isPrivileged = scopes !== undefined &&
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin") ||
+      scopes.includes("rally-staff"));
 
   // Fetch checkpoints (always call hooks before any early returns)
   const { data: checkpoints, isLoading } = useQuery({
@@ -30,11 +40,11 @@ export default function Postos() {
       const response = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return response;
     },
-    enabled: !isTeamAuthenticated,
+    enabled: !isTeamAuthenticated || isPrivileged,
   });
 
-  // Redirect team users to their progress page
-  if (isTeamAuthenticated) {
+  // Redirect team users to their progress page ONLY if they are not privileged
+  if (isTeamAuthenticated && !isPrivileged) {
     return <Navigate to="/team-progress" replace />;
   }
 

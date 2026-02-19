@@ -1,4 +1,4 @@
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, List, Dict, Any, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from pydantic import TypeAdapter
@@ -22,7 +22,7 @@ from app.models.team import Team
 router = APIRouter()
 
 
-def _validate_list(items: list, db: Session) -> List[DetailedCheckPoint]:
+def _validate_list(items: Sequence[Any], db: Session) -> List[DetailedCheckPoint]:
     adapter = TypeAdapter(List[DetailedCheckPoint])
     return adapter.validate_python(items)
 
