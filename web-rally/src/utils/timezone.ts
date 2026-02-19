@@ -66,7 +66,7 @@ export function utcISOStringToLocalDatetimeLocal(utc: string | null): string | n
   try {
     // Convert UTC ISO string to local datetime-local string (YYYY-MM-DDTHH:mm)
     const d = new Date(utc);
-    if (isNaN(d.getTime())) return null;
+    if (Number.isNaN(d.getTime())) return null;
     
     const pad = (n: number) => String(n).padStart(2, "0");
     const year = d.getFullYear();
@@ -186,7 +186,7 @@ export function getCurrentLocalDatetimeLocal(): string {
 export function isValidUTCISOString(str: string): boolean {
   try {
     const d = new Date(str);
-    return !isNaN(d.getTime()) && str.includes('Z');
+    return !Number.isNaN(d.getTime()) && str.includes('Z');
   } catch {
     return false;
   }
@@ -202,7 +202,7 @@ export function isValidDatetimeLocalString(str: string): boolean {
   try {
     const d = new Date(str);
     const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-    return !isNaN(d.getTime()) && regex.exec(str) !== null;
+    return !Number.isNaN(d.getTime()) && regex.exec(str) !== null;
   } catch {
     return false;
   }
@@ -219,7 +219,7 @@ export function formatDatetimeForDisplay(datetime: string | null): string | null
   
   try {
     const d = new Date(datetime);
-    if (isNaN(d.getTime())) return 'N/A';
+    if (Number.isNaN(d.getTime())) return 'N/A';
     
     // Format as MM/DD/YYYY HH:mm
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -254,7 +254,7 @@ export function parseDatetimeLocal(str: string | null): Date | null {
   
   try {
     const d = new Date(str);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   } catch {
     return null;
   }

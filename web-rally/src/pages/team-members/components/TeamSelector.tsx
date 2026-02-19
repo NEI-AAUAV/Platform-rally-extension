@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { useThemedComponents } from "@/components/themes/ThemeContext";
 import type { ListingTeam } from "@/client";
 
-interface TeamSelectorProps {
+type TeamSelectorProps = Readonly<{
+
   teams: ListingTeam[] | undefined;
   selectedTeam: string;
   onTeamChange: (value: string) => void;
   className?: string;
-}
+}>
 
 export default function TeamSelector({
   teams,

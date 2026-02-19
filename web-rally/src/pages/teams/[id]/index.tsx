@@ -130,7 +130,7 @@ export default function TeamsById() {
 
   const totalTeams = allTeamsData?.length || 0;
 
-  if (isNaN(Number(id))) {
+  if (Number.isNaN(Number(id))) {
     return <Navigate to="/teams" />;
   }
 

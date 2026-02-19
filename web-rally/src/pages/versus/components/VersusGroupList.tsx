@@ -10,12 +10,13 @@ type TeamUpdateWithVersus = TeamUpdate & {
   versus_group_id?: number | null;
 };
 
-interface VersusGroupListProps {
+type VersusGroupListProps = Readonly<{
+
   versusGroups: VersusGroupListResponse | undefined;
   teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
-}
+}>
 
 export default function VersusGroupList({ versusGroups, teams, onSuccess, className = "" }: VersusGroupListProps) {
   const { Card: ThemedCard } = useThemedComponents();

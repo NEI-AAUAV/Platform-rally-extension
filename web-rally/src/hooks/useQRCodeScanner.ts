@@ -14,23 +14,6 @@ export function useQRCodeScanner(
   const [error, setError] = useState<string | null>(null);
   const scanIntervalRef = useRef<number>();
 
-  // Inject jsQR library if not already loaded
-  /*
-  useEffect(() => {
-    if (!(window as any).jsQR) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-      script.async = true;
-      script.onload = () => {
-        console.log("jsQR library loaded");
-      };
-      document.head.appendChild(script);
-      return () => {
-        document.head.removeChild(script);
-      };
-    }
-  }, []);
-  */
 
   const scan = () => {
     const video = videoRef.current;
@@ -65,7 +48,7 @@ export function useQRCodeScanner(
       }
 
       // Continue scanning
-      scanIntervalRef.current = window.requestAnimationFrame(scan);
+      scanIntervalRef.current = globalThis.requestAnimationFrame(scan);
     } catch (err) {
       console.error("Scanning error:", err);
       setError("Erro ao processar câmara");

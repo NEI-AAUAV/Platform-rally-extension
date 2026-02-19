@@ -1,4 +1,4 @@
-from typing import Generator, List, Optional
+from typing import Annotated, Generator, List, Optional
 
 from fastapi import Depends, HTTPException, Security
 from sqlalchemy.orm import Session
@@ -19,8 +19,8 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def get_current_user(
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    db: Session = Depends(get_db),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    db: Annotated[Session, Depends(get_db)],
 ) -> DetailedUser:
     user = db.get(User, auth.sub)
     if user is None:
@@ -57,11 +57,10 @@ def get_current_user(
     return detailed_user
 
 
-
 def get_current_user_optional(
-    auth: AuthData | None = Security(api_nei_auth_optional, scopes=[]),
-    db: Session = Depends(get_db),
-) -> DetailedUser | None:
+    auth: Annotated[Optional[AuthData], Security(api_nei_auth_optional, scopes=[])],
+    db: Annotated[Session, Depends(get_db)],
+) -> Optional[DetailedUser]:
     if not auth:
         return None
     
@@ -81,7 +80,7 @@ def get_current_user_optional(
 
 
 def get_participant(
-    curr_user: DetailedUser = Depends(get_current_user),
+    curr_user: Annotated[DetailedUser, Depends(get_current_user)],
 ) -> DetailedUser:
     if curr_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -101,8 +100,8 @@ def is_admin_or_staff(scopes: List[str]) -> bool:
 
 
 def get_admin(
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(get_participant),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
 ) -> DetailedUser:
     if not is_admin(auth.scopes):
         raise HTTPException(status_code=403, detail="User without admin permissions")
@@ -110,8 +109,8 @@ def get_admin(
 
 
 def get_admin_or_staff(
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(get_participant),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
 ) -> DetailedUser:
     if not is_admin(auth.scopes) and curr_user.staff_checkpoint_id is None:
         raise HTTPException(status_code=403, detail="User without permissions")

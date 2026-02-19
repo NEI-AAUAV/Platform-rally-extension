@@ -12,12 +12,13 @@ interface Checkpoint {
   order: number;
 }
 
-interface CheckpointListProps {
+type CheckpointListProps = Readonly<{
+
   checkpoints: Checkpoint[];
   selectedCheckpoint: Checkpoint | null;
   onSelectCheckpoint: (checkpoint: Checkpoint) => void;
   showMap?: boolean;
-}
+}>
 
 export default function CheckpointList({
   checkpoints,

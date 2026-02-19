@@ -81,7 +81,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
           min="0"
           max={maxExtraShots}
           value={extraShots}
-          onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
+          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
           className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
@@ -105,7 +105,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
               type="number"
               min="0"
               value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
+              onChange={(e) => setPenalties({...penalties, vomit: Number.parseInt(e.target.value, 10) || 0})}
               className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
@@ -118,7 +118,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
               type="number"
               min="0"
               value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
+              onChange={(e) => setPenalties({...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0})}
               className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />

@@ -8,7 +8,7 @@ class RallyStaffAssignmentBase(BaseModel):
 
 
 class RallyStaffAssignmentCreate(RallyStaffAssignmentBase):
-    pass
+    ...
 
 
 class RallyStaffAssignmentUpdate(BaseModel):

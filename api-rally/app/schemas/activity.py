@@ -36,7 +36,6 @@ class ActivityBase(BaseModel):
 
 class ActivityCreate(ActivityBase):
     """Schema for creating an activity"""
-    pass
 
 
 class ActivityUpdate(BaseModel):
@@ -74,7 +73,6 @@ class ActivityResultEvaluation(BaseModel):
 
 class ActivityResultCreate(ActivityResultBase):
     """Schema for creating an activity result"""
-    pass
 
 
 class ActivityResultUpdate(BaseModel):
@@ -114,7 +112,6 @@ class RallyEventBase(BaseModel):
 
 class RallyEventCreate(RallyEventBase):
     """Schema for creating a rally event"""
-    pass
 
 
 class RallyEventUpdate(BaseModel):

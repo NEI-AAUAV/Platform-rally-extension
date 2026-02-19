@@ -37,8 +37,15 @@ interface Evaluation {
   };
 }
 
-interface AllEvaluationsProps {
+type AllEvaluationsProps = Readonly<{
+
   evaluations: Evaluation[];
+}>
+
+function getTeamVsResultLabel(result: string): string {
+  if (result === 'win') return '✓ Won';
+  if (result === 'lose') return '✗ Lost';
+  return '= Draw';
 }
 
 const activityTypeIcons = {
@@ -52,17 +59,16 @@ const activityTypeIcons = {
 function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId: number | null }) {
   return (
     <>
-      <Badge 
-        variant="outline" 
-        className={`text-xs ${
-          result === 'win' 
-            ? 'border-green-500/50 text-green-400' 
-            : result === 'lose'
+      <Badge
+        variant="outline"
+        className={`text-xs ${result === 'win'
+          ? 'border-green-500/50 text-green-400'
+          : result === 'lose'
             ? 'border-red-500/50 text-red-400'
             : 'border-yellow-500/50 text-yellow-400'
-        }`}
+          }`}
       >
-        {result === 'win' ? '✓ Won' : result === 'lose' ? '✗ Lost' : '= Draw'}
+        {getTeamVsResultLabel(result)}
       </Badge>
       {opponentId !== null && (
         <Badge variant="outline" className="text-xs">
@@ -78,7 +84,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("all");
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());
-  
+
   const toggleExpand = (evaluationId: number) => {
     setExpandedEvaluations(prev => {
       const newSet = new Set(prev);
@@ -142,7 +148,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Team Filter */}
             <div>
@@ -158,7 +164,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                 ))}
               </select>
             </div>
-            
+
             {/* Checkpoint Filter */}
             <div>
               <label className="block text-xs text-[rgb(255,255,255,0.6)] mb-1">Checkpoint</label>
@@ -176,7 +182,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
               </select>
             </div>
           </div>
-          
+
           {hasActiveFilters && (
             <div className="mt-2 text-xs text-[rgb(255,255,255,0.6)]">
               Showing {filteredEvaluations.length} of {evaluations.length} evaluations
@@ -188,26 +194,26 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           {filteredEvaluations.map((evaluation) => {
             const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
             const isExpanded = expandedEvaluations.has(evaluation.id);
-            
+
             // Compute TeamVsActivity result badge if applicable
             let teamVsResult: React.ReactNode = null;
             if (evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data) {
               const resultValue = evaluation.result_data.result;
               if (typeof resultValue === 'string' && resultValue) {
                 const result: string = resultValue; // Type assertion after type guard
-                const opponentId = 
+                const opponentId =
                   'opponent_team_id' in evaluation.result_data &&
-                  typeof evaluation.result_data.opponent_team_id === 'number'
+                    typeof evaluation.result_data.opponent_team_id === 'number'
                     ? evaluation.result_data.opponent_team_id
                     : null;
                 teamVsResult = <TeamVsResultBadges result={result} opponentId={opponentId} />;
               }
             }
-            const hasDetails = 
-              (evaluation.result_data && Object.keys(evaluation.result_data).length > 0) || 
-              (evaluation.extra_shots && evaluation.extra_shots > 0) || 
+            const hasDetails =
+              (evaluation.result_data && Object.keys(evaluation.result_data).length > 0) ||
+              (evaluation.extra_shots && evaluation.extra_shots > 0) ||
               (evaluation.penalties && Object.keys(evaluation.penalties).length > 0);
-            
+
             return (
               <Card
                 key={evaluation.id}
@@ -222,7 +228,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                       <div className="flex items-center gap-2">
                         <IconComponent className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
                         {hasDetails && (
-                          isExpanded ? 
+                          isExpanded ?
                             <ChevronUp className="w-4 h-4 text-[rgb(255,255,255,0.5)]" /> :
                             <ChevronDown className="w-4 h-4 text-[rgb(255,255,255,0.5)]" />
                         )}
@@ -243,7 +249,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <Badge 
+                      <Badge
                         variant="default"
                         className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
                       >
@@ -253,13 +259,13 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                         <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
                           {new Date(evaluation.completed_at).toLocaleDateString()}
                         </Badge>
-                      <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
-                        {new Date(evaluation.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                      </Badge>
+                        <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
+                          {new Date(evaluation.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                  
+
                   {isExpanded && hasDetails && (
                     <div className="mt-3 pt-3 border-t border-[rgb(255,255,255,0.2)] space-y-2">
                       {/* Result Section */}
@@ -268,18 +274,17 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                           <p className="text-xs font-semibold text-[rgb(255,255,255,0.8)] mb-1">Result:</p>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.is_completed && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  evaluation.final_score > 0 
-                                    ? 'border-green-500/50 text-green-400 bg-green-500/10' 
-                                    : 'border-yellow-500/50 text-yellow-400 bg-yellow-500/10'
-                                }`}
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${evaluation.final_score > 0
+                                  ? 'border-green-500/50 text-green-400 bg-green-500/10'
+                                  : 'border-yellow-500/50 text-yellow-400 bg-yellow-500/10'
+                                  }`}
                               >
                                 {evaluation.final_score > 0 ? '✓ Completed' : '○ Attempted'}
                               </Badge>
                             )}
-                            
+
                             {evaluation.time_score && (
                               <Badge variant="outline" className="text-xs">
                                 Time: {evaluation.time_score.toFixed(2)}s
@@ -291,21 +296,20 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                               </Badge>
                             )}
                             {evaluation.activity.activity_type === 'BooleanActivity' && evaluation.boolean_score !== undefined && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  evaluation.boolean_score 
-                                    ? 'border-green-500/50 text-green-400' 
-                                    : 'border-red-500/50 text-red-400'
-                                }`}
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${evaluation.boolean_score
+                                  ? 'border-green-500/50 text-green-400'
+                                  : 'border-red-500/50 text-red-400'
+                                  }`}
                               >
                                 {evaluation.boolean_score ? '✓ Success' : '✗ Failed'}
                               </Badge>
                             )}
-                            
+
                             {/* TeamVsActivity Result */}
                             {teamVsResult}
-                            
+
                             {/* Notes */}
                             {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
                               <Badge variant="outline" className="text-xs">
@@ -315,7 +319,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                           </div>
                         </div>
                       )}
-                      
+
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-blue-400 mb-1">Modifiers:</p>
@@ -331,7 +335,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                           </div>
                         </div>
                       )}
-                      
+
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
                           <p className="text-xs font-semibold text-red-400 mb-1">Penalties:</p>

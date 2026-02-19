@@ -17,28 +17,23 @@ class BaseActivity(ABC):
     @abstractmethod
     def get_type(cls) -> str:
         """Return the string identifier for this activity type"""
-        pass
     
     @classmethod
     @abstractmethod
     def get_default_config(cls) -> Dict[str, Any]:
         """Return the default configuration for this activity type"""
-        pass
     
     @abstractmethod
     def calculate_score(self, result_data: Dict[str, Any], team_size: int = 1) -> float:
         """Calculate the final score for this activity"""
-        pass
     
     @abstractmethod
     def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate that the result data is correct for this activity type"""
-        pass
     
     @abstractmethod
     def get_result_schema(self) -> Dict[str, Any]:
         """Return the expected schema for result data"""
-        pass
     
     def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session: Any = None) -> float:
         """Apply scoring modifiers (extra shots, penalties)"""

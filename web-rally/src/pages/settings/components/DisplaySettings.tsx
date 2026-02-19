@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFormContext, Controller } from 'react-hook-form';
 import { useThemedComponents } from '@/components/themes';
 
-interface DisplaySettingsProps {
+type DisplaySettingsProps = Readonly<{
+
   className?: string;
   disabled?: boolean;
-}
+}>
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
   const { Card } = useThemedComponents();

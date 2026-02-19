@@ -10,11 +10,12 @@ interface Checkpoint {
   order: number;
 }
 
-interface MapSectionProps {
+type MapSectionProps = Readonly<{
+
   checkpoints: Checkpoint[];
   selectedCheckpoint: Checkpoint | null;
   showMap?: boolean;
-}
+}>
 
 // Helper function to validate checkpoint coordinates
 function hasValidCoordinates(checkpoint: Checkpoint): boolean {

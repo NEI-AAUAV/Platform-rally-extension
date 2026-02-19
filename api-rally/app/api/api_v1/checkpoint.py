@@ -65,9 +65,6 @@ def get_checkpoints(
             
         completed_count = len(team.times)
         
-        # Log for debugging
-        print(f"DEBUG: Team {team.name} mode={settings.show_route_mode}, completed={completed_count}")
-        
         # Return first (completed_count + 1) checkpoints
         # (+1 includes the next one to visit)
         detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
@@ -86,8 +83,6 @@ def get_checkpoints(
             # Return only the first one
             detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])
             return detailed_checkpoint_list_adapter.validate_python([all_checkpoints[0]])
-         
-         pass
 
     if settings.show_checkpoint_map:
         detailed_checkpoint_list_adapter = TypeAdapter(List[DetailedCheckPoint])

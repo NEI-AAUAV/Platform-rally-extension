@@ -39,7 +39,7 @@ class RallySettingsBase(BaseModel):
     public_access_enabled: bool
 
 class RallySettingsUpdate(RallySettingsBase):
-    pass
+    ...
 
 class RallySettingsResponse(RallySettingsBase):
     model_config = ConfigDict(from_attributes=True)

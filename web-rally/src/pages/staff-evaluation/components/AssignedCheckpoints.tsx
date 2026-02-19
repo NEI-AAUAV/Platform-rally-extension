@@ -4,12 +4,13 @@ import { MapPin, ArrowRight } from "lucide-react";
 import { useThemedComponents } from "@/components/themes";
 import type { DetailedCheckPoint, ActivityResponse, ListingTeam } from "@/client";
 
-interface AssignedCheckpointsProps {
+type AssignedCheckpointsProps = Readonly<{
+
   checkpoints: DetailedCheckPoint[];
   activities: ActivityResponse[];
   teams: ListingTeam[];
   onCheckpointClick: (checkpoint: DetailedCheckPoint) => void;
-}
+}>
 
 export default function AssignedCheckpoints({ 
   checkpoints, 

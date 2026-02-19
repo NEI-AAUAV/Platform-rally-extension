@@ -20,9 +20,10 @@ interface Checkpoint {
   order: number;
 }
 
-interface ActivityManagementProps {
+type ActivityManagementProps = Readonly<{
+
   checkpoints: Checkpoint[];
-}
+}>
 
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);

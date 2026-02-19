@@ -12,7 +12,7 @@ interface QRCodeDisplayProps {
  */
 export default function QRCodeDisplay({ accessCode, size = 200, className = "" }: QRCodeDisplayProps) {
     // Generate the team login URL with access code
-    const loginUrl = `${window.location.origin}/rally/team-login?code=${accessCode}`;
+    const loginUrl = `${globalThis.location.origin}/rally/team-login?code=${accessCode}`;
 
     return (
         <div className={`flex flex-col items-center gap-4 ${className}`}>
