@@ -216,8 +216,8 @@ def get_team_evaluations(
     id: int,
     # Use optional auth to allow either NEI user or Team token
     current_user: Optional[DetailedUser] = Depends(deps.get_current_user_optional),
-    auth: Optional[AuthData] = Depends(deps.api_nei_auth_optional),
-    current_team: Optional[Team] = Depends(deps.get_current_team_optional),
+    auth: Optional[AuthData] = Depends(api_nei_auth_optional),
+    current_team: Optional[TeamTokenData] = Depends(deps.get_current_team_optional),
 ) -> Dict[str, Any]:
     """
     Get evaluations for a specific team.
