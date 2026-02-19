@@ -67,7 +67,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
     def count(self, db: Session) -> int:
         """Get the total number of checkpoints."""
         stmt = select(func.count()).select_from(CheckPoint)
-        return db.scalar(stmt)
+        return db.scalar(stmt) or 0
 
 
 checkpoint = CRUDCheckPoint(CheckPoint)

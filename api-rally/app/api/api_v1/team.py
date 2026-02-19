@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 
 from app import crud
 from app.api import deps
-from app.api.auth import AuthData, api_nei_auth
+from app.schemas.team_auth import TeamTokenData
+from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.api.abac_deps import (
     require_checkpoint_score_permission,
     require_team_management_permission,
