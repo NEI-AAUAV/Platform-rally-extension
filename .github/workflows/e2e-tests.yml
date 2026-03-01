@@ -111,7 +111,7 @@ jobs:
           CI: true
       
       - name: Upload Playwright test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
@@ -119,7 +119,7 @@ jobs:
           retention-days: 7
       
       - name: Upload Playwright test videos
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-videos
@@ -127,7 +127,7 @@ jobs:
           retention-days: 7
       
       - name: Upload Playwright screenshots
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-screenshots

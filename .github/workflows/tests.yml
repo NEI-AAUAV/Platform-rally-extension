@@ -106,7 +106,7 @@ jobs:
         TEAM_JWT_SECRET_KEY: test_secret
         
     - name: Upload API test results
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: api-test-results
@@ -144,7 +144,7 @@ jobs:
         fi
         
     - name: Upload frontend test results
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: frontend-test-results
@@ -225,7 +225,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
         
     - name: Upload integration test results
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: integration-test-results
