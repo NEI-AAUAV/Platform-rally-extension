@@ -268,17 +268,14 @@ class ScoringService:
     # =========================================================================
 
     def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]) -> None:
-        """Set the type-specific score column from result_data."""
-        if activity.activity_type == ActivityType.TIME_BASED.value:
-            db_obj.time_score = result_data.get('completion_time_seconds')
-        elif activity.activity_type == ActivityType.SCORE_BASED.value:
-            db_obj.points_score = result_data.get('achieved_points')
-        elif activity.activity_type == ActivityType.BOOLEAN.value:
-            db_obj.boolean_score = result_data.get('success')
-        elif activity.activity_type == ActivityType.TEAM_VS.value:
-            db_obj.team_vs_result = result_data.get('result')
-        elif activity.activity_type == ActivityType.GENERAL.value:
-            db_obj.points_score = result_data.get('assigned_points')
+        """Set the type-specific score column(s) from result_data.
+
+        Each activity type declares which ActivityResult column(s) it populates
+        via persisted_score_fields, so adding a type needs no change here.
+        """
+        instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
+        for column, value in instance.persisted_score_fields(result_data).items():
+            setattr(db_obj, column, value)
 
     def create_result(
         self,

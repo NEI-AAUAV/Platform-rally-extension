@@ -13,6 +13,9 @@ class TeamVsActivity(BaseActivity):
     def get_type(cls) -> str:
         return "TeamVsActivity"
 
+    def persisted_score_fields(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        return {"team_vs_result": result_data.get("result")}
+
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         return {

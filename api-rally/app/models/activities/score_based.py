@@ -11,7 +11,10 @@ class ScoreBasedActivity(BaseActivity):
     @classmethod
     def get_type(cls) -> str:
         return "ScoreBasedActivity"
-    
+
+    def persisted_score_fields(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        return {"points_score": result_data.get("achieved_points")}
+
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         return {

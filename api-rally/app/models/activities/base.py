@@ -34,7 +34,16 @@ class BaseActivity(ABC):
     @abstractmethod
     def get_result_schema(self) -> Dict[str, Any]:
         """Return the expected schema for result data"""
-    
+
+    def persisted_score_fields(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Map result_data to the ActivityResult score columns this type populates.
+
+        Returns a dict of {column_name: value} (e.g. {"time_score": 42.0}).
+        Each activity type owns this mapping so persistence no longer needs an
+        if/elif over the activity type. Default: no type-specific column.
+        """
+        return {}
+
     def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session: Any = None) -> float:
         """Apply scoring modifiers (extra shots, penalties)"""
         final_score = base_score

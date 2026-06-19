@@ -11,7 +11,10 @@ class TimeBasedActivity(BaseActivity):
     @classmethod
     def get_type(cls) -> str:
         return "TimeBasedActivity"
-    
+
+    def persisted_score_fields(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        return {"time_score": result_data.get("completion_time_seconds")}
+
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         return {

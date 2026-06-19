@@ -11,7 +11,10 @@ class BooleanActivity(BaseActivity):
     @classmethod
     def get_type(cls) -> str:
         return "BooleanActivity"
-    
+
+    def persisted_score_fields(self, result_data: Dict[str, Any]) -> Dict[str, Any]:
+        return {"boolean_score": result_data.get("success")}
+
     @classmethod
     def get_default_config(cls) -> Dict[str, Any]:
         return {
