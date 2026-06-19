@@ -269,10 +269,16 @@ class CRUDActivityResult:
         
         # Recalculate final score if result data changed
         if 'result_data' in update_data:
-            self._recalculate_score_for_update(db, db_obj)
-            
-            # If this is a TimeBasedActivity, recalculate all results
             activity = db.get(Activity, db_obj.activity_id)
+            if activity:
+                # Refresh type-specific score columns (time_score, points_score, ...)
+                # from the new result_data before recalculating. Ranking queries read
+                # these columns, so a stale time_score would skew the distribution.
+                self._set_activity_specific_scores(db_obj, activity, db_obj.result_data)
+
+            self._recalculate_score_for_update(db, db_obj)
+
+            # If this is a TimeBasedActivity, recalculate all results
             if activity and activity.activity_type == 'TimeBasedActivity':
                 self._recalculate_all_results_for_activity(db, activity.id)
         
