@@ -9,8 +9,21 @@ from app.db.init_db import init_db
 from app.api.api import api_v1_router
 from app.core.logging import init_logging
 from app.core.config import settings
+from app.core.exceptions import RallyError
 
 app = FastAPI(title="Rally Tascas API", default_response_class=ORJSONResponse)
+
+
+@app.exception_handler(RallyError)
+async def rally_error_handler(request: Request, exc: RallyError) -> ORJSONResponse:
+    """Map domain errors to HTTP responses; log 5xx with a traceback."""
+    where = f"{request.method} {request.url.path}"
+    if exc.status_code >= 500:
+        logger.exception(f"Rally error on {where}: {exc.message}")
+    else:
+        logger.warning(f"Rally error on {where}: {exc.message}")
+    return ORJSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> ORJSONResponse:

@@ -344,17 +344,10 @@ def create_team_vs_result(
 ) -> Dict[str, str]:
     """Create team vs team activity results"""
     scoring_service = ScoringService(db)
-    success, message = scoring_service.create_team_vs_result(
+    scoring_service.create_team_vs_result(
         team1_id, team2_id, activity_id, winner_id, match_data
     )
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message
-        )
-    
-    return {"message": message}
+    return {"message": "Team vs team results created successfully"}
 
 
 @router.get("/{activity_id}/statistics")

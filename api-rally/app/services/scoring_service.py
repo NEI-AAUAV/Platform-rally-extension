@@ -15,6 +15,7 @@ from app.schemas.activity_types import ActivityType
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.crud.crud_activity import activity_result as activity_result_crud
+from app.core.exceptions import RallyError, RallyValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -524,12 +525,17 @@ class ScoringService:
         
         return True
     
-    def create_team_vs_result(self, team1_id: int, team2_id: int, activity_id: int, 
-                             winner_id: int, match_data: dict[str, Any]) -> tuple[bool, str]:
-        """Create results for both teams in a team vs team activity"""
+    def create_team_vs_result(self, team1_id: int, team2_id: int, activity_id: int,
+                             winner_id: int, match_data: dict[str, Any]) -> tuple[ActivityResult, ActivityResult]:
+        """Create results for both teams in a team vs team activity.
+
+        Returns the two persisted results. Raises RallyValidationError if the
+        teams cannot compete; any unexpected failure is rolled back and
+        re-raised (never swallowed into a misleading return value).
+        """
         if not self.validate_team_vs_match(team1_id, team2_id, activity_id):
-            return False, "Teams cannot compete in this activity"
-        
+            raise RallyValidationError("Teams cannot compete in this activity")
+
         # Determine results
         team1_result = "win" if winner_id == team1_id else ("draw" if winner_id == 0 else "lose")
         team2_result = "win" if winner_id == team2_id else ("draw" if winner_id == 0 else "lose")
@@ -582,11 +588,13 @@ class ScoringService:
             self.update_team_scores(team2_id)
             # Commit after batch recalculation
             self.db.commit()
-            
-            return True, "Team vs team results created successfully"
-            
-        except Exception as e:
+
+            return result1_db_obj, result2_db_obj
+
+        except RallyError:
             self.db.rollback()
-            logger.exception(f"Exception occurred in create_team_vs_result: {e}")
-            error_msg = str(e) if e else "Unknown error"
-            return False, f"An internal error occurred while creating the team vs team results: {error_msg}"
+            raise
+        except Exception:
+            self.db.rollback()
+            logger.exception("Failed to create team vs team results")
+            raise
