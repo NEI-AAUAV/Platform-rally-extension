@@ -202,7 +202,7 @@ def create_activity_result(
             detail="Result already exists for this team and activity"
         )
     
-    db_result = activity_result.create(db=db, obj_in=result_in)
+    db_result = ScoringService(db).create_result(result_in)
     return ActivityResultResponse.model_validate(db_result)
 
 
@@ -246,7 +246,7 @@ def update_activity_result(
             detail=ACTIVITY_RESULT_NOT_FOUND
         )
     
-    db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
+    db_result = ScoringService(db).update_result(db_result, result_in)
     return ActivityResultResponse.model_validate(db_result)
 
 

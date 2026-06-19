@@ -19,6 +19,7 @@ from app.schemas.activity import ActivityResultCreate, ActivityResultEvaluation
 from app.api.auth import AuthData
 from app.crud.crud_activity import activity_result
 from app.crud.crud_team import team
+from app.services.scoring_service import ScoringService
 
 # Error message constants
 NO_CHECKPOINT_ASSIGNED = "No checkpoint assigned to this staff member"
@@ -185,7 +186,7 @@ def create_activity_result(
         extra_shots=result_in.extra_shots,
         penalties=result_in.penalties
     )
-    return activity_result.create(db=db, obj_in=result_create)
+    return ScoringService(db).create_result(result_create)
 
 
 # =============================================================================

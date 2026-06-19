@@ -13,7 +13,7 @@ from app.models.team import Team
 from app.models.rally_settings import RallySettings
 from app.schemas.activity_types import ActivityType
 from app.models.activity_factory import ActivityFactory
-from app.schemas.activity import ActivityResultCreate
+from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.crud.crud_activity import activity_result as activity_result_crud
 
 logger = logging.getLogger(__name__)
@@ -258,7 +258,152 @@ class ScoringService:
             penalties=result.penalties,
             all_times=all_times,
         )
-    
+
+    # =========================================================================
+    # Activity-result orchestration
+    #
+    # These own the scoring/ranking/team-score side effects. They call the CRUD
+    # layer for persistence only (build/persist/apply_update/delete), so the
+    # dependency direction is Service -> CRUD and there is no import cycle.
+    # =========================================================================
+
+    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]) -> None:
+        """Set the type-specific score column from result_data."""
+        if activity.activity_type == ActivityType.TIME_BASED.value:
+            db_obj.time_score = result_data.get('completion_time_seconds')
+        elif activity.activity_type == ActivityType.SCORE_BASED.value:
+            db_obj.points_score = result_data.get('achieved_points')
+        elif activity.activity_type == ActivityType.BOOLEAN.value:
+            db_obj.boolean_score = result_data.get('success')
+        elif activity.activity_type == ActivityType.TEAM_VS.value:
+            db_obj.team_vs_result = result_data.get('result')
+        elif activity.activity_type == ActivityType.GENERAL.value:
+            db_obj.points_score = result_data.get('assigned_points')
+
+    def create_result(
+        self,
+        obj_in: ActivityResultCreate,
+        *,
+        recalc: bool = True,
+        update_team_scores: bool = True,
+    ) -> ActivityResult:
+        """Validate, score and persist a new activity result."""
+        activity = self.db.get(Activity, obj_in.activity_id)
+        if not activity:
+            raise ValueError(f"Activity {obj_in.activity_id} not found")
+
+        instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
+        if not instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
+            raise ValueError("Invalid result data for activity type")
+
+        is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
+        completion_time = obj_in.result_data.get('completion_time_seconds')
+        all_times = (
+            self._completed_times(
+                obj_in.activity_id,
+                extra_time=float(completion_time) if completion_time is not None else None,
+            )
+            if is_time_based
+            else None
+        )
+        final_score = self.compute_final_score(
+            activity_type=activity.activity_type,
+            config=activity.config,
+            result_data=obj_in.result_data,
+            team_size=self._team_size(obj_in.team_id),
+            extra_shots=obj_in.extra_shots,
+            penalties=obj_in.penalties,
+            all_times=all_times,
+        )
+
+        db_obj = activity_result_crud.build(obj_in, final_score)
+        self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
+        activity_result_crud.persist(self.db, db_obj)
+
+        # Adding a time-based result shifts the ranking, so rescore the rest.
+        if recalc and is_time_based:
+            self._recalculate_all_results_for_activity(activity.id, exclude_result_id=db_obj.id)
+
+        if update_team_scores:
+            self.update_team_scores(obj_in.team_id)
+
+        return db_obj
+
+    def update_result(self, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
+        """Apply an update to a result, rescoring when result_data changed."""
+        update_data = activity_result_crud.apply_update(db_obj, obj_in)
+
+        if 'result_data' in update_data:
+            activity = self.db.get(Activity, db_obj.activity_id)
+            if activity:
+                # Refresh the type-specific score column before rescoring; ranking
+                # queries read it, so a stale time_score would skew the distribution.
+                self._set_activity_specific_scores(db_obj, activity, db_obj.result_data)
+
+            self._recalculate_result_score(db_obj)
+
+            if activity and activity.activity_type == ActivityType.TIME_BASED.value:
+                self._recalculate_all_results_for_activity(activity.id)
+
+        activity_result_crud.persist(self.db, db_obj)
+        self.update_team_scores(db_obj.team_id)
+        return db_obj
+
+    def remove_result(self, result_id: int) -> ActivityResult | None:
+        """Delete a result and refresh the owning team's scores."""
+        db_obj = activity_result_crud.get(self.db, result_id)
+        if db_obj is None:
+            return None
+
+        team_id = db_obj.team_id
+        activity_result_crud.delete(self.db, db_obj=db_obj)
+        self.update_team_scores(team_id)
+        return db_obj
+
+    def _recalculate_all_results_for_activity(self, activity_id: int, exclude_result_id: int | None = None) -> None:
+        """Rescore every completed result of a time-based activity.
+
+        Called when the set of times changed (a result was added/edited), since
+        relative ranking depends on the full distribution of completion times.
+        """
+        activity = self.db.get(Activity, activity_id)
+        if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
+            return
+
+        stmt = select(ActivityResult).where(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.is_completed.is_(True)
+        )
+        if exclude_result_id is not None:
+            stmt = stmt.where(ActivityResult.id != exclude_result_id)
+
+        all_results = list(self.db.scalars(stmt).all())
+        if not all_results:
+            return
+
+        all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
+        if exclude_result_id is not None:
+            excluded = self.db.get(ActivityResult, exclude_result_id)
+            if excluded and excluded.time_score:
+                all_times.append(float(excluded.time_score))
+
+        team_size_cache: dict[int, int] = {}
+        for result in all_results:
+            team_size_cache.setdefault(result.team_id, self._team_size(result.team_id))
+            result.final_score = self.compute_final_score(
+                activity_type=activity.activity_type,
+                config=activity.config,
+                result_data=result.result_data,
+                team_size=team_size_cache[result.team_id],
+                extra_shots=result.extra_shots,
+                penalties=result.penalties,
+                all_times=all_times,
+            )
+
+        self.db.commit()
+        for team_id in {r.team_id for r in all_results}:
+            self.update_team_scores(team_id)
+
     def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
@@ -414,19 +559,19 @@ class ScoringService:
             current_time = datetime.now(timezone.utc)
             
             # Create both results but defer recalculation and team score updates to batch correctly
-            result1_db_obj = activity_result_crud.create(self.db, obj_in=result1_create, recalc=False, update_team_scores_flag=False)
-            result2_db_obj = activity_result_crud.create(self.db, obj_in=result2_create, recalc=False, update_team_scores_flag=False)
-            
+            result1_db_obj = self.create_result(result1_create, recalc=False, update_team_scores=False)
+            result2_db_obj = self.create_result(result2_create, recalc=False, update_team_scores=False)
+
             # Mark as completed
             result1_db_obj.is_completed = True
             result1_db_obj.completed_at = current_time
             result2_db_obj.is_completed = True
             result2_db_obj.completed_at = current_time
-            
+
             # Now perform a single recalculation for this activity and update both teams' scores
-            activity_result_crud._recalculate_all_results_for_activity(self.db, activity_id)
-            activity_result_crud._update_team_scores(self.db, team1_id)
-            activity_result_crud._update_team_scores(self.db, team2_id)
+            self._recalculate_all_results_for_activity(activity_id)
+            self.update_team_scores(team1_id)
+            self.update_team_scores(team2_id)
             # Commit after batch recalculation
             self.db.commit()
             

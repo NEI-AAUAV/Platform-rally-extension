@@ -15,6 +15,7 @@ from app.core.abac import Action, Resource
 from app.crud.crud_activity import activity_result
 from app.crud.crud_team import team
 from app.crud.crud_checkpoint import checkpoint
+from app.services.scoring_service import ScoringService
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.models.activity import ActivityResult, Activity
@@ -249,7 +250,7 @@ def evaluate_team_activity(
             penalties=result_in.penalties,
         )
         try:
-            db_result = activity_result.update(db=db, db_obj=existing_result, obj_in=update_in)
+            db_result = ScoringService(db).update_result(existing_result, update_in)
             logger.info(f"Successfully updated result {db_result.id}")
         except Exception as e:
             logger.error(f"Failed to update result: {str(e)}", exc_info=True)
@@ -340,7 +341,7 @@ def update_team_activity_evaluation(
         )
     
     # Update the result
-    db_result = activity_result.update(db=db, db_obj=db_result, obj_in=result_in)
+    db_result = ScoringService(db).update_result(db_result, result_in)
     return ActivityResultResponse.model_validate(db_result)
 
 

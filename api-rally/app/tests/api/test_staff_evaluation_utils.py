@@ -39,7 +39,8 @@ class TestActivityResultCreation:
         mock_result = Mock()
         mock_result.id = 1
         
-        with patch('app.api.api_v1.staff_evaluation_utils.activity_result.create', return_value=mock_result):
+        with patch('app.api.api_v1.staff_evaluation_utils.ScoringService') as mock_scoring:
+            mock_scoring.return_value.create_result.return_value = mock_result
             result = create_activity_result(mock_db, team_id, activity_id, result_in)
             assert result == mock_result
 
