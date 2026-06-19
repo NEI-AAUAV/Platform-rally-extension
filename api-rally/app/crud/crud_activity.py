@@ -3,14 +3,15 @@ CRUD operations for activities
 """
 from typing import Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import desc, func, select
 
 from app.models.activity import Activity, ActivityResult, RallyEvent
-from app.models.team import Team
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
-# ScoringService imported locally to avoid circular imports
+from app.services.scoring_service import ScoringService
 
+
+# ScoringService imported locally to avoid circular imports
 
 class CRUDActivity:
     """CRUD operations for Activity model"""
@@ -83,10 +84,29 @@ class CRUDActivityResult:
         
         if not activity_instance.validate_result(obj_in.result_data, obj_in.team_id, db):
             raise ValueError("Invalid result data for activity type")
-        
-        # Calculate final score
-        final_score = self._calculate_final_score(db, activity_instance, obj_in)
-        
+
+        # Calculate final score via the unified scorer
+        scoring = ScoringService(db)
+
+        completion_time = obj_in.result_data.get('completion_time_seconds')
+        all_times = (
+            scoring._completed_times(
+                obj_in.activity_id,
+                extra_time=float(completion_time) if completion_time is not None else None,
+            )
+            if activity.activity_type == 'TimeBasedActivity'
+            else None
+        )
+        final_score = scoring.compute_final_score(
+            activity_type=activity.activity_type,
+            config=activity.config,
+            result_data=obj_in.result_data,
+            team_size=scoring._team_size(obj_in.team_id),
+            extra_shots=obj_in.extra_shots,
+            penalties=obj_in.penalties,
+            all_times=all_times,
+        )
+
         # Create result object
         db_obj = self._create_result_object(obj_in, final_score)
         
@@ -114,67 +134,6 @@ class CRUDActivityResult:
         if not activity:
             raise ValueError(f"Activity {activity_id} not found")
         return activity
-    
-    def _get_team_size(self, db: Session, team_id: int) -> int:
-        """Get team size for scoring"""
-        team = db.get(Team, team_id)
-        return len(team.members) if team and team.members else 1
-    
-    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: float | None) -> list[float]:
-        """Get all completion times including current result"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.is_completed == True
-        )
-        existing_results = list(db.scalars(stmt).all())
-        
-        all_times = [float(result.time_score) for result in existing_results if result.time_score is not None]
-        if current_time is not None:
-            all_times.append(current_time)
-        
-        return all_times
-    
-    def _calculate_with_relative_ranking(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
-        """Calculate score using relative ranking for time-based activities"""
-        completion_time = obj_in.result_data.get('completion_time_seconds')
-        current_time: float | None = float(completion_time) if completion_time is not None else None
-        
-        all_times = self._get_all_times_for_ranking(
-            db, 
-            obj_in.activity_id, 
-            current_time
-        )
-        
-        if len(all_times) <= 1:
-            team_size = self._get_team_size(db, obj_in.team_id)
-            return float(activity_instance.calculate_score(obj_in.result_data, team_size))
-        
-        if hasattr(activity_instance, 'calculate_relative_ranking_score'):
-            return float(activity_instance.calculate_relative_ranking_score(
-                all_times,
-                float(obj_in.result_data['completion_time_seconds'])
-            ))
-        
-        team_size = self._get_team_size(db, obj_in.team_id)
-        return float(activity_instance.calculate_score(obj_in.result_data, team_size))
-    
-    def _calculate_final_score(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
-        """Calculate the final score for the activity result"""
-        is_time_based = activity_instance.__class__.__name__ == 'TimeBasedActivity'
-        
-        # Use relative ranking for time-based activities
-        if is_time_based:
-            base_score = self._calculate_with_relative_ranking(db, activity_instance, obj_in)
-        else:
-            team_size = self._get_team_size(db, obj_in.team_id)
-            base_score = float(activity_instance.calculate_score(obj_in.result_data, team_size))
-        
-        # Apply modifiers
-        modifiers = {
-            'extra_shots': obj_in.extra_shots,
-            'penalties': obj_in.penalties
-        }
-        return float(activity_instance.apply_modifiers(base_score, modifiers, db))
     
     def _create_result_object(self, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
         """Create the ActivityResult database object"""
@@ -213,34 +172,6 @@ class CRUDActivityResult:
         """Extract all completion times from results"""
         return [float(result.time_score) for result in all_results if result.time_score is not None]
     
-    def _recalculate_single_result(self, result: ActivityResult, activity_instance: Any, max_points: float, db: Session) -> None:
-        """Recalculate score for a single result with max points"""
-        modifiers = {
-            'extra_shots': result.extra_shots,
-            'penalties': result.penalties
-        }
-        result.final_score = activity_instance.apply_modifiers(
-            max_points,
-            modifiers,
-            db
-        )
-    
-    def _recalculate_with_ranking(self, result: ActivityResult, activity_instance: Any, all_times: list[float], db: Session) -> None:
-        """Recalculate score using relative ranking"""
-        if not result.time_score or not hasattr(activity_instance, 'calculate_relative_ranking_score'):
-            return
-        
-        ranking_score = activity_instance.calculate_relative_ranking_score(
-            all_times,
-            result.time_score
-        )
-        
-        modifiers = {
-            'extra_shots': result.extra_shots,
-            'penalties': result.penalties
-        }
-        result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
-    
     def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: int | None = None) -> None:
         """Recalculate all results for a time-based activity when a new result is added"""
         activity, _ = self._validate_time_based_activity(db, activity_id)
@@ -271,24 +202,23 @@ class CRUDActivityResult:
         all_times = self._get_all_completed_times(all_results)
         if excluded_result and excluded_result.time_score:
             all_times.append(excluded_result.time_score)
-        
-        # Create activity instance
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type,
-            activity.config
-        )
-        
-        # Recalculate scores for existing results (excluding the newly created one)
-        if len(all_times) <= 1:
-            # Only one result, give it max points
-            max_points = float(activity_instance.config.get('max_points', 100))
-            for result in all_results:
-                self._recalculate_single_result(result, activity_instance, max_points, db)
-        else:
-            # Multiple results - use ranking (use all_times including the new result)
-            for result in all_results:
-                self._recalculate_with_ranking(result, activity_instance, all_times, db)
-        
+
+        # Rescore every result for this activity through the unified scorer
+        scoring = ScoringService(db)
+        team_size_cache: dict[int, int] = {}
+
+        for result in all_results:
+            team_size_cache.setdefault(result.team_id, scoring._team_size(result.team_id))
+            result.final_score = scoring.compute_final_score(
+                activity_type=activity.activity_type,
+                config=activity.config,
+                result_data=result.result_data,
+                team_size=team_size_cache[result.team_id],
+                extra_shots=result.extra_shots,
+                penalties=result.penalties,
+                all_times=all_times,
+            )
+
         # Commit and update team scores
         db.commit()
         affected_team_ids = {r.team_id for r in all_results}
@@ -297,7 +227,6 @@ class CRUDActivityResult:
     
     def _update_team_scores(self, db: Session, team_id: int) -> None:
         """Update team scores after activity result changes"""
-        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
     
@@ -357,49 +286,27 @@ class CRUDActivityResult:
         return db_obj
     
     def _recalculate_score_for_update(self, db: Session, db_obj: ActivityResult) -> None:
-        """Recalculate the final score when result data is updated"""
+        """Recalculate final_score on update via the unified scorer."""
         activity = db.get(Activity, db_obj.activity_id)
         if not activity:
             return
-        
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type, 
-            activity.config
+
+        scoring = ScoringService(db)
+
+        all_times = (
+            scoring._completed_times(activity.id)
+            if activity.activity_type == 'TimeBasedActivity'
+            else None
         )
-        
-        # For time-based activities, use relative ranking
-        if activity.activity_type == 'TimeBasedActivity':
-            # Get all results for this activity to calculate ranking
-            stmt = select(ActivityResult).where(
-                ActivityResult.activity_id == db_obj.activity_id,
-                ActivityResult.is_completed == True
-            )
-            all_results = list(db.scalars(stmt).all())
-            
-            all_times = [float(result.time_score) for result in all_results if result.time_score is not None]
-            
-            if len(all_times) > 1 and hasattr(activity_instance, 'calculate_relative_ranking_score') and db_obj.time_score is not None:
-                # Use relative ranking
-                ranking_score = activity_instance.calculate_relative_ranking_score(
-                    all_times,
-                    float(db_obj.time_score)
-                )
-                base_score = float(ranking_score)
-            else:
-                # Single result or fallback
-                team = db.get(Team, db_obj.team_id)
-                team_size = len(team.members) if team and team.members else 1
-                base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
-        else:
-            team = db.get(Team, db_obj.team_id)
-            team_size = len(team.members) if team and team.members else 1
-            base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
-        
-        modifiers = {
-            'extra_shots': db_obj.extra_shots,
-            'penalties': db_obj.penalties
-        }
-        db_obj.final_score = float(activity_instance.apply_modifiers(base_score, modifiers, db))
+        db_obj.final_score = scoring.compute_final_score(
+            activity_type=activity.activity_type,
+            config=activity.config,
+            result_data=db_obj.result_data,
+            team_size=scoring._team_size(db_obj.team_id),
+            extra_shots=db_obj.extra_shots,
+            penalties=db_obj.penalties,
+            all_times=all_times,
+        )
     
     def remove(self, db: Session, *, id: int) -> ActivityResult | None:
         """Remove an activity result"""
@@ -412,7 +319,6 @@ class CRUDActivityResult:
         db.commit()
         
         # Update team scores after removing result
-        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
         
@@ -464,7 +370,6 @@ class CRUDRallyEvent:
     
     def remove(self, db: Session, *, id: int) -> RallyEvent | None:
         """Remove a rally event"""
-        from app.models.activity import RallyEvent
         obj = db.get(RallyEvent, id)
         if obj is None:
             return None
