@@ -8,10 +8,10 @@ from sqlalchemy import desc, func, select
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
-from app.services.scoring_service import ScoringService
 
-
-# ScoringService imported locally to avoid circular imports
+# ScoringService is imported locally inside the methods that use it:
+# scoring_service.py imports this module at load time, so a module-level
+# import here would create a circular import.
 
 class CRUDActivity:
     """CRUD operations for Activity model"""
@@ -86,6 +86,7 @@ class CRUDActivityResult:
             raise ValueError("Invalid result data for activity type")
 
         # Calculate final score via the unified scorer
+        from app.services.scoring_service import ScoringService
         scoring = ScoringService(db)
 
         completion_time = obj_in.result_data.get('completion_time_seconds')
@@ -204,6 +205,7 @@ class CRUDActivityResult:
             all_times.append(excluded_result.time_score)
 
         # Rescore every result for this activity through the unified scorer
+        from app.services.scoring_service import ScoringService
         scoring = ScoringService(db)
         team_size_cache: dict[int, int] = {}
 
@@ -227,6 +229,7 @@ class CRUDActivityResult:
     
     def _update_team_scores(self, db: Session, team_id: int) -> None:
         """Update team scores after activity result changes"""
+        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
     
@@ -297,6 +300,7 @@ class CRUDActivityResult:
         if not activity:
             return
 
+        from app.services.scoring_service import ScoringService
         scoring = ScoringService(db)
 
         all_times = (
@@ -325,6 +329,7 @@ class CRUDActivityResult:
         db.commit()
         
         # Update team scores after removing result
+        from app.services.scoring_service import ScoringService
         scoring_service = ScoringService(db)
         scoring_service.update_team_scores(team_id)
         
