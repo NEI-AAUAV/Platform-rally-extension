@@ -102,7 +102,7 @@ def get_all_activity_results(
     auth: AuthData = Depends(api_nei_auth)
 ) -> List[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
-    # require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
+    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
     
     # Get all activity results with related data
     from sqlalchemy.orm import joinedload

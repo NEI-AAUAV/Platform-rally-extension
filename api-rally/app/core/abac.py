@@ -141,7 +141,8 @@ class ABACEngine:
                     Action.UPDATE_RALLY_EVENT.value,
                     Action.DELETE_RALLY_EVENT.value,
                     Action.VIEW_RALLY_CONFIG.value,
-                    Action.UPDATE_RALLY_CONFIG.value
+                    Action.UPDATE_RALLY_CONFIG.value,
+                    Action.VIEW_ACTIVITY_RESULT.value
                 ]}
             },
             priority=90
