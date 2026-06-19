@@ -8,6 +8,7 @@ from sqlalchemy import desc, func, select
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
+from app.schemas.activity_types import ActivityType
 
 # ScoringService is imported locally inside the methods that use it:
 # scoring_service.py imports this module at load time, so a module-level
@@ -95,7 +96,7 @@ class CRUDActivityResult:
                 obj_in.activity_id,
                 extra_time=float(completion_time) if completion_time is not None else None,
             )
-            if activity.activity_type == 'TimeBasedActivity'
+            if activity.activity_type == ActivityType.TIME_BASED.value
             else None
         )
         final_score = scoring.compute_final_score(
@@ -120,7 +121,7 @@ class CRUDActivityResult:
         
         # If this is a TimeBasedActivity, recalculate ALL existing results for this activity
         # since the ranking has changed
-        if recalc and activity.activity_type == 'TimeBasedActivity':
+        if recalc and activity.activity_type == ActivityType.TIME_BASED.value:
             self._recalculate_all_results_for_activity(db, activity.id, exclude_result_id=db_obj.id)
         
         # Update team scores after creating result
@@ -151,21 +152,21 @@ class CRUDActivityResult:
     
     def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]) -> None:
         """Set specific score fields based on activity type"""
-        if activity.activity_type == 'TimeBasedActivity':
+        if activity.activity_type == ActivityType.TIME_BASED.value:
             db_obj.time_score = result_data.get('completion_time_seconds')
-        elif activity.activity_type == 'ScoreBasedActivity':
+        elif activity.activity_type == ActivityType.SCORE_BASED.value:
             db_obj.points_score = result_data.get('achieved_points')
-        elif activity.activity_type == 'BooleanActivity':
+        elif activity.activity_type == ActivityType.BOOLEAN.value:
             db_obj.boolean_score = result_data.get('success')
-        elif activity.activity_type == 'TeamVsActivity':
+        elif activity.activity_type == ActivityType.TEAM_VS.value:
             db_obj.team_vs_result = result_data.get('result')
-        elif activity.activity_type == 'GeneralActivity':
+        elif activity.activity_type == ActivityType.GENERAL.value:
             db_obj.points_score = result_data.get('assigned_points')
     
     def _validate_time_based_activity(self, db: Session, activity_id: int) -> tuple[Activity | None, str | None]:
         """Validate that activity is time-based"""
         activity = db.get(Activity, activity_id)
-        if not activity or activity.activity_type != 'TimeBasedActivity':
+        if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
             return None, None
         return activity, activity.activity_type
     
@@ -282,7 +283,7 @@ class CRUDActivityResult:
             self._recalculate_score_for_update(db, db_obj)
 
             # If this is a TimeBasedActivity, recalculate all results
-            if activity and activity.activity_type == 'TimeBasedActivity':
+            if activity and activity.activity_type == ActivityType.TIME_BASED.value:
                 self._recalculate_all_results_for_activity(db, activity.id)
         
         db.add(db_obj)
@@ -305,7 +306,7 @@ class CRUDActivityResult:
 
         all_times = (
             scoring._completed_times(activity.id)
-            if activity.activity_type == 'TimeBasedActivity'
+            if activity.activity_type == ActivityType.TIME_BASED.value
             else None
         )
         db_obj.final_score = scoring.compute_final_score(
