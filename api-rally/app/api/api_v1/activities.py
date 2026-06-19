@@ -7,11 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, select
 
-from app.api.deps import get_db, get_current_user
-from app.api.auth import AuthData, api_nei_auth
-from app.api.abac_deps import require_permission
-from app.schemas.user import DetailedUser
-from app.core.abac import Action, Resource
+from app.api.deps import get_db
+from app.api.abac_deps import require, Action, Resource
 from app.crud.crud_activity import activity, activity_result, rally_event
 from app.models.activity import ActivityResult
 from app.schemas.activity import (
@@ -35,12 +32,9 @@ def create_activity(
     *,
     db: Session = Depends(get_db),
     activity_in: ActivityCreate,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.CREATE_ACTIVITY, Resource.ACTIVITY)),
 ) -> ActivityResponse:
     """Create a new activity"""
-    require_permission(current_user, auth, Action.CREATE_ACTIVITY, Resource.ACTIVITY)
-    
     # Validate activity type and config
     try:
         default_config = ActivityFactory.get_default_config(activity_in.activity_type.value)
@@ -66,19 +60,9 @@ def get_activities(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     checkpoint_id: Optional[int] = Query(None, gt=0),
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY)),
 ) -> ActivityListResponse:
     """Get activities list"""
-    # Allow authenticated users with Rally permissions to view activities
-    # Specific permission checks happen at the resource level (results, evaluations)
-    has_rally_access = any(scope in auth.scopes for scope in ["admin", "manager-rally", "rally-staff"])
-    if not has_rally_access:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permission denied: view_activity on activity"
-        )
-    
     if checkpoint_id:
         activities = activity.get_by_checkpoint(db, checkpoint_id)
         total = len(activities)
@@ -98,12 +82,9 @@ def get_activities(
 def get_all_activity_results(
     *,
     db: Session = Depends(get_db),
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> List[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     # Get all activity results with related data
     from sqlalchemy.orm import joinedload
     stmt = select(ActivityResult).options(
@@ -120,12 +101,9 @@ def get_activity(
     *,
     db: Session = Depends(get_db),
     activity_id: int,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY)),
 ) -> ActivityResponse:
     """Get activity by ID"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY, Resource.ACTIVITY)
-    
     db_activity = activity.get(db, id=activity_id)
     if not db_activity:
         raise HTTPException(
@@ -142,12 +120,9 @@ def update_activity(
     db: Session = Depends(get_db),
     activity_id: int,
     activity_in: ActivityUpdate,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.UPDATE_ACTIVITY, Resource.ACTIVITY)),
 ) -> ActivityResponse:
     """Update an activity"""
-    require_permission(current_user, auth, Action.UPDATE_ACTIVITY, Resource.ACTIVITY)
-    
     db_activity = activity.get(db, id=activity_id)
     if not db_activity:
         raise HTTPException(
@@ -164,12 +139,9 @@ def delete_activity(
     *,
     db: Session = Depends(get_db),
     activity_id: int,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.DELETE_ACTIVITY, Resource.ACTIVITY)),
 ) -> Dict[str, str]:
     """Delete an activity"""
-    require_permission(current_user, auth, Action.DELETE_ACTIVITY, Resource.ACTIVITY)
-    
     db_activity = activity.get(db, id=activity_id)
     if not db_activity:
         raise HTTPException(
@@ -186,12 +158,9 @@ def create_activity_result(
     *,
     db: Session = Depends(get_db),
     result_in: ActivityResultCreate,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> ActivityResultResponse:
     """Create a new activity result"""
-    require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     # Check if result already exists
     existing_result = activity_result.get_by_activity_and_team(
         db, result_in.activity_id, result_in.team_id
@@ -211,12 +180,9 @@ def get_activity_result(
     *,
     db: Session = Depends(get_db),
     result_id: int,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> ActivityResultResponse:
     """Get activity result by ID"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_result = activity_result.get(db, id=result_id)
     if not db_result:
         raise HTTPException(
@@ -233,12 +199,9 @@ def update_activity_result(
     db: Session = Depends(get_db),
     result_id: int,
     result_in: ActivityResultUpdate,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> ActivityResultResponse:
     """Update an activity result"""
-    require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_result = activity_result.get(db, id=result_id)
     if not db_result:
         raise HTTPException(
@@ -256,12 +219,9 @@ def apply_extra_shots(
     db: Session = Depends(get_db),
     result_id: int,
     extra_shots: int = Query(..., ge=0),
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, str]:
     """Apply extra shots bonus to activity result"""
-    require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_result = activity_result.get(db, id=result_id)
     if not db_result:
         raise HTTPException(
@@ -290,12 +250,9 @@ def apply_penalty(
     result_id: int,
     penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
     penalty_value: int = Query(..., ge=1),
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, str]:
     """Apply penalty to activity result"""
-    require_permission(current_user, auth, Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_result = activity_result.get(db, id=result_id)
     if not db_result:
         raise HTTPException(
@@ -322,12 +279,9 @@ def get_activity_ranking(
     *,
     db: Session = Depends(get_db),
     activity_id: int,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> ActivityRanking:
     """Get ranking for a specific activity"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_activity = activity.get(db, id=activity_id)
     if not db_activity:
         raise HTTPException(
@@ -362,12 +316,9 @@ def get_activity_ranking(
 def get_global_ranking(
     *,
     db: Session = Depends(get_db),
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> GlobalRanking:
     """Get global team ranking"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     scoring_service = ScoringService(db)
     rankings_dict = scoring_service.get_team_ranking()
     
@@ -389,12 +340,9 @@ def create_team_vs_result(
     team2_id: int,
     winner_id: int,  # 0 for draw
     match_data: Dict[str, Any],
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, str]:
     """Create team vs team activity results"""
-    require_permission(current_user, auth, Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     scoring_service = ScoringService(db)
     success, message = scoring_service.create_team_vs_result(
         team1_id, team2_id, activity_id, winner_id, match_data
@@ -414,12 +362,9 @@ def get_activity_statistics(
     *,
     db: Session = Depends(get_db),
     activity_id: int,
-    current_user: DetailedUser = Depends(get_current_user),
-    auth: AuthData = Depends(api_nei_auth)
+    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, Any]:
     """Get statistics for a specific activity"""
-    require_permission(current_user, auth, Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)
-    
     db_activity = activity.get(db, id=activity_id)
     if not db_activity:
         raise HTTPException(

@@ -5,24 +5,25 @@ This module provides FastAPI dependencies that enforce ABAC policies
 for Rally checkpoint and team management.
 """
 
-from typing import Optional
+from typing import Callable, Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from loguru import logger
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
 from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
-    Action, Resource, require_permission, 
+    Action, Resource, require_permission,
     get_accessible_checkpoints, check_permission
 )
 from app.api.deps import is_admin
 
 # Explicit exports for mypy
 __all__ = [
+    "require",
     "get_staff_with_checkpoint_access",
     "require_checkpoint_score_permission",
     "require_checkpoint_view_permission",
@@ -35,6 +36,27 @@ __all__ = [
     "Action",
     "Resource",
 ]
+
+
+def require(action: Action, resource: Resource) -> Callable[..., None]:
+    """FastAPI dependency factory enforcing an ABAC permission before the route body runs.
+
+    Use for endpoints whose permission needs no per-request context kwargs
+    (e.g. checkpoint_id/team_id). Endpoints that need such context keep calling
+    require_permission(...) explicitly inside the body.
+
+    Usage:
+        @router.get(...)
+        def handler(_: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY))):
+            ...
+    """
+    def dependency(
+        current_user: DetailedUser = Depends(get_current_user),
+        auth: AuthData = Depends(api_nei_auth),
+    ) -> None:
+        require_permission(current_user, auth, action, resource)
+
+    return dependency
 
 
 def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:

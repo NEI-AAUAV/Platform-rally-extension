@@ -241,16 +241,16 @@ class ABACEngine:
             priority=80
         ))
         
-        # Staff can view activities at their checkpoint
+        # Staff can view activity definitions. The activities list endpoint is
+        # global (staff filter client-side by checkpoint); activity definitions
+        # are non-sensitive, while results and scoring stay separately guarded.
         self.policies.append(Policy(
             name="staff_view_activities",
-            description="Staff can view activities at their assigned checkpoint",
+            description="Staff can view activity definitions",
             effect="allow",
             conditions={
                 "user_scopes": {"contains": "rally-staff"},
-                "action": Action.VIEW_ACTIVITY.value,
-                "user_staff_checkpoint_id": {"equals": "checkpoint_id"},
-                "checkpoint_id": {"is_not_null": True}
+                "action": Action.VIEW_ACTIVITY.value
             },
             priority=80
         ))
@@ -484,5 +484,3 @@ def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> list[int]:
         accessible.append(user.staff_checkpoint_id)
     
     return accessible
-
-

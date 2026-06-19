@@ -66,12 +66,7 @@ class TestActivitiesAPI:
     
     def test_create_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test creating an activity successfully"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.create') as mock_create:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
+        with patch('app.api.api_v1.activities.activity.create') as mock_create:
             mock_create.return_value = mock_activity
             
             activity_data = {
@@ -93,12 +88,7 @@ class TestActivitiesAPI:
     
     def test_get_activities_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test getting activities list successfully"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.get_multi') as mock_get:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
+        with patch('app.api.api_v1.activities.activity.get_multi') as mock_get:
             mock_get.return_value = [mock_activity]
             
             response = client_with_mocked_db.get("/api/rally/v1/activities/")
@@ -108,12 +98,7 @@ class TestActivitiesAPI:
     
     def test_get_activities_by_checkpoint(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test getting activities filtered by checkpoint"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.get_by_checkpoint') as mock_get:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
+        with patch('app.api.api_v1.activities.activity.get_by_checkpoint') as mock_get:
             mock_get.return_value = [mock_activity]
             
             response = client_with_mocked_db.get("/api/rally/v1/activities/?checkpoint_id=1")
@@ -123,12 +108,7 @@ class TestActivitiesAPI:
     
     def test_get_activity_by_id_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test getting a specific activity by ID"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.get') as mock_get:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
+        with patch('app.api.api_v1.activities.activity.get') as mock_get:
             mock_get.return_value = mock_activity
             
             response = client_with_mocked_db.get("/api/rally/v1/activities/1")
@@ -138,13 +118,8 @@ class TestActivitiesAPI:
     
     def test_update_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test updating an activity successfully"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.get') as mock_get, \
+        with patch('app.api.api_v1.activities.activity.get') as mock_get, \
              patch('app.api.api_v1.activities.activity.update') as mock_update:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
             mock_get.return_value = mock_activity
             
             updated_activity = mock_activity.copy()
@@ -165,13 +140,8 @@ class TestActivitiesAPI:
     
     def test_delete_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
         """Test deleting an activity successfully"""
-        with patch('app.api.api_v1.activities.get_current_user') as mock_get_user, \
-             patch('app.api.api_v1.activities.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.activities.activity.get') as mock_get, \
+        with patch('app.api.api_v1.activities.activity.get') as mock_get, \
              patch('app.api.api_v1.activities.activity.remove') as mock_delete:
-            
-            mock_get_user.return_value = mock_current_user
-            mock_auth.return_value = mock_auth_data
             mock_get.return_value = mock_activity
             mock_delete.return_value = mock_activity
             
