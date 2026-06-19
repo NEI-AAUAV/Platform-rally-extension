@@ -2,12 +2,17 @@ from typing import Annotated, Generator, List, Optional
 
 from fastapi import Depends, HTTPException, Security
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
 
 from app import crud
 from app.db.session import SessionLocal
 from app.models.user import User
 from app.schemas.user import DetailedUser, UserCreate
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
+from app.core.config import settings
+from app.schemas.team_auth import TeamTokenData
+
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -123,11 +128,6 @@ def get_admin_or_staff(
         raise HTTPException(status_code=403, detail="User without permissions")
     return curr_user
 
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from app.core.config import settings
-from app.schemas.team_auth import TeamTokenData
 
 team_security_optional = HTTPBearer(auto_error=False)
 
