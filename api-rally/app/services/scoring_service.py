@@ -10,9 +10,11 @@ from fastapi import HTTPException, status
 
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
-from app.models.user import User
 from app.models.rally_settings import RallySettings
-from app.core.config import settings
+from app.schemas.activity_types import ActivityType
+from app.models.activity_factory import ActivityFactory
+from app.schemas.activity import ActivityResultCreate
+from app.crud.crud_activity import activity_result as activity_result_crud
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,73 @@ class ScoringService:
     def __init__(self, db: Session):
         self.db = db
         self._settings: RallySettings | None = None
-    
+
+
+    def _team_size(self, team_id: int) -> int:
+        """Number of members on a team (min 1 for scoring) """
+        team = self.db.get(Team, team_id)
+        return len(team.members) if team and team.members else 1
+
+
+    def _completed_times(self, activity_id: int, extra_time: float | None = None) -> list[float]:
+        """ All completion times for an activity's completed results
+
+            Pass extra_time to include a result not yet persisted (create path)
+        """
+
+        stmt = select(ActivityResult).where(
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.is_completed.is_(True)
+        )
+
+        times = [
+            float(r.time_score)
+            for r in self.db.scalars(stmt).all()
+            if r.time_score is not None
+        ]
+
+        if extra_time is not None:
+            times.append(extra_time)
+
+        return times
+
+    def compute_final_score(
+            self,
+            *,
+            activity_type: str,
+            config: dict[str, Any],
+            result_data: dict[str, Any],
+            team_size: int,
+            extra_shots: int = 0,
+            penalties: dict[str, Any] | None = None,
+            all_times: list[float] | None = None,
+    ) -> float:
+        """ Single source of truth for scoring a result.
+
+        For time-based games, pass all_times (full set to rank against, including this results own time)
+        to use relative ranking; otherwise, base scoring.
+        """
+
+        instance = ActivityFactory.create_activity(activity_type, config)
+
+        is_time_based = activity_type == ActivityType.TIME_BASED.value
+        this_time = result_data.get("completion_time_seconds")
+
+        if is_time_based and this_time is not None:
+            if all_times and len(all_times) > 1 and hasattr(instance, "calculate_relative_ranking_score"):
+                # Rank this time against every other team's time
+                base_score = float(
+                    instance.calculate_relative_ranking_score(all_times, float(this_time))
+                )
+            else:
+                # Lone (or only completed) time-based result gets max points
+                base_score = float(instance.config.get("max_points", 100))
+        else:
+            base_score = float(instance.calculate_score(result_data, team_size))
+
+        modifiers = {"extra_shots": extra_shots, "penalties": penalties or {}}
+        return float(instance.apply_modifiers(base_score, modifiers, self.db))
+
     def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
         if self._settings is None:
@@ -170,38 +238,26 @@ class ScoringService:
         return self.apply_penalty(team_id, activity_id, "not_drinking", penalty_value)
     
     def _recalculate_result_score(self, result: ActivityResult) -> None:
-        """Recalculate the final score for an activity result"""
-        from app.models.activity_factory import ActivityFactory
-        from app.models.activity import Activity
-        
-        # Get activity
+        """Recalculate final_score for one result via the unified scorer."""
         activity = self.db.get(Activity, result.activity_id)
         if not activity:
             return
-        
-        # Create activity instance
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type, 
-            activity.config
+
+        all_times = (
+            self._completed_times(activity.id)
+            if activity.activity_type == ActivityType.TIME_BASED.value
+            else None
         )
-        
-        # Get team size
-        team = self.db.get(Team, result.team_id)
-        if not team:
-            logger.warning(f"Team {result.team_id} not found for result {result.id}")
-            return
-        team_size = len(team.members) if team.members else 1
-        
-        # Calculate base score
-        base_score = activity_instance.calculate_score(result.result_data, team_size)
-        
-        # Apply modifiers
-        modifiers = {
-            'extra_shots': result.extra_shots,
-            'penalties': result.penalties
-        }
-        
-        result.final_score = activity_instance.apply_modifiers(base_score, modifiers, self.db)
+
+        result.final_score = self.compute_final_score(
+            activity_type=activity.activity_type,
+            config=activity.config,
+            result_data=result.result_data,
+            team_size=self._team_size(result.team_id),
+            extra_shots=result.extra_shots,
+            penalties=result.penalties,
+            all_times=all_times,
+        )
     
     def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
@@ -341,8 +397,6 @@ class ScoringService:
         
         try:
             # Create both results
-            from app.schemas.activity import ActivityResultCreate
-            from app.crud.crud_activity import activity_result as activity_result_crud
             
             result1_create = ActivityResultCreate(
                 activity_id=activity_id,
