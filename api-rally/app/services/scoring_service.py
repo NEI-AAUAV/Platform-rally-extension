@@ -3,7 +3,7 @@ Scoring system service for Rally activities
 """
 from typing import Any
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select
+from sqlalchemy import select, func
 import logging
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
@@ -415,17 +415,23 @@ class ScoringService:
             results = self.db.scalars(stmt).all()
             # Sort results by final_score in descending order, None scores go last
             results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
+
+            # Completed-activity count per team, in one grouped query (avoids an
+            # N+1 SELECT per ranked result).
+            count_stmt = (
+                select(ActivityResult.team_id, func.count())
+                .where(ActivityResult.is_completed.is_(True))
+                .group_by(ActivityResult.team_id)
+            )
+            completed_counts: dict[int, int] = {
+                team_id: count for team_id, count in self.db.execute(count_stmt).all()
+            }
+
             ranking = []
             for i, result in enumerate(results, 1):
                 # Team is already loaded via joinedload, but check if it exists
                 if result.team:
-                    # Count activities completed for this team (all activities, not just this one)
-                    team_activity_count = len([
-                        r for r in self.db.scalars(
-                            select(ActivityResult).where(ActivityResult.team_id == result.team.id)
-                        ).all()
-                        if r.is_completed
-                    ])
+                    team_activity_count = completed_counts.get(result.team.id, 0)
                     ranking.append({
                         'rank': i,
                         'team_id': result.team.id,
@@ -440,12 +446,17 @@ class ScoringService:
             teams: list[Team] = list(self.db.scalars(team_stmt).unique().all())
             ranking = []
             for team in teams:
-                total_score = self.calculate_team_total_score(team.id)
+                # activity_results are eager-loaded via joinedload above; compute
+                # the total from them instead of a per-team query (avoids N+1).
+                completed = [r for r in team.activity_results if r.is_completed]
+                total_score = sum(
+                    float(r.final_score) for r in completed if r.final_score is not None
+                )
                 ranking.append({
                     'team_id': team.id,
                     'team_name': team.name,
                     'total_score': total_score,
-                    'activities_completed': len([r for r in team.activity_results if r.is_completed])
+                    'activities_completed': len(completed)
                 })
             
             # Sort by total score descending

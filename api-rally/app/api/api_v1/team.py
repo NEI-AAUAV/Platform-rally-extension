@@ -258,7 +258,7 @@ def get_team_evaluations(
         joinedload(ActivityResult.team)
     ).where(
         ActivityResult.team_id == id,
-        ActivityResult.is_completed == True
+        ActivityResult.is_completed.is_(True)
     ).order_by(ActivityResult.completed_at.desc())
     
     results = list(db.scalars(stmt).all())

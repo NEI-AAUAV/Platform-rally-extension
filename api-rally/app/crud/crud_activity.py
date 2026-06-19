@@ -40,7 +40,7 @@ class CRUDActivity:
         """Get activities by checkpoint"""
         stmt = select(Activity).where(
             Activity.checkpoint_id == checkpoint_id,
-            Activity.is_active == True
+            Activity.is_active.is_(True)
         )
         return list(db.scalars(stmt).all())
     
@@ -167,7 +167,7 @@ class CRUDRallyEvent:
     
     def get_current(self, db: Session) -> RallyEvent | None:
         """Get current rally event"""
-        stmt = select(RallyEvent).where(RallyEvent.is_current == True)
+        stmt = select(RallyEvent).where(RallyEvent.is_current.is_(True))
         return db.scalars(stmt).first()
     
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> list[RallyEvent]:

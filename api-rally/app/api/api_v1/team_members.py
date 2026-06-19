@@ -53,7 +53,7 @@ def add_team_member(
     if member_data.is_captain:
         captain_stmt = select(User).where(
             User.team_id == team_id,
-            User.is_captain == True
+            User.is_captain.is_(True)
         )
         existing_captain = db.scalars(captain_stmt).first()
         if existing_captain:
@@ -150,7 +150,7 @@ def update_team_member(
         from sqlalchemy import select
         stmt = select(User).where(
             User.team_id == team_id,
-            User.is_captain == True,
+            User.is_captain.is_(True),
             User.id != user_id
         )
         existing_captain = db.scalars(stmt).first()
