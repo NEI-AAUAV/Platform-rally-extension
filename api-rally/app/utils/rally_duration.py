@@ -1,15 +1,20 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, cast
 from app.crud.crud_rally_settings import rally_settings
-from sqlalchemy.orm import Session
+from app.models.rally_settings import RallySettings
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class RallyDurationCalculator:
-    """Utility class for calculating rally duration and timing information."""
-    
-    def __init__(self, db: Session):
+    """Utility class for calculating rally duration and timing information.
+
+    Settings are fetched asynchronously by the caller and injected, so the
+    pure timing computations below stay synchronous.
+    """
+
+    def __init__(self, db: AsyncSession, settings: RallySettings):
         self.db = db
-        self.settings = rally_settings.get_or_create(db)
+        self.settings = settings
     
     def get_rally_status(self) -> Dict[str, Any]:
         """Get current rally status and timing information."""
@@ -172,13 +177,15 @@ class RallyDurationCalculator:
         return True
 
 
-def get_rally_duration_info(db: Session) -> Dict[str, Any]:
+async def get_rally_duration_info(db: AsyncSession) -> Dict[str, Any]:
     """Convenience function to get rally duration information."""
-    calculator = RallyDurationCalculator(db)
+    settings = await rally_settings.get_or_create(db)
+    calculator = RallyDurationCalculator(db, settings)
     return calculator.get_rally_status()
 
 
-def get_team_duration_info(db: Session, team_start_time: datetime) -> Dict[str, Any]:
+async def get_team_duration_info(db: AsyncSession, team_start_time: datetime) -> Dict[str, Any]:
     """Convenience function to get team duration information."""
-    calculator = RallyDurationCalculator(db)
+    settings = await rally_settings.get_or_create(db)
+    calculator = RallyDurationCalculator(db, settings)
     return calculator.get_team_rally_duration(team_start_time)

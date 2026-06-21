@@ -7,7 +7,7 @@ for Rally checkpoint and team management.
 
 from typing import Callable, Optional
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from app.api import deps
@@ -59,7 +59,7 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
     return dependency
 
 
-def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:
+async def _initialize_user_from_auth(auth: AuthData, db: AsyncSession) -> DetailedUser:
     """Initialize DetailedUser from auth data with fallback to database"""
     try:
         return DetailedUser(
@@ -72,7 +72,7 @@ def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:
         )
     except (ValueError, TypeError, AttributeError):
         # Fallback: attempt to load from local User if schema changes or validation fails
-        user = db.get(User, auth.sub)
+        user = await db.get(User, auth.sub)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -87,13 +87,13 @@ def _initialize_user_from_auth(auth: AuthData, db: Session) -> DetailedUser:
             )
 
 
-def _validate_staff_checkpoint_assignment(
-    curr_user: DetailedUser, auth: AuthData, db: Session
+async def _validate_staff_checkpoint_assignment(
+    curr_user: DetailedUser, auth: AuthData, db: AsyncSession
 ) -> None:
     """Validate and set staff checkpoint assignment"""
     from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-    
-    staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+
+    staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
     if not staff_assignment or not staff_assignment.checkpoint_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -102,10 +102,10 @@ def _validate_staff_checkpoint_assignment(
     curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
 
 
-def get_staff_with_checkpoint_access(
+async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: Optional[DetailedUser] = None,
-    db: Session = Depends(deps.get_db)
+    db: AsyncSession = Depends(deps.get_db)
 ) -> DetailedUser:
     """
     Get staff user with ABAC checkpoint access validation
@@ -123,7 +123,7 @@ def get_staff_with_checkpoint_access(
         # Build user from auth claims to avoid hard dependency on local User row
         # Local User may not exist for staff-only access; we still want staff to work.
         try:
-            curr_user = _initialize_user_from_auth(auth, db)
+            curr_user = await _initialize_user_from_auth(auth, db)
             logger.info(f"Created DetailedUser from auth: id={curr_user.id}, name={curr_user.name}")
         except HTTPException:
             # Re-raise HTTP exceptions from helper
@@ -147,19 +147,19 @@ def get_staff_with_checkpoint_access(
     # For staff users, ensure they have a checkpoint assignment
     if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         logger.info(f"Checking staff assignment for user_id={auth.sub}")
-        _validate_staff_checkpoint_assignment(curr_user, auth, db)
+        await _validate_staff_checkpoint_assignment(curr_user, auth, db)
         logger.info(f"Staff user {auth.sub} assigned to checkpoint {curr_user.staff_checkpoint_id}")
     
     logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
     return curr_user
 
 
-def require_checkpoint_score_permission(
+async def require_checkpoint_score_permission(
     checkpoint_id: int,
     team_id: int,
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> None:
     """
     Require permission to add checkpoint scores
@@ -175,15 +175,15 @@ def require_checkpoint_score_permission(
         from app import crud
         
         # Get team to check their progress
-        team = crud.team.get(db=db, id=team_id)
+        team = await crud.team.get(db=db, id=team_id)
         if not team:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Team not found"
             )
-        
+
         # Get checkpoint to check its order
-        checkpoint = crud.checkpoint.get(db=db, id=checkpoint_id)
+        checkpoint = await crud.checkpoint.get(db=db, id=checkpoint_id)
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

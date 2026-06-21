@@ -28,7 +28,7 @@ class BaseActivity(ABC):
         """Calculate the final score for this activity"""
     
     @abstractmethod
-    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate that the result data is correct for this activity type"""
     
     @abstractmethod
@@ -45,30 +45,28 @@ class BaseActivity(ABC):
         return {}
 
     def apply_modifiers(self, base_score: float, modifiers: Dict[str, Any], db_session: Any = None) -> float:
-        """Apply scoring modifiers (extra shots, penalties)"""
+        """Apply scoring modifiers (extra shots, penalties).
+
+        Pure computation — no DB access. The caller (ScoringService) resolves
+        the per-shot bonus from RallySettings and passes it via
+        modifiers['bonus_per_shot']; we fall back to the config default when it
+        is absent. db_session is accepted for backwards compatibility and unused.
+        """
         final_score = base_score
-        
+
         # Apply extra shots bonus (configurable)
         extra_shots = modifiers.get('extra_shots', 0)
         if extra_shots > 0:
-            if db_session:
-                # Use database settings if available
-                from app.models.rally_settings import RallySettings
-                settings = db_session.query(RallySettings).first()
-                if settings:
-                    bonus_per_shot = settings.bonus_per_extra_shot
-                else:
-                    bonus_per_shot = 1  # fallback
-            else:
-                # Fallback to config file
+            bonus_per_shot = modifiers.get('bonus_per_shot')
+            if bonus_per_shot is None:
                 from app.core.config import settings
                 bonus_per_shot = settings.EXTRA_SHOT_BONUS
-            
+
             final_score += extra_shots * bonus_per_shot
-        
+
         # Apply penalties
         penalties = modifiers.get('penalties', {})
         for penalty_type, penalty_value in penalties.items():
             final_score -= penalty_value
-        
+
         return max(0, final_score)  # Score cannot be negative

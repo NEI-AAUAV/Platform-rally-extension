@@ -3,7 +3,9 @@ from typing import Annotated, List, Dict, Any, Sequence, Optional
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import TypeAdapter
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api import deps
@@ -26,45 +28,27 @@ _team_bearer = HTTPBearer(auto_error=False)
 router = APIRouter()
 
 
-def _validate_list(items: Sequence[Any], db: Session) -> List[DetailedCheckPoint]:
+def _validate_list(items: Sequence[Any]) -> List[DetailedCheckPoint]:
     adapter = TypeAdapter(List[DetailedCheckPoint])
     return adapter.validate_python(items)
 
 
-def _get_all_checkpoints(db: Session) -> List[DetailedCheckPoint]:
-    from app.crud.crud_rally_settings import rally_settings as _rs  # noqa: PLC0415
-    items = crud.checkpoint.get_all_ordered(db=db)
-    adapter = TypeAdapter(List[DetailedCheckPoint])
-    return adapter.validate_python(items)
-
-
-def _activity_based_completed_count(db: Session, team_id: int) -> int:
-    """Return the number of fully completed checkpoints for a team,
-    based on activity results rather than len(team.times)."""
-    from app.api.api_v1.team import _compute_checkpoint_progress  # noqa: PLC0415
-    team = crud.team.get(db=db, id=team_id)
-    if not team:
-        return 0
-    last_completed, _, _ = _compute_checkpoint_progress(db, team)
-    return last_completed
-
-
-def _get_checkpoints_for_team(
-    db: Session, team_id: int, settings: Any
+async def _get_checkpoints_for_team(
+    db: AsyncSession, team_id: int, settings: Any
 ) -> List[DetailedCheckPoint]:
     """Return visible checkpoints for a team member."""
     if settings.show_route_mode == "complete":
-        return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
-    all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
-    team = crud.team.get(db=db, id=team_id)
+        return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
+    all_checkpoints = await crud.checkpoint.get_all_ordered(db=db)
+    team = await crud.team.get(db=db, id=team_id)
     if not team:
         return []
     completed_count = len(team.times)
-    return _validate_list(all_checkpoints[: completed_count + 1], db)
+    return _validate_list(all_checkpoints[: completed_count + 1])
 
 
-def _get_checkpoints_for_public(
-    db: Session, settings: Any
+async def _get_checkpoints_for_public(
+    db: AsyncSession, settings: Any
 ) -> List[DetailedCheckPoint] | None:
     """Return visible checkpoints for unauthenticated / public access.
 
@@ -72,14 +56,14 @@ def _get_checkpoints_for_public(
     """
     if not (settings.public_access_enabled and settings.show_checkpoint_map):
         if settings.show_checkpoint_map:
-            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+            return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
         return None
     if settings.show_route_mode == "focused":
-        all_checkpoints = crud.checkpoint.get_all_ordered(db=db)
+        all_checkpoints = await crud.checkpoint.get_all_ordered(db=db)
         if not all_checkpoints:
             return []
-        return _validate_list([all_checkpoints[0]], db)
-    return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+        return _validate_list([all_checkpoints[0]])
+    return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
 
 
 @router.get(
@@ -87,54 +71,53 @@ def _get_checkpoints_for_public(
     status_code=200,
     responses={403: {"description": "Checkpoint map is hidden"}},
 )
-def get_checkpoints(
+async def get_checkpoints(
     *,
-    db: Annotated[Session, Depends(deps.get_db)],
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
     curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
 ) -> List[DetailedCheckPoint]:
     """Return visible checkpoints based on settings and the requesting user's role."""
     from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
-    settings = rally_settings.get_or_create(db)
+    settings = await rally_settings.get_or_create(db)
 
     if curr_user:
         scopes = getattr(curr_user, "scopes", [])
         if deps.is_admin_or_staff(scopes):
-            return _validate_list(crud.checkpoint.get_all_ordered(db=db), db)
+            return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
         if curr_user.team_id:
-            return _get_checkpoints_for_team(db, curr_user.team_id, settings)
-    
-    if curr_team:
-        return _get_checkpoints_for_team(db, curr_team.team_id, settings)
+            return await _get_checkpoints_for_team(db, curr_user.team_id, settings)
 
-    result = _get_checkpoints_for_public(db, settings)
+    if curr_team:
+        return await _get_checkpoints_for_team(db, curr_team.team_id, settings)
+
+    result = await _get_checkpoints_for_public(db, settings)
     if result is None:
         raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
     return result
 
 
 @router.get("/count", status_code=200)
-def get_checkpoints_count(
-    db: Session = Depends(deps.get_db),
+async def get_checkpoints_count(
+    db: AsyncSession = Depends(deps.get_db),
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
     curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)] = None,
 ) -> int:
     """Return the total number of checkpoints."""
     if not curr_user and not curr_team:
-         # Optional: Allow public access if settings permit, otherwise 401
-         # For now, let's allow it if public access is enabled, similar to get_checkpoints
-         from app.crud.crud_rally_settings import rally_settings
-         settings = rally_settings.get_or_create(db)
-         if not settings.public_access_enabled:
-             raise HTTPException(status_code=401, detail="Authentication required")
+        # Optional: Allow public access if settings permit, otherwise 401
+        from app.crud.crud_rally_settings import rally_settings
+        settings = await rally_settings.get_or_create(db)
+        if not settings.public_access_enabled:
+            raise HTTPException(status_code=401, detail="Authentication required")
 
-    return crud.checkpoint.count(db=db)
+    return await crud.checkpoint.count(db=db)
 
 
 @router.get("/me", status_code=200)
-def get_next_checkpoint(
+async def get_next_checkpoint(
     *,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
     curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
 ) -> DetailedCheckPoint:
@@ -144,11 +127,11 @@ def get_next_checkpoint(
         team_id = curr_user.team_id
     elif curr_team:
         team_id = curr_team.team_id
-    
-    if not team_id:
-         raise HTTPException(status_code=401, detail="Authentication required (User with Team or Team Token)")
 
-    checkpoint = crud.checkpoint.get_next(db=db, team_id=team_id)
+    if not team_id:
+        raise HTTPException(status_code=401, detail="Authentication required (User with Team or Team Token)")
+
+    checkpoint = await crud.checkpoint.get_next(db=db, team_id=team_id)
 
     if checkpoint is None:
         raise NotFoundException(detail="Checkpoint Not Found")
@@ -157,10 +140,10 @@ def get_next_checkpoint(
 
 
 @router.get("/teams", status_code=200)
-def get_checkpoint_teams(
+async def get_checkpoint_teams(
     *,
-    db: Session = Depends(deps.get_db),
-    select: Annotated[AdminCheckPointSelect, Depends()],
+    db: AsyncSession = Depends(deps.get_db),
+    select_in: Annotated[AdminCheckPointSelect, Depends()],
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     admin_or_staff_user: DetailedUser = Depends(deps.get_admin_or_staff)
 ) -> List[ListingTeam]:
@@ -173,26 +156,25 @@ def get_checkpoint_teams(
     checkpoint_id = validate_checkpoint_access(
         user=admin_or_staff_user,
         auth=auth,
-        requested_checkpoint_id=select.checkpoint_id
+        requested_checkpoint_id=select_in.checkpoint_id
     )
-    
+
     # Enforce ABAC permission for viewing checkpoint teams
     require_checkpoint_view_permission(
         checkpoint_id=checkpoint_id,
         auth=auth,
         curr_user=admin_or_staff_user
     )
-    
-    if deps.is_admin(auth.scopes) and select.checkpoint_id is None:
-        teams = crud.team.get_multi(db)
+
+    if deps.is_admin(auth.scopes) and select_in.checkpoint_id is None:
+        teams = (await db.scalars(select(Team).options(selectinload(Team.members)))).all()
     else:
-        teams = crud.team.get_by_checkpoint(db=db, checkpoint_id=checkpoint_id)
-    
+        teams = await crud.team.get_by_checkpoint(db=db, checkpoint_id=checkpoint_id)
+
     def build_team(team: Team) -> ListingTeam:
         return ListingTeam(
             id=team.id,
             name=team.name,
-
             total=team.total,
             classification=team.classification,
             versus_group_id=team.versus_group_id,
@@ -208,68 +190,68 @@ def get_checkpoint_teams(
             last_checkpoint_name=None,
             current_checkpoint_number=None,
         )
-    
+
     return list(map(build_team, teams))
 
 
 @router.post("/", status_code=201)
-def create_checkpoint(
+async def create_checkpoint(
     *,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     cp_in: CheckPointCreate,
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> DetailedCheckPoint:
     # Enforce ABAC permission for checkpoint creation
     require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
-    
+
     # Validate order uniqueness
-    existing_checkpoint = crud.checkpoint.get_by_order(db=db, order=cp_in.order)
+    existing_checkpoint = await crud.checkpoint.get_by_order(db=db, order=cp_in.order)
     if existing_checkpoint:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Checkpoint with order {cp_in.order} already exists"
         )
-    
-    cp = crud.checkpoint.create(db=db, obj_in=cp_in)
+
+    cp = await crud.checkpoint.create(db=db, obj_in=cp_in)
     return DetailedCheckPoint.model_validate(cp)
 
 
 @router.put("/reorder", status_code=200)
-def reorder_checkpoints(
+async def reorder_checkpoints(
     *,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     checkpoint_orders: Dict[int, int],
     _: DetailedUser = Depends(deps.get_admin),
 ) -> Dict[str, str]:
     """Reorder checkpoints by updating their order values."""
     try:
-        crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
+        await crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
         return {"message": "Checkpoints reordered successfully"}
     except Exception as e:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot reorder checkpoints: {str(e)}"
         )
 
 
 @router.put("/{id}", status_code=200)
-def update_checkpoint(
+async def update_checkpoint(
     *,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     id: int,
     cp_in: CheckPointUpdate,
     _: DetailedUser = Depends(deps.get_admin),
 ) -> DetailedCheckPoint:
-    crud.checkpoint.get(db=db, id=id, for_update=True)
-    updated = crud.checkpoint.update(db=db, id=id, obj_in=cp_in)
+    await crud.checkpoint.get(db=db, id=id, for_update=True)
+    updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in)
     return DetailedCheckPoint.model_validate(updated)
 
 
 @router.delete("/{id}", status_code=200)
-def delete_checkpoint(
+async def delete_checkpoint(
     *,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     id: int,
     _: DetailedUser = Depends(deps.get_admin),
 ) -> Dict[str, str]:
@@ -279,23 +261,23 @@ def delete_checkpoint(
         from app.models.rally_staff_assignment import RallyStaffAssignment
         from app.models.user import User
         from sqlalchemy import delete, update
-        
+
         # Delete staff assignments referencing this checkpoint
         delete_stmt = delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == id)
-        db.execute(delete_stmt)
-        
+        await db.execute(delete_stmt)
+
         # Clear staff_checkpoint_id from Rally users
         update_stmt = update(User).where(User.staff_checkpoint_id == id).values(staff_checkpoint_id=None)
-        db.execute(update_stmt)
-        
+        await db.execute(update_stmt)
+
         # Now delete the checkpoint
-        crud.checkpoint.remove(db=db, id=id)
-        db.commit()
-        
+        await crud.checkpoint.remove(db=db, id=id)
+        await db.commit()
+
         return {"message": "Checkpoint deleted successfully"}
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete checkpoint: {str(e)}"
         )

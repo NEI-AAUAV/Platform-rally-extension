@@ -54,7 +54,7 @@ class TeamVsActivity(BaseActivity):
 
         return score
 
-    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate team vs team result data with versus group validation"""
         valid_results = ['win', 'lose', 'draw']
 
@@ -70,19 +70,19 @@ class TeamVsActivity(BaseActivity):
         if team_id and db_session:
             if 'opponent_team_id' not in result_data or result_data['opponent_team_id'] is None:
                 return False
-            return self._validate_versus_group(team_id, result_data['opponent_team_id'], db_session)
+            return await self._validate_versus_group(team_id, result_data['opponent_team_id'], db_session)
 
         # If we don't have team_id or db_session, allow validation without opponent check
         # This is for backwards compatibility
         return True
 
-    def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session: Any) -> bool:
+    async def _validate_versus_group(self, team_id: int, opponent_team_id: int, db_session: Any) -> bool:
         """Validate that teams are in the same versus group"""
         try:
             from app.crud.crud_versus import versus
 
             # Get opponent using versus system
-            opponent = versus.get_opponent(db_session, team_id=team_id)
+            opponent = await versus.get_opponent(db_session, team_id=team_id)
 
             # Check if the opponent matches the provided opponent_team_id
             if opponent is None:
@@ -101,12 +101,12 @@ class TeamVsActivity(BaseActivity):
             logger.warning(f"Versus validation failed for team {team_id} vs {opponent_team_id}: {str(e)}, allowing validation")
             return True
 
-    def get_opponent_for_team(self, team_id: int, db_session: Any) -> Optional[Dict[str, Any]]:
+    async def get_opponent_for_team(self, team_id: int, db_session: Any) -> Optional[Dict[str, Any]]:
         """Get opponent team information for a given team"""
         try:
             from app.crud.crud_versus import versus
 
-            opponent = versus.get_opponent(db_session, team_id=team_id)
+            opponent = await versus.get_opponent(db_session, team_id=team_id)
             if opponent:
                 return {
                     "opponent_team_id": opponent.id,
@@ -118,9 +118,9 @@ class TeamVsActivity(BaseActivity):
         except Exception:
             return None
 
-    def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session: Any) -> Dict[str, Any]:
+    async def create_result_for_versus_group(self, team_id: int, result: str, match_data: Dict[str, Any], db_session: Any) -> Dict[str, Any]:
         """Create result data for a team in a versus group"""
-        opponent_info = self.get_opponent_for_team(team_id, db_session)
+        opponent_info = await self.get_opponent_for_team(team_id, db_session)
 
         if not opponent_info:
             raise ValueError(f"Team {team_id} is not in a valid versus group")

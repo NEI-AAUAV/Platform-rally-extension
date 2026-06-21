@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Security
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict
 
 from app.api import deps
@@ -20,10 +20,10 @@ USER_NOT_FOUND_MESSAGE = "User not found"
 
 
 @router.post("/team/{team_id}/members", status_code=201)
-def add_team_member(
+async def add_team_member(
     team_id: int,
     member_data: TeamMemberAdd,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> TeamMemberResponse:
@@ -31,37 +31,37 @@ def add_team_member(
     Add a member to a team.
     """
     require_team_management_permission(auth=auth, curr_user=curr_user)
-    
+
     # Check if team exists
-    team = db.get(Team, team_id)
+    team = await db.get(Team, team_id)
     if not team:
         raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
+
     # Check member limit
     from sqlalchemy import select, func
-    settings = rally_settings.get_or_create(db)
+    settings = await rally_settings.get_or_create(db)
     count_stmt = select(func.count(User.id)).where(User.team_id == team_id)
-    current_member_count = db.scalar(count_stmt) or 0
-    
+    current_member_count = await db.scalar(count_stmt) or 0
+
     if current_member_count >= settings.max_members_per_team:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team."
         )
-    
+
     # If setting as captain, check if team already has a captain
     if member_data.is_captain:
         captain_stmt = select(User).where(
             User.team_id == team_id,
             User.is_captain.is_(True)
         )
-        existing_captain = db.scalars(captain_stmt).first()
+        existing_captain = (await db.scalars(captain_stmt)).first()
         if existing_captain:
             raise HTTPException(
                 status_code=400,
                 detail="Team already has a captain. Remove current captain first."
             )
-    
+
     # Create new user with auto-assigned ID
     user_data = UserCreate(
         name=member_data.name,
@@ -69,8 +69,8 @@ def add_team_member(
         team_id=team_id,
         is_captain=member_data.is_captain
     )
-    user = crud.user.create(db, obj_in=user_data)
-    
+    user = await crud.user.create(db, obj_in=user_data)
+
     return TeamMemberResponse(
         id=user.id,
         name=user.name,
@@ -80,10 +80,10 @@ def add_team_member(
 
 
 @router.delete("/team/{team_id}/members/{user_id}", status_code=200)
-def remove_team_member(
+async def remove_team_member(
     team_id: int,
     user_id: int,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> Dict[str, str]:
@@ -91,36 +91,36 @@ def remove_team_member(
     Remove a member from a team.
     """
     require_team_management_permission(auth=auth, curr_user=curr_user)
-    
+
     # Check if team exists
-    team = db.get(Team, team_id)
+    team = await db.get(Team, team_id)
     if not team:
         raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
+
     # Check if user exists and is in this team
-    user = db.get(User, user_id)
+    user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
-    
+
     if user.team_id != team_id:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="User is not a member of this team"
         )
-    
+
     # Remove user from team
     user.team_id = None
-    db.commit()
-    
+    await db.commit()
+
     return {"message": "Member removed from team successfully"}
 
 
 @router.put("/team/{team_id}/members/{user_id}", status_code=200)
-def update_team_member(
+async def update_team_member(
     team_id: int,
     user_id: int,
     member_data: TeamMemberUpdate,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> TeamMemberResponse:
@@ -128,23 +128,23 @@ def update_team_member(
     Update a team member's information.
     """
     require_team_management_permission(auth=auth, curr_user=curr_user)
-    
+
     # Check if team exists
-    team = db.get(Team, team_id)
+    team = await db.get(Team, team_id)
     if not team:
         raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
+
     # Check if user exists and is in this team
-    user = db.get(User, user_id)
+    user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
-    
+
     if user.team_id != team_id:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="User is not a member of this team"
         )
-    
+
     # If setting as captain, check if team already has a captain
     if member_data.is_captain is True:
         from sqlalchemy import select
@@ -153,13 +153,13 @@ def update_team_member(
             User.is_captain.is_(True),
             User.id != user_id
         )
-        existing_captain = db.scalars(stmt).first()
+        existing_captain = (await db.scalars(stmt)).first()
         if existing_captain:
             raise HTTPException(
                 status_code=400,
                 detail="Team already has a captain. Remove current captain first."
             )
-    
+
     # Update user fields
     if member_data.name is not None:
         user.name = member_data.name
@@ -167,10 +167,10 @@ def update_team_member(
         user.email = member_data.email
     if member_data.is_captain is not None:
         user.is_captain = member_data.is_captain
-    
-    db.commit()
-    db.refresh(user)
-    
+
+    await db.commit()
+    await db.refresh(user)
+
     return TeamMemberResponse(
         id=user.id,
         name=user.name,
@@ -180,9 +180,9 @@ def update_team_member(
 
 
 @router.get("/team/{team_id}/members", status_code=200)
-def get_team_members(
+async def get_team_members(
     team_id: int,
-    db: Session = Depends(deps.get_db),
+    db: AsyncSession = Depends(deps.get_db),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
     curr_user: DetailedUser = Depends(deps.get_participant),
 ) -> List[TeamMemberResponse]:
@@ -190,17 +190,17 @@ def get_team_members(
     Get all members of a team.
     """
     require_view_team_members_permission(auth=auth, curr_user=curr_user)
-    
+
     # Check if team exists
-    team = db.get(Team, team_id)
+    team = await db.get(Team, team_id)
     if not team:
         raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
+
     # Get team members
     from sqlalchemy import select
     stmt = select(User).where(User.team_id == team_id)
-    members = list(db.scalars(stmt).all())
-    
+    members = list((await db.scalars(stmt)).all())
+
     return [
         TeamMemberResponse(
             id=member.id,

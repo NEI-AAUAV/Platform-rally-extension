@@ -4,11 +4,11 @@ from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import RallySettingsUpdate
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettingsUpdate]):
-    def get_or_create(self, db: "Session") -> RallySettings:
-        settings = db.get(RallySettings, 1)
+    async def get_or_create(self, db: "AsyncSession") -> RallySettings:
+        settings = await db.get(RallySettings, 1)
 
         if not settings:
             settings = RallySettings(
@@ -42,9 +42,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 public_access_enabled=True
             )
             db.add(settings)
-            db.commit()
-            db.refresh(settings)
+            await db.commit()
+            await db.refresh(settings)
 
         return settings
-    
+
 rally_settings = CRUDRallySettings(RallySettings)

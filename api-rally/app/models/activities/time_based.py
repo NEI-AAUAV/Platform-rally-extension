@@ -70,7 +70,7 @@ class TimeBasedActivity(BaseActivity):
             position_ratio = (rank - 1) / (total_teams - 1)
             return float(max_points) - (score_range * position_ratio)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate time-based result data"""
         required_fields = ['completion_time_seconds']
         return all(field in result_data for field in required_fields)

@@ -1,7 +1,7 @@
-from typing import Annotated, Generator, List, Optional
+from typing import Annotated, AsyncGenerator, List, Optional
 
 from fastapi import Depends, HTTPException, Security
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
@@ -15,24 +15,21 @@ from app.schemas.team_auth import TeamTokenData
 
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 
-def get_current_user(
+async def get_current_user(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DetailedUser:
-    user = db.get(User, auth.sub)
+    user = await db.get(User, auth.sub)
     if user is None:
         # Create user with auth.sub as ID (set before commit to avoid primary key modification issues)
         # This is needed for NEI platform compatibility where user IDs must match auth.sub
-        user = crud.user.create_with_id(
-            db, 
+        user = await crud.user.create_with_id(
+            db,
             obj_in=UserCreate(
                 name=f"{auth.name} {auth.surname}",
             ),
@@ -41,35 +38,35 @@ def get_current_user(
         # Set scopes after creation (User model has this field but schema doesn't)
         # User is already tracked by session after create_with_id, so just update and commit
         user.scopes = auth.scopes
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
     else:
         # Update scopes if they've changed
         if user.scopes != auth.scopes:
             user.scopes = auth.scopes
             db.add(user)
-            db.commit()
-            db.refresh(user)
-    
+            await db.commit()
+            await db.refresh(user)
+
     # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
     if "rally-staff" in auth.scopes:
         from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-    
+
     return detailed_user
 
 
-def get_current_user_optional(
+async def get_current_user_optional(
     auth: Annotated[Optional[AuthData], Security(api_nei_auth_optional, scopes=[])],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Optional[DetailedUser]:
     if not auth:
         return None
-    
-    user = db.get(User, auth.sub)
+
+    user = await db.get(User, auth.sub)
     if user is None:
         return None
 
@@ -77,17 +74,17 @@ def get_current_user_optional(
     if user.scopes != auth.scopes:
         user.scopes = auth.scopes
         db.add(user)
-        db.commit()
-        db.refresh(user)
-        
+        await db.commit()
+        await db.refresh(user)
+
     # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
     if "rally-staff" in auth.scopes:
         from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-    
+
     return detailed_user
 
 

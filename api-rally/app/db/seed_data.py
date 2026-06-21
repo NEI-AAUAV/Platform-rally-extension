@@ -1,18 +1,18 @@
 import json
 import logging
 from pathlib import Path
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.session import engine
 from app.models.activity import Activity
 from app.models.checkpoint import CheckPoint
 
 logger = logging.getLogger(__name__)
 
-def seed_data(db: Session) -> None:
+async def seed_data(db: AsyncSession) -> None:
     data_dir = Path(__file__).parent.parent.parent / "data"
-    
+
     # Seed Checkpoints
     checkpoints_file = data_dir / "checkpoints.json"
     if checkpoints_file.exists():
@@ -21,7 +21,7 @@ def seed_data(db: Session) -> None:
             logger.info(f"Seeding {len(checkpoints_data)} checkpoints")
             for cp_data in checkpoints_data:
                 # Check if exists by name or order? Name seems safer for updates
-                existing_checkpoint = db.query(CheckPoint).filter(CheckPoint.name == cp_data["name"]).first()
+                existing_checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.name == cp_data["name"]))
                 if not existing_checkpoint:
                     cp = CheckPoint(**cp_data)
                     db.add(cp)
@@ -29,7 +29,7 @@ def seed_data(db: Session) -> None:
                     # Update existing?
                     for key, value in cp_data.items():
                         setattr(existing_checkpoint, key, value)
-            db.commit()
+            await db.commit()
     else:
         logger.warning(f"Checkpoints seed file not found at {checkpoints_file}")
 
@@ -50,12 +50,12 @@ def seed_data(db: Session) -> None:
                 
                 # Let's map checkpoint_id 1-6 to the CheckPoint with order 1-6.
                 cp_id = act_data.get("checkpoint_id")
-                checkpoint = db.query(CheckPoint).filter(CheckPoint.order == cp_id).first()
-                
+                checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.order == cp_id))
+
                 if checkpoint:
                     act_data["checkpoint_id"] = checkpoint.id
-                    
-                    existing_activity = db.query(Activity).filter(Activity.name == act_data["name"]).first()
+
+                    existing_activity = await db.scalar(select(Activity).where(Activity.name == act_data["name"]))
                     if not existing_activity:
                         activity = Activity(**act_data)
                         db.add(activity)
@@ -64,12 +64,18 @@ def seed_data(db: Session) -> None:
                             setattr(existing_activity, key, value)
                 else:
                     logger.error(f"Checkpoint with order {cp_id} not found for activity {act_data['name']}")
-                    
-            db.commit()
+
+            await db.commit()
     else:
         logger.warning(f"Activities seed file not found at {activities_file}")
 
+
 if __name__ == "__main__":
+    import asyncio
     from app.db.session import SessionLocal
-    db = SessionLocal()
-    seed_data(db)
+
+    async def _main() -> None:
+        async with SessionLocal() as db:
+            await seed_data(db)
+
+    asyncio.run(_main())

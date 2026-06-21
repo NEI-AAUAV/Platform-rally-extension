@@ -2,7 +2,7 @@ from typing import Any, Generic, Optional, Sequence, Type, TypeVar
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exception import NotFoundException
 from app.models.base import Base
@@ -22,15 +22,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         self.model = model
 
-    def get(self, db: Session, *, id: Any, for_update: bool = False) -> ModelType:
-        obj = db.get(self.model, id, with_for_update=for_update)
+    async def get(self, db: AsyncSession, *, id: Any, for_update: bool = False) -> ModelType:
+        obj = await db.get(self.model, id, with_for_update=for_update)
         if obj is None:
             raise NotFoundException(detail=f"{self.model.__name__} Not Found")
         return obj
 
-    def get_multi(
+    async def get_multi(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
@@ -39,14 +39,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         stmt = select(self.model).limit(limit).offset(skip)
         if for_update:
             stmt = stmt.with_for_update()
-        return db.scalars(stmt).all()
+        return (await db.scalars(stmt)).all()
 
-    def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
+    async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
 
     def update_unlocked(
@@ -60,15 +60,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         return db_obj
 
-    def update(self, db: Session, *, id: int, obj_in: UpdateSchemaType) -> ModelType:
-        with db.begin_nested():
-            db_obj = self.get(db, id=id, for_update=True)
+    async def update(self, db: AsyncSession, *, id: int, obj_in: UpdateSchemaType) -> ModelType:
+        async with db.begin_nested():
+            db_obj = await self.get(db, id=id, for_update=True)
             db_obj = self.update_unlocked(db_obj=db_obj, obj_in=obj_in)
-            db.commit()
+        await db.commit()
         return db_obj
 
-    def remove(self, db: Session, *, id: int) -> ModelType:
-        db_obj = self.get(db, id=id)
-        db.delete(db_obj)
-        db.commit()
+    async def remove(self, db: AsyncSession, *, id: int) -> ModelType:
+        db_obj = await self.get(db, id=id)
+        await db.delete(db_obj)
+        await db.commit()
         return db_obj

@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Security
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app import crud
@@ -18,7 +18,7 @@ class CheckpointAssignmentUpdate(BaseModel):
 
 @router.get("/staff-assignments")
 async def get_staff_assignments(
-    *, db: Session = Depends(get_db), _: DetailedUser = Depends(get_admin)
+    *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
     Get all users with rally-staff role from NEI platform and their checkpoint assignments.
@@ -31,10 +31,10 @@ async def get_staff_assignments(
     # Query users with rally-staff scope from NEI's user table
     from sqlalchemy import text
     stmt = select(NEIUser).where(text("scopes @> ARRAY['rally-staff']::text[]"))
-    rally_staff_users = db.scalars(stmt).all()
-    
+    rally_staff_users = (await db.scalars(stmt)).all()
+
     # Get existing assignments
-    existing_assignments = crud.rally_staff_assignment.get_multi_with_checkpoint(db)
+    existing_assignments = await crud.rally_staff_assignment.get_multi_with_checkpoint(db)
     assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
     
     # Build result list with all rally-staff users from NEI
@@ -89,7 +89,7 @@ async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> Dict[
 @router.put("/{user_id}/checkpoint-assignment")
 async def update_checkpoint_assignment(
     *,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user_id: int,
     assignment: CheckpointAssignmentUpdate,
     _: DetailedUser = Depends(get_admin)
@@ -99,7 +99,7 @@ async def update_checkpoint_assignment(
     This creates/updates Rally-specific staff assignments.
     """
     try:
-        updated_assignment = crud.rally_staff_assignment.create_or_update(
+        updated_assignment = await crud.rally_staff_assignment.create_or_update(
             db=db, user_id=user_id, checkpoint_id=assignment.checkpoint_id
         )
         

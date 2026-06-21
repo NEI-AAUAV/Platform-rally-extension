@@ -146,9 +146,9 @@ class TestRallyDurationCalculator:
             mock_datetime.datetime = datetime
             
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
+            calculator = RallyDurationCalculator(mock_db, mock_rally_settings)
             status = calculator.get_rally_status()
-            
+
             assert status["status"] == "not_started"
             assert "time_until_start" in status
             assert status["rally_start_time"] is not None
@@ -163,9 +163,9 @@ class TestRallyDurationCalculator:
             mock_datetime.timezone = timezone
             
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
+            calculator = RallyDurationCalculator(mock_db, mock_rally_settings)
             status = calculator.get_rally_status()
-            
+
             assert status["status"] == "active"
             assert "time_elapsed" in status
             assert "time_remaining" in status
@@ -181,9 +181,9 @@ class TestRallyDurationCalculator:
             mock_datetime.timezone = timezone
             
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
+            calculator = RallyDurationCalculator(mock_db, mock_rally_settings)
             status = calculator.get_rally_status()
-            
+
             assert status["status"] == "ended"
             assert "time_since_end" in status
             assert "total_duration" in status
@@ -201,17 +201,17 @@ class TestRallyDurationCalculator:
             mock_datetime.datetime = datetime
             
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
+            calculator = RallyDurationCalculator(mock_db, settings_no_start)
             status = calculator.get_rally_status()
-            
+
             assert status["status"] == "no_start_time"
     
     def test_format_duration(self, mock_db):
         """Test duration formatting"""
         with patch('app.crud.crud_rally_settings.rally_settings.get_or_create'):
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
-            
+            calculator = RallyDurationCalculator(mock_db, Mock())
+
             # Test various durations
             assert calculator._format_duration(timedelta(hours=2, minutes=30)) == "2h 30m"
             assert calculator._format_duration(timedelta(days=1, hours=2)) == "1d 2h"
@@ -222,8 +222,8 @@ class TestRallyDurationCalculator:
         """Test progress percentage calculation"""
         with patch('app.crud.crud_rally_settings.rally_settings.get_or_create'):
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
-            
+            calculator = RallyDurationCalculator(mock_db, Mock())
+
             # Test progress calculation
             elapsed = timedelta(hours=2)
             total = timedelta(hours=8)
@@ -240,8 +240,8 @@ class TestRallyDurationCalculator:
             mock_get_settings.return_value = mock_rally_settings
             
             from app.utils.rally_duration import RallyDurationCalculator
-            calculator = RallyDurationCalculator(mock_db)
-            
+            calculator = RallyDurationCalculator(mock_db, mock_rally_settings)
+
             # Test within rally time
             within_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
             assert calculator._is_within_rally_time(within_time) is True
@@ -258,30 +258,32 @@ class TestRallyDurationCalculator:
 class TestRallyDurationConvenienceFunctions:
     """Test convenience functions"""
     
-    def test_get_rally_duration_info(self, mock_db):
+    async def test_get_rally_duration_info(self, mock_db):
         """Test get_rally_duration_info convenience function"""
-        with patch('app.utils.rally_duration.RallyDurationCalculator') as mock_calculator_class:
+        with patch('app.utils.rally_duration.rally_settings.get_or_create'), \
+             patch('app.utils.rally_duration.RallyDurationCalculator') as mock_calculator_class:
             mock_calculator = Mock()
             mock_calculator.get_rally_status.return_value = {"status": "active"}
             mock_calculator_class.return_value = mock_calculator
-            
+
             from app.utils.rally_duration import get_rally_duration_info
-            result = get_rally_duration_info(mock_db)
-            
+            result = await get_rally_duration_info(mock_db)
+
             assert result["status"] == "active"
             mock_calculator.get_rally_status.assert_called_once()
-    
-    def test_get_team_duration_info(self, mock_db):
+
+    async def test_get_team_duration_info(self, mock_db):
         """Test get_team_duration_info convenience function"""
         team_start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
-        
-        with patch('app.utils.rally_duration.RallyDurationCalculator') as mock_calculator_class:
+
+        with patch('app.utils.rally_duration.rally_settings.get_or_create'), \
+             patch('app.utils.rally_duration.RallyDurationCalculator') as mock_calculator_class:
             mock_calculator = Mock()
             mock_calculator.get_team_rally_duration.return_value = {"team_duration": "1h 30m"}
             mock_calculator_class.return_value = mock_calculator
-            
+
             from app.utils.rally_duration import get_team_duration_info
-            result = get_team_duration_info(mock_db, team_start_time)
-            
+            result = await get_team_duration_info(mock_db, team_start_time)
+
             assert result["team_duration"] == "1h 30m"
             mock_calculator.get_team_rally_duration.assert_called_once_with(team_start_time)

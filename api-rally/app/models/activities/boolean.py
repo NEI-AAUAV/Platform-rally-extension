@@ -31,7 +31,7 @@ class BooleanActivity(BaseActivity):
         else:
             return float(self.config.get('failure_points', 0))
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate boolean result data"""
         required_fields = ['success']
         return all(field in result_data for field in required_fields)

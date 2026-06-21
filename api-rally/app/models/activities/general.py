@@ -38,7 +38,7 @@ class GeneralActivity(BaseActivity):
         
         return float(assigned_points)
     
-    def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
         """Validate general activity result data"""
         required_fields = ['assigned_points']
         

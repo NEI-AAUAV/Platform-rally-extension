@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from collections import defaultdict
 
@@ -20,9 +20,9 @@ from app.schemas.user import DetailedUser
 router = APIRouter()
 
 @router.post("/versus/pair", response_model=VersusPairResponse)
-def create_versus_pair(
+async def create_versus_pair(
     pair_in: VersusPairCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
 ) -> VersusPairResponse:
@@ -34,7 +34,7 @@ def create_versus_pair(
         resource=Resource.VERSUS_GROUP
     )
 
-    group_id = versus.create_versus_pair(
+    group_id = await versus.create_versus_pair(
         db, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id
     )
 
@@ -45,9 +45,9 @@ def create_versus_pair(
     )
 
 @router.get("/versus/team/{team_id}/opponent", response_model=VersusOpponentResponse)
-def get_team_opponent(
+async def get_team_opponent(
     team_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
 ) -> VersusOpponentResponse:
@@ -59,19 +59,19 @@ def get_team_opponent(
         resource=Resource.VERSUS_GROUP
     )
 
-    opp = versus.get_opponent(db, team_id=team_id)
-    
+    opp = await versus.get_opponent(db, team_id=team_id)
+
     if opp is None:
         return VersusOpponentResponse(opponent_id=None, opponent_name=None)
-    
+
     return VersusOpponentResponse(
         opponent_id=opp.id,
         opponent_name=opp.name
     )
 
 @router.get("/versus/groups", response_model=VersusGroupListResponse)
-def list_versus_groups(
-    db: Session = Depends(get_db),
+async def list_versus_groups(
+    db: AsyncSession = Depends(get_db),
     curr_user: DetailedUser = Depends(get_participant),
     auth: AuthData = Security(api_nei_auth, scopes=[]),
 ) -> VersusGroupListResponse:
@@ -83,11 +83,11 @@ def list_versus_groups(
         resource=Resource.VERSUS_GROUP
     )
 
-    teams = db.scalars(
+    teams = (await db.scalars(
         select(Team)
         .where(Team.versus_group_id.isnot(None))
         .order_by(Team.versus_group_id, Team.id)
-    ).all()
+    )).all()
 
     groups = defaultdict(list)
     for team in teams:

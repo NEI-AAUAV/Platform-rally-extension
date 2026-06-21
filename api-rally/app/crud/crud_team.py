@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from loguru import logger
 import secrets
 import string
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exception import APIException
 from app.crud.base import CRUDBase
@@ -33,15 +34,16 @@ locked_arrays = [
 _name_unique_error_regex = unique_key_error_regex(Team.name.name)
 
 
-def _generate_access_code(db: Session) -> str:
+async def _generate_access_code(db: AsyncSession) -> str:
     """Generate a unique, human-readable 8-character code (XXXX-XXXX) for a team."""
     while True:
         part1 = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
         part2 = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
         code = f"{part1}-{part2}"
-        
+
         # Check for uniqueness in the database
-        if db.query(Team).filter(Team.access_code == code).first() is None:
+        existing = await db.scalar(select(Team).where(Team.access_code == code))
+        if existing is None:
             return code
 
 
@@ -84,54 +86,53 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             + calc_pukes(team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
         )
 
-    def get_by_access_code(self, db: Session, *, access_code: str) -> Team | None:
+    async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
         """Get a team by their access code"""
-        return db.query(Team).filter(Team.access_code == access_code).first()
+        return await db.scalar(select(Team).where(Team.access_code == access_code))
 
-    def update_classification_unlocked(self, db: Session) -> None:
+    async def update_classification_unlocked(self, db: AsyncSession) -> None:
         """Update team classifications based on activity results"""
         from app.services.scoring_service import ScoringService
-        
-        teams = list(self.get_multi(db=db, for_update=True))
+
+        teams = list(await self.get_multi(db=db, for_update=True))
         scoring_service = ScoringService(db)
-        
+
         # Update scores for all teams based on activity results
         # Use nested transaction to avoid breaking row locks
         for team in teams:
-            with db.begin_nested() as nested:
-                scoring_service.update_team_scores(team.id, should_commit=False)
-                nested.commit()  # Commit nested transaction to persist changes
-            db.refresh(team)  # Refresh to get updated scores from database
-        
+            async with db.begin_nested():
+                await scoring_service.update_team_scores(team.id, should_commit=False)
+            await db.refresh(team)  # Refresh to get updated scores from database
+
         # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))
-        
+
         # Update classifications
         for i, team in enumerate(teams):
             team.classification = i + 1
             db.add(team)
 
-    def update_classification(self, db: Session) -> None:
-        self.update_classification_unlocked(db)
-        db.commit()
+    async def update_classification(self, db: AsyncSession) -> None:
+        await self.update_classification_unlocked(db)
+        await db.commit()
 
-    def create(self, db: Session, *, obj_in: TeamCreate) -> Team:
-        settings = rally_settings.get_or_create(db)
-        current_team_count = db.scalar(select(func.count(Team.id)))
+    async def create(self, db: AsyncSession, *, obj_in: TeamCreate) -> Team:
+        settings = await rally_settings.get_or_create(db)
+        current_team_count = await db.scalar(select(func.count(Team.id)))
 
         if current_team_count >= settings.max_teams:
             raise HTTPException(status_code=400, detail="Team limit reached")
-        
+
         obj_in_data = obj_in.model_dump()
-        obj_in_data["access_code"] = _generate_access_code(db)
-        
+        obj_in_data["access_code"] = await _generate_access_code(db)
+
         team = self.model(**obj_in_data)
 
         try:
             db.add(team)
-            db.commit()
+            await db.commit()
         except IntegrityError as e:
-            db.rollback()
+            await db.rollback()
 
             if e.orig is None:
                 raise
@@ -144,17 +145,17 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         # Only update classification if there are existing teams
         # This prevents errors when creating the first team
         try:
-            self.update_classification(db=db)
+            await self.update_classification(db=db)
         except Exception as e:
             # Log the error but don't fail team creation
             logger.warning(f"Failed to update classification during team creation: {e}")
-        
-        db.refresh(team)
+
+        await db.refresh(team)
         return team
 
-    def update(self, db: Session, *, id: int, obj_in: TeamUpdate) -> Team:
-        with db.begin_nested():
-            team = self.get(db=db, id=id, for_update=True)
+    async def update(self, db: AsyncSession, *, id: int, obj_in: TeamUpdate) -> Team:
+        async with db.begin_nested():
+            team = await self.get(db=db, id=id, for_update=True)
             update_data = obj_in.model_dump(exclude_unset=True)
 
             should_validate_locked = any(key in update_data for key in locked_arrays)
@@ -175,37 +176,37 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                     last_size = size
 
             team = super().update_unlocked(db_obj=team, obj_in=obj_in)
-            db.commit()
+        await db.commit()
 
-        self.update_classification(db=db)
-        db.refresh(team)
+        await self.update_classification(db=db)
+        await db.refresh(team)
         return team
 
     def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
         """Validate rally timing constraints"""
         if settings.rally_start_time and current_time < settings.rally_start_time:
             raise APIException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Rally has not started yet. Starts at {settings.rally_start_time.isoformat()}"
             )
-        
+
         if settings.rally_end_time and current_time > settings.rally_end_time:
             raise APIException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
             )
 
-    def _validate_checkpoint_order(self, db: Session, team: Team, checkpoint_id: int, settings: Any) -> None:
+    async def _validate_checkpoint_order(self, db: AsyncSession, team: Team, checkpoint_id: int, settings: Any) -> None:
         """Validate checkpoint order constraints"""
         from app.models.checkpoint import CheckPoint
-        
+
         # Get the checkpoint to find its order
-        checkpoint_obj = db.get(CheckPoint, checkpoint_id)
+        checkpoint_obj = await db.get(CheckPoint, checkpoint_id)
         if not checkpoint_obj:
             raise APIException(status_code=404, detail="Checkpoint not found")
-        
+
         checkpoint_order = checkpoint_obj.order
-        
+
         if settings.checkpoint_order_matters:
             # Team should have visited exactly (order - 1) checkpoints
             if len(team.times) != checkpoint_order - 1:
@@ -221,18 +222,17 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                     detail=f"Checkpoint {checkpoint_order} already visited"
                 )
 
-
-    def add_checkpoint(
-        self, db: Session, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
+    async def add_checkpoint(
+        self, db: AsyncSession, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
     ) -> Team:
-        with db.begin_nested():
-            team = self.get(db=db, id=id, for_update=True)
-            settings = rally_settings.get_or_create(db)
+        async with db.begin_nested():
+            team = await self.get(db=db, id=id, for_update=True)
+            settings = await rally_settings.get_or_create(db)
             current_time = datetime.now(timezone.utc)
 
             # Validate timing and order constraints
             self._validate_rally_timing(settings, current_time)
-            self._validate_checkpoint_order(db, team, checkpoint_id, settings)
+            await self._validate_checkpoint_order(db, team, checkpoint_id, settings)
 
             # Add scores and times
             # question_score is an int in the schema (0 or 1), but stored as bool in the model
@@ -243,30 +243,34 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team.skips.append(obj_in.skips)
             team.times.append(current_time)
 
-            db.commit()
-        self.update_classification(db=db)
-        db.refresh(team)
+        await db.commit()
+        await self.update_classification(db=db)
+        await db.refresh(team)
         return team
 
-
-    def get_by_checkpoint(self, db: Session, checkpoint_id: int) -> Sequence[Team]:
+    async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:
         """Get teams currently at a specific checkpoint.
-        
+
         Since team.times is order-based, we need to convert checkpoint_id to order first.
         Teams are "at" a checkpoint if they've completed that many checkpoints.
         """
         from app.models.checkpoint import CheckPoint
-        
+
         # Get the checkpoint to find its order
-        checkpoint_obj = db.get(CheckPoint, checkpoint_id)
+        checkpoint_obj = await db.get(CheckPoint, checkpoint_id)
         if not checkpoint_obj:
             return []
-        
+
         checkpoint_order = checkpoint_obj.order
-        
-        # Teams at this checkpoint have visited exactly (order) checkpoints
-        stmt = select(Team).where(func.cardinality(Team.times) == checkpoint_order)
-        return db.scalars(stmt).all()
+
+        # Teams at this checkpoint have visited exactly (order) checkpoints.
+        # Eager-load members so callers can read team.members without a lazy load.
+        stmt = (
+            select(Team)
+            .options(selectinload(Team.members))
+            .where(func.cardinality(Team.times) == checkpoint_order)
+        )
+        return (await db.scalars(stmt)).all()
 
 
 team = CRUDTeam(Team)

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.config import settings
@@ -61,16 +61,16 @@ def verify_team_token(token: str) -> TeamTokenData:
 
 
 @router.post("/login")
-def team_login(
+async def team_login(
     login_data: TeamLoginRequest,
-    db: Annotated[Session, Depends(deps.get_db)]
+    db: Annotated[AsyncSession, Depends(deps.get_db)]
 ) -> TeamLoginResponse:
     """
     Authenticate a team using their access code.
     Returns a JWT token for subsequent requests.
     """
     # Find team by access code
-    team = crud_team.get_by_access_code(db, access_code=login_data.access_code)
+    team = await crud_team.get_by_access_code(db, access_code=login_data.access_code)
     
     if not team:
         raise HTTPException(
