@@ -2,7 +2,7 @@
 Critical Checkpoint API tests
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
@@ -12,16 +12,16 @@ from app.api.deps import get_db
 
 @pytest.fixture
 def mock_db():
-    """Mock database session"""
-    return Mock()
+    """Mock async database session"""
+    return AsyncMock()
 
 
 @pytest.fixture
 def client_with_mocked_db(mock_db):
     """Test client with mocked database"""
-    def override_get_db():
-        return mock_db
-    
+    async def override_get_db():
+        yield mock_db
+
     app.dependency_overrides[get_db] = override_get_db
     client = TestClient(app)
     yield client
@@ -158,7 +158,7 @@ class TestCheckpointAPI:
 class TestCheckpointCRUD:
     """Test Checkpoint CRUD operations"""
     
-    def test_create_checkpoint_success(self, mock_db):
+    async def test_create_checkpoint_success(self, mock_db):
         """Test successful checkpoint creation"""
         with patch('app.crud.crud_checkpoint.checkpoint.create') as mock_create:
             checkpoint_data = {
@@ -169,60 +169,60 @@ class TestCheckpointCRUD:
                 "order": 1
             }
             mock_create.return_value = {**checkpoint_data, "id": 1}
-            
-            result = mock_create(mock_db, obj_in=checkpoint_data)
-            
+
+            result = await mock_create(mock_db, obj_in=checkpoint_data)
+
             assert result["id"] == 1
             assert result["name"] == "Test Checkpoint"
             mock_create.assert_called_once_with(mock_db, obj_in=checkpoint_data)
-    
-    def test_get_checkpoint_success(self, mock_db):
+
+    async def test_get_checkpoint_success(self, mock_db):
         """Test successful checkpoint retrieval"""
         with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get:
             mock_checkpoint = {"id": 1, "name": "Test Checkpoint"}
             mock_get.return_value = mock_checkpoint
-            
-            result = mock_get(mock_db, id=1)
-            
+
+            result = await mock_get(mock_db, id=1)
+
             assert result["id"] == 1
             assert result["name"] == "Test Checkpoint"
             mock_get.assert_called_once_with(mock_db, id=1)
-    
-    def test_get_checkpoint_not_found(self, mock_db):
+
+    async def test_get_checkpoint_not_found(self, mock_db):
         """Test checkpoint not found"""
         with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get:
             mock_get.side_effect = Exception("Checkpoint Not Found")
-            
+
             with pytest.raises(Exception):
-                mock_get(mock_db, id=999)
-    
-    def test_update_checkpoint_success(self, mock_db):
+                await mock_get(mock_db, id=999)
+
+    async def test_update_checkpoint_success(self, mock_db):
         """Test successful checkpoint update"""
         with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
              patch('app.crud.crud_checkpoint.checkpoint.update') as mock_update:
-            
+
             original_checkpoint = {"id": 1, "name": "Original"}
             updated_checkpoint = {"id": 1, "name": "Updated"}
-            
+
             mock_get.return_value = original_checkpoint
             mock_update.return_value = updated_checkpoint
-            
-            result = mock_update(mock_db, db_obj=original_checkpoint, obj_in={"name": "Updated"})
-            
+
+            result = await mock_update(mock_db, db_obj=original_checkpoint, obj_in={"name": "Updated"})
+
             assert result["name"] == "Updated"
             mock_update.assert_called_once()
-    
-    def test_delete_checkpoint_success(self, mock_db):
+
+    async def test_delete_checkpoint_success(self, mock_db):
         """Test successful checkpoint deletion"""
         with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
              patch('app.crud.crud_checkpoint.checkpoint.remove') as mock_remove:
-            
+
             mock_checkpoint = {"id": 1, "name": "Test Checkpoint"}
             mock_get.return_value = mock_checkpoint
             mock_remove.return_value = True
-            
-            result = mock_remove(mock_db, id=1)
-            
+
+            result = await mock_remove(mock_db, id=1)
+
             assert result is True
             mock_remove.assert_called_once_with(mock_db, id=1)
 

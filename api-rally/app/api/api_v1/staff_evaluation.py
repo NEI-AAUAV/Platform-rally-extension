@@ -27,6 +27,7 @@ from app.api.api_v1.staff_evaluation_utils import (
     is_admin_or_manager,
     validate_staff_checkpoint_access,
     validate_admin_access,
+    check_existing_result,
     check_and_advance_team,
     build_team_for_staff,
     create_activity_result,

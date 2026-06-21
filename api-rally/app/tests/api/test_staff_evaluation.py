@@ -2,7 +2,7 @@
 API tests for Staff Evaluation endpoints
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
@@ -91,7 +91,7 @@ def mock_manager_auth_data():
 class TestStaffEvaluationAPI:
     """Test Staff Evaluation API endpoints"""
     
-    def test_get_teams_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_staff_user, mock_auth_data):
+    async def test_get_teams_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_staff_user, mock_auth_data):
         """Test getting teams available for evaluation"""
         with patch('app.api.api_v1.staff_evaluation.get_staff_with_checkpoint_access') as mock_get_user, \
              patch('app.api.api_v1.staff_evaluation.api_nei_auth') as mock_auth, \
@@ -115,22 +115,22 @@ class TestStaffEvaluationAPI:
             assert response.status_code in [200, 401]
     
     @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_team_activities_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_staff_user, mock_auth_data):
+    async def test_get_team_activities_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_staff_user, mock_auth_data):
         """Test getting activities for a team that can be evaluated"""
         pass
     
     @pytest.mark.skip(reason="Complex evaluation mocking required")
-    def test_evaluate_team_activity_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_auth_data):
+    async def test_evaluate_team_activity_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_auth_data):
         """Test evaluating a team's activity performance"""
         pass
     
     @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_all_evaluations_success(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
+    async def test_get_all_evaluations_success(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
         """Test getting all evaluations (manager only)"""
         pass
     
     @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_all_evaluations_with_team_filter(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
+    async def test_get_all_evaluations_with_team_filter(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
         """Test getting all evaluations filtered by team"""
         pass
 
@@ -138,7 +138,7 @@ class TestStaffEvaluationAPI:
 class TestStaffEvaluationBusinessLogic:
     """Test staff evaluation business logic"""
     
-    def test_team_checkpoint_validation(self):
+    async def test_team_checkpoint_validation(self):
         """Test that teams can only be evaluated at correct checkpoint"""
         from datetime import datetime, timezone
         
@@ -148,7 +148,7 @@ class TestStaffEvaluationBusinessLogic:
         
         assert team_checkpoint <= staff_checkpoint  # Should pass
     
-    def test_evaluation_summary_calculation(self):
+    async def test_evaluation_summary_calculation(self):
         """Test evaluation summary calculation logic"""
         total_activities = 5
         completed_activities = 3
@@ -161,7 +161,7 @@ class TestStaffEvaluationBusinessLogic:
 class TestStaffEvaluationEdgeCases:
     """Test edge cases and error scenarios for staff evaluation"""
     
-    def test_staff_without_checkpoint_assigned(self):
+    async def test_staff_without_checkpoint_assigned(self):
         """Test that staff without checkpoint assignment cannot evaluate"""
         from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
         from fastapi import HTTPException
@@ -172,12 +172,12 @@ class TestStaffEvaluationEdgeCases:
         mock_user.staff_checkpoint_id = None
         
         with pytest.raises(HTTPException) as exc_info:
-            validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+            await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
         
         assert exc_info.value.status_code == 403
         assert "No checkpoint assigned" in exc_info.value.detail
     
-    def test_team_not_found_during_evaluation(self):
+    async def test_team_not_found_during_evaluation(self):
         """Test error when team doesn't exist"""
         from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
         from fastapi import HTTPException
@@ -189,12 +189,12 @@ class TestStaffEvaluationEdgeCases:
         
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                validate_staff_checkpoint_access(mock_db, mock_user, team_id=999, activity_id=1)
+                await validate_staff_checkpoint_access(mock_db, mock_user, team_id=999, activity_id=1)
             
             assert exc_info.value.status_code == 404
             assert "Team not found" in exc_info.value.detail
     
-    def test_team_at_different_checkpoint_allowed(self):
+    async def test_team_at_different_checkpoint_allowed(self):
         """Test that staff can evaluate teams regardless of checkpoint progress (for error recovery)"""
         from unittest.mock import Mock, patch
         from datetime import datetime, timezone
@@ -214,11 +214,11 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
                 # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                team_obj, activity_obj = await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    def test_activity_not_at_staff_checkpoint(self):
+    async def test_activity_not_at_staff_checkpoint(self):
         """Test error when activity is not at staff's checkpoint"""
         from fastapi import HTTPException
         from unittest.mock import Mock, patch
@@ -238,12 +238,12 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
                 with pytest.raises(HTTPException) as exc_info:
-                    validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                    await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
                 
                 assert exc_info.value.status_code == 404
                 assert "Activity not found at your assigned checkpoint" in exc_info.value.detail
     
-    def testvalidate_rally_permissions_staff(self):
+    async def testvalidate_rally_permissions_staff(self):
         """Test permission validation for staff users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -253,7 +253,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_staff) is True
     
-    def testvalidate_rally_permissions_manager(self):
+    async def testvalidate_rally_permissions_manager(self):
         """Test permission validation for manager users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -263,7 +263,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_manager) is True
     
-    def testvalidate_rally_permissions_admin(self):
+    async def testvalidate_rally_permissions_admin(self):
         """Test permission validation for admin users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -273,7 +273,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_admin) is True
     
-    def testvalidate_rally_permissions_no_access(self):
+    async def testvalidate_rally_permissions_no_access(self):
         """Test permission validation for users without rally access"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -283,7 +283,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_no_access) is False
     
-    def testis_admin_or_manager_admin(self):
+    async def testis_admin_or_manager_admin(self):
         """Test admin/manager check for admin users"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -293,7 +293,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_admin) is True
     
-    def testis_admin_or_manager_manager(self):
+    async def testis_admin_or_manager_manager(self):
         """Test admin/manager check for manager users"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -303,7 +303,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_manager) is True
     
-    def testis_admin_or_manager_staff(self):
+    async def testis_admin_or_manager_staff(self):
         """Test admin/manager check for staff users (should be False)"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -313,7 +313,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_staff) is False
     
-    def testserialize_activity_with_all_fields(self):
+    async def testserialize_activity_with_all_fields(self):
         """Test activity serialization with all fields"""
         from app.api.api_v1.staff_evaluation import serialize_activity
         from unittest.mock import Mock
@@ -341,7 +341,7 @@ class TestStaffEvaluationEdgeCases:
         assert result["config"] == {"max_points": 100}
         assert result["is_active"] is True
     
-    def testserialize_activity_without_activity(self):
+    async def testserialize_activity_without_activity(self):
         """Test activity serialization when activity is None"""
         from app.api.api_v1.staff_evaluation import serialize_activity
         from unittest.mock import Mock
@@ -353,7 +353,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert result is None
     
-    def testserialize_team_with_members(self):
+    async def testserialize_team_with_members(self):
         """Test team serialization with members"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -375,7 +375,7 @@ class TestStaffEvaluationEdgeCases:
         assert result["total"] == 100
         assert result["num_members"] == 3
     
-    def testserialize_team_without_members(self):
+    async def testserialize_team_without_members(self):
         """Test team serialization without members"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -394,7 +394,7 @@ class TestStaffEvaluationEdgeCases:
         assert result is not None
         assert result["num_members"] == 0
     
-    def testserialize_team_without_team(self):
+    async def testserialize_team_without_team(self):
         """Test team serialization when team is None"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -406,7 +406,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert result is None
     
-    def testcheck_existing_result_exists(self):
+    async def testcheck_existing_result_exists(self):
         """Test error when result already exists"""
         from app.api.api_v1.staff_evaluation import check_existing_result
         from fastapi import HTTPException
@@ -417,12 +417,12 @@ class TestStaffEvaluationEdgeCases:
         
         with patch('app.api.api_v1.staff_evaluation.activity_result.get_by_activity_and_team', return_value=mock_existing_result):
             with pytest.raises(HTTPException) as exc_info:
-                check_existing_result(mock_db, activity_id=1, team_id=1)
+                await check_existing_result(mock_db, activity_id=1, team_id=1)
             
             assert exc_info.value.status_code == 400
             assert "Result already exists" in exc_info.value.detail
     
-    def testcheck_existing_result_not_exists(self):
+    async def testcheck_existing_result_not_exists(self):
         """Test that no error is raised when result doesn't exist"""
         from app.api.api_v1.staff_evaluation import check_existing_result
         from unittest.mock import Mock, patch
@@ -431,9 +431,9 @@ class TestStaffEvaluationEdgeCases:
         
         with patch('app.api.api_v1.staff_evaluation.activity_result.get_by_activity_and_team', return_value=None):
             # Should not raise an exception
-            check_existing_result(mock_db, activity_id=1, team_id=1)
+            await check_existing_result(mock_db, activity_id=1, team_id=1)
     
-    def test_team_at_exact_checkpoint(self):
+    async def test_team_at_exact_checkpoint(self):
         """Test that staff can evaluate teams at their exact checkpoint"""
         from datetime import datetime, timezone
         from unittest.mock import Mock, patch
@@ -455,11 +455,11 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
                 # Should not raise an exception
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                team_obj, activity_obj = await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    def test_team_at_later_checkpoint(self):
+    async def test_team_at_later_checkpoint(self):
         """Test that staff can evaluate teams that have passed their checkpoint"""
         from datetime import datetime, timezone
         from unittest.mock import Mock, patch
@@ -481,11 +481,11 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
                 # Should not raise an exception - team has passed checkpoint 1
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                team_obj, activity_obj = await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    def test_team_at_checkpoint_zero_allowed(self):
+    async def test_team_at_checkpoint_zero_allowed(self):
         """Test that staff can evaluate teams at checkpoint 0 (for error recovery)"""
         from unittest.mock import Mock, patch
         
@@ -504,11 +504,11 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
                 # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
+                team_obj, activity_obj = await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    def test_completion_rate_calculation_zero_total(self):
+    async def test_completion_rate_calculation_zero_total(self):
         """Test completion rate calculation with zero total activities (edge case)"""
         total_activities = 0
         completed_activities = 0
@@ -521,7 +521,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert completion_rate == 0
     
-    def test_completion_rate_calculation_all_completed(self):
+    async def test_completion_rate_calculation_all_completed(self):
         """Test completion rate calculation when all activities are completed"""
         total_activities = 5
         completed_activities = 5
@@ -529,7 +529,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert completion_rate == 100.0
     
-    def test_completion_rate_calculation_none_completed(self):
+    async def test_completion_rate_calculation_none_completed(self):
         """Test completion rate calculation when no activities are completed"""
         total_activities = 5
         completed_activities = 0
@@ -537,7 +537,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert completion_rate == 0.0
     
-    def testvalidate_admin_access_team_not_found(self):
+    async def testvalidate_admin_access_team_not_found(self):
         """Test admin access validation when team doesn't exist"""
         from app.api.api_v1.staff_evaluation import validate_admin_access
         from fastapi import HTTPException
@@ -547,12 +547,12 @@ class TestStaffEvaluationEdgeCases:
         
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
             with pytest.raises(HTTPException) as exc_info:
-                validate_admin_access(mock_db, team_id=999, activity_id=1)
+                await validate_admin_access(mock_db, team_id=999, activity_id=1)
             
             assert exc_info.value.status_code == 404
             assert "Team not found" in exc_info.value.detail
     
-    def testvalidate_admin_access_activity_not_found(self):
+    async def testvalidate_admin_access_activity_not_found(self):
         """Test admin access validation when activity doesn't exist"""
         from fastapi import HTTPException
         from unittest.mock import Mock, patch
@@ -564,12 +564,12 @@ class TestStaffEvaluationEdgeCases:
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=None):
                 with pytest.raises(HTTPException) as exc_info:
-                    validate_admin_access(mock_db, team_id=1, activity_id=999)
+                    await validate_admin_access(mock_db, team_id=1, activity_id=999)
                 
                 assert exc_info.value.status_code == 404
                 assert "Activity not found" in exc_info.value.detail
     
-    def testvalidate_admin_access_success(self):
+    async def testvalidate_admin_access_success(self):
         """Test successful admin access validation"""
         from unittest.mock import Mock, patch
         
@@ -582,7 +582,7 @@ class TestStaffEvaluationEdgeCases:
         
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                team_obj, activity_obj = validate_admin_access(mock_db, team_id=1, activity_id=1)
+                team_obj, activity_obj = await validate_admin_access(mock_db, team_id=1, activity_id=1)
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
 

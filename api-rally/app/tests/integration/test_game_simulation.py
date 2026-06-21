@@ -25,10 +25,12 @@ class TestGameSimulationScoring:
         assert base_score == 70
         print(f"General Activity: Base score = {base_score}")
         
-        # Apply 2 extra shots (bonus)
+        # Apply 2 extra shots (bonus). The per-shot bonus is now passed in by the
+        # caller (ScoringService resolves it from settings) instead of read from db.
         modifiers = {
             'extra_shots': 2,
-            'penalties': {}
+            'penalties': {},
+            'bonus_per_shot': 2
         }
         
         # Mock database for apply_modifiers
@@ -329,7 +331,7 @@ class TestGameSimulationScoring:
         settings.bonus_per_extra_shot = 2
         mock_db.query.return_value.first.return_value = settings
         
-        modifiers_bonus = {'extra_shots': 3, 'penalties': {}}
+        modifiers_bonus = {'extra_shots': 3, 'penalties': {}, 'bonus_per_shot': 2}
         score_with_bonus = activity.apply_modifiers(base_score, modifiers_bonus, mock_db)
         
         assert score_with_bonus == 56  # 50 + (3 * 2)
@@ -344,7 +346,7 @@ class TestGameSimulationScoring:
         print(f"With vomit penalty (-5): {score_with_penalty}")
         
         # Test 3: Both bonus and penalty
-        modifiers_both = {'extra_shots': 2, 'penalties': {"vomit": 5}}
+        modifiers_both = {'extra_shots': 2, 'penalties': {"vomit": 5}, 'bonus_per_shot': 2}
         score_with_both = activity.apply_modifiers(base_score, modifiers_both, mock_db)
         
         assert score_with_both == 49  # 50 + (2 * 2) - 5 = 49

@@ -2,7 +2,7 @@
 Critical ABAC (Access Control) tests
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, AsyncMock, patch
 
 from app.core.abac import ABACEngine, Policy, Action, Resource, Context
 from app.api.abac_deps import require_permission, get_staff_with_checkpoint_access
@@ -188,32 +188,30 @@ class TestABACDependencies:
                     resource=Resource.TEAM
                 )
     
-    def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
+    async def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
         """Test staff user with checkpoint access"""
-        with patch('app.api.deps.get_db') as mock_get_db:
-            mock_db = Mock()
-            mock_get_db.return_value = mock_db
-            
-            result = get_staff_with_checkpoint_access(
+        mock_db = AsyncMock()
+        with patch('app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id') as mock_get_assignment:
+            mock_get_assignment.return_value = Mock(checkpoint_id=1)
+
+            result = await get_staff_with_checkpoint_access(
                 auth=mock_staff_auth_data,
                 curr_user=mock_staff_user,
                 db=mock_db
             )
-            
+
             assert result == mock_staff_user
-    
-    def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
+
+    async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
-        with patch('app.api.deps.get_db') as mock_get_db:
-            mock_db = Mock()
-            mock_get_db.return_value = mock_db
-            
-            with pytest.raises(Exception):  # Should raise HTTPException
-                get_staff_with_checkpoint_access(
-                    auth=mock_auth_data,
-                    curr_user=mock_user,
-                    db=mock_db
-                )
+        mock_db = AsyncMock()
+
+        with pytest.raises(Exception):  # Should raise HTTPException
+            await get_staff_with_checkpoint_access(
+                auth=mock_auth_data,
+                curr_user=mock_user,
+                db=mock_db
+            )
 
 
 class TestActionResourceEnums:

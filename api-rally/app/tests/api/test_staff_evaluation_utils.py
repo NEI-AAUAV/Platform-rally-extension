@@ -2,7 +2,7 @@
 Additional tests for staff_evaluation_utils to improve coverage
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone
 from fastapi import HTTPException
 
@@ -24,9 +24,9 @@ from app.schemas.activity import ActivityResultEvaluation
 class TestActivityResultCreation:
     """Test activity result creation functions"""
     
-    def test_create_activity_result_success(self):
+    async def test_create_activity_result_success(self):
         """Test successful activity result creation"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         activity_id = 1
         
@@ -40,17 +40,17 @@ class TestActivityResultCreation:
         mock_result.id = 1
         
         with patch('app.api.api_v1.staff_evaluation_utils.ScoringService') as mock_scoring:
-            mock_scoring.return_value.create_result.return_value = mock_result
-            result = create_activity_result(mock_db, team_id, activity_id, result_in)
+            mock_scoring.return_value.create_result = AsyncMock(return_value=mock_result)
+            result = await create_activity_result(mock_db, team_id, activity_id, result_in)
             assert result == mock_result
 
 
 class TestTeamCheckpointProgression:
     """Test team checkpoint progression functions"""
     
-    def test_check_and_advance_team_with_scored_results(self):
+    async def test_check_and_advance_team_with_scored_results(self):
         """Test team advancement when scored results exist"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         
         mock_activity = Mock()
@@ -62,15 +62,15 @@ class TestTeamCheckpointProgression:
         mock_result.activity.checkpoint_id = 1
         mock_result.final_score = 100
         
-        mock_db.scalars.return_value.unique.return_value.all.return_value = [mock_result]
+        mock_db.scalars = AsyncMock(return_value=Mock(unique=Mock(return_value=Mock(all=Mock(return_value=[mock_result])))))
         
         with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
-            check_and_advance_team(mock_db, team_id, mock_activity)
+            await check_and_advance_team(mock_db, team_id, mock_activity)
             mock_advance.assert_called_once_with(mock_db, team_id, 1)
     
-    def test_check_and_advance_team_no_scored_results(self):
+    async def test_check_and_advance_team_no_scored_results(self):
         """Test team does not advance when no scored results exist"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         
         mock_activity = Mock()
@@ -82,15 +82,15 @@ class TestTeamCheckpointProgression:
         mock_result.activity.checkpoint_id = 1
         mock_result.final_score = None
         
-        mock_db.scalars.return_value.unique.return_value.all.return_value = [mock_result]
+        mock_db.scalars = AsyncMock(return_value=Mock(unique=Mock(return_value=Mock(all=Mock(return_value=[mock_result])))))
         
         with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
-            check_and_advance_team(mock_db, team_id, mock_activity)
+            await check_and_advance_team(mock_db, team_id, mock_activity)
             mock_advance.assert_not_called()
     
-    def test_ensure_team_checkpoint_and_advance_needs_checkin(self):
+    async def test_ensure_team_checkpoint_and_advance_needs_checkin(self):
         """Test team is checked in before advancement"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         checkpoint_id = 2
         
@@ -106,33 +106,33 @@ class TestTeamCheckpointProgression:
              patch('app.api.api_v1.staff_evaluation_utils.checkin_team_to_checkpoint') as mock_checkin, \
              patch('app.api.api_v1.staff_evaluation_utils.advance_team_to_next_checkpoint') as mock_advance:
             
-            ensure_team_checkpoint_and_advance(mock_db, team_id, checkpoint_id)
+            await ensure_team_checkpoint_and_advance(mock_db, team_id, checkpoint_id)
             mock_checkin.assert_called_once_with(mock_db, team_id, checkpoint_id)
             mock_advance.assert_called_once_with(mock_db, team_id)
     
-    def test_checkin_team_to_checkpoint_success(self):
+    async def test_checkin_team_to_checkpoint_success(self):
         """Test successful team check-in"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         checkpoint_id = 1
         
         with patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
+            await checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
             mock_add.assert_called_once()
     
-    def test_checkin_team_to_checkpoint_failure(self):
+    async def test_checkin_team_to_checkpoint_failure(self):
         """Test team check-in failure propagates exception"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         checkpoint_id = 1
         
         with patch('app.crud.crud_team.team.add_checkpoint', side_effect=Exception("DB error")):
             with pytest.raises(Exception, match="DB error"):
-                checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
+                await checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
     
-    def test_advance_team_to_next_checkpoint_success(self):
+    async def test_advance_team_to_next_checkpoint_success(self):
         """Test successful team advancement"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         
         mock_next_checkpoint = Mock()
@@ -140,22 +140,22 @@ class TestTeamCheckpointProgression:
         
         with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=mock_next_checkpoint), \
              patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            advance_team_to_next_checkpoint(mock_db, team_id)
+            await advance_team_to_next_checkpoint(mock_db, team_id)
             mock_add.assert_called_once()
     
-    def test_advance_team_to_next_checkpoint_no_next(self):
+    async def test_advance_team_to_next_checkpoint_no_next(self):
         """Test advancement when no next checkpoint exists"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         
         with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=None), \
              patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            advance_team_to_next_checkpoint(mock_db, team_id)
+            await advance_team_to_next_checkpoint(mock_db, team_id)
             mock_add.assert_not_called()
     
-    def test_advance_team_to_next_checkpoint_failure(self):
+    async def test_advance_team_to_next_checkpoint_failure(self):
         """Test team advancement failure propagates exception"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         team_id = 1
         
         mock_next_checkpoint = Mock()
@@ -164,35 +164,35 @@ class TestTeamCheckpointProgression:
         with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=mock_next_checkpoint), \
              patch('app.crud.crud_team.team.add_checkpoint', side_effect=Exception("DB error")):
             with pytest.raises(Exception, match="DB error"):
-                advance_team_to_next_checkpoint(mock_db, team_id)
+                await advance_team_to_next_checkpoint(mock_db, team_id)
 
 
 class TestCheckpointProgressCalculation:
     """Test checkpoint progress calculation functions"""
     
-    def test_checkpoint_has_activities_true(self):
+    async def test_checkpoint_has_activities_true(self):
         """Test checkpoint has activities"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         checkpoint_id = 1
         
         mock_activities = [Mock(), Mock()]
         
         with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=mock_activities):
-            result = checkpoint_has_activities(mock_db, checkpoint_id)
+            result = await checkpoint_has_activities(mock_db, checkpoint_id)
             assert result is True
     
-    def test_checkpoint_has_activities_false(self):
+    async def test_checkpoint_has_activities_false(self):
         """Test checkpoint has no activities"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         checkpoint_id = 1
         
         with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[]):
-            result = checkpoint_has_activities(mock_db, checkpoint_id)
+            result = await checkpoint_has_activities(mock_db, checkpoint_id)
             assert result is False
     
-    def test_is_checkpoint_completed_true(self):
+    async def test_is_checkpoint_completed_true(self):
         """Test checkpoint is completed"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         checkpoint_id = 1
         
         mock_activity1 = Mock()
@@ -203,12 +203,12 @@ class TestCheckpointProgressCalculation:
         completed_ids = {1, 2}
         
         with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[mock_activity1, mock_activity2]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
+            result = await is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
             assert result is True
     
-    def test_is_checkpoint_completed_false(self):
+    async def test_is_checkpoint_completed_false(self):
         """Test checkpoint is not completed"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         checkpoint_id = 1
         
         mock_activity1 = Mock()
@@ -219,20 +219,20 @@ class TestCheckpointProgressCalculation:
         completed_ids = {1}  # Only one activity completed
         
         with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[mock_activity1, mock_activity2]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
+            result = await is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
             assert result is False
     
-    def test_is_checkpoint_completed_no_activities(self):
+    async def test_is_checkpoint_completed_no_activities(self):
         """Test checkpoint with no activities is not completed"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         checkpoint_id = 1
         completed_ids = set()
         
         with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
+            result = await is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
             assert result is False
     
-    def test_determine_current_order_not_at_max(self):
+    async def test_determine_current_order_not_at_max(self):
         """Test current order when not at maximum"""
         mock_checkpoint = Mock()
         mock_checkpoint.order = 5
@@ -242,7 +242,7 @@ class TestCheckpointProgressCalculation:
         result = determine_current_order(checkpoints, last_completed)
         assert result == 3  # last_completed + 1
     
-    def test_determine_current_order_at_max(self):
+    async def test_determine_current_order_at_max(self):
         """Test current order when at maximum"""
         mock_checkpoint = Mock()
         mock_checkpoint.order = 5
@@ -252,7 +252,7 @@ class TestCheckpointProgressCalculation:
         result = determine_current_order(checkpoints, last_completed)
         assert result == 5  # stays at max
     
-    def test_determine_current_order_empty_checkpoints(self):
+    async def test_determine_current_order_empty_checkpoints(self):
         """Test current order with no checkpoints"""
         checkpoints = []
         last_completed = 3
@@ -260,9 +260,9 @@ class TestCheckpointProgressCalculation:
         result = determine_current_order(checkpoints, last_completed)
         assert result == 3  # returns last_completed
     
-    def test_compute_checkpoint_progress_all_completed(self):
+    async def test_compute_checkpoint_progress_all_completed(self):
         """Test progress calculation with all checkpoints completed"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_team = Mock()
         mock_team.id = 1
         
@@ -287,14 +287,14 @@ class TestCheckpointProgressCalculation:
              patch('app.api.api_v1.staff_evaluation_utils.checkpoint_has_activities', return_value=True), \
              patch('app.api.api_v1.staff_evaluation_utils.is_checkpoint_completed', return_value=True):
             
-            last, current, completed = compute_checkpoint_progress(mock_db, mock_team)
+            last, current, completed = await compute_checkpoint_progress(mock_db, mock_team)
             assert last == 2
             assert current == 2
             assert completed == [1, 2]
     
-    def test_build_team_for_staff_complete(self):
+    async def test_build_team_for_staff_complete(self):
         """Test building team data for staff with all fields"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_team = Mock()
         mock_team.id = 1
         mock_team.name = "Test Team"
@@ -306,7 +306,7 @@ class TestCheckpointProgressCalculation:
         mock_team.score_per_checkpoint = [50]
         
         with patch('app.api.api_v1.staff_evaluation_utils.compute_checkpoint_progress', return_value=(1, 2, [1])):
-            result = build_team_for_staff(mock_db, mock_team, staff_checkpoint_order=1)
+            result = await build_team_for_staff(mock_db, mock_team, staff_checkpoint_order=1)
             
             assert result["id"] == 1
             assert result["name"] == "Test Team"
