@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import { shallow } from "zustand/shallow";
+import {
+  getStaffToken,
+  setStaffToken,
+  removeStaffToken,
+  clearAllAuth,
+} from "@/lib/auth/tokenStore";
 
 function parseJWT(token: string) {
   const base64Url = token.split(".")[1];
@@ -46,7 +52,7 @@ const initializeFromStorage = (): Omit<UserState, 'login' | 'logout' | 'setUser'
   };
 
   try {
-    const storedToken = localStorage.getItem('rally_token');
+    const storedToken = getStaffToken();
     if (storedToken) {
       const payload: TokenPayload = parseJWT(storedToken);
       // Token injection is now handled dynamically in main.tsx via OpenAPI.HEADERS resolver
@@ -67,7 +73,7 @@ const initializeFromStorage = (): Omit<UserState, 'login' | 'logout' | 'setUser'
   } catch (error) {
     console.error('Failed to initialize from localStorage:', error);
     // Clear invalid token
-    localStorage.removeItem('rally_token');
+    removeStaffToken();
     return {
       ...baseState,
       sessionLoading: false,
@@ -82,7 +88,7 @@ const useUserStore = create<UserState>((set) => ({
     const payload: TokenPayload = token ? parseJWT(token) : {};
 
     // Store token in localStorage
-    localStorage.setItem('rally_token', token);
+    setStaffToken(token);
 
     // Note: team token is intentionally NOT cleared here.
     // Staff/admin users may also have a team token (dual-role),
@@ -99,9 +105,7 @@ const useUserStore = create<UserState>((set) => ({
 
   logout: () => {
     // Clear both staff and team tokens
-    localStorage.removeItem('rally_token');
-    localStorage.removeItem('rally_team_token');
-    localStorage.removeItem('rally_team_data');
+    clearAllAuth();
 
     set(() => ({
       sessionLoading: false,
@@ -126,9 +130,7 @@ const useUserStore = create<UserState>((set) => ({
 
   clearUser: () => {
     // Clear both staff and team tokens
-    localStorage.removeItem('rally_token');
-    localStorage.removeItem('rally_team_token');
-    localStorage.removeItem('rally_team_data');
+    clearAllAuth();
 
     set(() => ({
       sessionLoading: false,

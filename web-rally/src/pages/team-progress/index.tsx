@@ -5,6 +5,7 @@ import { useThemedComponents } from "@/components/themes/ThemeContext";
 import { ChevronDown, ChevronUp, MapPin, Trophy, Users, Loader2, Navigation } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
+import { getTeamToken } from "@/lib/auth/tokenStore";
 import { formatTime } from "@/utils/timeFormat";
 
 import {
@@ -62,7 +63,7 @@ export default function TeamProgress() {
     const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
         queryKey: ["checkpoints", teamData?.team_id],
         queryFn: async () => {
-            const token = localStorage.getItem("rally_team_token");
+            const token = getTeamToken();
             const response = await fetch("/api/rally/v1/checkpoint/", {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
@@ -77,7 +78,7 @@ export default function TeamProgress() {
     const { data: totalCheckpoints } = useQuery({
         queryKey: ["checkpoints-count"],
         queryFn: async () => {
-            const token = localStorage.getItem("rally_team_token");
+            const token = getTeamToken();
             const response = await fetch("/api/rally/v1/checkpoint/count", {
                 headers: {
                     "Authorization": `Bearer ${token}`,

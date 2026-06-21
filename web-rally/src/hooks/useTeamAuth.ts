@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TeamService, TeamMembersService, type DetailedTeam } from "@/client";
-
+import {
+  getTeamToken,
+  setTeamToken,
+  getTeamData,
+  setTeamData,
+  hasTeamData,
+  clearTeamAuth,
+  type TeamTokenData,
+} from "@/lib/auth/tokenStore";
 
 
 interface TeamLoginResponse {
@@ -11,39 +19,27 @@ interface TeamLoginResponse {
   team_name: string;
 }
 
-interface TeamTokenData {
-  team_id: number;
-  team_name: string;
-}
-
-const TEAM_TOKEN_KEY = "rally_team_token";
-const TEAM_DATA_KEY = "rally_team_data";
-
 /**
  * Hook for team authentication
  * Provides login, logout, and authentication state management
  */
 export default function useTeamAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [teamData, setTeamData] = useState<TeamTokenData | null>(null);
+  const [teamData, setTeamDataState] = useState<TeamTokenData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const queryClient = useQueryClient();
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = localStorage.getItem(TEAM_TOKEN_KEY);
-    const data = localStorage.getItem(TEAM_DATA_KEY);
+    const token = getTeamToken();
+    const data = getTeamData();
 
     if (token && data) {
-      try {
-        const parsedData = JSON.parse(data) as TeamTokenData;
-        setTeamData(parsedData);
-        setIsAuthenticated(true);
-      } catch (error) {
-        // Invalid data, clear storage
-        localStorage.removeItem(TEAM_TOKEN_KEY);
-        localStorage.removeItem(TEAM_DATA_KEY);
-      }
+      setTeamDataState(data);
+      setIsAuthenticated(true);
+    } else if (token && hasTeamData()) {
+      // Token present and a data entry exists but is corrupt — clear stale storage.
+      clearTeamAuth();
     }
     setIsLoadingAuth(false);
   }, []);
@@ -77,19 +73,14 @@ export default function useTeamAuth() {
     },
     onSuccess: (data) => {
       // Store token and team data
-      localStorage.setItem(TEAM_TOKEN_KEY, data.access_token);
-      localStorage.setItem(
-        TEAM_DATA_KEY,
-        JSON.stringify({
-          team_id: data.team_id,
-          team_name: data.team_name,
-        })
-      );
-
-      setTeamData({
+      const teamTokenData: TeamTokenData = {
         team_id: data.team_id,
         team_name: data.team_name,
-      });
+      };
+      setTeamToken(data.access_token);
+      setTeamData(teamTokenData);
+
+      setTeamDataState(teamTokenData);
       setIsAuthenticated(true);
     },
   });
@@ -127,15 +118,14 @@ export default function useTeamAuth() {
   };
 
   const logout = () => {
-    localStorage.removeItem(TEAM_TOKEN_KEY);
-    localStorage.removeItem(TEAM_DATA_KEY);
+    clearTeamAuth();
     setIsAuthenticated(false);
-    setTeamData(null);
+    setTeamDataState(null);
     queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 
   const getToken = (): string | null => {
-    return localStorage.getItem(TEAM_TOKEN_KEY);
+    return getTeamToken();
   };
 
   return {

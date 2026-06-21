@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { refreshToken } from "./services/client";
 import { OpenAPI } from "./client/core/OpenAPI";
 import { useUserStore } from "@/stores/useUserStore";
+import { getTeamToken } from "@/lib/auth/tokenStore";
 import { ToastProvider } from "@/components/ui/toast";
 
 // Configure OpenAPI BASE URL - use empty string to use relative paths
@@ -21,7 +22,7 @@ OpenAPI.HEADERS = async () => {
   }
 
   // Fall back to team token if no staff token
-  const teamToken = localStorage.getItem('rally_team_token');
+  const teamToken = getTeamToken();
   if (teamToken) {
     return { 'Authorization': `Bearer ${teamToken}` } as Record<string, string>;
   }

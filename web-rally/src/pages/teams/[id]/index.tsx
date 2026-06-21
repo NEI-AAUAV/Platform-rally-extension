@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowBigLeft, ChevronDown, ChevronUp, AlertTriangle, MapPin, Navigation, Target } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import useRallySettings from "@/hooks/useRallySettings";
+import { getStaffToken, getTeamToken } from "@/lib/auth/tokenStore";
 import { formatTime } from "@/utils/timeFormat";
 import { useState } from "react";
 import { useThemedComponents } from "@/components/themes";
@@ -116,7 +117,7 @@ export default function TeamsById() {
   const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
     queryKey: ["teamEvaluations", id],
     queryFn: async () => {
-      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const token = getStaffToken() || getTeamToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
@@ -156,7 +157,7 @@ export default function TeamsById() {
     queryKey: ["checkpoints-count"],
     queryFn: async () => {
       // Use user token if available, otherwise try team token
-      const token = localStorage.getItem("rally_token") || localStorage.getItem("rally_team_token");
+      const token = getStaffToken() || getTeamToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };

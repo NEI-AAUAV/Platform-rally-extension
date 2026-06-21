@@ -1,10 +1,9 @@
 import axios from "axios";
 import { useUserStore } from "@/stores/useUserStore.ts";
 import config from "@/config";
+import { getTeamToken, setTeamToken, clearTeamAuth } from "@/lib/auth/tokenStore";
 
 const UNAUTHORIZED = 401;
-const TEAM_TOKEN_KEY = "rally_team_token";
-const TEAM_DATA_KEY = "rally_team_data";
 
 let isRefreshing = false;
 
@@ -31,7 +30,7 @@ function getCurrentToken(): { token: string; type: 'staff' | 'team' } | null {
 
   // Fall back to team token ONLY if no staff token exists
   // This ensures team tokens don't interfere with staff authentication
-  const teamToken = localStorage.getItem(TEAM_TOKEN_KEY);
+  const teamToken = getTeamToken();
   if (teamToken) {
     return { token: teamToken, type: 'team' };
   }
@@ -71,7 +70,7 @@ export async function refreshToken() {
   // Always attempt the NEI staff refresh — it relies on the HttpOnly cookie,
   // so it works even when no staff token is in localStorage yet.
   // Run it in parallel with the team refresh when both tokens exist.
-  const teamToken = localStorage.getItem(TEAM_TOKEN_KEY);
+  const teamToken = getTeamToken();
 
   const neiRefreshPromise = axios
     .create({
@@ -107,15 +106,14 @@ export async function refreshToken() {
       })
       .post("/api/rally/v1/team-auth/refresh")
       .then(({ data: { access_token } }) => {
-        localStorage.setItem(TEAM_TOKEN_KEY, access_token);
+        setTeamToken(access_token);
         return access_token as string;
       })
       .catch((error) => {
         if (process.env.NODE_ENV === 'development') {
           console.error('Team token refresh failed:', error);
         }
-        localStorage.removeItem(TEAM_TOKEN_KEY);
-        localStorage.removeItem(TEAM_DATA_KEY);
+        clearTeamAuth();
         return undefined;
       });
 
