@@ -20,6 +20,40 @@ if (typeof globalThis.URL === 'undefined') {
   }
 }
 
+// jsdom 28 / Node expose an inert `localStorage` global (it requires
+// `--localstorage-file` to function), which shadows window storage in the test
+// runner. Install a deterministic in-memory Storage so storage-backed hooks and
+// stores behave consistently across tests.
+class MemoryStorage implements Storage {
+  private store = new Map<string, string>()
+  get length() {
+    return this.store.size
+  }
+  clear() {
+    this.store.clear()
+  }
+  getItem(key: string) {
+    return this.store.has(key) ? this.store.get(key)! : null
+  }
+  key(index: number) {
+    return Array.from(this.store.keys())[index] ?? null
+  }
+  removeItem(key: string) {
+    this.store.delete(key)
+  }
+  setItem(key: string, value: string) {
+    this.store.set(key, String(value))
+  }
+}
+
+for (const name of ['localStorage', 'sessionStorage'] as const) {
+  const storage = new MemoryStorage()
+  Object.defineProperty(globalThis, name, { value: storage, writable: true, configurable: true })
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, name, { value: storage, writable: true, configurable: true })
+  }
+}
+
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers)
 

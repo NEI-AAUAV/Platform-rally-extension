@@ -13,6 +13,11 @@ export default defineConfig({
     exclude: ['tests/e2e/**', '**/node_modules/**', '**/dist/**', '**/.{idea,git,cache,output,temp}/**'],
     globals: true,
     environment: 'jsdom',
+    // jsdom defaults to the opaque "about:blank" origin, where localStorage is
+    // unavailable. Pin a concrete origin so storage-backed hooks/tests work.
+    environmentOptions: {
+      jsdom: { url: 'http://localhost' },
+    },
     setupFiles: './tests/unit/setup.ts',
     coverage: {
       provider: 'istanbul',
