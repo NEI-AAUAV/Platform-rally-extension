@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
   resolveBranding,
+  hexToRgba,
   FALLBACK_EVENT_NAME,
   FALLBACK_EVENT_SUBTITLE,
   FALLBACK_BANNER_SRC,
@@ -65,5 +66,30 @@ describe('resolveBranding', () => {
   test('accent color drives theme color when set', () => {
     const b = resolveBranding(make({ accent_color: '#00ff00' }));
     expect(b.themeColor).toBe('#00ff00');
+  });
+});
+
+describe('hexToRgba', () => {
+  test('expands 3-digit hex', () => {
+    expect(hexToRgba('#0f8', 0.5)).toBe('rgba(0, 255, 136, 0.5)');
+  });
+
+  test('parses 6-digit hex', () => {
+    expect(hexToRgba('#dc2626', 0.12)).toBe('rgba(220, 38, 38, 0.12)');
+  });
+
+  test('accepts hex without leading hash and trims', () => {
+    expect(hexToRgba('  ffffff ', 1)).toBe('rgba(255, 255, 255, 1)');
+  });
+
+  test('is case-insensitive', () => {
+    expect(hexToRgba('#ABCDEF', 0.3)).toBe('rgba(171, 205, 239, 0.3)');
+  });
+
+  test('returns null for non-hex input', () => {
+    expect(hexToRgba('red', 0.5)).toBeNull();
+    expect(hexToRgba('#12', 0.5)).toBeNull();
+    expect(hexToRgba('rgb(0,0,0)', 0.5)).toBeNull();
+    expect(hexToRgba('', 0.5)).toBeNull();
   });
 });

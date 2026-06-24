@@ -91,10 +91,6 @@ export default function LandingGate({ branding, loginLink, teamLoginHref = "/ral
                 Login Equipa
               </a>
             </div>
-
-            <p className="mt-4 text-center text-xs text-[rgb(255,255,255,0.45)]">
-              Acesso público ativável nas definições.
-            </p>
           </div>
         </div>
       </div>
