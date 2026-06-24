@@ -1,17 +1,12 @@
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
 from pydantic import BaseModel
-from typing import Annotated, Any, Union, Dict, List, Optional, no_type_check
-from jose import JWTError, jwt
 
+from app.api.oidc import jwt_validator
 from app.core.config import SettingsDep
-
-
-@no_type_check
-def get_public_key(settings: SettingsDep) -> str:
-    with open(settings.JWT_PUBLIC_KEY_PATH, "r") as file:
-        return file.read()
 
 
 class ScopeEnum(str, Enum):
@@ -23,58 +18,73 @@ class ScopeEnum(str, Enum):
     DEFAULT = "default"
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="http://localhost:8000/api/nei/v1/auth/login",  # Used only for OpenAPI docs
-    scopes={
-        ScopeEnum.ADMIN: "Full access to everything.",
-        ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
-        ScopeEnum.RALLY_STAFF: "Staff access to rally.",
-    },
-)
+def map_groups_to_scopes(groups: List[str], settings: SettingsDep) -> List[str]:
+    """Map authentik group names (``groups`` claim) to rally scopes."""
+    scopes: List[str] = []
+    if settings.OIDC_ADMIN_GROUP in groups:
+        scopes.append(ScopeEnum.ADMIN.value)
+    if settings.OIDC_MANAGER_GROUP in groups:
+        scopes.append(ScopeEnum.MANAGER_RALLY.value)
+    if settings.OIDC_STAFF_GROUP in groups:
+        scopes.append(ScopeEnum.RALLY_STAFF.value)
+    return scopes
 
 
 class AuthData(BaseModel):
-    sub: int
-    nmec: Optional[int]
+    # OIDC subject identifier from the provider (stable, unique per user).
+    oidc_sub: str
     name: str
-    email: str
-    surname: str
-    scopes: List[str]
+    email: Optional[str] = None
+    scopes: List[str] = []
 
 
-def api_nei_auth(
+def _build_auth_data(claims: Dict[str, Any], settings: SettingsDep) -> AuthData:
+    groups = claims.get("groups", []) or []
+    name = (
+        claims.get("name")
+        or claims.get("preferred_username")
+        or claims.get("email")
+        or "Unknown User"
+    )
+    return AuthData(
+        oidc_sub=claims["sub"],
+        name=name,
+        email=claims.get("email"),
+        scopes=map_groups_to_scopes(groups, settings),
+    )
+
+
+# Bearer schemes. auto_error=False so a missing token yields a 401 (not the
+# 403 HTTPBearer raises by default); the optional variant returns None instead.
+oauth2_scheme = HTTPBearer(auto_error=False)
+oauth2_scheme_optional = HTTPBearer(auto_error=False)
+
+
+async def api_nei_auth(
     settings: SettingsDep,
-    public_key: Annotated[str, Depends(get_public_key)],
     security_scopes: SecurityScopes,
-    token: str = Depends(oauth2_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme),
 ) -> AuthData:
-    """Dependency for user authentication"""
+    """Dependency for required user authentication (validates an authentik token)."""
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
     else:
         authenticate_value = "Bearer"
 
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": authenticate_value},
-    )
-
-    try:
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=[settings.JWT_ALGORITHM],
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": authenticate_value},
         )
-        auth_data = AuthData.model_validate(payload)
-    except JWTError:
-        raise credentials_exception
 
-    # Bypass scopes for admin
-    if ScopeEnum.ADMIN in auth_data.scopes:
+    claims = await jwt_validator.validate_token(credentials.credentials)
+    auth_data = _build_auth_data(claims, settings)
+
+    # Bypass scope checks for admins.
+    if ScopeEnum.ADMIN.value in auth_data.scopes:
         return auth_data
 
-    # Verify that the token has all the necessary scopes
     for scope in security_scopes.scopes:
         if scope not in auth_data.scopes:
             raise HTTPException(
@@ -86,36 +96,20 @@ def api_nei_auth(
     return auth_data
 
 
-oauth2_scheme_optional = OAuth2PasswordBearer(
-    tokenUrl="http://localhost:8000/api/nei/v1/auth/login",
-    scopes={
-        ScopeEnum.ADMIN: "Full access to everything.",
-        ScopeEnum.MANAGER_RALLY: "Edit rally tascas.",
-        ScopeEnum.RALLY_STAFF: "Staff access to rally.",
-    },
-    auto_error=False,
-)
-
-
-def api_nei_auth_optional(
+async def api_nei_auth_optional(
     settings: SettingsDep,
-    public_key: Annotated[str, Depends(get_public_key)],
-    token: Optional[str] = Depends(oauth2_scheme_optional),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme_optional),
 ) -> Optional[AuthData]:
-    """Dependency for optional user authentication"""
-    if not token:
+    """Dependency for optional user authentication. Returns None when no/invalid token."""
+    if not credentials:
         return None
 
     try:
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-        auth_data = AuthData.model_validate(payload)
-        return auth_data
-    except JWTError:
+        claims = await jwt_validator.validate_token(credentials.credentials)
+    except HTTPException:
         return None
+
+    return _build_auth_data(claims, settings)
 
 
 auth_responses: Dict[Union[int, str], Dict[str, Any]] = {

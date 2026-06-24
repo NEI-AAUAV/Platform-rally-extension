@@ -6,12 +6,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
 from app import crud
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.db.session import SessionLocal
-from app.models.user import User
-from app.schemas.user import DetailedUser, UserCreate
+from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
 from app.core.config import settings
 from app.schemas.team_auth import TeamTokenData
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+
 
 
 
@@ -24,35 +26,27 @@ async def get_current_user(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DetailedUser:
-    user = await db.get(User, auth.sub)
+    user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
     if user is None:
-        # Create user with auth.sub as ID (set before commit to avoid primary key modification issues)
-        # This is needed for NEI platform compatibility where user IDs must match auth.sub
-        user = await crud.user.create_with_id(
+        # First login: mirror the authentik identity into a local user row.
+        user = await crud.user.create_for_oidc(
             db,
-            obj_in=UserCreate(
-                name=f"{auth.name} {auth.surname}",
-            ),
-            user_id=auth.sub
+            authentik_sub=auth.oidc_sub,
+            name=auth.name,
+            email=auth.email,
+            scopes=auth.scopes,
         )
-        # Set scopes after creation (User model has this field but schema doesn't)
-        # User is already tracked by session after create_with_id, so just update and commit
+    elif user.scopes != auth.scopes:
+        # Keep local scopes in sync with the identity provider.
         user.scopes = auth.scopes
+        db.add(user)
         await db.commit()
         await db.refresh(user)
-    else:
-        # Update scopes if they've changed
-        if user.scopes != auth.scopes:
-            user.scopes = auth.scopes
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
 
     # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
     if "rally-staff" in auth.scopes:
-        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
 
@@ -66,11 +60,11 @@ async def get_current_user_optional(
     if not auth:
         return None
 
-    user = await db.get(User, auth.sub)
+    user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
     if user is None:
         return None
 
-    # Update scopes if they've changed (Sync with Auth Service)
+    # Update scopes if they've changed (sync with identity provider)
     if user.scopes != auth.scopes:
         user.scopes = auth.scopes
         db.add(user)
@@ -80,8 +74,7 @@ async def get_current_user_optional(
     # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
     if "rally-staff" in auth.scopes:
-        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
 

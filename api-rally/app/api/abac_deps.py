@@ -13,7 +13,6 @@ from loguru import logger
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_current_user
-from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission,
@@ -59,98 +58,42 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
     return dependency
 
 
-async def _initialize_user_from_auth(auth: AuthData, db: AsyncSession) -> DetailedUser:
-    """Initialize DetailedUser from auth data with fallback to database"""
-    try:
-        return DetailedUser(
-            id=auth.sub,
-            name=f"{auth.name} {auth.surname}".strip() or auth.email,
-            disabled=False,
-            staff_checkpoint_id=None,
-            team_id=None,
-            is_captain=False,
-        )
-    except (ValueError, TypeError, AttributeError):
-        # Fallback: attempt to load from local User if schema changes or validation fails
-        user = await db.get(User, auth.sub)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        try:
-            return DetailedUser.model_validate(user)
-        except Exception as validation_error:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to validate user data: {str(validation_error)}"
-            )
-
-
-async def _validate_staff_checkpoint_assignment(
-    curr_user: DetailedUser, auth: AuthData, db: AsyncSession
-) -> None:
-    """Validate and set staff checkpoint assignment"""
-    from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-
-    staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
-    if not staff_assignment or not staff_assignment.checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Staff user must be assigned to a checkpoint"
-        )
-    curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-
-
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: Optional[DetailedUser] = None,
+    curr_user: DetailedUser = Depends(get_current_user),
     db: AsyncSession = Depends(deps.get_db)
 ) -> DetailedUser:
     """
-    Get staff user with ABAC checkpoint access validation
-    
+    Get staff user with ABAC checkpoint access validation.
+
+    ``get_current_user`` already mirrors the authentik identity into a local
+    user row and loads ``staff_checkpoint_id`` for rally-staff. Here we only
+    enforce that the user holds a rally scope and, for staff, has an assigned
+    checkpoint.
+
     Ensures the user is either:
     - Admin (full access)
-    - Rally manager (full access) 
+    - Rally manager (full access)
     - Rally staff with assigned checkpoint
     """
-    
-    # Log authentication data for debugging
-    logger.info(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
-    
-    if curr_user is None:
-        # Build user from auth claims to avoid hard dependency on local User row
-        # Local User may not exist for staff-only access; we still want staff to work.
-        try:
-            curr_user = await _initialize_user_from_auth(auth, db)
-            logger.info(f"Created DetailedUser from auth: id={curr_user.id}, name={curr_user.name}")
-        except HTTPException:
-            # Re-raise HTTP exceptions from helper
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error initializing user: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to initialize user: {str(e)}"
-            )
-    
-    # Check if user has any Rally permissions
-    has_rally_access = deps.is_admin_or_staff(auth.scopes)
-    
-    if not has_rally_access:
+
+    logger.info(f"get_staff_with_checkpoint_access: user_id={curr_user.id}, scopes={auth.scopes}")
+
+    if not deps.is_admin_or_staff(auth.scopes):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not have Rally permissions"
         )
-    
-    # For staff users, ensure they have a checkpoint assignment
+
+    # For staff users, ensure they have a checkpoint assignment.
     if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
-        logger.info(f"Checking staff assignment for user_id={auth.sub}")
-        await _validate_staff_checkpoint_assignment(curr_user, auth, db)
-        logger.info(f"Staff user {auth.sub} assigned to checkpoint {curr_user.staff_checkpoint_id}")
-    
-    logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
+        if curr_user.staff_checkpoint_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff user must be assigned to a checkpoint"
+            )
+        logger.info(f"Staff user {curr_user.id} assigned to checkpoint {curr_user.staff_checkpoint_id}")
+
     return curr_user
 
 
