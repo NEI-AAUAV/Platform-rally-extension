@@ -35,28 +35,28 @@ export default function RouteCheckpointItem({
   const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[checkpointOrder - 1] ?? 0) : 0;
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
 
+  const getCardClass = () => {
+    if (isCompleted) return 'bg-white/5 hover:bg-white/10';
+    if (isNext) return 'bg-indigo-500/20 border-indigo-500/50 hover:bg-indigo-500/30';
+    return 'bg-black/20 opacity-60 hover:opacity-100';
+  };
+
+  const getBadgeClass = () => {
+    if (isCompleted) return 'bg-green-500/20 text-green-300';
+    if (isNext) return 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50';
+    return 'bg-white/5 text-white/50';
+  };
+
   return (
     <Card
-      className={`cursor-pointer transition-all overflow-hidden backdrop-blur-md border-white/5 ${
-        isCompleted
-          ? 'bg-white/5 hover:bg-white/10'
-          : isNext
-            ? 'bg-indigo-500/20 border-indigo-500/50 hover:bg-indigo-500/30'
-            : 'bg-black/20 opacity-60 hover:opacity-100'
-      }`}
+      className={`cursor-pointer transition-all overflow-hidden backdrop-blur-md border-white/5 ${getCardClass()}`}
       onClick={() => onToggle(index)}
     >
       <div className="p-4 flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                isCompleted
-                  ? 'bg-green-500/20 text-green-300'
-                  : isNext
-                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50'
-                    : 'bg-white/5 text-white/50'
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getBadgeClass()}`}
             >
               {checkpointOrder}
             </div>

@@ -136,7 +136,7 @@ describe('useQRCodeScanner', () => {
           bottomLeftFinderPattern: { x: 0, y: 0 },
         },
       }
-      vi.mocked(jsQR).mockReturnValue(mockQRCode as any)
+      vi.mocked(jsQR).mockReturnValue(mockQRCode)
 
       const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
 

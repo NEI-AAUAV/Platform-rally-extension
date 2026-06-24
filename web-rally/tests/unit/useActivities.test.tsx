@@ -23,7 +23,7 @@ vi.mock('@/client', async (importOriginal) => {
 })
 
 // Mock useUser hook - make it dynamic
-const mockUseUser = vi.fn((_options?) => {
+const mockUseUser = vi.fn(() => {
   const scopes = ['manager-rally'];
   const token = 'test-token';
 
@@ -38,7 +38,7 @@ const mockUseUser = vi.fn((_options?) => {
 })
 
 vi.mock('@/hooks/useUser', () => ({
-  default: (options?: any) => mockUseUser(options),
+  default: () => mockUseUser(),
 }))
 
 // Mock useUserStore
@@ -76,7 +76,7 @@ describe('useActivities Hook', () => {
       },
       isRallyAdmin: true,
       isLoading: false,
-    } as any)
+    } as never)
   })
 
   it('should fetch activities when user is manager', async () => {
@@ -85,7 +85,7 @@ describe('useActivities Hook', () => {
       { id: 2, name: 'Activity 2', activity_type: 'TimeBasedActivity' },
     ]
 
-    vi.mocked(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).mockResolvedValue(mockActivities as any)
+    vi.mocked(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).mockResolvedValue(mockActivities as never)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -107,7 +107,7 @@ describe('useActivities Hook', () => {
       },
       isRallyAdmin: false,
       isLoading: false,
-    } as any)
+    } as never)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -127,7 +127,7 @@ describe('useActivities Hook', () => {
         token: '',
       },
       isRallyAdmin: true,
-    } as any)
+    } as never)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -155,7 +155,7 @@ describe('useCreateActivity Hook', () => {
 
     const mockCreatedActivity = { id: 1, ...mockActivity }
 
-    vi.mocked(ActivitiesService.createActivityApiRallyV1ActivitiesPost).mockResolvedValue(mockCreatedActivity as any)
+    vi.mocked(ActivitiesService.createActivityApiRallyV1ActivitiesPost).mockResolvedValue(mockCreatedActivity as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -202,7 +202,7 @@ describe('useUpdateActivity Hook', () => {
 
     const mockUpdatedActivity = { id: 1, name: 'Updated Activity' }
 
-    vi.mocked(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).mockResolvedValue(mockUpdatedActivity as any)
+    vi.mocked(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).mockResolvedValue(mockUpdatedActivity as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -242,7 +242,7 @@ describe('useDeleteActivity Hook', () => {
   })
 
   it('should delete activity and invalidate queries', async () => {
-    vi.mocked(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).mockResolvedValue(undefined as any)
+    vi.mocked(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).mockResolvedValue(undefined as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {

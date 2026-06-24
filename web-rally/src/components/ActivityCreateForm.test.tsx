@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ActivityForm from './ActivityCreateForm';
@@ -5,7 +6,7 @@ import { ActivityType, Checkpoint } from '@/types/activityTypes';
 
 // Mock dependencies
 vi.mock('@/components/themes/bloody', () => ({
-  BloodyButton: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  BloodyButton: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
 }));
 
 vi.mock('@/components/ActivityTypeInfo', () => ({

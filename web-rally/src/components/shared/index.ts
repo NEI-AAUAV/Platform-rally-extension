@@ -14,9 +14,6 @@ export { default as PermissionGuard } from './PermissionGuard';
 // Status and feedback
 export { default as StatusMessage } from './StatusMessage';
 
-// Form components
-export { default as TeamSelector } from './TeamSelector';
-
 // Feature management
 export { default as FeatureDisabledAlert } from './FeatureDisabledAlert';
 

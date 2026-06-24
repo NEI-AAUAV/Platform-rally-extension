@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
 
 /**
@@ -15,18 +15,16 @@ export function useQRCodeScanner(
   const scanIntervalRef = useRef<number>();
 
 
-  const scan = () => {
+  const scan = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
     if (!video || !canvas || !isActive) {
-      console.log('Scan aborted: missing refs or inactive', { video: !!video, canvas: !!canvas, isActive })
       return;
     }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      console.log('Scan aborted: no context')
       return;
     }
 
@@ -53,7 +51,7 @@ export function useQRCodeScanner(
       console.error("Scanning error:", err);
       setError("Erro ao processar câmara");
     }
-  };
+  }, [videoRef, canvasRef, isActive, onDetectCode]);
 
   const startScanning = () => {
     setIsActive(true);
@@ -76,7 +74,7 @@ export function useQRCodeScanner(
         cancelAnimationFrame(scanIntervalRef.current);
       }
     };
-  }, [isActive]);
+  }, [isActive, scan]);
 
   return {
     isActive,

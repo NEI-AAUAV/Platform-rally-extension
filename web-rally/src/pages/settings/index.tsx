@@ -77,6 +77,7 @@ import { getErrorMessage } from "@/utils/errorHandling";
 export default function RallySettings() {
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
+  const fallbackPath = useFallbackNavigation();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -236,7 +237,6 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
-  const fallbackPath = useFallbackNavigation();
   if (!isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }

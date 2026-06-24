@@ -28,8 +28,8 @@ function toRequestBody(data: CheckpointForm): CheckPointCreate {
   return {
     name: data.name,
     description: data.description,
-    latitude: data.latitude ? parseFloat(data.latitude) : null,
-    longitude: data.longitude ? parseFloat(data.longitude) : null,
+    latitude: data.latitude ? Number.parseFloat(data.latitude) : null,
+    longitude: data.longitude ? Number.parseFloat(data.longitude) : null,
     order: data.order,
   };
 }

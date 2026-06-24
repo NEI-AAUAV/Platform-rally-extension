@@ -103,7 +103,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
               description: data.description ?? null,
               activity_type: data.activity_type as unknown as ClientActivityType,
               checkpoint_id: data.checkpoint_id,
-              config: data.config as Record<string, any>,
+              config: data.config as Record<string, unknown>,
               is_active: data.is_active,
             };
             const mutation = editingActivity ? handleUpdateActivity : handleCreateActivity;

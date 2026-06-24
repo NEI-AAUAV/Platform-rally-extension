@@ -56,7 +56,7 @@ describe('useUser Hook', () => {
       email: 'test@example.com',
     }
 
-    vi.mocked(UserService.getMeApiRallyV1UserMeGet).mockResolvedValue(mockUser as any)
+    vi.mocked(UserService.getMeApiRallyV1UserMeGet).mockResolvedValue(mockUser as never)
     Object.assign(mockUserStoreState, {
       scopes: ['rally-staff'],
       token: 'test-token',

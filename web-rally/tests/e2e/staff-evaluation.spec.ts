@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import {
   MOCK_CHECKPOINT,
   MOCK_TEAM,
@@ -1116,10 +1116,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
   });
 
   test('prevents double submission during evaluation', async ({ page, context }) => {
-    let submissionCount = 0;
-
     await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', async (route) => {
-      submissionCount++;
       // Simulate slow response
       await page.waitForTimeout(500);
       await route.fulfill({
@@ -1465,8 +1462,8 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
 test.describe('Staff Evaluation - Activity Type Evaluations', () => {
   const setupTestForActivityType = async (
-    page: any,
-    context: any,
+    page: Page,
+    context: BrowserContext,
     activity: typeof MOCK_ACTIVITY,
   ) => {
     // Set up route mocks
@@ -1824,8 +1821,8 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
 
 test.describe('Staff Evaluation - Form Validation', () => {
   const setupTestForActivityType = async (
-    page: any,
-    context: any,
+    page: Page,
+    context: BrowserContext,
     activity: typeof MOCK_ACTIVITY,
   ) => {
     // Set up route mocks

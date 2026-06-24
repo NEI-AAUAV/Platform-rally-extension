@@ -48,13 +48,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
             Arraste pelos ícones <GripVertical className="w-3 h-3 inline mx-1" /> para reordenar
           </p>
         </div>
-        {!hasCheckpoints ? (
-          <EmptyState
-            icon={<MapPin className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
-            title="Nenhum checkpoint criado ainda"
-            description="Crie o primeiro checkpoint para começar"
-          />
-        ) : (
+        {hasCheckpoints ? (
           <ul className="space-y-3 list-none">
             {sortedCheckpoints.map((checkpoint) => (
               <CheckpointListItem
@@ -71,6 +65,12 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
               />
             ))}
           </ul>
+        ) : (
+          <EmptyState
+            icon={<MapPin className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
+            title="Nenhum checkpoint criado ainda"
+            description="Crie o primeiro checkpoint para começar"
+          />
         )}
       </Card>
     </div>

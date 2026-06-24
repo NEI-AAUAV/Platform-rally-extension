@@ -56,7 +56,7 @@ describe('client.ts', () => {
           response: { use: vi.fn() },
         },
       }
-      vi.mocked(axios.create).mockReturnValue(mockInstance as any)
+      vi.mocked(axios.create).mockReturnValue(mockInstance as never)
 
       const { createClient } = await import('@/services/client')
       const client = createClient('http://localhost:8000')
@@ -75,7 +75,7 @@ describe('client.ts', () => {
           response: { use: vi.fn() },
         },
       }
-      vi.mocked(axios.create).mockReturnValue(mockInstance as any)
+      vi.mocked(axios.create).mockReturnValue(mockInstance as never)
 
       const { createClient } = await import('@/services/client')
       createClient()
@@ -93,7 +93,7 @@ describe('client.ts', () => {
       mockStoreState.token = null
 
       const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-team-token' } })
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as any)
+      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
       const { refreshToken } = await import('@/services/client')
       const result = await refreshToken()
@@ -108,7 +108,7 @@ describe('client.ts', () => {
       mockStoreState.token = null
 
       const mockPost = vi.fn().mockRejectedValue(new Error('Unauthorized'))
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as any)
+      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
       const { refreshToken } = await import('@/services/client')
       const result = await refreshToken()
@@ -122,7 +122,7 @@ describe('client.ts', () => {
       mockStoreState.token = 'staff-jwt'
 
       const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-staff-token' } })
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as any)
+      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
       const { refreshToken } = await import('@/services/client')
       const result = await refreshToken()
@@ -135,7 +135,7 @@ describe('client.ts', () => {
       mockStoreState.token = 'expired-staff-jwt'
 
       const mockPost = vi.fn().mockRejectedValue(new Error('Unauthorized'))
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as any)
+      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
       const { refreshToken } = await import('@/services/client')
       const result = await refreshToken()
@@ -148,7 +148,7 @@ describe('client.ts', () => {
       mockStoreState.token = null
 
       const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-token' } })
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as any)
+      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
       const { refreshToken } = await import('@/services/client')
       await refreshToken()
