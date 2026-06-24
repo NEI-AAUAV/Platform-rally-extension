@@ -4,7 +4,8 @@ import { useThemedComponents } from "@/components/themes";
 import { Navigate } from "react-router-dom";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
-import { TeamService, type ListingTeam } from "@/client";
+import { CheckPointService, TeamService, type ListingTeam } from "@/client";
+import LeaderboardHeader from "./components/LeaderboardHeader";
 
 export default function Scoreboard() {
   const { Card, Score } = useThemedComponents();
@@ -13,9 +14,17 @@ export default function Scoreboard() {
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
   });
-  const sortedTeams = teams?.sort(
-    (a: ListingTeam, b: ListingTeam) => a.classification - b.classification,
-  );
+  // Checkpoint count is best-effort: the endpoint may be unavailable to public
+  // viewers, so a failure simply hides the checkpoint-derived stats.
+  const { data: checkpoints } = useQuery({
+    queryKey: ["checkpoints"],
+    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    retry: false,
+  });
+  const checkpointsCount = Array.isArray(checkpoints) ? checkpoints.length : undefined;
+  const sortedTeams = teams
+    ? [...teams].sort((a: ListingTeam, b: ListingTeam) => a.classification - b.classification)
+    : undefined;
 
   // Check permissions
   const { scopes } = useUserStore((state) => state);
@@ -66,7 +75,14 @@ export default function Scoreboard() {
   }
 
   return (
-    <div className="mt-16 grid gap-4">
+    <div className="mt-8 grid gap-4">
+      {displayTeams && displayTeams.length > 1 && displayTeams[0] && (
+        <LeaderboardHeader
+          leader={displayTeams[0]}
+          teamsCount={displayTeams.length}
+          checkpointsCount={checkpointsCount}
+        />
+      )}
       {displayTeams?.map((team: ListingTeam) => <Score key={team.id} team={team} />)}
     </div>
   );
