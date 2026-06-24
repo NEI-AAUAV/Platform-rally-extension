@@ -36,7 +36,18 @@ class RallySettings(Base):
     show_score_mode = Column(String(20), nullable=False, default="hidden")  # 'hidden', 'individual', or 'competitive'
     
     # Rally customization
+    # rally_theme is a SKIN PRESET (structure/motif only): 'bloody' | 'nei' | 'default'.
+    # Event identity below is DATA, so one build serves every edition.
     rally_theme = Column(String(100), nullable=False, default="Rally Tascas")
-    
+
+    # Universal branding (data, not code)
+    event_name = Column(String(120), nullable=False, default="Rally Tascas")
+    event_subtitle = Column(String(200), nullable=False, default="")
+    accent_color = Column(String(32), nullable=False, default="")  # CSS color, e.g. "#c81d25"
+    # Image URLs are written by the R2 upload endpoints, not the settings PUT.
+    banner_url = Column(String(500), nullable=False, default="")
+    logo_url = Column(String(500), nullable=False, default="")
+    favicon_url = Column(String(500), nullable=False, default="")
+
     # Access control
     public_access_enabled = Column(Boolean, nullable=False, default=False)

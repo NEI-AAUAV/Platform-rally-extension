@@ -33,8 +33,13 @@ class RallySettingsBase(BaseModel):
     show_score_mode: str  # 'hidden', 'individual', or 'competitive'
     
     # Rally customization
-    rally_theme: str
-    
+    rally_theme: str  # skin preset: 'bloody' | 'nei' | 'default'
+
+    # Universal branding (text fields are editable via the settings PUT)
+    event_name: str = "Rally Tascas"
+    event_subtitle: str = ""
+    accent_color: str = ""  # CSS color, e.g. "#c81d25"
+
     # Access control
     public_access_enabled: bool
 
@@ -43,3 +48,9 @@ class RallySettingsUpdate(RallySettingsBase):
 
 class RallySettingsResponse(RallySettingsBase):
     model_config = ConfigDict(from_attributes=True)
+
+    # Image URLs are read-only here: set via the R2 upload endpoints so a
+    # plain settings PUT can never clobber them with a stale value.
+    banner_url: str = ""
+    logo_url: str = ""
+    favicon_url: str = ""

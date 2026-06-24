@@ -38,6 +38,13 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 show_score_mode="hidden",
                 # Rally customization
                 rally_theme="Rally Tascas - Competição de Equipas",
+                # Universal branding
+                event_name="Rally Tascas",
+                event_subtitle="Competição de Equipas",
+                accent_color="",
+                banner_url="",
+                logo_url="",
+                favicon_url="",
                 # Access control
                 public_access_enabled=True
             )
@@ -45,6 +52,23 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             await db.commit()
             await db.refresh(settings)
 
+        return settings
+
+    async def set_image_url(
+        self, db: "AsyncSession", *, field: str, url: str
+    ) -> RallySettings:
+        """Persist a single branding image URL column (banner_url/logo_url).
+
+        Kept separate from update() so image URLs are only ever written by the
+        R2 upload endpoints, never by a plain settings PUT.
+        """
+        if field not in ("banner_url", "logo_url", "favicon_url"):
+            raise ValueError(f"Unsupported branding image field: {field}")
+
+        settings = await self.get_or_create(db)
+        setattr(settings, field, url)
+        await db.commit()
+        await db.refresh(settings)
         return settings
 
 rally_settings = CRUDRallySettings(RallySettings)

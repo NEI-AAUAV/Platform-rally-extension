@@ -13,6 +13,11 @@ services:
       POSTGRES_PASSWORD: postgres
       JWT_PUBLIC_KEY_PATH: /jwt.key.pub
       TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
     volumes:
       - ./extensions/rally/api-rally:/api_rally
       - ./dev-keys/jwt.key.pub:/jwt.key.pub:ro

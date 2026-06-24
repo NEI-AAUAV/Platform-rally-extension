@@ -24,6 +24,16 @@ class Settings(BaseSettings):
         "https://nei.web.ua.pt" if PRODUCTION else "http://localhost:8000"
     )
     STATIC_URL: AnyHttpUrl = AnyHttpUrl(urljoin(str(HOST), STATIC_STR))
+
+    # Cloudflare R2 object storage (branding image uploads). Optional:
+    # when unset, upload endpoints return 503 and the app falls back to
+    # bundled defaults. Same contract as the gala/family extensions.
+    R2_ENDPOINT_URL: Optional[str] = os.getenv("R2_ENDPOINT_URL")
+    R2_ACCESS_KEY_ID: Optional[str] = os.getenv("R2_ACCESS_KEY_ID")
+    R2_SECRET_ACCESS_KEY: Optional[str] = os.getenv("R2_SECRET_ACCESS_KEY")
+    R2_BUCKET: Optional[str] = os.getenv("R2_BUCKET")
+    R2_PUBLIC_BASE_URL: Optional[str] = os.getenv("R2_PUBLIC_BASE_URL")
+
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = [
         AnyHttpUrl("https://nei.web.ua.pt" if PRODUCTION else "http://localhost:3000")
