@@ -71,15 +71,18 @@ class Settings(BaseSettings):
         f":5432/{POSTGRES_DB}_test"
     )
 
-    # Auth settings
-    ## Path to JWT signing keys
-    JWT_PUBLIC_KEY_PATH: str = os.getenv(
-        "JWT_PUBLIC_KEY_PATH", "../../../dev-keys/jwt.key.pub"
-    )
-    ## Algorithm to use when signing JWT tokens
-    JWT_ALGORITHM: str = "ES512"
-    
-    # Team authentication (separate from NEI JWT)
+    # OIDC authentication
+    # Rally is a pure OIDC resource server: it validates access tokens minted
+    # by the provider via JWKS discovery. It does NOT mint its own tokens.
+    OIDC_PROVIDER_URL: str = os.getenv("OIDC_PROVIDER_URL", "")
+    OIDC_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "")
+    OIDC_APPLICATION_SLUG: str = os.getenv("OIDC_APPLICATION_SLUG", "rally")
+    ## authentik group names mapped to rally scopes (ScopeEnum).
+    OIDC_ADMIN_GROUP: str = os.getenv("OIDC_ADMIN_GROUP", "admin")
+    OIDC_MANAGER_GROUP: str = os.getenv("OIDC_MANAGER_GROUP", "manager-rally")
+    OIDC_STAFF_GROUP: str = os.getenv("OIDC_STAFF_GROUP", "rally-staff")
+
+    # Team authentication (independent: rally mints its own HS256 team tokens)
     ## Secret key for team JWT tokens
     TEAM_JWT_SECRET_KEY: Optional[str] = os.getenv("TEAM_JWT_SECRET_KEY")
     TEAM_JWT_ALGORITHM: str = "HS256"

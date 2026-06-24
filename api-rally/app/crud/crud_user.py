@@ -3,6 +3,8 @@ from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 
 from app.crud.base import CRUDBase
 from app.models.user import User
@@ -20,24 +22,46 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         """
         return await self._create_internal(db, obj_in=obj_in)
 
-    async def create_with_id(self, db: AsyncSession, *, obj_in: UserCreate, user_id: int) -> User:
-        """
-        Create a user forcing a specific primary key (for NEI auth compatibility).
-        """
-        return await self._create_internal(db, obj_in=obj_in, user_id=user_id)
+    async def get_by_authentik_sub(
+        self, db: AsyncSession, *, authentik_sub: str
+    ) -> Optional[User]:
+        """Look up a staff/manager/admin user by their OIDC subject."""
+
+        result = await db.scalars(
+            select(User).where(User.authentik_sub == authentik_sub)
+        )
+        return result.first()
+
+    async def create_for_oidc(
+        self,
+        db: AsyncSession,
+        *,
+        authentik_sub: str,
+        name: str,
+        email: Optional[str],
+        scopes: list[str],
+    ) -> User:
+        """Create a local user mirroring an authentik identity on first login."""
+        db_obj = User(
+            authentik_sub=authentik_sub,
+            name=name,
+            email=email,
+            scopes=scopes,
+        )
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
 
     async def _create_internal(
         self,
         db: AsyncSession,
         *,
         obj_in: UserCreate,
-        user_id: Optional[int] = None,
     ) -> User:
         try:
             obj_in_data = jsonable_encoder(obj_in)
             db_obj = self.model(**obj_in_data)
-            if user_id is not None:
-                db_obj.id = user_id  # noqa: A001
             db.add(db_obj)
             await db.commit()
             await db.refresh(db_obj)

@@ -2,12 +2,14 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from sqlalchemy import select, text
 
 from app import crud
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_admin
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
+from app.models.user import User
 
 router = APIRouter()
 
@@ -21,65 +23,59 @@ async def get_staff_assignments(
     *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
-    Get all users with rally-staff role from NEI platform and their checkpoint assignments.
-    This shows all rally-staff users from the main NEI platform and their current checkpoint assignments.
+    Get all rally-staff users (mirrored locally from authentik on login) and
+    their checkpoint assignments. A user appears here once they have logged in
+    at least once and carry the rally-staff scope.
     """
-    # Get all users with rally-staff role from NEI User table
-    from app.models.nei_user import NEIUser
-    from sqlalchemy import select
-    
-    # Query users with rally-staff scope from NEI's user table
-    from sqlalchemy import text
-    stmt = select(NEIUser).where(text("scopes @> ARRAY['rally-staff']::text[]"))
+
+
+    stmt = select(User).where(text("scopes @> ARRAY['rally-staff']::text[]"))
     rally_staff_users = (await db.scalars(stmt)).all()
 
     # Get existing assignments
     existing_assignments = await crud.rally_staff_assignment.get_multi_with_checkpoint(db)
     assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
-    
-    # Build result list with all rally-staff users from NEI
+
+    # Build result list with all rally-staff users
     result = []
     for user in rally_staff_users:
         user_id = user.id
         assignment = assignment_map.get(user_id)
-        
+
         if assignment:
-            # User has an assignment
             assignment_data = {
                 "id": assignment.id,
                 "user_id": user_id,
-                "user_name": f"{user.name} {user.surname}",
-                "user_email": None,  # Email is in separate table
+                "user_name": user.name,
+                "user_email": user.email,
                 "checkpoint_id": assignment.checkpoint_id,
                 "checkpoint_name": assignment.checkpoint.name if assignment.checkpoint else None,
                 "checkpoint_description": assignment.checkpoint.description if assignment.checkpoint else None,
             }
         else:
-            # User has no assignment
             assignment_data = {
                 "id": 0,  # Temporary ID for unassigned users
                 "user_id": user_id,
-                "user_name": f"{user.name} {user.surname}",
-                "user_email": None,  # Email is in separate table
+                "user_name": user.name,
+                "user_email": user.email,
                 "checkpoint_id": None,
                 "checkpoint_name": None,
                 "checkpoint_description": None,
             }
-        
+
         result.append(RallyStaffAssignmentWithCheckpoint(**assignment_data))
-    
+
     return result
 
 
 @router.get("/me")
 async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> Dict[str, Any]:
     """
-    Get current user information.
-    Returns the authenticated user from the NEI platform.
+    Get current user information from the validated authentik token.
     """
     return {
-        "id": auth.sub,
-        "name": f"{auth.name} {auth.surname}",
+        "oidc_sub": auth.oidc_sub,
+        "name": auth.name,
         "email": auth.email,
         "scopes": auth.scopes,
         "disabled": False
