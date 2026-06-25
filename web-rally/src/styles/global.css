@@ -159,6 +159,31 @@
     border: 2px solid var(--rally-accent, var(--rally-accent-fallback));
     box-shadow: 4px 4px 0 0 var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
+  /* Neo-brutalist hard offset shadows (token-based, theme-agnostic). Mirror of
+     the gamification brutal-shadow family. */
+  .brutal-shadow {
+    box-shadow: 5px 5px 0 0 hsl(var(--foreground));
+  }
+  .brutal-shadow-sm {
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground));
+  }
+  .brutal-shadow-primary {
+    box-shadow: 5px 5px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  /* Pressed/active interaction: shrink the shadow and nudge the element into it. */
+  .brutal-press {
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
+  }
+  .brutal-press:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 6px 6px 0 0 hsl(var(--foreground));
+  }
+  .brutal-press:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 hsl(var(--foreground));
+  }
   /* mega display type with letter-spacing tuned for headlines */
   .rally-display {
     font-family: "Space Grotesk", "Inter", sans-serif;

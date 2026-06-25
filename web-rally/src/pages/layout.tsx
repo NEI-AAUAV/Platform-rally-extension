@@ -1,4 +1,5 @@
-import { NavTabs, RallyTimeBanner } from "@/components/shared";
+import { RallyTimeBanner } from "@/components/shared";
+import { RallyNavbar } from "@/components/shared/RallyNavbar";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingGate from "@/components/landing/LandingGate";
@@ -63,17 +64,19 @@ function MainLayoutContent() {
   }
 
   return (
-    <div className="font-inter rally-grain" data-rally-theme={themeName} style={bgStyle}>
-      <div className="relative z-10 mx-2 min-h-screen pb-10 pt-8 text-[rgb(255,255,255,0.95)] antialiased sm:mx-4 sm:pt-12">
-        <BrandHeader branding={branding} />
-        <NavTabs className="mt-5 justify-center" />
-        <RallyTimeBanner />
-        <div className="mt-6">
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
-        </div>
-        <PWAInstallPrompt />
+    <div className="font-inter rally-grain min-h-screen text-[rgb(255,255,255,0.95)] antialiased" data-rally-theme={themeName} style={bgStyle}>
+      <div className="relative z-10">
+        <RallyNavbar branding={branding} />
+        <main className="mx-2 pb-10 pt-6 sm:mx-4">
+          <BrandHeader branding={branding} className="mx-auto max-w-6xl" />
+          <RallyTimeBanner />
+          <div className="mt-6">
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
+          <PWAInstallPrompt />
+        </main>
       </div>
     </div>
   );
