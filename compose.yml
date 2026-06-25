@@ -99,6 +99,8 @@ services:
       VITE_OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       VITE_OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       VITE_OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      # Realtime scoreboard (mirror of backend EVENTS_ENABLED).
+      VITE_EVENTS_ENABLED: ${EVENTS_ENABLED:-false}
     volumes:
       - ./web-rally:/web_rally
       - rally_node_modules:/web_rally/node_modules

@@ -84,3 +84,4 @@ jobs:
             VITE_OIDC_ADMIN_GROUP=${{ vars.OIDC_ADMIN_GROUP }}
             VITE_OIDC_MANAGER_GROUP=${{ vars.OIDC_MANAGER_GROUP }}
             VITE_OIDC_STAFF_GROUP=${{ vars.OIDC_STAFF_GROUP }}
+            VITE_EVENTS_ENABLED=${{ vars.EVENTS_ENABLED }}
