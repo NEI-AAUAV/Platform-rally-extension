@@ -6,7 +6,7 @@ import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import {
   CheckPointService,
@@ -103,7 +103,10 @@ type EvaluationResponse = ActivityResultResponse & {
   });
 
   const handleCheckpointClick = (checkpoint: DetailedCheckPoint) => {
-    navigate(`/staff-evaluation/checkpoint/${checkpoint.id}`);
+    navigate({
+      to: "/staff-evaluation/checkpoint/$checkpointId",
+      params: { checkpointId: String(checkpoint.id) },
+    });
   };
 
   return (

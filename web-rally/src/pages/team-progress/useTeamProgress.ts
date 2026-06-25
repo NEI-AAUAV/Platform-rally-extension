@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -23,14 +23,14 @@ export function useTeamProgress() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate("/team-login");
+      navigate({ to: "/team-login" });
     }
   }, [authLoading, isAuthenticated, navigate]);
 
   // Check if participant view is enabled
   useEffect(() => {
     if (!settingsLoading && settings && !settings.participant_view_enabled) {
-      navigate("/scoreboard");
+      navigate({ to: "/scoreboard" });
     }
   }, [settingsLoading, settings, navigate]);
 

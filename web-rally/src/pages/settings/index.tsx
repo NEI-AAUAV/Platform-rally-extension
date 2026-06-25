@@ -7,7 +7,7 @@ import { Settings, Save, RotateCcw } from "lucide-react";
 import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";

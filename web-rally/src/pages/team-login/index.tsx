@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useThemedComponents } from "@/components/themes/ThemeContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ export default function TeamLogin() {
     const { Card, config } = components;
 
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const search = useSearch({ strict: false }) as { code?: string };
+    const codeFromUrl = typeof search.code === "string" ? search.code : undefined;
     const { login, isAuthenticated, teamData, isLoggingIn, loginError } = useTeamAuth();
     const toast = useAppToast();
 
@@ -26,7 +27,6 @@ export default function TeamLogin() {
 
     // Pre-fill access code from URL if provided (QR code scan from outside the app)
     useEffect(() => {
-        const codeFromUrl = searchParams.get("code");
         if (codeFromUrl && !isLoggingIn) {
             setAccessCode(codeFromUrl);
             // Auto-submit if code is provided from URL (with slight delay for smooth UX)
@@ -34,7 +34,7 @@ export default function TeamLogin() {
                 try {
                     await login(codeFromUrl.trim());
                     toast.success("Login bem-sucedido!");
-                    navigate("/team-progress");
+                    navigate({ to: "/team-progress" });
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
                     toast.error(errorMessage);
@@ -42,7 +42,7 @@ export default function TeamLogin() {
             }, 500);
             return () => clearTimeout(timer);
         }
-    }, [searchParams, isLoggingIn, login, toast, navigate]);
+    }, [codeFromUrl, isLoggingIn, login, toast, navigate]);
 
     // Only redirect if authenticated AND not coming from a team-change intent
     // (i.e., not navigated here via the 'Trocar Equipa' link)
@@ -90,7 +90,7 @@ export default function TeamLogin() {
         try {
             await login(code);
             toast.success("Login bem-sucedido!");
-            navigate("/team-progress");
+            navigate({ to: "/team-progress" });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
             toast.error(errorMessage);

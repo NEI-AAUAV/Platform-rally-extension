@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { NEIBadge } from "./badge";
 import { NEIButton } from "./button";
 import type { ListingTeam } from "@/client";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { formatTime } from "@/utils/timeFormat";
 
 /**
@@ -92,7 +92,7 @@ export function NEIScore({ className, team, ...props }: ScoreProps) {
       <span className="grow text-center text-4xl font-bold text-white">
         {team.total}pts
       </span>
-      <Link to={`/teams/${team.id}`}>
+      <Link to="/teams/$id" params={{ id: String(team.id) }}>
         <NEIButton variant={"primary"}>
           View Team
         </NEIButton>

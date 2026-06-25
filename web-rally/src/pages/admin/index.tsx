@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes";
 import { Users, MapPin, Activity as ActivityIcon, Palette } from "lucide-react";

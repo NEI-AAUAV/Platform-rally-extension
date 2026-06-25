@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { useUserStore } from "@/stores/useUserStore";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";

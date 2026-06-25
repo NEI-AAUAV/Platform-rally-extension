@@ -9,7 +9,7 @@ import useDocumentBranding from "@/hooks/useDocumentBranding";
 import { resolveBranding } from "@/lib/branding";
 import { useUserStore } from "@/stores/useUserStore";
 import type { CSSProperties } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "@/components/themes";
 
 function MainLayoutContent() {

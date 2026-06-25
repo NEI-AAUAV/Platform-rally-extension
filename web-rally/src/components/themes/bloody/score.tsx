@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { BloodyBadge } from "./badge";
 import { BloodyButton } from "./button";
 import type { ListingTeam } from "@/client";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { formatTime } from "@/utils/timeFormat";
 
 type ScoreProps = { team: ListingTeam } & ComponentProps<"div">;
@@ -86,7 +86,7 @@ export function BloodyScore({ className, team, ...props }: ScoreProps) {
       <span className="grow text-center text-4xl font-bold text-white">
         {team.total}pts
       </span>
-      <Link to={`/teams/${team.id}`}>
+      <Link to="/teams/$id" params={{ id: String(team.id) }}>
         <BloodyButton variant={"primary"} blood>
           View Team
         </BloodyButton>

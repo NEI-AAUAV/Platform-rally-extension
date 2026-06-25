@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useAuth } from "react-oidc-context";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "@tanstack/react-router";
 
 /**
  * Returns a staff-login trigger. Starts the authentik PKCE flow and remembers
@@ -14,10 +14,11 @@ import { useLocation } from "react-router-dom";
  */
 export default function useStaffLogin(): () => void {
   const auth = useAuth();
-  const { pathname, search, hash } = useLocation();
+  // TanStack's ParsedLocation.href is the relative path incl. search + hash.
+  const { href } = useLocation();
 
   return useCallback(() => {
-    sessionStorage.setItem("rally_auth_return_url", pathname + search + hash);
+    sessionStorage.setItem("rally_auth_return_url", href);
     void auth.signinRedirect();
-  }, [auth, pathname, search, hash]);
+  }, [auth, href]);
 }

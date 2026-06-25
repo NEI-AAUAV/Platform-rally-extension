@@ -6,7 +6,7 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { CheckpointList, MapSection } from "./components";
 import { useThemedComponents } from "@/components/themes";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 
 interface Checkpoint {
   id: number;

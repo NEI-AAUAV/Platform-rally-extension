@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowBigLeft } from "lucide-react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useThemedComponents } from "@/components/themes";
 import { nthNumber } from "./teamDetails.types";
@@ -10,7 +10,7 @@ import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
 
 export default function TeamsById() {
   const { Card } = useThemedComponents();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id: string };
   const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
 
   const {

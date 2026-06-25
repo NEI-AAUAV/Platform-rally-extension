@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { StaffEvaluationService } from "@/client";
 
 export default function StaffEvaluationPage() {
@@ -22,7 +22,10 @@ export default function StaffEvaluationPage() {
   // Redirect to checkpoint evaluation page once checkpoint is loaded
   useEffect(() => {
     if (myCheckpoint) {
-      navigate(`/staff-evaluation/checkpoint/${myCheckpoint.id}`);
+      navigate({
+        to: "/staff-evaluation/checkpoint/$checkpointId",
+        params: { checkpointId: String(myCheckpoint.id) },
+      });
     }
   }, [myCheckpoint, navigate]);
 

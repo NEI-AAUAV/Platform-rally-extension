@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import useTeamAuth from "@/hooks/useTeamAuth";
 
 /** Redirects team users to /team-progress, everyone else to /scoreboard */

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useThemedComponents } from "../themes";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";

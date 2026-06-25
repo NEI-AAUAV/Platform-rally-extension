@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import type { ListingTeam } from "@/client";
 import { TeamActivitiesList } from "./TeamActivitiesList";
@@ -10,7 +10,7 @@ import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
 
 export default function CheckpointTeamEvaluation() {
-  const { checkpointId } = useParams<{ checkpointId: string }>();
+  const { checkpointId } = useParams({ strict: false }) as { checkpointId: string };
   const { settings } = useRallySettings();
   const {
     checkpoint,

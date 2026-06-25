@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useThemedComponents } from "@/components/themes";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";

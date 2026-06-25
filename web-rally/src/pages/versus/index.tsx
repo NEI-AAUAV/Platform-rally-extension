@@ -3,7 +3,7 @@ import { Swords } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useRallySettings from "@/hooks/useRallySettings";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
 import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";

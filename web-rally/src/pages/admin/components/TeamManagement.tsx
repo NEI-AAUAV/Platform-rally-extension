@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -246,7 +246,7 @@ export default function TeamManagement() {
                     <BloodyButton
                       variant="neutral"
                       title="Gerir membros da equipa"
-                      onClick={() => navigate(`/team-members?adminTeamId=${team.id}`)}
+                      onClick={() => navigate({ to: "/team-members" })}
                     >
                       <Users className="w-4 h-4" />
                     </BloodyButton>
