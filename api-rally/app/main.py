@@ -1,3 +1,6 @@
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import FastAPI, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +13,44 @@ from app.api.api import api_v1_router
 from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
-from app.core.redis import check_redis_health
+from app.core.redis import check_redis_health, close_pools
+from app.workers import LeaderboardWorker
 
-app = FastAPI(title="Rally Tascas API", default_response_class=ORJSONResponse)
+# Background workers, started in the lifespan when EVENTS_ENABLED is set.
+_workers: list[LeaderboardWorker] = []
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Application startup/shutdown.
+
+    Startup: logging, schema bootstrap and (when the realtime subsystem is
+    enabled) the background workers. Shutdown: stop workers and close Redis.
+    """
+    init_logging()
+    await init_db()
+
+    if settings.EVENTS_ENABLED:
+        worker = LeaderboardWorker()
+        worker.start(background=True)
+        _workers.append(worker)
+        logger.info("Realtime subsystem enabled: started {} worker(s)", len(_workers))
+
+    try:
+        yield
+    finally:
+        for worker in _workers:
+            worker.stop()
+        _workers.clear()
+        if settings.EVENTS_ENABLED:
+            await close_pools()
+
+
+app = FastAPI(
+    title="Rally Tascas API",
+    default_response_class=ORJSONResponse,
+    lifespan=lifespan,
+)
 
 
 @app.exception_handler(RallyError)
@@ -47,8 +85,6 @@ app.add_middleware(
 )
 
 app.mount(settings.STATIC_STR, StaticFiles(directory="static"), name="static")
-app.add_event_handler("startup", init_logging)
-app.add_event_handler("startup", init_db)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 
