@@ -1,7 +1,13 @@
+import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useThemedComponents } from "@/components/themes";
 import { Navigate } from "@tanstack/react-router";
+
+const PointsDistributionChart = lazy(
+  () => import("@/components/scoreboard/PointsDistributionChart"),
+);
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";
@@ -87,7 +93,27 @@ export default function Scoreboard() {
           checkpointsCount={checkpointsCount}
         />
       )}
-      {displayTeams?.map((team: ListingTeam) => <Score key={team.id} team={team} />)}
+      {displayTeams && displayTeams.length > 1 && (
+        <Suspense fallback={null}>
+          <PointsDistributionChart teams={displayTeams} />
+        </Suspense>
+      )}
+      <motion.div layout className="grid gap-4">
+        <AnimatePresence initial={false}>
+          {displayTeams?.map((team: ListingTeam) => (
+            <motion.div
+              key={team.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            >
+              <Score team={team} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
