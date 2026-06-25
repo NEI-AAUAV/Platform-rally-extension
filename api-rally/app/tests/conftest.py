@@ -2,35 +2,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from fastapi.testclient import TestClient
-from unittest.mock import patch, mock_open
-import builtins
+from unittest.mock import patch
 
-# Mock the public key BEFORE importing anything that uses it
-mock_key = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghijklmnopqrstuvwxyz
-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
-UVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc
-defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuv
-wxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO
-PQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789
-0abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqr
------END PUBLIC KEY-----"""
-
-# Mock open() to intercept JWT key file reads globally
-_original_open = builtins.open
-
-
-def mock_file_open(*args, **kwargs):
-    # If trying to open a JWT key file, return mock content
-    if len(args) > 0 and ('jwt.key' in str(args[0]) or 'public' in str(args[0]).lower()):
-        return mock_open(read_data=mock_key)(*args, **kwargs)
-    return _original_open(*args, **kwargs)
-
-
-# Replace builtin open function
-builtins.open = mock_file_open
-
-# Now import app and other dependencies
+# Rally is an OIDC resource server: it validates authentik-issued tokens via
+# JWKS discovery and no longer reads a local signing key, so there is nothing to
+# mock at import time.
 from app.models.base import Base
 from app.main import app
 from app.api.deps import get_db
