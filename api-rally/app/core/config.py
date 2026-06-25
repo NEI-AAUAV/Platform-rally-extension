@@ -62,6 +62,18 @@ class Settings(BaseSettings):
         os.getenv("EVENTS_FAIL_SILENTLY", "true").lower() == "true"
     )
 
+    # Team QR self-check-in. A checkpoint shows a short-lived HMAC-signed QR;
+    # a team scans it to check itself into that checkpoint (replacing staff
+    # gating). Off by default — a rally opts in. The signing secret falls back
+    # to TEAM_JWT_SECRET_KEY when unset, so no new mandatory env is required.
+    SELF_CHECKIN_ENABLED: bool = (
+        os.getenv("SELF_CHECKIN_ENABLED", "false").lower() == "true"
+    )
+    CHECKIN_HMAC_SECRET: Optional[str] = os.getenv("CHECKIN_HMAC_SECRET") or None
+    CHECKIN_TOKEN_TTL_SECONDS: int = int(
+        os.getenv("CHECKIN_TOKEN_TTL_SECONDS", "90")
+    )
+
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"
     
