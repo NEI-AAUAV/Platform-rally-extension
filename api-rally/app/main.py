@@ -14,10 +14,10 @@ from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.redis import check_redis_health, close_pools
-from app.workers import LeaderboardWorker
+from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker
 
 # Background workers, started in the lifespan when EVENTS_ENABLED is set.
-_workers: list[LeaderboardWorker] = []
+_workers: list[BaseWorker] = []
 
 
 @asynccontextmanager
@@ -31,9 +31,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await init_db()
 
     if settings.EVENTS_ENABLED:
-        worker = LeaderboardWorker()
-        worker.start(background=True)
-        _workers.append(worker)
+        for worker_cls in (LeaderboardWorker, BadgesWorker):
+            worker = worker_cls()
+            worker.start(background=True)
+            _workers.append(worker)
         logger.info("Realtime subsystem enabled: started {} worker(s)", len(_workers))
 
     try:

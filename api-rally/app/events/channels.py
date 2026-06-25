@@ -22,6 +22,9 @@ class Channels:
     RALLY_STARTED = f"{PREFIX}.rally.started"
     RALLY_ENDED = f"{PREFIX}.rally.ended"
 
+    # A team earned a badge (drives notifications / profile refresh).
+    BADGE_AWARDED = f"{PREFIX}.badge.awarded"
+
     # Internal signal: the cached leaderboard was rebuilt (drives the SSE stream).
     LEADERBOARD_REFRESHED = f"{PREFIX}.leaderboard.refreshed"
 

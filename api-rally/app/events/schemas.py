@@ -22,6 +22,7 @@ class EventType(str, Enum):
     TEAM_CHECKPOINT_ADVANCED = "team.checkpoint_advanced"
     RALLY_STARTED = "rally.started"
     RALLY_ENDED = "rally.ended"
+    BADGE_AWARDED = "badge.awarded"
 
 
 class BaseEvent(BaseModel):
@@ -67,6 +68,14 @@ class RallyLifecyclePayload(BaseModel):
     rally_id: int
 
 
+class BadgeAwardedPayload(BaseModel):
+    """Payload for badge.awarded events."""
+
+    team_id: int
+    badge_type: str
+    activity_id: int | None = None
+
+
 # --- Events ---------------------------------------------------------------
 
 
@@ -103,3 +112,8 @@ class RallyStartedEvent(BaseEvent):
 class RallyEndedEvent(BaseEvent):
     event_type: EventType = EventType.RALLY_ENDED
     payload: RallyLifecyclePayload
+
+
+class BadgeAwardedEvent(BaseEvent):
+    event_type: EventType = EventType.BADGE_AWARDED
+    payload: BadgeAwardedPayload

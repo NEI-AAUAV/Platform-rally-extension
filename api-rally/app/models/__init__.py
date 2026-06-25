@@ -4,7 +4,8 @@ from .checkpoint import CheckPoint
 from .rally_staff_assignment import RallyStaffAssignment
 from .activity import Activity, ActivityResult, RallyEvent
 from .rally_settings import RallySettings
+from .badge import BadgeType, TeamBadge
 
 from .base import Base
 
-__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "Activity", "ActivityResult", "RallyEvent", "RallySettings"]
+__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "Activity", "ActivityResult", "RallyEvent", "RallySettings", "BadgeType", "TeamBadge"]

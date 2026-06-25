@@ -26,6 +26,7 @@ EVENT_TYPE_TO_CHANNEL: dict[EventType, str] = {
     EventType.TEAM_CHECKPOINT_ADVANCED: Channels.TEAM_CHECKPOINT_ADVANCED,
     EventType.RALLY_STARTED: Channels.RALLY_STARTED,
     EventType.RALLY_ENDED: Channels.RALLY_ENDED,
+    EventType.BADGE_AWARDED: Channels.BADGE_AWARDED,
 }
 
 

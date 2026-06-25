@@ -1,0 +1,96 @@
+"""Unit tests for the BadgesWorker orchestration."""
+
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
+from typing import Any, AsyncIterator
+from unittest.mock import AsyncMock
+
+import pytest
+
+from app.badges.evaluators import BadgeAward
+from app.models.badge import BadgeType
+from app.workers import worker_badges
+from app.workers.worker_badges import BadgesWorker
+
+
+def _patch_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    @asynccontextmanager
+    async def fake_session() -> AsyncIterator[Any]:
+        yield AsyncMock()
+
+    monkeypatch.setattr(worker_badges, "worker_session", fake_session)
+
+
+def _created_event(result_id: int = 5) -> dict[str, Any]:
+    return {"event_type": "activity_result.created", "payload": {"result_id": result_id}}
+
+
+async def test_awards_and_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_session(monkeypatch)
+    result = SimpleNamespace(id=5, team_id=10, activity_id=99)
+    monkeypatch.setattr(
+        BadgesWorker, "_load_result", AsyncMock(return_value=result)
+    )
+    award = BadgeAward(
+        team_id=10, badge_type=BadgeType.HEAD_TO_HEAD_WIN, activity_id=99
+    )
+    monkeypatch.setattr(
+        worker_badges, "evaluate_result", AsyncMock(return_value=[award])
+    )
+    monkeypatch.setattr(
+        "app.services.badge_service.award_badge",
+        AsyncMock(return_value=SimpleNamespace(id=1)),
+    )
+    published = []
+    monkeypatch.setattr(
+        worker_badges,
+        "publish_event",
+        AsyncMock(side_effect=lambda e: published.append(e)),
+    )
+
+    await BadgesWorker().handle_event("rally.activity_result.created", _created_event())
+
+    assert len(published) == 1
+    assert published[0].payload.team_id == 10
+    assert published[0].payload.badge_type == "head_to_head_win"
+
+
+async def test_no_publish_when_already_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(
+        BadgesWorker, "_load_result", AsyncMock(return_value=SimpleNamespace())
+    )
+    monkeypatch.setattr(
+        worker_badges,
+        "evaluate_result",
+        AsyncMock(
+            return_value=[
+                BadgeAward(team_id=1, badge_type=BadgeType.HEAD_TO_HEAD_WIN)
+            ]
+        ),
+    )
+    # award_badge returns None => badge already held.
+    monkeypatch.setattr(
+        "app.services.badge_service.award_badge", AsyncMock(return_value=None)
+    )
+    published = []
+    monkeypatch.setattr(
+        worker_badges,
+        "publish_event",
+        AsyncMock(side_effect=lambda e: published.append(e)),
+    )
+
+    await BadgesWorker().handle_event("rally.activity_result.created", _created_event())
+    assert published == []
+
+
+async def test_deletion_event_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    load = AsyncMock()
+    monkeypatch.setattr(BadgesWorker, "_load_result", load)
+
+    await BadgesWorker().handle_event(
+        "rally.activity_result.deleted",
+        {"event_type": "activity_result.deleted", "payload": {"result_id": 5}},
+    )
+    # Badges are permanent: a deletion never loads or awards anything.
+    load.assert_not_called()

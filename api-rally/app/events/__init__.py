@@ -8,6 +8,8 @@ from app.events.schemas import (
     ActivityResultCreatedEvent,
     ActivityResultDeletedEvent,
     ActivityResultUpdatedEvent,
+    BadgeAwardedEvent,
+    BadgeAwardedPayload,
     BaseEvent,
     EventType,
     RallyEndedEvent,
@@ -37,4 +39,6 @@ __all__ = [
     "RallyStartedEvent",
     "RallyEndedEvent",
     "RallyLifecyclePayload",
+    "BadgeAwardedEvent",
+    "BadgeAwardedPayload",
 ]
