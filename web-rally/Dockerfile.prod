@@ -37,6 +37,23 @@ RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 COPY web-rally/ ./
 COPY --from=schema-generator /app/openapi.json ./openapi.json
 
+# authentik OIDC config is baked into the bundle at build time (Vite reads
+# VITE_* from the environment). Passed via build-args from the publish workflow.
+ARG VITE_OIDC_AUTHORITY
+ARG VITE_OIDC_CLIENT_ID
+ARG VITE_OIDC_REDIRECT_URI
+ARG VITE_OIDC_POST_LOGOUT_REDIRECT_URI
+ARG VITE_OIDC_ADMIN_GROUP
+ARG VITE_OIDC_MANAGER_GROUP
+ARG VITE_OIDC_STAFF_GROUP
+ENV VITE_OIDC_AUTHORITY=$VITE_OIDC_AUTHORITY \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_OIDC_REDIRECT_URI=$VITE_OIDC_REDIRECT_URI \
+    VITE_OIDC_POST_LOGOUT_REDIRECT_URI=$VITE_OIDC_POST_LOGOUT_REDIRECT_URI \
+    VITE_OIDC_ADMIN_GROUP=$VITE_OIDC_ADMIN_GROUP \
+    VITE_OIDC_MANAGER_GROUP=$VITE_OIDC_MANAGER_GROUP \
+    VITE_OIDC_STAFF_GROUP=$VITE_OIDC_STAFF_GROUP
+
 # Build (prebuild hook will generate client from openapi.json)
 ENV GENERATE_SOURCEMAP=false
 RUN pnpm build && \
