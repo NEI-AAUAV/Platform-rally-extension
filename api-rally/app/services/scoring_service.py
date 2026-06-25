@@ -17,6 +17,11 @@ from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.core.exceptions import RallyError, RallyValidationError
+from app.events import (
+    TeamScoreUpdatedEvent,
+    TeamScoreUpdatedPayload,
+    publish_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +178,16 @@ class ScoringService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update team scores: {str(e)}"
                 )
+            # Publish after the commit so subscribers never see scores a
+            # rollback would erase. No-op unless the realtime subsystem is on.
+            # This is the single funnel for every leaderboard-affecting change.
+            await publish_event(
+                TeamScoreUpdatedEvent(
+                    payload=TeamScoreUpdatedPayload(
+                        team_id=team_id, total_score=total_score
+                    )
+                )
+            )
 
         return True
 
