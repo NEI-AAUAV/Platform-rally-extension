@@ -1,0 +1,77 @@
+name: Deploy into NEI VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g. latest, 1.2.3)"
+        required: false
+        default: "latest"
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  PROD_COMPOSE: docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml
+
+jobs:
+  pull:
+    name: Pull Images
+    runs-on: self-hosted
+    permissions:
+      packages: read
+      contents: read
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull all images
+        run: |
+          ${{ env.PROD_COMPOSE }} config --images | while read -r image; do
+            docker pull "$image" || true
+          done
+
+  deploy:
+    name: Deploy Stack
+    runs-on: self-hosted
+    needs: pull
+    permissions:
+      packages: read
+      contents: read
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      # Database
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      # OIDC (authentik) — resource-server validation
+      OIDC_PROVIDER_URL: ${{ vars.OIDC_PROVIDER_URL }}
+      OIDC_CLIENT_ID: ${{ secrets.OIDC_CLIENT_ID }}
+      OIDC_APPLICATION_SLUG: ${{ vars.OIDC_APPLICATION_SLUG }}
+      OIDC_ADMIN_GROUP: ${{ vars.OIDC_ADMIN_GROUP }}
+      OIDC_MANAGER_GROUP: ${{ vars.OIDC_MANAGER_GROUP }}
+      OIDC_STAFF_GROUP: ${{ vars.OIDC_STAFF_GROUP }}
+      # Team auth
+      TEAM_JWT_SECRET_KEY: ${{ secrets.TEAM_JWT_SECRET_KEY }}
+      # General
+      BACKEND_CORS_ORIGINS: ${{ vars.BACKEND_CORS_ORIGINS }}
+      # Cloudflare R2 (branding uploads)
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: ${{ env.PROD_COMPOSE }} up -d --remove-orphans
+      - name: Clean old images
+        run: docker image prune -af
+      - name: Show logs on failure
+        if: failure()
+        run: ${{ env.PROD_COMPOSE }} logs --tail=50

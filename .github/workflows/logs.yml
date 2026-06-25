@@ -1,0 +1,16 @@
+name: Get Production Logs
+
+on:
+  workflow_dispatch:
+
+env:
+  PROD_COMPOSE: docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml
+
+jobs:
+  logs:
+    name: Print Container Logs
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print Logs
+        run: ${{ env.PROD_COMPOSE }} logs --tail=500

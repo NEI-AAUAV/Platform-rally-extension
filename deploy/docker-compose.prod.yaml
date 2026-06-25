@@ -1,0 +1,78 @@
+# Production Rally Tascas stack — runs on the NEI VM, fully independent.
+#
+# Images are pulled from GHCR (published by .github/workflows/publish.yml on a
+# v*.*.* tag). A VM-level nginx on the shared `rally_network` routes /rally and
+# /api/rally to the service aliases below (see deploy/nginx/rally.conf).
+#
+# Driven by .github/workflows/deploy.yml (self-hosted runner). All values come
+# from repository Variables/Secrets — never commit real credentials.
+
+services:
+  web_rally:
+    image: ghcr.io/nei-aauav/rally/web:${IMAGE_TAG:-latest}
+    restart: always
+    depends_on:
+      - api_rally
+    networks:
+      default: {}
+      rally_network:
+        aliases:
+          - rally-web
+
+  api_rally:
+    image: ghcr.io/nei-aauav/rally/api:${IMAGE_TAG:-latest}
+    restart: always
+    networks:
+      default: {}
+      rally_network:
+        aliases:
+          - rally-api
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - ENV=production
+      # OIDC resource-server validation (authentik)
+      - OIDC_PROVIDER_URL=${OIDC_PROVIDER_URL}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_APPLICATION_SLUG=${OIDC_APPLICATION_SLUG}
+      - OIDC_ADMIN_GROUP=${OIDC_ADMIN_GROUP}
+      - OIDC_MANAGER_GROUP=${OIDC_MANAGER_GROUP}
+      - OIDC_STAFF_GROUP=${OIDC_STAFF_GROUP}
+      # Team auth (rally-minted HS256 tokens)
+      - TEAM_JWT_SECRET_KEY=${TEAM_JWT_SECRET_KEY}
+      # CORS
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      # Cloudflare R2 (branding uploads)
+      - R2_ENDPOINT_URL=${R2_ENDPOINT_URL}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET=${R2_BUCKET}
+      - R2_PUBLIC_BASE_URL=${R2_PUBLIC_BASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - rally_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  rally_db_data:
+    driver: local
+
+networks:
+  rally_network:
+    external: true

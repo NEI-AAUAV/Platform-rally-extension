@@ -1,0 +1,102 @@
+# Auth: api-rally is a pure OIDC resource server. The SPA logs users in directly
+# against authentik (PKCE); the API validates those tokens via JWKS discovery.
+#
+# Copy .env.example to .env and fill in the authentik + secret values first.
+
+services:
+  db_pg:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rally}
+    volumes:
+      - rally_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rally
+
+  api_rally:
+    build:
+      context: ./api-rally
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      POSTGRES_SERVER: db_pg
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rally}
+      # OIDC resource-server validation (authentik).
+      OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_APPLICATION_SLUG: ${OIDC_APPLICATION_SLUG:-rally}
+      OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
+      OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
+      OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
+      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY}
+      # CORS: the public origin the SPA is served from.
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost}
+      # Cloudflare R2 (branding uploads) — optional.
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
+    volumes:
+      - ./api-rally:/api_rally
+    depends_on:
+      db_pg:
+        condition: service_healthy
+    networks:
+      - rally
+
+  web_rally:
+    build:
+      context: ./web-rally
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      # Vite reads VITE_* from the environment at dev/build time.
+      VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY}
+      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID}
+      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI}
+      VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI}
+      VITE_OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
+      VITE_OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
+      VITE_OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+    volumes:
+      - ./web-rally:/web_rally
+      - rally_node_modules:/web_rally/node_modules
+    networks:
+      - rally
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api_rally
+      - web_rally
+    networks:
+      - rally
+
+volumes:
+  rally_db_data:
+    driver: local
+  rally_node_modules:
+    driver: local
+
+networks:
+  rally:
+    driver: bridge
