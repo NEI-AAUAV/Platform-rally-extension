@@ -33,6 +33,8 @@ class BadgeType(str, Enum):
     HEAD_TO_HEAD_WIN = "head_to_head_win"
     # First team to complete a given activity.
     FIRST_TO_COMPLETE_ACTIVITY = "first_to_complete_activity"
+    # First team to complete every activity of a checkpoint.
+    FIRST_TO_COMPLETE_CHECKPOINT = "first_to_complete_checkpoint"
 
 
 class TeamBadge(Base):
@@ -40,10 +42,15 @@ class TeamBadge(Base):
 
     __tablename__ = "team_badges"  # type: ignore[assignment]
     __table_args__ = (  # type: ignore[assignment]
-        # A team can hold a given badge for a given activity at most once.
-        # (activity_id is part of the key; NULL activity badges dedupe in code.)
+        # A team can hold a given badge for a given scope at most once. The
+        # scope is whichever of activity_id / checkpoint_id the badge uses;
+        # global badges (both NULL) dedupe in code.
         UniqueConstraint(
-            "team_id", "badge_type", "activity_id", name="uq_team_badge_scope"
+            "team_id",
+            "badge_type",
+            "activity_id",
+            "checkpoint_id",
+            name="uq_team_badge_scope",
         ),
     )
 
@@ -54,6 +61,10 @@ class TeamBadge(Base):
     badge_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     # The activity that earned the badge, when the badge is activity-scoped.
     activity_id: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, index=True
+    )
+    # The checkpoint that earned the badge, when the badge is checkpoint-scoped.
+    checkpoint_id: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True, index=True
     )
     # Free-form context for rendering (e.g. opponent team, completion time).

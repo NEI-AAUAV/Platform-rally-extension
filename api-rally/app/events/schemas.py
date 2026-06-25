@@ -74,6 +74,7 @@ class BadgeAwardedPayload(BaseModel):
     team_id: int
     badge_type: str
     activity_id: int | None = None
+    checkpoint_id: int | None = None
 
 
 # --- Events ---------------------------------------------------------------

@@ -22,20 +22,25 @@ async def team_has_badge(
     team_id: int,
     badge_type: BadgeType,
     activity_id: Optional[int],
+    checkpoint_id: Optional[int] = None,
 ) -> bool:
-    """True when this team already holds this badge for this activity scope."""
+    """True when this team already holds this badge for this scope."""
     stmt = select(TeamBadge.id).where(
         TeamBadge.team_id == team_id,
         TeamBadge.badge_type == badge_type.value,
         TeamBadge.activity_id == activity_id,
+        TeamBadge.checkpoint_id == checkpoint_id,
     )
     return (await db.scalars(stmt)).first() is not None
 
 
 async def badge_holder_exists(
-    db: AsyncSession, badge_type: BadgeType, activity_id: Optional[int]
+    db: AsyncSession,
+    badge_type: BadgeType,
+    activity_id: Optional[int],
+    checkpoint_id: Optional[int] = None,
 ) -> bool:
-    """True when *any* team already holds this badge for this activity.
+    """True when *any* team already holds this badge for this scope.
 
     Used by single-holder badges (e.g. first-to-complete) so the award is not
     handed out twice when results are edited after the fact.
@@ -43,6 +48,7 @@ async def badge_holder_exists(
     stmt = select(TeamBadge.id).where(
         TeamBadge.badge_type == badge_type.value,
         TeamBadge.activity_id == activity_id,
+        TeamBadge.checkpoint_id == checkpoint_id,
     )
     return (await db.scalars(stmt)).first() is not None
 
@@ -53,6 +59,7 @@ async def award_badge(
     team_id: int,
     badge_type: BadgeType,
     activity_id: Optional[int] = None,
+    checkpoint_id: Optional[int] = None,
     meta: Optional[dict[str, Any]] = None,
 ) -> Optional[TeamBadge]:
     """Award a badge, committing the row. No-op (returns None) if already held.
@@ -60,13 +67,14 @@ async def award_badge(
     The caller is responsible for any single-holder check; this only guards
     against the same team earning the same scope twice.
     """
-    if await team_has_badge(db, team_id, badge_type, activity_id):
+    if await team_has_badge(db, team_id, badge_type, activity_id, checkpoint_id):
         return None
 
     badge = TeamBadge(
         team_id=team_id,
         badge_type=badge_type.value,
         activity_id=activity_id,
+        checkpoint_id=checkpoint_id,
         meta=meta or {},
     )
     db.add(badge)

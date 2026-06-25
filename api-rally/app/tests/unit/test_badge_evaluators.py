@@ -1,5 +1,6 @@
 """Unit tests for the badge rule evaluators."""
 
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -18,7 +19,9 @@ def _vs_result(*, completed: bool = True, outcome: str = "win") -> Any:
         activity_id=99,
         is_completed=completed,
         result_data={"result": outcome, "opponent_team_id": 20},
-        activity=SimpleNamespace(activity_type=ActivityType.TEAM_VS.value),
+        activity=SimpleNamespace(
+            activity_type=ActivityType.TEAM_VS.value, checkpoint_id=7
+        ),
     )
 
 
@@ -92,6 +95,86 @@ async def test_first_to_complete_skips_when_already_held(
         id=2, team_id=8, activity_id=99, is_completed=True
     )
     awards = await evaluators._evaluate_first_to_complete(AsyncMock(), triggering)
+    assert awards == []
+
+
+def _checkpoint_result() -> Any:
+    return SimpleNamespace(
+        id=3,
+        team_id=5,
+        activity_id=1,
+        is_completed=True,
+        activity=SimpleNamespace(checkpoint_id=50),
+    )
+
+
+def _scalars(values: list[Any]) -> MagicMock:
+    scalars = MagicMock()
+    scalars.all.return_value = values
+    return scalars
+
+
+async def test_first_to_complete_checkpoint_awards_earliest_full_team(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.badge_service.badge_holder_exists",
+        AsyncMock(return_value=False),
+    )
+    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    t2 = datetime(2026, 1, 1, 12, 5, 0, tzinfo=timezone.utc)
+    t3 = datetime(2026, 1, 1, 12, 9, 0, tzinfo=timezone.utc)
+
+    # Checkpoint has activities {1, 2}. Team 5 finished both (last at t3);
+    # team 6 finished only activity 1 -> not a finisher.
+    completed = [
+        SimpleNamespace(team_id=5, activity_id=1, completed_at=t1),
+        SimpleNamespace(team_id=5, activity_id=2, completed_at=t3),
+        SimpleNamespace(team_id=6, activity_id=1, completed_at=t2),
+    ]
+    db = AsyncMock()
+    db.scalars.side_effect = [_scalars([1, 2]), _scalars(completed)]
+
+    awards = await evaluators._evaluate_first_to_complete_checkpoint(
+        db, _checkpoint_result()
+    )
+
+    assert len(awards) == 1
+    assert awards[0].team_id == 5
+    assert awards[0].badge_type == BadgeType.FIRST_TO_COMPLETE_CHECKPOINT
+    assert awards[0].checkpoint_id == 50
+
+
+async def test_first_to_complete_checkpoint_skips_when_held(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.badge_service.badge_holder_exists",
+        AsyncMock(return_value=True),
+    )
+    awards = await evaluators._evaluate_first_to_complete_checkpoint(
+        AsyncMock(), _checkpoint_result()
+    )
+    assert awards == []
+
+
+async def test_first_to_complete_checkpoint_skips_when_no_team_finished_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.badge_service.badge_holder_exists",
+        AsyncMock(return_value=False),
+    )
+    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    # Activities {1, 2} but only activity 1 has any completion.
+    db = AsyncMock()
+    db.scalars.side_effect = [
+        _scalars([1, 2]),
+        _scalars([SimpleNamespace(team_id=5, activity_id=1, completed_at=t1)]),
+    ]
+    awards = await evaluators._evaluate_first_to_complete_checkpoint(
+        db, _checkpoint_result()
+    )
     assert awards == []
 
 

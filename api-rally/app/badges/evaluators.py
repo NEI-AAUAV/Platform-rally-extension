@@ -10,13 +10,15 @@ Add a new badge by writing an ``async def evaluate_*`` and appending it to
 """
 
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.activity import ActivityResult
+from app.models.activity import Activity, ActivityResult
 from app.models.badge import BadgeType
 from app.schemas.activity_types import ActivityType
 from app.services import badge_service
@@ -31,6 +33,7 @@ class BadgeAward:
     team_id: int
     badge_type: BadgeType
     activity_id: int | None = None
+    checkpoint_id: int | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -100,12 +103,87 @@ async def _evaluate_first_to_complete(
     ]
 
 
+async def _evaluate_first_to_complete_checkpoint(
+    db: AsyncSession, result: ActivityResult
+) -> list[BadgeAward]:
+    """Award FIRST_TO_COMPLETE_CHECKPOINT to the first team to finish a checkpoint.
+
+    A checkpoint is "completed" by a team when it has a completed result for
+    every active activity in that checkpoint. The winner is the team whose last
+    such result landed earliest. Single-holder per checkpoint.
+    """
+    if not result.is_completed:
+        return []
+    activity = result.activity
+    if activity is None:
+        return []
+    checkpoint_id = activity.checkpoint_id
+
+    if await badge_service.badge_holder_exists(
+        db, BadgeType.FIRST_TO_COMPLETE_CHECKPOINT, None, checkpoint_id
+    ):
+        return []
+
+    activity_ids = set(
+        (
+            await db.scalars(
+                select(Activity.id).where(
+                    Activity.checkpoint_id == checkpoint_id,
+                    Activity.is_active.is_(True),
+                )
+            )
+        ).all()
+    )
+    if not activity_ids:
+        return []
+
+    completed = (
+        await db.scalars(
+            select(ActivityResult).where(
+                ActivityResult.activity_id.in_(activity_ids),
+                ActivityResult.is_completed.is_(True),
+                ActivityResult.completed_at.is_not(None),
+            )
+        )
+    ).all()
+
+    # Per team: the activities it finished and when it finished its last one.
+    done: dict[int, set[int]] = defaultdict(set)
+    last_finish: dict[int, datetime] = {}
+    for r in completed:
+        done[r.team_id].add(r.activity_id)
+        if r.completed_at is not None:
+            prev = last_finish.get(r.team_id)
+            last_finish[r.team_id] = (
+                r.completed_at if prev is None else max(prev, r.completed_at)
+            )
+
+    finishers = [
+        (team_id, last_finish[team_id])
+        for team_id, acts in done.items()
+        if activity_ids <= acts
+    ]
+    if not finishers:
+        return []
+
+    winner_team, finished_at = min(finishers, key=lambda pair: pair[1])
+    return [
+        BadgeAward(
+            team_id=winner_team,
+            badge_type=BadgeType.FIRST_TO_COMPLETE_CHECKPOINT,
+            checkpoint_id=checkpoint_id,
+            meta={"completed_at": finished_at.isoformat()},
+        )
+    ]
+
+
 # Ordered registry of all result-driven evaluators.
 _EVALUATORS: list[
     Callable[[AsyncSession, ActivityResult], Awaitable[list[BadgeAward]]]
 ] = [
     _evaluate_head_to_head_win,
     _evaluate_first_to_complete,
+    _evaluate_first_to_complete_checkpoint,
 ]
 
 

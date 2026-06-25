@@ -72,6 +72,7 @@ class BadgesWorker(BaseWorker):
             team_id=award.team_id,
             badge_type=award.badge_type,
             activity_id=award.activity_id,
+            checkpoint_id=award.checkpoint_id,
             meta=award.meta,
         )
         if badge is None:
@@ -86,6 +87,7 @@ class BadgesWorker(BaseWorker):
                     team_id=award.team_id,
                     badge_type=award.badge_type.value,
                     activity_id=award.activity_id,
+                    checkpoint_id=award.checkpoint_id,
                 )
             )
         )

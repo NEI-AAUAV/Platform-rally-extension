@@ -15,5 +15,6 @@ class TeamBadgeRead(BaseModel):
     team_id: int
     badge_type: str
     activity_id: int | None = None
+    checkpoint_id: int | None = None
     meta: dict[str, Any] = {}
     awarded_at: datetime
