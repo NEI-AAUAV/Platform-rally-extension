@@ -21,6 +21,20 @@ services:
     networks:
       - rally
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Ephemeral cache/pub-sub broker: no persistence needed, leaderboard
+    # state is always recomputable from Postgres.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rally
+
   api_rally:
     build:
       context: ./api-rally
@@ -32,6 +46,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-rally}
+      # Redis (realtime subsystem). Inert unless EVENTS_ENABLED=true.
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      EVENTS_ENABLED: ${EVENTS_ENABLED:-false}
       # OIDC resource-server validation (authentik).
       OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
@@ -59,6 +78,8 @@ services:
       start_period: 20s
     depends_on:
       db_pg:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - rally
