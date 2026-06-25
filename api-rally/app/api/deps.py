@@ -149,3 +149,14 @@ def get_current_team_optional(
         return TeamTokenData(team_id=team_id, team_name=team_name)
     except JWTError:
         return None
+
+
+def get_current_team(
+    team: Annotated[Optional[TeamTokenData], Depends(get_current_team_optional)],
+) -> TeamTokenData:
+    """Dependency requiring a valid team token; 401 otherwise."""
+    if team is None:
+        raise HTTPException(
+            status_code=401, detail="Team authentication required"
+        )
+    return team
