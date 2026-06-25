@@ -1,60 +1,40 @@
 /**
- * Test suite for useLoginLink hook
+ * Test suite for useStaffLogin — starts the authentik PKCE flow and remembers
+ * the return URL.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { ReactNode } from 'react'
 import { renderHook } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import useLoginLink from '@/hooks/useLoginLink'
-import config from '@/config'
+import useStaffLogin from '@/hooks/useLoginLink'
 
-// Mock config
-vi.mock('@/config', () => ({
-  default: {
-    BASE_URL: 'https://nei.web.ua.pt',
-  },
+const signinRedirect = vi.fn()
+
+vi.mock('react-oidc-context', () => ({
+  useAuth: () => ({ signinRedirect }),
 }))
 
-describe('useLoginLink Hook', () => {
-  it('should generate login link with redirect', () => {
-    const { result } = renderHook(() => useLoginLink(), {
-      wrapper: ({ children }) => (
-        <MemoryRouter initialEntries={['/rally/scoreboard']}>
-          {children}
-        </MemoryRouter>
-      ),
-    })
+function wrapper(initialPath: string) {
+  return ({ children }: { children: ReactNode }) => (
+    <MemoryRouter initialEntries={[initialPath]}>{children}</MemoryRouter>
+  )
+}
 
-    const loginLink = result.current
-    expect(loginLink).toContain('https://nei.web.ua.pt/auth/login')
-    expect(loginLink).toContain('redirect_to')
+describe('useStaffLogin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
   })
 
-  it('should include current pathname in redirect', () => {
-    const { result } = renderHook(() => useLoginLink(), {
-      wrapper: ({ children }) => (
-        <MemoryRouter initialEntries={['/rally/admin']}>
-          {children}
-        </MemoryRouter>
-      ),
-    })
-
-    const loginLink = result.current
-    const url = new URL(loginLink)
-    const redirectTo = url.searchParams.get('redirect_to')
-    
-    expect(redirectTo).toContain('https://nei.web.ua.pt/rally/admin')
+  it('triggers signinRedirect when invoked', () => {
+    const { result } = renderHook(() => useStaffLogin(), { wrapper: wrapper('/scoreboard') })
+    result.current()
+    expect(signinRedirect).toHaveBeenCalledTimes(1)
   })
 
-  it('should use BASE_URL from config', () => {
-    const { result } = renderHook(() => useLoginLink(), {
-      wrapper: ({ children }) => (
-        <MemoryRouter>
-          {children}
-        </MemoryRouter>
-      ),
-    })
-
-    const loginLink = result.current
-    expect(loginLink).toContain(config.BASE_URL)
+  it('stores the current path as the return URL', () => {
+    const { result } = renderHook(() => useStaffLogin(), { wrapper: wrapper('/admin') })
+    result.current()
+    expect(sessionStorage.getItem('rally_auth_return_url')).toBe('/admin')
   })
 })

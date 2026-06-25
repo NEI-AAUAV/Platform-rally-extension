@@ -1,281 +1,108 @@
 /**
- * Test suite for user store (Zustand)
+ * Test suite for the user store (Zustand). Identity is now driven by the OIDC
+ * layer via setSession/clearSession; logout also clears team auth.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { act } from '@testing-library/react'
 import { useUserStore } from '@/stores/useUserStore'
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-}
-
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-})
-
-// Mock console methods to avoid noise in tests
-const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-const mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+vi.mock('@/lib/auth/tokenStore', () => ({
+  clearAllAuth: vi.fn(),
+}))
 
 describe('useUserStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset store state
-    useUserStore.setState({
-      sub: undefined,
-      scopes: undefined,
-      name: undefined,
-      email: undefined,
-      isAuthenticated: false,
-    })
+    useUserStore.getState().clearSession()
   })
 
-  afterEach(() => {
-    mockConsoleError.mockClear()
-    mockConsoleWarn.mockClear()
-  })
-
-  describe('Initial State', () => {
-    it('should have correct initial state', () => {
-      const state = useUserStore.getState()
-      
-      expect(state.sub).toBeUndefined()
-      expect(state.scopes).toBeUndefined()
-      expect(state.name).toBeUndefined()
-      expect(state.email).toBeUndefined()
-      expect(state.isAuthenticated).toBe(false)
-    })
-  })
-
-  describe('setUser', () => {
-    it('should set user data correctly', () => {
-      const userData = {
-        sub: 'user123',
-        scopes: ['admin', 'manager-rally'],
-        name: 'Test User',
-        email: 'test@example.com'
-      }
-
+  describe('setSession', () => {
+    it('sets token + identity and marks authenticated', () => {
       act(() => {
-        useUserStore.getState().setUser(userData)
+        useUserStore.getState().setSession({
+          token: 'access-token',
+          user: { sub: 'uuid-1', scopes: ['admin', 'manager-rally'], name: 'Test User', email: 'test@example.com' },
+        })
       })
 
       const state = useUserStore.getState()
-      expect(state.sub).toBe('user123')
+      expect(state.token).toBe('access-token')
+      expect(state.sub).toBe('uuid-1')
       expect(state.scopes).toEqual(['admin', 'manager-rally'])
       expect(state.name).toBe('Test User')
       expect(state.email).toBe('test@example.com')
+      expect(state.sessionLoading).toBe(false)
       expect(state.isAuthenticated).toBe(true)
     })
 
-    it('should handle partial user data', () => {
-      const userData = {
-        sub: 'user123',
-        scopes: ['admin'],
-        name: 'Test User',
-        email: undefined
-      }
-
+    it('handles empty scopes (authenticated, no roles)', () => {
       act(() => {
-        useUserStore.getState().setUser(userData)
+        useUserStore.getState().setSession({
+          token: 't',
+          user: { sub: 'uuid-1', scopes: [], name: 'Test User' },
+        })
       })
-
-      const state = useUserStore.getState()
-      expect(state.sub).toBe('user123')
-      expect(state.scopes).toEqual(['admin'])
-      expect(state.name).toBe('Test User')
-      expect(state.email).toBeUndefined()
-      expect(state.isAuthenticated).toBe(true)
-    })
-
-    it('should handle empty scopes array', () => {
-      const userData = {
-        sub: 'user123',
-        scopes: [],
-        name: 'Test User',
-        email: 'test@example.com'
-      }
-
-      act(() => {
-        useUserStore.getState().setUser(userData)
-      })
-
       const state = useUserStore.getState()
       expect(state.scopes).toEqual([])
       expect(state.isAuthenticated).toBe(true)
     })
+
+    it('is not authenticated when sub is missing', () => {
+      act(() => {
+        useUserStore.getState().setSession({ token: 't', user: { scopes: ['admin'] } })
+      })
+      expect(useUserStore.getState().isAuthenticated).toBe(false)
+    })
   })
 
-  describe('clearUser', () => {
-    it('should clear user data', () => {
-      // First set some user data
+  describe('clearSession', () => {
+    it('resolves the session as unauthenticated and resets identity', () => {
       act(() => {
-        useUserStore.getState().setUser({
-          sub: 'user123',
-          scopes: ['admin'],
-          name: 'Test User',
-          email: 'test@example.com'
-        })
+        useUserStore.getState().setSession({ token: 't', user: { sub: 'uuid-1', scopes: ['admin'] } })
       })
-
-      // Then clear it
       act(() => {
-        useUserStore.getState().clearUser()
+        useUserStore.getState().clearSession()
       })
 
       const state = useUserStore.getState()
       expect(state.sub).toBeUndefined()
+      expect(state.token).toBeUndefined()
       expect(state.scopes).toBeUndefined()
-      expect(state.name).toBeUndefined()
-      expect(state.email).toBeUndefined()
+      expect(state.sessionLoading).toBe(false)
       expect(state.isAuthenticated).toBe(false)
     })
   })
 
-  describe('Authentication State', () => {
-    it('should be authenticated when sub is present', () => {
+  describe('logout', () => {
+    it('clears all auth (incl. team) and resets identity', async () => {
+      const { clearAllAuth } = await import('@/lib/auth/tokenStore')
+
       act(() => {
-        useUserStore.getState().setUser({
-          sub: 'user123',
-          scopes: ['admin'],
-          name: 'Test User',
-          email: 'test@example.com'
-        })
+        useUserStore.getState().setSession({ token: 't', user: { sub: 'uuid-1', scopes: ['admin'] } })
+      })
+      act(() => {
+        useUserStore.getState().logout()
       })
 
-      const state = useUserStore.getState()
-      expect(state.isAuthenticated).toBe(true)
-    })
-
-    it('should not be authenticated when sub is undefined', () => {
-      act(() => {
-        useUserStore.getState().setUser({
-          sub: undefined,
-          scopes: ['admin'],
-          name: 'Test User',
-          email: 'test@example.com'
-        })
-      })
-
+      expect(clearAllAuth).toHaveBeenCalled()
       const state = useUserStore.getState()
       expect(state.isAuthenticated).toBe(false)
-    })
-
-    it('should not be authenticated when sub is empty string', () => {
-      act(() => {
-        useUserStore.getState().setUser({
-          sub: '',
-          scopes: ['admin'],
-          name: 'Test User',
-          email: 'test@example.com'
-        })
-      })
-
-      const state = useUserStore.getState()
-      expect(state.isAuthenticated).toBe(false)
+      expect(state.sub).toBeUndefined()
     })
   })
 
-  describe('Scope Checking', () => {
-    it('should handle scope checking correctly', () => {
+  describe('scope checking', () => {
+    it('exposes mapped scopes for gating', () => {
       act(() => {
-        useUserStore.getState().setUser({
-          sub: 'user123',
-          scopes: ['admin', 'manager-rally', 'user'],
-          name: 'Test User',
-          email: 'test@example.com'
+        useUserStore.getState().setSession({
+          token: 't',
+          user: { sub: 'uuid-1', scopes: ['admin', 'rally-staff'] },
         })
       })
-
-      const state = useUserStore.getState()
-      
-      // Test individual scope checking
-      expect(state.scopes?.includes('admin')).toBe(true)
-      expect(state.scopes?.includes('manager-rally')).toBe(true)
-      expect(state.scopes?.includes('user')).toBe(true)
-      expect(state.scopes?.includes('super-admin')).toBe(false)
-    })
-
-    it('should handle undefined scopes', () => {
-      act(() => {
-        useUserStore.getState().setUser({
-          sub: 'user123',
-          scopes: undefined,
-          name: 'Test User',
-          email: 'test@example.com'
-        })
-      })
-
-      const state = useUserStore.getState()
-      expect(state.scopes).toBeUndefined()
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should handle invalid user data gracefully', () => {
-      // Test with null values
-      act(() => {
-        useUserStore.getState().setUser({
-          sub: null as unknown as string,
-          scopes: null as unknown as string[],
-          name: null as unknown as string,
-          email: null as unknown as string
-        })
-      })
-
-      const state = useUserStore.getState()
-      expect(state.sub).toBeNull()
-      expect(state.scopes).toBeNull()
-      expect(state.name).toBeNull()
-      expect(state.email).toBeNull()
-      expect(state.isAuthenticated).toBe(false)
-    })
-  })
-
-  describe('Store Persistence', () => {
-    it('should handle localStorage operations', () => {
-      // Mock localStorage.getItem to return some data
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify({
-        sub: 'persisted-user',
-        scopes: ['admin'],
-        name: 'Persisted User',
-        email: 'persisted@example.com'
-      }))
-
-      // The store should handle localStorage operations
-      // (This would typically be tested in integration tests)
-      expect(mockLocalStorage.getItem).toBeDefined()
-      expect(mockLocalStorage.setItem).toBeDefined()
-      expect(mockLocalStorage.removeItem).toBeDefined()
-    })
-  })
-
-  describe('State Updates', () => {
-    it('should update state immutably', () => {
-      const initialState = useUserStore.getState()
-      
-      act(() => {
-        useUserStore.getState().setUser({
-          sub: 'user123',
-          scopes: ['admin'],
-          name: 'Test User',
-          email: 'test@example.com'
-        })
-      })
-
-      const newState = useUserStore.getState()
-      
-      // State should be updated
-      expect(newState.sub).toBe('user123')
-      expect(newState.isAuthenticated).toBe(true)
-      
-      // Original state should not be mutated
-      expect(initialState.sub).toBeUndefined()
-      expect(initialState.isAuthenticated).toBe(false)
+      const { scopes } = useUserStore.getState()
+      expect(scopes?.includes('admin')).toBe(true)
+      expect(scopes?.includes('rally-staff')).toBe(true)
+      expect(scopes?.includes('super-admin')).toBe(false)
     })
   })
 })

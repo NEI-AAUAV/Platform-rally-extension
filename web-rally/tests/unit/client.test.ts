@@ -1,10 +1,11 @@
 /**
- * Test suite for client.ts — axios client factory and token refresh logic
+ * Test suite for client.ts — axios client factory, team-token refresh, and the
+ * unauthorized handler hook. Staff auth is owned by react-oidc-context, so only
+ * team tokens are refreshed here.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import axios from 'axios'
 
-// Mock axios
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<typeof import('axios')>()
   return {
@@ -16,11 +17,8 @@ vi.mock('axios', async (importOriginal) => {
   }
 })
 
-// Mock useUserStore
 const mockStoreState = {
   token: null as string | null,
-  login: vi.fn(),
-  logout: vi.fn(),
 }
 
 vi.mock('@/stores/useUserStore', () => ({
@@ -29,11 +27,9 @@ vi.mock('@/stores/useUserStore', () => ({
   },
 }))
 
-// Mock config
 vi.mock('@/config', () => ({
   default: {
     BASE_URL: 'http://localhost:8000',
-    API_NEI_URL: 'http://localhost:8001',
   },
 }))
 
@@ -49,112 +45,62 @@ describe('client.ts', () => {
   })
 
   describe('createClient', () => {
-    it('should create an axios instance', async () => {
+    it('creates an axios instance with the given baseURL', async () => {
       const mockInstance = {
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
+        interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
       }
       vi.mocked(axios.create).mockReturnValue(mockInstance as never)
 
       const { createClient } = await import('@/services/client')
       const client = createClient('http://localhost:8000')
 
-      expect(axios.create).toHaveBeenCalledWith({
-        baseURL: 'http://localhost:8000',
-        timeout: 5000,
-      })
+      expect(axios.create).toHaveBeenCalledWith({ baseURL: 'http://localhost:8000', timeout: 5000 })
       expect(client).toBe(mockInstance)
-    })
-
-    it('should create client without baseURL', async () => {
-      const mockInstance = {
-        interceptors: {
-          request: { use: vi.fn() },
-          response: { use: vi.fn() },
-        },
-      }
-      vi.mocked(axios.create).mockReturnValue(mockInstance as never)
-
-      const { createClient } = await import('@/services/client')
-      createClient()
-
-      expect(axios.create).toHaveBeenCalledWith({
-        baseURL: undefined,
-        timeout: 5000,
-      })
     })
   })
 
-  describe('refreshToken', () => {
-    it('should use team refresh endpoint when team token exists and no staff token', async () => {
+  describe('refreshTeamToken', () => {
+    it('refreshes via the team-auth endpoint when a team token exists', async () => {
       localStorage.setItem('rally_team_token', 'team-jwt')
-      mockStoreState.token = null
 
       const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-team-token' } })
       vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
-      const { refreshToken } = await import('@/services/client')
-      const result = await refreshToken()
+      const { refreshTeamToken } = await import('@/services/client')
+      const result = await refreshTeamToken()
 
       expect(result).toBe('new-team-token')
+      expect(mockPost).toHaveBeenCalledWith('/api/rally/v1/team-auth/refresh')
       expect(localStorage.getItem('rally_team_token')).toBe('new-team-token')
     })
 
-    it('should clear team tokens when team refresh fails', async () => {
+    it('clears team tokens when the refresh fails', async () => {
       localStorage.setItem('rally_team_token', 'expired-team-jwt')
       localStorage.setItem('rally_team_data', '{"team_id":1}')
-      mockStoreState.token = null
 
       const mockPost = vi.fn().mockRejectedValue(new Error('Unauthorized'))
       vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
 
-      const { refreshToken } = await import('@/services/client')
-      const result = await refreshToken()
+      const { refreshTeamToken } = await import('@/services/client')
+      const result = await refreshTeamToken()
 
       expect(result).toBeUndefined()
       expect(localStorage.getItem('rally_team_token')).toBeNull()
       expect(localStorage.getItem('rally_team_data')).toBeNull()
     })
 
-    it('should use NEI refresh endpoint when staff token exists', async () => {
-      mockStoreState.token = 'staff-jwt'
-
-      const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-staff-token' } })
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
-
-      const { refreshToken } = await import('@/services/client')
-      const result = await refreshToken()
-
-      expect(result).toBe('new-staff-token')
-      expect(mockStoreState.login).toHaveBeenCalledWith({ token: 'new-staff-token' })
-    })
-
-    it('should logout staff user when NEI refresh fails', async () => {
-      mockStoreState.token = 'expired-staff-jwt'
-
-      const mockPost = vi.fn().mockRejectedValue(new Error('Unauthorized'))
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
-
-      const { refreshToken } = await import('@/services/client')
-      const result = await refreshToken()
-
+    it('returns undefined when there is no team token', async () => {
+      const { refreshTeamToken } = await import('@/services/client')
+      const result = await refreshTeamToken()
       expect(result).toBeUndefined()
-      expect(mockStoreState.logout).toHaveBeenCalled()
     })
+  })
 
-    it('should use NEI endpoint when no token exists at all', async () => {
-      mockStoreState.token = null
-
-      const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-token' } })
-      vi.mocked(axios.create).mockReturnValue({ post: mockPost } as never)
-
-      const { refreshToken } = await import('@/services/client')
-      await refreshToken()
-
-      // Should call NEI endpoint (not team endpoint)
-      expect(mockPost).toHaveBeenCalledWith('/auth/refresh/')
+  describe('setOnUnauthorized', () => {
+    it('registers a handler without throwing', async () => {
+      const { setOnUnauthorized } = await import('@/services/client')
+      expect(() => setOnUnauthorized(vi.fn())).not.toThrow()
+      expect(() => setOnUnauthorized(null)).not.toThrow()
     })
   })
 })
