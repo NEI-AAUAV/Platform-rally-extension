@@ -78,7 +78,24 @@ self.addEventListener('fetch', (event) => {
 
   // Skip caching for API endpoints - always fetch fresh data
   if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+  fetch(event.request)
+    .then(response => {
+      if (!response.ok) {
+        console.error('Service Worker: Fetch failed with status:', response.status, event.request.url);
+        throw new Error('Network response was not ok');
+      }
+      return response;
+    })
+    .catch(error => {
+      console.error('Service Worker: Fetch error:', error, event.request.url);
+      // Attempt to show a fallback page if the request was for navigation
+      if (event.request.mode === 'navigate') {
+        return caches.match('/rally/');
+      }
+      throw error;
+    })
+);
     return;
   }
 
@@ -195,9 +212,12 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   if (event.action === 'open') {
-    event.waitUntil(
-      clients.openWindow('/rally/')
-    );
+    const urlToOpen = '/rally/';
+    try {
+      self.clients.openWindow(urlToOpen);
+    } catch (error) {
+      console.error('Service Worker: Failed to open window:', error);
+    }
   }
 });
 

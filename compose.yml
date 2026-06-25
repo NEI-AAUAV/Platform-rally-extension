@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-rally}
     volumes:
-      - rally_db_data:/var/lib/postgresql/data
+      - rally_db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -61,9 +61,9 @@ services:
       OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
       # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
-      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY}
+      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
       # CORS: the public origin the SPA is served from.
-      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["http://localhost"]}
       # Cloudflare R2 (branding uploads) — optional.
       R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}

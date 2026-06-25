@@ -23,6 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.config import settings
 from app.models.base import Base
 
 
@@ -56,7 +57,9 @@ class TeamBadge(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     team_id: Mapped[int] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey(f"{settings.SCHEMA_NAME}.teams.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     badge_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     # The activity that earned the badge, when the badge is activity-scoped.
