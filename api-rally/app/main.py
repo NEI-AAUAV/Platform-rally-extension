@@ -10,6 +10,7 @@ from app.api.api import api_v1_router
 from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
+from app.core.redis import check_redis_health
 
 app = FastAPI(title="Rally Tascas API", default_response_class=ORJSONResponse)
 
@@ -54,11 +55,16 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 @app.get("/health", tags=["health"])
 async def health_check() -> dict[str, str]:
     """Health check endpoint for monitoring and load balancers"""
-    return {
+    health = {
         "status": "healthy",
         "service": "rally-api",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+    # Only report on Redis when the realtime subsystem is enabled, so the
+    # check stays a no-op (and never fails) in the default configuration.
+    if settings.EVENTS_ENABLED:
+        health["redis"] = "up" if await check_redis_health() else "down"
+    return health
 
 
 if __name__ == "__main__":

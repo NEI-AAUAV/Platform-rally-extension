@@ -48,6 +48,17 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
+    # Redis (realtime foundation: cache + event pub/sub for the live
+    # scoreboard). Optional and feature-gated: when EVENTS_ENABLED is False
+    # the app never touches Redis and behaves exactly as before.
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD") or None
+    REDIS_CONNECTION_TIMEOUT: int = int(os.getenv("REDIS_CONNECTION_TIMEOUT", "5"))
+    # Master kill-switch for the event/worker/realtime subsystem. Off by
+    # default so the realtime foundation rolls out with zero behaviour change.
+    EVENTS_ENABLED: bool = os.getenv("EVENTS_ENABLED", "false").lower() == "true"
+
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"
     
