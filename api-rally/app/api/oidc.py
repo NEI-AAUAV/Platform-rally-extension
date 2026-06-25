@@ -66,7 +66,8 @@ class OIDCJWTValidator:
             claims = jwt.decode(token, jwks)
             claims.validate()
 
-            if claims.get("iss") != self._issuer:
+            issuer_to_check = self._issuer.replace("host.docker.internal", "localhost")
+            if claims.get("iss") != issuer_to_check:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token issuer",
