@@ -7,11 +7,13 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'extensions/rally/**'
+      - 'api-rally/**'
+      - 'web-rally/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'extensions/rally/**'
+      - 'api-rally/**'
+      - 'web-rally/**'
   workflow_dispatch:
     inputs:
       test_type:
@@ -71,11 +73,11 @@ jobs:
       id: cached-poetry-dependencies
       uses: actions/cache@v5
       with:
-        path: extensions/rally/api-rally/.venv
+        path: api-rally/.venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-        
+
     - name: Install dependencies
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         poetry install --no-interaction --no-root
         
@@ -91,7 +93,7 @@ jobs:
         POSTGRES_DB: postgres_test
         
     - name: Run API tests
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
           poetry run pytest app/tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
@@ -111,8 +113,8 @@ jobs:
       with:
         name: api-test-results
         path: |
-          extensions/rally/api-rally/test-results.xml
-          extensions/rally/api-rally/coverage/
+          api-rally/test-results.xml
+          api-rally/coverage/
 
   test-frontend:
     name: Frontend Tests
@@ -123,33 +125,36 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v6
       
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: extensions/rally/web-rally/package-lock.json
-        
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
     - name: Install dependencies
-      working-directory: extensions/rally/web-rally
-      run: npm ci
-      
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile
+
     - name: Run frontend tests
-      working-directory: extensions/rally/web-rally
+      working-directory: web-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          npm run test -- --run --coverage --reporter=verbose
+          pnpm run test -- --run --coverage --reporter=verbose
         else
-          npm run test -- --run --reporter=verbose
+          pnpm run test -- --run --reporter=verbose
         fi
-        
+
     - name: Upload frontend test results
       uses: actions/upload-artifact@v7
       if: always()
       with:
         name: frontend-test-results
         path: |
-          extensions/rally/web-rally/coverage/
+          web-rally/coverage/
 
   test-integration:
     name: Integration Tests
@@ -189,47 +194,49 @@ jobs:
         virtualenvs-in-project: true
         
     - name: Install API dependencies
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         poetry install --no-interaction --no-root
-        
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: extensions/rally/web-rally/package-lock.json
-        
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
     - name: Install frontend dependencies
-      working-directory: extensions/rally/web-rally
-      run: npm ci
-      
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile
+
     - name: Download API test results
       uses: actions/download-artifact@v8
       with:
         name: api-test-results
-        path: extensions/rally/api-rally/
-        
+        path: api-rally/
+
     - name: Download frontend test results
       uses: actions/download-artifact@v8
       with:
         name: frontend-test-results
-        path: extensions/rally/web-rally/coverage/
-        
+        path: web-rally/coverage/
+
     - name: Run integration tests
-      working-directory: extensions/rally
       run: |
         chmod +x run-tests.sh
         ./run-tests.sh
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
-        
+
     - name: Upload integration test results
       uses: actions/upload-artifact@v7
       if: always()
       with:
         name: integration-test-results
         path: |
-          extensions/rally/api-rally/test-results.xml
-          extensions/rally/api-rally/coverage/
-          extensions/rally/web-rally/coverage/
+          api-rally/test-results.xml
+          api-rally/coverage/
+          web-rally/coverage/
