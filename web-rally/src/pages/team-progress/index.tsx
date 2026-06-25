@@ -7,6 +7,7 @@ import TeamMembersCard from "./TeamMembersCard";
 import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
+import { CheckinScanButton } from "@/components/checkin/CheckinScanButton";
 
 export default function TeamProgress() {
   const { config, background } = useThemedComponents();
@@ -64,6 +65,10 @@ export default function TeamProgress() {
         />
 
         {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
+
+        <div className="flex justify-center">
+          <CheckinScanButton />
+        </div>
 
         {checkpoints && checkpoints.length > 0 && (
           <div className="space-y-4">

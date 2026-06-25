@@ -8,6 +8,7 @@ import { TeamActivitiesList } from "./TeamActivitiesList";
 import { TeamSection } from "./TeamSection";
 import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
+import { CheckinQrPanel } from "@/components/checkin/CheckinQrPanel";
 
 export default function CheckpointTeamEvaluation() {
   const { checkpointId } = useParams({ strict: false }) as { checkpointId: string };
@@ -66,6 +67,9 @@ export default function CheckpointTeamEvaluation() {
   return (
     <div className="p-2 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+        {/* Team self-check-in QR (renders only when self check-in is enabled) */}
+        <CheckinQrPanel />
+
         {/* Header */}
         <Card>
           <CardHeader>
