@@ -17,11 +17,25 @@ if (process.env.NODE_ENV === "production") {
   BASE_URL = `${scheme.HTTP}${HOST}`;
 }
 
+const origin = typeof window !== "undefined" ? window.location.origin : BASE_URL;
+
 const config = {
   PRODUCTION,
   HOST,
   BASE_URL,
-  API_NEI_URL: `${BASE_URL}/api/nei/v1`, // For authentication and user data
+
+  // OIDC authentication (authentik). Rally logs users in directly against the
+  // identity provider via PKCE; the backend validates the resulting tokens.
+  OIDC_AUTHORITY: import.meta.env.VITE_OIDC_AUTHORITY ?? "",
+  OIDC_CLIENT_ID: import.meta.env.VITE_OIDC_CLIENT_ID ?? "",
+  OIDC_REDIRECT_URI:
+    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${origin}/rally/auth/callback`,
+  OIDC_POST_LOGOUT_REDIRECT_URI:
+    import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI ?? `${origin}/rally/`,
+  // authentik group names → rally scopes (mirror of the backend mapping).
+  OIDC_ADMIN_GROUP: import.meta.env.VITE_OIDC_ADMIN_GROUP ?? "admin",
+  OIDC_MANAGER_GROUP: import.meta.env.VITE_OIDC_MANAGER_GROUP ?? "manager-rally",
+  OIDC_STAFF_GROUP: import.meta.env.VITE_OIDC_STAFF_GROUP ?? "rally-staff",
 };
 
 export default config;

@@ -1,13 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { AuthProvider } from "react-oidc-context";
 import Router from "@/router";
 import "@/styles/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { refreshToken } from "./services/client";
+import { refreshTeamToken } from "./services/client";
 import { OpenAPI } from "./client/core/OpenAPI";
 import { useUserStore } from "@/stores/useUserStore";
 import { getTeamToken } from "@/lib/auth/tokenStore";
 import { ToastProvider } from "@/components/ui/toast";
+import { oidcConfig } from "@/auth/oidcConfig";
+import AuthSyncGate from "@/auth/AuthSyncGate";
 
 // Configure OpenAPI BASE URL - use empty string to use relative paths
 OpenAPI.BASE = '';
@@ -30,7 +33,9 @@ OpenAPI.HEADERS = async () => {
   return {} as Record<string, string>;
 };
 
-refreshToken();
+// Keep a returning team session alive on startup (staff sessions are owned by
+// react-oidc-context, which restores them automatically).
+refreshTeamToken();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -91,10 +96,14 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <Router />
-      </ToastProvider>
-    </QueryClientProvider>
+    <AuthProvider {...oidcConfig}>
+      <QueryClientProvider client={queryClient}>
+        <AuthSyncGate>
+          <ToastProvider>
+            <Router />
+          </ToastProvider>
+        </AuthSyncGate>
+      </QueryClientProvider>
+    </AuthProvider>
   </React.StrictMode>,
 );

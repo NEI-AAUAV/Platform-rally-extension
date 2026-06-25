@@ -4,6 +4,14 @@ import RootRedirect from "./RootRedirect";
 
 const routes: RouteObject[] = [
   {
+    // OIDC redirect target — outside MainLayout so it never hits the auth gate.
+    path: "/auth/callback",
+    async lazy() {
+      const { default: AuthCallback } = await import("@/pages/auth/callback");
+      return { Component: AuthCallback };
+    },
+  },
+  {
     path: "/",
     element: <MainLayout />,
     children: [

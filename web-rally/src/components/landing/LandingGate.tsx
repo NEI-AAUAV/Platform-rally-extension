@@ -4,7 +4,8 @@ import type { Branding } from "@/lib/branding";
 
 interface LandingGateProps {
   readonly branding: Branding;
-  readonly loginLink: string;
+  /** Starts the staff (authentik) login flow. */
+  readonly onStaffLogin: () => void;
   /** Path the "Login Equipa" button points to. */
   readonly teamLoginHref?: string;
 }
@@ -24,7 +25,7 @@ function initialsOf(name: string): string {
  * event name and the two login options. Deliberately compact and fully visible
  * at any viewport — all labels/images come from {@link Branding}.
  */
-export default function LandingGate({ branding, loginLink, teamLoginHref = "/rally/team-login" }: LandingGateProps) {
+export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/rally/team-login" }: LandingGateProps) {
   const { eventName, eventSubtitle, bannerSrc, logoSrc } = branding;
   const [bannerError, setBannerError] = useState(false);
   const showBanner = !bannerError;
@@ -76,13 +77,14 @@ export default function LandingGate({ branding, loginLink, teamLoginHref = "/ral
             <div className="mx-auto my-6 h-px w-16 rally-bg-accent opacity-70" />
 
             <div className="grid gap-3">
-              <a
-                href={loginLink}
+              <button
+                type="button"
+                onClick={onStaffLogin}
                 className="rally-bg-accent rally-shadow-accent flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
               >
                 <ShieldCheck className="h-4 w-4" />
-                Login Staff (NEI)
-              </a>
+                Login Staff
+              </button>
               <a
                 href={teamLoginHref}
                 className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/40"

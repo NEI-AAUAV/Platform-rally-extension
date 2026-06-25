@@ -3,7 +3,7 @@ import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingGate from "@/components/landing/LandingGate";
 import BrandHeader from "@/components/branding/BrandHeader";
-import useLoginLink from "@/hooks/useLoginLink";
+import useStaffLogin from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import useDocumentBranding from "@/hooks/useDocumentBranding";
 import { resolveBranding } from "@/lib/branding";
@@ -20,7 +20,7 @@ function MainLayoutContent() {
   const bgStyle: CSSProperties = components.background;
 
   const { sub, sessionLoading } = useUserStore((state) => state);
-  const loginLink = useLoginLink();
+  const onStaffLogin = useStaffLogin();
   const { settings, isLoading: settingsLoading } = useRallySettings();
 
   // Branding is DATA: derive it from settings (bundled fallbacks until loaded)
@@ -44,7 +44,7 @@ function MainLayoutContent() {
     return (
       <div className="font-inter rally-grain text-[rgb(255,255,255,0.95)] antialiased" data-rally-theme={themeName} style={bgStyle}>
         <div className="relative z-10">
-          <LandingGate branding={branding} loginLink={loginLink} />
+          <LandingGate branding={branding} onStaffLogin={onStaffLogin} />
         </div>
       </div>
     );

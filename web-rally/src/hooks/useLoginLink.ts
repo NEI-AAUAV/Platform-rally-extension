@@ -1,30 +1,23 @@
-import config from "@/config";
+import { useCallback } from "react";
+import { useAuth } from "react-oidc-context";
 import { useLocation } from "react-router-dom";
 
 /**
- * Hook to generate login link with redirect parameter
- * 
- * Creates a login URL that redirects back to the current page after authentication.
- * Uses the current route pathname to construct the redirect URL.
- * 
- * @returns Full login URL with redirect_to query parameter
- * 
+ * Returns a staff-login trigger. Starts the authentik PKCE flow and remembers
+ * the current page so the user returns here after authenticating.
+ *
  * @example
  * ```tsx
- * const loginLink = useLoginLink();
- * // Returns: "https://nei.web.ua.pt/auth/login?redirect_to=https://nei.web.ua.pt/rally/scoreboard"
- * window.location.href = loginLink;
+ * const onStaffLogin = useStaffLogin();
+ * <button onClick={onStaffLogin}>Login Staff</button>
  * ```
  */
-export default function useLoginLink() {
+export default function useStaffLogin(): () => void {
+  const auth = useAuth();
   const { pathname, search, hash } = useLocation();
-  const loginURL = new URL("/auth/login", config.BASE_URL);
 
-  // Construct the full redirect path
-  const redirectPath = pathname + search + hash;
-  const redirectUrl = new URL(redirectPath, config.BASE_URL);
-
-  loginURL.searchParams.set("redirect_to", redirectUrl.toString());
-
-  return loginURL.toString();
+  return useCallback(() => {
+    sessionStorage.setItem("rally_auth_return_url", pathname + search + hash);
+    void auth.signinRedirect();
+  }, [auth, pathname, search, hash]);
 }
