@@ -289,8 +289,13 @@ class ScoringService:
         *,
         recalc: bool = True,
         update_team_scores: bool = True,
+        commit: bool = True,
     ) -> ActivityResult:
-        """Validate, score and persist a new activity result."""
+        """Validate, score and persist a new activity result.
+
+        Pass commit=False to flush without committing, letting a caller batch
+        this write with others into one atomic transaction.
+        """
         activity = await self.db.get(Activity, obj_in.activity_id)
         if not activity:
             raise ValueError(f"Activity {obj_in.activity_id} not found")
@@ -321,7 +326,7 @@ class ScoringService:
 
         db_obj = activity_result_crud.build(obj_in, final_score)
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
-        await activity_result_crud.persist(self.db, db_obj)
+        await activity_result_crud.persist(self.db, db_obj, commit=commit)
 
         # Adding a time-based result shifts the ranking, so rescore the rest.
         if recalc and is_time_based:
@@ -363,11 +368,14 @@ class ScoringService:
         await self.update_team_scores(team_id)
         return db_obj
 
-    async def _recalculate_all_results_for_activity(self, activity_id: int, exclude_result_id: int | None = None) -> None:
+    async def _recalculate_all_results_for_activity(self, activity_id: int, exclude_result_id: int | None = None, *, commit: bool = True) -> None:
         """Rescore every completed result of a time-based activity.
 
         Called when the set of times changed (a result was added/edited), since
         relative ranking depends on the full distribution of completion times.
+
+        Pass commit=False to defer persistence to the caller, so this rescore
+        can be batched into a single atomic transaction.
         """
         activity = await self.db.get(Activity, activity_id)
         if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
@@ -404,9 +412,10 @@ class ScoringService:
                 all_times=all_times,
             )
 
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
         for team_id in {r.team_id for r in all_results}:
-            await self.update_team_scores(team_id)
+            await self.update_team_scores(team_id, should_commit=commit)
 
     async def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
@@ -578,9 +587,14 @@ class ScoringService:
             # Use datetime.now(timezone.utc) instead of func.now() for proper datetime value
             current_time = datetime.now(timezone.utc)
 
-            # Create both results but defer recalculation and team score updates to batch correctly
-            result1_db_obj = await self.create_result(result1_create, recalc=False, update_team_scores=False)
-            result2_db_obj = await self.create_result(result2_create, recalc=False, update_team_scores=False)
+            # Persist both results without committing so the whole match lands
+            # in one transaction (a half-recorded head-to-head is invalid).
+            result1_db_obj = await self.create_result(
+                result1_create, recalc=False, update_team_scores=False, commit=False
+            )
+            result2_db_obj = await self.create_result(
+                result2_create, recalc=False, update_team_scores=False, commit=False
+            )
 
             # Mark as completed
             result1_db_obj.is_completed = True
@@ -588,11 +602,12 @@ class ScoringService:
             result2_db_obj.is_completed = True
             result2_db_obj.completed_at = current_time
 
-            # Now perform a single recalculation for this activity and update both teams' scores
-            await self._recalculate_all_results_for_activity(activity_id)
-            await self.update_team_scores(team1_id)
-            await self.update_team_scores(team2_id)
-            # Commit after batch recalculation
+            # Recalculate the activity and both teams' scores, still deferring the
+            # commit so everything persists atomically below.
+            await self._recalculate_all_results_for_activity(activity_id, commit=False)
+            await self.update_team_scores(team1_id, should_commit=False)
+            await self.update_team_scores(team2_id, should_commit=False)
+            # Single commit: either the full match persists or nothing does.
             await self.db.commit()
 
             return result1_db_obj, result2_db_obj

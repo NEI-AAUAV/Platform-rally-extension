@@ -445,7 +445,25 @@ class TestGameSimulationScoring:
         assert team4_score < team1_score
         
         print("\n✅ Ties handled correctly: Teams with identical times share the rank!\n")
-    
+
+    def test_time_based_ties_in_last_place(self):
+        """Regression: teams tied for last place must all receive min_points.
+
+        With the old rank == total_teams check, a tie for last meant no team
+        ever reached that rank, so the slowest teams got an interpolated score
+        instead of min_points.
+        """
+        activity_config = {"max_points": 100, "min_points": 10}
+        activity = ActivityFactory.create_activity("TimeBasedActivity", activity_config)
+
+        all_times = [10, 20, 20]  # two teams tied for last
+        winner = activity.calculate_relative_ranking_score(all_times, 10)
+        last_a = activity.calculate_relative_ranking_score(all_times, 20)
+        last_b = activity.calculate_relative_ranking_score(all_times, 20)
+
+        assert winner == 100
+        assert last_a == last_b == 10, "Tied last place must get min_points"
+
     def test_recalculation_on_evaluation_update(self):
         """Test that updating an evaluation triggers recalculation for time-based activities"""
         print("\n=== TESTING RECALCULATION ON UPDATE ===\n")

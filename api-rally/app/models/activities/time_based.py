@@ -59,10 +59,14 @@ class TimeBasedActivity(BaseActivity):
         # Calculate score based on ranking
         # 1st place gets max_points, last place gets min_points
         # Others are distributed proportionally
-        # Teams with identical times get the same rank and score
+        # Teams with identical times get the same rank and score.
+        # Detect last place by the slowest time, not rank == total_teams:
+        # when several teams tie for last, none of them reaches that rank, so
+        # the rank check would wrongly deny them min_points.
+        slowest_time = sorted_times[-1]
         if rank == 1:
             return float(max_points)
-        elif rank == total_teams:
+        elif team_time == slowest_time:
             return float(min_points)
         else:
             # Linear interpolation between max and min

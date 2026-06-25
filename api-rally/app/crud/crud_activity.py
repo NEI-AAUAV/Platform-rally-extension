@@ -86,10 +86,18 @@ class CRUDActivityResult:
             completed_at=func.now()
         )
 
-    async def persist(self, db: AsyncSession, db_obj: ActivityResult) -> ActivityResult:
-        """Add, commit and refresh an ActivityResult."""
+    async def persist(self, db: AsyncSession, db_obj: ActivityResult, *, commit: bool = True) -> ActivityResult:
+        """Add and refresh an ActivityResult.
+
+        Commits by default. Pass commit=False to only flush, so the caller can
+        batch several writes into a single transaction (e.g. team-vs results
+        that must persist atomically).
+        """
         db.add(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(db_obj)
         return db_obj
 
