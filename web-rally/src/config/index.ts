@@ -36,6 +36,11 @@ const config = {
   OIDC_ADMIN_GROUP: import.meta.env.VITE_OIDC_ADMIN_GROUP ?? "admin",
   OIDC_MANAGER_GROUP: import.meta.env.VITE_OIDC_MANAGER_GROUP ?? "manager-rally",
   OIDC_STAFF_GROUP: import.meta.env.VITE_OIDC_STAFF_GROUP ?? "rally-staff",
+
+  // Realtime scoreboard: when enabled, the SPA opens an SSE connection and
+  // refreshes the leaderboard on push instead of relying on polling. Must
+  // mirror the backend EVENTS_ENABLED flag. Off by default.
+  EVENTS_ENABLED: import.meta.env.VITE_EVENTS_ENABLED === "true",
 };
 
 export default config;

@@ -5,11 +5,15 @@ import { Navigate } from "react-router-dom";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";
+import useScoreboardStream from "@/hooks/useScoreboardStream";
 import LeaderboardHeader from "./components/LeaderboardHeader";
 
 export default function Scoreboard() {
   const { Card, Score } = useThemedComponents();
   const { settings } = useRallySettings();
+  // Push-update the leaderboard from the live SSE stream (no-op when the
+  // realtime subsystem is disabled).
+  useScoreboardStream([["teams"]]);
   const { data: teams } = useQuery({
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
