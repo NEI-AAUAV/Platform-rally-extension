@@ -2,8 +2,9 @@
 Tests for Team Auth API endpoints (team login / token management)
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone, timedelta
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from jose import jwt
 
@@ -55,11 +56,10 @@ class TestCreateTeamAccessToken:
     """Unit tests for create_team_access_token"""
 
     def test_creates_valid_jwt(self):
-        """Token should be decodable with the correct secret"""
+        """Token should be decodable and carry the team claims"""
         from app.api.api_v1.team_auth import create_team_access_token
 
-        data = {"sub": "team:1", "team_id": 1}
-        token = create_team_access_token(data)
+        token = create_team_access_token(team_id=1, team_name="Test Team")
 
         assert settings.TEAM_JWT_SECRET_KEY is not None
         payload = jwt.decode(
@@ -67,15 +67,15 @@ class TestCreateTeamAccessToken:
             settings.TEAM_JWT_SECRET_KEY,
             algorithms=[settings.TEAM_JWT_ALGORITHM],
         )
-        assert payload["sub"] == "team:1"
         assert payload["team_id"] == 1
+        assert payload["team_name"] == "Test Team"
+        assert payload["type"] == "team_access"
 
     def test_token_includes_expiry(self):
         """Token should include an 'exp' claim"""
         from app.api.api_v1.team_auth import create_team_access_token
 
-        data = {"sub": "team:1"}
-        token = create_team_access_token(data)
+        token = create_team_access_token(team_id=1, team_name="Test Team")
 
         assert settings.TEAM_JWT_SECRET_KEY is not None
         payload = jwt.decode(
@@ -85,13 +85,12 @@ class TestCreateTeamAccessToken:
         )
         assert "exp" in payload
 
-    def test_custom_expiry_is_respected(self):
-        """Token should expire at the specified time"""
+    def test_expiry_matches_settings(self):
+        """Token should expire TEAM_TOKEN_EXPIRE_HOURS from now"""
         from app.api.api_v1.team_auth import create_team_access_token
 
-        expires_delta = timedelta(minutes=5)
         before = datetime.now(timezone.utc)
-        token = create_team_access_token({"sub": "team:1"}, expires_delta=expires_delta)
+        token = create_team_access_token(team_id=1, team_name="Test Team")
         after = datetime.now(timezone.utc)
 
         assert settings.TEAM_JWT_SECRET_KEY is not None
@@ -100,57 +99,69 @@ class TestCreateTeamAccessToken:
             settings.TEAM_JWT_SECRET_KEY,
             algorithms=[settings.TEAM_JWT_ALGORITHM],
         )
+        expire_delta = timedelta(hours=settings.TEAM_TOKEN_EXPIRE_HOURS)
+        # JWT exp is truncated to whole seconds, so allow 1s slack on the lower bound.
         exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        assert before + expires_delta <= exp <= after + expires_delta + timedelta(seconds=5)
+        assert before + expire_delta - timedelta(seconds=1) <= exp <= after + expire_delta + timedelta(seconds=5)
 
 
 class TestVerifyTeamToken:
     """Unit tests for verify_team_token"""
 
-    def test_returns_payload_for_valid_token(self):
-        """Should decode a valid token and return its payload"""
+    def test_returns_team_data_for_valid_token(self):
+        """Should decode a valid token and return its TeamTokenData"""
         from app.api.api_v1.team_auth import create_team_access_token, verify_team_token
 
-        token = create_team_access_token({"sub": "team:42", "team_id": 42})
-        payload = verify_team_token(token)
+        token = create_team_access_token(team_id=42, team_name="Answer")
+        data = verify_team_token(token)
 
-        assert payload is not None
-        assert payload["team_id"] == 42
+        assert data.team_id == 42
+        assert data.team_name == "Answer"
 
-    def test_returns_none_for_expired_token(self):
-        """Should return None for an expired token"""
+    def test_raises_for_expired_token(self):
+        """Should raise 401 for an expired token"""
         from app.api.api_v1.team_auth import verify_team_token
 
         assert settings.TEAM_JWT_SECRET_KEY is not None
         expired_token = jwt.encode(
             {
-                "sub": "team:1",
+                "team_id": 1,
+                "team_name": "Test Team",
+                "type": "team_access",
                 "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
             },
             settings.TEAM_JWT_SECRET_KEY,
             algorithm=settings.TEAM_JWT_ALGORITHM,
         )
-        result = verify_team_token(expired_token)
-        assert result is None
+        with pytest.raises(HTTPException) as exc:
+            verify_team_token(expired_token)
+        assert exc.value.status_code == 401
 
-    def test_returns_none_for_invalid_token(self):
-        """Should return None for a tampered / invalid token"""
+    def test_raises_for_invalid_token(self):
+        """Should raise 401 for a tampered / invalid token"""
         from app.api.api_v1.team_auth import verify_team_token
 
-        result = verify_team_token("not.a.valid.jwt")
-        assert result is None
+        with pytest.raises(HTTPException) as exc:
+            verify_team_token("not.a.valid.jwt")
+        assert exc.value.status_code == 401
 
-    def test_returns_none_for_wrong_secret(self):
-        """Should return None when token was signed with a different secret"""
+    def test_raises_for_wrong_secret(self):
+        """Should raise 401 when token was signed with a different secret"""
         from app.api.api_v1.team_auth import verify_team_token
 
         bad_token = jwt.encode(
-            {"sub": "team:1", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            {
+                "team_id": 1,
+                "team_name": "Test Team",
+                "type": "team_access",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
             "wrong-secret",
             algorithm=settings.TEAM_JWT_ALGORITHM,
         )
-        result = verify_team_token(bad_token)
-        assert result is None
+        with pytest.raises(HTTPException) as exc:
+            verify_team_token(bad_token)
+        assert exc.value.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -163,57 +174,53 @@ class TestTeamAuthAPI:
     def test_login_success(self, client_with_mocked_db, mock_db, mock_team):
         """POST /team-auth/login with valid access_code should return a token"""
         with patch("app.api.api_v1.team_auth.crud_team") as mock_crud:
-            mock_crud.team.get_by_access_code.return_value = mock_team
+            mock_crud.get_by_access_code = AsyncMock(return_value=mock_team)
 
             response = client_with_mocked_db.post(
                 "/api/rally/v1/team-auth/login",
                 json={"access_code": "ABCD-1234"},
             )
 
-        # Endpoint may require no auth (public) → 200, or may not exist yet → 404/422
-        assert response.status_code in [200, 404, 422]
-
-        if response.status_code == 200:
-            data = response.json()
-            assert "access_token" in data
-            assert data["token_type"] == "bearer"
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+        assert data["team_id"] == mock_team.id
+        assert data["team_name"] == mock_team.name
 
     def test_login_invalid_code(self, client_with_mocked_db, mock_db):
         """POST /team-auth/login with invalid access_code should return 401"""
         with patch("app.api.api_v1.team_auth.crud_team") as mock_crud:
-            mock_crud.team.get_by_access_code.return_value = None
+            mock_crud.get_by_access_code = AsyncMock(return_value=None)
 
             response = client_with_mocked_db.post(
                 "/api/rally/v1/team-auth/login",
                 json={"access_code": "WRONG-CODE"},
             )
 
-        assert response.status_code in [401, 404, 422]
+        assert response.status_code == 401
 
     def test_login_missing_body(self, client_with_mocked_db):
         """POST /team-auth/login without body should return 422"""
         response = client_with_mocked_db.post("/api/rally/v1/team-auth/login", json={})
-        assert response.status_code in [422, 404]
+        assert response.status_code == 422
 
     def test_refresh_with_valid_token(self, client_with_mocked_db, mock_db, mock_team):
         """POST /team-auth/refresh with a valid Bearer token should return a new token"""
         from app.api.api_v1.team_auth import create_team_access_token
 
-        token = create_team_access_token({"sub": f"team:{mock_team.id}", "team_id": mock_team.id})
+        token = create_team_access_token(team_id=mock_team.id, team_name=mock_team.name)
 
-        with patch("app.api.api_v1.team_auth.crud_team") as mock_crud:
-            mock_crud.team.get.return_value = mock_team
+        response = client_with_mocked_db.post(
+            "/api/rally/v1/team-auth/refresh",
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/team-auth/refresh",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-
-        assert response.status_code in [200, 401, 404]
-
-        if response.status_code == 200:
-            data = response.json()
-            assert "access_token" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["team_id"] == mock_team.id
+        assert data["team_name"] == mock_team.name
 
     def test_refresh_with_invalid_token(self, client_with_mocked_db):
         """POST /team-auth/refresh with an invalid token should return 401"""

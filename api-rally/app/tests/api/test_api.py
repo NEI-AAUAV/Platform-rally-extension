@@ -48,6 +48,9 @@ def mock_rally_settings():
         "show_live_leaderboard": True,
         "show_team_details": True,
         "show_checkpoint_map": False,
+        "participant_view_enabled": True,
+        "show_route_mode": "focused",
+        "show_score_mode": "competitive",
         "rally_theme": "bloody"
     }
 
