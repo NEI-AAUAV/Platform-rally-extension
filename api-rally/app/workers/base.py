@@ -59,26 +59,26 @@ class BaseWorker(ABC):
 
     def _run_loop(self) -> None:
         logger.info("[%s] Worker loop starting", self.name)
+        # redis does not type pubsub() under strict mypy.
+        pubsub = get_redis_client().pubsub()  # type: ignore[no-untyped-call]
+        self._pubsub = pubsub
         try:
-            client = get_redis_client()
-            self._pubsub = client.pubsub()
             if self.channels:
-                self._pubsub.subscribe(*self.channels)
+                pubsub.subscribe(*self.channels)
             if self.patterns:
-                self._pubsub.psubscribe(*self.patterns)
+                pubsub.psubscribe(*self.patterns)
             logger.info(
                 "[%s] Subscribed channels=%s patterns=%s",
                 self.name, self.channels, self.patterns,
             )
             while not self._stop_event.is_set():
-                message = self._pubsub.get_message(timeout=1.0)
+                message = pubsub.get_message(timeout=1.0)
                 if message:
                     self._dispatch(message)
         except redis.RedisError as exc:
             logger.error("[%s] Redis error: %s", self.name, exc)
         finally:
-            if self._pubsub is not None:
-                self._pubsub.close()
+            pubsub.close()
             logger.info("[%s] Worker loop ended", self.name)
 
     def start(self, background: bool = True) -> None:

@@ -78,7 +78,8 @@ async def stream_scoreboard(request: Request) -> StreamingResponse:
         except asyncio.CancelledError:
             raise
         finally:
-            await pubsub.aclose()
+            # redis does not type the async pubsub aclose under strict mypy.
+            await pubsub.aclose()  # type: ignore[no-untyped-call]
             await client.aclose()
 
     return StreamingResponse(
