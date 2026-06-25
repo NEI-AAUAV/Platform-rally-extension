@@ -7,6 +7,7 @@ import { nthNumber } from "./teamDetails.types";
 import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
 import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
+import { EarnedBadges } from "@/components/badges/EarnedBadges";
 
 export default function TeamsById() {
   const { Card } = useThemedComponents();
@@ -98,6 +99,9 @@ export default function TeamsById() {
               </div>
             </div>
           </Card>
+
+          {/* Earned badges */}
+          <EarnedBadges teamId={Number(id)} />
 
           {/* Next Checkpoint Section */}
           <NextCheckpointCard
