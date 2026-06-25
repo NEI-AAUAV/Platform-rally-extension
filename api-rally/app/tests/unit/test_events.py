@@ -72,18 +72,34 @@ async def test_publish_sends_to_channel_when_enabled(monkeypatch: pytest.MonkeyP
     await pubsub.aclose()
 
 
+class _Broken:
+    async def publish(self, *_: object) -> None:
+        raise ConnectionError("down")
+
+    async def aclose(self) -> None:
+        return None
+
+
 async def test_publish_swallows_redis_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.events.publisher.settings.EVENTS_ENABLED", True)
-
-    class _Broken:
-        async def publish(self, *_: object) -> None:
-            raise ConnectionError("down")
-
-        async def aclose(self) -> None:
-            return None
-
+    monkeypatch.setattr("app.events.publisher.settings.EVENTS_FAIL_SILENTLY", True)
     monkeypatch.setattr("app.events.publisher.get_async_redis_client", lambda: _Broken())
     # Must not raise — a publish failure cannot break an already-committed request.
     await publish_event(
         TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=1))
     )
+
+
+async def test_publish_raises_when_not_fail_silently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.events.publisher.settings.EVENTS_ENABLED", True)
+    monkeypatch.setattr("app.events.publisher.settings.EVENTS_FAIL_SILENTLY", False)
+    monkeypatch.setattr("app.events.publisher.get_async_redis_client", lambda: _Broken())
+
+    from app.events.exceptions import EventPublishError
+
+    with pytest.raises(EventPublishError):
+        await publish_event(
+            TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=1))
+        )

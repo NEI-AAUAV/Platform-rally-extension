@@ -49,15 +49,18 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # Redis (realtime foundation: cache + event pub/sub for the live
-    # scoreboard). Optional and feature-gated: when EVENTS_ENABLED is False
-    # the app never touches Redis and behaves exactly as before.
+    # scoreboard). Mirrors the NEI gamification system's config.
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD") or None
     REDIS_CONNECTION_TIMEOUT: int = int(os.getenv("REDIS_CONNECTION_TIMEOUT", "5"))
-    # Master kill-switch for the event/worker/realtime subsystem. Off by
-    # default so the realtime foundation rolls out with zero behaviour change.
-    EVENTS_ENABLED: bool = os.getenv("EVENTS_ENABLED", "false").lower() == "true"
+    # Event/worker/realtime subsystem. On by default (uniform with the
+    # gamification system); EVENTS_FAIL_SILENTLY keeps a Redis outage from
+    # breaking requests — publishes are logged and swallowed instead of raised.
+    EVENTS_ENABLED: bool = os.getenv("EVENTS_ENABLED", "true").lower() == "true"
+    EVENTS_FAIL_SILENTLY: bool = (
+        os.getenv("EVENTS_FAIL_SILENTLY", "true").lower() == "true"
+    )
 
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"

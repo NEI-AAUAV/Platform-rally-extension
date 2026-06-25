@@ -96,8 +96,8 @@ async def health_check() -> dict[str, str]:
         "service": "rally-api",
         "version": "1.0.0",
     }
-    # Only report on Redis when the realtime subsystem is enabled, so the
-    # check stays a no-op (and never fails) in the default configuration.
+    # Report on Redis whenever the realtime subsystem is enabled (the default).
+    # When explicitly disabled the check is skipped so it never fails.
     if settings.EVENTS_ENABLED:
         health["redis"] = "up" if await check_redis_health() else "down"
     return health

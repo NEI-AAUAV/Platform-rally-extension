@@ -34,11 +34,13 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - ENV=production
-      # Redis (realtime subsystem). Inert unless EVENTS_ENABLED=true.
+      # Redis (realtime subsystem). On by default; set EVENTS_ENABLED=false
+      # to opt out. Redis failures degrade silently (EVENTS_FAIL_SILENTLY).
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - EVENTS_ENABLED=${EVENTS_ENABLED:-false}
+      - EVENTS_ENABLED=${EVENTS_ENABLED:-true}
+      - EVENTS_FAIL_SILENTLY=${EVENTS_FAIL_SILENTLY:-true}
       # OIDC resource-server validation (authentik)
       - OIDC_PROVIDER_URL=${OIDC_PROVIDER_URL}
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}

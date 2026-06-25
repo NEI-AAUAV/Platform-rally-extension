@@ -11,9 +11,10 @@ from app.core import redis as redis_module
 from app.core.config import settings
 
 
-def test_events_disabled_by_default() -> None:
-    """The realtime subsystem must default to off (zero behaviour change)."""
-    assert settings.EVENTS_ENABLED is False
+def test_events_enabled_by_default() -> None:
+    """The realtime subsystem defaults to on, uniform with gamification."""
+    assert settings.EVENTS_ENABLED is True
+    assert settings.EVENTS_FAIL_SILENTLY is True
 
 
 def test_redis_defaults() -> None:

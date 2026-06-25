@@ -41,9 +41,11 @@ def _channel_for(event: BaseEvent) -> str:
 async def publish_event(event: BaseEvent) -> None:
     """Publish a single event to its channel.
 
-    No-op when the realtime subsystem is disabled. Redis/connection errors are
-    logged and swallowed: a publish failure must never break the request that
-    already committed its data.
+    No-op when the realtime subsystem is disabled. On a Redis/connection error
+    the behaviour follows ``settings.EVENTS_FAIL_SILENTLY``: when True (default)
+    the error is logged and swallowed so a publish failure never breaks the
+    request that already committed its data; when False it raises
+    ``EventPublishError``.
     """
     if not settings.EVENTS_ENABLED:
         return
@@ -54,6 +56,10 @@ async def publish_event(event: BaseEvent) -> None:
         await client.publish(channel, event.model_dump_json())
         logger.debug("Published %s to %s", event.event_type, channel)
     except Exception as exc:  # noqa: BLE001 — publish must not break the caller
-        logger.error("Failed to publish %s to %s: %s", event.event_type, channel, exc)
+        msg = f"Failed to publish {event.event_type} to {channel}: {exc}"
+        if settings.EVENTS_FAIL_SILENTLY:
+            logger.error(msg)
+        else:
+            raise EventPublishError(msg) from exc
     finally:
         await client.aclose()
