@@ -9,6 +9,16 @@ let isRefreshing = false;
 
 let refreshSubscribers: ((token?: string) => void)[] = [];
 
+/**
+ * Handler invoked when a staff request gets a 401 and cannot be recovered with
+ * a token refresh. Registered by useAuthSync to trigger an OIDC re-login.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 /** Add new pending request to wait for a new access token. */
 function subscribeTokenRefresh(callback: (token?: string) => void) {
   refreshSubscribers.push(callback);
@@ -22,14 +32,15 @@ function processQueue(token?: string) {
 
 /** Get current token (either staff or team) */
 function getCurrentToken(): { token: string; type: 'staff' | 'team' } | null {
-  // Check for staff token first - this is the primary auth method
+  // Staff token (authentik access token, synced from react-oidc-context) is the
+  // primary auth method.
   const staffToken = useUserStore.getState().token;
   if (staffToken) {
     return { token: staffToken, type: 'staff' };
   }
 
-  // Fall back to team token ONLY if no staff token exists
-  // This ensures team tokens don't interfere with staff authentication
+  // Fall back to team token ONLY if no staff token exists, so team tokens don't
+  // interfere with staff authentication.
   const teamToken = getTeamToken();
   if (teamToken) {
     return { token: teamToken, type: 'team' };
@@ -38,113 +49,49 @@ function getCurrentToken(): { token: string; type: 'staff' | 'team' } | null {
   return null;
 }
 
-
-
 /**
- * Attempts to refresh the authentication token using the appropriate refresh endpoint
+ * Refresh the team access token using the Rally team-auth refresh endpoint.
  *
- * For staff tokens (NEI): Always attempts the NEI refresh endpoint, which relies on
- * the HttpOnly refresh cookie set by the NEI backend. This correctly handles two cases:
- *   1. Existing staff session: rally_token already in localStorage, refresh keeps it alive.
- *   2. New login from NEI: user was redirected back from NEI login with a refresh cookie
- *      but rally_token is not yet in localStorage — the cookie alone is sufficient.
+ * Staff tokens are NOT refreshed here: staff auth is owned by react-oidc-context
+ * (authentik), which renews tokens silently and, on a hard 401, re-authenticates
+ * via {@link onUnauthorized}.
  *
- * For team tokens: Uses the Rally team-auth refresh endpoint with the Bearer token.
- *
- * Implements a queue system to handle concurrent refresh requests.
- *
- * @returns Promise resolving to the new access token, or undefined if refresh fails
- * @throws Does not throw, but returns undefined on failure
- *
- * @example
- * ```ts
- * const token = await refreshToken();
- * if (token) {
- *   // Token refreshed successfully
- * }
- * ```
+ * @returns the new team token, or undefined when there is no team session / it failed.
  */
-export async function refreshToken() {
-  const currentAuth = getCurrentToken();
-
-  // Always attempt the NEI staff refresh — it relies on the HttpOnly cookie,
-  // so it works even when no staff token is in localStorage yet.
-  // Run it in parallel with the team refresh when both tokens exist.
+export async function refreshTeamToken(): Promise<string | undefined> {
   const teamToken = getTeamToken();
+  if (!teamToken) return undefined;
 
-  const neiRefreshPromise = axios
+  return axios
     .create({
-      baseURL: config.API_NEI_URL,
+      baseURL: config.BASE_URL,
       timeout: 5000,
-      headers: currentAuth?.token
-        ? { Authorization: `Bearer ${currentAuth.token}` }
-        : {},
+      headers: { Authorization: `Bearer ${teamToken}` },
     })
-    .post("/auth/refresh/")
+    .post("/api/rally/v1/team-auth/refresh")
     .then(({ data: { access_token } }) => {
-      useUserStore.getState().login({ token: access_token });
+      setTeamToken(access_token);
       return access_token as string;
     })
     .catch((error) => {
       if (process.env.NODE_ENV === 'development') {
-        console.error('Staff token refresh failed:', error);
+        console.error('Team token refresh failed:', error);
       }
-      // Only explicitly logout if there was a known staff session that failed.
-      if (currentAuth?.type === 'staff') {
-        useUserStore.getState().logout();
-      }
+      clearTeamAuth();
       return undefined;
     });
-
-  // If there is a team token, refresh it in parallel.
-  if (teamToken) {
-    const teamRefreshPromise = axios
-      .create({
-        baseURL: config.BASE_URL,
-        timeout: 5000,
-        headers: { Authorization: `Bearer ${teamToken}` },
-      })
-      .post("/api/rally/v1/team-auth/refresh")
-      .then(({ data: { access_token } }) => {
-        setTeamToken(access_token);
-        return access_token as string;
-      })
-      .catch((error) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Team token refresh failed:', error);
-        }
-        clearTeamAuth();
-        return undefined;
-      });
-
-    // Wait for both — return the staff token (primary auth)
-    const [staffToken] = await Promise.all([neiRefreshPromise, teamRefreshPromise]);
-    return staffToken;
-  }
-
-  // No team token — just return the NEI refresh result
-  return neiRefreshPromise;
 }
 
-
-
 /**
- * Creates an axios client with authentication and error handling
- * 
+ * Creates an axios client with authentication and error handling.
+ *
  * Features:
  * - Automatic token injection in request headers (staff or team)
- * - Automatic token refresh on 401 errors using appropriate endpoint
- * - Request queue during token refresh to prevent duplicate refresh calls
- * - Automatic logout on refresh failure
- * 
+ * - Team-token refresh on 401; staff 401 triggers an OIDC re-login
+ * - Request queue during team refresh to prevent duplicate refresh calls
+ *
  * @param baseURL - Optional base URL for the API client
  * @returns Configured axios instance with interceptors
- * 
- * @example
- * ```ts
- * const client = createClient('https://api.example.com');
- * const data = await client.get('/endpoint');
- * ```
  */
 export const createClient = (baseURL?: string) => {
   const client = axios.create({
@@ -162,29 +109,30 @@ export const createClient = (baseURL?: string) => {
       return config;
     },
     (error) => {
-      // Do something with request error
       const errorObj = error instanceof Error ? error : new Error(String(error));
       return Promise.reject(errorObj);
     },
   );
 
   client.interceptors.response.use(
-    (response) => {
-      // Any status code that lie within the range of 2xx cause this function to trigger
-      // Do something with response data
-      return response.data;
-    },
+    (response) => response.data,
     async (error) => {
-      // Any status codes that falls outside the range of 2xx cause this function to trigger
-      // Do something with response error
-
       const { response, config } = error;
 
       if (response?.status === UNAUTHORIZED && !config.retry) {
-        // Token expired. Retry authentication here
+        const currentAuth = getCurrentToken();
+
+        // Staff session: hand off to the OIDC layer for re-authentication.
+        if (currentAuth?.type !== 'team') {
+          onUnauthorized?.();
+          return Promise.reject(new Error("Session Expired"));
+        }
+
+        // Team session: attempt a single team-token refresh, queueing concurrent
+        // requests behind it.
         if (!isRefreshing) {
           isRefreshing = true;
-          const token = await refreshToken();
+          const token = await refreshTeamToken();
           processQueue(token);
           isRefreshing = false;
 
