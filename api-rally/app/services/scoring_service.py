@@ -18,6 +18,10 @@ from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.core.exceptions import RallyError, RallyValidationError
 from app.events import (
+    ActivityResultChangedPayload,
+    ActivityResultCreatedEvent,
+    ActivityResultDeletedEvent,
+    ActivityResultUpdatedEvent,
     TeamScoreUpdatedEvent,
     TeamScoreUpdatedPayload,
     publish_event,
@@ -191,6 +195,32 @@ class ScoringService:
 
         return True
 
+    async def _publish_result_change(
+        self,
+        event_cls: type[
+            ActivityResultCreatedEvent
+            | ActivityResultUpdatedEvent
+            | ActivityResultDeletedEvent
+        ],
+        *,
+        result_id: int,
+        team_id: int,
+        activity_id: int,
+    ) -> None:
+        """Emit an activity_result.* event after its write has committed.
+
+        Only call once the change is durable: subscribers (leaderboard now,
+        badges later) must never react to a result a rollback would erase.
+        No-op unless the realtime subsystem is enabled.
+        """
+        await publish_event(
+            event_cls(
+                payload=ActivityResultChangedPayload(
+                    result_id=result_id, team_id=team_id, activity_id=activity_id
+                )
+            )
+        )
+
     async def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
         """Apply extra shots bonus to a team's activity result"""
         # Get team size to validate limit
@@ -350,6 +380,16 @@ class ScoringService:
         if update_team_scores:
             await self.update_team_scores(obj_in.team_id)
 
+        # Granular event only when this call owns the commit. Batched callers
+        # (commit=False, e.g. team-vs) publish once after their own commit.
+        if commit:
+            await self._publish_result_change(
+                ActivityResultCreatedEvent,
+                result_id=db_obj.id,
+                team_id=db_obj.team_id,
+                activity_id=db_obj.activity_id,
+            )
+
         return db_obj
 
     async def update_result(self, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
@@ -370,6 +410,12 @@ class ScoringService:
 
         await activity_result_crud.persist(self.db, db_obj)
         await self.update_team_scores(db_obj.team_id)
+        await self._publish_result_change(
+            ActivityResultUpdatedEvent,
+            result_id=db_obj.id,
+            team_id=db_obj.team_id,
+            activity_id=db_obj.activity_id,
+        )
         return db_obj
 
     async def remove_result(self, result_id: int) -> ActivityResult | None:
@@ -378,9 +424,17 @@ class ScoringService:
         if db_obj is None:
             return None
 
+        # Capture identifiers before the row is gone.
         team_id = db_obj.team_id
+        activity_id = db_obj.activity_id
         await activity_result_crud.delete(self.db, db_obj=db_obj)
         await self.update_team_scores(team_id)
+        await self._publish_result_change(
+            ActivityResultDeletedEvent,
+            result_id=result_id,
+            team_id=team_id,
+            activity_id=activity_id,
+        )
         return db_obj
 
     async def _recalculate_all_results_for_activity(self, activity_id: int, exclude_result_id: int | None = None, *, commit: bool = True) -> None:
@@ -624,6 +678,17 @@ class ScoringService:
             await self.update_team_scores(team2_id, should_commit=False)
             # Single commit: either the full match persists or nothing does.
             await self.db.commit()
+
+            # Both results were persisted with commit=False, so neither emitted
+            # its own event. Publish now (post-commit) so the leaderboard and
+            # future badge consumers see the completed head-to-head.
+            for db_obj in (result1_db_obj, result2_db_obj):
+                await self._publish_result_change(
+                    ActivityResultCreatedEvent,
+                    result_id=db_obj.id,
+                    team_id=db_obj.team_id,
+                    activity_id=db_obj.activity_id,
+                )
 
             return result1_db_obj, result2_db_obj
 
