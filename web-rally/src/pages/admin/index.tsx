@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useThemedComponents } from "@/components/themes";
-import { Users, MapPin, Activity as ActivityIcon, Palette } from "lucide-react";
+import { Users, MapPin, Activity as ActivityIcon, Palette, CalendarRange } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { PageHeader, LoadingState } from "@/components/shared";
-import { TeamManagement, CheckpointManagement, ActivityManagement, BrandingSettings } from "./components";
+import { TeamManagement, CheckpointManagement, ActivityManagement, BrandingSettings, EventsManagement } from "./components";
 import { CheckPointService } from "@/client";
 
 interface Checkpoint {
@@ -22,7 +22,7 @@ export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
   
-  const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities" | "branding">("teams");
+  const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities" | "branding" | "events">("teams");
 
   // Fetch checkpoints for activities
   const { data: checkpoints } = useQuery<Checkpoint[]>({
@@ -79,6 +79,13 @@ export default function Admin() {
           <Palette className="w-4 h-4 mr-2" />
           Identidade Visual
         </Button>
+        <Button
+          variant={activeTab === "events" ? "default" : "neutral"}
+          onClick={() => setActiveTab("events")}
+        >
+          <CalendarRange className="w-4 h-4 mr-2" />
+          Edições
+        </Button>
       </div>
 
       {/* Tab Content */}
@@ -96,6 +103,10 @@ export default function Admin() {
 
       {activeTab === "branding" && (
         <BrandingSettings />
+      )}
+
+      {activeTab === "events" && (
+        <EventsManagement />
       )}
     </div>
   );
