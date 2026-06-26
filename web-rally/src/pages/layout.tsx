@@ -1,5 +1,7 @@
 import { RallyTimeBanner } from "@/components/shared";
 import { RallyNavbar } from "@/components/shared/RallyNavbar";
+import { SiteFooter } from "@/components/shared/SiteFooter";
+import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingGate from "@/components/landing/LandingGate";
@@ -9,16 +11,14 @@ import useRallySettings from "@/hooks/useRallySettings";
 import useDocumentBranding from "@/hooks/useDocumentBranding";
 import { resolveBranding } from "@/lib/branding";
 import { useUserStore } from "@/stores/useUserStore";
-import type { CSSProperties } from "react";
 import { Outlet } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "@/components/themes";
 
 function MainLayoutContent() {
-  // Get current theme components including background
-  const { components, themeName } = useTheme();
-
-  // Use theme-defined background
-  const bgStyle: CSSProperties = components.background;
+  // The skin's themeName still drives the accent fallback (data-rally-theme)
+  // until every page is migrated off the dual-skin system; the surface itself
+  // now uses the dual light/dark design tokens, not the skin background.
+  const { themeName } = useTheme();
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const onStaffLogin = useStaffLogin();
@@ -43,7 +43,7 @@ function MainLayoutContent() {
   // AND we are not on a specifically allowed public/team path
   if (!isAuthenticated && !isPublicAccessEnabled && !isPublicPath && !sessionLoading && !settingsLoading) {
     return (
-      <div className="font-inter rally-grain text-[rgb(255,255,255,0.95)] antialiased" data-rally-theme={themeName} style={bgStyle}>
+      <div className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
         <div className="relative z-10">
           <LandingGate branding={branding} onStaffLogin={onStaffLogin} />
         </div>
@@ -54,21 +54,21 @@ function MainLayoutContent() {
   // Show loading while settings are being fetched
   if (settingsLoading) {
     return (
-      <div className="font-inter rally-grain" data-rally-theme={themeName} style={bgStyle}>
-        <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4 text-[rgb(255,255,255,0.95)] antialiased">
-          <span className="rally-border-accent h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-current" />
-          <p className="font-display text-sm uppercase tracking-[0.18em] text-[rgb(255,255,255,0.6)]">A carregar</p>
+      <div className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+        <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4">
+          <span className="rally-border-accent h-10 w-10 animate-spin rounded-full border-2 border-border border-t-current" />
+          <p className="rally-display text-sm uppercase tracking-[0.18em] text-muted-foreground">A carregar</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="font-inter rally-grain min-h-screen text-[rgb(255,255,255,0.95)] antialiased" data-rally-theme={themeName} style={bgStyle}>
-      <div className="relative z-10">
+    <div className="rally-grain flex min-h-screen flex-col bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+      <div className="relative z-10 flex min-h-screen flex-1 flex-col">
         <RallyNavbar branding={branding} />
-        <main className="mx-2 pb-10 pt-6 sm:mx-4">
-          <BrandHeader branding={branding} className="mx-auto max-w-6xl" />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-3 pb-24 pt-6 sm:px-4 sm:pb-10">
+          <BrandHeader branding={branding} />
           <RallyTimeBanner />
           <div className="mt-6">
             <ErrorBoundary>
@@ -77,6 +77,8 @@ function MainLayoutContent() {
           </div>
           <PWAInstallPrompt />
         </main>
+        <SiteFooter branding={branding} />
+        <MobileBottomNav />
       </div>
     </div>
   );

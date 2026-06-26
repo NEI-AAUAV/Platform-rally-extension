@@ -1,6 +1,9 @@
 // Shared components (theme-agnostic)
 export { default as NavTabs } from './nav-tabs';
 export { default as RallyTimeBanner } from './rally-time-banner';
+export { default as RallyNavbar } from './RallyNavbar';
+export { default as SiteFooter } from './SiteFooter';
+export { default as MobileBottomNav } from './MobileBottomNav';
 
 // Common UI components
 export { default as PageHeader } from './PageHeader';

@@ -1,10 +1,10 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useThemedComponents } from "../themes";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, ShieldCheck, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
 
@@ -14,7 +14,6 @@ const VIEW_MODE_KEY = "rally_view_mode";
 type ViewMode = "team" | "staff";
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
-  const { Button, config } = useThemedComponents();
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
   const { settings } = useRallySettings();
@@ -101,9 +100,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           <li key={item.name}>
             <Link to={item.href} onClick={() => setIsMobileMenuOpen(false)}>
               <Button
-                variant={isActive ? config.nav.activeVariant : "neutral"}
-                className="w-full sm:w-auto"
-                {...(config.nav.useBloodEffect && isActive ? { blood: true } : {})}
+                variant={isActive ? "default" : "ghost"}
+                size="sm"
+                className="w-full justify-start sm:w-auto sm:justify-center"
               >
                 {item.name}
               </Button>
@@ -118,9 +117,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           <button
             onClick={toggleViewMode}
             title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/20 bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all duration-200 w-full sm:w-auto"
+            className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
           >
-            {viewMode === "staff" ? <ShieldCheck className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+            {viewMode === "staff" ? <ShieldCheck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
             <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
           </button>
         </li>
@@ -131,42 +130,39 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   return (
     <div className="relative">
       {/* Desktop Navigation */}
-      <ul {...props} className={cn("hidden sm:flex gap-3 items-center", className)}>
+      <ul {...props} className={cn("hidden items-center gap-1 sm:flex", className)}>
         <NavItems />
       </ul>
 
-      {/* Mobile Navigation */}
+      {/* Mobile overflow menu — primary actions live in MobileBottomNav;
+          this carries the longer staff/admin list. */}
       <div className="sm:hidden" ref={mobileMenuRef}>
-        {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="flex items-center justify-center w-full p-3 rounded-lg bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] text-white hover:bg-[rgb(255,255,255,0.2)] transition-colors"
+          aria-label="Abrir menu"
+          className="flex items-center justify-center rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-accent"
         >
-          <Menu className="w-5 h-5 mr-2" />
-          <span className="font-medium">Menu</span>
+          <Menu className="h-5 w-5" />
         </button>
 
-        {/* Mobile Menu Dropdown */}
         {isMobileMenuOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-[rgb(0,0,0,0.9)] border border-[rgb(255,255,255,0.2)] rounded-lg shadow-lg">
-            <div className="p-2">
-              <div className="flex items-center justify-between p-2 mb-2">
-                <span className="text-white font-medium">Navigation</span>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-white hover:text-red-400 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <ul className="space-y-1">
-                <NavItems />
-              </ul>
+          <div className="rally-elevate absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-popover">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <span className="text-sm font-semibold text-popover-foreground">Menu</span>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                aria-label="Fechar menu"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
+            <ul className="space-y-1 p-2">
+              <NavItems />
+            </ul>
           </div>
         )}
       </div>
     </div>
   );
 }
-
