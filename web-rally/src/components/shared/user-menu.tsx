@@ -1,6 +1,6 @@
 import { useUserStore } from "@/stores/useUserStore";
 import { Link } from "@tanstack/react-router";
-import { Settings, LogOut, ShieldCheck, Users } from "lucide-react";
+import { Settings, LogOut, ShieldCheck, Users, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
 
@@ -80,6 +80,13 @@ export function UserMenu() {
             <p className="truncate text-sm font-semibold text-popover-foreground">{displayName}</p>
             {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
           </div>
+          <Link
+            to="/profile"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
+          >
+            <User className="h-4 w-4" />
+            O meu perfil
+          </Link>
           <button
             onClick={logout}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
