@@ -93,7 +93,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
             href={mapUrl || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            className="rally-bg-accent rally-press flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-white"
           >
             <Navigation className="w-4 h-4" />
             Abrir Mapa Completo
@@ -104,7 +104,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
               href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted rounded-lg text-foreground font-medium transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 font-medium text-foreground transition-colors hover:bg-muted/70"
             >
               <MapPin className="w-4 h-4" />
               Ver Posto Selecionado

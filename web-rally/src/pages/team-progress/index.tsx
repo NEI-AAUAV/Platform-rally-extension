@@ -10,7 +10,7 @@ import RouteCheckpointItem from "./RouteCheckpointItem";
 import { CheckinScanButton } from "@/components/checkin/CheckinScanButton";
 
 export default function TeamProgress() {
-  const { config, background } = useThemedComponents();
+  const { config } = useThemedComponents();
   const {
     settings,
     team,
@@ -53,21 +53,23 @@ export default function TeamProgress() {
   const showMap = settings?.show_checkpoint_map !== false;
 
   return (
-    <div className="min-h-screen p-4 pb-20 transition-colors duration-500" style={background}>
-      <div className="max-w-2xl mx-auto pt-6 animate-in fade-in duration-500 space-y-6">
-        <TeamHeaderCard team={team} showScore={showScore} showRanking={showRanking} />
-        <TeamMembersCard team={team} />
-        <ProgressSummaryCard
-          completedCount={completedCheckpointsCount}
-          totalCount={totalCount}
-          totalScore={team.total}
-          showScore={showScore}
-        />
+    <div className="animate-in fade-in duration-500">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
+        <div className="space-y-6 lg:sticky lg:top-24">
+          <TeamHeaderCard team={team} showScore={showScore} showRanking={showRanking} />
+          <TeamMembersCard team={team} />
+          <ProgressSummaryCard
+            completedCount={completedCheckpointsCount}
+            totalCount={totalCount}
+            totalScore={team.total}
+            showScore={showScore}
+          />
 
-        {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
+          {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
 
-        <div className="flex justify-center">
-          <CheckinScanButton />
+          <div className="flex justify-center">
+            <CheckinScanButton />
+          </div>
         </div>
 
         {checkpoints && checkpoints.length > 0 && (

@@ -73,99 +73,96 @@ export default function TeamsById() {
 
   return (
     <>
-      <Button className="my-16 p-0" variant={"ghost"}>
-        <Link to="/teams" className="flex">
-          <ArrowBigLeft /> Go back to teams list
+      <Button className="mb-6 mt-2 p-0" variant={"ghost"} asChild>
+        <Link to="/teams" className="flex items-center gap-1">
+          <ArrowBigLeft className="h-5 w-5" /> Voltar à lista de equipas
         </Link>
       </Button>
 
       {/* Team Details */}
       {isSuccess && team && settings?.show_team_details !== false ? (
-        <div className="team-details">
-          {/* Team Header */}
-          <div className="team-header">
-            <h2 className="mb-4 text-2xl font-semibold">Team description and score</h2>
-          </div>
-
-          <Card variant="default" padding="lg" rounded="2xl" className="mb-8">
-            <div className="text-center">
-              <p className="mb-4 text-xl font-semibold">{team.name}</p>
-              <div>
-                <p className="mb-2">{team.total} points</p>
-                <p className="text-sm font-light">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
+          {/* Left column — identity, badges, members */}
+          <div className="space-y-6 lg:sticky lg:top-24">
+            <Card variant="default" padding="lg" rounded="2xl">
+              <div className="text-center">
+                <p className="rally-display text-2xl font-bold">{team.name}</p>
+                {settings?.show_score_mode !== "hidden" && (
+                  <p className="rally-accent mt-3 text-3xl font-bold">{team.total}<span className="ml-1 text-base font-medium text-muted-foreground">pts</span></p>
+                )}
+                <p className="mt-1 text-sm text-muted-foreground">
                   {team.classification}
-                  {nthNumber(team.classification)} place
+                  {nthNumber(team.classification)} lugar
                 </p>
               </div>
+            </Card>
+
+            <EarnedBadges teamId={Number(id)} />
+
+            <div>
+              <h2 className="mb-3 text-lg font-semibold">Membros</h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                {team?.members.map((member) => {
+                  const names = member.name.split(" ");
+                  const firstName = names[0];
+                  const lastName = names.slice(1).join(" ");
+                  return (
+                    <Card variant="default" padding="md" rounded="xl" key={member.id}>
+                      <span className="font-medium">{firstName}</span>{" "}
+                      <span className="font-light text-muted-foreground">{lastName}</span>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
-          </Card>
-
-          {/* Earned badges */}
-          <EarnedBadges teamId={Number(id)} />
-
-          {/* Next Checkpoint Section */}
-          <NextCheckpointCard
-            team={team}
-            checkpoints={checkpoints}
-            totalCount={totalCount}
-            settings={settings}
-          />
-
-          <h2 className="mb-4 text-2xl font-semibold">Checkpoint Progress</h2>
-          <Card variant="default" padding="md" rounded="2xl" className="mb-6">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                Progress: {team.last_checkpoint_number || 0} of {totalCount} checkpoints
-              </span>
-              {settings?.show_score_mode !== "hidden" && (
-                <span className="font-medium">{team.total} pts</span>
-              )}
-            </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
-              />
-            </div>
-          </Card>
-
-          <div className="mb-8 space-y-4">
-            {team?.times && team.times.length > 0 ? (
-              team.times.map((_, index: number) => (
-                <CheckpointTimelineItem
-                  key={checkpoints?.find((cp) => cp.order === index + 1)?.id ?? `checkpoint-${index}`}
-                  team={team}
-                  index={index}
-                  checkpoints={checkpoints}
-                  activityResults={activityResults}
-                  allEvaluations={allEvaluations}
-                  totalTeams={totalTeams}
-                  isExpanded={expandedCheckpoints.has(index)}
-                  onToggle={toggleCheckpoint}
-                />
-              ))
-            ) : (
-              <Card variant="default" padding="lg" rounded="2xl" className="text-center">
-                <p className="text-muted-foreground">No checkpoints visited yet</p>
-              </Card>
-            )}
           </div>
 
-          {/* Team Members */}
-          <div className="team-members">
-            <h2 className="mb-4 text-2xl font-semibold">Team Members</h2>
-            <div className="grid gap-4">
-              {team?.members.map((member) => {
-                const names = member.name.split(" ");
-                const firstName = names[0];
-                const lastName = names.slice(1).join(" ");
-                return (
-                  <Card variant="default" padding="lg" rounded="2xl" className="text-xl" key={member.id}>
-                    <span className="font-medium">{firstName}</span>{" "}
-                    <span className="font-light">{lastName}</span>
-                  </Card>
-                );
-              })}
+          {/* Right column — progress timeline */}
+          <div className="space-y-6">
+            <NextCheckpointCard
+              team={team}
+              checkpoints={checkpoints}
+              totalCount={totalCount}
+              settings={settings}
+            />
+
+            <Card variant="default" padding="md" rounded="2xl">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Progresso: {team.last_checkpoint_number || 0} de {totalCount} postos
+                </span>
+                {settings?.show_score_mode !== "hidden" && (
+                  <span className="font-medium">{team.total} pts</span>
+                )}
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
+                />
+              </div>
+            </Card>
+
+            <div className="space-y-4">
+              {team?.times && team.times.length > 0 ? (
+                team.times.map((_, index: number) => (
+                  <CheckpointTimelineItem
+                    key={checkpoints?.find((cp) => cp.order === index + 1)?.id ?? `checkpoint-${index}`}
+                    team={team}
+                    index={index}
+                    checkpoints={checkpoints}
+                    activityResults={activityResults}
+                    allEvaluations={allEvaluations}
+                    totalTeams={totalTeams}
+                    isExpanded={expandedCheckpoints.has(index)}
+                    onToggle={toggleCheckpoint}
+                  />
+                ))
+              ) : (
+                <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+                  <p className="text-muted-foreground">Ainda sem postos visitados</p>
+                </Card>
+              )}
             </div>
           </div>
         </div>

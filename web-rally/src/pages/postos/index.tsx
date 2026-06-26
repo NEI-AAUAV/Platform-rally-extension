@@ -68,18 +68,22 @@ export default function Postos() {
         description="Consulte a lista de checkpoints e visualize-os no mapa"
       />
 
-      <CheckpointList
-        checkpoints={sortedCheckpoints}
-        selectedCheckpoint={selectedCheckpoint}
-        onSelectCheckpoint={setSelectedCheckpoint}
-        showMap={settings?.show_checkpoint_map !== false}
-      />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
+        <CheckpointList
+          checkpoints={sortedCheckpoints}
+          selectedCheckpoint={selectedCheckpoint}
+          onSelectCheckpoint={setSelectedCheckpoint}
+          showMap={settings?.show_checkpoint_map !== false}
+        />
 
-      <MapSection
-        checkpoints={sortedCheckpoints}
-        selectedCheckpoint={selectedCheckpoint}
-        showMap={settings?.show_checkpoint_map !== false}
-      />
+        <div className="lg:sticky lg:top-24">
+          <MapSection
+            checkpoints={sortedCheckpoints}
+            selectedCheckpoint={selectedCheckpoint}
+            showMap={settings?.show_checkpoint_map !== false}
+          />
+        </div>
+      </div>
 
       {/* No Coordinates Warning */}
       {!sortedCheckpoints.some((cp: Checkpoint) => cp.latitude && cp.longitude) && sortedCheckpoints.length > 0 && (
