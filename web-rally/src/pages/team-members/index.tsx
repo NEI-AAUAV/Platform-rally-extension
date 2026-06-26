@@ -77,7 +77,7 @@ export default function TeamMembers() {
           <Users className="w-6 h-6" />
           {isRallyAdmin ? "Gestão de Membros das Equipas" : "Consultar Equipas"}
         </h2>
-        <p className="text-[rgb(255,255,255,0.7)]">
+        <p className="text-muted-foreground">
           {isRallyAdmin
             ? "Adicionar e remover membros das equipas do Rally"
             : "Visualizar membros e código QR das equipas do Rally"}
@@ -156,7 +156,7 @@ export default function TeamMembers() {
                   <Users className="w-5 h-5" />
                   Membros da Equipa
                 </h3>
-                <p className="text-sm text-[rgb(255,255,255,0.6)] mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   {selectedTeamData?.name} • {teamMembers?.length || 0} membros
                 </p>
                 <div className="space-y-2">
@@ -166,16 +166,16 @@ export default function TeamMembers() {
                     teamMembers?.map((member) => (
                       <div
                         key={member.id}
-                        className="p-3 rounded-lg bg-black/20 border border-white/10"
+                        className="p-3 rounded-lg bg-muted border border-border"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-bold">
                             {member.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1">
                             <p className="font-medium">{member.name}</p>
                             {member.email && (
-                              <p className="text-xs text-[rgb(255,255,255,0.5)]">{member.email}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
                             )}
                           </div>
                           {member.is_captain && (

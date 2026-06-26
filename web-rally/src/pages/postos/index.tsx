@@ -84,7 +84,7 @@ export default function Postos() {
       {/* No Coordinates Warning */}
       {!sortedCheckpoints.some((cp: Checkpoint) => cp.latitude && cp.longitude) && sortedCheckpoints.length > 0 && (
         <Card variant="default" padding="lg" rounded="2xl">
-          <div className="text-center text-[rgb(255,255,255,0.7)]">
+          <div className="text-center text-muted-foreground">
             <div className="w-8 h-8 mx-auto mb-2 opacity-50">📍</div>
             <p>Os postos ainda não têm coordenadas configuradas.</p>
             <p className="text-sm mt-1">

@@ -28,7 +28,7 @@ export default function AuthCallback() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <div className="rally-border-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
-        <p className="text-[rgb(255,255,255,0.65)]">
+        <p className="text-muted-foreground">
           {auth.error ? `Erro de autenticação: ${auth.error.message}` : "A concluir sessão…"}
         </p>
       </div>

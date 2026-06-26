@@ -128,7 +128,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 <Label htmlFor="is_captain" className="text-base">
                   Capitão da Equipa
                 </Label>
-                <p className="text-sm text-[rgb(255,255,255,0.7)]">
+                <p className="text-sm text-muted-foreground">
                   Marcar este membro como capitão da equipa
                 </p>
               </div>

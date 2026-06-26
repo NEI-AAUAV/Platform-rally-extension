@@ -44,7 +44,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       <Card variant="default" padding="lg" rounded="2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Checkpoints Existentes</h3>
-          <p className="text-sm text-[rgb(255,255,255,0.6)]">
+          <p className="text-sm text-muted-foreground">
             Arraste pelos ícones <GripVertical className="w-3 h-3 inline mx-1" /> para reordenar
           </p>
         </div>
@@ -67,7 +67,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           </ul>
         ) : (
           <EmptyState
-            icon={<MapPin className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
+            icon={<MapPin className="w-8 h-8 text-muted-foreground" />}
             title="Nenhum checkpoint criado ainda"
             description="Crie o primeiro checkpoint para começar"
           />

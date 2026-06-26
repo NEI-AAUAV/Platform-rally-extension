@@ -53,15 +53,15 @@ export default function CheckpointListItem({
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)]">
+          <div className="flex flex-col items-center text-muted-foreground">
             <GripVertical className="w-4 h-4" />
             <span className="text-xs font-mono">{checkpoint.order}</span>
           </div>
           <div>
             <div className="font-semibold">{checkpoint.name}</div>
-            <div className="text-sm text-[rgb(255,255,255,0.7)]">{checkpoint.description}</div>
+            <div className="text-sm text-muted-foreground">{checkpoint.description}</div>
             {(checkpoint.latitude || checkpoint.longitude) && (
-              <div className="text-xs text-[rgb(255,255,255,0.5)]">
+              <div className="text-xs text-muted-foreground">
                 📍 {checkpoint.latitude}, {checkpoint.longitude}
               </div>
             )}

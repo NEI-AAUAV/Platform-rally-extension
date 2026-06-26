@@ -36,7 +36,7 @@ export default function CheckpointList({
 
       {checkpoints.length === 0 ? (
         <EmptyState
-          icon={<MapPin className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
+          icon={<MapPin className="w-8 h-8 text-muted-foreground" />}
           title="Nenhum posto disponível"
           description="Os postos ainda não foram configurados"
         />

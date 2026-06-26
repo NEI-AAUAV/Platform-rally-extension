@@ -38,7 +38,7 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
               max="100"
               disabled={disabled}
               {...register('max_teams', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
           </div>
           <div className="space-y-2">
@@ -50,7 +50,7 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
               max="50"
               disabled={disabled}
               {...register('max_members_per_team', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
           </div>
         </div>

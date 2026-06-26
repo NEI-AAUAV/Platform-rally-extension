@@ -79,7 +79,7 @@ export default function Assignment() {
     <div className="mt-16 space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">Atribuição de Checkpoints</h2>
-        <p className="text-[rgb(255,255,255,0.7)]">
+        <p className="text-muted-foreground">
           Atribuir utilizadores com role rally-staff aos checkpoints do Rally
         </p>
       </div>

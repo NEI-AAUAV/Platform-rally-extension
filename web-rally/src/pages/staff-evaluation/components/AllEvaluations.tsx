@@ -113,13 +113,13 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
     return (
       <Card variant="default" padding="none">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <Activity className="w-5 h-5" />
             All Evaluations
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-[rgb(255,255,255,0.7)] text-center py-4">
+          <p className="text-muted-foreground text-center py-4">
             No evaluations found.
           </p>
         </CardContent>
@@ -133,15 +133,15 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
         {/* Filters */}
         <div className="mt-4 mb-4 p-2">
           <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-[rgb(255,255,255,0.6)]" />
-            <span className="text-sm font-medium text-white">Filters</span>
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Filters</span>
             {hasActiveFilters && (
               <button
                 onClick={() => {
                   setSelectedTeam("all");
                   setSelectedCheckpoint("all");
                 }}
-                className="ml-auto text-xs text-[rgb(255,255,255,0.6)] hover:text-white flex items-center gap-1"
+                className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
                 Clear filters
@@ -152,11 +152,11 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Team Filter */}
             <div>
-              <label className="block text-xs text-[rgb(255,255,255,0.6)] mb-1">Team</label>
+              <label className="block text-xs text-muted-foreground mb-1">Team</label>
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
                 <option value="all" className="bg-gray-800">All Teams</option>
                 {uniqueTeams.map(team => (
@@ -167,11 +167,11 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
 
             {/* Checkpoint Filter */}
             <div>
-              <label className="block text-xs text-[rgb(255,255,255,0.6)] mb-1">Checkpoint</label>
+              <label className="block text-xs text-muted-foreground mb-1">Checkpoint</label>
               <select
                 value={selectedCheckpoint}
                 onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                className="w-full p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
                 <option value="all" className="bg-gray-800">All Checkpoints</option>
                 {uniqueCheckpoints.map(checkpoint => (
@@ -184,7 +184,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           </div>
 
           {hasActiveFilters && (
-            <div className="mt-2 text-xs text-[rgb(255,255,255,0.6)]">
+            <div className="mt-2 text-xs text-muted-foreground">
               Showing {filteredEvaluations.length} of {evaluations.length} evaluations
             </div>
           )}
@@ -226,23 +226,23 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => hasDetails && toggleExpand(evaluation.id)}>
                       <div className="flex items-center gap-2">
-                        <IconComponent className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
+                        <IconComponent className="w-5 h-5 text-foreground flex-shrink-0 mt-0.5" />
                         {hasDetails && (
                           isExpanded ?
-                            <ChevronUp className="w-4 h-4 text-[rgb(255,255,255,0.5)]" /> :
-                            <ChevronDown className="w-4 h-4 text-[rgb(255,255,255,0.5)]" />
+                            <ChevronUp className="w-4 h-4 text-muted-foreground" /> :
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-white text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
-                        <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
+                        <h4 className="font-semibold text-foreground text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
                           Team: {evaluation.team.name} • Checkpoint {evaluation.activity.checkpoint_id}
                           {evaluation.activity.description && (
                             <span className="block text-xs mt-1">{evaluation.activity.description}</span>
                           )}
                         </p>
                         {(evaluation.team.num_members ?? 0) > 0 && (
-                          <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             Team Size: {evaluation.team.num_members} members
                           </p>
                         )}
@@ -256,10 +256,10 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                         Score: {evaluation.final_score?.toFixed(1) || '0'}
                       </Badge>
                       <div className="flex flex-col gap-0.5">
-                        <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
+                        <Badge variant="outline" className="text-muted-foreground border-border text-[10px] w-fit">
                           {new Date(evaluation.completed_at).toLocaleDateString()}
                         </Badge>
-                        <Badge variant="outline" className="text-[rgb(255,255,255,0.6)] border-white/10 text-[10px] w-fit">
+                        <Badge variant="outline" className="text-muted-foreground border-border text-[10px] w-fit">
                           {new Date(evaluation.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </Badge>
                       </div>
@@ -267,11 +267,11 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                   </div>
 
                   {isExpanded && hasDetails && (
-                    <div className="mt-3 pt-3 border-t border-[rgb(255,255,255,0.2)] space-y-2">
+                    <div className="mt-3 pt-3 border-t border-border space-y-2">
                       {/* Result Section */}
                       {(evaluation.is_completed || evaluation.time_score || evaluation.points_score || evaluation.result_data?.result || (evaluation.activity.activity_type === 'BooleanActivity' && evaluation.boolean_score !== undefined)) && (
                         <div>
-                          <p className="text-xs font-semibold text-[rgb(255,255,255,0.8)] mb-1">Result:</p>
+                          <p className="text-xs font-semibold text-muted-foreground mb-1">Result:</p>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.is_completed && (
                               <Badge

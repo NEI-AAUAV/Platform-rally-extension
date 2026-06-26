@@ -55,7 +55,7 @@ export default function Versus() {
           <Swords className="w-6 h-6" />
           Modo Versus
         </h2>
-        <p className="text-[rgb(255,255,255,0.7)]">
+        <p className="text-muted-foreground">
           Gerir pares de equipas para competições diretas
         </p>
       </div>

@@ -51,11 +51,11 @@ export default function TeamsById() {
       return (
         <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
           <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
-          <div className="text-white/70 mt-2 text-sm">
+          <div className="text-muted-foreground mt-2 text-sm">
             O organizador desativou a visualização de detalhes das equipas.
           </div>
           <div className="mt-4">
-            <Link to="/teams" className="inline-flex items-center gap-2 px-4 py-2 bg-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.2)] rounded-lg text-white font-medium transition-colors">
+            <Link to="/teams" className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted rounded-lg text-foreground font-medium transition-colors">
               <ArrowBigLeft className="w-4 h-4" />
               Voltar à lista de equipas
             </Link>
@@ -114,14 +114,14 @@ export default function TeamsById() {
           <h2 className="mb-4 text-2xl font-semibold">Checkpoint Progress</h2>
           <Card variant="default" padding="md" rounded="2xl" className="mb-6">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/70">
+              <span className="text-muted-foreground">
                 Progress: {team.last_checkpoint_number || 0} of {totalCount} checkpoints
               </span>
               {settings?.show_score_mode !== "hidden" && (
                 <span className="font-medium">{team.total} pts</span>
               )}
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full bg-primary transition-all duration-500"
                 style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
@@ -146,7 +146,7 @@ export default function TeamsById() {
               ))
             ) : (
               <Card variant="default" padding="lg" rounded="2xl" className="text-center">
-                <p className="text-white/70">No checkpoints visited yet</p>
+                <p className="text-muted-foreground">No checkpoints visited yet</p>
               </Card>
             )}
           </div>

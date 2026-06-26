@@ -36,20 +36,20 @@ export default function RouteCheckpointItem({
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
 
   const getCardClass = () => {
-    if (isCompleted) return 'bg-white/5 hover:bg-white/10';
+    if (isCompleted) return 'bg-muted hover:bg-muted';
     if (isNext) return 'bg-indigo-500/20 border-indigo-500/50 hover:bg-indigo-500/30';
-    return 'bg-black/20 opacity-60 hover:opacity-100';
+    return 'bg-muted opacity-60 hover:opacity-100';
   };
 
   const getBadgeClass = () => {
     if (isCompleted) return 'bg-green-500/20 text-green-300';
     if (isNext) return 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50';
-    return 'bg-white/5 text-white/50';
+    return 'bg-muted text-muted-foreground';
   };
 
   return (
     <Card
-      className={`cursor-pointer transition-all overflow-hidden backdrop-blur-md border-white/5 ${getCardClass()}`}
+      className={`cursor-pointer transition-all overflow-hidden backdrop-blur-md border-border ${getCardClass()}`}
       onClick={() => onToggle(index)}
     >
       <div className="p-4 flex items-center justify-between">
@@ -62,7 +62,7 @@ export default function RouteCheckpointItem({
             </div>
             <div>
               <span
-                className={`text-lg font-semibold ${isFuture ? 'text-white/50' : ''}`}
+                className={`text-lg font-semibold ${isFuture ? 'text-muted-foreground' : ''}`}
                 style={{ color: isFuture ? undefined : config?.colors?.text }}
               >
                 {checkpoint.name}
@@ -75,7 +75,7 @@ export default function RouteCheckpointItem({
                   </span>
                 )}
                 {isNext && <span className="text-indigo-300 font-medium">EM CURSO</span>}
-                {isFuture && <span className="text-white/40">Pendente</span>}
+                {isFuture && <span className="text-muted-foreground">Pendente</span>}
               </div>
             </div>
           </div>

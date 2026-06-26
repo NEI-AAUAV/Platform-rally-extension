@@ -34,9 +34,9 @@ export default function RallyTimingSettings({ className = "", disabled = false }
             type="datetime-local"
             disabled={disabled}
             {...register('rally_start_time')}
-            className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+            className="bg-muted border-border"
           />
-          <p className="text-xs text-[rgb(255,255,255,0.6)]">
+          <p className="text-xs text-muted-foreground">
             Deixe em branco para não definir hora de início
           </p>
         </div>
@@ -48,9 +48,9 @@ export default function RallyTimingSettings({ className = "", disabled = false }
             type="datetime-local"
             disabled={disabled}
             {...register('rally_end_time')}
-            className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+            className="bg-muted border-border"
           />
-          <p className="text-xs text-[rgb(255,255,255,0.6)]">
+          <p className="text-xs text-muted-foreground">
             Deixe em branco para não definir hora de fim
           </p>
         </div>

@@ -58,7 +58,7 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
       </CardHeader>
       <CardContent>
         {teamMembers?.length === 0 ? (
-          <div className="text-center py-8 text-[rgb(255,255,255,0.7)]">
+          <div className="text-center py-8 text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Esta equipa não tem membros ainda.</p>
             <p className="text-sm mt-2">Adicione o primeiro membro usando o formulário acima.</p>
@@ -85,7 +85,7 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                   <div>
                     <div className="font-medium">{member.name}</div>
                     {member.email && (
-                      <div className="text-sm text-[rgb(255,255,255,0.6)]">
+                      <div className="text-sm text-muted-foreground">
                         {member.email}
                       </div>
                     )}

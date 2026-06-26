@@ -38,9 +38,9 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
               max="0"
               disabled={disabled}
               {...register('penalty_per_puke', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
-            <p className="text-xs text-[rgb(255,255,255,0.6)]">
+            <p className="text-xs text-muted-foreground">
               Pontos perdidos por cada vómito (deve ser negativo)
             </p>
           </div>
@@ -54,9 +54,9 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
               max="0"
               disabled={disabled}
               {...register('penalty_per_not_drinking', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
-            <p className="text-xs text-[rgb(255,255,255,0.6)]">
+            <p className="text-xs text-muted-foreground">
               Pontos perdidos por não beber obrigatório (deve ser negativo)
             </p>
           </div>
@@ -72,9 +72,9 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
               max="100"
               disabled={disabled}
               {...register('bonus_per_extra_shot', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
-            <p className="text-xs text-[rgb(255,255,255,0.6)]">
+            <p className="text-xs text-muted-foreground">
               Pontos ganhos por cada shot extra
             </p>
           </div>
@@ -88,9 +88,9 @@ export default function ScoringSettings({ className = "", disabled = false }: Sc
               max="20"
               disabled={disabled}
               {...register('max_extra_shots_per_member', { valueAsNumber: true })}
-              className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+              className="bg-muted border-border"
             />
-            <p className="text-xs text-[rgb(255,255,255,0.6)]">
+            <p className="text-xs text-muted-foreground">
               Número máximo de shots extra por membro da equipa
             </p>
           </div>

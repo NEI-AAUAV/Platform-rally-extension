@@ -115,11 +115,11 @@ type EvaluationResponse = ActivityResultResponse & {
         {/* Header */}
         <Card variant="default" padding="none">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Activity className="w-6 h-6" />
               Manager Evaluation Dashboard
             </CardTitle>
-            <p className="text-sm text-[rgb(255,255,255,0.6)]">
+            <p className="text-sm text-muted-foreground">
               System-wide evaluation overview and management
             </p>
           </CardHeader>
@@ -138,7 +138,7 @@ type EvaluationResponse = ActivityResultResponse & {
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5" />
               <span className="font-semibold">All Evaluations</span>
-              <Badge variant="outline" className="text-white border-white/20">
+              <Badge variant="outline" className="text-foreground border-border">
                 {evaluationsLoading ? "Loading..." : (allEvaluations as Evaluation[])?.length || 0}
               </Badge>
             </div>
@@ -151,7 +151,7 @@ type EvaluationResponse = ActivityResultResponse & {
             <div className="mt-2">
               {evaluationsLoading ? (
                 <Card variant="default" padding="md">
-                  <p className="text-white/70 text-center">Loading evaluations...</p>
+                  <p className="text-muted-foreground text-center">Loading evaluations...</p>
                 </Card>
               ) : (
                 <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
@@ -171,11 +171,11 @@ type EvaluationResponse = ActivityResultResponse & {
         {/* Teams Overview */}
         <Card variant="default" padding="none">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Users className="w-5 h-5" />
               Teams Overview
             </CardTitle>
-            <p className="text-sm text-[rgb(255,255,255,0.6)]">
+            <p className="text-sm text-muted-foreground">
               All teams in the rally
             </p>
           </CardHeader>
@@ -189,12 +189,12 @@ type EvaluationResponse = ActivityResultResponse & {
                   rounded="lg"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-white">{team.name}</h4>
-                    <Badge variant="outline" className="text-white border-white/20">
+                    <h4 className="font-semibold text-foreground">{team.name}</h4>
+                    <Badge variant="outline" className="text-foreground border-border">
                       #{team.id}
                     </Badge>
                   </div>
-                  <div className="space-y-1 text-sm text-[rgb(255,255,255,0.7)]">
+                  <div className="space-y-1 text-sm text-muted-foreground">
                     <p>Members: {team.num_members || 0}</p>
                     {settings?.show_score_mode !== "hidden" && (
                       <p>Total Score: {team.total || 0}</p>
@@ -214,10 +214,10 @@ type EvaluationResponse = ActivityResultResponse & {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Card variant="default" padding="md">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
+              <div className="text-2xl font-bold text-foreground mb-2">
                 {allTeams?.length || 0}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+              <div className="text-sm text-muted-foreground">
                 Total Teams
               </div>
             </div>
@@ -225,10 +225,10 @@ type EvaluationResponse = ActivityResultResponse & {
 
           <Card variant="default" padding="md">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
+              <div className="text-2xl font-bold text-foreground mb-2">
                 {allCheckpoints?.length || 0}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+              <div className="text-sm text-muted-foreground">
                 Checkpoints
               </div>
             </div>
@@ -236,10 +236,10 @@ type EvaluationResponse = ActivityResultResponse & {
 
           <Card variant="default" padding="md">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
+              <div className="text-2xl font-bold text-foreground mb-2">
                 {allActivities?.activities?.length || 0}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+              <div className="text-sm text-muted-foreground">
                 Total Activities
               </div>
             </div>

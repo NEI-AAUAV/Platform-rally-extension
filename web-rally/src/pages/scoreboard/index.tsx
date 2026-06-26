@@ -57,7 +57,7 @@ export default function Scoreboard() {
       return (
         <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
           <div className="text-lg font-semibold">Pontuação Restrita</div>
-          <div className="text-white/70 mt-2 text-sm">
+          <div className="text-muted-foreground mt-2 text-sm">
             A pontuação está visível apenas para membros das equipas.
             <br />
             <a href="/rally/team-login" className="text-primary hover:underline mt-2 inline-block">Fazer Login</a>
@@ -77,7 +77,7 @@ export default function Scoreboard() {
     return (
       <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
         <div className="text-lg font-semibold">Leaderboard indisponível</div>
-        <div className="text-white/70 mt-2 text-sm">
+        <div className="text-muted-foreground mt-2 text-sm">
           O organizador desativou a visualização do leaderboard em tempo real.
         </div>
       </Card>

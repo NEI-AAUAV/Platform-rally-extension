@@ -129,7 +129,7 @@ export default function TeamLogin() {
                                     className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg"
                                     style={{ backgroundColor: config?.colors?.primary }}
                                 >
-                                    <LogIn className="w-8 h-8 text-white" />
+                                    <LogIn className="w-8 h-8 text-foreground" />
                                 </div>
                             )}
 
@@ -235,7 +235,7 @@ export default function TeamLogin() {
                         </form>
 
                         {/* Footer */}
-                        <div className="pt-6 border-t border-white/5">
+                        <div className="pt-6 border-t border-border">
                             <p className="text-xs opacity-40 hover:opacity-100 transition-opacity duration-300" style={{ color: config?.colors?.text }}>
                                 Pode inserir o código manualmente ou usar a câmara para ler o QR code.
                             </p>

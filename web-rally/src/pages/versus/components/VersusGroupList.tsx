@@ -55,7 +55,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
       </CardHeader>
       <CardContent>
         {versusGroups?.groups.length === 0 ? (
-          <div className="text-center py-8 text-[rgb(255,255,255,0.7)]">
+          <div className="text-center py-8 text-muted-foreground">
             <Swords className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Nenhum par versus criado ainda.</p>
             <p className="text-sm mt-2">Crie o primeiro par usando o formulário acima.</p>
@@ -81,12 +81,12 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                       <Badge variant="default" className="bg-red-600">
                         {teamA.name}
                       </Badge>
-                      <span className="text-[rgb(255,255,255,0.7)]">vs</span>
+                      <span className="text-muted-foreground">vs</span>
                       <Badge variant="default" className="bg-blue-600">
                         {teamB.name}
                       </Badge>
                     </div>
-                    <div className="text-sm text-[rgb(255,255,255,0.6)]">
+                    <div className="text-sm text-muted-foreground">
                       {teamA.total} - {teamB.total} pontos
                     </div>
                   </div>

@@ -182,7 +182,7 @@ export default function TeamManagement() {
                     <Input
                       placeholder="Ex: Equipa Alpha"
                       {...field}
-                      className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]"
+                      className="bg-muted border-border"
                     />
                   </FormControl>
                   <FormMessage />
@@ -215,7 +215,7 @@ export default function TeamManagement() {
         <h3 className="text-lg font-semibold mb-4">Equipas Existentes</h3>
         {teams?.length === 0 ? (
           <EmptyState
-            icon={<Users className="w-8 h-8 text-[rgb(255,255,255,0.5)]" />}
+            icon={<Users className="w-8 h-8 text-muted-foreground" />}
             title="Nenhuma equipa criada ainda"
             description="Crie a primeira equipa para começar"
           />
@@ -231,7 +231,7 @@ export default function TeamManagement() {
                 >
                   <div>
                     <div className="font-semibold">{team.name}</div>
-                    <div className="text-sm text-[rgb(255,255,255,0.7)]">
+                    <div className="text-sm text-muted-foreground">
                       Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
                     </div>
                   </div>
@@ -278,15 +278,15 @@ export default function TeamManagement() {
       {/* QR Code Modal for Newly Created Team or Selected Team */}
       {(newlyCreatedTeam || (selectedTeamForQR && teamDetailsForQR)) && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-[rgb(20,20,25)] border-white/20">
+          <Card className="w-full max-w-md bg-card border-border">
             <div className="p-8 space-y-6">
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-2xl font-bold text-foreground">
                     {newlyCreatedTeam ? 'Equipa Criada!' : 'Código QR da Equipa'}
                   </h2>
-                  <p className="text-white/70 text-sm mt-1">
+                  <p className="text-muted-foreground text-sm mt-1">
                     {(newlyCreatedTeam || teamDetailsForQR)?.name}
                   </p>
                 </div>
@@ -296,7 +296,7 @@ export default function TeamManagement() {
                     setSelectedTeamForQR(null);
                   }}
                   title="Fechar"
-                  className="text-white/50 hover:text-white transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -305,7 +305,7 @@ export default function TeamManagement() {
               {/* Loading State */}
               {selectedTeamForQR && isLoadingQRDetails && (
                 <div className="flex justify-center p-8">
-                  <p className="text-white/70">A carregar QR code...</p>
+                  <p className="text-muted-foreground">A carregar QR code...</p>
                 </div>
               )}
 
@@ -320,8 +320,8 @@ export default function TeamManagement() {
                   </div>
 
                   {/* Instructions */}
-                  <div className="space-y-3 bg-white/5 p-4 rounded-lg border border-white/10">
-                    <p className="text-white/70 text-xs">
+                  <div className="space-y-3 bg-muted p-4 rounded-lg border border-border">
+                    <p className="text-muted-foreground text-xs">
                       Partilhe este código QR ou código de acesso com a equipa para que possam fazer login e acompanhar o progresso.
                     </p>
                   </div>

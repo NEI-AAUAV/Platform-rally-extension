@@ -30,11 +30,11 @@ export function NextCheckpointCard({ team, checkpoints, totalCount, settings }: 
               <h3 className="text-xl font-semibold text-yellow-300">{nextCheckpoint.name}</h3>
             </div>
             {nextCheckpoint.description && (
-              <p className="text-sm text-white/70">{nextCheckpoint.description}</p>
+              <p className="text-sm text-muted-foreground">{nextCheckpoint.description}</p>
             )}
             {settings?.show_checkpoint_map !== false && nextCheckpoint.latitude && nextCheckpoint.longitude && (
               <div className="space-y-2 pt-2">
-                <div className="flex items-center gap-2 text-sm text-white/80 bg-white/5 px-3 py-2 rounded-lg w-fit">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg w-fit">
                   <MapPin className="w-4 h-4" />
                   <span className="font-mono">
                     {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}

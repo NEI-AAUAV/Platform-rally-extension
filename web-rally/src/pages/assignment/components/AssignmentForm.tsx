@@ -31,7 +31,7 @@ export default function AssignmentForm({
         <div className="text-center text-red-500 py-8">
           <p className="font-semibold">Erro ao carregar atribuições</p>
           <p className="text-sm mt-2">{assignmentsError.message}</p>
-          <p className="text-xs mt-2 text-[rgb(255,255,255,0.5)]">
+          <p className="text-xs mt-2 text-muted-foreground">
             Contacte um administrador para resolver este problema.
           </p>
         </div>

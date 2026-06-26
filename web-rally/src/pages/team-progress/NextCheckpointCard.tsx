@@ -19,7 +19,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       <Card className="border-0 bg-transparent shadow-none p-0">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-3 rounded-xl shadow-lg animate-pulse" style={{ backgroundColor: config?.colors?.primary }}>
-            <MapPin className="w-6 h-6 text-white" />
+            <MapPin className="w-6 h-6 text-foreground" />
           </div>
           <div>
             <h2 className="text-xl font-bold" style={{ color: config?.colors?.text }}>

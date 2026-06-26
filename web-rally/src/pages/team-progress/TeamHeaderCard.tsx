@@ -12,13 +12,13 @@ export default function TeamHeaderCard({ team, showScore, showRanking }: TeamHea
   const { Card, config } = useThemedComponents();
 
   return (
-    <Card className="p-8 backdrop-blur-md bg-black/30 border-white/10 shadow-xl">
+    <Card className="p-8 backdrop-blur-md bg-muted border-border shadow-xl">
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-2 tracking-tight" style={{ color: config?.colors?.text }}>
           {team.name}
         </h1>
         {showScore && (
-          <div className="mt-4 p-4 rounded-xl bg-white/5 inline-block">
+          <div className="mt-4 p-4 rounded-xl bg-muted inline-block">
             <div
               className="flex items-center justify-center gap-2 text-3xl font-bold"
               style={{ color: config?.colors?.primary }}

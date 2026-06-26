@@ -104,12 +104,12 @@ export function CheckpointTimelineItem({
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-sm font-medium text-white/70">Checkpoint {index + 1}</span>
+              <span className="text-sm font-medium text-muted-foreground">Checkpoint {index + 1}</span>
               {isCurrentCheckpoint && (
                 <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">Current</span>
               )}
               {evaluationResults.length > 0 && (
-                <span className="text-xs text-white/50">
+                <span className="text-xs text-muted-foreground">
                   {evaluationResults.length} activit{evaluationResults.length === 1 ? "y" : "ies"}
                 </span>
               )}
@@ -117,22 +117,22 @@ export function CheckpointTimelineItem({
             </div>
             <h3 className="text-lg font-semibold mb-1">{checkpoint?.name || `Checkpoint ${index + 1}`}</h3>
             {checkpoint?.description && (
-              <p className="text-sm text-white/70 mb-2">{checkpoint.description}</p>
+              <p className="text-sm text-muted-foreground mb-2">{checkpoint.description}</p>
             )}
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-xl font-bold mb-1">{checkpointScore} pts</div>
-              <div className="text-sm text-white/60">
+              <div className="text-sm text-muted-foreground">
                 {hasEvaluations && displayTime ? formatTime(displayTime) : "Not evaluated yet"}
               </div>
             </div>
             {evaluationResults.length > 0 && (
               <div>
                 {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-white/70" />
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-white/70" />
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
                 )}
               </div>
             )}
@@ -142,7 +142,7 @@ export function CheckpointTimelineItem({
 
       {/* Activity-level cards - only show when expanded */}
       {isExpanded && evaluationResults.length > 0 && (
-        <div className="mt-3 ml-2 pl-2 border-l-2 border-[rgb(255,255,255,0.1)] space-y-3">
+        <div className="mt-3 ml-2 pl-2 border-l-2 border-border space-y-3">
           {evaluationResults.map((result, resultIndex: number) => {
             const activity = result.activity;
             const isTimeBased = activity?.activity_type === "TimeBasedActivity";
@@ -160,7 +160,7 @@ export function CheckpointTimelineItem({
                   <div className="flex-1">
                     <h4 className="text-base font-semibold mb-1">{activity?.name}</h4>
                     {activity?.description && (
-                      <p className="text-sm text-white/60">{activity.description}</p>
+                      <p className="text-sm text-muted-foreground">{activity.description}</p>
                     )}
                     {isCompletionPending && (
                       <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-300">
@@ -171,7 +171,7 @@ export function CheckpointTimelineItem({
                   </div>
                   <div className="text-right ml-4">
                     <div className="text-lg font-bold mb-1">{result.final_score?.toFixed(0)} pts</div>
-                    <div className="text-xs text-white/60">
+                    <div className="text-xs text-muted-foreground">
                       {result.completed_at ? formatTime(new Date(result.completed_at)) : "Not evaluated yet"}
                     </div>
                   </div>

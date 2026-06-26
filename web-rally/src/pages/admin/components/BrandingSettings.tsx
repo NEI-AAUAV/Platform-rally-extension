@@ -54,17 +54,17 @@ function ImageUploadField({ label, description, accept, currentUrl, upload, onUp
   const shown = preview ?? currentUrl ?? null;
 
   return (
-    <div className="flex items-center gap-4 border-t border-white/10 py-4 first:border-t-0 first:pt-0">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-white/[0.04]">
+    <div className="flex items-center gap-4 border-t border-border py-4 first:border-t-0 first:pt-0">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
         {shown ? (
           <img src={shown} alt={`${label} atual`} className="h-full w-full object-contain" />
         ) : (
-          <ImageIcon className="h-6 w-6 text-white/30" />
+          <ImageIcon className="h-6 w-6 text-muted-foreground" />
         )}
       </div>
       <div className="min-w-0 flex-1">
         <h4 className="font-semibold">{label}</h4>
-        <p className="text-xs text-white/60">{description}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleSelect} disabled={isPending} />
       <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={() => inputRef.current?.click()}>
@@ -155,7 +155,7 @@ export default function BrandingSettings() {
               maxLength={120}
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              className="border-white/15 bg-white/[0.04]"
+              className="border-border bg-muted"
             />
           </div>
           <div className="space-y-2">
@@ -166,7 +166,7 @@ export default function BrandingSettings() {
               maxLength={200}
               value={eventSubtitle}
               onChange={(e) => setEventSubtitle(e.target.value)}
-              className="border-white/15 bg-white/[0.04]"
+              className="border-border bg-muted"
             />
           </div>
         </div>
@@ -181,17 +181,17 @@ export default function BrandingSettings() {
               placeholder="#c81d25"
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
-              className="max-w-[200px] border-white/15 bg-white/[0.04]"
+              className="max-w-[200px] border-border bg-muted"
             />
             <input
               type="color"
               aria-label="Selecionar cor de destaque"
               value={/^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor : '#c81d25'}
               onChange={(e) => setAccentColor(e.target.value)}
-              className="h-10 w-11 cursor-pointer rounded-lg border border-white/15 bg-transparent"
+              className="h-10 w-11 cursor-pointer rounded-lg border border-border bg-transparent"
             />
           </div>
-          <p className="text-xs text-white/60">Define o destaque de toda a aplicação (botões, barras, realces).</p>
+          <p className="text-xs text-muted-foreground">Define o destaque de toda a aplicação (botões, barras, realces).</p>
         </div>
 
         <div className="flex justify-end">
@@ -201,8 +201,8 @@ export default function BrandingSettings() {
           </Button>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <h3 className="mb-1 font-display text-sm font-semibold uppercase tracking-[0.12em] text-white/80">
+        <div className="rounded-xl border border-border bg-muted p-4">
+          <h3 className="mb-1 font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Imagens (Cloudflare R2)
           </h3>
           <ImageUploadField

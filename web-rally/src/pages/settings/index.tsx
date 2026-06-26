@@ -277,7 +277,7 @@ export default function RallySettings() {
       {/* Edit Button at the top */}
       {!isEditing ? (
         <div className="text-center space-y-3">
-          <p className="text-[rgb(255,255,255,0.7)] text-sm">
+          <p className="text-muted-foreground text-sm">
             Clique no botão abaixo para editar as configurações
           </p>
           <Button

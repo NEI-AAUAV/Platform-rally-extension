@@ -28,7 +28,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
   
   if (assignments.length === 0) {
     return (
-      <div className={`text-center text-[rgb(255,255,255,0.7)] py-8 ${className}`}>
+      <div className={`text-center text-muted-foreground py-8 ${className}`}>
         Nenhuma atribuição de staff encontrada.
       </div>
     );
@@ -45,14 +45,14 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[rgb(255,255,255,0.1)] rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
             <div>
               <div className="font-semibold">
                 {assignment.user_name || `User ${assignment.user_id}`}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
+              <div className="text-sm text-muted-foreground">
                 {assignment.user_email && `${assignment.user_email} • `}ID: {assignment.user_id}
               </div>
             </div>
@@ -76,7 +76,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
                 }
               }}
             >
-              <SelectTrigger className="w-48 rounded-xl border border-[rgb(255,255,255,0.15)] bg-[rgb(255,255,255,0.04)]">
+              <SelectTrigger className="w-48 rounded-xl border border-border bg-muted">
                 <SelectValue placeholder="Reatribuir checkpoint" />
               </SelectTrigger>
               <SelectContent>

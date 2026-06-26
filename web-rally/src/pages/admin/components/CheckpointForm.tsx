@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 
-const fieldClassName = "bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]";
+const fieldClassName = "bg-muted border-border";
 
 type CheckpointFormProps = Readonly<{
   form: UseFormReturn<CheckpointFormValues>;

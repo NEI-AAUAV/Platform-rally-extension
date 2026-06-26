@@ -84,7 +84,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
       </h3>
 
       <div className="space-y-4">
-        <p className="text-[rgb(255,255,255,0.7)] text-sm">
+        <p className="text-muted-foreground text-sm">
           Clique no botão abaixo para abrir o mapa com todos os postos:
         </p>
 
@@ -104,7 +104,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
               href={`https://www.google.com/maps/dir/?api=1&destination=${selectedCheckpoint.latitude},${selectedCheckpoint.longitude}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-[rgb(255,255,255,0.1)] hover:bg-[rgb(255,255,255,0.2)] rounded-lg text-white font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted rounded-lg text-foreground font-medium transition-colors"
             >
               <MapPin className="w-4 h-4" />
               Ver Posto Selecionado
@@ -112,7 +112,7 @@ export default function MapSection({ checkpoints, selectedCheckpoint, showMap = 
           )}
         </div>
 
-        <div className="text-xs text-[rgb(255,255,255,0.5)]">
+        <div className="text-xs text-muted-foreground">
           💡 Dica: Os postos estão numerados pela ordem de visitação.
           {selectedCheckpoint && ` Posto selecionado: ${selectedCheckpoint.name} (Ordem ${selectedCheckpoint.order})`}
         </div>

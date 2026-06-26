@@ -24,13 +24,13 @@ export default function AssignedCheckpoints({
     return (
       <Card variant="default" padding="none">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <MapPin className="w-5 h-5" />
             Assigned Checkpoints
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-[rgb(255,255,255,0.7)] text-center py-4">
+          <p className="text-muted-foreground text-center py-4">
             No checkpoints found.
           </p>
         </CardContent>
@@ -41,7 +41,7 @@ export default function AssignedCheckpoints({
   return (
     <Card variant="default" padding="none">
       <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
+        <CardTitle className="text-foreground flex items-center gap-2">
           <MapPin className="w-5 h-5" />
           Assigned Checkpoints
         </CardTitle>
@@ -62,16 +62,16 @@ export default function AssignedCheckpoints({
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white text-lg sm:text-base truncate">{checkpoint.name}</h3>
-                    <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
+                    <h3 className="font-semibold text-foreground text-lg sm:text-base truncate">{checkpoint.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
                       {checkpointActivities.length} activities • {teamsAtCheckpoint.length} teams
                     </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-2">
-                    <Badge variant="outline" className="text-white border-white/20 text-xs sm:text-sm">
+                    <Badge variant="outline" className="text-foreground border-border text-xs sm:text-sm">
                       Checkpoint {checkpoint.order}
                     </Badge>
-                    <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-[rgb(255,255,255,0.6)] flex-shrink-0" />
+                    <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                   </div>
                 </div>
               </InteractiveCard>

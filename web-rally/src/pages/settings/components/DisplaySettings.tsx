@@ -40,7 +40,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Selecione um tema" />
                 </SelectTrigger>
                 <SelectContent>
@@ -51,7 +51,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
               </Select>
             )}
           />
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-muted-foreground">
             O tema controla as cores e estilo visual da aplicação
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Selecione o modo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -150,7 +150,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
               </Select>
             )}
           />
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-muted-foreground">
             Controla o que as equipas veem do trajeto
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue placeholder="Selecione o modo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,7 +178,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
               </Select>
             )}
           />
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-muted-foreground">
             Controla o que as equipas veem das pontuações
           </p>
         </div>

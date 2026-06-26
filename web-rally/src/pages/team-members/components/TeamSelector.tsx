@@ -50,7 +50,7 @@ export default function TeamSelector({
         <Select value={selectedTeam} onValueChange={onTeamChange}>
           <SelectTrigger
             id="team-select"
-            className="bg-black/10 border-white/10"
+            className="bg-muted border-white/10"
             style={{ color: config?.colors?.text }}
           >
             <SelectValue placeholder="Selecionar equipa" />
