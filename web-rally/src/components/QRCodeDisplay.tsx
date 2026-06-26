@@ -25,7 +25,7 @@ export default function QRCodeDisplay({ accessCode, size = 200, className = "" }
                 />
             </div>
             <div className="text-center">
-                <p className="text-sm text-white/70">Código de Acesso</p>
+                <p className="text-sm text-muted-foreground">Código de Acesso</p>
                 <p className="text-2xl font-mono font-bold tracking-wider mt-1">{accessCode}</p>
             </div>
         </div>

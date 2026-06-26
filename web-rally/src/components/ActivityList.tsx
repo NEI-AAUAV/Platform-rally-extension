@@ -102,7 +102,7 @@ export default function ActivityList({
 
   if (safeActivities.length === 0) {
     return (
-      <div className="text-center text-[rgb(255,255,255,0.7)] py-8">
+      <div className="text-center text-muted-foreground py-8">
         <LucideActivity className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p className="text-lg font-medium mb-2">Nenhuma atividade criada</p>
         <p className="text-sm">
@@ -123,13 +123,13 @@ export default function ActivityList({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, activity)}
             onDragEnd={handleDragEnd}
-            className={`bg-[rgb(255,255,255,0.1)] rounded-lg p-4 border border-[rgb(255,255,255,0.2)] transition-all ${draggedActivity?.id === activity.id ? 'opacity-50 scale-95' : 'hover:bg-[rgb(255,255,255,0.15)]'
+            className={`bg-muted rounded-lg p-4 border border-border transition-all ${draggedActivity?.id === activity.id ? 'opacity-50 scale-95' : 'hover:bg-muted'
               } ${onReorder ? 'cursor-move' : ''}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1">
                 {onReorder && (
-                  <div className="flex flex-col items-center text-[rgb(255,255,255,0.5)] mt-1">
+                  <div className="flex flex-col items-center text-muted-foreground mt-1">
                     <GripVertical className="w-4 h-4" />
                   </div>
                 )}
@@ -145,12 +145,12 @@ export default function ActivityList({
                   </div>
 
                   {activity.description && (
-                    <p className="text-[rgb(255,255,255,0.7)] mb-2">
+                    <p className="text-muted-foreground mb-2">
                       {activity.description}
                     </p>
                   )}
 
-                  <div className="flex items-center gap-4 text-sm text-[rgb(255,255,255,0.6)]">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>
                       <strong>Tipo:</strong> {activityTypeLabels[activity.activity_type]}
                     </span>

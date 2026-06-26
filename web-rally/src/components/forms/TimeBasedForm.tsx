@@ -70,7 +70,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Completion Time (seconds)
         </label>
         <input
@@ -79,13 +79,13 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
           pattern="[0-9]*[.,]?[0-9]*"
           value={completionTime}
           onChange={(e) => setCompletionTime(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Enter completion time in seconds"
         />
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Extra Shots
         </label>
         <input
@@ -94,10 +94,10 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
           max={maxExtraShots}
           value={extraShots}
           onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
         </p>
         {extraShots > maxExtraShots && (
@@ -108,7 +108,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Penalties
         </label>
         <div className="space-y-2">
@@ -118,10 +118,10 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
               min="0"
               value={penalties.vomit || 0}
               onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
+            <span className="text-muted-foreground text-sm">
               Vomit penalty ({penaltyValues.vomit} pts each)
             </span>
           </div>
@@ -131,27 +131,27 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
+            <span className="text-muted-foreground text-sm">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
             </span>
           </div>
         </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Notes (Optional)
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />

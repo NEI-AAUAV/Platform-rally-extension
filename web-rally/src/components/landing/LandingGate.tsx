@@ -33,11 +33,11 @@ export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <p className="mb-4 text-center font-display text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[rgb(255,255,255,0.45)]">
+        <p className="mb-4 text-center font-display text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
           Núcleo de Estudantes de Informática
         </p>
 
-        <div className="overflow-hidden rounded-3xl border border-white/12 bg-white/[0.04] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)]">
+        <div className="overflow-hidden rounded-3xl border border-border bg-muted shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)]">
           {/* banner cover */}
           {showBanner && (
             <div className="relative h-32 w-full overflow-hidden sm:h-36">
@@ -58,20 +58,20 @@ export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/
                 <img
                   src={logoSrc}
                   alt={`${eventName} logo`}
-                  className="h-[72px] w-[72px] rounded-2xl object-contain ring-4 ring-[rgb(10,10,10)] [background:rgb(255,255,255,0.06)]"
+                  className="h-[72px] w-[72px] rounded-2xl object-contain ring-4 ring-border bg-muted"
                 />
               ) : (
-                <span className="rally-bg-accent rally-shadow-accent grid h-[72px] w-[72px] place-items-center rounded-2xl font-display text-2xl font-bold text-white ring-4 ring-[rgb(10,10,10)]">
+                <span className="rally-bg-accent rally-shadow-accent grid h-[72px] w-[72px] place-items-center rounded-2xl font-display text-2xl font-bold text-white ring-4 ring-border">
                   {initialsOf(eventName)}
                 </span>
               )}
             </div>
 
-            <h1 className="rally-display mt-4 break-words text-center text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <h1 className="rally-display mt-4 break-words text-center text-3xl font-bold leading-tight text-foreground sm:text-4xl">
               {eventName}
             </h1>
             {eventSubtitle && (
-              <p className="mt-2 text-center text-sm text-[rgb(255,255,255,0.65)]">{eventSubtitle}</p>
+              <p className="mt-2 text-center text-sm text-muted-foreground">{eventSubtitle}</p>
             )}
 
             <div className="mx-auto my-6 h-px w-16 rally-bg-accent opacity-70" />
@@ -87,7 +87,7 @@ export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/
               </button>
               <a
                 href={teamLoginHref}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-white/40"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted px-6 py-3 font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-border"
               >
                 <Users className="h-4 w-4" />
                 Login Equipa

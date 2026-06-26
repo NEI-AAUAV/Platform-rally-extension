@@ -10,7 +10,7 @@ export default function PageHeader({ title, description, className = "" }: PageH
     <div className={`text-center ${className}`}>
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
       {description && (
-        <p className="text-[rgb(255,255,255,0.7)]">{description}</p>
+        <p className="text-muted-foreground">{description}</p>
       )}
     </div>
   );

@@ -61,15 +61,15 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Success
         </label>
         <div className="flex items-center space-x-3">
           <div 
-            className={`flex items-center justify-center w-6 h-6 border-2 rounded cursor-pointer transition-all duration-200 hover:border-red-500 hover:bg-[rgb(255,255,255,0.15)] ${
+            className={`flex items-center justify-center w-6 h-6 border-2 rounded cursor-pointer transition-all duration-200 hover:border-red-500 hover:bg-muted ${
               isSuccessChecked 
-                ? 'bg-[rgb(255,255,255,0.2)] border-red-500' 
-                : 'bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.3)]'
+                ? 'bg-muted border-red-500' 
+                : 'bg-muted border-border'
             }`}
             onClick={() => setIsSuccessChecked(!isSuccessChecked)}
           >
@@ -87,12 +87,12 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
               />
             </svg>
           </div>
-          <span className="text-[rgb(255,255,255,0.8)] font-medium">Team succeeded in the activity</span>
+          <span className="text-muted-foreground font-medium">Team succeeded in the activity</span>
         </div>
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Attempts
         </label>
         <input
@@ -100,16 +100,16 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
           min="1"
           value={attempts}
           onChange={(e) => setAttempts(parseInt(e.target.value, 10) || 1)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Number of attempts"
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           How many attempts did the team make?
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Extra Shots
         </label>
         <input
@@ -118,10 +118,10 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
           max={maxExtraShots}
           value={extraShots}
           onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
         </p>
         {extraShots > maxExtraShots && (
@@ -132,7 +132,7 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Penalties
         </label>
         <div className="space-y-2">
@@ -142,10 +142,10 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
               min="0"
               value={penalties.vomit || 0}
               onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
+            <span className="text-muted-foreground text-sm">
               Vomit penalty ({penaltyValues.vomit} pts each)
             </span>
           </div>
@@ -155,27 +155,27 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
+            <span className="text-muted-foreground text-sm">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
             </span>
           </div>
         </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Notes (Optional)
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />

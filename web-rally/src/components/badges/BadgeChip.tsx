@@ -26,12 +26,12 @@ export function BadgeChip({ badgeType, awardedAt, className }: BadgeChipProps) {
       whileHover={{ y: -2 }}
       title={title}
       className={cn(
-        "rally-brutal-sm rally-accent flex w-24 flex-col items-center gap-2 bg-white/[0.03] px-3 py-3 text-center",
+        "rally-brutal-sm rally-accent flex w-24 flex-col items-center gap-2 bg-muted px-3 py-3 text-center",
         className,
       )}
     >
       <Icon className="h-6 w-6" strokeWidth={2.25} />
-      <span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-white">
+      <span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-foreground">
         {label}
       </span>
     </motion.div>

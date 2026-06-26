@@ -78,7 +78,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="general-points" className="block text-sm font-medium mb-2 text-white">
+        <label htmlFor="general-points" className="block text-sm font-medium mb-2 text-foreground">
           Assigned Points
         </label>
         <input
@@ -88,17 +88,17 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
           max={config.max_points || 100}
           value={assignedPoints}
           onChange={(e) => setAssignedPoints(Number(e.target.value))}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder={`Enter points (${config.min_points || 0}-${config.max_points || 100})`}
           required
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Range: {config.min_points || 0} - {config.max_points || 100} points
         </p>
       </div>
 
       <div>
-        <label htmlFor="general-extra-shots" className="block text-sm font-medium mb-2 text-white">
+        <label htmlFor="general-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
           Extra Shots
         </label>
         <input
@@ -108,10 +108,10 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
           max={maxExtraShots}
           value={extraShots}
           onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
         </p>
         {extraShots > maxExtraShots && (
@@ -122,7 +122,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="block text-sm font-medium mb-2 text-foreground">
           Penalties
         </label>
         <div className="space-y-2">
@@ -133,11 +133,11 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
               min="0"
               value={penalties.vomit || 0}
               onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
               aria-label="Vomit penalty count"
             />
-            <label htmlFor="general-vomit" className="text-[rgb(255,255,255,0.8)] text-sm">
+            <label htmlFor="general-vomit" className="text-muted-foreground text-sm">
               Vomit penalty ({penaltyValues.vomit} pts each)
             </label>
           </div>
@@ -148,29 +148,29 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
               aria-label="Not drinking penalty count"
             />
-            <label htmlFor="general-not-drinking" className="text-[rgb(255,255,255,0.8)] text-sm">
+            <label htmlFor="general-not-drinking" className="text-muted-foreground text-sm">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
             </label>
           </div>
         </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
       </div>
 
       <div>
-        <label htmlFor="general-notes" className="block text-sm font-medium mb-2 text-white">
+        <label htmlFor="general-notes" className="block text-sm font-medium mb-2 text-foreground">
           Notes (Optional)
         </label>
         <textarea
           id="general-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />

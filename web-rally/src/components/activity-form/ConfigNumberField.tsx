@@ -34,7 +34,7 @@ export function ConfigNumberField({
 }: ConfigNumberFieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-white mb-2">
+      <label htmlFor={id} className="block text-sm font-medium text-foreground mb-2">
         {label}
       </label>
       <Input
@@ -43,11 +43,11 @@ export function ConfigNumberField({
         min="0"
         value={resolveValue(value, defaultValue)}
         onChange={(e) => onChange(configKey, Number(e.target.value))}
-        className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white"
+        className="bg-muted border-border text-foreground"
         placeholder={placeholder}
         data-testid={testId}
       />
-      {helpText && <p className="text-xs text-[rgb(255,255,255,0.5)] mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-muted-foreground mt-1">{helpText}</p>}
     </div>
   );
 }

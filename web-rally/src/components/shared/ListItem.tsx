@@ -8,7 +8,7 @@ interface ListItemProps {
 
 export default function ListItem({ children, actions, className = "" }: ListItemProps) {
   return (
-    <div className={`flex items-center justify-between p-4 bg-[rgb(255,255,255,0.02)] rounded-xl border border-[rgb(255,255,255,0.1)] ${className}`}>
+    <div className={`flex items-center justify-between p-4 bg-muted rounded-xl border border-border ${className}`}>
       <div className="flex items-center gap-3">
         {children}
       </div>

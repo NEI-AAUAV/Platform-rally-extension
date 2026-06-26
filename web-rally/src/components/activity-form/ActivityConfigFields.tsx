@@ -9,8 +9,8 @@ interface ConfigSectionProps {
 
 function ConfigSection({ title, children }: ConfigSectionProps) {
   return (
-    <div className="space-y-4 p-4 bg-[rgb(255,255,255,0.02)] border border-[rgb(255,255,255,0.1)] rounded-lg">
-      <h4 className="font-medium text-white">{title}</h4>
+    <div className="space-y-4 p-4 bg-muted border border-border rounded-lg">
+      <h4 className="font-medium text-foreground">{title}</h4>
       {children}
     </div>
   );
@@ -94,8 +94,8 @@ export function ActivityConfigFields({
       return (
         <ConfigSection title="Configurações de Atividade Equipa vs Equipa">
           <div className="space-y-4">
-            <div className="border-b border-[rgb(255,255,255,0.1)] pb-4 mb-4">
-              <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)] mb-3">
+            <div className="border-b border-border pb-4 mb-4">
+              <h5 className="text-sm font-medium text-muted-foreground mb-3">
                 Pontuação Tiered (Opcional)
               </h5>
               <div className="grid grid-cols-2 gap-4">
@@ -111,7 +111,7 @@ export function ActivityConfigFields({
             </div>
 
             <div className="space-y-3">
-              <h5 className="text-sm font-medium text-[rgb(255,255,255,0.7)]">Pontuação do Resultado</h5>
+              <h5 className="text-sm font-medium text-muted-foreground">Pontuação do Resultado</h5>
               {field("config-tv-win-points", "Pontos por Vitória", "win_points", 100, "100", {
                 testId: "input-win-points",
               })}

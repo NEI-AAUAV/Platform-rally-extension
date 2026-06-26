@@ -28,7 +28,7 @@ export default function BrandHeader({ branding, className = "" }: BrandHeaderPro
 
   return (
     <header
-      className={`relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-white/12 shadow-[0_24px_50px_-28px_rgba(0,0,0,0.7)] ${className}`}
+      className={`relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-border shadow-[0_24px_50px_-28px_rgba(0,0,0,0.7)] ${className}`}
     >
       <img
         src={banner}
@@ -50,9 +50,9 @@ export default function BrandHeader({ branding, className = "" }: BrandHeaderPro
           </span>
         )}
         <div className="min-w-0">
-          <h1 className="rally-display truncate text-2xl font-bold text-white sm:text-3xl">{eventName}</h1>
+          <h1 className="rally-display truncate text-2xl font-bold text-foreground sm:text-3xl">{eventName}</h1>
           {eventSubtitle && (
-            <p className="truncate text-sm text-[rgb(255,255,255,0.7)]">{eventSubtitle}</p>
+            <p className="truncate text-sm text-muted-foreground">{eventSubtitle}</p>
           )}
         </div>
       </div>

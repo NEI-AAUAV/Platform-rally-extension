@@ -134,7 +134,7 @@ export default function ActivityForm({
         <h3 className="text-xl font-semibold mb-2">
           {initialData ? "Editar Atividade" : "Criar Nova Atividade"}
         </h3>
-        <p className="text-[rgb(255,255,255,0.7)]">
+        <p className="text-muted-foreground">
           {initialData
             ? "Modifique os detalhes da atividade"
             : "Configure uma nova atividade para o Rally"
@@ -161,7 +161,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Ex: Cabo de Guerra"
                     {...field}
-                    className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white placeholder:text-[rgb(255,255,255,0.5)]"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -179,7 +179,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Descreva a atividade..."
                     {...field}
-                    className="bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)] text-white placeholder:text-[rgb(255,255,255,0.5)]"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -197,7 +197,7 @@ export default function ActivityForm({
                   <select
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
-                    className="w-full p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white"
+                    className="w-full p-2 bg-muted border border-border rounded text-foreground"
                   >
                     {checkpoints.map((checkpoint) => (
                       <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
@@ -223,7 +223,7 @@ export default function ActivityForm({
                 <FormControl>
                   <select
                     {...field}
-                    className="w-full p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white"
+                    className="w-full p-2 bg-muted border border-border rounded text-foreground"
                   >
                     {Object.entries(activityTypeLabels).map(([value, label]) => (
                       <option key={value} value={value} className="bg-gray-800">

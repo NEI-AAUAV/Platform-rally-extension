@@ -36,10 +36,10 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
   ) => {
     // Variant styles
     const variantStyles = {
-      default: "bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]",
-      elevated: "bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]",
-      subtle: "bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)]",
-      nested: "bg-[rgb(255,255,255,0.05)] border-[rgb(255,255,255,0.2)]",
+      default: "bg-muted border-border",
+      elevated: "bg-muted border-border",
+      subtle: "bg-muted border-border",
+      nested: "bg-muted border-border",
     };
 
     // Padding styles
@@ -60,7 +60,7 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
 
     // Hover styles
     const hoverStyles = hover
-      ? "transition-colors hover:bg-[rgb(255,255,255,0.08)]"
+      ? "transition-colors hover:bg-muted"
       : "";
 
     // Interactive cursor

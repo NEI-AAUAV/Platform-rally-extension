@@ -93,23 +93,23 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
 
   return (
     <div className={`fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 ${className}`}>
-      <div className="relative w-full max-w-md bg-black rounded-lg overflow-hidden border border-white/20">
+      <div className="relative w-full max-w-md bg-black rounded-lg overflow-hidden border border-border">
         {/* Close button */}
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
           aria-label="Close QR code scanner"
         >
-          <X className="w-5 h-5 text-white" />
+          <X className="w-5 h-5 text-foreground" />
         </button>
 
         {/* Video element */}
         {permissionDenied ? (
-          <div className="aspect-square flex flex-col items-center justify-center bg-black/40 gap-4">
+          <div className="aspect-square flex flex-col items-center justify-center bg-muted gap-4">
             <Camera className="w-12 h-12 text-red-500/50" />
             <div className="text-center px-4">
-              <p className="text-white font-semibold mb-2">Permissão Negada</p>
-              <p className="text-white/70 text-sm">
+              <p className="text-foreground font-semibold mb-2">Permissão Negada</p>
+              <p className="text-muted-foreground text-sm">
                 {cameraError || "Por favor, ative o acesso à câmara para utilizar o scanner."}
               </p>
             </div>
@@ -140,7 +140,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
 
             {/* Loading indicator */}
             {!isActive && !permissionDenied && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
             )}
@@ -148,8 +148,8 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
         )}
 
         {/* Instructions */}
-        <div className="bg-black/70 p-4 border-t border-white/10">
-          <p className="text-white/80 text-sm text-center">
+        <div className="bg-black/70 p-4 border-t border-border">
+          <p className="text-muted-foreground text-sm text-center">
             Alinhe o código QR com o quadrado para escanear
           </p>
           {cameraError && !permissionDenied && (
@@ -158,7 +158,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
         </div>
 
         {/* Close button footer */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-border">
           <Button
             onClick={handleClose}
             variant="outline"

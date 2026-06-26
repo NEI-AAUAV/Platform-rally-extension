@@ -104,10 +104,10 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
       default:
         return (
           <div className="text-center py-8">
-            <p className="text-[rgb(255,255,255,0.7)]">
+            <p className="text-muted-foreground">
               Unknown activity type: {activity.activity_type}
             </p>
-            <p className="text-[rgb(255,255,255,0.5)] text-sm mt-2">
+            <p className="text-muted-foreground text-sm mt-2">
               Please contact an administrator.
             </p>
           </div>
@@ -117,12 +117,12 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
 
   return (
     <div className="space-y-4">
-      <div className="bg-[rgb(255,255,255,0.05)] border border-[rgb(255,255,255,0.1)] p-4 rounded">
-        <h3 className="font-semibold mb-2 text-white">Activity Details</h3>
-        <p className="text-[rgb(255,255,255,0.8)]"><strong>Type:</strong> {activity.activity_type}</p>
-        <p className="text-[rgb(255,255,255,0.8)]"><strong>Team:</strong> {team.name}</p>
+      <div className="bg-muted border border-border p-4 rounded">
+        <h3 className="font-semibold mb-2 text-foreground">Activity Details</h3>
+        <p className="text-muted-foreground"><strong>Type:</strong> {activity.activity_type}</p>
+        <p className="text-muted-foreground"><strong>Team:</strong> {team.name}</p>
         {activity.description && (
-          <p className="text-[rgb(255,255,255,0.8)]"><strong>Description:</strong> {activity.description}</p>
+          <p className="text-muted-foreground"><strong>Description:</strong> {activity.description}</p>
         )}
       </div>
 

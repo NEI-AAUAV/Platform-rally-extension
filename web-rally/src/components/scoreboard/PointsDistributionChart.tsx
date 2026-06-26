@@ -26,8 +26,8 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
     .map((team) => ({ name: team.name, total: team.total, leader: team.classification === 1 }));
 
   return (
-    <div className="rally-brutal bg-white/[0.03] p-4">
-      <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-white/80">
+    <div className="rally-brutal bg-muted p-4">
+      <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
         Distribuição de pontos
       </h3>
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 38)}>

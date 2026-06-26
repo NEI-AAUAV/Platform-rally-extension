@@ -14,12 +14,12 @@ export function CheckinQrPanel() {
   if (isError) return null;
 
   return (
-    <section className="rally-brutal mb-6 flex flex-col items-center gap-3 bg-white/[0.03] p-5">
+    <section className="rally-brutal mb-6 flex flex-col items-center gap-3 bg-muted p-5">
       <h3 className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
         <QrCode className="rally-accent h-5 w-5" strokeWidth={2.25} />
         Check-in da equipa
       </h3>
-      <p className="max-w-sm text-center text-sm text-white/60">
+      <p className="max-w-sm text-center text-sm text-muted-foreground">
         As equipas digitalizam este código para registar a chegada. Renova-se
         automaticamente — mantém-no visível no posto.
       </p>

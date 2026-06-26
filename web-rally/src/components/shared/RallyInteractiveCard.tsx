@@ -43,9 +43,9 @@ const RallyInteractiveCard = forwardRef<
     // Status-based styles
     const statusStyles = {
       default: {
-        base: "bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)]",
-        hover: "hover:bg-[rgb(255,255,255,0.04)]",
-        selected: "bg-[rgb(255,255,255,0.08)] border-[rgb(255,255,255,0.3)]",
+        base: "bg-muted border-border",
+        hover: "hover:bg-muted",
+        selected: "bg-muted border-border",
       },
       success: {
         base: "bg-green-500/10 border-green-500/30",
@@ -63,14 +63,14 @@ const RallyInteractiveCard = forwardRef<
         selected: "bg-blue-500/25 border-blue-500/50",
       },
       neutral: {
-        base: "bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]",
-        hover: "hover:bg-[rgb(255,255,255,0.06)]",
-        selected: "bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.25)]",
+        base: "bg-muted border-border",
+        hover: "hover:bg-muted",
+        selected: "bg-muted border-border",
       },
       nested: {
-        base: "bg-[rgb(255,255,255,0.05)] border-[rgb(255,255,255,0.2)]",
-        hover: "hover:bg-[rgb(255,255,255,0.08)]",
-        selected: "bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.3)]",
+        base: "bg-muted border-border",
+        hover: "hover:bg-muted",
+        selected: "bg-muted border-border",
       },
     };
 

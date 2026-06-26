@@ -23,7 +23,7 @@ export default function EmptyState({
       )}
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       {description && (
-        <p className="text-[rgb(255,255,255,0.7)] mb-4">{description}</p>
+        <p className="text-muted-foreground mb-4">{description}</p>
       )}
       {action && action}
     </div>
