@@ -5,7 +5,6 @@ import {
   Navigate,
 } from "@tanstack/react-router";
 import MainLayout from "@/pages/layout";
-import RootRedirect from "./RootRedirect";
 
 const rootRoute = createRootRoute();
 
@@ -26,7 +25,7 @@ const layoutRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/",
-  component: RootRedirect,
+  component: lazyRouteComponent(() => import("@/pages/home")),
 });
 
 const scoreboardRoute = createRoute({
