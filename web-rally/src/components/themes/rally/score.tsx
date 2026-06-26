@@ -1,16 +1,10 @@
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
-import { NEIBadge } from "./badge";
-import { NEIButton } from "./button";
+import { RallyBadge } from "./badge";
+import { RallyButton } from "./button";
 import type { ListingTeam } from "@/client";
 import { Link } from "@tanstack/react-router";
 import { formatTime } from "@/utils/timeFormat";
-
-/**
- * NEI Theme Score Component
- * 
- * Team score display using NEI brand color (#008542)
- */
 
 type ScoreProps = { team: ListingTeam } & ComponentProps<"div">;
 
@@ -40,67 +34,61 @@ const variantClassification = (classification: number) => {
   }
 };
 
-export function NEIScore({ className, team, ...props }: ScoreProps) {
+/** Team score card on the design tokens; the leader is highlighted with the accent. */
+export function RallyScore({ className, team, ...props }: ScoreProps) {
   const lastCheckpointTime =
     team.last_checkpoint_time && new Date(team.last_checkpoint_time);
-  
-  // Use the actual checkpoint number if available, otherwise fall back to completed checkpoints count
+
   const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
-  
+  const isLeader = team.classification === 1;
+
   return (
     <div
       {...props}
       className={cn(
-        "grid place-items-center gap-4 self-stretch rounded-2xl border-2 px-4 py-8",
-        {
-          "border-[#008542]/50 bg-[rgb(255,255,255,0.15)]":
-            team.classification === 1,
-          "border-[#008542]/20 bg-[rgb(255,255,255,0.04)]":
-            team.classification !== 1,
-        },
+        "grid place-items-center gap-4 self-stretch rounded-2xl border px-4 py-8",
+        isLeader
+          ? "rally-border-accent rally-bg-accent-soft shadow-[var(--rally-shadow-md)]"
+          : "border-border bg-card shadow-[var(--rally-shadow-sm)]",
         className,
       )}
     >
-      <NEIBadge
+      <RallyBadge
         className="flex w-14 justify-center px-8 py-2 text-lg font-bold"
         variant={variantClassification(team.classification)}
       >
         {team.classification}
         {nthNumber(team.classification)}
-      </NEIBadge>
+      </RallyBadge>
 
-      <span className="grow text-center text-2xl font-bold">{team.name}</span>
+      <span className="grow text-center text-2xl font-bold text-foreground">{team.name}</span>
       <span className="grow text-center">
         {checkpointNumber > 0 ? (
           <div className="space-y-1">
-            <div className="text-xs text-white/50">
+            <div className="text-xs text-muted-foreground">
               {team.last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
             </div>
-            <div className="text-sm font-medium text-white/60">
+            <div className="text-sm font-medium text-foreground/80">
               {team.last_checkpoint_score || 0}pts
             </div>
             {lastCheckpointTime && (
-              <div className="text-xs text-white/50">
+              <div className="text-xs text-muted-foreground">
                 {formatTime(lastCheckpointTime)}
               </div>
             )}
           </div>
         ) : (
-          <div className="text-sm text-white/60">No checkpoints yet</div>
+          <div className="text-sm text-muted-foreground">Sem postos ainda</div>
         )}
       </span>
-      <span className="grow text-center text-4xl font-bold text-white">
+      <span className="rally-display grow text-center text-4xl font-bold text-foreground">
         {team.total}pts
       </span>
       <Link to="/teams/$id" params={{ id: String(team.id) }}>
-        <NEIButton variant={"primary"}>
-          View Team
-        </NEIButton>
+        <RallyButton variant="primary">Ver Equipa</RallyButton>
       </Link>
     </div>
   );
 }
 
-// Keep default export for backward compatibility
-export default NEIScore;
-
+export default RallyScore;

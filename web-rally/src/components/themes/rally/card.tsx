@@ -1,14 +1,7 @@
 import { forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * Bloody Theme Card Component
- * 
- * Card styling for the "bloody" theme with darker, more intense styling
- * suitable for Halloween/horror-themed rally events.
- */
-
-interface BloodyCardProps {
+interface RallyCardProps {
   children: ReactNode;
   variant?: "default" | "elevated" | "subtle" | "nested";
   className?: string;
@@ -18,7 +11,11 @@ interface BloodyCardProps {
   hover?: boolean;
 }
 
-const BloodyCard = forwardRef<HTMLDivElement, BloodyCardProps>(
+/**
+ * Soft-depth themed card on the design tokens. Variants map to elevation rather
+ * than the old skin's tinted borders; surfaces adapt to light/dark.
+ */
+const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
   (
     {
       children,
@@ -29,14 +26,13 @@ const BloodyCard = forwardRef<HTMLDivElement, BloodyCardProps>(
       onClick,
       hover = false,
     },
-    ref
+    ref,
   ) => {
-    // Bloody theme uses darker, more intense styling
     const variantStyles = {
-      default: "bg-[rgb(255,255,255,0.04)] border-[rgb(255,255,255,0.15)]",
-      elevated: "bg-[rgb(255,255,255,0.1)] border-[rgb(255,255,255,0.2)]",
-      subtle: "bg-[rgb(255,255,255,0.02)] border-[rgb(255,255,255,0.1)]",
-      nested: "bg-[rgb(255,255,255,0.05)] border-[rgb(255,255,255,0.2)]",
+      default: "bg-card border-border shadow-[var(--rally-shadow-sm)]",
+      elevated: "bg-card border-border shadow-[var(--rally-shadow-md)]",
+      subtle: "bg-card/60 border-border",
+      nested: "bg-secondary border-border",
     };
 
     const paddingStyles = {
@@ -54,7 +50,7 @@ const BloodyCard = forwardRef<HTMLDivElement, BloodyCardProps>(
     };
 
     const hoverStyles = hover
-      ? "transition-colors hover:bg-[rgb(255,255,255,0.08)]"
+      ? "transition-colors hover:bg-accent"
       : "";
 
     const interactiveStyles = onClick ? "cursor-pointer" : "";
@@ -70,16 +66,15 @@ const BloodyCard = forwardRef<HTMLDivElement, BloodyCardProps>(
           roundedStyles[rounded],
           hoverStyles,
           interactiveStyles,
-          className
+          className,
         )}
       >
         {children}
       </div>
     );
-  }
+  },
 );
 
-BloodyCard.displayName = "BloodyCard";
+RallyCard.displayName = "RallyCard";
 
-export default BloodyCard;
-
+export default RallyCard;

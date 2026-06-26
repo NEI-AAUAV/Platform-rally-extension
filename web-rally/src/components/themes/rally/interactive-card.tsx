@@ -1,14 +1,7 @@
 import { forwardRef, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * NEI Theme Interactive Card Component
- * 
- * Interactive card using NEI brand color (#008542) for borders
- * Same dark backgrounds as bloody theme with NEI green accents
- */
-
-interface NEIInteractiveCardProps {
+interface RallyInteractiveCardProps {
   children: ReactNode;
   onClick?: () => void;
   selected?: boolean;
@@ -20,9 +13,13 @@ interface NEIInteractiveCardProps {
   as?: "div" | "button";
 }
 
-const NEIInteractiveCard = forwardRef<
+/**
+ * Soft-depth interactive card on the design tokens. `default`/`neutral`/`nested`
+ * use the accent for the selected state; semantic statuses keep their hues.
+ */
+const RallyInteractiveCard = forwardRef<
   HTMLDivElement | HTMLButtonElement,
-  NEIInteractiveCardProps
+  RallyInteractiveCardProps
 >(
   (
     {
@@ -36,19 +33,30 @@ const NEIInteractiveCard = forwardRef<
       disabled = false,
       as = "div",
     },
-    ref
+    ref,
   ) => {
-    // NEI theme uses same backgrounds as bloody but with NEI brand green accents
+    const accentSelected =
+      "rally-bg-accent-soft rally-border-accent";
     const statusStyles = {
       default: {
-        base: "bg-[rgb(255,255,255,0.02)] border-[#008542]/30",
-        hover: "hover:bg-[rgb(255,255,255,0.06)] hover:border-[#008542]/40",
-        selected: "bg-[#008542]/10 border-[#008542]/50",
+        base: "bg-card border-border",
+        hover: "hover:bg-accent",
+        selected: accentSelected,
+      },
+      neutral: {
+        base: "bg-secondary border-border",
+        hover: "hover:bg-accent",
+        selected: accentSelected,
+      },
+      nested: {
+        base: "bg-card/60 border-border",
+        hover: "hover:bg-accent",
+        selected: accentSelected,
       },
       success: {
-        base: "bg-[#008542]/10 border-[#008542]/40",
-        hover: "hover:bg-[#008542]/20",
-        selected: "bg-[#008542]/25 border-[#008542]/60",
+        base: "bg-emerald-500/10 border-emerald-500/40",
+        hover: "hover:bg-emerald-500/20",
+        selected: "bg-emerald-500/25 border-emerald-500/60",
       },
       warning: {
         base: "bg-yellow-500/10 border-yellow-500/30",
@@ -59,16 +67,6 @@ const NEIInteractiveCard = forwardRef<
         base: "bg-blue-500/10 border-blue-500/30",
         hover: "hover:bg-blue-500/20",
         selected: "bg-blue-500/25 border-blue-500/50",
-      },
-      neutral: {
-        base: "bg-[rgb(255,255,255,0.04)] border-[#008542]/35",
-        hover: "hover:bg-[rgb(255,255,255,0.08)] hover:border-[#008542]/45",
-        selected: "bg-[#008542]/15 border-[#008542]/55",
-      },
-      nested: {
-        base: "bg-[rgb(255,255,255,0.03)] border-[#008542]/35",
-        hover: "hover:bg-[rgb(255,255,255,0.06)] hover:border-[#008542]/45",
-        selected: "bg-[#008542]/10 border-[#008542]/50",
       },
     };
 
@@ -126,10 +124,9 @@ const NEIInteractiveCard = forwardRef<
         {children}
       </div>
     );
-  }
+  },
 );
 
-NEIInteractiveCard.displayName = "NEIInteractiveCard";
+RallyInteractiveCard.displayName = "RallyInteractiveCard";
 
-export default NEIInteractiveCard;
-
+export default RallyInteractiveCard;
