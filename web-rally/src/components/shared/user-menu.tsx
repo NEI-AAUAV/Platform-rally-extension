@@ -1,10 +1,12 @@
 import { useUserStore } from "@/stores/useUserStore";
 import { Link } from "@tanstack/react-router";
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import useStaffLogin from "@/hooks/useLoginLink";
 
 export function UserMenu() {
   const { isAuthenticated, name, email, image, scopes, logout, sessionLoading } = useUserStore((state) => state);
+  const onStaffLogin = useStaffLogin();
 
   const isAdmin = scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
 
@@ -15,9 +17,20 @@ export function UserMenu() {
   if (!isAuthenticated) {
     return (
       <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={onStaffLogin}
+          className="rally-bg-accent h-8 gap-1.5 text-white hover:opacity-90"
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Login NEI</span>
+          <span className="sm:hidden">NEI</span>
+        </Button>
         <Link to="/team-login">
-          <Button variant="outline" size="sm" className="h-8">
-            Login Equipa
+          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            Equipa
           </Button>
         </Link>
       </div>

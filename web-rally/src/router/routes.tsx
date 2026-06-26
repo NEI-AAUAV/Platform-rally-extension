@@ -40,6 +40,12 @@ const postosRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/postos")),
 });
 
+const rulesRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/rules",
+  component: lazyRouteComponent(() => import("@/pages/rules")),
+});
+
 const teamsRedirectRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/teams",
@@ -114,6 +120,7 @@ export const routeTree = rootRoute.addChildren([
     indexRoute,
     scoreboardRoute,
     postosRoute,
+    rulesRoute,
     teamsRedirectRoute,
     teamByIdRoute,
     adminRoute,

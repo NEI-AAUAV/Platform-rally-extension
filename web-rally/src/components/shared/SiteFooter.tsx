@@ -1,6 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Facebook, Github, Instagram, Linkedin, Youtube, Mail } from "lucide-react";
+import { Facebook, Github, Instagram, Linkedin, Youtube, Mail, MapPin } from "lucide-react";
 import type { Branding } from "@/lib/branding";
+import neiLogoBlack from "@/assets/nei/logo/horizontal/black.png";
+import neiLogoWhite from "@/assets/nei/logo/horizontal/white.png";
+import mapBlack from "@/assets/footer/map-black.png";
+import mapWhite from "@/assets/footer/map-white.png";
 
 interface SiteFooterProps {
   readonly branding: Branding;
@@ -9,33 +13,49 @@ interface SiteFooterProps {
 const SOCIALS = [
   { label: "Instagram", href: "https://www.instagram.com/nei.aauav/", Icon: Instagram },
   { label: "Facebook", href: "https://www.facebook.com/nei.aauav", Icon: Facebook },
-  { label: "GitHub", href: "https://github.com/NEI-AAUAV", Icon: Github },
   { label: "LinkedIn", href: "https://www.linkedin.com/company/nei-aauav", Icon: Linkedin },
+  { label: "GitHub", href: "https://github.com/NEI-AAUAV", Icon: Github },
   { label: "YouTube", href: "https://www.youtube.com/@neiaauav2598", Icon: Youtube },
 ] as const;
 
 const QUICK_LINKS = [
   { name: "Pontuação", to: "/scoreboard" },
   { name: "Postos", to: "/postos" },
+  { name: "Regras", to: "/rules" },
 ] as const;
 
 /**
- * Site footer: NEI branding/social on the left, rally quick links on the right.
- * Theme-aware (light/dark) via design tokens; accent on the wordmark.
+ * Site footer mirroring the NEI ecosystem structure (brand + contact + social +
+ * quick links over a faint Aveiro map), rendered in rally's own soft-depth
+ * language — soft surfaces and accent hovers, not the gamification brutalism.
+ * Theme-aware: the map and wordmark swap between light/dark.
  */
 export function SiteFooter({ branding }: SiteFooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-16 border-t border-border bg-card/40">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
+    <footer className="relative mt-16 overflow-hidden border-t border-border bg-card/40">
+      {/* Faint Aveiro map — swaps with color mode */}
+      <img
+        src={mapWhite}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.06] dark:hidden"
+      />
+      <img
+        src={mapBlack}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.07] dark:block"
+      />
+
+      <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
-          <p className="rally-display text-xl font-bold text-foreground">
-            {branding.eventName}
-          </p>
+          <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden" />
+          <img src={neiLogoWhite} alt="NEI" className="hidden h-12 object-contain dark:block" />
           <p className="max-w-xs text-sm text-muted-foreground">
-            Uma iniciativa do Núcleo de Estudantes de Informática da AAUAv.
+            Núcleo de Estudantes de Informática da AAUAv. A apoiar os estudantes desde 2013.
           </p>
           <div className="flex flex-wrap gap-2">
             {SOCIALS.map(({ label, href, Icon }) => (
@@ -45,7 +65,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
                 target="_blank"
                 rel="noreferrer noopener"
                 aria-label={label}
-                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-all hover:-translate-y-0.5 hover:bg-[var(--rally-accent,#008542)] hover:text-white"
               >
                 <Icon className="h-4 w-4" />
               </a>
@@ -56,7 +76,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         {/* Quick links */}
         <nav aria-label="Ligações rápidas" className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Rally
+            {branding.eventName}
           </h2>
           <ul className="space-y-2 text-sm">
             {QUICK_LINKS.map((link) => (
@@ -80,28 +100,29 @@ export function SiteFooter({ branding }: SiteFooterProps) {
           <ul className="space-y-2 text-sm">
             <li>
               <a
-                href="mailto:nei@aauav.pt"
+                href="https://goo.gl/maps/JZY6mi3T9T6UxE3z6"
+                target="_blank"
+                rel="noreferrer noopener"
                 className="inline-flex items-center gap-2 text-foreground/80 transition-colors hover:text-foreground"
               >
-                <Mail className="h-4 w-4" />
-                nei@aauav.pt
+                <MapPin className="h-4 w-4 shrink-0" />
+                3810-193 Aveiro, Portugal
               </a>
             </li>
             <li>
               <a
-                href="https://nei.web.ua.pt"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-foreground/80 transition-colors hover:text-foreground"
+                href="mailto:nei@aauav.pt"
+                className="inline-flex items-center gap-2 text-foreground/80 transition-colors hover:text-foreground"
               >
-                nei.web.ua.pt
+                <Mail className="h-4 w-4 shrink-0" />
+                nei@aauav.pt
               </a>
             </li>
           </ul>
         </div>
       </div>
 
-      <div className="border-t border-border">
+      <div className="relative border-t border-border">
         <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-muted-foreground">
           © {year} NEI-AAUAv · {branding.eventName}
         </p>
