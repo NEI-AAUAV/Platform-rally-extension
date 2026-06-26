@@ -2,7 +2,8 @@ import { Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { LoadingState } from "@/components/shared";
+import { LoadingState, PageHeader } from "@/components/shared";
+import { ClipboardList } from "lucide-react";
 import { StaffAssignmentList, AssignmentForm } from "./components";
 import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
 
@@ -76,13 +77,13 @@ export default function Assignment() {
   }));
 
   return (
-    <div className="mt-2 space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Atribuição de Checkpoints</h2>
-        <p className="text-muted-foreground">
-          Atribuir utilizadores com role rally-staff aos checkpoints do Rally
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Staff"
+        icon={ClipboardList}
+        title="Atribuição de postos"
+        description="Atribuir utilizadores com o papel rally-staff aos postos do rally."
+      />
 
       <AssignmentForm
         assignmentsError={assignmentsError}

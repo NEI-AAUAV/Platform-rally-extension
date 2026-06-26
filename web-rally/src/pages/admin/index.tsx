@@ -1,12 +1,25 @@
 import { useState } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useThemedComponents } from "@/components/themes";
-import { Users, MapPin, Activity as ActivityIcon, Palette, CalendarRange } from "lucide-react";
+import {
+  Users,
+  MapPin,
+  Activity as ActivityIcon,
+  Palette,
+  CalendarRange,
+  Settings2,
+  type LucideIcon,
+} from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { PageHeader, LoadingState } from "@/components/shared";
-import { TeamManagement, CheckpointManagement, ActivityManagement, BrandingSettings, EventsManagement } from "./components";
+import {
+  TeamManagement,
+  CheckpointManagement,
+  ActivityManagement,
+  BrandingSettings,
+  EventsManagement,
+} from "./components";
 import { CheckPointService } from "@/client";
 
 interface Checkpoint {
@@ -16,15 +29,21 @@ interface Checkpoint {
   order: number;
 }
 
+type TabId = "teams" | "checkpoints" | "activities" | "branding" | "events";
+
+const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
+  { id: "teams", label: "Equipas", icon: Users },
+  { id: "checkpoints", label: "Postos", icon: MapPin },
+  { id: "activities", label: "Atividades", icon: ActivityIcon },
+  { id: "branding", label: "Identidade", icon: Palette },
+  { id: "events", label: "Edições", icon: CalendarRange },
+];
 
 export default function Admin() {
-  const { Button } = useThemedComponents();
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
-  
-  const [activeTab, setActiveTab] = useState<"teams" | "checkpoints" | "activities" | "branding" | "events">("teams");
+  const [activeTab, setActiveTab] = useState<TabId>("teams");
 
-  // Fetch checkpoints for activities
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<Checkpoint[]> => {
@@ -35,7 +54,7 @@ export default function Admin() {
   });
 
   if (isLoading) {
-    return <LoadingState message="Carregando..." />;
+    return <LoadingState message="A carregar..." />;
   }
 
   if (!isRallyAdmin) {
@@ -43,71 +62,51 @@ export default function Admin() {
   }
 
   return (
-    <div className="mt-2 space-y-6">
-      <PageHeader 
-        title="Gestão Administrativa"
-        description="Criar e editar equipas, postos (checkpoints) e atividades do Rally Tascas"
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Gestão"
+        icon={Settings2}
+        title="Administração"
+        description="Gerir equipas, postos, atividades, identidade visual e edições do rally."
       />
 
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
-        <Button
-          variant={activeTab === "teams" ? "default" : "neutral"}
-          onClick={() => setActiveTab("teams")}
+      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+        {/* Sidebar nav (desktop) / pill strip (mobile) */}
+        <nav
+          aria-label="Secções de administração"
+          className="rally-surface flex gap-1 overflow-x-auto p-1.5 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible"
         >
-          <Users className="w-4 h-4 mr-2" />
-          Equipas
-        </Button>
-        <Button
-          variant={activeTab === "checkpoints" ? "default" : "neutral"}
-          onClick={() => setActiveTab("checkpoints")}
-        >
-          <MapPin className="w-4 h-4 mr-2" />
-          Checkpoints
-        </Button>
-        <Button
-          variant={activeTab === "activities" ? "default" : "neutral"}
-          onClick={() => setActiveTab("activities")}
-        >
-          <ActivityIcon className="w-4 h-4 mr-2" />
-          Atividades
-        </Button>
-        <Button
-          variant={activeTab === "branding" ? "default" : "neutral"}
-          onClick={() => setActiveTab("branding")}
-        >
-          <Palette className="w-4 h-4 mr-2" />
-          Identidade Visual
-        </Button>
-        <Button
-          variant={activeTab === "events" ? "default" : "neutral"}
-          onClick={() => setActiveTab("events")}
-        >
-          <CalendarRange className="w-4 h-4 mr-2" />
-          Edições
-        </Button>
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                aria-current={active ? "page" : undefined}
+                className={[
+                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
+                  active
+                    ? "rally-bg-accent text-white"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                ].join(" ")}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Tab content */}
+        <div className="min-w-0">
+          {activeTab === "teams" && <TeamManagement />}
+          {activeTab === "checkpoints" && <CheckpointManagement userStore={userStore} />}
+          {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
+          {activeTab === "branding" && <BrandingSettings />}
+          {activeTab === "events" && <EventsManagement />}
+        </div>
       </div>
-
-      {/* Tab Content */}
-      {activeTab === "teams" && (
-        <TeamManagement />
-      )}
-
-      {activeTab === "checkpoints" && (
-        <CheckpointManagement userStore={userStore} />
-      )}
-
-      {activeTab === "activities" && (
-        <ActivityManagement checkpoints={checkpoints || []} />
-      )}
-
-      {activeTab === "branding" && (
-        <BrandingSettings />
-      )}
-
-      {activeTab === "events" && (
-        <EventsManagement />
-      )}
     </div>
   );
 }

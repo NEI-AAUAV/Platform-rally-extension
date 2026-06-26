@@ -1,7 +1,6 @@
 import { MapPin } from 'lucide-react';
 import CheckpointCard from './CheckpointCard';
 import { EmptyState } from '@/components/shared';
-import { useThemedComponents } from '@/components/themes';
 
 interface Checkpoint {
   id: number;
@@ -26,12 +25,11 @@ export default function CheckpointList({
   onSelectCheckpoint,
   showMap = true
 }: CheckpointListProps) {
-  const { Card } = useThemedComponents();
   return (
-    <Card variant="default" padding="lg" rounded="2xl">
-      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <MapPin className="w-5 h-5" />
-        Lista de Postos ({checkpoints.length})
+    <div className="rally-surface rally-elevate p-5">
+      <h3 className="rally-display mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+        <MapPin className="rally-accent h-5 w-5" />
+        Lista de postos ({checkpoints.length})
       </h3>
 
       {checkpoints.length === 0 ? (
@@ -53,7 +51,7 @@ export default function CheckpointList({
           ))}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

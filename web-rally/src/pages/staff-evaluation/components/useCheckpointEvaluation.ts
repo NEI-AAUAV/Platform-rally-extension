@@ -202,8 +202,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        // FastAPI with path parameters expects the body wrapped in the parameter name
-        body: JSON.stringify({ result_in: payload }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         let err: unknown = { detail: res.statusText };

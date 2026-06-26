@@ -145,6 +145,8 @@ export default function Rules() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
+        eyebrow="Antes de começar"
+        icon={HelpCircle}
         title="Regras & FAQ"
         description="Como decorre o rally, como se pontua e o que precisas de saber."
       />

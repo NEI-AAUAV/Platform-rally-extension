@@ -3,9 +3,9 @@ import { CheckPointService, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
-import { PageHeader, LoadingState } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
+import { MapPin } from "lucide-react";
 import { CheckpointList, MapSection } from "./components";
-import { useThemedComponents } from "@/components/themes";
 import { Navigate } from "@tanstack/react-router";
 
 interface Checkpoint {
@@ -20,7 +20,6 @@ interface Checkpoint {
 import { useUserStore } from "@/stores/useUserStore";
 
 export default function Postos() {
-  const { Card } = useThemedComponents();
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
@@ -62,11 +61,18 @@ export default function Postos() {
 
 
   return (
-    <div className="mt-8 space-y-6">
-      <PageHeader
-        title="Postos"
-        description="Consulte a lista de checkpoints e visualize-os no mapa"
-      />
+    <div className="space-y-8">
+      <header>
+        <p className="rally-accent inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.24em]">
+          <MapPin className="h-3.5 w-3.5" /> O percurso
+        </p>
+        <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
+          Postos
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Consulta a lista de postos e localiza-os no mapa.
+        </p>
+      </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
         <CheckpointList
@@ -87,15 +93,13 @@ export default function Postos() {
 
       {/* No Coordinates Warning */}
       {!sortedCheckpoints.some((cp: Checkpoint) => cp.latitude && cp.longitude) && sortedCheckpoints.length > 0 && (
-        <Card variant="default" padding="lg" rounded="2xl">
-          <div className="text-center text-muted-foreground">
-            <div className="w-8 h-8 mx-auto mb-2 opacity-50">📍</div>
-            <p>Os postos ainda não têm coordenadas configuradas.</p>
-            <p className="text-sm mt-1">
-              Contacte um administrador para adicionar localizações aos postos.
-            </p>
-          </div>
-        </Card>
+        <div className="rally-surface p-6 text-center text-muted-foreground">
+          <MapPin className="mx-auto mb-2 h-7 w-7 opacity-50" />
+          <p className="font-medium text-foreground">Os postos ainda não têm coordenadas configuradas.</p>
+          <p className="mt-1 text-sm">
+            Contacta um administrador para adicionar localizações aos postos.
+          </p>
+        </div>
       )}
     </div>
   );

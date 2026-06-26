@@ -4,7 +4,7 @@ import { Users } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import { useUserStore } from "@/stores/useUserStore";
 import { Navigate } from "@tanstack/react-router";
-import { LoadingState } from "@/components/shared";
+import { LoadingState, PageHeader } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse } from "@/client";
 import { useThemedComponents } from "@/components/themes";
@@ -71,18 +71,17 @@ export default function TeamMembers() {
   const selectedTeamData = teams?.find(t => t.id === Number(selectedTeam));
 
   return (
-    <div className="mt-2 space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
-          <Users className="w-6 h-6" />
-          {isRallyAdmin ? "Gestão de Membros das Equipas" : "Consultar Equipas"}
-        </h2>
-        <p className="text-muted-foreground">
-          {isRallyAdmin
-            ? "Adicionar e remover membros das equipas do Rally"
-            : "Visualizar membros e código QR das equipas do Rally"}
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Equipas"
+        icon={Users}
+        title={isRallyAdmin ? "Gestão de membros" : "Consultar equipas"}
+        description={
+          isRallyAdmin
+            ? "Adicionar e remover membros das equipas do rally."
+            : "Visualizar membros e código QR das equipas do rally."
+        }
+      />
 
       {/* Error displays */}
       {teamsError && (

@@ -4,6 +4,7 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
+import { PageHeader } from "@/components/shared";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "@tanstack/react-router";
@@ -113,17 +114,12 @@ type EvaluationResponse = ActivityResultResponse & {
     <div className="space-y-4 sm:space-y-6">
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <Card variant="default" padding="none">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2">
-              <Activity className="w-6 h-6" />
-              Painel de Avaliação
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Visão geral e gestão de todas as avaliações
-            </p>
-          </CardHeader>
-        </Card>
+        <PageHeader
+          eyebrow="Avaliação"
+          icon={Activity}
+          title="Painel de avaliação"
+          description="Visão geral e gestão de todas as avaliações."
+        />
 
         {/* All Evaluations Section */}
         <div className="relative">

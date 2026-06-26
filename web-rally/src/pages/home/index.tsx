@@ -2,17 +2,22 @@ import { Navigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { resolveBranding } from "@/lib/branding";
+import { Reveal } from "@/components/home/Reveal";
 import HomeHero from "./HomeHero";
+import RallyMarquee from "./RallyMarquee";
+import EventStatsRibbon from "./EventStatsRibbon";
 import HowItWorks from "./HowItWorks";
 import LiveTop5 from "./LiveTop5";
 import PostosPreview from "./PostosPreview";
+import HomeBottomBanner from "./HomeBottomBanner";
 
 /**
  * Public landing page (route "/"). Authenticated team users are sent straight
  * to their progress view; everyone else (public viewers, staff/admins) gets the
- * marketing-style overview: hero + countdown, how-it-works, a live top-5 and a
- * checkpoint preview. Each data section is feature/settings gated and self-hides
- * when it has nothing to show.
+ * full marketing overview, mirroring the gamification home's section rhythm:
+ * hero → full-bleed marquee → event stats → live top-5 → how-it-works → postos
+ * preview → closing CTA. Each data section is feature/settings gated and
+ * self-hides when it has nothing to show; sections reveal on scroll.
  */
 export default function Home() {
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
@@ -27,11 +32,32 @@ export default function Home() {
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
   return (
-    <div className="grid gap-12">
+    <div className="space-y-16 sm:space-y-20">
       <HomeHero branding={branding} settings={settings} />
-      {scoreVisible && <LiveTop5 />}
-      <HowItWorks />
-      <PostosPreview enabled={checkpointsPublic} />
+
+      <RallyMarquee />
+
+      <Reveal>
+        <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
+      </Reveal>
+
+      {scoreVisible && (
+        <Reveal>
+          <LiveTop5 />
+        </Reveal>
+      )}
+
+      <Reveal>
+        <HowItWorks />
+      </Reveal>
+
+      <Reveal>
+        <PostosPreview enabled={checkpointsPublic} />
+      </Reveal>
+
+      <Reveal>
+        <HomeBottomBanner />
+      </Reveal>
     </div>
   );
 }

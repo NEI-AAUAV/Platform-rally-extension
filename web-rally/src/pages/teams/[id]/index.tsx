@@ -84,18 +84,40 @@ export default function TeamsById() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
           {/* Left column — identity, badges, members */}
           <div className="space-y-6 lg:sticky lg:top-24">
-            <Card variant="default" padding="lg" rounded="2xl">
-              <div className="text-center">
-                <p className="rally-display text-2xl font-bold">{team.name}</p>
-                {settings?.show_score_mode !== "hidden" && (
-                  <p className="rally-accent mt-3 text-3xl font-bold">{team.total}<span className="ml-1 text-base font-medium text-muted-foreground">pts</span></p>
-                )}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {team.classification}
-                  {nthNumber(team.classification)} lugar
-                </p>
+            <div className="rally-surface rally-elevate overflow-hidden">
+              {/* accent identity banner */}
+              <div className="rally-bg-accent-soft flex items-center gap-4 px-5 py-5">
+                <span className="rally-bg-accent grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white shadow-[var(--rally-shadow-md)]">
+                  {team.name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((w) => w[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <p className="rally-display truncate text-2xl font-bold text-foreground">
+                    {team.name}
+                  </p>
+                  <span className="rally-bg-accent mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white">
+                    {team.classification}
+                    {nthNumber(team.classification)} lugar
+                  </span>
+                </div>
               </div>
-            </Card>
+              {settings?.show_score_mode !== "hidden" && (
+                <div className="px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Pontuação
+                  </p>
+                  <p className="rally-display rally-accent mt-1 text-4xl font-bold tabular-nums">
+                    {team.total}
+                    <span className="ml-1 text-base font-medium text-muted-foreground">pts</span>
+                  </p>
+                </div>
+              )}
+            </div>
 
             <EarnedBadges teamId={Number(id)} />
 

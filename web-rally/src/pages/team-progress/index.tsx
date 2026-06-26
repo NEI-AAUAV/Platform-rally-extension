@@ -1,5 +1,4 @@
 import { MapPin } from "lucide-react";
-import { useThemedComponents } from "@/components/themes/ThemeContext";
 import { useTeamProgress } from "./useTeamProgress";
 import StatusScreen from "./StatusScreen";
 import TeamHeaderCard from "./TeamHeaderCard";
@@ -10,7 +9,6 @@ import RouteCheckpointItem from "./RouteCheckpointItem";
 import { CheckinScanButton } from "@/components/checkin/CheckinScanButton";
 
 export default function TeamProgress() {
-  const { config } = useThemedComponents();
   const {
     settings,
     team,
@@ -74,8 +72,8 @@ export default function TeamProgress() {
 
         {checkpoints && checkpoints.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2 px-2" style={{ color: config?.colors?.text }}>
-              <MapPin className="w-5 h-5" style={{ color: config?.colors?.primary }} />
+            <h2 className="rally-display flex items-center gap-2 px-2 text-xl font-bold text-foreground">
+              <MapPin className="rally-accent h-5 w-5" />
               Percurso
             </h2>
             <div className="space-y-3">

@@ -271,8 +271,10 @@ export default function RallySettings() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <PageHeader
-          title="Configurações do Rally"
-          description="Gerir configurações globais do Rally Tascas"
+          eyebrow="Gestão"
+          icon={Settings}
+          title="Configurações"
+          description="Gerir configurações globais do rally."
         />
         {!isEditing && (
           <Button

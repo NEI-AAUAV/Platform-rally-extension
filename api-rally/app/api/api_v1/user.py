@@ -29,7 +29,7 @@ async def get_staff_assignments(
     """
 
 
-    stmt = select(User).where(text("scopes @> ARRAY['rally-staff']::text[]"))
+    stmt = select(User).where(User.scopes.contains(['rally-staff']))
     rally_staff_users = (await db.scalars(stmt)).all()
 
     # Get existing assignments

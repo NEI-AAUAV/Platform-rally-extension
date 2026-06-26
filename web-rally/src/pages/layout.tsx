@@ -65,6 +65,12 @@ function MainLayoutContent() {
 
   return (
     <div className="rally-grain flex min-h-screen flex-col bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+      {/* Ambient accent atmosphere — fixed, behind all content. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="rally-bg-accent-soft absolute -left-32 top-[-10%] h-80 w-80 rounded-full blur-3xl" />
+        <div className="rally-bg-accent-soft absolute right-[-8%] top-[35%] h-96 w-96 rounded-full blur-3xl" />
+        <div className="rally-bg-accent-soft absolute bottom-[-10%] left-[25%] h-72 w-72 rounded-full blur-3xl" />
+      </div>
       <div className="relative z-10 flex min-h-screen flex-1 flex-col">
         <RallyNavbar branding={branding} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-3 pb-24 pt-6 sm:px-4 sm:pb-10">
