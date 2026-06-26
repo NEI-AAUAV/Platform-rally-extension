@@ -110,17 +110,17 @@ type EvaluationResponse = ActivityResultResponse & {
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
-      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <Card variant="default" padding="none">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
               <Activity className="w-6 h-6" />
-              Manager Evaluation Dashboard
+              Painel de Avaliação
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              System-wide evaluation overview and management
+              Visão geral e gestão de todas as avaliações
             </p>
           </CardHeader>
         </Card>
@@ -137,9 +137,9 @@ type EvaluationResponse = ActivityResultResponse & {
           >
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5" />
-              <span className="font-semibold">All Evaluations</span>
+              <span className="font-semibold">Todas as Avaliações</span>
               <Badge variant="outline" className="text-foreground border-border">
-                {evaluationsLoading ? "Loading..." : (allEvaluations as Evaluation[])?.length || 0}
+                {evaluationsLoading ? "A carregar..." : (allEvaluations as Evaluation[])?.length || 0}
               </Badge>
             </div>
             <ChevronDown 
@@ -151,7 +151,7 @@ type EvaluationResponse = ActivityResultResponse & {
             <div className="mt-2">
               {evaluationsLoading ? (
                 <Card variant="default" padding="md">
-                  <p className="text-muted-foreground text-center">Loading evaluations...</p>
+                  <p className="text-muted-foreground text-center">A carregar avaliações...</p>
                 </Card>
               ) : (
                 <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
@@ -173,10 +173,10 @@ type EvaluationResponse = ActivityResultResponse & {
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Teams Overview
+              Visão Geral das Equipas
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              All teams in the rally
+              Todas as equipas do rally
             </p>
           </CardHeader>
           <CardContent>
@@ -195,14 +195,14 @@ type EvaluationResponse = ActivityResultResponse & {
                     </Badge>
                   </div>
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>Members: {team.num_members || 0}</p>
+                    <p>Membros: {team.num_members || 0}</p>
                     {settings?.show_score_mode !== "hidden" && (
-                      <p>Total Score: {team.total || 0}</p>
+                      <p>Pontuação: {team.total || 0}</p>
                     )}
                     {settings?.show_score_mode !== "hidden" && (
-                      <p>Classification: {team.classification || 'N/A'}</p>
+                      <p>Classificação: {team.classification || "N/D"}</p>
                     )}
-                    <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
+                    <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
                   </div>
                 </Card>
               ))}
@@ -218,7 +218,7 @@ type EvaluationResponse = ActivityResultResponse & {
                 {allTeams?.length || 0}
               </div>
               <div className="text-sm text-muted-foreground">
-                Total Teams
+                Equipas
               </div>
             </div>
           </Card>
@@ -240,7 +240,7 @@ type EvaluationResponse = ActivityResultResponse & {
                 {allActivities?.activities?.length || 0}
               </div>
               <div className="text-sm text-muted-foreground">
-                Total Activities
+                Atividades
               </div>
             </div>
           </Card>

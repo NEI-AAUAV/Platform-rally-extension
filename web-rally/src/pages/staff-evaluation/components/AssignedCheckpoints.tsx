@@ -26,12 +26,12 @@ export default function AssignedCheckpoints({
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <MapPin className="w-5 h-5" />
-            Assigned Checkpoints
+            Postos Atribuídos
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">
-            No checkpoints found.
+            Nenhum posto encontrado.
           </p>
         </CardContent>
       </Card>
@@ -43,7 +43,7 @@ export default function AssignedCheckpoints({
       <CardHeader>
         <CardTitle className="text-foreground flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          Assigned Checkpoints
+          Postos Atribuídos
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -64,12 +64,12 @@ export default function AssignedCheckpoints({
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground text-lg sm:text-base truncate">{checkpoint.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {checkpointActivities.length} activities • {teamsAtCheckpoint.length} teams
+                      {checkpointActivities.length} atividades • {teamsAtCheckpoint.length} equipas
                     </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-2">
                     <Badge variant="outline" className="text-foreground border-border text-xs sm:text-sm">
-                      Checkpoint {checkpoint.order}
+                      Posto {checkpoint.order}
                     </Badge>
                     <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                   </div>

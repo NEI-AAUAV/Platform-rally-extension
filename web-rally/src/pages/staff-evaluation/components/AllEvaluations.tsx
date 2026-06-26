@@ -72,7 +72,7 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
       </Badge>
       {opponentId !== null && (
         <Badge variant="outline" className="text-xs">
-          vs Team #{opponentId}
+          vs Equipa #{opponentId}
         </Badge>
       )}
     </>
@@ -115,12 +115,12 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            All Evaluations
+            Todas as Avaliações
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">
-            No evaluations found.
+            Nenhuma avaliação encontrada.
           </p>
         </CardContent>
       </Card>
@@ -134,7 +134,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
         <div className="mt-4 mb-4 p-2">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Filters</span>
+            <span className="text-sm font-medium text-foreground">Filtros</span>
             {hasActiveFilters && (
               <button
                 onClick={() => {
@@ -144,7 +144,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                 className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
-                Clear filters
+                Limpar filtros
               </button>
             )}
           </div>
@@ -152,30 +152,30 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Team Filter */}
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Team</label>
+              <label className="block text-xs text-muted-foreground mb-1">Equipa</label>
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
                 className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
-                <option value="all" className="bg-gray-800">All Teams</option>
+                <option value="all" className="bg-background">Todas as equipas</option>
                 {uniqueTeams.map(team => (
-                  <option key={team} value={team} className="bg-gray-800">{team}</option>
+                  <option key={team} value={team} className="bg-background">{team}</option>
                 ))}
               </select>
             </div>
 
             {/* Checkpoint Filter */}
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Checkpoint</label>
+              <label className="block text-xs text-muted-foreground mb-1">Posto</label>
               <select
                 value={selectedCheckpoint}
                 onChange={(e) => setSelectedCheckpoint(e.target.value)}
                 className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
-                <option value="all" className="bg-gray-800">All Checkpoints</option>
+                <option value="all" className="bg-background">Todos os postos</option>
                 {uniqueCheckpoints.map(checkpoint => (
-                  <option key={checkpoint} value={checkpoint.toString()} className="bg-gray-800">
+                  <option key={checkpoint} value={checkpoint.toString()} className="bg-background">
                     Checkpoint {checkpoint}
                   </option>
                 ))}
@@ -253,7 +253,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                         variant="default"
                         className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
                       >
-                        Score: {evaluation.final_score?.toFixed(1) || '0'}
+                        Pontuação: {evaluation.final_score?.toFixed(1) || '0'}
                       </Badge>
                       <div className="flex flex-col gap-0.5">
                         <Badge variant="outline" className="text-muted-foreground border-border text-[10px] w-fit">
@@ -271,7 +271,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                       {/* Result Section */}
                       {(evaluation.is_completed || evaluation.time_score || evaluation.points_score || evaluation.result_data?.result || (evaluation.activity.activity_type === 'BooleanActivity' && evaluation.boolean_score !== undefined)) && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-1">Result:</p>
+                          <p className="text-xs font-semibold text-muted-foreground mb-1">Resultado:</p>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.is_completed && (
                               <Badge

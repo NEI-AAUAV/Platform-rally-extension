@@ -31,35 +31,31 @@ export default function StaffEvaluationPage() {
 
   if (!myCheckpoint) {
     return (
-      <div className="p-2 sm:p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">No Checkpoint Assigned</h2>
-                <p className="text-muted-foreground">
-                  You haven't been assigned to a checkpoint yet. Please contact an administrator.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="mx-auto max-w-2xl">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <h2 className="mb-2 text-xl font-semibold">Sem posto atribuído</h2>
+              <p className="text-muted-foreground">
+                Ainda não foste atribuído a um posto. Contacta um administrador.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <div className="text-center">
-              <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Redirecting to your checkpoint evaluation...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <Activity className="mx-auto mb-4 h-12 w-12 opacity-50" />
+            <p>A redirecionar para a avaliação do teu posto...</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
