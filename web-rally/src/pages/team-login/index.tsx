@@ -98,22 +98,10 @@ export default function TeamLogin() {
     };
 
     return (
-        <div
-            className="min-h-screen flex items-center justify-center p-4 transition-all duration-500"
-            style={components.background}
-        >
-            <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500"
-                style={{
-                    backgroundColor: "rgba(20, 20, 25, 0.7)", // Semi-transparent fallback
-                    borderColor: config?.colors?.primary,
-                    borderWidth: "1px",
-                    borderRadius: "0.5rem" // Added for consistent look with Card
-                }}
-            >
-                <Card
-                    className="shadow-2xl backdrop-blur-md border-opacity-50 border-0 bg-transparent"
-                >
-                    <div className="p-8 text-center space-y-6">
+        <div className="flex min-h-[70vh] items-center justify-center">
+            <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
+                <Card variant="default" padding="lg" rounded="2xl" className="rally-shadow-accent">
+                    <div className="text-center space-y-6">
                         {/* Header Section */}
                         <div className="flex flex-col items-center space-y-4">
                             {config?.images?.logo ? (
@@ -125,22 +113,16 @@ export default function TeamLogin() {
                                     />
                                 </div>
                             ) : (
-                                <div
-                                    className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg"
-                                    style={{ backgroundColor: config?.colors?.primary }}
-                                >
-                                    <LogIn className="w-8 h-8 text-foreground" />
+                                <div className="rally-bg-accent flex h-16 w-16 items-center justify-center rounded-full shadow-lg">
+                                    <LogIn className="w-8 h-8 text-white" />
                                 </div>
                             )}
 
                             <div className="space-y-1">
-                                <h1
-                                    className="text-3xl font-bold tracking-tight"
-                                    style={{ color: config?.colors?.text }}
-                                >
+                                <h1 className="rally-display text-3xl font-bold tracking-tight">
                                     {isAuthenticated ? "Trocar Equipa" : "Login de Equipa"}
                                 </h1>
-                                <p className="text-sm font-medium opacity-80" style={{ color: config?.colors?.text }}>
+                                <p className="text-sm font-medium text-muted-foreground">
                                     {isAuthenticated && teamData
                                         ? `Equipa atual: ${teamData.team_name}. Introduza o código da nova equipa.`
                                         : "Introduza o seu código de acesso"
@@ -154,46 +136,30 @@ export default function TeamLogin() {
                             <div className="space-y-2 text-left">
                                 <Label
                                     htmlFor="accessCode"
-                                    className="text-xs font-semibold uppercase tracking-wider ml-1"
-                                    style={{ color: config?.colors?.text, opacity: 0.8 }}
+                                    className="ml-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                                 >
                                     Código de Acesso
                                 </Label>
-                                <div className="relative group">
-                                    <Input
-                                        id="accessCode"
-                                        type="text"
-                                        placeholder="XXXX-XXXX"
-                                        value={accessCode}
-                                        onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                                        className="text-center text-2xl font-mono tracking-[0.2em] h-14 transition-all duration-300"
-                                        style={{
-                                            backgroundColor: "rgba(0,0,0,0.2)",
-                                            borderColor: `${config?.colors?.primary}40`,
-                                            color: config?.colors?.text,
-                                            boxShadow: `0 0 0 1px transparent`
-                                        }}
-                                        maxLength={9}
-                                        autoComplete="off"
-                                        autoFocus
-                                        disabled={isLoggingIn}
-                                    />
-                                    {/* Focus Ring Effect */}
-                                    <div
-                                        className="absolute inset-0 rounded-md pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"
-                                        style={{
-                                            boxShadow: `0 0 0 2px ${config?.colors?.primary}80`
-                                        }}
-                                    />
-                                </div>
-                                <p className="text-xs text-center italic opacity-50" style={{ color: config?.colors?.text }}>
+                                <Input
+                                    id="accessCode"
+                                    type="text"
+                                    placeholder="XXXX-XXXX"
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                                    className="h-14 text-center font-mono text-2xl tracking-[0.2em] focus-visible:ring-2 focus-visible:ring-[var(--rally-accent,#008542)]"
+                                    maxLength={9}
+                                    autoComplete="off"
+                                    autoFocus
+                                    disabled={isLoggingIn}
+                                />
+                                <p className="text-center text-xs italic text-muted-foreground">
                                     Exemplo: AXYZ-1234
                                 </p>
                             </div>
 
                             {loginError && (
-                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 animate-in slide-in-from-top-2">
-                                    <p className="text-sm text-red-400 text-center font-medium">
+                                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 animate-in slide-in-from-top-2">
+                                    <p className="text-center text-sm font-medium text-destructive">
                                         {loginError instanceof Error ? loginError.message : "Código inválido"}
                                     </p>
                                 </div>
@@ -202,12 +168,8 @@ export default function TeamLogin() {
                             <div className="flex gap-2">
                                 <Button
                                     type="submit"
-                                    className="flex-1 h-12 text-lg font-bold shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    className="rally-bg-accent rally-press h-12 flex-1 text-lg font-bold text-white"
                                     disabled={isLoggingIn || !accessCode.trim()}
-                                    style={{
-                                        backgroundColor: config?.colors?.primary,
-                                        color: '#ffffff', // Ensure contrast
-                                    }}
                                 >
                                     {isLoggingIn ? (
                                         <span className="flex items-center gap-2">
@@ -225,7 +187,7 @@ export default function TeamLogin() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="h-12 px-4 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    className="h-12 px-4"
                                     onClick={() => setShowScanner(true)}
                                     title="Ler código QR com câmara"
                                 >
@@ -235,8 +197,8 @@ export default function TeamLogin() {
                         </form>
 
                         {/* Footer */}
-                        <div className="pt-6 border-t border-border">
-                            <p className="text-xs opacity-40 hover:opacity-100 transition-opacity duration-300" style={{ color: config?.colors?.text }}>
+                        <div className="border-t border-border pt-6">
+                            <p className="text-xs text-muted-foreground">
                                 Pode inserir o código manualmente ou usar a câmara para ler o QR code.
                             </p>
                         </div>

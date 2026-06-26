@@ -268,46 +268,46 @@ export default function RallySettings() {
   }
 
   return (
-    <div className="mt-16 space-y-8">
-      <PageHeader
-        title="Configurações do Rally"
-        description="Gerir configurações globais do Rally Tascas"
-      />
-
-      {/* Edit Button at the top */}
-      {!isEditing ? (
-        <div className="text-center space-y-3">
-          <p className="text-muted-foreground text-sm">
-            Clique no botão abaixo para editar as configurações
-          </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <PageHeader
+          title="Configurações do Rally"
+          description="Gerir configurações globais do Rally Tascas"
+        />
+        {!isEditing && (
           <Button
             type="button"
             onClick={() => setIsEditing(true)}
             variant="default"
             size="lg"
+            className="shrink-0"
           >
             <Settings className="w-4 h-4 mr-2" />
             Editar Configurações
           </Button>
-        </div>
-      ) : (
-        <div className="p-3 bg-blue-600/20 border border-blue-500/30 rounded-lg">
-          <p className="text-blue-300 text-sm font-medium text-center">
-            Modo de edição ativo - Clique em "Guardar" para aplicar as alterações
+        )}
+      </div>
+
+      {isEditing && (
+        <div className="rally-bg-accent-soft rounded-xl border border-border p-3">
+          <p className="text-center text-sm font-medium text-foreground">
+            Modo de edição ativo — clique em "Guardar" para aplicar as alterações
           </p>
         </div>
       )}
 
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-8">
-          <DisplaySettings disabled={!isEditing} />
-          <TeamSettings disabled={!isEditing} />
-          <RallyTimingSettings disabled={!isEditing} />
-          <ScoringSettings disabled={!isEditing} />
+        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <DisplaySettings disabled={!isEditing} />
+            <TeamSettings disabled={!isEditing} />
+            <RallyTimingSettings disabled={!isEditing} />
+            <ScoringSettings disabled={!isEditing} />
+          </div>
 
-          {/* Action Buttons */}
+          {/* Sticky action bar */}
           {isEditing && (
-            <div className="flex justify-center gap-4">
+            <div className="sticky bottom-4 z-10 flex justify-center gap-4 rounded-2xl border border-border bg-card/80 p-3 backdrop-blur">
               <Button
                 type="submit"
                 disabled={isUpdating}
