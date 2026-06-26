@@ -11,6 +11,7 @@ import { getTeamToken } from "@/lib/auth/tokenStore";
 import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
+import { ColorModeProvider } from "@/components/theme";
 
 // Configure OpenAPI BASE URL - use empty string to use relative paths
 OpenAPI.BASE = '';
@@ -96,14 +97,16 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider {...oidcConfig}>
-      <QueryClientProvider client={queryClient}>
-        <AuthSyncGate>
-          <ToastProvider>
-            <Router />
-          </ToastProvider>
-        </AuthSyncGate>
-      </QueryClientProvider>
-    </AuthProvider>
+    <ColorModeProvider>
+      <AuthProvider {...oidcConfig}>
+        <QueryClientProvider client={queryClient}>
+          <AuthSyncGate>
+            <ToastProvider>
+              <Router />
+            </ToastProvider>
+          </AuthSyncGate>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ColorModeProvider>
   </React.StrictMode>,
 );

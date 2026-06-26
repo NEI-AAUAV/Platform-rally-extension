@@ -3,97 +3,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   RALLY DESIGN TOKENS — dual light/dark, shadcn-compatible.
+   :root = light (Tailwind default), .dark = dark. The app defaults
+   to dark (evening event) via the color-mode provider, but both are
+   first-class. Brand accent is layered on top at runtime
+   (--rally-accent from settings.accent_color).
+   ============================================================ */
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-
-    --radius: 0.5rem;
-  }
-
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 40 30% 98%;
+    --foreground: 220 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 220 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 220 20% 12%;
 
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 220 20% 12%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
 
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 42%;
 
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 220 20% 18%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 220 20% 12%;
+
+    --radius: 0.75rem;
+
+    /* Soft-depth elevation (light). */
+    --rally-shadow-sm: 0 1px 2px rgba(16, 18, 27, 0.06), 0 2px 8px rgba(16, 18, 27, 0.05);
+    --rally-shadow-md: 0 4px 12px rgba(16, 18, 27, 0.08), 0 10px 30px rgba(16, 18, 27, 0.07);
+    --rally-shadow-lg: 0 12px 28px rgba(16, 18, 27, 0.12), 0 28px 64px rgba(16, 18, 27, 0.1);
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 224 30% 6%;
+    --foreground: 210 20% 96%;
 
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 224 26% 9%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 224 28% 8%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 210 20% 96%;
+    --primary-foreground: 224 30% 8%;
 
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 222 18% 16%;
+    --secondary-foreground: 210 20% 92%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 222 16% 16%;
+    --muted-foreground: 215 16% 62%;
 
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 222 18% 18%;
+    --accent-foreground: 210 20% 92%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 222 16% 18%;
+    --input: 222 16% 18%;
+    --ring: 210 20% 70%;
+
+    /* Soft-depth elevation (dark) — deeper, accent-neutral. */
+    --rally-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --rally-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), 0 14px 40px rgba(0, 0, 0, 0.4);
+    --rally-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5), 0 32px 80px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -102,15 +89,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter antialiased;
   }
 }
 
 /* ============================================================
-   RALLY DESIGN SYSTEM (Phase 6) — universal, token-driven.
-   --rally-accent / --rally-accent-soft are set at runtime by
-   useDocumentBranding from settings.accent_color. When unset they
-   fall back to the active skin's brand color (set per data-rally-theme).
+   RALLY BRAND ACCENT — set at runtime by useDocumentBranding from
+   settings.accent_color. When unset, falls back per active skin.
    ============================================================ */
 @layer base {
   :root {
@@ -127,6 +112,7 @@
 }
 
 @layer utilities {
+  /* --- Brand accent helpers --- */
   .rally-accent {
     color: var(--rally-accent, var(--rally-accent-fallback));
   }
@@ -145,62 +131,86 @@
   .rally-shadow-accent {
     box-shadow: 0 18px 48px -18px var(--rally-accent, var(--rally-accent-fallback));
   }
-  /* neo-brutalist NEI surface: bold accent border + hard offset shadow.
-     Mirrors the gamification NEI look, tinted by the live rally accent. */
-  .rally-brutal {
-    border: 2px solid var(--rally-accent, var(--rally-accent-fallback));
-    box-shadow: 5px 5px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+
+  /* --- Soft-depth surfaces (the rally design language) --- */
+  .rally-surface {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--rally-shadow-sm);
   }
-  .rally-brutal-sm {
-    border: 2px solid var(--rally-accent, var(--rally-accent-fallback));
-    box-shadow: 3px 3px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  .rally-elevate {
+    box-shadow: var(--rally-shadow-md);
   }
+  .rally-elevate-lg {
+    box-shadow: var(--rally-shadow-lg);
+  }
+  .rally-hairline {
+    border-color: hsl(var(--border));
+  }
+  /* Interaction: lift on hover, settle on press — compositor-friendly. */
+  .rally-press {
+    transition:
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .rally-press:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--rally-shadow-md);
+  }
+  .rally-press:active {
+    transform: translateY(0);
+    box-shadow: var(--rally-shadow-sm);
+  }
+
+  /* --- Back-compat aliases (softened): keep B3 shell coherent until
+     those components are rebuilt in the page pass; then remove. --- */
+  .rally-brutal,
+  .rally-brutal-sm,
   .rally-brutal-soft {
-    border: 2px solid var(--rally-accent, var(--rally-accent-fallback));
-    box-shadow: 4px 4px 0 0 var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--rally-shadow-sm);
   }
-  /* Neo-brutalist hard offset shadows (token-based, theme-agnostic). Mirror of
-     the gamification brutal-shadow family. */
   .brutal-shadow {
-    box-shadow: 5px 5px 0 0 hsl(var(--foreground));
+    box-shadow: var(--rally-shadow-md);
   }
   .brutal-shadow-sm {
-    box-shadow: 3px 3px 0 0 hsl(var(--foreground));
+    box-shadow: var(--rally-shadow-sm);
   }
   .brutal-shadow-primary {
-    box-shadow: 5px 5px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow: var(--rally-shadow-md);
   }
-  /* Pressed/active interaction: shrink the shadow and nudge the element into it. */
   .brutal-press {
     transition:
-      transform 120ms ease,
-      box-shadow 120ms ease;
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .brutal-press:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 6px 6px 0 0 hsl(var(--foreground));
+    transform: translateY(-2px);
   }
   .brutal-press:active {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 0 hsl(var(--foreground));
+    transform: translateY(0);
   }
-  /* mega display type with letter-spacing tuned for headlines */
+
+  /* --- Typography + atmosphere --- */
   .rally-display {
     font-family: "Space Grotesk", "Inter", sans-serif;
     letter-spacing: -0.03em;
     line-height: 0.92;
   }
-  /* subtle film grain for atmosphere */
+  .rally-serif {
+    font-family: "Playfair Display", serif;
+  }
   .rally-grain::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.04;
+    opacity: 0.025;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  /* horizontal marquee */
   .rally-marquee {
     mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   }
@@ -219,5 +229,9 @@
 @media (prefers-reduced-motion: reduce) {
   .rally-marquee-track {
     animation: none;
+  }
+  .rally-press,
+  .brutal-press {
+    transition: none;
   }
 }
