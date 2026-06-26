@@ -13,6 +13,7 @@ from .api_v1 import scoreboard
 from .api_v1 import badges
 from .api_v1 import checkin
 from .api_v1 import events
+from .api_v1 import profile
 
 api_v1_router = APIRouter()
 
@@ -32,3 +33,4 @@ api_v1_router.include_router(scoreboard.router, prefix="", tags=["Scoreboard"])
 api_v1_router.include_router(badges.router, prefix="", tags=["Badges"])
 api_v1_router.include_router(checkin.router, prefix="", tags=["Check-in"])
 api_v1_router.include_router(events.router, prefix="", tags=["Events"])
+api_v1_router.include_router(profile.router, prefix="", tags=["Profile"])

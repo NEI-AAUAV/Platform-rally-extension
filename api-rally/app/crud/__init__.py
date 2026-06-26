@@ -3,6 +3,7 @@ from .crud_checkpoint import checkpoint
 from .crud_user import user
 from .crud_rally_staff_assignment import rally_staff_assignment
 from .crud_activity import activity, activity_result, rally_event
+from .crud_participation import participation
 from app.models.team import Team
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "activity",
     "activity_result",
     "rally_event",
+    "participation",
     "Team",
     "CRUDTeam",
 ]
