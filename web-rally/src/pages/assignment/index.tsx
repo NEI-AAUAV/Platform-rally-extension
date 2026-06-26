@@ -76,7 +76,7 @@ export default function Assignment() {
   }));
 
   return (
-    <div className="mt-16 space-y-8">
+    <div className="mt-2 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">Atribuição de Checkpoints</h2>
         <p className="text-muted-foreground">

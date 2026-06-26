@@ -43,14 +43,14 @@ export default function Admin() {
   }
 
   return (
-    <div className="mt-16 space-y-8">
+    <div className="mt-2 space-y-6">
       <PageHeader 
         title="Gestão Administrativa"
         description="Criar e editar equipas, postos (checkpoints) e atividades do Rally Tascas"
       />
 
       {/* Tab Navigation */}
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
         <Button
           variant={activeTab === "teams" ? "default" : "neutral"}
           onClick={() => setActiveTab("teams")}

@@ -71,7 +71,7 @@ export default function TeamMembers() {
   const selectedTeamData = teams?.find(t => t.id === Number(selectedTeam));
 
   return (
-    <div className="mt-16 space-y-8">
+    <div className="mt-2 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
           <Users className="w-6 h-6" />

@@ -49,7 +49,7 @@ export default function Versus() {
   }
 
   return (
-    <div className="mt-16 space-y-8">
+    <div className="mt-2 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
           <Swords className="w-6 h-6" />
@@ -60,9 +60,12 @@ export default function Versus() {
         </p>
       </div>
 
-      <VersusPairForm teams={teams} onSuccess={handleSuccess} />
-
-      <VersusGroupList versusGroups={versusGroups} teams={teams} onSuccess={handleSuccess} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
+        <div className="lg:sticky lg:top-24">
+          <VersusPairForm teams={teams} onSuccess={handleSuccess} />
+        </div>
+        <VersusGroupList versusGroups={versusGroups} teams={teams} onSuccess={handleSuccess} />
+      </div>
     </div>
   );
 }
