@@ -110,7 +110,9 @@ async def update_rally_settings(
         400: If validation fails
     """
     validate_settings_update_access(curr_user, auth)
-    updated = await rally_settings.update(db, id=1, obj_in=settings_in)
+    # Resolve the current event's settings row (per-event, no more id=1 singleton).
+    current = await rally_settings.get_or_create(db)
+    updated = await rally_settings.update(db, id=current.id, obj_in=settings_in)
     return RallySettingsResponse.model_validate(updated)
 
 

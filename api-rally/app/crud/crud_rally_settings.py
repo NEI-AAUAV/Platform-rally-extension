@@ -8,11 +8,38 @@ if TYPE_CHECKING:
 
 class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettingsUpdate]):
     async def get_or_create(self, db: "AsyncSession") -> RallySettings:
-        settings = await db.get(RallySettings, 1)
+        """Return the current event's settings row, creating it if missing.
+
+        Settings are now per-event: the current event is resolved (and lazily
+        bootstrapped) via crud.rally_event, then its settings row is fetched or
+        created with sensible defaults. Callers are unchanged — they still get
+        back a single RallySettings object for "the active rally".
+        """
+        from sqlalchemy import select
+        from app.crud.crud_activity import rally_event
+
+        event = await rally_event.ensure_current(db)
+        settings = await db.scalar(
+            select(RallySettings).where(RallySettings.event_id == event.id)
+        )
+        if settings is not None:
+            return settings
+
+        # Fall back to adopting a legacy unscoped row (event_id NULL) once, so
+        # existing single-event deployments keep their configured values.
+        legacy = await db.scalar(
+            select(RallySettings).where(RallySettings.event_id.is_(None))
+        )
+        if legacy is not None:
+            legacy.event_id = event.id
+            db.add(legacy)
+            await db.commit()
+            await db.refresh(legacy)
+            return legacy
 
         if not settings:
             settings = RallySettings(
-                id=1,
+                event_id=event.id,
                 # Team management
                 max_teams=14,
                 max_members_per_team=10,

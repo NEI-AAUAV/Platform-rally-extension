@@ -12,6 +12,7 @@ from .api_v1 import team_auth
 from .api_v1 import scoreboard
 from .api_v1 import badges
 from .api_v1 import checkin
+from .api_v1 import events
 
 api_v1_router = APIRouter()
 
@@ -30,3 +31,4 @@ api_v1_router.include_router(team_auth.router, prefix="/team-auth", tags=["Team 
 api_v1_router.include_router(scoreboard.router, prefix="", tags=["Scoreboard"])
 api_v1_router.include_router(badges.router, prefix="", tags=["Badges"])
 api_v1_router.include_router(checkin.router, prefix="", tags=["Check-in"])
+api_v1_router.include_router(events.router, prefix="", tags=["Events"])

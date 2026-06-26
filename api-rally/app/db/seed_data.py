@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.crud.crud_activity import rally_event
 from app.models.activity import Activity
 from app.models.checkpoint import CheckPoint
 
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 async def seed_data(db: AsyncSession) -> None:
     data_dir = Path(__file__).parent.parent.parent / "data"
+
+    # Ensure a current event exists; seeded checkpoints/activities attach to it.
+    event = await rally_event.ensure_current(db)
 
     # Seed Checkpoints
     checkpoints_file = data_dir / "checkpoints.json"
@@ -23,12 +27,13 @@ async def seed_data(db: AsyncSession) -> None:
                 # Check if exists by name or order? Name seems safer for updates
                 existing_checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.name == cp_data["name"]))
                 if not existing_checkpoint:
-                    cp = CheckPoint(**cp_data)
+                    cp = CheckPoint(**cp_data, event_id=event.id)
                     db.add(cp)
                 else:
                     # Update existing?
                     for key, value in cp_data.items():
                         setattr(existing_checkpoint, key, value)
+                    existing_checkpoint.event_id = event.id
             await db.commit()
     else:
         logger.warning(f"Checkpoints seed file not found at {checkpoints_file}")
@@ -57,11 +62,12 @@ async def seed_data(db: AsyncSession) -> None:
 
                     existing_activity = await db.scalar(select(Activity).where(Activity.name == act_data["name"]))
                     if not existing_activity:
-                        activity = Activity(**act_data)
+                        activity = Activity(**act_data, event_id=event.id)
                         db.add(activity)
                     else:
                          for key, value in act_data.items():
                             setattr(existing_activity, key, value)
+                         existing_activity.event_id = event.id
                 else:
                     logger.error(f"Checkpoint with order {cp_id} not found for activity {act_data['name']}")
 

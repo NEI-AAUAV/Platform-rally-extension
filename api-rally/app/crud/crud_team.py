@@ -21,6 +21,7 @@ from app.schemas.team import (
 )
 
 from app.crud.crud_rally_settings import rally_settings
+from app.crud._event_scope import current_event_id
 from ._deps import unique_key_error_regex
 
 locked_arrays = [
@@ -87,8 +88,30 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         )
 
     async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
-        """Get a team by their access code"""
+        """Get a team by their access code (access_code is globally unique)."""
         return await db.scalar(select(Team).where(Team.access_code == access_code))
+
+    async def get_multi(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int | None = None,
+        limit: int | None = None,
+        for_update: bool = False,
+    ) -> Sequence[Team]:
+        """List teams scoped to the current event.
+
+        Ranking and listing operate per-edition: only teams whose event_id
+        matches the current event are returned. Legacy rows with event_id NULL
+        are folded into the current event so single-event data keeps showing.
+        """
+        event_id = await current_event_id(db)
+        stmt = select(Team).where(
+            (Team.event_id == event_id) | (Team.event_id.is_(None))
+        ).limit(limit).offset(skip)
+        if for_update:
+            stmt = stmt.with_for_update()
+        return list((await db.scalars(stmt)).all())
 
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
         """Update team classifications based on activity results"""
@@ -118,13 +141,20 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
     async def create(self, db: AsyncSession, *, obj_in: TeamCreate) -> Team:
         settings = await rally_settings.get_or_create(db)
-        current_team_count = await db.scalar(select(func.count(Team.id)))
+        event_id = await current_event_id(db)
+        # Count teams in the current event only, so max_teams is per-edition.
+        current_team_count = await db.scalar(
+            select(func.count(Team.id)).where(
+                (Team.event_id == event_id) | (Team.event_id.is_(None))
+            )
+        )
 
         if current_team_count >= settings.max_teams:
             raise HTTPException(status_code=400, detail="Team limit reached")
 
         obj_in_data = obj_in.model_dump()
         obj_in_data["access_code"] = await _generate_access_code(db)
+        obj_in_data["event_id"] = event_id
 
         team = self.model(**obj_in_data)
 

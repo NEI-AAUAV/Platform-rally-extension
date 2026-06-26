@@ -1,11 +1,21 @@
-from sqlalchemy import Column, Integer, Boolean, DateTime, String
+from sqlalchemy import Column, Integer, Boolean, DateTime, String, ForeignKey
 from app.models.base import Base
+from app.core.config import settings as app_settings
 
 class RallySettings(Base):
     __tablename__ = "rally_settings"  # type: ignore[assignment]
 
-    id = Column(Integer, primary_key=True, default=1) # there's only 1 row
-    
+    id = Column(Integer, primary_key=True)
+    # One settings row per event. Nullable + unique so the legacy single-row
+    # (event_id NULL) settings keep working until migrated to an event.
+    event_id = Column(
+        Integer,
+        ForeignKey(f"{app_settings.SCHEMA_NAME}.rally_events.id"),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
+
     # Team management
     max_teams = Column(Integer, nullable=False, default=16)
     max_members_per_team = Column(Integer, nullable=False, default=10)

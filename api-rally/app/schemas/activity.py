@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Any
 from datetime import datetime
 
+from app.models.activity import EventType
 from app.models.activity_factory import ActivityFactory
 from .activity_types import ActivityType
 
@@ -102,7 +103,9 @@ class ActivityResultResponse(ActivityResultBase):
 class RallyEventBase(BaseModel):
     """Base rally event schema"""
     name: str = Field(..., min_length=1, max_length=255)
+    slug: str | None = Field(None, max_length=120)
     description: str | None = None
+    event_type: EventType = EventType.RALLY_TASCAS
     config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
     is_current: bool = False
@@ -117,7 +120,9 @@ class RallyEventCreate(RallyEventBase):
 class RallyEventUpdate(BaseModel):
     """Schema for updating a rally event"""
     name: str | None = Field(None, min_length=1, max_length=255)
+    slug: str | None = Field(None, max_length=120)
     description: str | None = None
+    event_type: EventType | None = None
     config: dict[str, Any] | None = None
     is_active: bool | None = None
     is_current: bool | None = None
@@ -130,7 +135,7 @@ class RallyEventResponse(RallyEventBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

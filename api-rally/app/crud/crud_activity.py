@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import desc, func, select
 
-from app.models.activity import Activity, ActivityResult, RallyEvent
+from app.models.activity import Activity, ActivityResult, RallyEvent, EventType
 from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
 
 
@@ -13,14 +13,17 @@ class CRUDActivity:
     """CRUD operations for Activity model"""
 
     async def create(self, db: AsyncSession, *, obj_in: ActivityCreate) -> Activity:
-        """Create a new activity"""
+        """Create a new activity, stamped with the current event id."""
+        from app.crud._event_scope import current_event_id
+
         db_obj = Activity(
             name=obj_in.name,
             description=obj_in.description,
             activity_type=obj_in.activity_type.value,
             checkpoint_id=obj_in.checkpoint_id,
             config=obj_in.config,
-            is_active=obj_in.is_active
+            is_active=obj_in.is_active,
+            event_id=await current_event_id(db),
         )
         db.add(db_obj)
         await db.commit()
@@ -32,8 +35,13 @@ class CRUDActivity:
         return await db.get(Activity, id)
 
     async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Activity]:
-        """Get multiple activities"""
-        stmt = select(Activity).offset(skip).limit(limit)
+        """Get the current event's activities (legacy NULL rows included)."""
+        from app.crud._event_scope import current_event_id
+
+        event_id = await current_event_id(db)
+        stmt = select(Activity).where(
+            (Activity.event_id == event_id) | (Activity.event_id.is_(None))
+        ).offset(skip).limit(limit)
         return list((await db.scalars(stmt)).all())
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> list[Activity]:
@@ -150,19 +158,53 @@ class CRUDActivityResult:
         return db_obj
 
 
+def _slugify(value: str) -> str:
+    """Lowercase, hyphenated, ascii-ish slug from an event name."""
+    import re
+
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "event"
+
+
 class CRUDRallyEvent:
-    """CRUD operations for RallyEvent model"""
+    """CRUD operations for RallyEvent — the event-scoping entity.
+
+    Exactly one event is ``is_current`` at a time; ``set_current`` enforces
+    that. ``ensure_current`` lazily bootstraps a default event so single-event
+    deployments keep working without any explicit event creation.
+    """
+
+    async def _unique_slug(self, db: AsyncSession, base: str) -> str:
+        """Return ``base`` or ``base-2``/``-3``… so the slug stays unique."""
+        slug = base
+        n = 1
+        while await db.scalar(select(RallyEvent).where(RallyEvent.slug == slug)) is not None:
+            n += 1
+            slug = f"{base}-{n}"
+        return slug
 
     async def create(self, db: AsyncSession, *, obj_in: RallyEventCreate) -> RallyEvent:
-        """Create a new rally event"""
+        """Create a new rally event.
+
+        If the new event is current, any previously-current event is demoted
+        first so the single-current invariant holds.
+        """
+        slug_source = obj_in.slug or obj_in.name
+        slug = await self._unique_slug(db, _slugify(slug_source))
+
+        if obj_in.is_current:
+            await self._demote_all(db)
+
         db_obj = RallyEvent(
             name=obj_in.name,
+            slug=slug,
             description=obj_in.description,
+            event_type=obj_in.event_type.value if isinstance(obj_in.event_type, EventType) else obj_in.event_type,
             config=obj_in.config,
             is_active=obj_in.is_active,
             is_current=obj_in.is_current,
             start_time=obj_in.start_time,
-            end_time=obj_in.end_time
+            end_time=obj_in.end_time,
         )
         db.add(db_obj)
         await db.commit()
@@ -174,19 +216,75 @@ class CRUDRallyEvent:
         return await db.get(RallyEvent, id)
 
     async def get_current(self, db: AsyncSession) -> RallyEvent | None:
-        """Get current rally event"""
+        """Get current rally event (None if none flagged)."""
         stmt = select(RallyEvent).where(RallyEvent.is_current.is_(True))
         return (await db.scalars(stmt)).first()
 
+    async def ensure_current(self, db: AsyncSession) -> RallyEvent:
+        """Return the current event, lazily creating a default one if absent.
+
+        Bootstraps single-event deployments: the first read materialises a
+        "Rally Tascas" event flagged current, so everything that scopes by the
+        current event has something to attach to.
+        """
+        current = await self.get_current(db)
+        if current is not None:
+            return current
+
+        # Adopt an existing non-current event if one exists, else create.
+        existing = (await db.scalars(select(RallyEvent).limit(1))).first()
+        if existing is not None:
+            existing.is_current = True
+            db.add(existing)
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+        default = RallyEvent(
+            name="Rally Tascas",
+            slug=await self._unique_slug(db, "rally-tascas"),
+            description="",
+            event_type=EventType.RALLY_TASCAS.value,
+            config={},
+            is_active=True,
+            is_current=True,
+        )
+        db.add(default)
+        await db.commit()
+        await db.refresh(default)
+        return default
+
+    async def _demote_all(self, db: AsyncSession) -> None:
+        """Clear is_current on every event (call before promoting one)."""
+        for ev in (await db.scalars(select(RallyEvent).where(RallyEvent.is_current.is_(True)))).all():
+            ev.is_current = False
+            db.add(ev)
+
+    async def set_current(self, db: AsyncSession, *, event_id: int) -> RallyEvent | None:
+        """Make ``event_id`` the sole current event."""
+        target = await db.get(RallyEvent, event_id)
+        if target is None:
+            return None
+        await self._demote_all(db)
+        target.is_current = True
+        db.add(target)
+        await db.commit()
+        await db.refresh(target)
+        return target
+
     async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[RallyEvent]:
-        """Get multiple rally events"""
-        stmt = select(RallyEvent).offset(skip).limit(limit)
+        """Get multiple rally events (newest first)."""
+        stmt = select(RallyEvent).order_by(desc(RallyEvent.created_at)).offset(skip).limit(limit)
         return list((await db.scalars(stmt)).all())
 
     async def update(self, db: AsyncSession, *, db_obj: RallyEvent, obj_in: RallyEventUpdate) -> RallyEvent:
-        """Update a rally event"""
+        """Update a rally event; promoting to current demotes the others."""
         update_data = obj_in.model_dump(exclude_unset=True)
+        if update_data.get("is_current") is True and not db_obj.is_current:
+            await self._demote_all(db)
         for field, value in update_data.items():
+            if field == "event_type" and isinstance(value, EventType):
+                value = value.value
             setattr(db_obj, field, value)
         db.add(db_obj)
         await db.commit()
