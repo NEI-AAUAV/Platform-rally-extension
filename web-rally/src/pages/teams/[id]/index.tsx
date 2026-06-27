@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowBigLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { useThemedComponents } from "@/components/themes";
 import { nthNumber } from "./teamDetails.types";
 import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
@@ -10,7 +9,6 @@ import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
 import { EarnedBadges } from "@/components/badges/EarnedBadges";
 
 export default function TeamsById() {
-  const { Card } = useThemedComponents();
   const { id } = useParams({ strict: false }) as { id: string };
   const [expandedCheckpoints, setExpandedCheckpoints] = useState<Set<number>>(new Set());
 
@@ -41,15 +39,15 @@ export default function TeamsById() {
   const renderTeamContent = () => {
     if (isLoading) {
       return (
-        <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
+        <div className="rally-surface rounded-2xl p-6 mt-16 text-center">
           <div className="text-lg font-semibold">A carregar...</div>
-        </Card>
+        </div>
       );
     }
 
     if (isSuccess) {
       return (
-        <Card variant="default" padding="lg" rounded="2xl" className="mt-16 text-center">
+        <div className="rally-surface rounded-2xl p-6 mt-16 text-center">
           <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
           <div className="text-muted-foreground mt-2 text-sm">
             O organizador desativou a visualização de detalhes das equipas.
@@ -60,7 +58,7 @@ export default function TeamsById() {
               Voltar à lista de equipas
             </Link>
           </div>
-        </Card>
+        </div>
       );
     }
 
@@ -129,10 +127,10 @@ export default function TeamsById() {
                   const firstName = names[0];
                   const lastName = names.slice(1).join(" ");
                   return (
-                    <Card variant="default" padding="md" rounded="xl" key={member.id}>
+                    <div key={member.id} className="rally-surface rounded-xl p-4 sm:p-6">
                       <span className="font-medium">{firstName}</span>{" "}
                       <span className="font-light text-muted-foreground">{lastName}</span>
-                    </Card>
+                    </div>
                   );
                 })}
               </div>
@@ -148,7 +146,7 @@ export default function TeamsById() {
               settings={settings}
             />
 
-            <Card variant="default" padding="md" rounded="2xl">
+            <div className="rally-surface rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   Progresso: {team.last_checkpoint_number || 0} de {totalCount} postos
@@ -163,7 +161,7 @@ export default function TeamsById() {
                   style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
                 />
               </div>
-            </Card>
+            </div>
 
             <div className="space-y-4">
               {team?.times && team.times.length > 0 ? (
@@ -181,9 +179,9 @@ export default function TeamsById() {
                   />
                 ))
               ) : (
-                <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+                <div className="rally-surface rounded-2xl p-6 text-center">
                   <p className="text-muted-foreground">Ainda sem postos visitados</p>
-                </Card>
+                </div>
               )}
             </div>
           </div>

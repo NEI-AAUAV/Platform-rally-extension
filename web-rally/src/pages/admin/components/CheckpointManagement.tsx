@@ -1,5 +1,4 @@
 import { MapPin, GripVertical } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import { EmptyState } from "@/components/shared";
 import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
@@ -11,7 +10,6 @@ type CheckpointManagementProps = Readonly<{
 }>;
 
 export default function CheckpointManagement({ userStore }: CheckpointManagementProps) {
-  const { Card } = useThemedComponents();
   const {
     checkpointForm,
     editingCheckpoint,
@@ -41,7 +39,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         onCancel={cancelEdit}
       />
 
-      <Card variant="default" padding="lg" rounded="2xl">
+      <div className="rally-surface rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Checkpoints Existentes</h3>
           <p className="text-sm text-muted-foreground">
@@ -72,7 +70,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
             description="Crie o primeiro checkpoint para começar"
           />
         )}
-      </Card>
+      </div>
     </div>
   );
 }

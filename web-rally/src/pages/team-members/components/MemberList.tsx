@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Users, Trash2 } from "lucide-react";
 import { TeamMembersService } from "@/client";
-import { useThemedComponents } from "@/components/themes";
 
 interface TeamMember {
   id: number;
@@ -23,7 +22,6 @@ type MemberListProps = Readonly<{
 }>
 
 export default function MemberList({ teamMembers, selectedTeam, onSuccess, className = "" }: MemberListProps) {
-  const { Card: ThemedCard } = useThemedComponents();
   // Remove member mutation
   const {
     mutate: removeMember,
@@ -66,13 +64,7 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
         ) : (
           <div className="space-y-3">
             {teamMembers?.map((member) => (
-              <ThemedCard
-                key={member.id}
-                variant="subtle"
-                padding="md"
-                rounded="lg"
-                className="flex items-center justify-between"
-              >
+              <div key={member.id} className="border border-border bg-card/60 rounded-xl p-3 sm:p-4 transition-colors hover:bg-accent">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="bg-blue-600/20 text-blue-300 border-blue-500">
                     ID: {member.id}
@@ -102,7 +94,7 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                   <Trash2 className="w-4 h-4 mr-2" />
                   Remover
                 </Button>
-              </ThemedCard>
+              </div>
             ))}
           </div>
         )}

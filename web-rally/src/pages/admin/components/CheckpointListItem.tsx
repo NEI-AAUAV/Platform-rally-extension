@@ -1,6 +1,6 @@
 import React from "react";
 import { Edit, Trash2, GripVertical } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
+import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint } from "./useCheckpointManagement";
 
@@ -27,8 +27,6 @@ export default function CheckpointListItem({
   onEdit,
   onDelete,
 }: CheckpointListItemProps) {
-  const { Card } = useThemedComponents();
-
   return (
     <div
       draggable
@@ -43,14 +41,11 @@ export default function CheckpointListItem({
       }}
       aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
     >
-      <Card
-        variant="subtle"
-        padding="md"
-        rounded="xl"
-        hover
-        className={`flex items-center justify-between cursor-move transition-all ${
-          isDragging ? 'opacity-50 scale-95' : ''
-        }`}
+      <div
+        className={cn(
+          "border border-border bg-card/60 rounded-xl p-4 sm:p-6 flex items-center justify-between cursor-move transition-all hover:bg-accent",
+          isDragging && "opacity-50 scale-95",
+        )}
       >
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-center text-muted-foreground">
@@ -75,7 +70,7 @@ export default function CheckpointListItem({
             <Trash2 className="w-4 h-4" />
           </BloodyButton>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

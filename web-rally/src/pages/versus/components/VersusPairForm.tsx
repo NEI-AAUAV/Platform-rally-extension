@@ -7,7 +7,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
 import { VersusService, type VersusPairCreate, type VersusPairResponse, type ListingTeam } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
-import { useThemedComponents } from "@/components/themes";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type VersusPairFormProps = Readonly<{
@@ -18,7 +17,6 @@ type VersusPairFormProps = Readonly<{
 }>
 
 export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
-  const { Card } = useThemedComponents();
   const toast = useAppToast();
   const [selectedTeamA, setSelectedTeamA] = useState<string>("");
   const [selectedTeamB, setSelectedTeamB] = useState<string>("");
@@ -66,7 +64,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
   const availableTeams = teams?.filter((team) => !team.versus_group_id) || [];
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="w-5 h-5" />
@@ -132,7 +130,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }
 

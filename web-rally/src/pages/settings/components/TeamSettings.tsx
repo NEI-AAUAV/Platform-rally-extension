@@ -1,10 +1,10 @@
+import { cn } from '@/lib/utils';
 import { Users } from 'lucide-react';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useFormContext, Controller } from 'react-hook-form';
-import { useThemedComponents } from '@/components/themes';
 
 type TeamSettingsProps = Readonly<{
 
@@ -13,11 +13,10 @@ type TeamSettingsProps = Readonly<{
 }>
 
 export default function TeamSettings({ className = "", disabled = false }: TeamSettingsProps) {
-  const { Card } = useThemedComponents();
   const { register, control } = useFormContext();
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
@@ -73,6 +72,6 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
           </Label>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }

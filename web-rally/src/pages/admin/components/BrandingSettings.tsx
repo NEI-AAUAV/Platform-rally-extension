@@ -5,7 +5,6 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useThemedComponents } from '@/components/themes';
 import {
   SettingsService,
   type RallySettingsResponse,
@@ -84,7 +83,6 @@ const ADMIN_KEY = ['rallySettings-admin'] as const;
  * lost), and uploads banner/logo/favicon straight to Cloudflare R2.
  */
 export default function BrandingSettings() {
-  const { Card } = useThemedComponents();
   const toast = useAppToast();
   const queryClient = useQueryClient();
 
@@ -135,7 +133,7 @@ export default function BrandingSettings() {
   if (isLoading) return <LoadingState message="A carregar identidade visual..." />;
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className="mt-4">
+    <div className="rally-surface rounded-2xl mt-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Palette className="h-5 w-5" />
@@ -231,6 +229,6 @@ export default function BrandingSettings() {
           />
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import { Trophy, Crown, CalendarDays, ShieldCheck, LogIn } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { useUserStore } from "@/stores/useUserStore";
 import useStaffLogin from "@/hooks/useLoginLink";
@@ -25,13 +24,13 @@ function eventTypeLabel(t: string): string {
   return EVENT_TYPE_LABELS[t as EventType] ?? "Evento";
 }
 
-function ParticipationCard({ entry, Card }: { entry: ParticipationEntry; Card: ReturnType<typeof useThemedComponents>["Card"] }) {
+function ParticipationCard({ entry }: { entry: ParticipationEntry }) {
   const date = new Date(entry.joined_at).toLocaleDateString("pt-PT", {
     year: "numeric",
     month: "short",
   });
   return (
-    <Card variant="default" padding="lg" rounded="2xl">
+    <div className="rally-surface rounded-2xl p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -69,7 +68,7 @@ function ParticipationCard({ entry, Card }: { entry: ParticipationEntry; Card: R
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -78,7 +77,6 @@ function ParticipationCard({ entry, Card }: { entry: ParticipationEntry; Card: R
  * cross-edition participation history. Rally soft-depth styling.
  */
 export default function Profile() {
-  const { Card } = useThemedComponents();
   const { isAuthenticated, name, email, image, scopes, sessionLoading } = useUserStore((s) => s);
   const onStaffLogin = useStaffLogin();
   const { data: profile, isLoading, isError } = useProfile();
@@ -90,7 +88,7 @@ export default function Profile() {
   if (!isAuthenticated) {
     return (
       <div className="mx-auto max-w-md">
-        <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+        <div className="rally-surface rounded-2xl p-6 text-center">
           <ShieldCheck className="rally-accent mx-auto h-10 w-10" />
           <h2 className="rally-display mt-3 text-xl font-bold">Inicia sessão</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -104,7 +102,7 @@ export default function Profile() {
             <LogIn className="h-4 w-4" />
             Login NEI
           </button>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -119,7 +117,7 @@ export default function Profile() {
       <PageHeader title="O meu perfil" description="Os teus rallys e classificações ao longo das edições." />
 
       {/* Identity */}
-      <Card variant="default" padding="lg" rounded="2xl">
+      <div className="rally-surface rounded-2xl p-6">
         <div className="flex items-center gap-4">
           {image ? (
             <img src={image} alt={displayName} className="h-16 w-16 rounded-2xl object-cover" />
@@ -142,7 +140,7 @@ export default function Profile() {
             )}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* History */}
       <div className="space-y-3">
@@ -154,18 +152,18 @@ export default function Profile() {
         {isLoading ? (
           <LoadingState message="A carregar histórico..." />
         ) : isError ? (
-          <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+          <div className="rally-surface rounded-2xl p-6 text-center">
             <p className="text-sm text-muted-foreground">Não foi possível carregar o histórico.</p>
-          </Card>
+          </div>
         ) : participations.length === 0 ? (
-          <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+          <div className="rally-surface rounded-2xl p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Ainda não há participações registadas. Junta-te a uma equipa para começar.
             </p>
-          </Card>
+          </div>
         ) : (
           participations.map((entry) => (
-            <ParticipationCard key={`${entry.event_id}-${entry.team_id ?? "x"}`} entry={entry} Card={Card} />
+            <ParticipationCard key={`${entry.event_id}-${entry.team_id ?? "x"}`} entry={entry} />
           ))
         )}
       </div>

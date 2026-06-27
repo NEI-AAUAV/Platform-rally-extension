@@ -1,7 +1,6 @@
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, ArrowRight } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import type { DetailedCheckPoint, ActivityResponse, ListingTeam } from "@/client";
 
 type AssignedCheckpointsProps = Readonly<{
@@ -18,11 +17,12 @@ export default function AssignedCheckpoints({
   teams, 
   onCheckpointClick 
 }: AssignedCheckpointsProps) {
-  const { Card, InteractiveCard } = useThemedComponents();
-  
+  const CARD = "rally-surface rounded-2xl";
+  const ITEM_BASE = "border border-border bg-secondary rounded-xl p-3 sm:p-4 cursor-pointer transition-colors hover:bg-accent w-full text-left";
+
   if (!checkpoints || checkpoints.length === 0) {
     return (
-      <Card variant="default" padding="none">
+      <div className={CARD}>
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <MapPin className="w-5 h-5" />
@@ -34,12 +34,12 @@ export default function AssignedCheckpoints({
             Nenhum posto encontrado.
           </p>
         </CardContent>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card variant="default" padding="none">
+    <div className={CARD}>
       <CardHeader>
         <CardTitle className="text-foreground flex items-center gap-2">
           <MapPin className="w-5 h-5" />
@@ -53,11 +53,12 @@ export default function AssignedCheckpoints({
               (activity) => activity.checkpoint_id === checkpoint.id,
             );
             const teamsAtCheckpoint = teams;
-            
+
             return (
-              <InteractiveCard
+              <button
                 key={checkpoint.id}
-                status="nested"
+                type="button"
+                className={ITEM_BASE}
                 onClick={() => onCheckpointClick(checkpoint)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -74,12 +75,12 @@ export default function AssignedCheckpoints({
                     <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                   </div>
                 </div>
-              </InteractiveCard>
+              </button>
             );
           })}
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }
 

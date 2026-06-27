@@ -3,7 +3,6 @@ import React from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 
 interface Evaluation {
   id: number;
@@ -80,7 +79,6 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
 }
 
 export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
-  const { Card } = useThemedComponents();
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("all");
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());
@@ -111,7 +109,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
   const hasActiveFilters = selectedTeam !== "all" || selectedCheckpoint !== "all";
   if (!evaluations || evaluations.length === 0) {
     return (
-      <Card variant="default" padding="none">
+      <div className="rally-surface rounded-2xl">
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <Activity className="w-5 h-5" />
@@ -123,12 +121,12 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
             Nenhuma avaliação encontrada.
           </p>
         </CardContent>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card variant="default" padding="none">
+    <div className="rally-surface rounded-2xl">
       <CardContent>
         {/* Filters */}
         <div className="mt-4 mb-4 p-2">
@@ -215,13 +213,7 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
               (evaluation.penalties && Object.keys(evaluation.penalties).length > 0);
 
             return (
-              <Card
-                key={evaluation.id}
-                variant="nested"
-                padding="sm"
-                rounded="lg"
-                hover
-              >
+              <div key={evaluation.id} className="border border-border bg-secondary rounded-lg p-3 transition-colors hover:bg-accent">
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => hasDetails && toggleExpand(evaluation.id)}>
@@ -351,12 +343,12 @@ export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
                     </div>
                   )}
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }
 

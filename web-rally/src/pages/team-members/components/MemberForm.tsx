@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
 import { TeamMembersService, type TeamMemberAdd } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
-import { useThemedComponents } from "@/components/themes";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 const addMemberSchema = z.object({
@@ -31,7 +30,6 @@ type MemberFormProps = Readonly<{
 }>
 
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
-  const { Card } = useThemedComponents();
   const toast = useAppToast();
   
   // Form setup
@@ -74,7 +72,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
   };
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserPlus className="w-5 h-5" />
@@ -122,7 +120,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             </div>
           </div>
           
-          <Card variant="subtle" padding="md" rounded="lg">
+          <div className="border border-border bg-card/60 rounded-lg p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="is_captain" className="text-base">
@@ -137,7 +135,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 onCheckedChange={(checked) => form.setValue("is_captain", checked)}
               />
             </div>
-          </Card>
+          </div>
           
           <div className="flex justify-center">
             <Button
@@ -150,7 +148,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
           </div>
         </form>
       </CardContent>
-    </Card>
+    </div>
   );
 }
 

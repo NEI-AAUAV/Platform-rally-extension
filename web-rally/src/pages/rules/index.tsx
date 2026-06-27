@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
-import { useThemedComponents } from "@/components/themes";
 import { PageHeader } from "@/components/shared";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +28,6 @@ interface RuleSection {
  */
 export default function Rules() {
   const { settings } = useRallySettings();
-  const { Card } = useThemedComponents();
   const [open, setOpen] = useState<string | null>("how");
 
   const hasTascaMechanics =
@@ -155,7 +153,7 @@ export default function Rules() {
         {sections.map(({ id, title, Icon, body }) => {
           const isOpen = open === id;
           return (
-            <Card key={id} variant="default" padding="none" rounded="2xl" className="overflow-hidden">
+            <div key={id} className="rally-surface rounded-2xl overflow-hidden">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : id)}
@@ -174,18 +172,18 @@ export default function Rules() {
                 />
               </button>
               {isOpen && <div className="border-t border-border px-5 py-4">{body}</div>}
-            </Card>
+            </div>
           );
         })}
       </div>
 
-      <Card variant="default" padding="lg" rounded="2xl" className="flex items-start gap-3">
+      <div className="rally-surface rounded-2xl p-6 flex items-start gap-3">
         <HelpCircle className="rally-accent mt-0.5 h-5 w-5 shrink-0" />
         <p className="text-sm text-muted-foreground">
           Dúvidas durante o evento? Fala com o staff no posto mais próximo ou com
           a organização do NEI.
         </p>
-      </Card>
+      </div>
     </div>
   );
 }

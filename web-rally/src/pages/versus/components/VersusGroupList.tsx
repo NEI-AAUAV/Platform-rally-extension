@@ -4,7 +4,6 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
 import { TeamService, type ListingTeam, type VersusGroupListResponse, type TeamUpdate } from "@/client";
-import { useThemedComponents } from "@/components/themes";
 
 type TeamUpdateWithVersus = TeamUpdate & {
   versus_group_id?: number | null;
@@ -19,7 +18,6 @@ type VersusGroupListProps = Readonly<{
 }>
 
 export default function VersusGroupList({ versusGroups, teams, onSuccess, className = "" }: VersusGroupListProps) {
-  const { Card: ThemedCard } = useThemedComponents();
   // Remove versus pair mutation (by updating teams to remove versus_group_id)
   const {
     mutate: removeVersusPair,
@@ -43,7 +41,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
   });
 
   return (
-    <ThemedCard variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
@@ -69,12 +67,9 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
               if (!teamA || !teamB) return null;
               
               return (
-                <ThemedCard
+                <div
                   key={pair.group_id}
-                  variant="nested"
-                  padding="md"
-                  rounded="lg"
-                  className="flex items-center justify-between"
+                  className="border border-border bg-secondary rounded-lg p-3 sm:p-4 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -101,13 +96,13 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                     <Trash2 className="w-4 h-4 mr-2" />
                     Remover
                   </Button>
-                </ThemedCard>
+                </div>
               );
             })}
           </div>
         )}
       </CardContent>
-    </ThemedCard>
+    </div>
   );
 }
 

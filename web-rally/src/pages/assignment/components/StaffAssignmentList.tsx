@@ -1,6 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, MapPin } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 
 import type { DetailedCheckPoint } from "@/client";
 
@@ -24,7 +23,6 @@ type StaffAssignmentListProps = Readonly<{
 }>
 
 export default function StaffAssignmentList({ assignments, checkpoints, onUpdateAssignment, className = "" }: StaffAssignmentListProps) {
-  const { Card } = useThemedComponents();
   
   if (assignments.length === 0) {
     return (
@@ -37,13 +35,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
   return (
     <div className={`space-y-4 ${className}`}>
       {assignments.map((assignment: StaffAssignment) => (
-        <Card
-          key={assignment.id}
-          variant="subtle"
-          padding="md"
-          rounded="xl"
-          className="flex items-center justify-between"
-        >
+        <div key={assignment.id} className="border border-border bg-card/60 rounded-xl p-4 sm:p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
               <Users className="w-5 h-5" />
@@ -89,7 +81,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
               </SelectContent>
             </Select>
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );

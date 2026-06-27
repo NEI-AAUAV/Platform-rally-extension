@@ -1,10 +1,10 @@
+import { cn } from '@/lib/utils';
 import { Eye } from 'lucide-react';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFormContext, Controller } from 'react-hook-form';
-import { useThemedComponents } from '@/components/themes';
 
 type DisplaySettingsProps = Readonly<{
 
@@ -13,11 +13,10 @@ type DisplaySettingsProps = Readonly<{
 }>
 
 export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
-  const { Card } = useThemedComponents();
   const { control } = useFormContext();
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye className="w-5 h-5" />
@@ -201,6 +200,6 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
           </Label>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }

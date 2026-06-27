@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useThemedComponents } from "@/components/themes/ThemeContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,12 +9,6 @@ import { useAppToast } from "@/hooks/use-toast";
 import QRCodeScanner from "@/components/QRCodeScanner";
 
 export default function TeamLogin() {
-    const components = useThemedComponents();
-    // Destructure themed components from the context
-    // We use the theme's Card if available, or fallback to a standard one if needed.
-    // However, useThemedComponents return `components` which has `Card`.
-    const { Card, config } = components;
-
     const navigate = useNavigate();
     const search = useSearch({ strict: false }) as { code?: string };
     const codeFromUrl = typeof search.code === "string" ? search.code : undefined;
@@ -100,23 +93,13 @@ export default function TeamLogin() {
     return (
         <div className="flex min-h-[70vh] items-center justify-center">
             <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-                <Card variant="default" padding="lg" rounded="2xl" className="rally-shadow-accent">
+                <div className="rally-surface rally-elevate rounded-2xl p-6 rally-shadow-accent">
                     <div className="text-center space-y-6">
                         {/* Header Section */}
                         <div className="flex flex-col items-center space-y-4">
-                            {config?.images?.logo ? (
-                                <div className="relative h-20 w-auto transition-transform hover:scale-105 duration-300">
-                                    <img
-                                        src={config?.images?.logo}
-                                        alt="Rally Logo"
-                                        className="h-full w-auto object-contain drop-shadow-lg"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="rally-bg-accent flex h-16 w-16 items-center justify-center rounded-full shadow-lg">
+                            <div className="rally-bg-accent flex h-16 w-16 items-center justify-center rounded-full shadow-lg">
                                     <LogIn className="w-8 h-8 text-white" />
-                                </div>
-                            )}
+                            </div>
 
                             <div className="space-y-1">
                                 <h1 className="rally-display text-3xl font-bold tracking-tight">
@@ -203,7 +186,7 @@ export default function TeamLogin() {
                             </p>
                         </div>
                     </div>
-                </Card>
+                </div>
             </div>
 
             {/* QR Code Scanner Modal */}

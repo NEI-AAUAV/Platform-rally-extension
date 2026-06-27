@@ -7,11 +7,9 @@ import { Navigate } from "@tanstack/react-router";
 import { LoadingState } from "@/components/shared";
 import { TeamSelector } from "./components";
 import { TeamService, TeamMembersService, type ListingTeam, type TeamMemberResponse, type DetailedTeam } from "@/client";
-import { useThemedComponents } from "@/components/themes";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 
 export default function StaffTeamView() {
-  const { Card } = useThemedComponents();
   const { isLoading, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
   const isStaff = userStore?.scopes?.includes("rally-staff");
@@ -75,28 +73,28 @@ export default function StaffTeamView() {
 
       {/* Error displays */}
       {teamsError && (
-        <Card variant="default" padding="md" rounded="lg" className="border-red-500/30 bg-red-50 dark:bg-red-950/30">
+        <div className="border border-red-500/30 bg-red-50 dark:bg-red-950/30 rounded-lg p-4 sm:p-6">
           <h3 className="font-semibold text-red-700 dark:text-red-400 mb-2">Erro ao carregar equipas:</h3>
           <p className="text-sm text-red-700 dark:text-red-300">
             {teamsError instanceof Error ? teamsError.message : "Erro desconhecido"}
           </p>
-        </Card>
+        </div>
       )}
 
       {membersError && (
-        <Card variant="default" padding="md" rounded="lg" className="border-red-500/30 bg-red-50 dark:bg-red-950/30">
+        <div className="border border-red-500/30 bg-red-50 dark:bg-red-950/30 rounded-lg p-4 sm:p-6">
           <h3 className="font-semibold text-red-700 dark:text-red-400 mb-2">Erro ao carregar membros:</h3>
           <p className="text-sm text-red-700 dark:text-red-300">
             {membersError instanceof Error ? membersError.message : "Erro desconhecido"}
           </p>
-        </Card>
+        </div>
       )}
 
       {/* Loading states */}
       {teamsLoading && (
-        <Card variant="default" padding="md" rounded="lg" className="border-border bg-muted">
+        <div className="border border-border bg-muted rounded-lg p-4 sm:p-6">
           <p className="text-muted-foreground">A carregar equipas...</p>
-        </Card>
+        </div>
       )}
 
       <TeamSelector
@@ -108,15 +106,15 @@ export default function StaffTeamView() {
       {selectedTeam && (
         <>
           {membersLoading && (
-            <Card variant="default" padding="md" rounded="lg" className="border-border bg-muted">
+            <div className="border border-border bg-muted rounded-lg p-4 sm:p-6">
               <p className="text-muted-foreground">A carregar membros da equipa...</p>
-            </Card>
+            </div>
           )}
 
           {/* Team Info and QR Code */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Team Members */}
-            <Card variant="default" padding="lg" rounded="2xl">
+            <div className="rally-surface rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Membros da Equipa
@@ -153,11 +151,11 @@ export default function StaffTeamView() {
                   ))
                 )}
               </div>
-            </Card>
+            </div>
 
             {/* QR Code */}
             {teamData && (
-              <Card variant="default" padding="lg" rounded="2xl" className="flex flex-col items-center justify-center">
+              <div className="rally-surface rounded-2xl p-6 flex flex-col items-center justify-center">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <QrCode className="w-5 h-5" />
                   Código QR
@@ -165,7 +163,7 @@ export default function StaffTeamView() {
                 <div className="flex justify-center">
                   <QRCodeDisplay accessCode={(teamData as DetailedTeam & { access_code?: string }).access_code || ''} size={200} />
                 </div>
-              </Card>
+              </div>
             )}
           </div>
         </>
@@ -173,12 +171,12 @@ export default function StaffTeamView() {
 
       {/* Helpful messages */}
       {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
-        <Card variant="default" padding="md" rounded="lg" className="border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/30">
+        <div className="border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg p-4 sm:p-6">
           <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Nenhuma equipa encontrada</h3>
           <p className="text-sm text-yellow-700 dark:text-yellow-200">
             Não existem equipas criadas ainda. Contacte um administrador.
           </p>
-        </Card>
+        </div>
       )}
     </div>
   );

@@ -1,9 +1,9 @@
+import { cn } from '@/lib/utils';
 import { Calendar } from 'lucide-react';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFormContext } from 'react-hook-form';
-import { useThemedComponents } from '@/components/themes';
 
 type RallyTimingSettingsProps = Readonly<{
 
@@ -12,11 +12,10 @@ type RallyTimingSettingsProps = Readonly<{
 }>
 
 export default function RallyTimingSettings({ className = "", disabled = false }: RallyTimingSettingsProps) {
-  const { Card } = useThemedComponents();
   const { register } = useFormContext();
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="w-5 h-5" />
@@ -55,6 +54,6 @@ export default function RallyTimingSettings({ className = "", disabled = false }
           </p>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }

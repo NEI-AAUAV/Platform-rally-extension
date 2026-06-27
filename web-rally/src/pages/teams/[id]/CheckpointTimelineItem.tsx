@@ -1,5 +1,4 @@
 import { ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
@@ -25,7 +24,6 @@ export function CheckpointTimelineItem({
   isExpanded,
   onToggle,
 }: CheckpointTimelineItemProps) {
-  const { Card } = useThemedComponents();
 
   // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
   const checkpointOrder = index + 1;
@@ -94,11 +92,8 @@ export function CheckpointTimelineItem({
   return (
     <div>
       {/* Checkpoint summary - always visible and clickable */}
-      <Card
-        variant={isCurrentCheckpoint ? "elevated" : "default"}
-        padding="lg"
-        rounded="2xl"
-        hover
+      <div
+        className={`rally-surface rounded-2xl p-6 transition-colors hover:bg-accent ${isCurrentCheckpoint ? "rally-elevate" : ""} ${evaluationResults.length > 0 ? "cursor-pointer" : ""}`}
         onClick={() => evaluationResults.length > 0 && onToggle(index)}
       >
         <div className="flex items-center justify-between">
@@ -138,7 +133,7 @@ export function CheckpointTimelineItem({
             )}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Activity-level cards - only show when expanded */}
       {isExpanded && evaluationResults.length > 0 && (
@@ -155,7 +150,7 @@ export function CheckpointTimelineItem({
             const isCompletionPending = isTimeBased && completedCount < totalTeams;
 
             return (
-              <Card key={resultIndex} variant="subtle" padding="md" rounded="xl">
+              <div key={resultIndex} className="border border-border bg-card/60 rounded-xl p-4 sm:p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h4 className="text-base font-semibold mb-1">{activity?.name}</h4>
@@ -176,7 +171,7 @@ export function CheckpointTimelineItem({
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CalendarRange, Check, Plus, Star, Pencil, X } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +59,6 @@ function formatRange(ev: RallyEvent): string | null {
  * create and edit. Consumes the hand-written EventsService. Soft-depth styling.
  */
 export default function EventsManagement() {
-  const { Card } = useThemedComponents();
   const toast = useAppToast();
   const { data: events, isLoading, isError } = useEvents();
   const { create, update, setCurrent } = useEventMutations();
@@ -138,7 +136,7 @@ export default function EventsManagement() {
       </div>
 
       {showForm && (
-        <Card variant="default" padding="lg" rounded="2xl">
+        <div className="rally-surface rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -181,13 +179,13 @@ export default function EventsManagement() {
               </Button>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
       {isError ? (
-        <Card variant="default" padding="lg" rounded="2xl" className="text-center">
+        <div className="rally-surface rounded-2xl p-6 text-center">
           <p className="text-sm text-muted-foreground">Não foi possível carregar as edições.</p>
-        </Card>
+        </div>
       ) : list.length === 0 ? (
         <EmptyState
           icon={<CalendarRange className="h-8 w-8 text-muted-foreground" />}
@@ -197,7 +195,7 @@ export default function EventsManagement() {
       ) : (
         <div className="grid gap-3">
           {list.map((ev) => (
-            <Card key={ev.id} variant="default" padding="lg" rounded="2xl">
+            <div key={ev.id} className="rally-surface rounded-2xl p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -225,7 +223,7 @@ export default function EventsManagement() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

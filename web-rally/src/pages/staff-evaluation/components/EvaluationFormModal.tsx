@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ActivityEvaluationForm } from "@/components/forms";
-import { useThemedComponents } from "@/components/themes";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
 
@@ -22,7 +21,6 @@ export default function EvaluationFormModal({
   onCancel,
   isSubmitting
 }: EvaluationFormModalProps) {
-  const { Card } = useThemedComponents();
   
   if (!isOpen || !activity || !team) return null;
 
@@ -39,7 +37,7 @@ export default function EvaluationFormModal({
         backgroundColor: 'rgba(0, 0, 0, 0.8)'
       }}
     >
-      <Card variant="elevated" padding="lg" rounded="lg" className="shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="rally-surface rally-elevate rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="rally-display text-2xl font-bold text-foreground">Avaliar: {activity.name}</h2>
           <button 
@@ -69,7 +67,7 @@ export default function EvaluationFormModal({
             Cancel
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

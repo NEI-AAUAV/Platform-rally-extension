@@ -20,7 +20,6 @@ import {
   type ActivityResultResponse,
   type ActivityResponse,
 } from "@/client";
-import { useThemedComponents } from "@/components/themes";
 
 interface ManagerEvaluationPageProps {
   readonly embedded?: boolean;
@@ -30,7 +29,6 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const userStore = useUserStore();
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
-  const { Card } = useThemedComponents();
   const { settings } = useRallySettings();
 
 
@@ -129,14 +127,7 @@ type EvaluationResponse = ActivityResultResponse & {
 
         {/* All Evaluations Section */}
         <div className="relative">
-          <Card
-            variant="default"
-            padding="sm"
-            rounded="lg"
-            hover
-            onClick={() => setShowAllEvaluations(!showAllEvaluations)}
-            className="cursor-pointer"
-          >
+          <button type="button" onClick={() => setShowAllEvaluations(!showAllEvaluations)} className="rally-surface rounded-lg p-3 sm:p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-accent cursor-pointer">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5" />
               <span className="font-semibold">Todas as Avaliações</span>
@@ -147,14 +138,14 @@ type EvaluationResponse = ActivityResultResponse & {
             <ChevronDown 
               className={`w-5 h-5 transition-transform ${showAllEvaluations ? 'rotate-180' : ''}`} 
             />
-          </Card>
+          </button>
           
           {showAllEvaluations && (
             <div className="mt-2">
               {evaluationsLoading ? (
-                <Card variant="default" padding="md">
+                <div className="rally-surface rounded-2xl p-4 sm:p-6">
                   <p className="text-muted-foreground text-center">A carregar avaliações...</p>
-                </Card>
+                </div>
               ) : (
                 <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
               )}
@@ -171,7 +162,7 @@ type EvaluationResponse = ActivityResultResponse & {
         />
 
         {/* Teams Overview */}
-        <Card variant="default" padding="none">
+        <div className="rally-surface rounded-2xl">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -184,12 +175,7 @@ type EvaluationResponse = ActivityResultResponse & {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {allTeams?.map((team) => (
-                <Card
-                  key={team.id}
-                  variant="nested"
-                  padding="sm"
-                  rounded="lg"
-                >
+                <div key={team.id} className="border border-border bg-secondary rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-foreground">{team.name}</h4>
                     <Badge variant="outline" className="text-foreground border-border">
@@ -206,15 +192,15 @@ type EvaluationResponse = ActivityResultResponse & {
                     )}
                     <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           </CardContent>
-        </Card>
+        </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <Card variant="default" padding="md">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-foreground mb-2">
                 {allTeams?.length || 0}
@@ -223,9 +209,9 @@ type EvaluationResponse = ActivityResultResponse & {
                 Equipas
               </div>
             </div>
-          </Card>
+          </div>
 
-          <Card variant="default" padding="md">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-foreground mb-2">
                 {allCheckpoints?.length || 0}
@@ -234,9 +220,9 @@ type EvaluationResponse = ActivityResultResponse & {
                 Checkpoints
               </div>
             </div>
-          </Card>
+          </div>
 
-          <Card variant="default" padding="md">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-foreground mb-2">
                 {allActivities?.activities?.length || 0}
@@ -245,7 +231,7 @@ type EvaluationResponse = ActivityResultResponse & {
                 Atividades
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </div>

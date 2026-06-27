@@ -1,5 +1,4 @@
 import type { UseFormReturn } from "react-hook-form";
-import { useThemedComponents } from "@/components/themes";
 import {
   Form,
   FormControl,
@@ -29,10 +28,8 @@ export default function CheckpointForm({
   onSubmit,
   onCancel,
 }: CheckpointFormProps) {
-  const { Card } = useThemedComponents();
-
   return (
-    <Card variant="default" padding="lg" rounded="2xl">
+    <div className="rally-surface rounded-2xl p-6">
       <h3 className="text-lg font-semibold mb-4">
         {isEditing ? 'Editar Checkpoint' : 'Criar Novo Checkpoint'}
       </h3>
@@ -123,6 +120,6 @@ export default function CheckpointForm({
           </div>
         </form>
       </Form>
-    </Card>
+    </div>
   );
 }

@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit, Trash2, Users, AlertCircle, X, QrCode } from 'lucide-react';
-import { useThemedComponents } from '@/components/themes';
 import { getErrorMessage } from '@/utils/errorHandling';
 import {
   Form,
@@ -42,7 +41,6 @@ type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: 
 
 export default function TeamManagement() {
   const navigate = useNavigate();
-  const { Card } = useThemedComponents();
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const [newlyCreatedTeam, setNewlyCreatedTeam] = React.useState<DetailedTeam | null>(null);
   const [selectedTeamForQR, setSelectedTeamForQR] = React.useState<Team | null>(null);
@@ -158,7 +156,7 @@ export default function TeamManagement() {
   return (
     <div className="space-y-6">
       {/* Create/Edit Team Form */}
-      <Card variant="default" padding="lg" rounded="2xl">
+      <div className="rally-surface rounded-2xl p-6">
         <h3 className="text-lg font-semibold mb-4">
           {editingTeam ? 'Editar Equipa' : 'Criar Nova Equipa'}
         </h3>
@@ -190,28 +188,21 @@ export default function TeamManagement() {
               )}
             />
             <div className="flex gap-2">
-              <BloodyButton
-                type="submit"
-                disabled={isCreatingTeam || isUpdatingTeam}
-              >
+              <BloodyButton type="submit" disabled={isCreatingTeam || isUpdatingTeam}>
                 {editingTeam ? 'Atualizar' : 'Criar'} Equipa
               </BloodyButton>
               {editingTeam && (
-                <BloodyButton
-                  type="button"
-                  variant="neutral"
-                  onClick={cancelEdit}
-                >
+                <BloodyButton type="button" variant="neutral" onClick={cancelEdit}>
                   Cancelar
                 </BloodyButton>
               )}
             </div>
           </form>
         </Form>
-      </Card>
+      </div>
 
       {/* Teams List */}
-      <Card variant="default" padding="lg" rounded="2xl">
+      <div className="rally-surface rounded-2xl p-6">
         <h3 className="text-lg font-semibold mb-4">Equipas Existentes</h3>
         {teams?.length === 0 ? (
           <EmptyState
@@ -223,12 +214,7 @@ export default function TeamManagement() {
           <ul className="space-y-3 list-none">
             {teams?.map((team: Team) => (
               <li key={team.id}>
-                <Card
-                  variant="subtle"
-                  padding="md"
-                  rounded="xl"
-                  className="flex items-center justify-between"
-                >
+                <div className="border border-border bg-card/60 rounded-xl p-4 sm:p-6 flex items-center justify-between">
                   <div>
                     <div className="font-semibold">{team.name}</div>
                     <div className="text-sm text-muted-foreground">
@@ -236,51 +222,31 @@ export default function TeamManagement() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <BloodyButton
-                      variant="neutral"
-                      title="Ver QR code e código de acesso"
-                      onClick={() => setSelectedTeamForQR(team)}
-                    >
+                    <BloodyButton variant="neutral" title="Ver QR code e código de acesso" onClick={() => setSelectedTeamForQR(team)}>
                       <QrCode className="w-4 h-4" />
                     </BloodyButton>
-                    <BloodyButton
-                      variant="neutral"
-                      title="Gerir membros da equipa"
-                      onClick={() => navigate({ to: "/team-members" })}
-                    >
+                    <BloodyButton variant="neutral" title="Gerir membros da equipa" onClick={() => navigate({ to: "/team-members" })}>
                       <Users className="w-4 h-4" />
                     </BloodyButton>
-                    <BloodyButton
-                      variant="neutral"
-                      onClick={() => startEditTeam(team)}
-                    >
+                    <BloodyButton variant="neutral" onClick={() => startEditTeam(team)}>
                       <Edit className="w-4 h-4" />
                     </BloodyButton>
-                    <BloodyButton
-                      variant="neutral"
-                      onClick={() => {
-                        if (confirm('Tem certeza que deseja deletar esta equipa?')) {
-                          deleteTeam(team.id);
-                        }
-                      }}
-                      disabled={isDeletingTeam}
-                    >
+                    <BloodyButton variant="neutral" onClick={() => { if (confirm('Tem certeza que deseja deletar esta equipa?')) { deleteTeam(team.id); } }} disabled={isDeletingTeam}>
                       <Trash2 className="w-4 h-4" />
                     </BloodyButton>
                   </div>
-                </Card>
+                </div>
               </li>
             ))}
           </ul>
         )}
-      </Card>
+      </div>
 
-      {/* QR Code Modal for Newly Created Team or Selected Team */}
+      {/* QR Code Modal */}
       {(newlyCreatedTeam || (selectedTeamForQR && teamDetailsForQR)) && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-card border-border">
+          <div className="rally-surface rounded-2xl w-full max-w-md">
             <div className="p-8 space-y-6">
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">
@@ -291,10 +257,7 @@ export default function TeamManagement() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    setNewlyCreatedTeam(null);
-                    setSelectedTeamForQR(null);
-                  }}
+                  onClick={() => { setNewlyCreatedTeam(null); setSelectedTeamForQR(null); }}
                   title="Fechar"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -302,14 +265,12 @@ export default function TeamManagement() {
                 </button>
               </div>
 
-              {/* Loading State */}
               {selectedTeamForQR && isLoadingQRDetails && (
                 <div className="flex justify-center p-8">
                   <p className="text-muted-foreground">A carregar QR code...</p>
                 </div>
               )}
 
-              {/* QR Code */}
               {(newlyCreatedTeam || teamDetailsForQR) && (
                 <>
                   <div className="flex justify-center">
@@ -318,30 +279,20 @@ export default function TeamManagement() {
                       size={250}
                     />
                   </div>
-
-                  {/* Instructions */}
                   <div className="space-y-3 bg-muted p-4 rounded-lg border border-border">
                     <p className="text-muted-foreground text-xs">
                       Partilhe este código QR ou código de acesso com a equipa para que possam fazer login e acompanhar o progresso.
                     </p>
                   </div>
-
-                  {/* Buttons */}
                   <div className="flex gap-2">
-                    <BloodyButton
-                      onClick={() => {
-                        setNewlyCreatedTeam(null);
-                        setSelectedTeamForQR(null);
-                      }}
-                      className="flex-1"
-                    >
+                    <BloodyButton onClick={() => { setNewlyCreatedTeam(null); setSelectedTeamForQR(null); }} className="flex-1">
                       Concluir
                     </BloodyButton>
                   </div>
                 </>
               )}
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
