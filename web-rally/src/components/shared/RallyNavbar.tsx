@@ -27,7 +27,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
   const { eventName, logoSrc } = branding;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 border-b border-border bg-card shadow-[var(--rally-shadow-sm)]">
       <nav
         aria-label="Navegação principal"
         className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"
@@ -38,14 +38,14 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
             <img
               src={logoSrc}
               alt={eventName}
-              className="h-9 w-9 rounded-lg object-contain"
+              className="h-8 w-8 rounded-lg object-contain sm:h-9 sm:w-9"
             />
           ) : (
-            <span className="rally-bg-accent grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-white shadow-[var(--rally-shadow-sm)]">
+            <span className="rally-bg-accent grid h-8 w-8 place-items-center rounded-lg text-xs font-bold text-white shadow-[var(--rally-shadow-sm)] sm:h-9 sm:w-9 sm:text-sm">
               {initialsOf(eventName)}
             </span>
           )}
-          <span className="rally-display hidden max-w-[16ch] truncate text-lg font-bold text-foreground sm:inline">
+          <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">
             {eventName}
           </span>
         </Link>

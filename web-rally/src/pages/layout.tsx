@@ -1,11 +1,9 @@
-import { RallyTimeBanner } from "@/components/shared";
 import { RallyNavbar } from "@/components/shared/RallyNavbar";
 import { SiteFooter } from "@/components/shared/SiteFooter";
 import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingGate from "@/components/landing/LandingGate";
-import BrandHeader from "@/components/branding/BrandHeader";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import useDocumentBranding from "@/hooks/useDocumentBranding";
@@ -74,13 +72,9 @@ function MainLayoutContent() {
       <div className="relative z-10 flex min-h-screen flex-1 flex-col">
         <RallyNavbar branding={branding} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-3 pb-24 pt-6 sm:px-4 sm:pb-10">
-          <BrandHeader branding={branding} />
-          <RallyTimeBanner />
-          <div className="mt-6">
-            <ErrorBoundary>
-              <Outlet />
-            </ErrorBoundary>
-          </div>
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
           <PWAInstallPrompt />
         </main>
         <SiteFooter branding={branding} />

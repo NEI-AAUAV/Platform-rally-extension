@@ -90,6 +90,7 @@
   }
   body {
     @apply bg-background text-foreground font-inter antialiased;
+    transition: background-color 0.35s ease, color 0.2s ease;
   }
 }
 

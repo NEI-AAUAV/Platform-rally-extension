@@ -40,13 +40,13 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.06] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.20] dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.07] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.20] dark:block"
       />
 
       <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
