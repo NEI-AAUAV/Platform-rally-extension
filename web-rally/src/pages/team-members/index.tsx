@@ -91,18 +91,18 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
 
       {/* Error displays */}
       {teamsError && (
-        <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
-          <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar equipas:</h3>
-          <p className="text-red-200 text-sm">
+        <Card variant="default" padding="md" rounded="lg" className="border-red-500/30 bg-red-50 dark:bg-red-950/30">
+          <h3 className="font-semibold text-red-700 dark:text-red-400 mb-2">Erro ao carregar equipas:</h3>
+          <p className="text-sm text-red-700 dark:text-red-300">
             {teamsError instanceof Error ? teamsError.message : "Erro desconhecido"}
           </p>
         </Card>
       )}
 
       {membersError && (
-        <Card variant="default" padding="md" rounded="lg" className="border-red-500/50 bg-red-600/10">
-          <h3 className="text-red-300 font-semibold mb-2">Erro ao carregar membros:</h3>
-          <p className="text-red-200 text-sm">
+        <Card variant="default" padding="md" rounded="lg" className="border-red-500/30 bg-red-50 dark:bg-red-950/30">
+          <h3 className="font-semibold text-red-700 dark:text-red-400 mb-2">Erro ao carregar membros:</h3>
+          <p className="text-sm text-red-700 dark:text-red-300">
             {membersError instanceof Error ? membersError.message : "Erro desconhecido"}
           </p>
         </Card>
@@ -110,8 +110,8 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
 
       {/* Loading states */}
       {teamsLoading && (
-        <Card variant="default" padding="md" rounded="lg" className="border-blue-500/50 bg-blue-600/10">
-          <p className="text-blue-200">A carregar equipas...</p>
+        <Card variant="default" padding="md" rounded="lg" className="border-border bg-muted">
+          <p className="text-muted-foreground">A carregar equipas...</p>
         </Card>
       )}
 
@@ -124,8 +124,8 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
       {selectedTeam && (
         <>
           {membersLoading && (
-            <Card variant="default" padding="md" rounded="lg" className="border-blue-500/50 bg-blue-600/10">
-              <p className="text-blue-200">A carregar membros da equipa...</p>
+            <Card variant="default" padding="md" rounded="lg" className="border-border bg-muted">
+              <p className="text-muted-foreground">A carregar membros da equipa...</p>
             </Card>
           )}
 
@@ -184,7 +184,7 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
                             )}
                           </div>
                           {member.is_captain && (
-                            <span className="text-xs bg-yellow-600/30 text-yellow-300 px-2 py-1 rounded">
+                            <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 px-2 py-1 rounded">
                               Capitão
                             </span>
                           )}
@@ -214,9 +214,9 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
 
       {/* Helpful messages */}
       {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
-        <Card variant="default" padding="md" rounded="lg" className="border-yellow-500/50 bg-yellow-600/10">
-          <h3 className="text-yellow-300 font-semibold mb-2">Nenhuma equipa encontrada</h3>
-          <p className="text-yellow-200 text-sm">
+        <Card variant="default" padding="md" rounded="lg" className="border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/30">
+          <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Nenhuma equipa encontrada</h3>
+          <p className="text-sm text-yellow-700 dark:text-yellow-200">
             {isRallyAdmin
               ? "Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas."
               : "Não existem equipas criadas ainda. Contacte um administrador."}

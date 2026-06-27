@@ -1,5 +1,3 @@
-import { useThemedComponents } from "@/components/themes/ThemeContext";
-
 type ProgressSummaryCardProps = Readonly<{
   completedCount: number;
   totalCount: number;
@@ -13,25 +11,20 @@ export default function ProgressSummaryCard({
   totalScore,
   showScore,
 }: ProgressSummaryCardProps) {
-  const { Card, config } = useThemedComponents();
+  const pct = (completedCount / (totalCount || 1)) * 100;
 
   return (
-    <Card className="p-4 backdrop-blur-sm bg-muted border-border">
-      <div className="flex items-center justify-between text-sm font-medium" style={{ color: config?.colors?.text }}>
-        <span className="opacity-80">
-          Progresso: {completedCount} de {totalCount} postos
-        </span>
-        {showScore && <span className="opacity-80">Total: {totalScore} pontos</span>}
+    <div className="rally-surface rounded-xl border border-border p-4">
+      <div className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+        <span>Progresso: {completedCount} de {totalCount} postos</span>
+        {showScore && <span>Total: {totalScore} pontos</span>}
       </div>
-      <div className="mt-3 h-2 w-full bg-muted rounded-full overflow-hidden">
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
         <div
-          className="h-full transition-all duration-1000 ease-out"
-          style={{
-            width: `${(completedCount / (totalCount || 1)) * 100}%`,
-            backgroundColor: config?.colors?.primary,
-          }}
+          className="rally-bg-accent h-full transition-[width] duration-1000 ease-out"
+          style={{ width: `${pct}%` }}
         />
       </div>
-    </Card>
+    </div>
   );
 }

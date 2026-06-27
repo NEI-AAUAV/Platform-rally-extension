@@ -1,5 +1,4 @@
 import { Users } from "lucide-react";
-import { useThemedComponents } from "@/components/themes/ThemeContext";
 import type { DetailedTeam } from "@/client";
 
 type TeamMembersCardProps = Readonly<{
@@ -7,27 +6,24 @@ type TeamMembersCardProps = Readonly<{
 }>;
 
 export default function TeamMembersCard({ team }: TeamMembersCardProps) {
-  const { Card, config } = useThemedComponents();
-
   return (
-    <Card className="p-6 backdrop-blur-sm bg-muted border-border">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-muted">
-          <Users className="w-5 h-5" style={{ color: config?.colors?.primary }} />
+    <div className="rally-surface rounded-xl border border-border p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="rally-bg-accent-soft rally-accent rounded-lg p-2">
+          <Users className="h-5 w-5" />
         </div>
-        <h2 className="text-lg font-semibold" style={{ color: config?.colors?.text }}>Membros da Equipa</h2>
+        <h2 className="text-lg font-semibold text-foreground">Membros da Equipa</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {team.members?.map((member) => (
           <div
             key={member.id}
-            className="px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-muted"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: config?.colors?.text }}
+            className="rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             {member.name}
           </div>
         ))}
       </div>
-    </Card>
+    </div>
   );
 }

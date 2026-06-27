@@ -12,6 +12,7 @@ import {
   Swords,
   UserCog,
   ClipboardCheck,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 import useUser from "@/hooks/useUser";
@@ -30,6 +31,7 @@ import Assignment from "@/pages/assignment";
 import Versus from "@/pages/versus";
 import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
+import LiveDashboard from "./components/LiveDashboard";
 
 interface Checkpoint {
   id: number;
@@ -39,6 +41,7 @@ interface Checkpoint {
 }
 
 type TabId =
+  | "dashboard"
   | "teams"
   | "checkpoints"
   | "activities"
@@ -51,6 +54,7 @@ type TabId =
   | "settings";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "teams", label: "Equipas", icon: Users },
   { id: "checkpoints", label: "Postos", icon: MapPin },
   { id: "activities", label: "Atividades", icon: ActivityIcon },
@@ -66,7 +70,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
 export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
-  const [activeTab, setActiveTab] = useState<TabId>("teams");
+  const [activeTab, setActiveTab] = useState<TabId>("dashboard");
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -124,6 +128,7 @@ export default function Admin() {
 
         {/* Tab content */}
         <div className="min-w-0">
+          {activeTab === "dashboard" && <LiveDashboard />}
           {activeTab === "teams" && <TeamManagement />}
           {activeTab === "checkpoints" && <CheckpointManagement userStore={userStore} />}
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}

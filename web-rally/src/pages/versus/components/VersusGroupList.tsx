@@ -96,7 +96,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                     size="sm"
                     onClick={() => removeVersusPair(pair.group_id)}
                     disabled={isRemovingPair}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-600/20"
+                    className="text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Remover

@@ -106,7 +106,7 @@ export function CheckpointTimelineItem({
             <div className="flex items-center gap-3 mb-2">
               <span className="text-sm font-medium text-muted-foreground">Checkpoint {index + 1}</span>
               {isCurrentCheckpoint && (
-                <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">Current</span>
+                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">Current</span>
               )}
               {evaluationResults.length > 0 && (
                 <span className="text-xs text-muted-foreground">
@@ -163,7 +163,7 @@ export function CheckpointTimelineItem({
                       <p className="text-sm text-muted-foreground">{activity.description}</p>
                     )}
                     {isCompletionPending && (
-                      <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-300">
+                      <div className="mt-2 p-2 rounded border border-yellow-500/30 bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
                         ⚠️ Score may change: {completedCount} of {totalTeams} teams finished (ranking
                         recalculates as more teams complete)
                       </div>
