@@ -14,7 +14,11 @@ import type { DetailedTeam } from "@/client";
 
 type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
 
-export default function TeamMembers() {
+interface TeamMembersProps {
+  readonly embedded?: boolean;
+}
+
+export default function TeamMembers({ embedded = false }: TeamMembersProps) {
   const { Card } = useThemedComponents();
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const token = useUserStore((state) => state.token);
@@ -64,7 +68,7 @@ export default function TeamMembers() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin && !isStaff) {
+  if (!embedded && !isRallyAdmin && !isStaff) {
     return <Navigate to="/scoreboard" />;
   }
 
@@ -72,16 +76,18 @@ export default function TeamMembers() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        eyebrow="Equipas"
-        icon={Users}
-        title={isRallyAdmin ? "Gestão de membros" : "Consultar equipas"}
-        description={
-          isRallyAdmin
-            ? "Adicionar e remover membros das equipas do rally."
-            : "Visualizar membros e código QR das equipas do rally."
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Equipas"
+          icon={Users}
+          title={isRallyAdmin ? "Gestão de membros" : "Consultar equipas"}
+          description={
+            isRallyAdmin
+              ? "Adicionar e remover membros das equipas do rally."
+              : "Visualizar membros e código QR das equipas do rally."
+          }
+        />
+      )}
 
       {/* Error displays */}
       {teamsError && (

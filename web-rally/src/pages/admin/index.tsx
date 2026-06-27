@@ -8,6 +8,10 @@ import {
   Palette,
   CalendarRange,
   Settings2,
+  ClipboardList,
+  Swords,
+  UserCog,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import useUser from "@/hooks/useUser";
@@ -21,6 +25,11 @@ import {
   EventsManagement,
 } from "./components";
 import { CheckPointService } from "@/client";
+import RallySettings from "@/pages/settings";
+import Assignment from "@/pages/assignment";
+import Versus from "@/pages/versus";
+import TeamMembers from "@/pages/team-members";
+import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
 
 interface Checkpoint {
   id: number;
@@ -29,14 +38,29 @@ interface Checkpoint {
   order: number;
 }
 
-type TabId = "teams" | "checkpoints" | "activities" | "branding" | "events";
+type TabId =
+  | "teams"
+  | "checkpoints"
+  | "activities"
+  | "branding"
+  | "events"
+  | "members"
+  | "assignment"
+  | "versus"
+  | "evaluation"
+  | "settings";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
   { id: "teams", label: "Equipas", icon: Users },
   { id: "checkpoints", label: "Postos", icon: MapPin },
   { id: "activities", label: "Atividades", icon: ActivityIcon },
+  { id: "members", label: "Membros", icon: UserCog },
+  { id: "assignment", label: "Atribuições", icon: ClipboardList },
+  { id: "evaluation", label: "Avaliação", icon: ClipboardCheck },
+  { id: "versus", label: "Versus", icon: Swords },
   { id: "branding", label: "Identidade", icon: Palette },
   { id: "events", label: "Edições", icon: CalendarRange },
+  { id: "settings", label: "Configurações", icon: Settings2 },
 ];
 
 export default function Admin() {
@@ -85,14 +109,14 @@ export default function Admin() {
                 onClick={() => setActiveTab(id)}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
+                  "rally-press flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors sm:gap-2.5 sm:px-3.5 sm:text-sm lg:w-full",
                   active
                     ? "rally-bg-accent text-white"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                <span>{label}</span>
               </button>
             );
           })}
@@ -105,6 +129,11 @@ export default function Admin() {
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
           {activeTab === "branding" && <BrandingSettings />}
           {activeTab === "events" && <EventsManagement />}
+          {activeTab === "members" && <TeamMembers embedded />}
+          {activeTab === "assignment" && <Assignment embedded />}
+          {activeTab === "versus" && <Versus embedded />}
+          {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
+          {activeTab === "settings" && <RallySettings embedded />}
         </div>
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { Trophy } from "lucide-react";
-import { useThemedComponents } from "@/components/themes/ThemeContext";
 import type { DetailedTeam } from "@/client";
 
 type TeamHeaderCardProps = Readonly<{
@@ -9,34 +8,25 @@ type TeamHeaderCardProps = Readonly<{
 }>;
 
 export default function TeamHeaderCard({ team, showScore, showRanking }: TeamHeaderCardProps) {
-  const { Card, config } = useThemedComponents();
-
   return (
-    <Card className="p-8 backdrop-blur-md bg-muted border-border shadow-xl">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-2 tracking-tight" style={{ color: config?.colors?.text }}>
-          {team.name}
-        </h1>
-        {showScore && (
-          <div className="mt-4 p-4 rounded-xl bg-muted inline-block">
-            <div
-              className="flex items-center justify-center gap-2 text-3xl font-bold"
-              style={{ color: config?.colors?.primary }}
-            >
-              <Trophy className="w-8 h-8" />
-              {team.total} <span className="text-lg font-normal opacity-80 self-end mb-1">pontos</span>
-            </div>
-            {showRanking && (
-              <div
-                className="text-sm mt-1 font-medium px-3 py-1 rounded-full inline-block"
-                style={{ backgroundColor: `${config?.colors?.primary}20`, color: config?.colors?.primary }}
-              >
-                {team.classification}º lugar
-              </div>
-            )}
+    <div className="rally-surface rally-elevate-lg rounded-2xl p-8 text-center">
+      <h1 className="rally-display text-4xl font-bold tracking-tight text-foreground mb-2">
+        {team.name}
+      </h1>
+      {showScore && (
+        <div className="mt-4 inline-block rounded-xl bg-muted px-6 py-4">
+          <div className="flex items-center justify-center gap-2 text-3xl font-bold rally-accent">
+            <Trophy className="w-8 h-8" />
+            {team.total}
+            <span className="text-lg font-normal text-muted-foreground self-end mb-1">pontos</span>
           </div>
-        )}
-      </div>
-    </Card>
+          {showRanking && (
+            <div className="mt-2 inline-block rounded-full rally-bg-accent-soft rally-accent px-3 py-1 text-sm font-medium">
+              {team.classification}º lugar
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

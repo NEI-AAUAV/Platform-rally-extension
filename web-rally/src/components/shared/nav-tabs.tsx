@@ -4,7 +4,6 @@ import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, ShieldCheck, Users, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
 
@@ -19,11 +18,12 @@ interface NavLink {
   readonly show: boolean;
 }
 
-/**
- * A hover/click dropdown grouping the management destinations so the navbar
- * stays uncluttered (mirrors the NEI gamification grouped-nav structure, in
- * rally's soft-depth language). Desktop only.
- */
+const linkClass = (isActive: boolean) =>
+  cn(
+    "block px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-colors",
+    isActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
+  );
+
 function NavGroup({ label, items }: { readonly label: string; readonly items: readonly NavLink[] }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -54,32 +54,31 @@ function NavGroup({ label, items }: { readonly label: string; readonly items: re
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <Button
+      <button
         type="button"
-        variant={hasActive ? "default" : "ghost"}
-        size="sm"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="gap-1"
+        className={cn(
+          "flex items-center gap-1 px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-colors",
+          hasActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
+        )}
       >
         {label}
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
-      </Button>
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+      </button>
       {open && (
         <div className="absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2">
-          <ul className="rally-elevate min-w-[12rem] overflow-hidden rounded-xl border border-border bg-popover p-1.5">
+          <ul className="rally-elevate min-w-[10rem] overflow-hidden rounded-xl border border-border bg-popover p-1.5 space-y-0.5">
             {items.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <li key={item.name}>
-                  <Link to={item.href} onClick={() => setOpen(false)}>
-                    <Button
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      {item.name}
-                    </Button>
+                  <Link
+                    to={item.href}
+                    onClick={() => setOpen(false)}
+                    className={linkClass(isActive)}
+                  >
+                    {item.name}
                   </Link>
                 </li>
               );
@@ -132,7 +131,6 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMobileMenuOpen]);
 
-  // Primary (top-level) destinations — kept short.
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },
     { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
@@ -143,28 +141,23 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Login", href: "/team-login", show: !showTeamView && !isTeamAuthenticated && scopes === undefined },
   ].filter((item) => item.show);
 
-  // Management destinations — collapsed into a dropdown to declutter.
+  // Admin sees /admin (everything consolidated); staff sees evaluation + members
   const management: NavLink[] = [
-    { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
-    { name: "Membros", href: "/team-members", show: !showTeamView && (isAdminOrManager || isStaff) },
     { name: "Admin", href: "/admin", show: !showTeamView && isAdminOrManager },
-    { name: "Atribuições", href: "/assignment", show: !showTeamView && isAdminOrManager },
-    { name: "Versus", href: "/versus", show: !showTeamView && isAdminOrManager },
-    { name: "Configurações", href: "/settings", show: !showTeamView && isAdminOrManager },
+    { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
+    { name: "Membros", href: "/team-members", show: !showTeamView && isStaff && !isAdminOrManager },
   ].filter((item) => item.show);
 
   const renderLink = (item: NavLink) => {
     const isActive = location.pathname === item.href;
     return (
       <li key={`${item.name}-${item.href}`}>
-        <Link to={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-          <Button
-            variant={isActive ? "default" : "ghost"}
-            size="sm"
-            className="w-full justify-start sm:w-auto sm:justify-center"
-          >
-            {item.name}
-          </Button>
+        <Link
+          to={item.href}
+          onClick={() => setIsMobileMenuOpen(false)}
+          className={linkClass(isActive)}
+        >
+          {item.name}
         </Link>
       </li>
     );
@@ -176,9 +169,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
         <button
           onClick={toggleViewMode}
           title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
-          className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
+          className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
         >
-          {viewMode === "staff" ? <ShieldCheck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+          {viewMode === "staff" ? <ShieldCheck className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
           <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
         </button>
       </li>
@@ -186,7 +179,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
 
   return (
     <div className="relative">
-      {/* Desktop Navigation */}
+      {/* Desktop */}
       <ul {...props} className={cn("hidden items-center gap-1 sm:flex", className)}>
         {primary.map(renderLink)}
         {management.length > 0 && (
@@ -197,8 +190,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
         <ViewToggle />
       </ul>
 
-      {/* Mobile overflow menu — primary actions live in MobileBottomNav;
-          this carries the longer staff/admin list. */}
+      {/* Mobile overflow */}
       <div className="sm:hidden" ref={mobileMenuRef}>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -209,9 +201,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
         </button>
 
         {isMobileMenuOpen && (
-          <div className="rally-elevate absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-popover">
+          <div className="rally-elevate absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-border bg-popover">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="text-sm font-semibold text-popover-foreground">Menu</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">Menu</span>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
                 aria-label="Fechar menu"
@@ -220,11 +212,11 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <ul className="space-y-1 p-2">
+            <ul className="space-y-0.5 p-2">
               {primary.map(renderLink)}
               {management.length > 0 && (
                 <>
-                  <li className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <li className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                     Gestão
                   </li>
                   {management.map(renderLink)}

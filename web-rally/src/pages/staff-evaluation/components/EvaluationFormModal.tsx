@@ -41,7 +41,7 @@ export default function EvaluationFormModal({
     >
       <Card variant="elevated" padding="lg" rounded="lg" className="shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-foreground">Avaliar: {activity.name}</h2>
+          <h2 className="rally-display text-2xl font-bold text-foreground">Avaliar: {activity.name}</h2>
           <button 
             onClick={onCancel}
             className="text-muted-foreground hover:text-foreground text-2xl transition-colors"

@@ -8,7 +8,11 @@ import { LoadingState, FeatureDisabledAlert, PageHeader } from "@/components/sha
 import { VersusPairForm, VersusGroupList } from "./components";
 import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
-export default function Versus() {
+interface VersusProps {
+  readonly embedded?: boolean;
+}
+
+export default function Versus({ embedded = false }: VersusProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const { settings } = useRallySettings();
   const fallbackPath = useFallbackNavigation();
@@ -35,7 +39,7 @@ export default function Versus() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin) {
+  if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }
 
@@ -50,12 +54,14 @@ export default function Versus() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        eyebrow="Confrontos diretos"
-        icon={Swords}
-        title="Modo Versus"
-        description="Gerir pares de equipas para competições diretas."
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Confrontos diretos"
+          icon={Swords}
+          title="Modo Versus"
+          description="Gerir pares de equipas para competições diretas."
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
         <div className="lg:sticky lg:top-24">

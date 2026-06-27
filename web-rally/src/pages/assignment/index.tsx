@@ -16,7 +16,11 @@ interface StaffAssignment {
   checkpoint_name?: string;
 }
 
-export default function Assignment() {
+interface AssignmentProps {
+  readonly embedded?: boolean;
+}
+
+export default function Assignment({ embedded = false }: AssignmentProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
 
@@ -62,7 +66,7 @@ export default function Assignment() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin) {
+  if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }
 
@@ -78,12 +82,14 @@ export default function Assignment() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        eyebrow="Staff"
-        icon={ClipboardList}
-        title="Atribuição de postos"
-        description="Atribuir utilizadores com o papel rally-staff aos postos do rally."
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Staff"
+          icon={ClipboardList}
+          title="Atribuição de postos"
+          description="Atribuir utilizadores com o papel rally-staff aos postos do rally."
+        />
+      )}
 
       <AssignmentForm
         assignmentsError={assignmentsError}

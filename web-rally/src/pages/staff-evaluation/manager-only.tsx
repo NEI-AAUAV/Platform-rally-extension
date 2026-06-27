@@ -22,7 +22,11 @@ import {
 } from "@/client";
 import { useThemedComponents } from "@/components/themes";
 
-export default function ManagerEvaluationPage() {
+interface ManagerEvaluationPageProps {
+  readonly embedded?: boolean;
+}
+
+export default function ManagerEvaluationPage({ embedded = false }: ManagerEvaluationPageProps) {
   const userStore = useUserStore();
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
@@ -114,12 +118,14 @@ type EvaluationResponse = ActivityResultResponse & {
     <div className="space-y-4 sm:space-y-6">
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <PageHeader
-          eyebrow="Avaliação"
-          icon={Activity}
-          title="Painel de avaliação"
-          description="Visão geral e gestão de todas as avaliações."
-        />
+        {!embedded && (
+          <PageHeader
+            eyebrow="Avaliação"
+            icon={Activity}
+            title="Painel de avaliação"
+            description="Visão geral e gestão de todas as avaliações."
+          />
+        )}
 
         {/* All Evaluations Section */}
         <div className="relative">

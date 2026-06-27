@@ -74,7 +74,11 @@ const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => 
 
 import { getErrorMessage } from "@/utils/errorHandling";
 
-export default function RallySettings() {
+interface RallySettingsProps {
+  readonly embedded?: boolean;
+}
+
+export default function RallySettings({ embedded = false }: RallySettingsProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
   const fallbackPath = useFallbackNavigation();
@@ -237,7 +241,7 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin) {
+  if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }
 
@@ -270,12 +274,14 @@ export default function RallySettings() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeader
-          eyebrow="Gestão"
-          icon={Settings}
-          title="Configurações"
-          description="Gerir configurações globais do rally."
-        />
+        {!embedded && (
+          <PageHeader
+            eyebrow="Gestão"
+            icon={Settings}
+            title="Configurações"
+            description="Gerir configurações globais do rally."
+          />
+        )}
         {!isEditing && (
           <Button
             type="button"
