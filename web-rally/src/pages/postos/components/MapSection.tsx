@@ -91,7 +91,7 @@ export default function MapSection({
     : null;
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-border bg-card">
+    <div className="isolate overflow-hidden rounded-[20px] border border-border bg-card">
       <div className="relative h-[340px] bg-muted/40">
         {useRealMap ? (
           <Suspense

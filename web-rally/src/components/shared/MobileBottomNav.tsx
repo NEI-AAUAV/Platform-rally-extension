@@ -62,10 +62,6 @@ export function MobileBottomNav() {
       ].filter((i) => i.show);
 
   const showQrFab = showTeamNav && !!accessCode;
-  // With the FAB, split the tabs into two halves around the center notch.
-  const mid = Math.ceil(items.length / 2);
-  const left = showQrFab ? items.slice(0, mid) : items;
-  const right = showQrFab ? items.slice(mid) : [];
 
   const renderTab = (item: NavItem) => {
     const isActive = location.pathname === item.href;
@@ -87,29 +83,23 @@ export function MobileBottomNav() {
 
   return (
     <>
+      {showQrFab && (
+        <button
+          type="button"
+          onClick={() => setQrOpen(true)}
+          aria-label="Mostrar o meu QR de equipa"
+          className="rally-bg-accent fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-1/2 z-50 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full text-white shadow-[0_10px_26px_-8px_var(--rally-accent,#008542)] sm:hidden"
+        >
+          <QrCode className="h-6 w-6" />
+        </button>
+      )}
+
       <nav
         aria-label="Navegação rápida"
-        className="rally-elevate fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur sm:hidden"
+        className="rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur sm:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <ul className="relative mx-auto flex max-w-md items-stretch">
-          {left.map(renderTab)}
-
-          {showQrFab && (
-            <li className="flex w-16 shrink-0 items-start justify-center">
-              <button
-                type="button"
-                onClick={() => setQrOpen(true)}
-                aria-label="Mostrar o meu QR de equipa"
-                className="rally-bg-accent -mt-6 grid h-14 w-14 place-items-center rounded-full text-white shadow-[0_10px_26px_-8px_var(--rally-accent,#008542)] ring-4 ring-background"
-              >
-                <QrCode className="h-6 w-6" />
-              </button>
-            </li>
-          )}
-
-          {right.map(renderTab)}
-        </ul>
+        <ul className="mx-auto flex max-w-md items-stretch">{items.map(renderTab)}</ul>
       </nav>
 
       {qrOpen && accessCode && (
