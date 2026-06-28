@@ -53,6 +53,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
       EVENTS_FAIL_SILENTLY: ${EVENTS_FAIL_SILENTLY:-true}
+      # Move the score recompute off the request path (handled by the scoring
+      # worker). Off by default; only effective alongside EVENTS_ENABLED.
+      RECOMPUTE_OFF_PATH: ${RECOMPUTE_OFF_PATH:-false}
       # OIDC resource-server validation (authentik).
       OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}

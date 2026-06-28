@@ -14,7 +14,7 @@ from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.redis import check_redis_health, close_pools
-from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker
+from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker, ScoringWorker
 
 # Background workers, started in the lifespan when EVENTS_ENABLED is set.
 _workers: list[BaseWorker] = []
@@ -31,7 +31,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await init_db()
 
     if settings.EVENTS_ENABLED:
-        for worker_cls in (LeaderboardWorker, BadgesWorker):
+        worker_classes: list[type[BaseWorker]] = [LeaderboardWorker, BadgesWorker]
+        # The scoring worker only earns its keep when recompute is deferred off
+        # the request path; otherwise routes already recompute inline and it
+        # would just duplicate the work.
+        if settings.RECOMPUTE_OFF_PATH:
+            worker_classes.append(ScoringWorker)
+        for worker_cls in worker_classes:
             worker = worker_cls()
             worker.start(background=True)
             _workers.append(worker)

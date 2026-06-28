@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
+from app.core.config import settings
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 from app.models.rally_settings import RallySettings
@@ -36,6 +37,16 @@ class ScoringService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self._settings: RallySettings | None = None
+
+    @property
+    def _defer_recompute(self) -> bool:
+        """Whether the heavy recompute is handled by the scoring worker.
+
+        Only defers when both the kill-switch is on AND the realtime subsystem
+        is enabled — without a running worker, deferring would leave team
+        totals permanently stale.
+        """
+        return settings.RECOMPUTE_OFF_PATH and settings.EVENTS_ENABLED
 
     async def _team_size(self, team_id: int) -> int:
         """Number of members on a team (min 1 for scoring) """
@@ -374,10 +385,12 @@ class ScoringService:
         await activity_result_crud.persist(self.db, db_obj, commit=commit)
 
         # Adding a time-based result shifts the ranking, so rescore the rest.
-        if recalc and is_time_based:
+        # When recompute is deferred, the scoring worker does this off-path;
+        # the row keeps its own freshly-computed final_score in the meantime.
+        if recalc and is_time_based and not self._defer_recompute:
             await self._recalculate_all_results_for_activity(activity.id, exclude_result_id=db_obj.id)
 
-        if update_team_scores:
+        if update_team_scores and not self._defer_recompute:
             await self.update_team_scores(obj_in.team_id)
 
         # Granular event only when this call owns the commit. Batched callers
@@ -403,13 +416,20 @@ class ScoringService:
                 # queries read it, so a stale time_score would skew the distribution.
                 self._set_activity_specific_scores(db_obj, activity, db_obj.result_data)
 
+            # Always rescore this row so it is never left stale; the activity-wide
+            # rescore (rank shifts) is deferred to the worker when off-path.
             await self._recalculate_result_score(db_obj)
 
-            if activity and activity.activity_type == ActivityType.TIME_BASED.value:
+            if (
+                activity
+                and activity.activity_type == ActivityType.TIME_BASED.value
+                and not self._defer_recompute
+            ):
                 await self._recalculate_all_results_for_activity(activity.id)
 
         await activity_result_crud.persist(self.db, db_obj)
-        await self.update_team_scores(db_obj.team_id)
+        if not self._defer_recompute:
+            await self.update_team_scores(db_obj.team_id)
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=db_obj.id,
@@ -428,7 +448,8 @@ class ScoringService:
         team_id = db_obj.team_id
         activity_id = db_obj.activity_id
         await activity_result_crud.delete(self.db, db_obj=db_obj)
-        await self.update_team_scores(team_id)
+        if not self._defer_recompute:
+            await self.update_team_scores(team_id)
         await self._publish_result_change(
             ActivityResultDeletedEvent,
             result_id=result_id,

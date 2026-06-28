@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     EVENTS_FAIL_SILENTLY: bool = (
         os.getenv("EVENTS_FAIL_SILENTLY", "true").lower() == "true"
     )
+    # When on, the expensive score recompute (activity-wide rescore +
+    # per-team totals) is moved OFF the request path: write routes persist the
+    # raw result and publish an activity_result.* event, and the scoring worker
+    # recomputes in the background. Trades immediate staff-side consistency for
+    # a faster write path, so it stays OFF by default and only takes effect
+    # when EVENTS_ENABLED is also set (otherwise no worker would ever catch up).
+    RECOMPUTE_OFF_PATH: bool = (
+        os.getenv("RECOMPUTE_OFF_PATH", "false").lower() == "true"
+    )
 
     # Team QR self-check-in. A checkpoint shows a short-lived HMAC-signed QR;
     # a team scans it to check itself into that checkpoint (replacing staff
