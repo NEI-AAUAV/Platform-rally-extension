@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
+import useTeamNotifications from "@/hooks/useTeamNotifications";
 import StatusScreen from "./StatusScreen";
 import TeamHeaderCard from "./TeamHeaderCard";
 import TeamMembersCard from "./TeamMembersCard";
@@ -24,6 +25,8 @@ export default function TeamProgress() {
     showRanking,
     totalCount,
   } = useTeamProgress();
+
+  useTeamNotifications(team);
 
   if (isLoading) {
     return <StatusScreen variant="loading" title="A carregar progresso..." />;
