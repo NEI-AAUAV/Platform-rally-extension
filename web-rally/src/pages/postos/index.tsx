@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckPointService, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
+import useEventTerms from "@/hooks/useEventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { LoadingState } from "@/components/shared";
 import { MapPin } from "lucide-react";
@@ -22,6 +23,9 @@ import { useUserStore } from "@/stores/useUserStore";
 export default function Postos() {
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
+  const terms = useEventTerms();
+  const checkpointsLabel =
+    terms.checkpoints.charAt(0).toUpperCase() + terms.checkpoints.slice(1);
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const { scopes } = useUserStore((state) => state);
 
@@ -67,10 +71,10 @@ export default function Postos() {
           <MapPin className="h-3.5 w-3.5" /> O percurso
         </p>
         <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
-          Postos
+          {checkpointsLabel}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Consulta a lista de postos e localiza-os no mapa.
+          Consulta a lista de {terms.checkpoints} e encontra no mapa.
         </p>
       </header>
 

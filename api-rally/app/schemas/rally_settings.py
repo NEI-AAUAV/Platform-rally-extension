@@ -49,6 +49,11 @@ class RallySettingsUpdate(RallySettingsBase):
 class RallySettingsResponse(RallySettingsBase):
     model_config = ConfigDict(from_attributes=True)
 
+    # Kind of the current event ('rally_tascas' | 'peddy_paper' | 'generic').
+    # Read-only: it lives on the event, not the settings row, and drives
+    # terminology/mechanics on the client. Resolved by the route layer.
+    event_type: str = "rally_tascas"
+
     # Image URLs are read-only here: set via the R2 upload endpoints so a
     # plain settings PUT can never clobber them with a stale value.
     banner_url: str = ""

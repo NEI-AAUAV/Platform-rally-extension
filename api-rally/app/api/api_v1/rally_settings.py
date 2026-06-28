@@ -12,9 +12,23 @@ from app.api.deps import get_db, get_participant
 from app.api.abac_deps import validate_settings_update_access, validate_settings_view_access
 
 from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_activity import rally_event
 from app.services.storage import storage_client
 
 router = APIRouter()
+
+
+async def _settings_response(
+    db: AsyncSession, settings_row: object
+) -> RallySettingsResponse:
+    """Build the settings response, resolving the current event's type.
+
+    ``event_type`` lives on the event, not the per-event settings row, so we
+    fold it in here. Returns a new (immutable) response object.
+    """
+    event = await rally_event.ensure_current(db)
+    response = RallySettingsResponse.model_validate(settings_row)
+    return response.model_copy(update={"event_type": event.event_type})
 
 # Branding image upload limits
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
@@ -88,7 +102,7 @@ async def _upload_branding_image(
         raise HTTPException(status_code=503, detail="Failed to upload image to storage.")
 
     updated = await rally_settings.set_image_url(db, field=field, url=url)
-    return RallySettingsResponse.model_validate(updated)
+    return await _settings_response(db, updated)
 
 @router.put("/rally/settings", status_code=200, response_model=RallySettingsResponse)
 async def update_rally_settings(
@@ -113,7 +127,7 @@ async def update_rally_settings(
     # Resolve the current event's settings row (per-event, no more id=1 singleton).
     current = await rally_settings.get_or_create(db)
     updated = await rally_settings.update(db, id=current.id, obj_in=settings_in)
-    return RallySettingsResponse.model_validate(updated)
+    return await _settings_response(db, updated)
 
 
 @router.get("/rally/settings", status_code=200, response_model=RallySettingsResponse)
@@ -125,7 +139,7 @@ async def view_rally_settings(
     """View rally settings"""
     validate_settings_view_access(curr_user, auth)
     settings = await rally_settings.get_or_create(db)
-    return RallySettingsResponse.model_validate(settings)
+    return await _settings_response(db, settings)
 
 
 @router.get("/rally/settings/public", status_code=200, response_model=RallySettingsResponse)
@@ -134,7 +148,7 @@ async def view_rally_settings_public(
 ) -> RallySettingsResponse:
     """View rally settings (public access - no authentication required)"""
     settings = await rally_settings.get_or_create(db)
-    return RallySettingsResponse.model_validate(settings)
+    return await _settings_response(db, settings)
 
 
 @router.put(

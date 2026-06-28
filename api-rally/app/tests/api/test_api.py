@@ -60,15 +60,23 @@ class TestRallySettingsAPI:
     
     def test_get_rally_settings_public(self, client_with_mocked_db, mock_db, mock_rally_settings):
         """Test getting public rally settings"""
-        with patch('app.crud.crud_rally_settings.rally_settings.get_or_create') as mock_get:
+        from unittest.mock import AsyncMock
+
+        current_event = Mock()
+        current_event.event_type = "peddy_paper"
+        with patch('app.crud.crud_rally_settings.rally_settings.get_or_create') as mock_get, \
+             patch('app.crud.crud_activity.rally_event.ensure_current',
+                   new=AsyncMock(return_value=current_event)):
             mock_get.return_value = mock_rally_settings
-            
+
             response = client_with_mocked_db.get("/api/rally/v1/rally/settings/public")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["public_access_enabled"] is True
             assert data["max_members_per_team"] == 4
+            # event_type is folded in from the current event, not the settings row.
+            assert data["event_type"] == "peddy_paper"
     
     @pytest.mark.skip(reason="API endpoint validation issue with None response")
     def test_rally_settings_not_found(self, client_with_mocked_db, mock_db):
