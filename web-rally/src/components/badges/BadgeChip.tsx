@@ -8,32 +8,32 @@ interface BadgeChipProps {
   className?: string;
 }
 
-/**
- * A single earned badge, rendered in the NEI neo-brutalist language: bold accent
- * border, hard offset shadow, uppercase label.
- */
 export function BadgeChip({ badgeType, awardedAt, className }: BadgeChipProps) {
-  const { label, description, Icon } = getBadgeDisplay(badgeType);
+  const { label, description, color, glyph } = getBadgeDisplay(badgeType);
   const title = awardedAt
     ? `${description}\nAtribuído em ${new Date(awardedAt).toLocaleDateString("pt-PT")}`
     : description;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 8 }}
+      initial={{ opacity: 0, scale: 0.85, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 22 }}
       whileHover={{ y: -2 }}
       title={title}
       className={cn(
-        "rally-brutal-sm rally-accent flex w-24 flex-col items-center gap-2 bg-muted px-3 py-3 text-center",
+        "flex items-center gap-2.5 rounded-[12px] border border-border bg-card px-3 py-2.5",
         className,
       )}
     >
-      <Icon className="h-6 w-6" strokeWidth={2.25} />
-      <span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-foreground">
-        {label}
+      <span
+        className="grid shrink-0 place-items-center rounded-[10px] text-[16px] text-white"
+        style={{ height: 36, width: 36, background: color }}
+        aria-hidden
+      >
+        {glyph}
       </span>
+      <span className="text-[12px] font-bold leading-tight text-foreground">{label}</span>
     </motion.div>
   );
 }

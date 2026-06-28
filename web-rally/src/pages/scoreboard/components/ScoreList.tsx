@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown } from "lucide-react";
 import type { ListingTeam } from "@/client";
 
 function initialsOf(name: string): string {
@@ -71,7 +70,7 @@ export function Podium({
               ].join(" ")}
             >
               {champion ? (
-                <Crown className="rally-accent h-7 w-7 sm:h-8 sm:w-8" />
+                <span className="rally-display rally-accent text-[28px] font-bold sm:text-[34px]">★</span>
               ) : (
                 <span className="rally-display text-base font-bold text-foreground sm:text-lg">
                   {initialsOf(team.name)}

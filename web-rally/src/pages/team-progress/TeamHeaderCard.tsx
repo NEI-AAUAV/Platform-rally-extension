@@ -1,32 +1,72 @@
-import { Trophy } from "lucide-react";
 import type { DetailedTeam } from "@/client";
 
 type TeamHeaderCardProps = Readonly<{
   team: DetailedTeam;
   showScore: boolean;
   showRanking: boolean;
+  completedCount: number;
+  totalCount: number;
 }>;
 
-export default function TeamHeaderCard({ team, showScore, showRanking }: TeamHeaderCardProps) {
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export default function TeamHeaderCard({
+  team,
+  showScore,
+  showRanking,
+  completedCount,
+  totalCount,
+}: TeamHeaderCardProps) {
+  const initials = initialsOf(team.name);
+
   return (
-    <div className="rally-surface rally-elevate-lg rounded-2xl p-8 text-center">
-      <h1 className="rally-display text-4xl font-bold tracking-tight text-foreground mb-2">
-        {team.name}
-      </h1>
-      {showScore && (
-        <div className="mt-4 inline-block rounded-xl bg-muted px-6 py-4">
-          <div className="flex items-center justify-center gap-2 text-3xl font-bold rally-accent">
-            <Trophy className="w-8 h-8" />
-            {team.total}
-            <span className="text-lg font-normal text-muted-foreground self-end mb-1">pontos</span>
+    <div className="relative overflow-hidden rounded-2xl rally-bg-accent p-6 text-white">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:28px_28px]"
+      />
+      <div className="relative z-10">
+        <div className="flex items-center gap-4">
+          <span className="rally-display grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-xl font-bold">
+            {initials}
+          </span>
+          <div className="min-w-0">
+            <p className="rally-display truncate text-xl font-bold leading-tight">{team.name}</p>
+            {team.access_code && (
+              <p className="mt-0.5 text-sm opacity-80">Código: {team.access_code}</p>
+            )}
           </div>
+        </div>
+        <div className="mt-5 flex gap-6">
           {showRanking && (
-            <div className="mt-2 inline-block rounded-full rally-bg-accent-soft rally-accent px-3 py-1 text-sm font-medium">
-              {team.classification}º lugar
+            <div>
+              <p className="rally-display text-3xl font-bold tabular-nums">
+                #{team.classification}
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Posição</p>
             </div>
           )}
+          {showScore && (
+            <div>
+              <p className="rally-display text-3xl font-bold tabular-nums">{team.total}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Pontos</p>
+            </div>
+          )}
+          <div>
+            <p className="rally-display text-3xl font-bold tabular-nums">
+              {completedCount}/{totalCount}
+            </p>
+            <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Postos</p>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

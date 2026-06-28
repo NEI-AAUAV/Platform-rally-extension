@@ -11,20 +11,25 @@ export default function ProgressSummaryCard({
   totalScore,
   showScore,
 }: ProgressSummaryCardProps) {
-  const pct = (completedCount / (totalCount || 1)) * 100;
+  const pct = Math.round((completedCount / (totalCount || 1)) * 100);
 
   return (
-    <div className="rally-surface rounded-xl border border-border p-4">
-      <div className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-        <span>Progresso: {completedCount} de {totalCount} postos</span>
-        {showScore && <span>Total: {totalScore} pontos</span>}
+    <div className="rally-surface rounded-xl border border-border p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-bold text-foreground">Progresso do percurso</span>
+        <span className="rally-display rally-accent text-sm font-bold">{pct}%</span>
       </div>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div className="h-3 w-full overflow-hidden rounded-full bg-secondary">
         <div
-          className="rally-bg-accent h-full transition-[width] duration-1000 ease-out"
+          className="rally-bg-accent h-full rounded-full transition-[width] duration-1000 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
+      {showScore && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {completedCount} de {totalCount} postos · {totalScore} pontos
+        </p>
+      )}
     </div>
   );
 }

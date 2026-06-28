@@ -1,6 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, ArrowLeft, MapPin } from "lucide-react";
+import { Users, ArrowLeft, MapPin, Loader2 } from "lucide-react";
 import { useParams } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import type { ListingTeam } from "@/client";
@@ -32,26 +31,18 @@ export default function CheckpointTeamEvaluation() {
 
   if (!checkpoint) {
     return (
-      <div className="p-2 sm:p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">Checkpoint Not Found</h2>
-                <p className="text-muted-foreground">
-                  The requested checkpoint could not be found.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+        <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+        <h2 className="rally-display text-xl font-bold text-foreground">Posto não encontrado</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          O posto solicitado não foi encontrado.
+        </p>
       </div>
     );
   }
 
   const showScore = settings?.show_score_mode !== "hidden";
 
-  // Bucket teams by their progress relative to this checkpoint.
   const order = Number(checkpoint.order ?? 0) || 0;
   const lastOf = (team: ListingTeam) => Number(team.last_checkpoint_number ?? 0) || 0;
   const teams = checkpointTeams ?? [];
@@ -65,107 +56,111 @@ export default function CheckpointTeamEvaluation() {
   const teamsAlreadyEvaluated = teams.filter((team) => lastOf(team) >= order);
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-        {/* Team self-check-in QR (renders only when self check-in is enabled) */}
-        <CheckinQrPanel />
-
-        {/* Header */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-6 h-6" />
-              {checkpoint.name} - Team Evaluation
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              All teams - click on a team to evaluate their activities
+    <div className="space-y-6">
+      {/* Checkpoint banner */}
+      <div className="relative overflow-hidden rounded-2xl rally-bg-accent p-5 text-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:24px_24px]"
+        />
+        <div className="relative z-10 flex items-center gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20">
+            <MapPin className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-80">
+              Posto #{checkpoint.order}
             </p>
-          </CardHeader>
-        </Card>
+            <p className="rally-display truncate text-xl font-bold leading-tight">
+              {checkpoint.name}
+            </p>
+          </div>
+          <div className="ml-auto shrink-0 text-right">
+            <p className="rally-display text-3xl font-bold tabular-nums">
+              {teamsAlreadyEvaluated.length}/{teams.length}
+            </p>
+            <p className="text-xs opacity-80">Avaliadas</p>
+          </div>
+        </div>
+      </div>
 
-        {/* Team Activities View */}
-        {selectedTeam && !showTeamList && (
-          <div className="space-y-4">
-            <Button onClick={backToTeams} variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Teams
-            </Button>
+      {/* Team self-check-in QR */}
+      <CheckinQrPanel />
 
-            {teamActivitiesLoading ? (
-              <Card>
-                <CardContent className="p-4 sm:p-6">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p>Loading team activities...</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <TeamActivitiesList
-                team={selectedTeam}
-                activities={teamActivities || []}
-                onEvaluate={handleEvaluateActivity}
-                isEvaluating={isEvaluating}
-              />
+      {/* Team activities detail */}
+      {selectedTeam && !showTeamList && (
+        <div className="space-y-4">
+          <Button onClick={backToTeams} variant="outline" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar às equipas
+          </Button>
+
+          {teamActivitiesLoading ? (
+            <div className="rally-surface rally-elevate flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
+              <Loader2 className="h-8 w-8 animate-spin rally-accent" />
+              <p className="text-sm text-muted-foreground">A carregar atividades...</p>
+            </div>
+          ) : (
+            <TeamActivitiesList
+              team={selectedTeam}
+              activities={teamActivities || []}
+              onEvaluate={handleEvaluateActivity}
+              isEvaluating={isEvaluating}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Teams list */}
+      {showTeamList && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="rally-display text-xl font-bold text-foreground">
+              Equipas para avaliar
+            </h2>
+            {checkpointTeams && checkpointTeams.length > 0 && (
+              <span className="rally-bg-accent-soft rally-accent rounded-full px-3 py-1 text-sm font-bold">
+                {checkpointTeams.length}
+              </span>
             )}
           </div>
-        )}
 
-        {/* Teams List */}
-        {showTeamList && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Teams Available for Evaluation
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Teams at your checkpoint ({checkpoint.name}) and previous checkpoints
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <TeamSection
-                  title={`Teams to be evaluated at ${checkpoint.name}:`}
-                  accent="green"
-                  variant="current"
-                  teams={teamsToEvaluate}
-                  showScore={showScore}
-                  onSelect={selectTeam}
-                />
-                <TeamSection
-                  title="Teams at previous checkpoints:"
-                  accent="yellow"
-                  variant="previous"
-                  teams={teamsAtPreviousCheckpoints}
-                  showScore={showScore}
-                  onSelect={selectTeam}
-                />
-                <TeamSection
-                  title="Teams already evaluated:"
-                  accent="gray"
-                  variant="evaluated"
-                  teams={teamsAlreadyEvaluated}
-                  showScore={showScore}
-                  onSelect={selectTeam}
-                />
+          {checkpointTeams?.length === 0 ? (
+            <div className="rally-surface flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
+              <Users className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Nenhuma equipa disponível</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <TeamSection
+                title={`Em ${checkpoint.name}`}
+                variant="current"
+                teams={teamsToEvaluate}
+                showScore={showScore}
+                onSelect={selectTeam}
+              />
+              <TeamSection
+                title="Postos anteriores"
+                variant="previous"
+                teams={teamsAtPreviousCheckpoints}
+                showScore={showScore}
+                onSelect={selectTeam}
+              />
+              <TeamSection
+                title="Já avaliadas"
+                variant="evaluated"
+                teams={teamsAlreadyEvaluated}
+                showScore={showScore}
+                onSelect={selectTeam}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
-                {checkpointTeams?.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No teams available for evaluation</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Warning Dialog for Incomplete Evaluations */}
-        {showWarningDialog && (
-          <IncompleteEvaluationDialog summary={evaluationSummary} onClose={dismissWarning} />
-        )}
-      </div>
+      {showWarningDialog && (
+        <IncompleteEvaluationDialog summary={evaluationSummary} onClose={dismissWarning} />
+      )}
     </div>
   );
 }

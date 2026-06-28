@@ -92,13 +92,13 @@ export default function TeamLogin() {
 
     return (
         <div className="flex min-h-[70vh] items-center justify-center">
-            <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-                <div className="rally-surface rally-elevate rounded-2xl p-6 rally-shadow-accent">
+            <div className="w-full max-w-[440px] animate-in fade-in zoom-in-95 duration-500">
+                <div className="rally-surface rally-elevate rounded-[22px] p-[30px]">
                     <div className="text-center space-y-6">
                         {/* Header Section */}
                         <div className="flex flex-col items-center space-y-4">
-                            <div className="rally-bg-accent flex h-16 w-16 items-center justify-center rounded-full shadow-lg">
-                                    <LogIn className="w-8 h-8 text-white" />
+                            <div className="rally-bg-accent flex h-[68px] w-[68px] items-center justify-center rounded-[20px] shadow-[0_16px_36px_-16px_var(--rally-accent,#008542)]">
+                                    <LogIn className="w-[30px] h-[30px] text-white" />
                             </div>
 
                             <div className="space-y-1">
@@ -129,7 +129,7 @@ export default function TeamLogin() {
                                     placeholder="XXXX-XXXX"
                                     value={accessCode}
                                     onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                                    className="h-14 text-center font-mono text-2xl tracking-[0.2em] focus-visible:ring-2 focus-visible:ring-[var(--rally-accent,#008542)]"
+                                    className="h-20 rounded-2xl border-2 border-[var(--rally-accent,#008542)] bg-secondary text-center font-mono text-4xl font-bold tracking-[0.24em] focus-visible:ring-2 focus-visible:ring-[var(--rally-accent,#008542)] focus-visible:ring-offset-0"
                                     maxLength={9}
                                     autoComplete="off"
                                     autoFocus

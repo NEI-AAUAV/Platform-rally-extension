@@ -23,34 +23,29 @@ export default function CheckpointList({
   checkpoints,
   selectedCheckpoint,
   onSelectCheckpoint,
-  showMap = true
+  showMap = true,
 }: CheckpointListProps) {
-  return (
-    <div className="rally-surface rally-elevate p-5">
-      <h3 className="rally-display mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
-        <MapPin className="rally-accent h-5 w-5" />
-        Lista de postos ({checkpoints.length})
-      </h3>
+  if (checkpoints.length === 0) {
+    return (
+      <EmptyState
+        icon={<MapPin className="h-8 w-8 text-muted-foreground" />}
+        title="Nenhum posto disponível"
+        description="Os postos ainda não foram configurados"
+      />
+    );
+  }
 
-      {checkpoints.length === 0 ? (
-        <EmptyState
-          icon={<MapPin className="w-8 h-8 text-muted-foreground" />}
-          title="Nenhum posto disponível"
-          description="Os postos ainda não foram configurados"
+  return (
+    <div className="space-y-3">
+      {checkpoints.map((checkpoint) => (
+        <CheckpointCard
+          key={checkpoint.id}
+          checkpoint={checkpoint}
+          isSelected={selectedCheckpoint?.id === checkpoint.id}
+          onSelect={onSelectCheckpoint}
+          showMap={showMap}
         />
-      ) : (
-        <div className="space-y-3">
-          {checkpoints.map((checkpoint) => (
-            <CheckpointCard
-              key={checkpoint.id}
-              checkpoint={checkpoint}
-              isSelected={selectedCheckpoint?.id === checkpoint.id}
-              onSelect={onSelectCheckpoint}
-              showMap={showMap}
-            />
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 }

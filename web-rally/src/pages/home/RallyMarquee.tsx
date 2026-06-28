@@ -1,33 +1,33 @@
 const ITEMS = [
-  "POSTOS",
+  "RALLY TASCAS 2026",
+  "NEI",
   "EQUIPAS",
-  "DESAFIOS",
-  "CHECK-IN",
-  "VERSUS",
-  "BADGES",
+  "POSTOS",
+  "CHECK-IN COM QR",
   "PONTUAÇÃO AO VIVO",
-  "CLASSIFICAÇÃO",
 ];
 
 /**
- * Full-bleed accent ticker that scrolls the event's key concepts. CSS-driven
- * (`rally-marquee-track`), edge-masked, and paused under reduced-motion.
+ * Contained accent ticker strip with rounded corners.
+ * CSS-driven, edge-masked, paused under reduced-motion.
  */
 export function RallyMarquee() {
   const doubled = [...ITEMS, ...ITEMS];
 
   return (
-    <div className="rally-bg-accent rally-marquee w-screen max-w-full -translate-x-1/2 overflow-hidden border-y border-white/10 py-3 sm:py-3.5 [margin-left:50%]">
-      <div className="rally-marquee-track flex whitespace-nowrap">
-        {doubled.map((item, i) => (
-          <span
-            key={`${item}-${i}`}
-            className="rally-display mx-5 text-sm font-bold uppercase tracking-[0.28em] text-white/90 sm:mx-7 sm:text-base"
-          >
-            {item}
-            <span className="mx-4 text-white/40">/</span>
-          </span>
-        ))}
+    <div className="overflow-hidden rounded-[16px] border border-border rally-bg-accent py-[11px]">
+      <div className="rally-marquee">
+        <div className="rally-marquee-track flex whitespace-nowrap">
+          {doubled.map((item, i) => (
+            <span
+              key={`${item}-${i}`}
+              className="rally-display mx-[22px] text-sm font-bold uppercase tracking-[0.04em] text-white"
+            >
+              {item}
+              <span className="mx-3 text-white/50">✦</span>
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

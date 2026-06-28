@@ -32,7 +32,7 @@ export default function Home() {
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
   return (
-    <div className="space-y-16 sm:space-y-20">
+    <div className="flex flex-col gap-[22px]">
       <HomeHero branding={branding} settings={settings} />
 
       <RallyMarquee />
@@ -41,14 +41,11 @@ export default function Home() {
         <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
       </Reveal>
 
-      {scoreVisible && (
-        <Reveal>
-          <LiveTop5 />
-        </Reveal>
-      )}
-
       <Reveal>
-        <HowItWorks />
+        <div className={scoreVisible ? "grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start" : ""}>
+          {scoreVisible && <LiveTop5 />}
+          <HowItWorks />
+        </div>
       </Reveal>
 
       <Reveal>

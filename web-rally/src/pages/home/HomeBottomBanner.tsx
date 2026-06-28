@@ -1,49 +1,28 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Users } from "lucide-react";
 
 /**
- * Closing call-to-action band. Accent-filled, soft-depth, with faint geometric
- * motifs — the rally analogue of the gamification bottom banner.
+ * Closing CTA band — accent-filled, centered, with faint grid texture.
  */
 export function HomeBottomBanner() {
   return (
-    <div className="rally-bg-accent rally-shadow-accent relative overflow-hidden rounded-2xl text-white">
-      {/* faint geometric motifs */}
-      <svg
+    <div className="relative overflow-hidden rounded-[22px] rally-bg-accent text-white text-center">
+      {/* grid texture */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 opacity-15 sm:h-56 sm:w-56"
-        viewBox="0 0 100 100"
-      >
-        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="3" />
-        <circle cx="50" cy="50" r="26" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="50" cy="50" r="9" fill="currentColor" />
-      </svg>
-      <svg
-        aria-hidden
-        className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 opacity-15 sm:h-44 sm:w-44"
-        viewBox="0 0 100 100"
-      >
-        <rect x="12" y="12" width="76" height="76" fill="none" stroke="currentColor" strokeWidth="3" />
-        <rect x="34" y="34" width="32" height="32" fill="currentColor" />
-      </svg>
-
-      <div className="relative flex flex-col items-center gap-5 p-7 text-center sm:p-10 md:flex-row md:justify-between md:text-left">
-        <div>
-          <h3 className="rally-display text-2xl font-bold sm:text-3xl">
-            Junta-te ao rally
-          </h3>
-          <p className="mt-2 max-w-md text-sm font-medium text-white/85 sm:text-base">
-            Entra com a tua equipa, percorre os postos e luta pelo topo da
-            classificação ao vivo.
-          </p>
-        </div>
+        className="pointer-events-none absolute inset-0 opacity-[0.14] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:34px_34px]"
+      />
+      <div className="relative z-10 px-6 py-12 sm:px-10 sm:py-[48px]">
+        <h2 className="rally-display font-bold text-[28px] sm:text-[40px] m-0 leading-tight tracking-[-0.02em]">
+          Pronto para a prova?
+        </h2>
+        <p className="mt-3 mb-[22px] mx-auto max-w-[42ch] opacity-90 text-[15px] leading-relaxed">
+          Junta-te à tua equipa e começa o percurso. O primeiro check-in está a um toque.
+        </p>
         <Link
           to="/team-login"
-          className="rally-press inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-foreground"
+          className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[14px] bg-white font-bold text-[15px] rally-accent hover:opacity-90 transition-opacity"
         >
-          <Users className="h-4 w-4" />
-          Entrar com a Equipa
-          <ArrowRight className="h-4 w-4" />
+          Entrar agora →
         </Link>
       </div>
     </div>

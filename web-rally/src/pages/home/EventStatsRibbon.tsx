@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Flag, MapPin, Trophy, Users } from "lucide-react";
 import {
   CheckPointService,
   TeamService,
@@ -52,30 +51,25 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
     : undefined;
 
   const cells = [
-    { Icon: Users, value: teamList.length, label: "Equipas" },
-    { Icon: Trophy, value: totalPoints, label: "Pontos em jogo" },
-    ...(postosCount !== undefined
-      ? [{ Icon: MapPin, value: postosCount, label: "Postos" }]
-      : []),
-    { Icon: Flag, value: PHASE_LABEL[phase] ?? "—", label: "Estado" },
+    { value: teamList.length, label: "Equipas" },
+    { value: totalPoints, label: "Pontos em jogo" },
+    ...(postosCount !== undefined ? [{ value: postosCount, label: "Postos" }] : []),
+    { value: PHASE_LABEL[phase] ?? "—", label: "Estado" },
   ];
 
   return (
-    <div className="rally-surface rally-elevate overflow-hidden">
-      <dl className="grid grid-cols-2 divide-x divide-y divide-border sm:flex sm:divide-y-0">
-        {cells.map(({ Icon, value, label }) => (
-          <div key={label} className="flex-1 p-4 text-center sm:p-5">
-            <Icon className="rally-accent mx-auto h-5 w-5" />
-            <dd className="rally-display mt-1.5 text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
-              {value}
-            </dd>
-            <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {label}
-            </dt>
-          </div>
-        ))}
-      </dl>
-    </div>
+    <dl className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+      {cells.map(({ value, label }) => (
+        <div key={label} className="p-5 rounded-[18px] bg-card border border-border">
+          <dd className="rally-display text-[34px] font-bold tabular-nums text-foreground leading-none">
+            {value}
+          </dd>
+          <dt className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            {label}
+          </dt>
+        </div>
+      ))}
+    </dl>
   );
 }
 

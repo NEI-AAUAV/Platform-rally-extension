@@ -1,42 +1,40 @@
 import type { ListingTeam } from "@/client";
 import { EvaluationTeamCard, type TeamCardVariant } from "./EvaluationTeamCard";
+import { cn } from "@/lib/utils";
 
-type Accent = "green" | "yellow" | "gray";
-
-// Full literal class names so Tailwind's JIT can detect them.
-const DIVIDER: Record<Accent, string> = {
-  green: "bg-green-500/30",
-  yellow: "bg-yellow-500/30",
-  gray: "bg-gray-500/30",
+const DIVIDER_CLASS: Record<TeamCardVariant, string> = {
+  current: "rally-bg-accent-soft",
+  previous: "bg-amber-500/20",
+  evaluated: "bg-border",
 };
 
-const LABEL: Record<Accent, string> = {
-  green: "text-green-600",
-  yellow: "text-yellow-600",
-  gray: "text-gray-600",
+const LABEL_CLASS: Record<TeamCardVariant, string> = {
+  current: "rally-accent",
+  previous: "text-amber-600 dark:text-amber-400",
+  evaluated: "text-muted-foreground",
 };
 
 interface TeamSectionProps {
   title: string;
-  accent: Accent;
   variant: TeamCardVariant;
   teams: ListingTeam[];
   showScore: boolean;
   onSelect: (team: ListingTeam) => void;
 }
 
-export function TeamSection({ title, accent, variant, teams, showScore, onSelect }: TeamSectionProps) {
+export function TeamSection({ title, variant, teams, showScore, onSelect }: TeamSectionProps) {
   if (teams.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className={`h-px flex-1 ${DIVIDER[accent]}`}></div>
-        <span className={`text-sm font-medium px-2 ${LABEL[accent]}`}>{title}</span>
-        <div className={`h-px flex-1 ${DIVIDER[accent]}`}></div>
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className={cn("h-px flex-1", DIVIDER_CLASS[variant])} />
+        <span className={cn("text-xs font-bold uppercase tracking-[0.1em]", LABEL_CLASS[variant])}>
+          {title}
+        </span>
+        <div className={cn("h-px flex-1", DIVIDER_CLASS[variant])} />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
         {teams.map((team) => (
           <EvaluationTeamCard
             key={team.id}

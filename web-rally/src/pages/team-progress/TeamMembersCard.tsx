@@ -1,27 +1,35 @@
-import { Users } from "lucide-react";
 import type { DetailedTeam } from "@/client";
 
 type TeamMembersCardProps = Readonly<{
   team: DetailedTeam;
 }>;
 
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   return (
-    <div className="rally-surface rounded-xl border border-border p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="rally-bg-accent-soft rally-accent rounded-lg p-2">
-          <Users className="h-5 w-5" />
-        </div>
-        <h2 className="text-lg font-semibold text-foreground">Membros da Equipa</h2>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="rally-surface rounded-xl border border-border p-5">
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        Membros
+      </p>
+      <div className="flex flex-wrap gap-2">
         {team.members?.map((member) => (
-          <div
+          <span
             key={member.id}
-            className="rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary py-1.5 pl-1.5 pr-4 text-sm font-semibold text-foreground"
           >
+            <span className="rally-bg-accent-soft rally-accent grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold">
+              {initialsOf(member.name)}
+            </span>
             {member.name}
-          </div>
+          </span>
         ))}
       </div>
     </div>

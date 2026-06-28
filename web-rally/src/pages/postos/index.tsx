@@ -87,20 +87,10 @@ export default function Postos() {
             checkpoints={sortedCheckpoints}
             selectedCheckpoint={selectedCheckpoint}
             showMap={settings?.show_checkpoint_map !== false}
+            onSelectCheckpoint={setSelectedCheckpoint}
           />
         </div>
       </div>
-
-      {/* No Coordinates Warning */}
-      {!sortedCheckpoints.some((cp: Checkpoint) => cp.latitude && cp.longitude) && sortedCheckpoints.length > 0 && (
-        <div className="rally-surface p-6 text-center text-muted-foreground">
-          <MapPin className="mx-auto mb-2 h-7 w-7 opacity-50" />
-          <p className="font-medium text-foreground">Os postos ainda não têm coordenadas configuradas.</p>
-          <p className="mt-1 text-sm">
-            Contacta um administrador para adicionar localizações aos postos.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

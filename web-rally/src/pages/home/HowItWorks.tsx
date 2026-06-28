@@ -1,56 +1,44 @@
-import { LogIn, Map, Trophy } from "lucide-react";
-import type { ComponentType } from "react";
-
-interface Step {
-  readonly Icon: ComponentType<{ className?: string }>;
-  readonly title: string;
-  readonly body: string;
-}
-
-const STEPS: Step[] = [
+const STEPS = [
   {
-    Icon: LogIn,
+    n: "1",
     title: "Entra com a equipa",
-    body: "Usa o código da tua equipa para aceder ao percurso e acompanhar o progresso.",
+    body: "Usa o código da tua equipa para aceder ao percurso e ao progresso ao vivo.",
   },
   {
-    Icon: Map,
+    n: "2",
     title: "Percorre os postos",
-    body: "Passa por cada posto, completa os desafios e regista o teu check-in.",
+    body: "Vai a cada tasca, completa o desafio e faz check-in com o QR code.",
   },
   {
-    Icon: Trophy,
+    n: "3",
     title: "Sobe na classificação",
-    body: "Cada posto soma pontos. Acompanha a pontuação ao vivo e luta pelo topo.",
+    body: "Cada posto soma pontos. Acompanha a pontuação e luta pelo pódio.",
   },
 ];
 
-/** Three-step explainer of how the event works, on the new design system. */
+/** Three-step explainer matching the prototype composition. */
 export function HowItWorks() {
   return (
     <section aria-labelledby="how-heading">
       <h2
         id="how-heading"
-        className="rally-display text-2xl font-bold text-foreground sm:text-3xl"
+        className="rally-display text-xl font-bold text-foreground mb-4"
       >
         Como funciona
       </h2>
-      <ol className="mt-6 grid gap-4 sm:grid-cols-3">
-        {STEPS.map((step, index) => (
-          <li key={step.title} className="rally-surface rally-press p-5">
-            <div className="flex items-center gap-3">
-              <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 place-items-center rounded-lg">
-                <step.Icon className="h-5 w-5" />
-              </span>
-              <span className="rally-display text-3xl font-bold text-muted-foreground/40">
-                {index + 1}
-              </span>
+      <div className="flex flex-col gap-3">
+        {STEPS.map((step) => (
+          <div key={step.n} className="flex gap-3.5 p-[18px] rounded-[16px] bg-card border border-border">
+            <span className="grid place-items-center h-[42px] w-[42px] rounded-[12px] rally-bg-accent-soft rally-accent rally-display font-bold text-lg flex-shrink-0">
+              {step.n}
+            </span>
+            <div>
+              <div className="font-bold text-[15px] text-foreground">{step.title}</div>
+              <div className="text-sm text-muted-foreground mt-0.5 leading-[1.45]">{step.body}</div>
             </div>
-            <h3 className="mt-4 text-base font-semibold text-foreground">{step.title}</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
-          </li>
+          </div>
         ))}
-      </ol>
+      </div>
     </section>
   );
 }

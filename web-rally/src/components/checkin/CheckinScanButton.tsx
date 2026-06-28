@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import QRCodeScanner from "@/components/QRCodeScanner";
 import { CheckinService } from "@/services/CheckinService";
 import { useAppToast } from "@/hooks/use-toast";
@@ -53,10 +52,27 @@ export function CheckinScanButton() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} disabled={isPending}>
-        <Camera className="mr-2 h-4 w-4" />
-        Check-in por QR
-      </Button>
+      <div className="rally-surface rounded-[20px] p-[24px]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">
+          Vista da Equipa
+        </p>
+        <h3 className="rally-display font-bold text-[17px] text-foreground mb-[6px]">
+          Fazer Check-in por QR
+        </h3>
+        <p className="text-[13px] text-muted-foreground mb-5 leading-relaxed">
+          Aponta a câmara ao código QR exibido pelo staff do posto para registar a chegada.
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          disabled={isPending}
+          className="w-full inline-flex items-center justify-center gap-[10px] py-[18px] rounded-[14px] rally-bg-accent text-white font-bold text-[16px] disabled:opacity-60"
+          style={{ boxShadow: "0 16px 36px -16px var(--rally-accent, #008542)" }}
+        >
+          <Camera className="h-5 w-5" />
+          {isPending ? "A registar..." : "Abrir câmara · Scan QR"}
+        </button>
+      </div>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-md">

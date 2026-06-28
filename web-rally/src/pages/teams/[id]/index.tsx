@@ -157,7 +157,7 @@ export default function TeamsById() {
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-primary transition-all duration-500"
+                  className="rally-bg-accent h-full transition-all duration-500"
                   style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
                 />
               </div>

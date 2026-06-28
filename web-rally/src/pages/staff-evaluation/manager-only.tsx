@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -162,40 +161,38 @@ type EvaluationResponse = ActivityResultResponse & {
         />
 
         {/* Teams Overview */}
-        <div className="rally-surface rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Visão Geral das Equipas
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Todas as equipas do rally
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {allTeams?.map((team) => (
-                <div key={team.id} className="border border-border bg-secondary rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-foreground">{team.name}</h4>
-                    <Badge variant="outline" className="text-foreground border-border">
-                      #{team.id}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>Membros: {team.num_members || 0}</p>
-                    {settings?.show_score_mode !== "hidden" && (
-                      <p>Pontuação: {team.total || 0}</p>
-                    )}
-                    {settings?.show_score_mode !== "hidden" && (
-                      <p>Classificação: {team.classification || "N/D"}</p>
-                    )}
-                    <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
-                  </div>
-                </div>
-              ))}
+        <div className="rally-surface rounded-2xl p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 place-items-center rounded-lg">
+              <Users className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="font-bold text-foreground">Visão Geral das Equipas</p>
+              <p className="text-xs text-muted-foreground">Todas as equipas do rally</p>
             </div>
-          </CardContent>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {allTeams?.map((team) => (
+              <div key={team.id} className="rounded-xl border border-border bg-secondary p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="font-semibold text-foreground">{team.name}</h4>
+                  <Badge variant="outline" className="border-border text-foreground">
+                    #{team.id}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>Membros: {team.num_members || 0}</p>
+                  {settings?.show_score_mode !== "hidden" && (
+                    <p>Pontuação: {team.total || 0}</p>
+                  )}
+                  {settings?.show_score_mode !== "hidden" && (
+                    <p>Classificação: {team.classification || "N/D"}</p>
+                  )}
+                  <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Statistics */}

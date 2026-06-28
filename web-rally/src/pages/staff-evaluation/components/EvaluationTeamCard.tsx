@@ -1,31 +1,29 @@
-import { Badge } from "@/components/ui/badge";
 import type { ListingTeam } from "@/client";
+import { cn } from "@/lib/utils";
 
 export type TeamCardVariant = "current" | "previous" | "evaluated";
 
-interface VariantStyle {
-  container: string;
-  badgeLabel: string;
+interface VariantConfig {
+  label: string;
+  cardClass: string;
   badgeClass: string;
 }
 
-const VARIANTS: Record<TeamCardVariant, VariantStyle> = {
+const VARIANTS: Record<TeamCardVariant, VariantConfig> = {
   current: {
-    container:
-      "border-green-500/30 bg-green-500/10 hover:bg-green-500/20 transition-colors",
-    badgeLabel: "Current",
-    badgeClass: "text-green-600 border-green-600 text-xs",
+    label: "Em curso",
+    cardClass: "rally-border-accent rally-bg-accent-soft",
+    badgeClass: "rally-bg-accent text-white",
   },
   previous: {
-    container:
-      "border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors",
-    badgeLabel: "Previous",
-    badgeClass: "text-yellow-600 border-yellow-600 text-xs",
+    label: "Anterior",
+    cardClass: "border-amber-500/30 bg-amber-500/10",
+    badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   },
   evaluated: {
-    container: "opacity-75 hover:opacity-90 transition-opacity",
-    badgeLabel: "✓ Evaluated",
-    badgeClass: "text-green-600 border-green-600 text-xs",
+    label: "Avaliado",
+    cardClass: "border-border bg-card opacity-75",
+    badgeClass: "rally-bg-accent-soft rally-accent",
   },
 };
 
@@ -36,29 +34,55 @@ interface EvaluationTeamCardProps {
   onSelect: (team: ListingTeam) => void;
 }
 
-export function EvaluationTeamCard({ team, variant, showScore, onSelect }: EvaluationTeamCardProps) {
-  const style = VARIANTS[variant];
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export function EvaluationTeamCard({
+  team,
+  variant,
+  showScore,
+  onSelect,
+}: EvaluationTeamCardProps) {
+  const cfg = VARIANTS[variant];
 
   return (
     <div
-      className={`p-3 sm:p-4 rounded-lg border cursor-pointer ${style.container}`}
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(team)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect(team);
+      }}
+      className={cn(
+        "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors hover:brightness-95",
+        cfg.cardClass,
+      )}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold">{team.name}</h4>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={style.badgeClass}>
-            {style.badgeLabel}
-          </Badge>
-          <Badge variant="outline">#{team.id}</Badge>
-        </div>
+      <span className="rally-bg-accent-soft rally-accent grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold rally-display">
+        {initialsOf(team.name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-bold text-foreground">{team.name}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {team.num_members || 0} membros
+          {showScore && ` · ${team.total || 0} pts`}
+          {` · Posto ${team.last_checkpoint_number || "—"}`}
+        </p>
       </div>
-      <div className="space-y-1 text-sm text-muted-foreground">
-        <p>Members: {team.num_members || 0}</p>
-        {showScore && <p>Total Score: {team.total || 0}</p>}
-        {showScore && <p>Classification: {team.classification || "N/A"}</p>}
-        <p>Last Checkpoint: {team.last_checkpoint_number || "None"}</p>
-      </div>
+      <span
+        className={cn(
+          "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+          cfg.badgeClass,
+        )}
+      >
+        {cfg.label}
+      </span>
     </div>
   );
 }

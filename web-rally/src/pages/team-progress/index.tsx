@@ -54,7 +54,13 @@ export default function TeamProgress() {
     <div className="animate-in fade-in duration-500">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
         <div className="space-y-6 lg:sticky lg:top-24">
-          <TeamHeaderCard team={team} showScore={showScore} showRanking={showRanking} />
+          <TeamHeaderCard
+            team={team}
+            showScore={showScore}
+            showRanking={showRanking}
+            completedCount={completedCheckpointsCount}
+            totalCount={totalCount}
+          />
           <TeamMembersCard team={team} />
           <ProgressSummaryCard
             completedCount={completedCheckpointsCount}
@@ -65,9 +71,7 @@ export default function TeamProgress() {
 
           {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
 
-          <div className="flex justify-center">
-            <CheckinScanButton />
-          </div>
+          <CheckinScanButton />
         </div>
 
         {checkpoints && checkpoints.length > 0 && (
@@ -88,6 +92,7 @@ export default function TeamProgress() {
                   showMap={showMap}
                   isExpanded={expandedCheckpoints.has(index)}
                   onToggle={toggleCheckpoint}
+                  isLast={index === checkpoints.length - 1}
                 />
               ))}
             </div>

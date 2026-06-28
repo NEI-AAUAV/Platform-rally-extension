@@ -14,6 +14,16 @@ const PointsDistributionChart = lazy(
 const PAD = (n: number) => String(n).padStart(2, "0");
 const ACCENT = "var(--rally-accent, #008542)";
 
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 function PhaseChip({ phase, state }: { phase: string; state: ReturnType<typeof useCountdown> }) {
   if (phase === "live") {
     return (
@@ -92,6 +102,11 @@ export default function LiveDashboard() {
 
   const teamsStarted = teamList.filter((t) => (t.last_checkpoint_number ?? 0) > 0).length;
   const teamsNotStarted = teamList.length - teamsStarted;
+  const checkpointsTotal = checkpointList.length;
+
+  const rankedTeams = [...teamList].sort(
+    (a, b) => a.classification - b.classification,
+  );
 
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
@@ -181,6 +196,42 @@ export default function LiveDashboard() {
         <Suspense fallback={null}>
           <PointsDistributionChart teams={teamList} />
         </Suspense>
+      )}
+
+      {/* Live teams table */}
+      {rankedTeams.length > 0 && (
+        <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
+          <h3 className="rally-display mb-4 text-base font-bold text-foreground">
+            Equipas ao vivo
+          </h3>
+          <div className="flex flex-col gap-2">
+            {rankedTeams.map((team, index) => (
+              <div
+                key={team.id}
+                className="flex items-center gap-[13px] rounded-[12px] bg-muted/40 px-[14px] py-[11px]"
+              >
+                <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
+                  {index + 1}
+                </span>
+                <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full rally-bg-accent-soft rally-accent text-xs font-bold">
+                  {initialsOf(team.name)}
+                </span>
+                <span className="flex-1 truncate text-sm font-semibold text-foreground">
+                  {team.name}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {checkpointsTotal
+                    ? `${team.last_checkpoint_number ?? 0}/${checkpointsTotal} postos`
+                    : `${team.last_checkpoint_number ?? 0} postos`}
+                </span>
+                <span className="rally-display shrink-0 text-[15px] font-bold tabular-nums text-foreground">
+                  {team.total}
+                  <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

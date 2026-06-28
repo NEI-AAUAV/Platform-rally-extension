@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, Link } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
@@ -109,6 +109,9 @@ export default function Scoreboard() {
       {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] rally-accent">
+            Pontuação ao vivo
+          </span>
           <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
             Classificação
           </h1>
@@ -143,25 +146,78 @@ export default function Scoreboard() {
 
           {/* Aside */}
           <aside className="order-first space-y-4 lg:order-last">
-
-            {myTeam && (
-              <div className="rally-surface rally-elevate p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  A tua equipa
-                </p>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="rally-display text-3xl font-bold text-foreground">
-                    #{myRankIndex + 1}
-                  </span>
-                  <span className="text-sm text-muted-foreground">de {sortedTeams?.length}</span>
+            {!myTeam && (
+              <div className="rally-surface rally-elevate relative overflow-hidden p-6">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full rally-bg-accent-soft blur-3xl"
+                />
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    A tua equipa
+                  </p>
+                  <p className="mt-3 font-bold text-foreground leading-snug">
+                    Entra com a tua equipa para veres a tua posição e progresso ao vivo.
+                  </p>
+                  <Link
+                    to="/team-login"
+                    className="mt-4 block w-full rounded-[12px] rally-bg-accent py-3 text-center font-bold text-sm text-white"
+                  >
+                    Entrar com a Equipa
+                  </Link>
                 </div>
-                <p className="mt-2 truncate font-semibold text-foreground">{myTeam.name}</p>
-                <p className="rally-display rally-accent text-2xl font-bold tabular-nums">
-                  {myTeam.total}
-                  <span className="ml-1 text-sm font-medium text-muted-foreground">pts</span>
-                </p>
               </div>
             )}
+            {myTeam && (() => {
+              const myRank = myRankIndex + 1;
+              const thirdPlace = sortedTeams?.[2];
+              const gapToPodium =
+                myRank > 3 && thirdPlace ? thirdPlace.total - myTeam.total + 1 : null;
+              return (
+                <div className="rally-surface rally-elevate relative overflow-hidden p-6">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full rally-bg-accent-soft blur-3xl"
+                  />
+                  <div className="relative z-10">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      A tua equipa
+                    </p>
+                    <div className="mt-3 flex items-baseline gap-2">
+                      <span className="rally-display text-4xl font-bold text-foreground">
+                        #{myRank}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        de {sortedTeams?.length}
+                      </span>
+                    </div>
+                    <p className="mt-2 truncate font-bold text-foreground">{myTeam.name}</p>
+                    <p className="rally-display rally-accent mt-1 text-3xl font-bold tabular-nums">
+                      {myTeam.total}
+                      <span className="ml-1 text-sm font-medium text-muted-foreground">pts</span>
+                    </p>
+                    {gapToPodium !== null && (
+                      <p className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground leading-relaxed">
+                        Faltam{" "}
+                        <strong className="font-bold text-foreground">{gapToPodium} pts</strong>{" "}
+                        para o pódio.
+                      </p>
+                    )}
+                    {myRank <= 3 && (
+                      <p className="mt-4 border-t border-border pt-4 text-sm font-semibold rally-accent">
+                        No pódio! Mantém a posição.
+                      </p>
+                    )}
+                    <Link
+                      to="/team-progress"
+                      className="mt-4 block w-full rounded-[12px] rally-bg-accent py-3 text-center font-bold text-sm text-white"
+                    >
+                      Ver progresso
+                    </Link>
+                  </div>
+                </div>
+              );
+            })()}
           </aside>
         </div>
       )}

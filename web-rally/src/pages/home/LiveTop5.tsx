@@ -1,16 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 import { TeamService, type ListingTeam } from "@/client";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 
-const MEDAL = ["text-amber-400", "text-zinc-400", "text-amber-700"];
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 /**
- * Compact, live top-5 leaderboard for the homepage. Shares the `["teams"]`
- * query cache with the full scoreboard and the SSE stream, so it updates in
- * place. Renders nothing until there is more than one team to rank.
+ * Compact live top-5 leaderboard card for the homepage.
+ * Shares the ["teams"] query cache with the scoreboard page.
  */
 export function LiveTop5() {
   useScoreboardStream([["teams"]]);
@@ -25,27 +31,27 @@ export function LiveTop5() {
         .slice(0, 5)
     : undefined;
 
-  if (!top || top.length < 2) return null;
+  if (!top || top.length === 0) return null;
 
   return (
-    <section aria-labelledby="top5-heading">
-      <div className="flex items-center justify-between">
+    <section aria-labelledby="top5-heading" className="p-[22px] rounded-[20px] bg-card border border-border">
+      <div className="flex items-center justify-between mb-4">
         <h2
           id="top5-heading"
-          className="rally-display text-2xl font-bold text-foreground sm:text-3xl"
+          className="rally-display text-xl font-bold text-foreground"
         >
-          Ao vivo
+          Classificação ao vivo
         </h2>
         <Link
           to="/scoreboard"
-          className="rally-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-bold rally-accent"
         >
-          Ver tudo
-          <ArrowRight className="h-4 w-4" />
+          <span className="h-[7px] w-[7px] rounded-full bg-current animate-pulse" />
+          LIVE
         </Link>
       </div>
 
-      <motion.ol layout className="mt-5 grid gap-2">
+      <motion.ol layout className="flex flex-col gap-2">
         <AnimatePresence initial={false}>
           {top.map((team, index) => (
             <motion.li
@@ -59,19 +65,18 @@ export function LiveTop5() {
               <Link
                 to="/teams/$id"
                 params={{ id: String(team.id) }}
-                className="rally-surface rally-press flex items-center gap-4 px-4 py-3"
+                className="flex items-center gap-3.5 px-[13px] py-[11px] rounded-[13px] bg-muted/30 border border-transparent hover:border-border transition-colors cursor-pointer"
               >
-                <span
-                  className={`rally-display w-8 text-center text-2xl font-bold tabular-nums ${
-                    MEDAL[index] ?? "text-muted-foreground/50"
-                  }`}
-                >
+                <span className="rally-display w-[22px] text-center text-[18px] font-bold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate font-semibold text-foreground">
+                <span className="grid place-items-center h-[38px] w-[38px] rounded-full rally-bg-accent-soft rally-accent font-bold text-[13px] shrink-0">
+                  {initialsOf(team.name)}
+                </span>
+                <span className="flex-1 min-w-0 font-semibold text-sm text-foreground truncate">
                   {team.name}
                 </span>
-                <span className="rally-display text-lg font-bold tabular-nums text-foreground">
+                <span className="rally-display font-bold text-[17px] tabular-nums text-foreground">
                   {team.total}
                 </span>
               </Link>
