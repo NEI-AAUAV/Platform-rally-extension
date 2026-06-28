@@ -25,3 +25,15 @@ class RallyValidationError(RallyError):
     """A request is well-formed but violates a business rule (HTTP 400)."""
 
     status_code = 400
+
+
+class RallyForbiddenError(RallyError):
+    """The action is understood but not permitted (HTTP 403)."""
+
+    status_code = 403
+
+
+class RallyNotFoundError(RallyError):
+    """A referenced resource does not exist (HTTP 404)."""
+
+    status_code = 404

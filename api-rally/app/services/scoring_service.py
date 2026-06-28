@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import logging
 from datetime import datetime, timezone
-from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.models.activity import ActivityResult, Activity
@@ -127,10 +126,7 @@ class ScoringService:
                 self.db.add(self._settings)
                 await self.db.commit()
         if self._settings is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to get or create rally settings"
-            )
+            raise RallyError("Failed to get or create rally settings")
         return self._settings
 
     async def calculate_team_total_score(self, team_id: int) -> float:
@@ -189,10 +185,7 @@ class ScoringService:
                 await self.db.commit()
             except Exception as e:
                 logger.error(f"Failed to update team scores: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to update team scores: {str(e)}"
-                )
+                raise RallyError(f"Failed to update team scores: {str(e)}")
             # Publish after the commit so subscribers never see scores a
             # rollback would erase. No-op unless the realtime subsystem is on.
             # This is the single funnel for every leaderboard-affecting change.

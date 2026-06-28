@@ -1,7 +1,6 @@
 import math
 from typing import List, Sequence, Any
 from datetime import datetime, timezone
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -12,6 +11,7 @@ import string
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exception import APIException
+from app.core.exceptions import RallyValidationError
 from app.crud.base import CRUDBase
 from app.models.team import Team
 from app.schemas.team import (
@@ -150,7 +150,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         )
 
         if current_team_count >= settings.max_teams:
-            raise HTTPException(status_code=400, detail="Team limit reached")
+            raise RallyValidationError("Team limit reached")
 
         obj_in_data = obj_in.model_dump()
         obj_in_data["access_code"] = await _generate_access_code(db)
@@ -168,7 +168,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                 raise
 
             if _name_unique_error_regex.search(str(e.orig)) is not None:
-                raise HTTPException(status_code=400, detail="Team name already exists")
+                raise RallyValidationError("Team name already exists")
 
             raise
 

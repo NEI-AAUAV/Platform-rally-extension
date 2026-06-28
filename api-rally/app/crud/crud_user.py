@@ -1,11 +1,11 @@
 from typing import Optional
-from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 
+from app.core.exceptions import RallyNotFoundError
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -73,7 +73,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise
 
             if _team_foreign_error_regex.search(str(e.orig)) is not None:
-                raise HTTPException(status_code=404, detail="Team not found")
+                raise RallyNotFoundError("Team not found")
 
             raise
 
@@ -87,7 +87,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise
 
             if _team_foreign_error_regex.search(str(e.orig)) is not None:
-                raise HTTPException(status_code=404, detail="Team not found")
+                raise RallyNotFoundError("Team not found")
 
             raise
 
