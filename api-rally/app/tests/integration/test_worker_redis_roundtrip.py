@@ -72,9 +72,9 @@ async def test_published_event_reaches_worker_over_real_redis(
     monkeypatch.setattr(settings, "REDIS_PORT", SMOKE_REDIS_PORT)
     monkeypatch.setattr(settings, "EVENTS_ENABLED", True)
     monkeypatch.setattr(settings, "EVENTS_FAIL_SILENTLY", False)
-    # Pools are cached globals; drop them so they rebuild against the smoke port.
+    # The sync pool is a cached global; drop it so it rebuilds against the
+    # smoke port. The async client is pool-less (reads settings per call).
     monkeypatch.setattr(redis_mod, "_sync_pool", None)
-    monkeypatch.setattr(redis_mod, "_async_pool", None)
 
     worker = _RecordingWorker()
     worker.start()

@@ -22,9 +22,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Global connection pools (initialised lazily on first use).
+# Global sync connection pool (initialised lazily on first use). The async
+# clients are intentionally pool-less — see get_async_redis_client.
 _sync_pool: Optional[redis.ConnectionPool] = None
-_async_pool: Optional[aredis.ConnectionPool] = None
 
 
 def _get_sync_pool() -> redis.ConnectionPool:
@@ -45,32 +45,30 @@ def _get_sync_pool() -> redis.ConnectionPool:
     return _sync_pool
 
 
-def _get_async_pool() -> aredis.ConnectionPool:
-    """Get or create the shared asynchronous connection pool."""
-    global _async_pool
-    if _async_pool is None:
-        _async_pool = aredis.ConnectionPool(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            password=settings.REDIS_PASSWORD,
-            decode_responses=True,
-            socket_connect_timeout=settings.REDIS_CONNECTION_TIMEOUT,
-            socket_timeout=settings.REDIS_CONNECTION_TIMEOUT,
-        )
-        logger.info(
-            "Redis async pool created for %s:%s", settings.REDIS_HOST, settings.REDIS_PORT
-        )
-    return _async_pool
-
-
 def get_redis_client() -> redis.Redis:
     """Return a synchronous Redis client (for the worker thread)."""
     return redis.Redis(connection_pool=_get_sync_pool())
 
 
 def get_async_redis_client() -> aredis.Redis:
-    """Return an asyncio Redis client (for routes/publisher/SSE)."""
-    return aredis.Redis(connection_pool=_get_async_pool())
+    """Return a standalone asyncio Redis client (routes/publisher/SSE/workers).
+
+    Deliberately NOT backed by a shared module-level pool: the worker runs each
+    event in its own short-lived loop (``asyncio.run`` per message), and a pool
+    whose connections were bound to an earlier loop raises "got Future attached
+    to a different loop" on reuse. A fresh client per call — always closed via
+    ``aclose()`` by the caller — binds its connections to the current loop and
+    sidesteps that entirely. Callers already create-and-close per use, so the
+    pool gave no reuse benefit here.
+    """
+    return aredis.Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD,
+        decode_responses=True,
+        socket_connect_timeout=settings.REDIS_CONNECTION_TIMEOUT,
+        socket_timeout=settings.REDIS_CONNECTION_TIMEOUT,
+    )
 
 
 async def get_async_redis() -> AsyncGenerator[aredis.Redis, None]:
@@ -95,12 +93,13 @@ async def check_redis_health() -> bool:
 
 
 async def close_pools() -> None:
-    """Disconnect both pools (called on application shutdown)."""
-    global _sync_pool, _async_pool
+    """Disconnect the sync pool (called on application shutdown).
+
+    Async clients are pool-less and closed by their callers, so there is no
+    shared async pool to tear down here.
+    """
+    global _sync_pool
     if _sync_pool is not None:
         _sync_pool.disconnect()
         _sync_pool = None
-    if _async_pool is not None:
-        await _async_pool.disconnect()
-        _async_pool = None
     logger.info("Redis pools closed")
