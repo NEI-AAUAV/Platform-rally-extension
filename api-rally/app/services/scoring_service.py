@@ -147,6 +147,8 @@ class ScoringService:
         if not team:
             return False
 
+        previous_total = team.total
+
         # Get all activity results for this team with activities and checkpoints preloaded
         # Use joinedload to avoid N+1 queries
         stmt = select(ActivityResult).options(
@@ -178,6 +180,20 @@ class ScoringService:
         team.score_per_checkpoint = [
             int(checkpoint_scores.get(i + 1, 0.0)) for i in range(len(team.times))
         ]
+
+        # Append a history snapshot when the total actually changed, so the
+        # post-event replay can reconstruct the leaderboard timeline. Written in
+        # the same transaction as the score update (atomic with the commit).
+        if team.total != previous_total:
+            from app.crud._event_scope import current_event_id
+            from app.models.score_history import TeamScoreHistory
+
+            event_id = team.event_id or await current_event_id(self.db)
+            self.db.add(
+                TeamScoreHistory(
+                    event_id=event_id, team_id=team_id, total=team.total
+                )
+            )
 
         # Commit only if explicitly requested
         if should_commit:

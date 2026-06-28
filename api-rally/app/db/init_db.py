@@ -19,6 +19,7 @@ from app.models import (  # noqa: F401
     RallySettings,
     TeamBadge,
     EventParticipation,
+    TeamScoreHistory,
 )
 
 # For more details: https://github.com/tiangolo/full-stack-fastapi-postgresql/issues/28
