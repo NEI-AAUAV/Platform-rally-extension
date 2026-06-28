@@ -6,6 +6,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
+import useEventTerms from "@/hooks/useEventTerms";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";
 import { Podium, ScoreRows } from "./components/ScoreList";
 
@@ -24,6 +25,7 @@ function NoticeCard({ title, body }: { readonly title: string; readonly body: Re
 
 export default function Scoreboard() {
   const { settings } = useRallySettings();
+  const terms = useEventTerms();
   useScoreboardStream([["teams"]]);
 
   const { data: teams } = useQuery({
@@ -119,7 +121,7 @@ export default function Scoreboard() {
         <div className="flex items-center gap-3">
           {isFullBoard && (
             <p className="text-sm font-medium text-muted-foreground">
-              {list.length} equipas em prova
+              {list.length} equipas em {terms.event}
             </p>
           )}
           <Link
