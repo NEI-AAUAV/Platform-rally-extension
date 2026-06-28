@@ -6,11 +6,22 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useTeamAuth from '@/hooks/useTeamAuth'
+import { TeamAuthService } from '@/client'
 
 const TEAM_TOKEN_KEY = 'rally_team_token'
 const TEAM_DATA_KEY = 'rally_team_data'
 
 // Mock the generated API client
+class MockApiError extends Error {
+  status: number
+  body: unknown
+  constructor(status: number, body: unknown) {
+    super('ApiError')
+    this.status = status
+    this.body = body
+  }
+}
+
 vi.mock('@/client', () => ({
   TeamService: {
     getTeamByIdApiRallyV1TeamIdGet: vi.fn().mockResolvedValue(null),
@@ -19,6 +30,10 @@ vi.mock('@/client', () => ({
     addTeamMemberApiRallyV1TeamTeamIdMembersPost: vi.fn().mockResolvedValue({}),
     removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete: vi.fn().mockResolvedValue({}),
   },
+  TeamAuthService: {
+    teamLoginApiRallyV1TeamAuthLoginPost: vi.fn(),
+  },
+  ApiError: MockApiError,
 }))
 
 const createWrapper = () => {
@@ -86,10 +101,9 @@ describe('useTeamAuth', () => {
         team_name: 'Test Team',
       }
 
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      } as Response)
+      vi.mocked(
+        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
+      ).mockResolvedValueOnce(mockResponse)
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -107,10 +121,9 @@ describe('useTeamAuth', () => {
     })
 
     it('should throw on invalid access code', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({ detail: 'Invalid access code' }),
-      } as Response)
+      vi.mocked(
+        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
+      ).mockRejectedValueOnce(new MockApiError(400, { detail: 'Invalid access code' }))
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 

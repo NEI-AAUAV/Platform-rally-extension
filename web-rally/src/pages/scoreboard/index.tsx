@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Link } from "@tanstack/react-router";
-import { Trophy } from "lucide-react";
+import { History, Trophy } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -116,11 +116,19 @@ export default function Scoreboard() {
             Classificação
           </h1>
         </div>
-        {isFullBoard && (
-          <p className="text-sm font-medium text-muted-foreground">
-            {list.length} equipas em prova
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          {isFullBoard && (
+            <p className="text-sm font-medium text-muted-foreground">
+              {list.length} equipas em prova
+            </p>
+          )}
+          <Link
+            to="/replay"
+            className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground"
+          >
+            <History className="h-3.5 w-3.5" /> Replay
+          </Link>
+        </div>
       </header>
 
       {isFullBoard && (
