@@ -5,6 +5,8 @@ import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, ShieldCheck, Users, ChevronDown } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 
 type NavTabsProps = ComponentProps<"ul">;
@@ -120,6 +122,8 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
 
   const showTeamView = isTeamAuthenticated && (!isPrivileged || (isDualRole && viewMode === "team"));
   const showScoreMenu = settings?.show_score_mode !== "hidden";
+  const terms = useEventTerms();
+  const checkpointsLabel = capitalize(terms.checkpoints);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -138,7 +142,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
 
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
-    { name: "Postos", href: "/postos", show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true) },
+    { name: checkpointsLabel, href: "/postos", show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true) },
     { name: "Login", href: "/team-login", show: !showTeamView && !isTeamAuthenticated && scopes === undefined },
   ].filter((item) => item.show);
 

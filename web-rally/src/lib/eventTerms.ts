@@ -55,3 +55,8 @@ export function getEventTerms(eventType?: string | null): EventTerms {
   }
   return TERMS[DEFAULT_EVENT_TYPE];
 }
+
+/** Capitalize the first letter (for terms used as standalone labels). */
+export function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}

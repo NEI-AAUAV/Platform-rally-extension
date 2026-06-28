@@ -3,6 +3,7 @@ import { CheckPointService, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { LoadingState } from "@/components/shared";
 import { MapPin } from "lucide-react";
@@ -24,8 +25,7 @@ export default function Postos() {
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const { settings } = useRallySettings();
   const terms = useEventTerms();
-  const checkpointsLabel =
-    terms.checkpoints.charAt(0).toUpperCase() + terms.checkpoints.slice(1);
+  const checkpointsLabel = capitalize(terms.checkpoints);
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const { scopes } = useUserStore((state) => state);
 

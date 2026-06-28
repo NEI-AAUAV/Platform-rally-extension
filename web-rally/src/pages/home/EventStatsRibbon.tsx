@@ -6,6 +6,7 @@ import {
   type DetailedCheckPoint,
 } from "@/client";
 import type { RallySettingsResponse } from "@/client";
+import { getEventTerms, capitalize } from "@/lib/eventTerms";
 import { useCountdown } from "./useCountdown";
 
 interface EventStatsRibbonProps {
@@ -53,7 +54,9 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
   const cells = [
     { value: teamList.length, label: "Equipas" },
     { value: totalPoints, label: "Pontos em jogo" },
-    ...(postosCount !== undefined ? [{ value: postosCount, label: "Postos" }] : []),
+    ...(postosCount !== undefined
+      ? [{ value: postosCount, label: capitalize(getEventTerms(settings?.event_type).checkpoints) }]
+      : []),
     { value: PHASE_LABEL[phase] ?? "—", label: "Estado" },
   ];
 

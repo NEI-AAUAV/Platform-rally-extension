@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import useEventTerms from "@/hooks/useEventTerms";
 
 /**
  * Closing CTA band — accent-filled, centered, with faint grid texture.
  */
 export function HomeBottomBanner() {
+  const terms = useEventTerms();
   return (
     <div className="relative overflow-hidden rounded-[22px] rally-bg-accent text-white text-center">
       {/* grid texture */}
@@ -13,7 +15,7 @@ export function HomeBottomBanner() {
       />
       <div className="relative z-10 px-6 py-12 sm:px-10 sm:py-[48px]">
         <h2 className="rally-display font-bold text-[28px] sm:text-[40px] m-0 leading-tight tracking-[-0.02em]">
-          Pronto para a prova?
+          Pronto para o {terms.event}?
         </h2>
         <p className="mt-3 mb-[22px] mx-auto max-w-[42ch] opacity-90 text-[15px] leading-relaxed">
           Junta-te à tua equipa e começa o percurso. O primeiro check-in está a um toque.

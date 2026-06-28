@@ -5,6 +5,8 @@ import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/useUserStore";
 import useRallySettings from "@/hooks/useRallySettings";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
 
@@ -36,6 +38,7 @@ export function MobileBottomNav() {
 
   const showScore = settings?.show_score_mode !== "hidden";
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
+  const checkpointsLabel = capitalize(useEventTerms().checkpoints);
 
   // Any authenticated team (incl. dual-role staff/admin) gets the team
   // destinations + QR FAB; privileged-only users keep the public/staff nav.
@@ -52,7 +55,7 @@ export function MobileBottomNav() {
     : [
         { name: "Início", href: "/", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
-        { name: "Postos", href: "/postos", Icon: MapPin, show: showPostos },
+        { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
         {
           name: "Equipa",
           href: isTeamAuthenticated ? "/team-progress" : "/team-login",
