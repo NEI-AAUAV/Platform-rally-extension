@@ -30,7 +30,6 @@
     "@tanstack/react-router": "^1.147.3",
     "@tanstack/react-table": "^8.21.3",
     "@yudiel/react-qr-scanner": "^2.6.0",
-    "axios": "^1.13.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "form-data": "^4.0.4",

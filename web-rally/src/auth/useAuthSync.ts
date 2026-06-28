@@ -10,7 +10,7 @@ import { profileToUser } from "./identity";
  * Bridge react-oidc-context state into the rally user store and the API client.
  *
  * - Pushes the authentik access token + mapped identity into useUserStore so
- *   OpenAPI.HEADERS and the axios client authenticate requests.
+ *   OpenAPI.HEADERS authenticates the generated client's requests.
  * - On a 401 from the API, redirects to the identity provider for a fresh
  *   token (the IdP session is usually still valid, so this is near-instant).
  *

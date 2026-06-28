@@ -3,8 +3,14 @@ import ReactDOM from "react-dom/client";
 import { AuthProvider } from "react-oidc-context";
 import Router from "@/router";
 import "@/styles/global.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { refreshTeamToken } from "./services/client";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { notifyUnauthorized, refreshTeamToken } from "./services/client";
+import { ApiError } from "./client/core/ApiError";
 import { OpenAPI } from "./client/core/OpenAPI";
 import { useUserStore } from "@/stores/useUserStore";
 import { getTeamToken } from "@/lib/auth/tokenStore";
@@ -38,7 +44,22 @@ OpenAPI.HEADERS = async () => {
 // react-oidc-context, which restores them automatically).
 refreshTeamToken();
 
+/**
+ * A staff request hit an unrecoverable 401: hand off to the OIDC layer to
+ * re-authenticate. Only staff sessions redirect — team 401s are not handled
+ * here (a team session has no IdP to bounce through). Centralised on the query
+ * cache so the single generated client drives this, with no per-call wiring.
+ */
+function handleApiError(error: unknown): void {
+  const isStaff = Boolean(useUserStore.getState().token);
+  if (isStaff && error instanceof ApiError && error.status === 401) {
+    notifyUnauthorized();
+  }
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: handleApiError }),
+  mutationCache: new MutationCache({ onError: handleApiError }),
   defaultOptions: {
     queries: {
       retry: 2,
