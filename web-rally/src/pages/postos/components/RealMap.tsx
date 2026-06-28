@@ -59,6 +59,13 @@ function FitBounds({
 }) {
   const map = useMap();
 
+  // Leaflet renders 0×0 when mounted inside a freshly-laid-out flex/grid cell
+  // (or a lazy Suspense boundary). Force a resize once the container is sized.
+  useEffect(() => {
+    const id = setTimeout(() => map.invalidateSize(), 0);
+    return () => clearTimeout(id);
+  }, [map]);
+
   useEffect(() => {
     if (selected?.latitude != null && selected.longitude != null) {
       map.flyTo([selected.latitude, selected.longitude], Math.max(map.getZoom(), 16), {
@@ -97,11 +104,10 @@ export default function RealMap({ checkpoints, selectedCheckpoint, onSelect }: R
       zoom={14}
       scrollWheelZoom={false}
       style={{ height: 340, width: "100%" }}
-      attributionControl={false}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        // Carto Voyager — clean, free for low volume
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       <Polyline
         positions={coords.map((c) => c.pos)}

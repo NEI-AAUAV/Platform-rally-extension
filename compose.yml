@@ -62,6 +62,12 @@ services:
       OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
       # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
       TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
+      # Team QR self-check-in. Staff display a rotating QR; teams scan it to
+      # register arrival at the staff's checkpoint. Signed with
+      # CHECKIN_HMAC_SECRET (falls back to TEAM_JWT_SECRET_KEY when unset).
+      SELF_CHECKIN_ENABLED: ${SELF_CHECKIN_ENABLED:-true}
+      CHECKIN_HMAC_SECRET: ${CHECKIN_HMAC_SECRET:-}
+      CHECKIN_TOKEN_TTL_SECONDS: ${CHECKIN_TOKEN_TTL_SECONDS:-90}
       # CORS: the public origin the SPA is served from.
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["http://localhost"]}
       # Cloudflare R2 (branding uploads) — optional.

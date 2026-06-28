@@ -20,7 +20,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.abac_deps import get_staff_with_checkpoint_access
+from app.api.auth import AuthData, api_nei_auth
 from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
+from app.api import deps
 from app.api.deps import get_current_team, get_db
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
@@ -88,16 +90,131 @@ async def get_checkin_token(
     current_user: Annotated[
         DetailedUser, Depends(get_staff_with_checkpoint_access)
     ],
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+    checkpoint_id: int | None = None,
 ) -> dict[str, str]:
-    """Mint a rotating check-in QR token for the staff member's checkpoint."""
+    """Mint a rotating check-in QR token for a checkpoint.
+
+    Staff get a token for their assigned checkpoint. Admins/managers may pass a
+    ``checkpoint_id`` to mint (or preview) the QR for any checkpoint they are
+    viewing; staff cannot mint for a checkpoint other than their own.
+    """
     _require_enabled()
-    checkpoint_id = current_user.staff_checkpoint_id
+
+    is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
+    if checkpoint_id is not None and not is_privileged:
+        if checkpoint_id != current_user.staff_checkpoint_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff may only mint QR for their own checkpoint",
+            )
+
+    target = checkpoint_id if (checkpoint_id is not None and is_privileged) else current_user.staff_checkpoint_id
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No checkpoint assigned",
+        )
+    return {"token": generate_checkin_token(target)}
+
+
+class StaffCheckinRequest(BaseModel):
+    """A staff member identifies/checks an arriving team in by its access code."""
+
+    team_code: str
+    checkpoint_id: int | None = None
+
+
+class StaffCheckinResponse(BaseModel):
+    """Result of a staff scan: who the team is, plus what happened to arrival.
+
+    The scan's primary job is *identification* — letting staff jump straight to
+    the correct team's evaluation without mistakes. Marking arrival is a
+    secondary, best-effort side effect, so the team is always returned even when
+    arrival was not (re)registered (already here, or scanned too early).
+    """
+
+    team_id: int
+    team_name: str
+    checkpoint_id: int
+    checkpoint_order: int
+    # "checked_in": arrival was newly registered now.
+    # "already_present": team had already reached this post.
+    # "ahead": team has not yet reached this post (scanned too early).
+    status: str
+
+
+@router.post("/checkpoint/staff-check-in", response_model=StaffCheckinResponse)
+async def staff_check_in(
+    body: StaffCheckinRequest,
+    current_user: Annotated[
+        DetailedUser, Depends(get_staff_with_checkpoint_access)
+    ],
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+    db: AsyncSession = Depends(get_db),
+) -> StaffCheckinResponse:
+    """Staff scans an arriving team's QR (its access code).
+
+    Primary purpose: *identify the team* so staff open the correct evaluation
+    fast and without mistakes. Secondary: mark the team's arrival at the staff's
+    checkpoint when it is the team's next post. Tolerant by design — a re-scan
+    (team already here) or an early scan never errors, so it stays usable
+    alongside versus/head-to-head flows; it just reports the arrival ``status``.
+    """
+    _require_enabled()
+
+    is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
+    checkpoint_id = (
+        body.checkpoint_id
+        if (body.checkpoint_id is not None and is_privileged)
+        else current_user.staff_checkpoint_id
+    )
     if checkpoint_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No checkpoint assigned",
         )
-    return {"token": generate_checkin_token(checkpoint_id)}
+
+    code = body.team_code.strip().upper()
+    team_obj = await team_crud.get_by_access_code(db, access_code=code)
+    if team_obj is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Equipa não encontrada para este código",
+        )
+
+    checkpoint = await checkpoint_crud.get(db, id=checkpoint_id)
+    if checkpoint is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Checkpoint not found"
+        )
+
+    # times[] holds posts already reached; the next expected post is len + 1.
+    reached = len(team_obj.times)
+    expected_order = reached + 1
+
+    if checkpoint.order == expected_order:
+        await checkin_team_to_checkpoint(db, team_obj.id, checkpoint.id)
+        await publish_event(
+            TeamCheckpointAdvancedEvent(
+                payload=TeamCheckpointAdvancedPayload(
+                    team_id=team_obj.id, checkpoint_number=checkpoint.order
+                )
+            )
+        )
+        arrival_status = "checked_in"
+    elif checkpoint.order <= reached:
+        arrival_status = "already_present"
+    else:
+        arrival_status = "ahead"
+
+    return StaffCheckinResponse(
+        team_id=team_obj.id,
+        team_name=team_obj.name,
+        checkpoint_id=checkpoint.id,
+        checkpoint_order=checkpoint.order,
+        status=arrival_status,
+    )
 
 
 @router.post("/checkpoint/check-in", response_model=CheckinResponse)

@@ -6,7 +6,7 @@ import { nthNumber } from "./teamDetails.types";
 import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
 import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
-import { EarnedBadges } from "@/components/badges/EarnedBadges";
+import { BadgeShowcase } from "@/components/badges/BadgeShowcase";
 
 export default function TeamsById() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -117,7 +117,7 @@ export default function TeamsById() {
               )}
             </div>
 
-            <EarnedBadges teamId={Number(id)} />
+            <BadgeShowcase teamId={Number(id)} />
 
             <div>
               <h2 className="mb-3 text-lg font-semibold">Membros</h2>

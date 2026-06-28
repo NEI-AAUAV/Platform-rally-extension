@@ -83,7 +83,7 @@ export default function MapSection({
   const path = buildPath(nodes);
   const overlay = selectedCheckpoint ?? checkpoints[0];
   const withCoords = checkpoints.filter(hasValidCoordinates);
-  const useRealMap = withCoords.length >= 2;
+  const useRealMap = withCoords.length >= 1;
   const mapUrl = withCoords.length
     ? `https://www.google.com/maps/dir/?api=1&waypoints=${withCoords
         .map((c) => `${c.latitude},${c.longitude}`)

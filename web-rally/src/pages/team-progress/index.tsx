@@ -6,7 +6,8 @@ import TeamMembersCard from "./TeamMembersCard";
 import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
-import { CheckinScanButton } from "@/components/checkin/CheckinScanButton";
+import { TeamQrCard } from "@/components/checkin/TeamQrCard";
+import MapSection from "@/pages/postos/components/MapSection";
 
 export default function TeamProgress() {
   const {
@@ -71,7 +72,14 @@ export default function TeamProgress() {
 
           {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
 
-          <CheckinScanButton />
+          {showMap && checkpoints && checkpoints.length > 0 && (
+            <MapSection
+              checkpoints={checkpoints}
+              selectedCheckpoint={nextCheckpoint ?? null}
+            />
+          )}
+
+          {team.access_code && <TeamQrCard accessCode={team.access_code} />}
         </div>
 
         {checkpoints && checkpoints.length > 0 && (

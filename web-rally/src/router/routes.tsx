@@ -100,6 +100,12 @@ const settingsRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/settings")),
 });
 
+const conquistasRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/conquistas",
+  component: lazyRouteComponent(() => import("@/pages/conquistas")),
+});
+
 const teamMembersRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/team-members",
@@ -135,6 +141,7 @@ export const routeTree = rootRoute.addChildren([
     versusRoute,
     teamLoginRoute,
     teamProgressRoute,
+    conquistasRoute,
     settingsRoute,
     teamMembersRoute,
     staffEvaluationRoute,

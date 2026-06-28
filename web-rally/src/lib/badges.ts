@@ -28,6 +28,13 @@ const BADGE_DISPLAY: Record<BadgeType, BadgeDisplay> = {
   },
 };
 
+/** Ordered catalogue of known badge types — drives the locked/earned showcase. */
+export const BADGE_CATALOG: BadgeType[] = [
+  "first_to_complete_checkpoint",
+  "first_to_complete_activity",
+  "head_to_head_win",
+];
+
 const FALLBACK: BadgeDisplay = {
   label: "Conquista",
   description: "Distinção atribuída à equipa.",

@@ -7,7 +7,7 @@ import { TeamActivitiesList } from "./TeamActivitiesList";
 import { TeamSection } from "./TeamSection";
 import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
-import { CheckinQrPanel } from "@/components/checkin/CheckinQrPanel";
+import { StaffCheckinScanner } from "@/components/checkin/StaffCheckinScanner";
 
 export default function CheckpointTeamEvaluation() {
   const { checkpointId } = useParams({ strict: false }) as { checkpointId: string };
@@ -84,8 +84,14 @@ export default function CheckpointTeamEvaluation() {
         </div>
       </div>
 
-      {/* Team self-check-in QR */}
-      <CheckinQrPanel />
+      {/* Staff scans the arriving team's QR to identify + open its evaluation */}
+      <StaffCheckinScanner
+        checkpointId={Number(checkpointId)}
+        onTeamIdentified={(teamId) => {
+          const found = (checkpointTeams ?? []).find((t) => t.id === teamId);
+          if (found) selectTeam(found);
+        }}
+      />
 
       {/* Team activities detail */}
       {selectedTeam && !showTeamList && (
