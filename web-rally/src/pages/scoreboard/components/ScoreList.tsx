@@ -1,6 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ListingTeam } from "@/client";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
+
+/** "3/8 postos" or "Posto 3" using event-aware checkpoint nouns. */
+function reachedLabel(
+  reached: number,
+  checkpointsCount: number | undefined,
+  terms: { checkpoint: string; checkpoints: string },
+): string {
+  return checkpointsCount
+    ? `${reached}/${checkpointsCount} ${terms.checkpoints}`
+    : `${capitalize(terms.checkpoint)} ${reached}`;
+}
 
 function initialsOf(name: string): string {
   return name
@@ -35,6 +48,7 @@ export function Podium({
   readonly teams: ListingTeam[];
   readonly checkpointsCount?: number;
 }) {
+  const terms = useEventTerms();
   // visual order: 2nd, 1st, 3rd
   const order: Array<{ team: ListingTeam; rank: number }> = [];
   if (teams[1]) order.push({ team: teams[1], rank: 2 });
@@ -91,7 +105,7 @@ export function Podium({
             </p>
             {reached > 0 && (
               <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                {checkpointsCount ? `${reached}/${checkpointsCount} postos` : `Posto ${reached}`}
+                {reachedLabel(reached, checkpointsCount, terms)}
               </p>
             )}
           </Link>
@@ -114,6 +128,7 @@ export function ScoreRows({
   readonly startRank?: number;
   readonly checkpointsCount?: number;
 }) {
+  const terms = useEventTerms();
   if (teams.length === 0) return null;
 
   return (
@@ -148,7 +163,7 @@ export function ScoreRows({
                   </span>
                   {reached > 0 && (
                     <span className="block text-xs text-muted-foreground">
-                      {checkpointsCount ? `${reached}/${checkpointsCount} postos` : `Posto ${reached}`}
+                      {reachedLabel(reached, checkpointsCount, terms)}
                     </span>
                   )}
                 </span>
