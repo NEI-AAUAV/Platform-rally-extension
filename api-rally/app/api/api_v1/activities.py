@@ -3,7 +3,8 @@ API endpoints for activities management
 """
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Query
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import desc, select
 
@@ -44,10 +45,7 @@ async def create_activity(
         activity_in.config = final_config
 
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid activity type"
-        )
+        raise RallyValidationError("Invalid activity type")
 
     db_activity = await activity.create(db=db, obj_in=activity_in)
     return ActivityResponse.model_validate(db_activity)
@@ -106,10 +104,7 @@ async def get_activity(
     """Get activity by ID"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
     return ActivityResponse.model_validate(db_activity)
 
@@ -125,10 +120,7 @@ async def update_activity(
     """Update an activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
     db_activity = await activity.update(db=db, db_obj=db_activity, obj_in=activity_in)
     return ActivityResponse.model_validate(db_activity)
@@ -144,10 +136,7 @@ async def delete_activity(
     """Delete an activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
     await activity.remove(db=db, id=activity_id)
     return {"message": "Activity deleted successfully"}
@@ -166,10 +155,7 @@ async def create_activity_result(
         db, result_in.activity_id, result_in.team_id
     )
     if existing_result:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Result already exists for this team and activity"
-        )
+        raise RallyValidationError("Result already exists for this team and activity")
 
     db_result = await ScoringService(db).create_result(result_in)
     return ActivityResultResponse.model_validate(db_result)
@@ -185,10 +171,7 @@ async def get_activity_result(
     """Get activity result by ID"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_RESULT_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
     return ActivityResultResponse.model_validate(db_result)
 
@@ -204,10 +187,7 @@ async def update_activity_result(
     """Update an activity result"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_RESULT_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
     db_result = await ScoringService(db).update_result(db_result, result_in)
     return ActivityResultResponse.model_validate(db_result)
@@ -224,10 +204,7 @@ async def apply_extra_shots(
     """Apply extra shots bonus to activity result"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_RESULT_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
     scoring_service = ScoringService(db)
     success = await scoring_service.apply_extra_shots_bonus(
@@ -235,10 +212,7 @@ async def apply_extra_shots(
     )
 
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid extra shots amount or team not found"
-        )
+        raise RallyValidationError("Invalid extra shots amount or team not found")
 
     return {"message": "Extra shots bonus applied successfully"}
 
@@ -255,10 +229,7 @@ async def apply_penalty(
     """Apply penalty to activity result"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_RESULT_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
     scoring_service = ScoringService(db)
     success = await scoring_service.apply_penalty(
@@ -266,10 +237,7 @@ async def apply_penalty(
     )
 
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to apply penalty"
-        )
+        raise RallyValidationError("Failed to apply penalty")
 
     return {"message": "Penalty applied successfully"}
 
@@ -284,10 +252,7 @@ async def get_activity_ranking(
     """Get ranking for a specific activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
     scoring_service = ScoringService(db)
     rankings_dict = await scoring_service.get_team_ranking(activity_id)
@@ -360,10 +325,7 @@ async def get_activity_statistics(
     """Get statistics for a specific activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ACTIVITY_NOT_FOUND
-        )
+        raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
     scoring_service = ScoringService(db)
     statistics = await scoring_service.get_activity_statistics(activity_id)

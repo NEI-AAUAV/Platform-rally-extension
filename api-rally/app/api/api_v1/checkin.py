@@ -16,6 +16,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,10 +59,7 @@ class CheckinResponse(BaseModel):
 
 def _require_enabled() -> None:
     if not settings.SELF_CHECKIN_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Self check-in is disabled",
-        )
+        raise RallyNotFoundError("Self check-in is disabled")
 
 
 async def _claim_nonce(nonce: str, team_id: int) -> bool:
@@ -104,17 +102,11 @@ async def get_checkin_token(
     is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
     if checkpoint_id is not None and not is_privileged:
         if checkpoint_id != current_user.staff_checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff may only mint QR for their own checkpoint",
-            )
+            raise RallyForbiddenError("Staff may only mint QR for their own checkpoint")
 
     target = checkpoint_id if (checkpoint_id is not None and is_privileged) else current_user.staff_checkpoint_id
     if target is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No checkpoint assigned",
-        )
+        raise RallyForbiddenError("No checkpoint assigned")
     return {"token": generate_checkin_token(target)}
 
 
@@ -170,24 +162,16 @@ async def staff_check_in(
         else current_user.staff_checkpoint_id
     )
     if checkpoint_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No checkpoint assigned",
-        )
+        raise RallyForbiddenError("No checkpoint assigned")
 
     code = body.team_code.strip().upper()
     team_obj = await team_crud.get_by_access_code(db, access_code=code)
     if team_obj is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Equipa não encontrada para este código",
-        )
+        raise RallyNotFoundError("Equipa não encontrada para este código")
 
     checkpoint = await checkpoint_crud.get(db, id=checkpoint_id)
     if checkpoint is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Checkpoint not found"
-        )
+        raise RallyNotFoundError("Checkpoint not found")
 
     # times[] holds posts already reached; the next expected post is len + 1.
     reached = len(team_obj.times)
@@ -242,15 +226,11 @@ async def check_in(
 
     checkpoint = await checkpoint_crud.get(db, id=claims.checkpoint_id)
     if checkpoint is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Checkpoint not found"
-        )
+        raise RallyNotFoundError("Checkpoint not found")
 
     team_obj = await team_crud.get(db, id=team.team_id)
     if team_obj is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
-        )
+        raise RallyNotFoundError("Team not found")
 
     # Sequential guard: a team may only check into its next checkpoint. times[]
     # holds the checkpoints already visited, so the next expected order is

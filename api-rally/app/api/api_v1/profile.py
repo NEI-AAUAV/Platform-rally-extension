@@ -7,10 +7,11 @@ account and records a participation.
 """
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
 from app.models.participation import EventParticipation
@@ -107,15 +108,15 @@ async def claim_membership(
     """
     member = await db.get(User, member_user_id)
     if member is None:
-        raise HTTPException(status_code=404, detail="Member not found")
+        raise RallyNotFoundError("Member not found")
     if member.authentik_sub is not None:
-        raise HTTPException(status_code=400, detail="This member is already linked to an account")
+        raise RallyValidationError("This member is already linked to an account")
     if member.team_id is None:
-        raise HTTPException(status_code=400, detail="This member is not on a team")
+        raise RallyValidationError("This member is not on a team")
 
     team = await db.get(Team, member.team_id)
     if team is None:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise RallyNotFoundError("Team not found")
 
     me = await _self_user(db, auth)
     if me is None:

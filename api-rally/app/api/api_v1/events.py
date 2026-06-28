@@ -6,10 +6,11 @@ editions and switch the current one without wiping the database.
 """
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.exceptions import RallyNotFoundError
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin, get_db
 from app.schemas.activity import (
@@ -49,7 +50,7 @@ async def get_event(
 ) -> RallyEventResponse:
     event = await crud.rally_event.get(db, event_id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise RallyNotFoundError("Event not found")
     return RallyEventResponse.model_validate(event)
 
 
@@ -75,7 +76,7 @@ async def update_event(
 ) -> RallyEventResponse:
     event = await crud.rally_event.get(db, event_id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise RallyNotFoundError("Event not found")
     updated = await crud.rally_event.update(db, db_obj=event, obj_in=event_in)
     return RallyEventResponse.model_validate(updated)
 
@@ -90,5 +91,5 @@ async def set_current_event(
     """Make the given event the sole current edition (admin/manager only)."""
     event = await crud.rally_event.set_current(db, event_id=event_id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise RallyNotFoundError("Event not found")
     return RallyEventResponse.model_validate(event)

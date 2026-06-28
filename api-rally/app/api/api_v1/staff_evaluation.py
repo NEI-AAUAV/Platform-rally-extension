@@ -2,10 +2,11 @@
 API endpoints for staff evaluation system
 """
 from typing import Annotated, List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
 from app.api.deps import get_db
 from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import get_staff_with_checkpoint_access
@@ -51,17 +52,11 @@ async def get_my_checkpoint(
 ) -> DetailedCheckPoint:
     """Get the checkpoint assigned to the current staff member"""
     if not current_user.staff_checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=NO_CHECKPOINT_ASSIGNED
-        )
+        raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
     if not checkpoint_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assigned checkpoint not found"
-        )
+        raise RallyNotFoundError("Assigned checkpoint not found")
 
     return DetailedCheckPoint.model_validate(checkpoint_obj)
 
@@ -75,20 +70,14 @@ async def get_teams_at_my_checkpoint(
 ) -> List[Dict[str, Any]]:
     """Get all teams at the staff member's assigned checkpoint"""
     if not current_user.staff_checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=NO_CHECKPOINT_ASSIGNED
-        )
+        raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
     # Fetch the checkpoint's order (not the FK id) for correct comparison
     from sqlalchemy import select, func
     from sqlalchemy.orm import selectinload
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
     if not checkpoint_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assigned checkpoint not found"
-        )
+        raise RallyNotFoundError("Assigned checkpoint not found")
     staff_checkpoint_order = checkpoint_obj.order
 
     # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints).
@@ -116,10 +105,7 @@ async def get_team_activities_for_evaluation(
 ) -> Dict[str, Any]:
     """Get activities for a specific team that can be evaluated by this staff member"""
     if not current_user.staff_checkpoint_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=NO_CHECKPOINT_ASSIGNED
-        )
+        raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
     # Load team with members
     from sqlalchemy.orm import selectinload
@@ -127,10 +113,7 @@ async def get_team_activities_for_evaluation(
     stmt = select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
     team_obj: Optional[Team] = (await db.scalars(stmt)).first()
     if not team_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=TEAM_NOT_FOUND
-        )
+        raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     team_checkpoint_number = len(team_obj.times)
     logger.debug(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
@@ -202,10 +185,7 @@ async def evaluate_team_activity(
     # Check if user has rally permissions
     if not validate_rally_permissions(auth):
         logger.warning(f"User {current_user.id} does not have Rally permissions")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=NO_RALLY_PERMISSIONS
-        )
+        raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
     # Validate access based on user role
     is_admin_or_manager_flag = is_admin_or_manager(auth)
@@ -262,51 +242,33 @@ async def update_team_activity_evaluation(
     # Check if user has rally permissions
     has_rally_access = any(scope in auth.scopes for scope in ["rally-staff", "manager-rally", "admin"])
     if not has_rally_access:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=NO_RALLY_PERMISSIONS
-        )
+        raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
     # For staff users, check checkpoint assignment
     is_manager = any(scope in auth.scopes for scope in ["manager-rally", "admin"])
     if not is_manager:
         if not current_user.staff_checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=NO_CHECKPOINT_ASSIGNED
-            )
+            raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
         # Ensure the activity being updated belongs to the staff's checkpoint
         from app.crud.crud_activity import activity as activity_crud
         activity_obj = await activity_crud.get(db, id=activity_id)
         if not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Activity not found at your assigned checkpoint"
-            )
+            raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
         team_obj = await team.get(db, id=team_id)
         if not team_obj:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=TEAM_NOT_FOUND
-            )
+            raise RallyNotFoundError(TEAM_NOT_FOUND)
     else:
         # For managers/admins, just verify team exists
         team_obj = await team.get(db, id=team_id)
         if not team_obj:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=TEAM_NOT_FOUND
-            )
+            raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     # Get the result
     db_result = await activity_result.get(db, id=result_id)
     if not db_result or db_result.activity_id != activity_id or db_result.team_id != team_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity result not found"
-        )
+        raise RallyNotFoundError("Activity result not found")
 
     # Update the result
     db_result = await ScoringService(db).update_result(db_result, result_in)
@@ -325,20 +287,14 @@ async def get_all_evaluations(
     """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
     # Check if user has rally permissions
     if not validate_rally_permissions(auth):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=NO_RALLY_PERMISSIONS
-        )
+        raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
     # Staff members can only view evaluations from their assigned checkpoint
     is_manager = is_admin_or_manager(auth)
 
     if not is_manager:
         if not current_user.staff_checkpoint_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=NO_CHECKPOINT_ASSIGNED
-            )
+            raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
         # Override checkpoint_id filter with staff's assigned checkpoint
         checkpoint_id = current_user.staff_checkpoint_id
         logger.debug(f"Staff user {current_user.id} restricted to checkpoint {checkpoint_id}")

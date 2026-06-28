@@ -1,6 +1,7 @@
 from typing import Annotated, List, Dict, Any, Sequence, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Security
+from app.core.exceptions import RallyForbiddenError, RallyValidationError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import TypeAdapter
 from sqlalchemy import select
@@ -93,7 +94,7 @@ async def get_checkpoints(
 
     result = await _get_checkpoints_for_public(db, settings)
     if result is None:
-        raise HTTPException(status_code=403, detail="Checkpoint map is hidden")
+        raise RallyForbiddenError("Checkpoint map is hidden")
     return result
 
 
@@ -208,10 +209,7 @@ async def create_checkpoint(
     # Validate order uniqueness
     existing_checkpoint = await crud.checkpoint.get_by_order(db=db, order=cp_in.order)
     if existing_checkpoint:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Checkpoint with order {cp_in.order} already exists"
-        )
+        raise RallyValidationError(f"Checkpoint with order {cp_in.order} already exists")
 
     cp = await crud.checkpoint.create(db=db, obj_in=cp_in)
     return DetailedCheckPoint.model_validate(cp)
@@ -229,10 +227,7 @@ async def reorder_checkpoints(
         await crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
         return {"message": "Checkpoints reordered successfully"}
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot reorder checkpoints: {str(e)}"
-        )
+        raise RallyValidationError(f"Cannot reorder checkpoints: {str(e)}")
 
 
 @router.put("/{id}", status_code=200)
@@ -277,7 +272,4 @@ async def delete_checkpoint(
         return {"message": "Checkpoint deleted successfully"}
     except Exception as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete checkpoint: {str(e)}"
-        )
+        raise RallyValidationError(f"Cannot delete checkpoint: {str(e)}")

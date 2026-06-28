@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
+from app.core.exceptions import RallyValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from sqlalchemy import select, text
@@ -116,4 +117,4 @@ async def update_checkpoint_assignment(
                 checkpoint_name=None, checkpoint_description=None
             )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update checkpoint assignment: {str(e)}")
+        raise RallyValidationError(f"Failed to update checkpoint assignment: {str(e)}")

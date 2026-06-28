@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict
 
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
@@ -35,7 +36,7 @@ async def add_team_member(
     # Check if team exists
     team = await db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
 
     # Check member limit
     from sqlalchemy import select, func
@@ -44,10 +45,7 @@ async def add_team_member(
     current_member_count = await db.scalar(count_stmt) or 0
 
     if current_member_count >= settings.max_members_per_team:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team."
-        )
+        raise RallyValidationError(f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team.")
 
     # If setting as captain, check if team already has a captain
     if member_data.is_captain:
@@ -57,10 +55,7 @@ async def add_team_member(
         )
         existing_captain = (await db.scalars(captain_stmt)).first()
         if existing_captain:
-            raise HTTPException(
-                status_code=400,
-                detail="Team already has a captain. Remove current captain first."
-            )
+            raise RallyValidationError("Team already has a captain. Remove current captain first.")
 
     # Create new user with auto-assigned ID
     user_data = UserCreate(
@@ -95,18 +90,15 @@ async def remove_team_member(
     # Check if team exists
     team = await db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
 
     # Check if user exists and is in this team
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if user.team_id != team_id:
-        raise HTTPException(
-            status_code=400,
-            detail="User is not a member of this team"
-        )
+        raise RallyValidationError("User is not a member of this team")
 
     # Remove user from team
     user.team_id = None
@@ -132,18 +124,15 @@ async def update_team_member(
     # Check if team exists
     team = await db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
 
     # Check if user exists and is in this team
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if user.team_id != team_id:
-        raise HTTPException(
-            status_code=400,
-            detail="User is not a member of this team"
-        )
+        raise RallyValidationError("User is not a member of this team")
 
     # If setting as captain, check if team already has a captain
     if member_data.is_captain is True:
@@ -155,10 +144,7 @@ async def update_team_member(
         )
         existing_captain = (await db.scalars(stmt)).first()
         if existing_captain:
-            raise HTTPException(
-                status_code=400,
-                detail="Team already has a captain. Remove current captain first."
-            )
+            raise RallyValidationError("Team already has a captain. Remove current captain first.")
 
     # Update user fields
     if member_data.name is not None:
@@ -194,7 +180,7 @@ async def get_team_members(
     # Check if team exists
     team = await db.get(Team, team_id)
     if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
+        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
 
     # Get team members
     from sqlalchemy import select

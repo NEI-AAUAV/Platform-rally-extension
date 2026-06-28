@@ -8,7 +8,7 @@ This module contains helper functions for:
 - Checkpoint progress calculation
 """
 from typing import Optional, Dict, Any, Tuple, List, Sequence
-from fastapi import HTTPException, status
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -93,19 +93,13 @@ async def validate_staff_checkpoint_access(
 
     if not current_user.staff_checkpoint_id:
         logger.error(f"User {current_user.id} has no checkpoint assignment")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=NO_CHECKPOINT_ASSIGNED
-        )
+        raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
     # Verify team exists
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         logger.error(f"Team {team_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=TEAM_NOT_FOUND
-        )
+        raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     # NOTE: We don't check team checkpoint progress here.
     # Staff should be able to evaluate any team at their assigned checkpoint,
@@ -121,10 +115,7 @@ async def validate_staff_checkpoint_access(
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         logger.error(f"Activity {activity_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
-        )
+        raise RallyNotFoundError("Activity not found")
 
     logger.info(f"Activity {activity_id} belongs to checkpoint {activity_obj.checkpoint_id}")
 
@@ -133,10 +124,7 @@ async def validate_staff_checkpoint_access(
             f"Activity checkpoint mismatch: {activity_obj.checkpoint_id} != "
             f"{current_user.staff_checkpoint_id}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found at your assigned checkpoint"
-        )
+        raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
     logger.info(f"Validation successful for team {team_id}, activity {activity_id}")
     return team_obj, activity_obj
@@ -146,18 +134,12 @@ async def validate_admin_access(db: AsyncSession, team_id: int, activity_id: int
     """Validate admin access and return team and activity objects"""
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=TEAM_NOT_FOUND
-        )
+        raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     from app.crud.crud_activity import activity
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found"
-        )
+        raise RallyNotFoundError("Activity not found")
 
     return team_obj, activity_obj
 
@@ -170,10 +152,7 @@ async def check_existing_result(db: AsyncSession, activity_id: int, team_id: int
     """Check if result already exists for this team and activity"""
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Result already exists for this team and activity"
-        )
+        raise RallyValidationError("Result already exists for this team and activity")
 
 
 async def create_activity_result(

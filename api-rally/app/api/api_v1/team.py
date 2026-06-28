@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Security
+from app.core.exceptions import RallyForbiddenError, RallyValidationError
 
 from app import crud
 from app.api import deps
@@ -196,20 +197,14 @@ async def delete_team(
         team = await crud.team.get(db=db, id=id)
         await db.refresh(team, ["members"])
         if team and len(team.members) > 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot delete team with members. Remove all members first."
-            )
+            raise RallyValidationError("Cannot delete team with members. Remove all members first.")
 
         await crud.team.remove(db=db, id=id)
         return {"message": "Team deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete team: {str(e)}"
-        )
+        raise RallyValidationError(f"Cannot delete team: {str(e)}")
 
 
 @router.get("/{id}/evaluations", status_code=200)
@@ -245,10 +240,7 @@ async def get_team_evaluations(
         is_own_team = True
 
     if not (is_admin_or_staff or is_own_team):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to view these evaluations"
-        )
+        raise RallyForbiddenError("You do not have permission to view these evaluations")
 
     from sqlalchemy.orm import joinedload
     from app.models.activity import ActivityResult
