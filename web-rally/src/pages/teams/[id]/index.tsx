@@ -7,6 +7,7 @@ import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
 import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
 import { BadgeShowcase } from "@/components/badges/BadgeShowcase";
+import { ShareButton } from "@/components/shared/ShareButton";
 
 export default function TeamsById() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -115,6 +116,9 @@ export default function TeamsById() {
                   </p>
                 </div>
               )}
+              <div className="flex justify-end px-5 pb-4">
+                <ShareButton title={`${team.name} — Rally`} label="Partilhar equipa" />
+              </div>
             </div>
 
             <BadgeShowcase teamId={Number(id)} />
