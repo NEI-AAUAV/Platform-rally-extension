@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { TeamService, TeamMembersService, type DetailedTeam } from "@/client";
+import {
+  TeamService,
+  TeamMembersService,
+  TeamAuthService,
+  ApiError,
+  type DetailedTeam,
+} from "@/client";
 import {
   getTeamToken,
   setTeamToken,
@@ -56,20 +62,17 @@ export default function useTeamAuth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (accessCode: string): Promise<TeamLoginResponse> => {
-      const response = await fetch("/api/rally/v1/team-auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ access_code: accessCode }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json() as { detail?: string };
-        throw new Error(error.detail || "Login failed");
+      try {
+        return (await TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost({
+          access_code: accessCode,
+        })) as TeamLoginResponse;
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const detail = (error.body as { detail?: string } | undefined)?.detail;
+          throw new Error(detail || "Login failed");
+        }
+        throw error;
       }
-
-      return response.json() as Promise<TeamLoginResponse>;
     },
     onSuccess: (data) => {
       // Store token and team data

@@ -5,6 +5,8 @@ import {
   TeamService,
   ActivitiesService,
   StaffEvaluationService,
+  ApiError,
+  type ActivityResultEvaluation,
   type ActivityResponse,
   type ActivityResultResponse,
   type DetailedCheckPoint,
@@ -187,39 +189,31 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
   // Evaluate activity mutation
   const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
     mutationFn: async ({ teamId, activityId, resultData }): Promise<ActivityResultResponse> => {
-      // Ensure we have a valid payload structure matching ActivityResultEvaluation schema
-      const payload = {
+      // Payload structure matching the ActivityResultEvaluation schema.
+      const payload: ActivityResultEvaluation = {
         result_data: resultData?.result_data ?? {},
         extra_shots: resultData?.extra_shots ?? 0,
         penalties: resultData?.penalties ?? {},
       };
 
-      const token = userStore.token;
-      const url = `/api/rally/v1/staff/teams/${teamId}/activities/${activityId}/evaluate`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        let err: unknown = { detail: res.statusText };
-        try {
-          const errorData = await res.json() as { detail?: unknown };
-          err = errorData;
-          // Log validation errors for debugging
-          if (res.status === 422 && errorData.detail) {
-            console.error("Validation error:", errorData.detail);
+      try {
+        return await StaffEvaluationService.evaluateTeamActivityApiRallyV1StaffTeamsTeamIdActivitiesActivityIdEvaluatePost(
+          teamId,
+          activityId,
+          payload,
+        );
+      } catch (error) {
+        // Surface validation detail and rethrow it in the same shape callers
+        // already handle ({ detail }).
+        if (error instanceof ApiError) {
+          if (error.status === 422) {
+            console.error("Validation error:", error.body?.detail);
             console.error("Request payload:", resultData);
           }
-        } catch {
-          // ignore JSON parse failure
+          throw error.body ?? { detail: error.statusText };
         }
-        throw err;
+        throw error;
       }
-      return await res.json() as ActivityResultResponse;
     },
     onSuccess: (_data, variables) => {
       // Invalidate relevant queries so other views pick up latest scores

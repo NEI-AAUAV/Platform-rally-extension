@@ -3,8 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
-import { getTeamToken } from "@/lib/auth/tokenStore";
 import {
+  CheckPointService,
   TeamService,
   type DetailedTeam,
   type DetailedCheckPoint,
@@ -47,37 +47,25 @@ export function useTeamProgress() {
     refetchOnWindowFocus: true,
   });
 
-  // Fetch checkpoints — send team auth token so the backend returns the
-  // correct slice for this team (completed + next), not just checkpoint 1.
+  // Fetch checkpoints — the generated client sends the current team token
+  // (OpenAPI.HEADERS) so the backend returns the correct slice for this team
+  // (completed + next), not just checkpoint 1.
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints", teamData?.team_id],
-    queryFn: async () => {
-      const token = getTeamToken();
-      const response = await fetch("/api/rally/v1/checkpoint/", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) throw new Error("Failed to fetch checkpoints");
-      return response.json() as Promise<DetailedCheckPoint[]>;
-    },
+    queryFn: async () => CheckPointService.getCheckpointsApiRallyV1CheckpointGet(),
     enabled: !!teamData?.team_id,
     refetchInterval: REFRESH_INTERVAL_MS,
   });
 
-  // Fetch total checkpoints count
+  // Fetch total checkpoints count (tolerate failure: the count is non-critical).
   const { data: totalCheckpoints } = useQuery({
     queryKey: ["checkpoints-count"],
     queryFn: async () => {
-      const token = getTeamToken();
-      const response = await fetch("/api/rally/v1/checkpoint/count", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
+      try {
+        return await CheckPointService.getCheckpointsCountApiRallyV1CheckpointCountGet();
+      } catch {
         return null;
       }
-      return response.json() as Promise<number>;
     },
     refetchInterval: REFRESH_INTERVAL_MS,
   });

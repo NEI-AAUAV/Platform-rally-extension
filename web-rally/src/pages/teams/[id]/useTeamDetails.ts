@@ -8,7 +8,6 @@ import {
   type ListingTeam,
 } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
-import { getStaffToken, getTeamToken } from "@/lib/auth/tokenStore";
 import type { EvaluationResult } from "./teamDetails.types";
 
 /**
@@ -52,23 +51,14 @@ export function useTeamDetails(id: string | undefined) {
   const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
     queryKey: ["teamEvaluations", id],
     queryFn: async () => {
-      const token = getStaffToken() || getTeamToken();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`/api/rally/v1/team/${id}/evaluations`, {
-        headers,
-      });
-
-      if (!response.ok) {
+      try {
+        const response = await TeamService.getTeamEvaluationsApiRallyV1TeamIdEvaluationsGet(
+          Number(id),
+        );
+        return response as { evaluations: EvaluationResult[] };
+      } catch {
         return { evaluations: [] };
       }
-
-      return response.json() as Promise<{ evaluations: EvaluationResult[] }>;
     },
     enabled: isSuccess && settings?.show_team_details !== false,
   });
@@ -92,22 +82,11 @@ export function useTeamDetails(id: string | undefined) {
   const { data: totalCheckpoints } = useQuery({
     queryKey: ["checkpoints-count"],
     queryFn: async () => {
-      // Use user token if available, otherwise try team token
-      const token = getStaffToken() || getTeamToken();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch("/api/rally/v1/checkpoint/count", {
-        headers,
-      });
-      if (!response.ok) {
+      try {
+        return await CheckPointService.getCheckpointsCountApiRallyV1CheckpointCountGet();
+      } catch {
         return null;
       }
-      return response.json() as Promise<number>;
     },
     // Only fetch if we are showing team details
     enabled: isSuccess && settings?.show_team_details !== false,
