@@ -61,3 +61,6 @@ class RallySettings(Base):
 
     # Access control
     public_access_enabled = Column(Boolean, nullable=False, default=False)
+
+    # Walk-up registration: staff can add team members during event (B4)
+    allow_staff_registration = Column(Boolean, nullable=False, default=False)

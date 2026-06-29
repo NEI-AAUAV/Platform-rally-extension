@@ -350,3 +350,99 @@ class TestTeamMembersBusinessLogic:
                 else:
                     # This shouldn't happen with our test data
                     assert False, f"Unexpected email format: {email}"
+
+
+class TestStaffRegistrationGate:
+    """B4: allow_staff_registration gate on add_team_member."""
+
+    @pytest.fixture(autouse=True)
+    def bypass_auth(self):
+        from app.api.auth import api_nei_auth, AuthData
+        from app.api import deps
+
+        def _auth() -> AuthData:
+            return AuthData(oidc_sub="u1", name="Staff", scopes=["rally-staff"])
+
+        def _participant():
+            u = Mock()
+            u.id = "u1"
+            u.staff_checkpoint_id = None
+            return u
+
+        app.dependency_overrides[api_nei_auth] = _auth
+        app.dependency_overrides[deps.get_participant] = _participant
+        yield
+        app.dependency_overrides.pop(api_nei_auth, None)
+        app.dependency_overrides.pop(deps.get_participant, None)
+
+    def _make_settings(self, *, allow: bool) -> Mock:
+        s = Mock()
+        s.max_members_per_team = 10
+        s.allow_staff_registration = allow
+        return s
+
+    def _make_team(self) -> Mock:
+        t = Mock()
+        t.id = 1
+        t.name = "T"
+        t.times = []
+        return t
+
+    def _make_user(self) -> Mock:
+        u = Mock()
+        u.id = 99
+        u.name = "Walk-up"
+        u.email = "wu@example.com"
+        u.team_id = 1
+        u.is_captain = False
+        return u
+
+    def test_staff_blocked_when_registration_disabled(self, client_with_mocked_db, mock_db):
+        """Staff get 403 when allow_staff_registration is False."""
+        with patch("app.api.abac_deps.require_team_management_permission"), \
+             patch("app.api.api_v1.team_members.deps.is_admin", return_value=False), \
+             patch("app.crud.crud_rally_settings.rally_settings.get_or_create", return_value=self._make_settings(allow=False)):
+            mock_db.get.return_value = self._make_team()
+            resp = client_with_mocked_db.post(
+                "/api/rally/v1/team/1/members",
+                json={"name": "Walk-up", "email": "wu@example.com", "is_captain": False},
+            )
+        assert resp.status_code == 403
+
+    def _async_client(self, *, is_admin: bool, allow_reg: bool):
+        from unittest.mock import AsyncMock as AMock
+        from app.api.deps import get_db
+        adb = AMock()
+        adb.get = AMock(return_value=self._make_team())
+        adb.scalar = AMock(return_value=2)
+        adb.scalars = AMock()
+        adb.scalars.return_value.first = Mock(return_value=None)
+        app.dependency_overrides[get_db] = lambda: adb
+        return (
+            TestClient(app),
+            adb,
+            patch("app.api.api_v1.team_members.require_team_management_permission"),
+            patch("app.api.api_v1.team_members.deps.is_admin", return_value=is_admin),
+            patch("app.crud.crud_rally_settings.rally_settings.get_or_create", new=AMock(return_value=self._make_settings(allow=allow_reg))),
+            patch("app.crud.crud_user.user.create", new=AMock(return_value=self._make_user())),
+        )
+
+    def test_staff_allowed_when_registration_enabled(self):
+        """Staff can add members when allow_staff_registration is True — gate passes."""
+        client, _, p1, p2, p3, p4 = self._async_client(is_admin=False, allow_reg=True)
+        with p1, p2, p3, p4:
+            resp = client.post(
+                "/api/rally/v1/team/1/members",
+                json={"name": "Walk-up", "email": "wu@example.com", "is_captain": False},
+            )
+        assert resp.status_code != 403
+
+    def test_admin_bypasses_gate(self):
+        """Admins bypass gate even when allow_staff_registration is False."""
+        client, _, p1, p2, p3, p4 = self._async_client(is_admin=True, allow_reg=False)
+        with p1, p2, p3, p4:
+            resp = client.post(
+                "/api/rally/v1/team/1/members",
+                json={"name": "Walk-up", "email": "wu@example.com", "is_captain": False},
+            )
+        assert resp.status_code != 403

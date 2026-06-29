@@ -43,6 +43,9 @@ class RallySettingsBase(BaseModel):
     # Access control
     public_access_enabled: bool
 
+    # Walk-up registration gate (B4)
+    allow_staff_registration: bool = False
+
 class RallySettingsUpdate(RallySettingsBase):
     ...
 

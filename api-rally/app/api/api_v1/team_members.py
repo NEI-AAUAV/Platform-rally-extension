@@ -6,6 +6,7 @@ from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
+from app.core.exceptions import RallyForbiddenError
 from app.schemas.user import DetailedUser, UserCreate
 from app.schemas.team_members import TeamMemberAdd, TeamMemberLink, TeamMemberResponse, TeamMemberUpdate
 from app import crud
@@ -40,7 +41,14 @@ async def add_team_member(
 
     # Check member limit
     from sqlalchemy import select, func
+    from app.core.abac import Action
     settings = await rally_settings.get_or_create(db)
+
+    # Staff can only add members when walk-up registration is enabled (B4).
+    # Admins and managers are never gated.
+    is_privileged = deps.is_admin(auth.scopes)
+    if not is_privileged and not settings.allow_staff_registration:
+        raise RallyForbiddenError("Walk-up registration is currently disabled")
     count_stmt = select(func.count(User.id)).where(User.team_id == team_id)
     current_member_count = await db.scalar(count_stmt) or 0
 
