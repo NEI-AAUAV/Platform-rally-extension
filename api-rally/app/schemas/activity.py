@@ -15,9 +15,13 @@ class ActivityBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     activity_type: ActivityType = Field(..., description="Activity type enum")
-    checkpoint_id: int = Field(..., gt=0)
+    # nullable when is_global=True (D3)
+    checkpoint_id: int | None = Field(None, gt=0)
     config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
+    is_global: bool = False
+    available_from: datetime | None = None
+    available_until: datetime | None = None
     
     @field_validator('activity_type')
     @classmethod
@@ -45,6 +49,9 @@ class ActivityUpdate(BaseModel):
     description: str | None = None
     config: dict[str, Any] | None = None
     is_active: bool | None = None
+    is_global: bool | None = None
+    available_from: datetime | None = None
+    available_until: datetime | None = None
 
 
 class ActivityResponse(ActivityBase):

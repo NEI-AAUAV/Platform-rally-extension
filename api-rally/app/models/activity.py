@@ -21,7 +21,8 @@ class Activity(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     activity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # Class name of the activity type
-    checkpoint_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"), nullable=False)
+    # nullable for global activities (D3); checkpoint-scoped activities keep a non-null value
+    checkpoint_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"), nullable=True)
     # Event scoping: nullable so existing single-event rows remain valid; new
     # rows are stamped with the current event id.
     event_id: Mapped[Optional[int]] = mapped_column(
@@ -30,9 +31,17 @@ class Activity(Base):
 
     # Configuration specific to activity type
     config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
-    
+
     # Activity status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Global activity flag (D3): when True the activity is available at every
+    # checkpoint and checkpoint_id is ignored/null.
+    is_global: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Optional time window (D3): activity is only available between these times.
+    available_from: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    available_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
