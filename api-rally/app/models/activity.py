@@ -73,6 +73,12 @@ class ActivityResult(Base):
     # Status
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Deferred judging support (B3)
+    # media_urls: list of R2 URLs uploaded during capture phase
+    media_urls: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # judgment_status: None = normal result; "pending_judgment" = captured, awaiting judge; "judged" = judged
+    judgment_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default=None)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

@@ -9,7 +9,8 @@ from .activities import (
     ScoreBasedActivity,
     BooleanActivity,
     TeamVsActivity,
-    GeneralActivity
+    GeneralActivity,
+    DeferredJudgedActivity,
 )
 
 
@@ -22,6 +23,7 @@ class ActivityFactory:
         ActivityType.BOOLEAN.value: BooleanActivity,
         ActivityType.TEAM_VS.value: TeamVsActivity,
         ActivityType.GENERAL.value: GeneralActivity,
+        ActivityType.DEFERRED_JUDGED.value: DeferredJudgedActivity,
     }
     
     @classmethod

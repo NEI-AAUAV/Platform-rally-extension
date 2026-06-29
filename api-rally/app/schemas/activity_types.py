@@ -12,6 +12,7 @@ class ActivityType(str, Enum):
     BOOLEAN = "BooleanActivity"
     TEAM_VS = "TeamVsActivity"
     GENERAL = "GeneralActivity"
+    DEFERRED_JUDGED = "DeferredJudgedActivity"
     
     @classmethod
     def get_all_values(cls) -> list[str]:

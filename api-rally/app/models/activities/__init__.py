@@ -7,12 +7,14 @@ from .score_based import ScoreBasedActivity
 from .boolean import BooleanActivity
 from .team_vs import TeamVsActivity
 from .general import GeneralActivity
+from .deferred_judged import DeferredJudgedActivity
 
 __all__ = [
     "BaseActivity",
-    "TimeBasedActivity", 
+    "TimeBasedActivity",
     "ScoreBasedActivity",
     "BooleanActivity",
     "TeamVsActivity",
-    "GeneralActivity"
+    "GeneralActivity",
+    "DeferredJudgedActivity",
 ]
