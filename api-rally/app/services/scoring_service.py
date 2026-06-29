@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from app.core.config import settings
 from app.models.activity import ActivityResult, Activity
+from app.models.dynamic_scoring import DynamicAward
 from app.models.team import Team
 from app.models.rally_settings import RallySettings
 from app.schemas.activity_types import ActivityType
@@ -170,6 +171,15 @@ class ScoringService:
                         checkpoint_scores[checkpoint_order] = 0.0
                     checkpoint_scores[checkpoint_order] += result.final_score
                     total_score += result.final_score
+
+        # Fold in active dynamic awards for this team (D4)
+        award_stmt = select(DynamicAward).where(
+            DynamicAward.team_id == team_id,
+            DynamicAward.is_active.is_(True),
+        )
+        awards = (await self.db.scalars(award_stmt)).all()
+        for award in awards:
+            total_score += float(award.points)
 
         # Update team scores
         team.total = int(total_score)
