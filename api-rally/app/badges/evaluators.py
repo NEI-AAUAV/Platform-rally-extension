@@ -20,10 +20,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity, ActivityResult
 from app.models.badge import BadgeType
+from app.models.badge_definition import BadgeDefinition
 from app.schemas.activity_types import ActivityType
 from app.services import badge_service
 
 logger = logging.getLogger(__name__)
+
+
+async def _is_badge_active(db: AsyncSession, badge_type: BadgeType) -> bool:
+    """Return True if the BadgeDefinition for this code is active (or missing = active).
+
+    Falls back to True on any error so a missing/misconfigured table never
+    silently disables all badges.
+    """
+    try:
+        stmt = select(BadgeDefinition.is_active).where(BadgeDefinition.code == badge_type.value)
+        result = await db.execute(stmt)
+        row = result.scalar_one_or_none()
+        return row if row is not None else True
+    except Exception:
+        return True
 
 
 @dataclass(frozen=True)
@@ -41,6 +57,8 @@ async def _evaluate_head_to_head_win(
     db: AsyncSession, result: ActivityResult
 ) -> list[BadgeAward]:
     """Award HEAD_TO_HEAD_WIN to a team that won a completed TeamVs match."""
+    if not await _is_badge_active(db, BadgeType.HEAD_TO_HEAD_WIN):
+        return []
     if not result.is_completed:
         return []
     activity = result.activity
@@ -68,6 +86,8 @@ async def _evaluate_first_to_complete(
     triggering result may not be the earliest, so award the actual first
     finisher rather than whoever fired this event.
     """
+    if not await _is_badge_active(db, BadgeType.FIRST_TO_COMPLETE_ACTIVITY):
+        return []
     if not result.is_completed:
         return []
     if await badge_service.badge_holder_exists(
@@ -112,6 +132,8 @@ async def _evaluate_first_to_complete_checkpoint(
     every active activity in that checkpoint. The winner is the team whose last
     such result landed earliest. Single-holder per checkpoint.
     """
+    if not await _is_badge_active(db, BadgeType.FIRST_TO_COMPLETE_CHECKPOINT):
+        return []
     if not result.is_completed:
         return []
     activity = result.activity

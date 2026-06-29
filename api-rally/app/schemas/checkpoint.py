@@ -7,6 +7,7 @@ class CheckPointBase(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     order: int
+    arrival_radius_m: int = 50
 
 
 class CheckPointCreate(CheckPointBase):
@@ -19,6 +20,7 @@ class CheckPointUpdate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     order: int | None = None
+    arrival_radius_m: int | None = None
 
 
 class CheckPointResponse(CheckPointBase):

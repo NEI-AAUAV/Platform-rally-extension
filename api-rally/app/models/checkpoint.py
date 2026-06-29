@@ -8,6 +8,7 @@ from app.core.config import settings
 if TYPE_CHECKING:
     from app.models.rally_staff_assignment import RallyStaffAssignment
     from app.models.activity import Activity
+    from app.models.checkpoint_media import CheckpointMedia
 
 
 class CheckPoint(Base):
@@ -25,6 +26,7 @@ class CheckPoint(Base):
     latitude: Mapped[float | None] = mapped_column(default=None)
     longitude: Mapped[float | None] = mapped_column(default=None)
     order: Mapped[int] = mapped_column(Integer, nullable=False)
+    arrival_radius_m: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     # Event scoping: nullable so existing single-event rows remain valid.
     event_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
@@ -35,3 +37,10 @@ class CheckPoint(Base):
     
     # Relationship to activities
     activities: Mapped[List["Activity"]] = relationship("Activity", back_populates="checkpoint")
+
+    media: Mapped[List["CheckpointMedia"]] = relationship(
+        "CheckpointMedia",
+        back_populates="checkpoint",
+        cascade="all, delete-orphan",
+        order_by="CheckpointMedia.order",
+    )

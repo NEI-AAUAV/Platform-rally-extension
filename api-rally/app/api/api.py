@@ -14,6 +14,9 @@ from .api_v1 import badges
 from .api_v1 import checkin
 from .api_v1 import events
 from .api_v1 import profile
+from .api_v1 import checkpoint_media
+from .api_v1 import checkpoint_arrive
+from .api_v1 import badge_admin
 
 api_v1_router = APIRouter()
 
@@ -34,3 +37,6 @@ api_v1_router.include_router(badges.router, prefix="", tags=["Badges"])
 api_v1_router.include_router(checkin.router, prefix="", tags=["Check-in"])
 api_v1_router.include_router(events.router, prefix="", tags=["Events"])
 api_v1_router.include_router(profile.router, prefix="", tags=["Profile"])
+api_v1_router.include_router(checkpoint_media.router, prefix="", tags=["Checkpoint Media"])
+api_v1_router.include_router(checkpoint_arrive.router, prefix="", tags=["Checkpoint Arrive"])
+api_v1_router.include_router(badge_admin.router, prefix="", tags=["Badge Admin"])
