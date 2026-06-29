@@ -66,3 +66,28 @@ def test_history_returns_entries(client: TestClient) -> None:
         resp = client.get("/api/rally/v1/profile/history")
     assert resp.status_code == 200
     assert resp.json()[0]["event_id"] == 5
+
+
+def test_claimable_lists_only_placeholders(client: TestClient) -> None:
+    team = SimpleNamespace(id=10, name="Os Bons")
+    placeholders = [
+        SimpleNamespace(id=2, name="João", is_captain=False),
+        SimpleNamespace(id=3, name="Rita", is_captain=True),
+    ]
+    scalars = SimpleNamespace(all=lambda: placeholders)
+    # The endpoint resolves the team by code, then queries placeholder members.
+    with patch("app.crud.team.get_by_access_code", new=AsyncMock(return_value=team)):
+        app.dependency_overrides[get_db] = lambda: AsyncMock(scalars=AsyncMock(return_value=scalars))
+        resp = client.get("/api/rally/v1/profile/claimable", params={"access_code": "ABCD-1234"})
+        app.dependency_overrides[get_db] = _db_no_team
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["team_id"] == 10
+    assert body["team_name"] == "Os Bons"
+    assert [m["name"] for m in body["members"]] == ["João", "Rita"]
+
+
+def test_claimable_unknown_code_returns_404(client: TestClient) -> None:
+    with patch("app.crud.team.get_by_access_code", new=AsyncMock(return_value=None)):
+        resp = client.get("/api/rally/v1/profile/claimable", params={"access_code": "NOPE-0000"})
+    assert resp.status_code == 404

@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Trash2 } from "lucide-react";
+import { Users, Trash2, Link2 } from "lucide-react";
 import { TeamMembersService } from "@/client";
+import LinkMemberPanel from "./LinkMemberPanel";
 
 interface TeamMember {
   id: number;
@@ -22,6 +24,7 @@ type MemberListProps = Readonly<{
 }>
 
 export default function MemberList({ teamMembers, selectedTeam, onSuccess, className = "" }: MemberListProps) {
+  const [linkingId, setLinkingId] = useState<number | null>(null);
   // Remove member mutation
   const {
     mutate: removeMember,
@@ -84,16 +87,38 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                   </div>
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRemoveMember(member.id)}
-                  disabled={isRemovingMember}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-600/20"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Remover
-                </Button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLinkingId((id) => (id === member.id ? null : member.id))}
+                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-600/20"
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    {linkingId === member.id ? "Cancelar" : "Ligar conta NEI"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRemoveMember(member.id)}
+                    disabled={isRemovingMember}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-600/20"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remover
+                  </Button>
+                </div>
+
+                {linkingId === member.id && (
+                  <LinkMemberPanel
+                    teamId={Number.parseInt(selectedTeam)}
+                    placeholderUserId={member.id}
+                    onLinked={() => {
+                      setLinkingId(null);
+                      onSuccess();
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>

@@ -1,4 +1,10 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { UserCheck } from "lucide-react";
 import type { DetailedTeam } from "@/client";
+import { ProfileService } from "@/services/ProfileService";
+import { useUserStore } from "@/stores/useUserStore";
+import { useProfile } from "@/hooks/useProfile";
+import { useAppToast } from "@/hooks/use-toast";
 
 type TeamMembersCardProps = Readonly<{
   team: DetailedTeam;
@@ -13,24 +19,73 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+function errorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "body" in error) {
+    const body = (error as { body?: { detail?: string } }).body;
+    if (body?.detail) return body.detail;
+  }
+  if (error instanceof Error) return error.message;
+  return "Não foi possível associar.";
+}
+
 export default function TeamMembersCard({ team }: TeamMembersCardProps) {
+  const isAuthenticated = useUserStore((s) => s.isAuthenticated);
+  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
+  const toast = useAppToast();
+
+  // Only offer "this is me" when logged in with NEI and not yet on a team.
+  const canClaim = isAuthenticated && profile != null && profile.current_team_id == null;
+
+  const claim = useMutation({
+    mutationFn: (memberId: number) => ProfileService.claimMembership(memberId),
+    onSuccess: () => {
+      toast.success("Conta associada! O teu histórico foi atualizado.");
+      queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   return (
     <div className="rally-surface rounded-xl border border-border p-5">
       <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
         Membros
       </p>
+      {canClaim && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          És um destes membros? Toca no teu nome para ligares a tua conta NEI.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        {team.members?.map((member) => (
-          <span
-            key={member.id}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary py-1.5 pl-1.5 pr-4 text-sm font-semibold text-foreground"
-          >
-            <span className="rally-bg-accent-soft rally-accent grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold">
-              {initialsOf(member.name)}
+        {team.members?.map((member) => {
+          const content = (
+            <>
+              <span className="rally-bg-accent-soft rally-accent grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold">
+                {initialsOf(member.name)}
+              </span>
+              {member.name}
+              {canClaim && <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />}
+            </>
+          );
+          const className =
+            "inline-flex items-center gap-2 rounded-full border border-border bg-secondary py-1.5 pl-1.5 pr-4 text-sm font-semibold text-foreground";
+
+          return canClaim ? (
+            <button
+              key={member.id}
+              type="button"
+              disabled={claim.isPending}
+              onClick={() => claim.mutate(member.id)}
+              className={`${className} rally-press transition hover:brightness-105 disabled:opacity-50`}
+            >
+              {content}
+            </button>
+          ) : (
+            <span key={member.id} className={className}>
+              {content}
             </span>
-            {member.name}
-          </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

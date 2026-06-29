@@ -19,6 +19,25 @@ class ParticipationEntry(BaseModel):
     joined_at: datetime
 
 
+class ClaimableMember(BaseModel):
+    """A name-only placeholder member a person can claim as themselves."""
+
+    id: int
+    name: str
+    is_captain: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class ClaimableTeam(BaseModel):
+    """A team (resolved by access code) and its claimable placeholder members."""
+
+    team_id: int
+    team_name: str
+    members: list[ClaimableMember] = []
+
+
 class ProfileResponse(BaseModel):
     """A person's rally profile: identity + participation history."""
 

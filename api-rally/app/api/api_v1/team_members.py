@@ -7,7 +7,7 @@ from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
 from app.schemas.user import DetailedUser, UserCreate
-from app.schemas.team_members import TeamMemberAdd, TeamMemberResponse, TeamMemberUpdate
+from app.schemas.team_members import TeamMemberAdd, TeamMemberLink, TeamMemberResponse, TeamMemberUpdate
 from app import crud
 from app.models.user import User
 from app.models.team import Team
@@ -71,6 +71,78 @@ async def add_team_member(
         name=user.name,
         email=user.email,
         is_captain=user.is_captain
+    )
+
+
+@router.post("/team/{team_id}/members/{user_id}/link", status_code=200)
+async def link_team_member(
+    team_id: int,
+    user_id: int,
+    link_data: TeamMemberLink,
+    db: AsyncSession = Depends(deps.get_db),
+    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    curr_user: DetailedUser = Depends(deps.get_participant),
+) -> TeamMemberResponse:
+    """Link a name-only placeholder member to a real NEI (OIDC) account.
+
+    ``user_id`` is the placeholder (a user row with no authentik_sub); the body
+    carries the Authentik subject of the account chosen via search. If that
+    account has never logged in, a local mirror is created for it. The
+    placeholder's team membership is moved onto the account and the placeholder
+    is removed, mirroring the self-service ``/profile/claim`` flow but
+    admin-driven. A participation row is recorded for the event.
+    """
+    require_team_management_permission(auth=auth, curr_user=curr_user)
+
+    team = await db.get(Team, team_id)
+    if not team:
+        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
+
+    placeholder = await db.get(User, user_id)
+    if placeholder is None:
+        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
+    if placeholder.team_id != team_id:
+        raise RallyValidationError("User is not a member of this team")
+    if placeholder.authentik_sub is not None:
+        raise RallyValidationError("This member is already linked to an account")
+
+    # Resolve the target account by its Authentik subject, mirroring it locally
+    # if it has never logged in yet.
+    target = await crud.user.get_by_authentik_sub(db, authentik_sub=link_data.authentik_sub)
+    if target is None:
+        target = await crud.user.create_for_oidc(
+            db,
+            authentik_sub=link_data.authentik_sub,
+            name=link_data.name or placeholder.name,
+            email=link_data.email,
+            scopes=[],
+        )
+    if target.team_id is not None:
+        raise RallyValidationError("Target account is already on a team")
+
+    # Move the team membership onto the target account, drop the placeholder.
+    target.team_id = placeholder.team_id
+    target.is_captain = bool(placeholder.is_captain)
+    db.add(target)
+    await db.delete(placeholder)
+    await db.flush()
+
+    await crud.participation.record(
+        db,
+        authentik_sub=target.authentik_sub,
+        event_id=team.event_id or (await crud.rally_event.ensure_current(db)).id,
+        team=team,
+        is_captain=bool(target.is_captain),
+        commit=False,
+    )
+    await db.commit()
+    await db.refresh(target)
+
+    return TeamMemberResponse(
+        id=target.id,
+        name=target.name,
+        email=target.email,
+        is_captain=target.is_captain,
     )
 
 

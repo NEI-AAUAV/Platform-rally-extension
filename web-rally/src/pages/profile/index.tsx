@@ -5,6 +5,7 @@ import useStaffLogin from "@/hooks/useLoginLink";
 import { useProfile } from "@/hooks/useProfile";
 import { EVENT_TYPE_LABELS, type EventType } from "@/types/event";
 import type { ParticipationEntry } from "@/types/profile";
+import JoinTeamCard from "./JoinTeamCard";
 
 function initialsOf(name: string): string {
   return name
@@ -141,6 +142,9 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Join a team when not yet linked to one */}
+      {profile && profile.current_team_id == null && <JoinTeamCard />}
 
       {/* History */}
       <div className="space-y-3">

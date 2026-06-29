@@ -1,7 +1,7 @@
 import type { CancelablePromise } from "@/client";
 import { OpenAPI } from "@/client/core/OpenAPI";
 import { request as __request } from "@/client/core/request";
-import type { ParticipationEntry, ProfileResponse } from "@/types/profile";
+import type { ClaimableTeam, ParticipationEntry, ProfileResponse } from "@/types/profile";
 
 /**
  * The caller's rally profile + participation history. Hand-written (these
@@ -22,6 +22,16 @@ export class ProfileService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/rally/v1/profile/history",
+    });
+  }
+
+  /** Name-only members of a team (by access code) the caller can claim. */
+  public static getClaimable(accessCode: string): CancelablePromise<ClaimableTeam> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/rally/v1/profile/claimable",
+      query: { access_code: accessCode },
+      errors: { 404: "Team not found", 422: "Validation Error" },
     });
   }
 

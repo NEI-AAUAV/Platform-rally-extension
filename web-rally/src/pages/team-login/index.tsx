@@ -3,8 +3,9 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { LogIn, Loader2, Camera } from "lucide-react";
+import { LogIn, Loader2, Camera, ShieldCheck } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
+import useStaffLogin from "@/hooks/useLoginLink";
 import { useAppToast } from "@/hooks/use-toast";
 import QRCodeScanner from "@/components/QRCodeScanner";
 
@@ -13,6 +14,7 @@ export default function TeamLogin() {
     const search = useSearch({ strict: false }) as { code?: string };
     const codeFromUrl = typeof search.code === "string" ? search.code : undefined;
     const { login, isAuthenticated, teamData, isLoggingIn, loginError } = useTeamAuth();
+    const onStaffLogin = useStaffLogin();
     const toast = useAppToast();
 
     const [accessCode, setAccessCode] = useState("");
@@ -179,8 +181,24 @@ export default function TeamLogin() {
                             </div>
                         </form>
 
-                        {/* Footer */}
+                        {/* NEI account login — for personal profile & history */}
                         <div className="border-t border-border pt-6">
+                            <p className="mb-3 text-xs text-muted-foreground">
+                                Tens conta NEI? Inicia sessão para ligares a tua participação ao teu perfil e veres o teu histórico.
+                            </p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onStaffLogin}
+                                className="h-11 w-full gap-2 font-semibold"
+                            >
+                                <ShieldCheck className="h-4 w-4" />
+                                Entrar / Registar com conta NEI
+                            </Button>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="pt-2">
                             <p className="text-xs text-muted-foreground">
                                 Pode inserir o código manualmente ou usar a câmara para ler o QR code.
                             </p>

@@ -17,8 +17,14 @@ from app.api.deps import get_db, get_participant
 from app.models.participation import EventParticipation
 from app.models.team import Team
 from app.models.user import User
-from app.schemas.profile import ParticipationEntry, ProfileResponse
+from app.schemas.profile import (
+    ClaimableMember,
+    ClaimableTeam,
+    ParticipationEntry,
+    ProfileResponse,
+)
 from app.schemas.user import DetailedUser
+from sqlalchemy import select
 
 router = APIRouter()
 
@@ -91,6 +97,34 @@ async def get_my_history(
     """List the caller's past participations (newest first)."""
     rows = await crud.participation.get_for_sub(db, authentik_sub=auth.oidc_sub)
     return [await _entry(db, r) for r in rows]
+
+
+@router.get("/profile/claimable", response_model=ClaimableTeam)
+async def get_claimable_members(
+    access_code: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _curr: Annotated[DetailedUser, Depends(get_participant)],
+    _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+) -> ClaimableTeam:
+    """List a team's name-only members (by access code) the caller can claim.
+
+    The caller enters their team's access code; this returns the placeholder
+    members (no linked account) so they can pick which one is them and claim it.
+    """
+    team = await crud.team.get_by_access_code(db, access_code=access_code.strip())
+    if team is None:
+        raise RallyNotFoundError("Team not found")
+
+    stmt = select(User).where(
+        User.team_id == team.id,
+        User.authentik_sub.is_(None),
+    )
+    members = list((await db.scalars(stmt)).all())
+    return ClaimableTeam(
+        team_id=team.id,
+        team_name=team.name,
+        members=[ClaimableMember.model_validate(m) for m in members],
+    )
 
 
 @router.post("/profile/claim/{member_user_id}", response_model=ParticipationEntry, status_code=201)

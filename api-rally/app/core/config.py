@@ -117,6 +117,13 @@ class Settings(BaseSettings):
     OIDC_MANAGER_GROUP: str = os.getenv("OIDC_MANAGER_GROUP", "manager-rally")
     OIDC_STAFF_GROUP: str = os.getenv("OIDC_STAFF_GROUP", "rally-staff")
 
+    # Authentik management API (optional). When set, admins can search ALL
+    # Authentik accounts (not only those mirrored locally after a first login)
+    # to link a real account to a name-only placeholder member.
+    # AUTHENTIK_API_URL points at the API root, e.g. "https://auth.example.com/api/v3".
+    AUTHENTIK_API_URL: str = os.getenv("AUTHENTIK_API_URL", "")
+    AUTHENTIK_API_TOKEN: str = os.getenv("AUTHENTIK_API_TOKEN", "")
+
     # Team authentication (independent: rally mints its own HS256 team tokens)
     ## Secret key for team JWT tokens
     TEAM_JWT_SECRET_KEY: Optional[str] = os.getenv("TEAM_JWT_SECRET_KEY")

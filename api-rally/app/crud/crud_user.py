@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import Optional, Sequence
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 
 from app.core.exceptions import RallyNotFoundError
@@ -31,6 +31,35 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             select(User).where(User.authentik_sub == authentik_sub)
         )
         return result.first()
+
+    async def get_by_authentik_subs(
+        self, db: AsyncSession, *, authentik_subs: list[str]
+    ) -> Sequence[User]:
+        """Fetch locally-mirrored users for a set of OIDC subjects."""
+        if not authentik_subs:
+            return []
+        stmt = select(User).where(User.authentik_sub.in_(authentik_subs))
+        return list((await db.scalars(stmt)).all())
+
+    async def search_oidc_users(
+        self, db: AsyncSession, *, q: str, limit: int = 10
+    ) -> Sequence[User]:
+        """Search users that have logged in via OIDC (authentik_sub set).
+
+        Matches name or email case-insensitively. Used by admins to find a real
+        NEI account to link to a name-only placeholder member.
+        """
+        term = f"%{q.strip()}%"
+        stmt = (
+            select(User)
+            .where(
+                User.authentik_sub.isnot(None),
+                or_(User.name.ilike(term), User.email.ilike(term)),
+            )
+            .order_by(User.name)
+            .limit(limit)
+        )
+        return list((await db.scalars(stmt)).all())
 
     async def create_for_oidc(
         self,

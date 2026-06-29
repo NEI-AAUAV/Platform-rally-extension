@@ -23,3 +23,15 @@ export interface ProfileResponse {
   current_team_id?: number | null;
   participations: ParticipationEntry[];
 }
+
+export interface ClaimableMember {
+  id: number;
+  name: string;
+  is_captain: boolean;
+}
+
+export interface ClaimableTeam {
+  team_id: number;
+  team_name: string;
+  members: ClaimableMember[];
+}

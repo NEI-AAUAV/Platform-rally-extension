@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy import select, text
 
 from app import crud
+from app.api import authentik_client
 from app.api.auth import AuthData, api_nei_auth
-from app.api.deps import get_db, get_admin
+from app.api.deps import get_db, get_admin, get_participant
+from app.api.abac_deps import require_team_management_permission
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.models.user import User
@@ -17,6 +19,63 @@ router = APIRouter()
 
 class CheckpointAssignmentUpdate(BaseModel):
     checkpoint_id: int | None = None
+
+
+class OidcUserSearchResult(BaseModel):
+    """A NEI account that can be linked to a placeholder member.
+
+    ``id`` is the local mirror user id when the account has already logged in
+    (else null). ``authentik_sub`` is the stable identifier used to link.
+    """
+
+    id: int | None = None
+    name: str
+    email: str | None = None
+    authentik_sub: str
+
+
+@router.get("/search")
+async def search_oidc_users(
+    q: str,
+    db: AsyncSession = Depends(get_db),
+    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    curr_user: DetailedUser = Depends(get_participant),
+) -> List[OidcUserSearchResult]:
+    """Search NEI accounts by name, username or email.
+
+    When the Authentik management API is configured, searches *all* Authentik
+    accounts (so people who never logged in still appear); otherwise falls back
+    to accounts already mirrored locally after a first OIDC login.
+    """
+    require_team_management_permission(auth=auth, curr_user=curr_user)
+    term = q.strip()
+    if len(term) < 2:
+        return []
+
+    authentik_users = await authentik_client.search_users(term)
+    if authentik_users:
+        # Map known local mirrors so the UI can show their local id when present.
+        subs = [u.authentik_sub for u in authentik_users]
+        local = await crud.user.get_by_authentik_subs(db, authentik_subs=subs)
+        local_by_sub = {u.authentik_sub: u for u in local}
+        return [
+            OidcUserSearchResult(
+                id=local_by_sub[u.authentik_sub].id if u.authentik_sub in local_by_sub else None,
+                name=u.name,
+                email=u.email,
+                authentik_sub=u.authentik_sub,
+            )
+            for u in authentik_users
+        ]
+
+    # Fallback: locally-mirrored users only.
+    users = await crud.user.search_oidc_users(db, q=term)
+    return [
+        OidcUserSearchResult(
+            id=u.id, name=u.name, email=u.email, authentik_sub=u.authentik_sub
+        )
+        for u in users
+    ]
 
 
 @router.get("/staff-assignments")
