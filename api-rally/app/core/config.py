@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     OIDC_ADMIN_GROUP: str = os.getenv("OIDC_ADMIN_GROUP", "admin")
     OIDC_MANAGER_GROUP: str = os.getenv("OIDC_MANAGER_GROUP", "manager-rally")
     OIDC_STAFF_GROUP: str = os.getenv("OIDC_STAFF_GROUP", "rally-staff")
+    OIDC_GUIDE_GROUP: str = os.getenv("OIDC_GUIDE_GROUP", "rally-guide")
 
     # Authentik management API (optional). When set, admins can search ALL
     # Authentik accounts (not only those mirrored locally after a first login)

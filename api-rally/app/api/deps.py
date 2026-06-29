@@ -97,8 +97,16 @@ def is_staff(scopes: List[str]) -> bool:
     return ScopeEnum.RALLY_STAFF in scopes
 
 
+def is_guide(scopes: List[str]) -> bool:
+    return ScopeEnum.RALLY_GUIDE in scopes
+
+
 def is_admin_or_staff(scopes: List[str]) -> bool:
     return is_admin(scopes) or is_staff(scopes)
+
+
+def is_admin_staff_or_guide(scopes: List[str]) -> bool:
+    return is_admin(scopes) or is_staff(scopes) or is_guide(scopes)
 
 
 def get_admin(
@@ -107,6 +115,15 @@ def get_admin(
 ) -> DetailedUser:
     if not is_admin(auth.scopes):
         raise HTTPException(status_code=403, detail="User without admin permissions")
+    return curr_user
+
+
+def get_guide(
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+) -> DetailedUser:
+    if not is_admin_staff_or_guide(auth.scopes):
+        raise HTTPException(status_code=403, detail="Guide, staff, or admin access required")
     return curr_user
 
 

@@ -15,6 +15,7 @@ class ScopeEnum(str, Enum):
     ADMIN = "admin"
     MANAGER_RALLY = "manager-rally"
     RALLY_STAFF = "rally-staff"
+    RALLY_GUIDE = "rally-guide"
     DEFAULT = "default"
 
 
@@ -27,6 +28,8 @@ def map_groups_to_scopes(groups: List[str], settings: SettingsDep) -> List[str]:
         scopes.append(ScopeEnum.MANAGER_RALLY.value)
     if settings.OIDC_STAFF_GROUP in groups:
         scopes.append(ScopeEnum.RALLY_STAFF.value)
+    if settings.OIDC_GUIDE_GROUP in groups:
+        scopes.append(ScopeEnum.RALLY_GUIDE.value)
     return scopes
 
 

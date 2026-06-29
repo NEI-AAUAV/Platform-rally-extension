@@ -19,6 +19,7 @@ from .api_v1 import checkpoint_arrive
 from .api_v1 import badge_admin
 from .api_v1 import deferred_judging
 from .api_v1 import dynamic_scoring
+from .api_v1 import guide
 
 api_v1_router = APIRouter()
 
@@ -44,3 +45,4 @@ api_v1_router.include_router(checkpoint_arrive.router, prefix="", tags=["Checkpo
 api_v1_router.include_router(badge_admin.router, prefix="", tags=["Badge Admin"])
 api_v1_router.include_router(deferred_judging.router, prefix="", tags=["Deferred Judging"])
 api_v1_router.include_router(dynamic_scoring.router, prefix="", tags=["Dynamic Scoring"])
+api_v1_router.include_router(guide.router, prefix="", tags=["Guide"])

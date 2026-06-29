@@ -28,6 +28,7 @@ def settings():
     s.OIDC_ADMIN_GROUP = "admin"
     s.OIDC_MANAGER_GROUP = "manager-rally"
     s.OIDC_STAFF_GROUP = "rally-staff"
+    s.OIDC_GUIDE_GROUP = "rally-guide"
     return s
 
 
