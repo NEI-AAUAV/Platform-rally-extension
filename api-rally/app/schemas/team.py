@@ -14,6 +14,7 @@ class TeamBase(BaseModel):
     total: int
     classification: int
     versus_group_id: Optional[int] = None
+    photo_url: str = ""
 
 
 class ListingTeam(TeamBase):

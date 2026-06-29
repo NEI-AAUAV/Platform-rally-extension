@@ -212,6 +212,18 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         await db.refresh(team)
         return team
 
+    async def set_photo_url(self, db: AsyncSession, *, id: int, url: str) -> Team:
+        """Persist the team's official photo URL.
+
+        Kept separate from ``update`` so the R2 upload endpoint is the only
+        writer of ``photo_url`` (mirrors rally_settings.set_image_url).
+        """
+        team = await self.get(db=db, id=id)
+        team.photo_url = url
+        await db.commit()
+        await db.refresh(team)
+        return team
+
     def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
         """Validate rally timing constraints"""
         if settings.rally_start_time and current_time < settings.rally_start_time:

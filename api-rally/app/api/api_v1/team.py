@@ -2,8 +2,11 @@ from typing import List, Tuple, Optional, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
 from app.core.exceptions import RallyForbiddenError, RallyValidationError
+from app.core.abac import Action, Resource, check_permission
+from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.storage import storage_client
 
 from app import crud
 from app.api import deps
@@ -181,6 +184,38 @@ async def update_team(
     _: DetailedUser = Depends(deps.get_admin),
 ) -> DetailedTeam:
     team_db = await crud.team.update(db=db, id=id, obj_in=team_in)
+    return await _detailed_team(db, team_db)
+
+
+@router.put("/{id}/photo", status_code=200, response_model=DetailedTeam)
+async def upload_team_photo(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    id: int,
+    image: UploadFile = File(...),
+    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    curr_user: DetailedUser = Depends(deps.get_participant),
+) -> DetailedTeam:
+    """Upload the team's official photo to R2 and persist its URL.
+
+    Allowed for admins/managers (UPDATE_TEAM) or the captain of this team.
+    Replaces any previous photo.
+    """
+    is_captain_of_team = bool(curr_user.is_captain) and curr_user.team_id == id
+    if not is_captain_of_team and not check_permission(
+        curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM
+    ):
+        raise RallyForbiddenError("Not allowed to change this team's photo.")
+
+    team = await crud.team.get(db=db, id=id)
+    storage_client.delete_image(team.photo_url)
+
+    url = await validate_and_store(
+        image=image,
+        allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+        key_prefix=f"rally/teams/{id}",
+    )
+    team_db = await crud.team.set_photo_url(db=db, id=id, url=url)
     return await _detailed_team(db, team_db)
 
 

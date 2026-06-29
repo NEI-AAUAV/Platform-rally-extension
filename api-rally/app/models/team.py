@@ -1,6 +1,6 @@
 from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, Boolean, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
@@ -26,6 +26,9 @@ class Team(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column()
     access_code: Mapped[str] = mapped_column(unique=True, index=True)
+    # Official team photo (R2 public URL). Shown on the team page, leaderboard
+    # and team cards. Empty string when unset (falls back to a placeholder).
+    photo_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     # Event scoping: nullable so existing single-event rows remain valid.
     event_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True

@@ -1,7 +1,6 @@
-import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
+from fastapi import APIRouter, Depends, File, Security, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.user import DetailedUser
@@ -14,6 +13,11 @@ from app.api.abac_deps import validate_settings_update_access, validate_settings
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_activity import rally_event
 from app.services.storage import storage_client
+from app.services.image_upload import (
+    ALLOWED_FAVICON_CONTENT_TYPES,
+    ALLOWED_PHOTO_CONTENT_TYPES,
+    validate_and_store,
+)
 
 router = APIRouter()
 
@@ -29,27 +33,6 @@ async def _settings_response(
     event = await rally_event.ensure_current(db)
     response = RallySettingsResponse.model_validate(settings_row)
     return response.model_copy(update={"event_type": event.event_type})
-
-# Branding image upload limits
-MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
-_EXT_BY_CONTENT_TYPE = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/gif": "gif",
-    "image/svg+xml": "svg",
-    "image/x-icon": "ico",
-    "image/vnd.microsoft.icon": "ico",
-}
-# Banner/logo: raster photos. Favicon: also accepts .ico/.svg tab-icon formats.
-ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ALLOWED_FAVICON_CONTENT_TYPES = {
-    "image/png",
-    "image/svg+xml",
-    "image/x-icon",
-    "image/vnd.microsoft.icon",
-}
-
 
 async def _upload_branding_image(
     *,
@@ -68,38 +51,15 @@ async def _upload_branding_image(
     """
     validate_settings_update_access(curr_user, auth)
 
-    if not storage_client.enabled:
-        raise HTTPException(
-            status_code=503,
-            detail="Image upload is disabled: R2 storage is not configured.",
-        )
-
-    if image.content_type not in allowed_content_types:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Invalid file type '{image.content_type}'. "
-                f"Allowed: {', '.join(sorted(allowed_content_types))}"
-            ),
-        )
-
-    data = await image.read()
-    if len(data) > MAX_IMAGE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Max size is {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
-        )
-
-    ext = _EXT_BY_CONTENT_TYPE.get(image.content_type or "", "png")
-
     # Drop the previous R2 image for this field, if any.
     current = await rally_settings.get_or_create(db)
     storage_client.delete_image(getattr(current, field))
 
-    key = f"rally/branding/{field}_{uuid.uuid4().hex}.{ext}"
-    url = storage_client.upload_image(key, data, image.content_type or "image/jpeg")
-    if url is None:
-        raise HTTPException(status_code=503, detail="Failed to upload image to storage.")
+    url = await validate_and_store(
+        image=image,
+        allowed_content_types=allowed_content_types,
+        key_prefix=f"rally/branding/{field}",
+    )
 
     updated = await rally_settings.set_image_url(db, field=field, url=url)
     return await _settings_response(db, updated)
