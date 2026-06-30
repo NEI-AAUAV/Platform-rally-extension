@@ -32,18 +32,19 @@ def _table_exists() -> bool:
 def upgrade() -> None:
     if _table_exists():
         return
-    op.execute(
-        f"CREATE TYPE {SCHEMA}.media_kind AS ENUM ('photo', 'fun_fact')"
-        if not _enum_exists()
-        else "SELECT 1"
-    )
     op.create_table(
         TABLE,
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("checkpoint_id", sa.Integer(), nullable=False),
         sa.Column(
             "kind",
-            sa.Enum("photo", "fun_fact", name="media_kind", schema=SCHEMA),
+            sa.Enum(
+                "photo",
+                "fun_fact",
+                name="media_kind",
+                schema=SCHEMA,
+                create_type=not _enum_exists(),
+            ),
             nullable=False,
         ),
         sa.Column("image_url", sa.String(length=500), nullable=True),
