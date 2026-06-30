@@ -64,12 +64,6 @@ const teamByIdRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/teams/id")),
 });
 
-const replayRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: "/replay",
-  component: lazyRouteComponent(() => import("@/pages/replay")),
-});
-
 const adminRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/admin",
@@ -148,7 +142,6 @@ export const routeTree = rootRoute.addChildren([
     profileRoute,
     teamsRedirectRoute,
     teamByIdRoute,
-    replayRoute,
     adminRoute,
     assignmentRoute,
     versusRoute,

@@ -78,7 +78,8 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
   );
 }
 
-export default function AllEvaluations({ evaluations }: AllEvaluationsProps) {
+export default function AllEvaluations({ evaluations: evaluationsProp }: AllEvaluationsProps) {
+  const evaluations = Array.isArray(evaluationsProp) ? evaluationsProp : [];
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("all");
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());

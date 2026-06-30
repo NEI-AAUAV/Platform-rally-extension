@@ -283,7 +283,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team.time_scores.append(obj_in.time_score)
             team.pukes.append(obj_in.pukes)
             team.skips.append(obj_in.skips)
-            team.times.append(current_time)
+            team.times.append(current_time.replace(tzinfo=None))
 
         await db.commit()
         await self.update_classification(db=db)

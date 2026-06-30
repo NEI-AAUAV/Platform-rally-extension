@@ -6,8 +6,7 @@ from .activity import Activity, ActivityResult, RallyEvent, EventType
 from .rally_settings import RallySettings
 from .badge import BadgeType, TeamBadge
 from .participation import EventParticipation
-from .score_history import TeamScoreHistory
 
 from .base import Base
 
-__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "EventParticipation", "TeamScoreHistory"]
+__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "EventParticipation"]

@@ -11,7 +11,6 @@ from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
@@ -49,39 +48,6 @@ async def get_live_scoreboard(
         return ranking
     finally:
         await client.aclose()
-
-
-@router.get("/scoreboard/replay")
-async def get_scoreboard_replay(
-    *, db: AsyncSession = Depends(get_db)
-) -> list[dict[str, Any]]:
-    """Return the current event's score timeline for the post-event replay.
-
-    Each entry is a snapshot of a team's running total at a point in time,
-    ordered chronologically. The client reconstructs the animated leaderboard
-    by stepping through these frames. Public, like the rest of the scoreboard.
-    """
-    from app.crud._event_scope import current_event_id
-    from app.models.score_history import TeamScoreHistory
-    from app.models.team import Team
-
-    event_id = await current_event_id(db)
-    stmt = (
-        select(TeamScoreHistory, Team.name)
-        .join(Team, Team.id == TeamScoreHistory.team_id)
-        .where(TeamScoreHistory.event_id == event_id)
-        .order_by(TeamScoreHistory.recorded_at)
-    )
-    rows = (await db.execute(stmt)).all()
-    return [
-        {
-            "team_id": history.team_id,
-            "team_name": team_name,
-            "total": history.total,
-            "recorded_at": history.recorded_at.isoformat(),
-        }
-        for history, team_name in rows
-    ]
 
 
 @router.get("/scoreboard/stream")

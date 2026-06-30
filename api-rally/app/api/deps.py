@@ -27,6 +27,18 @@ async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DetailedUser:
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
+    if user is None and auth.email:
+        # May already exist as an email-matched placeholder mirrored eagerly
+        # from an Authentik group (e.g. rally-staff) before this first login.
+        placeholder = await crud.user.get_by_email(db, email=auth.email)
+        if placeholder is not None and placeholder.authentik_sub is None:
+            user = placeholder
+            user.authentik_sub = auth.oidc_sub
+            user.name = auth.name
+            user.scopes = auth.scopes
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
     if user is None:
         # First login: mirror the authentik identity into a local user row.
         user = await crud.user.create_for_oidc(

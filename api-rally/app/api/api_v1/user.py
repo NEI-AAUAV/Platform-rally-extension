@@ -96,7 +96,6 @@ async def get_staff_assignments(
     for member in group_members:
         await crud.user.get_or_create_mirror(
             db,
-            authentik_sub=member.authentik_sub,
             name=member.name,
             email=member.email,
             scope="rally-staff",

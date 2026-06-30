@@ -82,11 +82,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
+        result = await db.scalars(select(User).where(User.email == email))
+        return result.first()
+
     async def get_or_create_mirror(
         self,
         db: AsyncSession,
         *,
-        authentik_sub: str,
         name: str,
         email: Optional[str],
         scope: str,
@@ -94,12 +97,22 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         """Get the local mirror for an Authentik account, creating or
         updating it as needed so the account does not require a first login
         to be usable (e.g. to assign a rally-staff checkpoint).
+
+        Matched by email rather than ``authentik_sub``: the Authentik
+        management API only exposes the account's ``uuid``, which is *not*
+        the same value as the JWT ``sub`` claim used to mirror accounts on
+        login (Authentik hashes the subject per-provider by default). Using
+        ``authentik_sub`` here would create a second row for the same
+        person once they actually log in. ``authentik_sub`` is left unset
+        and gets backfilled by the login path when it happens.
         """
-        existing = await self.get_by_authentik_sub(db, authentik_sub=authentik_sub)
+        existing = await self.get_by_email(db, email=email) if email else None
         if existing is None:
-            return await self.create_for_oidc(
-                db, authentik_sub=authentik_sub, name=name, email=email, scopes=[scope]
-            )
+            db_obj = User(authentik_sub=None, name=name, email=email, scopes=[scope])
+            db.add(db_obj)
+            await db.commit()
+            await db.refresh(db_obj)
+            return db_obj
         if scope not in (existing.scopes or []):
             existing.scopes = [*(existing.scopes or []), scope]
             await db.commit()

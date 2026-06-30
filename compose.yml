@@ -63,6 +63,10 @@ services:
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      # authentik management API (optional) — enables live staff-group lookup
+      # without requiring a prior login for the account to appear.
+      AUTHENTIK_API_URL: ${AUTHENTIK_API_URL:-}
+      AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN:-}
       # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
       TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
       # Team QR self-check-in. Staff display a rotating QR; teams scan it to

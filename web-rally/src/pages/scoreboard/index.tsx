@@ -1,7 +1,6 @@
-import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Link } from "@tanstack/react-router";
-import { History, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -9,10 +8,6 @@ import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";
 import { Podium, ScoreRows } from "./components/ScoreList";
-
-const PointsDistributionChart = lazy(
-  () => import("@/components/scoreboard/PointsDistributionChart"),
-);
 
 function NoticeCard({ title, body }: { readonly title: string; readonly body: React.ReactNode }) {
   return (
@@ -118,26 +113,12 @@ export default function Scoreboard() {
             Classificação
           </h1>
         </div>
-        <div className="flex items-center gap-3">
-          {isFullBoard && (
-            <p className="text-sm font-medium text-muted-foreground">
-              {list.length} equipas em {terms.event}
-            </p>
-          )}
-          <Link
-            to="/replay"
-            className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground"
-          >
-            <History className="h-3.5 w-3.5" /> Replay
-          </Link>
-        </div>
+        {isFullBoard && (
+          <p className="text-sm font-medium text-muted-foreground">
+            {list.length} equipas em {terms.event}
+          </p>
+        )}
       </header>
-
-      {isFullBoard && (
-        <Suspense fallback={null}>
-          <PointsDistributionChart teams={list} />
-        </Suspense>
-      )}
 
       {list.length === 0 ? (
         <div className="rally-surface flex min-h-[240px] flex-col items-center justify-center gap-3 text-center">

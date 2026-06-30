@@ -163,6 +163,20 @@ class ABACEngine:
             },
             priority=90
         ))
+
+        # Rally staff need to view versus pairings to auto-fill the opponent
+        # when evaluating a team-vs-team activity.
+        self.policies.append(Policy(
+            name="rally_staff_versus_view",
+            description="Rally staff can view versus team pairings",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "rally-staff"},
+                "action": {"equals": Action.VIEW_VERSUS_GROUP.value},
+                "resource": {"equals": Resource.VERSUS_GROUP.value}
+            },
+            priority=90
+        ))
         
         # Rally managers can manage rally settings
         self.policies.append(Policy(
@@ -241,6 +255,23 @@ class ABACEngine:
             priority=80
         ))
         
+        # Staff can view activity results without per-request checkpoint context.
+        # The global results list (GET /activities/results) carries no checkpoint_id,
+        # so the checkpoint-scoped policy above never matches for it. Results are
+        # non-sensitive evaluation status (staff filter by checkpoint client-side),
+        # gated only on the staff having an assigned checkpoint at all.
+        self.policies.append(Policy(
+            name="staff_view_activity_results_global",
+            description="Staff with an assigned checkpoint can view activity results",
+            effect="allow",
+            conditions={
+                "user_scopes": {"contains": "rally-staff"},
+                "action": Action.VIEW_ACTIVITY_RESULT.value,
+                "user_staff_checkpoint_id": {"is_not_null": True}
+            },
+            priority=80
+        ))
+
         # Staff can view activity definitions. The activities list endpoint is
         # global (staff filter client-side by checkpoint); activity definitions
         # are non-sensitive, while results and scoring stay separately guarded.

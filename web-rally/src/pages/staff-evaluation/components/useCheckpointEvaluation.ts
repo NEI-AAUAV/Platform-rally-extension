@@ -218,6 +218,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
     onSuccess: (_data, variables) => {
       // Invalidate relevant queries so other views pick up latest scores
       queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
+      queryClient.invalidateQueries({ queryKey: ["teamEvaluationStatus"] });
       queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
       queryClient.invalidateQueries({ queryKey: ["allTeams"] });
       queryClient.invalidateQueries({ queryKey: ["allEvaluations"] });

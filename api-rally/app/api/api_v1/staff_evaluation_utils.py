@@ -15,7 +15,7 @@ from loguru import logger
 from app.models.activity import ActivityResult, Activity
 from app.models.team import Team
 from app.schemas.user import DetailedUser
-from app.schemas.activity import ActivityResultCreate, ActivityResultEvaluation
+from app.schemas.activity import ActivityResultCreate, ActivityResultEvaluation, ActivityResultUpdate
 from app.api.auth import AuthData
 from app.crud.crud_activity import activity_result
 from app.crud.crud_team import team
@@ -167,6 +167,50 @@ async def create_activity_result(
         penalties=result_in.penalties
     )
     return await ScoringService(db).create_result(result_create)
+
+
+# Inverse outcome for the opponent's mirrored TeamVsActivity result.
+_OPPOSITE_TEAM_VS_RESULT = {"win": "lose", "lose": "win", "draw": "draw"}
+
+
+async def mirror_team_vs_result(
+    db: AsyncSession, activity_obj: Activity, team_id: int, result_data: Dict[str, Any]
+) -> None:
+    """Keep the opponent's TeamVsActivity result in sync.
+
+    When staff marks one team as the winner/loser of a versus matchup, the
+    paired team's result for the same activity should flip automatically
+    instead of requiring a second, separately-entered evaluation.
+    """
+    if activity_obj.activity_type != "TeamVsActivity":
+        return
+
+    opponent_team_id = result_data.get("opponent_team_id")
+    own_result = result_data.get("result")
+    if opponent_team_id is None or own_result not in _OPPOSITE_TEAM_VS_RESULT:
+        return
+
+    opponent_result_data = {
+        **result_data,
+        "opponent_team_id": team_id,
+        "result": _OPPOSITE_TEAM_VS_RESULT[own_result],
+    }
+
+    existing_opponent_result = await activity_result.get_by_activity_and_team(
+        db, activity_obj.id, opponent_team_id
+    )
+    if existing_opponent_result:
+        await ScoringService(db).update_result(
+            existing_opponent_result,
+            ActivityResultUpdate(result_data=opponent_result_data),
+        )
+    else:
+        await create_activity_result(
+            db,
+            opponent_team_id,
+            activity_obj.id,
+            ActivityResultEvaluation(result_data=opponent_result_data),
+        )
 
 
 # =============================================================================

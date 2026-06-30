@@ -32,6 +32,7 @@ from app.api.api_v1.staff_evaluation_utils import (
     check_and_advance_team,
     build_team_for_staff,
     create_activity_result,
+    mirror_team_vs_result,
     NO_CHECKPOINT_ASSIGNED,
     TEAM_NOT_FOUND,
 )
@@ -137,6 +138,7 @@ async def get_team_activities_for_evaluation(
         if has_result:
             completed_activities += 1
 
+        existing = result_map.get(activity_obj.id)
         activity_data = {
             "id": activity_obj.id,
             "name": activity_obj.name,
@@ -145,7 +147,12 @@ async def get_team_activities_for_evaluation(
             "config": activity_obj.config,
             "is_active": activity_obj.is_active,
             "evaluation_status": "completed" if has_result else "pending",
-            "existing_result": result_map.get(activity_obj.id)
+            # Serialize through the response schema so FastAPI's encoder never
+            # walks the ORM's lazy relationships (activity/team) on the async
+            # session, which would raise MissingGreenlet -> 500.
+            "existing_result": (
+                ActivityResultResponse.model_validate(existing) if existing else None
+            ),
         }
         activities_with_status.append(activity_data)
 
@@ -156,7 +163,14 @@ async def get_team_activities_for_evaluation(
     has_incomplete = completed_activities < total_activities if total_activities > 0 else False
 
     return {
-        "team": team_obj,
+        # Plain dict (not raw ORM) so the encoder doesn't lazy-load relationships.
+        "team": {
+            "id": team_obj.id,
+            "name": team_obj.name,
+            "total": team_obj.total,
+            "num_members": len(team_obj.members) if team_obj.members else 0,
+            "times": team_obj.times,
+        },
         "activities": activities_with_status,
         "evaluation_summary": {
             "total_activities": total_activities,
@@ -216,6 +230,13 @@ async def evaluate_team_activity(
         db_result = await create_activity_result(db, team_id, activity_id, result_in)
         logger.info(f"Successfully created result {db_result.id}")
 
+    # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
+    try:
+        await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
+    except Exception as e:
+        logger.error(f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}", exc_info=True)
+        # Don't fail the evaluation if mirroring fails - it's a side effect
+
     # Check if team has completed all activities and advance if needed
     try:
         logger.debug(f"Checking if team {team_id} can advance after activity {activity_id}")
@@ -245,13 +266,13 @@ async def update_team_activity_evaluation(
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
     # For staff users, check checkpoint assignment
+    from app.crud.crud_activity import activity as activity_crud
     is_manager = any(scope in auth.scopes for scope in ["manager-rally", "admin"])
     if not is_manager:
         if not current_user.staff_checkpoint_id:
             raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
         # Ensure the activity being updated belongs to the staff's checkpoint
-        from app.crud.crud_activity import activity as activity_crud
         activity_obj = await activity_crud.get(db, id=activity_id)
         if not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
             raise RallyNotFoundError("Activity not found at your assigned checkpoint")
@@ -261,6 +282,7 @@ async def update_team_activity_evaluation(
             raise RallyNotFoundError(TEAM_NOT_FOUND)
     else:
         # For managers/admins, just verify team exists
+        activity_obj = await activity_crud.get(db, id=activity_id)
         team_obj = await team.get(db, id=team_id)
         if not team_obj:
             raise RallyNotFoundError(TEAM_NOT_FOUND)
@@ -272,6 +294,14 @@ async def update_team_activity_evaluation(
 
     # Update the result
     db_result = await ScoringService(db).update_result(db_result, result_in)
+
+    # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
+    try:
+        if activity_obj:
+            await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
+    except Exception as e:
+        logger.error(f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}", exc_info=True)
+
     return ActivityResultResponse.model_validate(db_result)
 
 

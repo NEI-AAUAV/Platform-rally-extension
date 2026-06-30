@@ -47,6 +47,7 @@ class ActivityUpdate(BaseModel):
     """Schema for updating an activity"""
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
+    checkpoint_id: int | None = Field(None, gt=0)
     config: dict[str, Any] | None = None
     is_active: bool | None = None
     is_global: bool | None = None
