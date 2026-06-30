@@ -8,10 +8,6 @@ class RallySettingsBase(BaseModel):
     max_members_per_team: int
     enable_versus: bool
     
-    # Rally timing
-    rally_start_time: Optional[datetime] = None
-    rally_end_time: Optional[datetime] = None
-    
     # Scoring system
     penalty_per_puke: int
     penalty_per_not_drinking: int
@@ -51,6 +47,12 @@ class RallySettingsUpdate(RallySettingsBase):
 
 class RallySettingsResponse(RallySettingsBase):
     model_config = ConfigDict(from_attributes=True)
+
+    # Rally timing is read-only here: it mirrors the current event's
+    # start_time/end_time (single source of truth), set via the events
+    # endpoint instead of a settings PUT, so admins configure it once.
+    rally_start_time: Optional[datetime] = None
+    rally_end_time: Optional[datetime] = None
 
     # Kind of the current event ('rally_tascas' | 'peddy_paper' | 'generic').
     # Read-only: it lives on the event, not the settings row, and drives

@@ -56,6 +56,7 @@ const activityTypeLabels = {
   [ActivityType.BOOLEAN]: "Sim/Não",
   [ActivityType.TEAM_VS]: "Equipa vs Equipa",
   [ActivityType.GENERAL]: "Geral",
+  [ActivityType.DEFERRED_JUDGED]: "Avaliação Posterior (Fotos)",
 };
 
 function getSubmitButtonLabel(isLoading: boolean, hasInitialData: boolean): string {

@@ -122,6 +122,16 @@ export function ActivityConfigFields({
         </ConfigSection>
       );
 
+    case ActivityType.DEFERRED_JUDGED:
+      return (
+        <ConfigSection title="Configurações de Avaliação Posterior">
+          <div className="grid grid-cols-2 gap-4">
+            {field("config-dj-min-points", "Pontos Mínimos", "min_points", 0, "0")}
+            {field("config-dj-max-points", "Pontos Máximos", "max_points", 100, "100")}
+          </div>
+        </ConfigSection>
+      );
+
     default:
       return null;
   }

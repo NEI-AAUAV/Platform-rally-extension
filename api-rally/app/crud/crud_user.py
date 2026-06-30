@@ -82,6 +82,30 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
+    async def get_or_create_mirror(
+        self,
+        db: AsyncSession,
+        *,
+        authentik_sub: str,
+        name: str,
+        email: Optional[str],
+        scope: str,
+    ) -> User:
+        """Get the local mirror for an Authentik account, creating or
+        updating it as needed so the account does not require a first login
+        to be usable (e.g. to assign a rally-staff checkpoint).
+        """
+        existing = await self.get_by_authentik_sub(db, authentik_sub=authentik_sub)
+        if existing is None:
+            return await self.create_for_oidc(
+                db, authentik_sub=authentik_sub, name=name, email=email, scopes=[scope]
+            )
+        if scope not in (existing.scopes or []):
+            existing.scopes = [*(existing.scopes or []), scope]
+            await db.commit()
+            await db.refresh(existing)
+        return existing
+
     async def _create_internal(
         self,
         db: AsyncSession,

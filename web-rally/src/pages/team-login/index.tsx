@@ -189,7 +189,7 @@ export default function TeamLogin() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={onStaffLogin}
+                                onClick={() => onStaffLogin()}
                                 className="h-11 w-full gap-2 font-semibold"
                             >
                                 <ShieldCheck className="h-4 w-4" />

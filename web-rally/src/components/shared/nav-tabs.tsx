@@ -153,7 +153,6 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
     { name: "Membros", href: "/team-members", show: !showTeamView && isStaff && !isAdminOrManager },
     { name: "Guia", href: "/guide", show: !showTeamView && (isGuide || isStaff || isAdminOrManager) },
-    { name: "Cronómetro", href: "/stopwatch", show: !showTeamView && (isStaff || isAdminOrManager) },
   ].filter((item) => item.show);
 
   const renderLink = (item: NavLink) => {

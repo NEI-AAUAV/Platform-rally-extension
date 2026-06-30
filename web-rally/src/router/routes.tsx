@@ -124,12 +124,6 @@ const guideRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/guide")),
 });
 
-const stopwatchRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: "/stopwatch",
-  component: lazyRouteComponent(() => import("@/pages/stopwatch")),
-});
-
 const staffEvaluationRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/staff-evaluation",
@@ -166,6 +160,5 @@ export const routeTree = rootRoute.addChildren([
     staffEvaluationRoute,
     checkpointEvaluationRoute,
     guideRoute,
-    stopwatchRoute,
   ]),
 ]);

@@ -26,3 +26,6 @@ export { default as ListItem } from './ListItem';
 // Card components (themeable)
 export { default as RallyCard } from './RallyCard';
 export { default as RallyInteractiveCard } from './RallyInteractiveCard';
+
+// Tools
+export { default as StopwatchWidget } from './StopwatchWidget';

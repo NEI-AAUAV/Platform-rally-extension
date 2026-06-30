@@ -4,7 +4,8 @@ export enum ActivityType {
   SCORE_BASED = "ScoreBasedActivity",
   BOOLEAN = "BooleanActivity",
   TEAM_VS = "TeamVsActivity",
-  GENERAL = "GeneralActivity"
+  GENERAL = "GeneralActivity",
+  DEFERRED_JUDGED = "DeferredJudgedActivity"
 }
 
 // Export classes for runtime access

@@ -73,3 +73,41 @@ async def search_users(q: str, *, limit: int = _SEARCH_LIMIT) -> list[AuthentikU
             )
         )
     return results
+
+
+async def list_group_members(group_name: str) -> list[AuthentikUser]:
+    """List all Authentik accounts belonging to ``group_name``.
+
+    Returns an empty list when the API is not configured or on any transport
+    error — callers should fall back to the locally-mirrored data.
+    """
+    if not is_configured():
+        return []
+
+    url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
+    headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
+    params = {"groups_by_name": group_name, "page_size": 200}
+
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(f"Authentik group member lookup failed for '{group_name}': {exc}")
+        return []
+
+    results: list[AuthentikUser] = []
+    for item in data.get("results", []):
+        uuid = item.get("uuid")
+        if not uuid:
+            continue
+        results.append(
+            AuthentikUser(
+                authentik_sub=str(uuid),
+                name=item.get("name") or item.get("username") or "",
+                username=item.get("username") or "",
+                email=item.get("email") or None,
+            )
+        )
+    return results

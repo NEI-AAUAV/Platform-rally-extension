@@ -10,6 +10,7 @@ from app.api import authentik_client
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_admin, get_participant
 from app.api.abac_deps import require_team_management_permission
+from app.core.config import settings
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.models.user import User
@@ -83,11 +84,23 @@ async def get_staff_assignments(
     *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
-    Get all rally-staff users (mirrored locally from authentik on login) and
-    their checkpoint assignments. A user appears here once they have logged in
-    at least once and carry the rally-staff scope.
-    """
+    Get all rally-staff users and their checkpoint assignments.
 
+    When the Authentik management API is configured, members of the staff
+    group are fetched live and mirrored locally on the fly, so an account
+    shows up here as soon as it is added to the group in Authentik, with no
+    prior login required. Otherwise falls back to users already mirrored
+    locally (i.e. who have logged in at least once with the staff scope).
+    """
+    group_members = await authentik_client.list_group_members(settings.OIDC_STAFF_GROUP)
+    for member in group_members:
+        await crud.user.get_or_create_mirror(
+            db,
+            authentik_sub=member.authentik_sub,
+            name=member.name,
+            email=member.email,
+            scope="rally-staff",
+        )
 
     stmt = select(User).where(User.scopes.contains(['rally-staff']))
     rally_staff_users = (await db.scalars(stmt)).all()

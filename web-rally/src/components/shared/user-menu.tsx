@@ -1,6 +1,6 @@
 import { useUserStore } from "@/stores/useUserStore";
 import { Link } from "@tanstack/react-router";
-import { Settings, LogOut, ShieldCheck, Users, User } from "lucide-react";
+import { Settings, LogOut, UserPlus, LogIn, Users, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
 
@@ -20,17 +20,28 @@ export function UserMenu() {
         <Button
           type="button"
           size="sm"
-          onClick={onStaffLogin}
+          variant="outline"
+          onClick={() => onStaffLogin({ mode: "registration" })}
+          className="h-8 gap-1.5"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Registar</span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => onStaffLogin({ mode: "login" })}
           className="rally-bg-accent h-8 gap-1.5 text-white hover:opacity-90"
         >
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Login NEI</span>
-          <span className="sm:hidden">NEI</span>
+          <LogIn className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Iniciar sessão</span>
+          <span className="sm:hidden">Entrar</span>
         </Button>
         <Link to="/team-login">
           <Button variant="outline" size="sm" className="h-8 gap-1.5">
             <Users className="h-3.5 w-3.5" />
-            Equipa
+            <span className="hidden sm:inline">Código de Equipa</span>
+            <span className="sm:hidden">Equipa</span>
           </Button>
         </Link>
       </div>

@@ -23,7 +23,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             select(RallySettings).where(RallySettings.event_id == event.id)
         )
         if settings is not None:
-            return settings
+            return await self._sync_timing_from_event(db, settings, event)
 
         # Fall back to adopting a legacy unscoped row (event_id NULL) once, so
         # existing single-event deployments keep their configured values.
@@ -35,7 +35,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             db.add(legacy)
             await db.commit()
             await db.refresh(legacy)
-            return legacy
+            return await self._sync_timing_from_event(db, legacy, event)
 
         if not settings:
             settings = RallySettings(
@@ -79,6 +79,27 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             await db.commit()
             await db.refresh(settings)
 
+        return await self._sync_timing_from_event(db, settings, event)
+
+    async def _sync_timing_from_event(
+        self, db: "AsyncSession", settings: RallySettings, event: object
+    ) -> RallySettings:
+        """Keep settings timing in lockstep with the event's start/end time.
+
+        The event record is the single source of truth for rally timing, so
+        an admin no longer has to set the schedule twice. The settings row
+        still carries its own columns (consumed throughout the app), but they
+        are always overwritten from the event here rather than edited
+        independently.
+        """
+        event_start = getattr(event, "start_time", None)
+        event_end = getattr(event, "end_time", None)
+        if settings.rally_start_time != event_start or settings.rally_end_time != event_end:
+            settings.rally_start_time = event_start
+            settings.rally_end_time = event_end
+            db.add(settings)
+            await db.commit()
+            await db.refresh(settings)
         return settings
 
     async def set_image_url(

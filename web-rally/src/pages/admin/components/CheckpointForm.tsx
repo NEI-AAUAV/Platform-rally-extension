@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
+import CheckpointLocationPicker from "./CheckpointLocationPicker";
 
 const fieldClassName = "bg-muted border-border";
 
@@ -89,6 +90,14 @@ export default function CheckpointForm({
               )}
             />
           </div>
+          <CheckpointLocationPicker
+            latitude={form.watch("latitude") ? Number.parseFloat(form.watch("latitude") as string) : null}
+            longitude={form.watch("longitude") ? Number.parseFloat(form.watch("longitude") as string) : null}
+            onChange={(lat, lng) => {
+              form.setValue("latitude", lat.toFixed(6), { shouldValidate: true });
+              form.setValue("longitude", lng.toFixed(6), { shouldValidate: true });
+            }}
+          />
           <FormField
             control={form.control}
             name="order"

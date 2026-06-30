@@ -18,6 +18,7 @@ const activityTypeLabels = {
   BooleanActivity: "Sim/Não",
   TeamVsActivity: "Equipa vs Equipa",
   GeneralActivity: "Geral",
+  DeferredJudgedActivity: "Avaliação Posterior (Fotos)",
 };
 
 export default function ActivityList({

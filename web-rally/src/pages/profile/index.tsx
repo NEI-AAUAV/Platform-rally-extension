@@ -97,7 +97,7 @@ export default function Profile() {
           </p>
           <button
             type="button"
-            onClick={onStaffLogin}
+            onClick={() => onStaffLogin()}
             className="rally-bg-accent rally-press mx-auto mt-5 flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white"
           >
             <LogIn className="h-4 w-4" />

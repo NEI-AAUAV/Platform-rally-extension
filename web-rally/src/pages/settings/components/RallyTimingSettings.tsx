@@ -1,18 +1,28 @@
 import { cn } from '@/lib/utils';
 import { Calendar } from 'lucide-react';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Link } from '@tanstack/react-router';
 import { useFormContext } from 'react-hook-form';
 
 type RallyTimingSettingsProps = Readonly<{
-
   className?: string;
-  disabled?: boolean;
 }>
 
-export default function RallyTimingSettings({ className = "", disabled = false }: RallyTimingSettingsProps) {
-  const { register } = useFormContext();
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "Não definido";
+  return new Date(value).toLocaleString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function RallyTimingSettings({ className = "" }: RallyTimingSettingsProps) {
+  const { getValues } = useFormContext();
+  const startTime = getValues("rally_start_time");
+  const endTime = getValues("rally_end_time");
 
   return (
     <div className={cn("rally-surface rounded-2xl", className)}>
@@ -22,37 +32,26 @@ export default function RallyTimingSettings({ className = "", disabled = false }
           Horários do Rally
         </CardTitle>
         <CardDescription>
-          Definir quando o rally começa e termina
+          Definidos no evento, não aqui — evita ter de configurar os horários duas vezes
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="rally_start_time">Hora de início do Rally</Label>
-          <Input
-            id="rally_start_time"
-            type="datetime-local"
-            disabled={disabled}
-            {...register('rally_start_time')}
-            className="bg-muted border-border"
-          />
-          <p className="text-xs text-muted-foreground">
-            Deixe em branco para não definir hora de início
-          </p>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Início</p>
+            <p className="font-medium">{formatDateTime(startTime)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fim</p>
+            <p className="font-medium">{formatDateTime(endTime)}</p>
+          </div>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="rally_end_time">Hora de fim do Rally</Label>
-          <Input
-            id="rally_end_time"
-            type="datetime-local"
-            disabled={disabled}
-            {...register('rally_end_time')}
-            className="bg-muted border-border"
-          />
-          <p className="text-xs text-muted-foreground">
-            Deixe em branco para não definir hora de fim
-          </p>
-        </div>
+        <Link
+          to="/admin"
+          className="text-sm text-primary underline underline-offset-2"
+        >
+          Editar horários na gestão de eventos
+        </Link>
       </CardContent>
     </div>
   );

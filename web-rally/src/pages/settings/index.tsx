@@ -11,10 +11,7 @@ import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";
-import {
-  utcISOStringToLocalDatetimeLocal,
-  localDatetimeLocalToUTCISOString
-} from "@/utils/timezone";
+import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
 
 // Extended interface to include possibly missing properties
@@ -183,14 +180,10 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
   });
 
   const handleSave = (data: RallySettingsForm) => {
-    // Convert datetime-local strings to UTC ISO strings before sending to API
-    const settingsData: RallySettingsUpdate = {
-      ...data,
-      rally_start_time: data.rally_start_time ? localDatetimeLocalToUTCISOString(data.rally_start_time) : null,
-      rally_end_time: data.rally_end_time ? localDatetimeLocalToUTCISOString(data.rally_end_time) : null,
-    };
-
-    updateSettings(settingsData);
+    // rally_start_time/rally_end_time are read-only here — they're set on the
+    // event (see EventsManagement), not via this settings form.
+    const { rally_start_time: _rallyStartTime, rally_end_time: _rallyEndTime, ...settingsData } = data;
+    updateSettings(settingsData as RallySettingsUpdate);
   };
 
   const handleSubmitError = (errors: FieldErrors<RallySettingsForm>) => {

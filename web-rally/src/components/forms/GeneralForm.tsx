@@ -39,6 +39,11 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
   // Use penalty values from API settings or fallback to defaults
   const penaltyValues = getPenaltyValues(settings);
 
+  const showExtraShots = maxExtraShots > 0;
+  const showVomitPenalty = penaltyValues.vomit > 0;
+  const showNotDrinkingPenalty = penaltyValues.not_drinking > 0;
+  const showPenalties = showVomitPenalty || showNotDrinkingPenalty;
+
   useEffect(() => {
     if (existingResult?.result_data) {
       setAssignedPoints(existingResult.result_data.assigned_points || getDefaultPoints(config));
@@ -97,70 +102,78 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
         </p>
       </div>
 
-      <div>
-        <label htmlFor="general-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
-          Extra Shots
-        </label>
-        <input
-          id="general-extra-shots"
-          type="number"
-          min="0"
-          max={maxExtraShots}
-          value={extraShots}
-          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Extra shots taken"
-        />
-        <p className="text-muted-foreground text-sm mt-1">
-          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
-        </p>
-        {extraShots > maxExtraShots && (
-          <p className="text-red-400 text-sm mt-1">
-            ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
+      {showExtraShots && (
+        <div>
+          <label htmlFor="general-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
+            Extra Shots
+          </label>
+          <input
+            id="general-extra-shots"
+            type="number"
+            min="0"
+            max={maxExtraShots}
+            value={extraShots}
+            onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
+            className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            placeholder="Extra shots taken"
+          />
+          <p className="text-muted-foreground text-sm mt-1">
+            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
           </p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Penalties
-        </label>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-3">
-            <input
-              id="general-vomit"
-              type="number"
-              min="0"
-              value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Vomit penalty count"
-            />
-            <label htmlFor="general-vomit" className="text-muted-foreground text-sm">
-              Vomit penalty ({penaltyValues.vomit} pts each)
-            </label>
-          </div>
-          <div className="flex items-center space-x-3">
-            <input
-              id="general-not-drinking"
-              type="number"
-              min="0"
-              value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Not drinking penalty count"
-            />
-            <label htmlFor="general-not-drinking" className="text-muted-foreground text-sm">
-              Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </label>
-          </div>
+          {extraShots > maxExtraShots && (
+            <p className="text-red-400 text-sm mt-1">
+              ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
+            </p>
+          )}
         </div>
-        <p className="text-muted-foreground text-sm mt-1">
-          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
-        </p>
-      </div>
+      )}
+
+      {showPenalties && (
+        <div>
+          <label className="block text-sm font-medium mb-2 text-foreground">
+            Penalties
+          </label>
+          <div className="space-y-2">
+            {showVomitPenalty && (
+              <div className="flex items-center space-x-3">
+                <input
+                  id="general-vomit"
+                  type="number"
+                  min="0"
+                  value={penalties.vomit || 0}
+                  onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
+                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  placeholder="0"
+                  aria-label="Vomit penalty count"
+                />
+                <label htmlFor="general-vomit" className="text-muted-foreground text-sm">
+                  Vomit penalty ({penaltyValues.vomit} pts each)
+                </label>
+              </div>
+            )}
+            {showNotDrinkingPenalty && (
+              <div className="flex items-center space-x-3">
+                <input
+                  id="general-not-drinking"
+                  type="number"
+                  min="0"
+                  value={penalties.not_drinking || 0}
+                  onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
+                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  placeholder="0"
+                  aria-label="Not drinking penalty count"
+                />
+                <label htmlFor="general-not-drinking" className="text-muted-foreground text-sm">
+                  Not drinking penalty ({penaltyValues.not_drinking} pts each)
+                </label>
+              </div>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">
+            Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+          </p>
+        </div>
+      )}
 
       <div>
         <label htmlFor="general-notes" className="block text-sm font-medium mb-2 text-foreground">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { Timer } from "lucide-react";
 import { BloodyButton } from "@/components/themes/bloody";
+import { StopwatchWidget } from "@/components/shared";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useAppToast } from "@/hooks/use-toast";
@@ -9,6 +11,7 @@ import { getTeamSize } from "@/types/forms";
 export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
   // Keep as string to allow clearing input and typing like ".5" or "03"
   const [completionTime, setCompletionTime] = useState<string>("");
+  const [showStopwatch, setShowStopwatch] = useState<boolean>(false);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{[key: string]: number}>({});
   const [notes, setNotes] = useState<string>("");
@@ -70,9 +73,28 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Completion Time (seconds)
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-foreground">
+            Completion Time (seconds)
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowStopwatch((v) => !v)}
+            className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-accent"
+          >
+            <Timer className="h-3.5 w-3.5" />
+            {showStopwatch ? "Ocultar cronómetro" : "Usar cronómetro"}
+          </button>
+        </div>
+
+        {showStopwatch && (
+          <div className="mb-3">
+            <StopwatchWidget
+              onUseTime={(seconds) => setCompletionTime(String(seconds))}
+            />
+          </div>
+        )}
+
         <input
           type="text"
           inputMode="decimal"
