@@ -150,7 +150,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
                 name: activity.name,
                 description: activity.description ?? undefined,
                 activity_type: activity.activity_type as unknown as CustomActivityType,
-                checkpoint_id: activity.checkpoint_id,
+                checkpoint_id: activity.checkpoint_id ?? 0,
                 config: activity.config as Record<string, string | number | boolean>,
                 is_active: activity.is_active ?? true,
                 order: 'order' in activity && typeof activity.order === 'number' ? activity.order : 0,

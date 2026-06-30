@@ -4,7 +4,7 @@
  * the /events endpoints.
  */
 
-export type EventType = "rally_tascas" | "peddy_paper" | "generic";
+export type EventType = "rally_tascas" | "peddy_paper" | "generic" | "olympic";
 
 export interface RallyEvent {
   id: number;
@@ -37,4 +37,5 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   rally_tascas: "Rally Tascas",
   peddy_paper: "Peddy-paper",
   generic: "Genérico",
+  olympic: "Olímpico",
 };

@@ -13,6 +13,9 @@ import {
   UserCog,
   ClipboardCheck,
   LayoutDashboard,
+  Gavel,
+  Trophy,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import useUser from "@/hooks/useUser";
@@ -24,6 +27,9 @@ import {
   ActivityManagement,
   BrandingSettings,
   EventsManagement,
+  DeferredJudgingTab,
+  BadgeAdminTab,
+  DynamicScoringTab,
 } from "./components";
 import { CheckPointService } from "@/client";
 import RallySettings from "@/pages/settings";
@@ -45,12 +51,15 @@ type TabId =
   | "teams"
   | "checkpoints"
   | "activities"
-  | "branding"
-  | "events"
   | "members"
   | "assignment"
-  | "versus"
   | "evaluation"
+  | "versus"
+  | "badges"
+  | "judging"
+  | "scoring"
+  | "branding"
+  | "events"
   | "settings";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
@@ -62,6 +71,9 @@ const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
   { id: "assignment", label: "Atribuições", icon: ClipboardList },
   { id: "evaluation", label: "Avaliação", icon: ClipboardCheck },
   { id: "versus", label: "Versus", icon: Swords },
+  { id: "judging", label: "Julgamento", icon: Gavel },
+  { id: "badges", label: "Crachás", icon: Trophy },
+  { id: "scoring", label: "Pontuação", icon: Zap },
   { id: "branding", label: "Identidade", icon: Palette },
   { id: "events", label: "Edições", icon: CalendarRange },
   { id: "settings", label: "Configurações", icon: Settings2 },
@@ -138,6 +150,9 @@ export default function Admin() {
           {activeTab === "assignment" && <Assignment embedded />}
           {activeTab === "versus" && <Versus embedded />}
           {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
+          {activeTab === "judging" && <DeferredJudgingTab />}
+          {activeTab === "badges" && <BadgeAdminTab />}
+          {activeTab === "scoring" && <DynamicScoringTab />}
           {activeTab === "settings" && <RallySettings embedded />}
         </div>
       </div>

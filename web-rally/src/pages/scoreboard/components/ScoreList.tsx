@@ -78,15 +78,22 @@ export function Podium({
             </span>
             <div
               className={[
-                "mt-2 grid place-items-center rounded-full bg-card ring-2",
+                "mt-2 overflow-hidden rounded-full bg-card ring-2",
                 MEDAL_RING[rank - 1],
                 champion ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16",
               ].join(" ")}
             >
-              {champion ? (
-                <span className="rally-display rally-accent text-[28px] font-bold sm:text-[34px]">★</span>
+              {team.photo_url ? (
+                <img
+                  src={team.photo_url}
+                  alt={team.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : champion ? (
+                <span className="grid h-full w-full place-items-center rally-display rally-accent text-[28px] font-bold sm:text-[34px]">★</span>
               ) : (
-                <span className="rally-display text-base font-bold text-foreground sm:text-lg">
+                <span className="grid h-full w-full place-items-center rally-display text-base font-bold text-foreground sm:text-lg">
                   {initialsOf(team.name)}
                 </span>
               )}
@@ -154,8 +161,17 @@ export function ScoreRows({
                 <span className="rally-display w-7 shrink-0 text-center text-xl font-bold tabular-nums text-muted-foreground">
                   {rank}
                 </span>
-                <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold">
-                  {initialsOf(team.name)}
+                <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold overflow-hidden">
+                  {team.photo_url ? (
+                    <img
+                      src={team.photo_url}
+                      alt={team.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    initialsOf(team.name)
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold text-foreground">

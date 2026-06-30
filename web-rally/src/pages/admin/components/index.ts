@@ -4,3 +4,6 @@ export { default as CheckpointManagement } from './CheckpointManagement';
 export { default as ActivityManagement } from './ActivityManagement';
 export { default as BrandingSettings } from './BrandingSettings';
 export { default as EventsManagement } from './EventsManagement';
+export { default as DeferredJudgingTab } from './DeferredJudgingTab';
+export { default as BadgeAdminTab } from './BadgeAdminTab';
+export { default as DynamicScoringTab } from './DynamicScoringTab';

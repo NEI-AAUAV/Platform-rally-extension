@@ -103,7 +103,8 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const isAdminOrManager = scopes !== undefined &&
     (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  const isPrivileged = isAdminOrManager || isStaff;
+  const isGuide = scopes !== undefined && scopes.includes("rally-guide");
+  const isPrivileged = isAdminOrManager || isStaff || isGuide;
   const isDualRole = isPrivileged && isTeamAuthenticated;
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -146,11 +147,13 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Login", href: "/team-login", show: !showTeamView && !isTeamAuthenticated && scopes === undefined },
   ].filter((item) => item.show);
 
-  // Admin sees /admin (everything consolidated); staff sees evaluation + members
+  // Admin sees /admin (everything consolidated); staff sees evaluation + members; guides see guide page
   const management: NavLink[] = [
     { name: "Admin", href: "/admin", show: !showTeamView && isAdminOrManager },
     { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
     { name: "Membros", href: "/team-members", show: !showTeamView && isStaff && !isAdminOrManager },
+    { name: "Guia", href: "/guide", show: !showTeamView && (isGuide || isStaff || isAdminOrManager) },
+    { name: "Cronómetro", href: "/stopwatch", show: !showTeamView && (isStaff || isAdminOrManager) },
   ].filter((item) => item.show);
 
   const renderLink = (item: NavLink) => {

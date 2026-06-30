@@ -44,6 +44,13 @@ const TERMS: Record<EventType, EventTerms> = {
     activities: "provas",
     event: "evento",
   },
+  olympic: {
+    checkpoint: "estação",
+    checkpoints: "estações",
+    activity: "prova",
+    activities: "provas",
+    event: "competição olímpica",
+  },
 };
 
 const DEFAULT_EVENT_TYPE: EventType = "rally_tascas";

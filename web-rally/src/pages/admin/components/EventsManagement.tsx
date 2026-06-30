@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CalendarRange, Check, Plus, Star, Pencil, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { CalendarRange, Check, Plus, Star, Pencil, X, Shuffle, CheckCircle2, AlertCircle } from "lucide-react";
+import { EventsService } from "@/client";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,45 @@ function formatRange(ev: RallyEvent): string | null {
   if (!ev.end_time) return start;
   const end = new Date(ev.end_time).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
   return `${start} – ${end}`;
+}
+
+function RotationScheduleButton({ eventId }: { eventId: number }) {
+  const toast = useAppToast();
+  const [done, setDone] = useState(false);
+
+  const generateMutation = useMutation({
+    mutationFn: () =>
+      EventsService.generateRotationScheduleApiRallyV1EventsEventIdRotationSchedulePost(eventId),
+    onSuccess: () => {
+      setDone(true);
+      toast.success("Escalonamento olímpico gerado");
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar escalonamento")),
+  });
+
+  if (done) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Escalonamento gerado
+      </span>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={generateMutation.isPending}
+      onClick={() => generateMutation.mutate()}
+    >
+      {generateMutation.isError ? (
+        <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-red-500" />
+      ) : (
+        <Shuffle className="mr-1.5 h-3.5 w-3.5" />
+      )}
+      {generateMutation.isPending ? "A gerar…" : "Gerar escalonamento"}
+    </Button>
+  );
 }
 
 /**
@@ -212,7 +253,10 @@ export default function EventsManagement() {
                   </p>
                   {ev.description && <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {ev.event_type === "olympic" && (
+                    <RotationScheduleButton eventId={ev.id} />
+                  )}
                   {!ev.is_current && (
                     <Button variant="outline" size="sm" onClick={() => handleSetCurrent(ev)} disabled={setCurrent.isPending}>
                       <Star className="mr-1.5 h-3.5 w-3.5" /> Tornar atual
