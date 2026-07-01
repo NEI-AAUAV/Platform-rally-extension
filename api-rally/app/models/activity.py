@@ -1,13 +1,12 @@
 """
 Activity models for Rally extension
 """
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
+from sqlalchemy import Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Union
-import uuid
+from typing import Any, Optional
 
 from app.models.base import Base
 from app.core.config import settings
@@ -64,7 +63,12 @@ class ActivityResult(Base):
     team_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.teams.id"), nullable=False)
     
     # Result data - varies by activity type
-    result_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    # MutableDict/MutableList wrappers below make in-place mutations (e.g.
+    # penalties[key] += n in ScoringService.apply_penalty) mark the column
+    # dirty; plain JSON columns silently lose them.
+    result_data: Mapped[dict[str, Any]] = mapped_column(
+        MutableDict.as_mutable(JSON), nullable=False, default=dict
+    )
     
     # Calculated scores
     time_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For time-based activities
@@ -74,7 +78,9 @@ class ActivityResult(Base):
     
     # Special scoring modifiers
     extra_shots: Mapped[int] = mapped_column(Integer, default=0)  # Extra shots taken
-    penalties: Mapped[dict[str, int]] = mapped_column(JSON, default=dict)  # Various penalties
+    penalties: Mapped[dict[str, int]] = mapped_column(
+        MutableDict.as_mutable(JSON), default=dict
+    )  # Various penalties
     
     # Final calculated score
     final_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -85,7 +91,9 @@ class ActivityResult(Base):
 
     # Deferred judging support (B3)
     # media_urls: list of R2 URLs uploaded during capture phase
-    media_urls: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    media_urls: Mapped[list[str]] = mapped_column(
+        MutableList.as_mutable(JSON), nullable=False, default=list
+    )
     # judgment_status: None = normal result; "pending_judgment" = captured, awaiting judge; "judged" = judged
     judgment_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default=None)
     

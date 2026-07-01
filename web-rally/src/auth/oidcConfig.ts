@@ -17,9 +17,13 @@ export const oidcConfig: AuthProviderProps = {
   automaticSilentRenew: true,
   // Persist the session across reloads so a refresh does not bounce the user
   // back through the identity provider.
-  userStore: new WebStorageStateStore({ store: window.localStorage }),
+  userStore: new WebStorageStateStore({ store: globalThis.localStorage }),
   onSigninCallback: () => {
     // Strip the OIDC response params from the URL after a successful sign-in.
-    window.history.replaceState({}, document.title, window.location.pathname);
+    globalThis.history.replaceState(
+      {},
+      document.title,
+      globalThis.location.pathname,
+    );
   },
 };

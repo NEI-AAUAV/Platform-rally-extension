@@ -218,10 +218,39 @@ async def mirror_team_vs_result(
 # =============================================================================
 
 async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: Activity) -> None:
-    """Check if team can advance to next checkpoint based on score accumulation"""
+    """Advance the team past this checkpoint once ALL its activities are scored.
+
+    Idempotent: evaluating (or re-evaluating) an activity at a checkpoint the
+    team has already moved past never advances it again — otherwise each extra
+    evaluation at the same checkpoint would push the team one checkpoint
+    further, skipping posts it never visited.
+    """
     current_checkpoint_id = activity_obj.checkpoint_id
 
-    # Get all activity results for this team at current checkpoint with activity relationship loaded
+    # Global activities (checkpoint_id is None) are not tied to a post and
+    # must never drive checkpoint progression.
+    if current_checkpoint_id is None:
+        return
+
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+    checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
+    if not checkpoint_obj:
+        return
+
+    team_obj = await team.get(db, id=team_id)
+    if not team_obj:
+        return
+
+    # Idempotency guard: len(times) counts checkpoints already reached. If the
+    # team is already past this checkpoint's order, there is nothing to do.
+    if len(team_obj.times) > checkpoint_obj.order:
+        logger.debug(
+            f"Team {team_id} already past checkpoint {current_checkpoint_id} "
+            f"(order {checkpoint_obj.order}), not advancing"
+        )
+        return
+
+    # Only advance once every activity at this checkpoint has a scored result.
     from sqlalchemy.orm import joinedload
     from sqlalchemy import select
     stmt = select(ActivityResult).options(
@@ -229,28 +258,35 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     ).where(ActivityResult.team_id == team_id)
     team_results = list((await db.scalars(stmt)).unique().all())
 
-    checkpoint_results = [
-        r for r in team_results
+    scored_activity_ids = {
+        r.activity_id for r in team_results
         if r.activity and r.activity.checkpoint_id == current_checkpoint_id and r.final_score is not None
-    ]
+    }
 
-    # If team has any scored results at this checkpoint, allow advancement
-    # This permits teams to advance even if some activities were missed
-    if checkpoint_results:
+    from app.crud.crud_activity import activity as activity_crud
+    checkpoint_activities = await activity_crud.get_by_checkpoint(
+        db, checkpoint_id=current_checkpoint_id
+    )
+    pending = [a for a in checkpoint_activities if a.is_active and a.id not in scored_activity_ids]
+
+    if not pending:
         logger.debug(
-            f"Team {team_id} has {len(checkpoint_results)} scored results at "
+            f"Team {team_id} completed all activities at "
             f"checkpoint {current_checkpoint_id}, advancing..."
         )
         await ensure_team_checkpoint_and_advance(db, team_id, current_checkpoint_id)
     else:
         logger.debug(
-            f"Team {team_id} has no scored results at checkpoint {current_checkpoint_id}, not advancing"
+            f"Team {team_id} still has {len(pending)} unscored activities at "
+            f"checkpoint {current_checkpoint_id}, not advancing"
         )
 
 
 async def ensure_team_checkpoint_and_advance(db: AsyncSession, team_id: int, current_checkpoint_id: int) -> None:
     """Ensure team is checked into current checkpoint and advance to next"""
     team_obj = await team.get(db, id=team_id)
+    if not team_obj:
+        return
     current_checkpoint_order = len(team_obj.times)
 
     # Convert checkpoint ID to order for comparison

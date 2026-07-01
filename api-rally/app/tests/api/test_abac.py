@@ -2,6 +2,7 @@
 Critical ABAC (Access Control) tests
 """
 import pytest
+from fastapi import HTTPException
 from unittest.mock import Mock, AsyncMock, patch
 
 from app.core.abac import ABACEngine, Policy, Action, Resource, Context
@@ -180,7 +181,7 @@ class TestABACDependencies:
         with patch('app.core.abac.abac_engine') as mock_engine:
             mock_engine.evaluate.return_value = False
             
-            with pytest.raises(Exception):  # Should raise HTTPException
+            with pytest.raises(HTTPException):
                 require_permission(
                     user=mock_user,
                     auth=mock_auth_data,
@@ -194,7 +195,7 @@ class TestABACDependencies:
         with patch('app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id') as mock_get_assignment:
             mock_get_assignment.return_value = Mock(checkpoint_id=1)
 
-            result = await get_staff_with_checkpoint_access(
+            result = get_staff_with_checkpoint_access(
                 auth=mock_staff_auth_data,
                 curr_user=mock_staff_user,
                 db=mock_db
@@ -206,8 +207,8 @@ class TestABACDependencies:
         """Test non-staff user accessing checkpoint"""
         mock_db = AsyncMock()
 
-        with pytest.raises(Exception):  # Should raise HTTPException
-            await get_staff_with_checkpoint_access(
+        with pytest.raises(HTTPException):
+            get_staff_with_checkpoint_access(
                 auth=mock_auth_data,
                 curr_user=mock_user,
                 db=mock_db

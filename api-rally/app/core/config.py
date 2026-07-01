@@ -131,6 +131,18 @@ class Settings(BaseSettings):
     TEAM_JWT_ALGORITHM: str = "HS256"
     ## Token expiration time in hours (24 hours = 1 day)
     TEAM_TOKEN_EXPIRE_HOURS: int = 24
+    ## Absolute session lifetime: /refresh cannot extend a token chain beyond
+    ## this many hours after the original login (0 disables the cap).
+    TEAM_TOKEN_MAX_LIFETIME_HOURS: int = int(
+        os.getenv("TEAM_TOKEN_MAX_LIFETIME_HOURS", "168")
+    )
+    ## Team login brute-force guard: max attempts per client IP per window.
+    TEAM_LOGIN_RATE_LIMIT_ATTEMPTS: int = int(
+        os.getenv("TEAM_LOGIN_RATE_LIMIT_ATTEMPTS", "10")
+    )
+    TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = int(
+        os.getenv("TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300")
+    )
 
     @field_validator("TEAM_JWT_SECRET_KEY")
     @classmethod

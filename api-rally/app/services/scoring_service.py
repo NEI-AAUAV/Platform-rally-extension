@@ -122,10 +122,13 @@ class ScoringService:
             stmt = select(RallySettings)
             self._settings = (await self.db.scalars(stmt)).first()
             if not self._settings:
-                # Create default settings if none exist
+                # Create default settings if none exist. Flush (not commit) so
+                # callers batching writes into one atomic transaction
+                # (commit=False paths) don't get a mid-transaction commit that
+                # would persist their partial state.
                 self._settings = RallySettings()
                 self.db.add(self._settings)
-                await self.db.commit()
+                await self.db.flush()
         if self._settings is None:
             raise RallyError("Failed to get or create rally settings")
         return self._settings
@@ -142,70 +145,75 @@ class ScoringService:
 
         return total_score
 
+    async def _checkpoint_scores_for_team(
+        self, team_id: int
+    ) -> tuple[dict[int, float], float]:
+        """Sum completed results by checkpoint order, plus the raw total."""
+        stmt = select(ActivityResult).options(
+            joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
+        ).where(ActivityResult.team_id == team_id)
+        results = (await self.db.scalars(stmt)).all()
+
+        checkpoint_scores: dict[int, float] = {}
+        total_score = 0.0
+        for result in results:
+            if not (result.is_completed and result.final_score is not None):
+                continue
+            if not (result.activity and result.activity.checkpoint):
+                continue
+            checkpoint_order = result.activity.checkpoint.order
+            checkpoint_scores[checkpoint_order] = (
+                checkpoint_scores.get(checkpoint_order, 0.0) + result.final_score
+            )
+            total_score += result.final_score
+
+        return checkpoint_scores, total_score
+
+    async def _active_award_points(self, team_id: int) -> float:
+        """Sum points from active dynamic awards for this team (D4)."""
+        award_stmt = select(DynamicAward).where(
+            DynamicAward.team_id == team_id,
+            DynamicAward.is_active.is_(True),
+        )
+        awards = (await self.db.scalars(award_stmt)).all()
+        return sum(float(award.points) for award in awards)
+
+    async def _commit_and_publish_team_score(self, team_id: int, total_score: float) -> None:
+        try:
+            await self.db.commit()
+        except Exception as e:
+            logger.exception("Failed to update team scores")
+            raise RallyError(f"Failed to update team scores: {str(e)}")
+        # Publish after the commit so subscribers never see scores a
+        # rollback would erase. No-op unless the realtime subsystem is on.
+        # This is the single funnel for every leaderboard-affecting change.
+        await publish_event(
+            TeamScoreUpdatedEvent(
+                payload=TeamScoreUpdatedPayload(team_id=team_id, total_score=total_score)
+            )
+        )
+
     async def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
         """Update team's total and score_per_checkpoint based on activity results"""
         team = await self.db.get(Team, team_id)
         if not team:
             return False
 
-        # Get all activity results for this team with activities and checkpoints preloaded
-        # Use joinedload to avoid N+1 queries
-        stmt = select(ActivityResult).options(
-            joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
-        ).where(ActivityResult.team_id == team_id)
-        results = (await self.db.scalars(stmt)).all()
+        checkpoint_scores, total_score = await self._checkpoint_scores_for_team(team_id)
+        total_score += await self._active_award_points(team_id)
 
-        # Group results by checkpoint order (not checkpoint ID)
-        checkpoint_scores: dict[int, float] = {}
-        total_score = 0.0
+        # Update team scores (round, don't truncate: float sums like 99.999…
+        # must not silently drop a point)
+        team.total = round(total_score)
 
-        for result in results:
-            if result.is_completed and result.final_score is not None:
-                # Activity and checkpoint are already loaded via joinedload
-                if result.activity and result.activity.checkpoint:
-                    # Use checkpoint order instead of checkpoint ID
-                    checkpoint_order = result.activity.checkpoint.order
-                    if checkpoint_order not in checkpoint_scores:
-                        checkpoint_scores[checkpoint_order] = 0.0
-                    checkpoint_scores[checkpoint_order] += result.final_score
-                    total_score += result.final_score
-
-        # Fold in active dynamic awards for this team (D4)
-        award_stmt = select(DynamicAward).where(
-            DynamicAward.team_id == team_id,
-            DynamicAward.is_active.is_(True),
-        )
-        awards = (await self.db.scalars(award_stmt)).all()
-        for award in awards:
-            total_score += float(award.points)
-
-        # Update team scores
-        team.total = int(total_score)
-
-        # Update score_per_checkpoint array to match times array length
-        # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID
-        # The times array represents checkpoint visit order
+        # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID;
+        # the times array represents checkpoint visit order
         team.score_per_checkpoint = [
             int(checkpoint_scores.get(i + 1, 0.0)) for i in range(len(team.times))
         ]
 
-        # Commit only if explicitly requested
         if should_commit:
-            try:
-                await self.db.commit()
-            except Exception as e:
-                logger.error(f"Failed to update team scores: {e}")
-                raise RallyError(f"Failed to update team scores: {str(e)}")
-            # Publish after the commit so subscribers never see scores a
-            # rollback would erase. No-op unless the realtime subsystem is on.
-            # This is the single funnel for every leaderboard-affecting change.
-            await publish_event(
-                TeamScoreUpdatedEvent(
-                    payload=TeamScoreUpdatedPayload(
-                        team_id=team_id, total_score=total_score
-                    )
-                )
-            )
+            await self._commit_and_publish_team_score(team_id, total_score)
 
         return True
 
@@ -268,6 +276,9 @@ class ScoringService:
         await self._recalculate_result_score(result)
 
         await self.db.commit()
+        # final_score changed, so the team total must follow.
+        if not self._defer_recompute:
+            await self.update_team_scores(team_id)
         return True
 
     async def apply_penalty(self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int) -> bool:
@@ -289,6 +300,9 @@ class ScoringService:
         await self._recalculate_result_score(result)
 
         await self.db.commit()
+        # final_score changed, so the team total must follow.
+        if not self._defer_recompute:
+            await self.update_team_scores(team_id)
         return True
 
     async def apply_vomit_penalty(self, team_id: int, activity_id: int) -> bool:
@@ -365,11 +379,9 @@ class ScoringService:
 
         is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
         completion_time = obj_in.result_data.get('completion_time_seconds')
+        extra_time = float(completion_time) if completion_time is not None else None
         all_times = (
-            await self._completed_times(
-                obj_in.activity_id,
-                extra_time=float(completion_time) if completion_time is not None else None,
-            )
+            await self._completed_times(obj_in.activity_id, extra_time=extra_time)
             if is_time_based
             else None
         )
@@ -488,7 +500,8 @@ class ScoringService:
         all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
         if exclude_result_id is not None:
             excluded = await self.db.get(ActivityResult, exclude_result_id)
-            if excluded and excluded.time_score:
+            # `is not None`, not truthiness: a 0.0 time must still rank.
+            if excluded and excluded.time_score is not None:
                 all_times.append(float(excluded.time_score))
 
         team_size_cache: dict[int, int] = {}
@@ -510,72 +523,90 @@ class ScoringService:
         for team_id in {r.team_id for r in all_results}:
             await self.update_team_scores(team_id, should_commit=commit)
 
+    async def _completed_counts_by_team(self) -> dict[int, int]:
+        """Completed-activity count per team, in one grouped query (avoids N+1)."""
+        count_stmt = (
+            select(ActivityResult.team_id, func.count())
+            .where(ActivityResult.is_completed.is_(True))
+            .group_by(ActivityResult.team_id)
+        )
+        return dict((await self.db.execute(count_stmt)).all())
+
+    async def _get_activity_ranking(self, activity_id: int) -> list[dict[str, Any]]:
+        """Rank teams by final_score for one activity ("1224" competition ranking)."""
+        stmt = select(ActivityResult).options(
+            joinedload(ActivityResult.team)
+        ).where(ActivityResult.activity_id == activity_id)
+        results = (await self.db.scalars(stmt)).all()
+        results = sorted(
+            results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True
+        )
+
+        completed_counts = await self._completed_counts_by_team()
+
+        ranking = []
+        prev_score: float | None = None
+        rank = 0
+        for i, result in enumerate(results, 1):
+            if not result.team:
+                continue
+            score = float(result.final_score or 0)
+            if prev_score is None or score != prev_score:
+                rank = i
+            prev_score = score
+            ranking.append({
+                'rank': rank,
+                'team_id': result.team.id,
+                'team_name': result.team.name,
+                'score': result.final_score or 0,
+                'activities_completed': completed_counts.get(result.team.id, 0),
+                'completed_at': result.completed_at
+            })
+        return ranking
+
+    @staticmethod
+    def _ranking_score(item: dict[str, Any]) -> float:
+        score = item.get('total_score', 0)
+        return float(score) if score is not None else 0.0
+
+    async def _get_global_ranking(self) -> list[dict[str, Any]]:
+        """Rank teams by total score across all activities ("1224" ranking)."""
+        team_stmt = select(Team).options(selectinload(Team.activity_results))
+        teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
+
+        ranking = []
+        for team in teams:
+            # activity_results are eager-loaded via selectinload above; compute
+            # the total from them instead of a per-team query (avoids N+1).
+            completed = [r for r in team.activity_results if r.is_completed]
+            total_score = sum(
+                float(r.final_score) for r in completed if r.final_score is not None
+            )
+            ranking.append({
+                'team_id': team.id,
+                'team_name': team.name,
+                'total_score': total_score,
+                'activities_completed': len(completed)
+            })
+
+        ranking.sort(key=self._ranking_score, reverse=True)
+
+        prev_total: float | None = None
+        rank = 0
+        for i, team_rank in enumerate(ranking, 1):
+            total = self._ranking_score(team_rank)
+            if prev_total is None or total != prev_total:
+                rank = i
+            prev_total = total
+            team_rank['rank'] = rank
+
+        return ranking
+
     async def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
         """Get team ranking for specific activity or global ranking"""
         if activity_id:
-            # Activity-specific ranking - sort by score descending before assigning ranks
-            # Use joinedload to avoid N+1 queries
-            stmt = select(ActivityResult).options(
-                joinedload(ActivityResult.team)
-            ).where(ActivityResult.activity_id == activity_id)
-            results = (await self.db.scalars(stmt)).all()
-            # Sort results by final_score in descending order, None scores go last
-            results = sorted(results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True)
-
-            # Completed-activity count per team, in one grouped query (avoids an
-            # N+1 SELECT per ranked result).
-            count_stmt = (
-                select(ActivityResult.team_id, func.count())
-                .where(ActivityResult.is_completed.is_(True))
-                .group_by(ActivityResult.team_id)
-            )
-            completed_counts: dict[int, int] = {
-                team_id: count for team_id, count in (await self.db.execute(count_stmt)).all()
-            }
-
-            ranking = []
-            for i, result in enumerate(results, 1):
-                # Team is already loaded via joinedload, but check if it exists
-                if result.team:
-                    team_activity_count = completed_counts.get(result.team.id, 0)
-                    ranking.append({
-                        'rank': i,
-                        'team_id': result.team.id,
-                        'team_name': result.team.name,
-                        'score': result.final_score or 0,
-                        'activities_completed': team_activity_count,
-                        'completed_at': result.completed_at
-                    })
-        else:
-            # Global ranking
-            team_stmt = select(Team).options(selectinload(Team.activity_results))
-            teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
-            ranking = []
-            for team in teams:
-                # activity_results are eager-loaded via selectinload above; compute
-                # the total from them instead of a per-team query (avoids N+1).
-                completed = [r for r in team.activity_results if r.is_completed]
-                total_score = sum(
-                    float(r.final_score) for r in completed if r.final_score is not None
-                )
-                ranking.append({
-                    'team_id': team.id,
-                    'team_name': team.name,
-                    'total_score': total_score,
-                    'activities_completed': len(completed)
-                })
-
-            # Sort by total score descending
-            def get_score(item: dict[str, Any]) -> float:
-                score = item.get('total_score', 0)
-                return float(score) if score is not None else 0.0
-            ranking.sort(key=get_score, reverse=True)
-
-            # Add ranks
-            for i, team_rank in enumerate(ranking, 1):
-                team_rank['rank'] = i
-
-        return ranking
+            return await self._get_activity_ranking(activity_id)
+        return await self._get_global_ranking()
 
     async def get_activity_statistics(self, activity_id: int) -> dict[str, Any]:
         """Get statistics for a specific activity"""
@@ -645,8 +676,13 @@ class ScoringService:
             raise RallyValidationError("Teams cannot compete in this activity")
 
         # Determine results
-        team1_result = "win" if winner_id == team1_id else ("draw" if winner_id == 0 else "lose")
-        team2_result = "win" if winner_id == team2_id else ("draw" if winner_id == 0 else "lose")
+        def outcome_for(team_id: int) -> str:
+            if winner_id == team_id:
+                return "win"
+            return "draw" if winner_id == 0 else "lose"
+
+        team1_result = outcome_for(team1_id)
+        team2_result = outcome_for(team2_id)
 
         # Create result for team 1
         result1_data = {

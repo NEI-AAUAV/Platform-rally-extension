@@ -52,11 +52,11 @@ def _wire(
     )
     monkeypatch.setattr(
         "app.crud.crud_checkpoint.checkpoint.get",
-        AsyncMock(return_value=SimpleNamespace(id=5, order=checkpoint_order)),
+        AsyncMock(return_value=SimpleNamespace(id=5, order=checkpoint_order, event_id=None)),
     )
     monkeypatch.setattr(
         "app.crud.crud_team.team.get",
-        AsyncMock(return_value=SimpleNamespace(times=team_times or [])),
+        AsyncMock(return_value=SimpleNamespace(times=team_times or [], event_id=None)),
     )
     advance = AsyncMock()
     monkeypatch.setattr(checkin_api, "checkin_team_to_checkpoint", advance)

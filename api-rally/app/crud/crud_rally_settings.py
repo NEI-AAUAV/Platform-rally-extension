@@ -45,50 +45,49 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             legacy = await self._normalize_home_fields(db, legacy)
             return await self._sync_timing_from_event(db, legacy, event)
 
-        if not settings:
-            settings = RallySettings(
-                event_id=event.id,
-                # Team management
-                max_teams=14,
-                max_members_per_team=10,
-                enable_versus=True,
-                # Rally timing
-                rally_start_time=None,
-                rally_end_time=None,
-                # Scoring system
-                penalty_per_puke=-10,
-                penalty_per_not_drinking=-2,
-                bonus_per_extra_shot=1,
-                max_extra_shots_per_member=5,
-                # Checkpoint behavior
-                checkpoint_order_matters=True,
-                # Staff and scoring
-                enable_staff_scoring=True,
-                # Display settings
-                show_live_leaderboard=True,
-                show_team_details=True,
-                show_checkpoint_map=True,
-                participant_view_enabled=False,
-                show_route_mode="focused",
-                show_score_mode="hidden",
-                # Rally customization
-                rally_theme="Rally Tascas - Competição de Equipas",
-                # Universal branding
-                event_name="Rally Tascas",
-                event_subtitle="Competição de Equipas",
-                accent_color="",
-                banner_url="",
-                logo_url="",
-                favicon_url="",
-                # Access control
-                public_access_enabled=True,
-                # Home page layout
-                home_layout=list(DEFAULT_HOME_LAYOUT),
-                ticker_items=list(DEFAULT_TICKER_ITEMS),
-            )
-            db.add(settings)
-            await db.commit()
-            await db.refresh(settings)
+        settings = RallySettings(
+            event_id=event.id,
+            # Team management
+            max_teams=14,
+            max_members_per_team=10,
+            enable_versus=True,
+            # Rally timing
+            rally_start_time=None,
+            rally_end_time=None,
+            # Scoring system
+            penalty_per_puke=-10,
+            penalty_per_not_drinking=-2,
+            bonus_per_extra_shot=1,
+            max_extra_shots_per_member=5,
+            # Checkpoint behavior
+            checkpoint_order_matters=True,
+            # Staff and scoring
+            enable_staff_scoring=True,
+            # Display settings
+            show_live_leaderboard=True,
+            show_team_details=True,
+            show_checkpoint_map=True,
+            participant_view_enabled=False,
+            show_route_mode="focused",
+            show_score_mode="hidden",
+            # Rally customization
+            rally_theme="Rally Tascas - Competição de Equipas",
+            # Universal branding
+            event_name="Rally Tascas",
+            event_subtitle="Competição de Equipas",
+            accent_color="",
+            banner_url="",
+            logo_url="",
+            favicon_url="",
+            # Access control
+            public_access_enabled=True,
+            # Home page layout
+            home_layout=list(DEFAULT_HOME_LAYOUT),
+            ticker_items=list(DEFAULT_TICKER_ITEMS),
+        )
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
 
         return await self._sync_timing_from_event(db, settings, event)
 

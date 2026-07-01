@@ -34,17 +34,30 @@ class Team(Base):
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
     )
 
+    # All arrays are wrapped in MutableList so in-place .append() (e.g. in
+    # crud_team.add_checkpoint) marks the column dirty; plain ARRAY columns
+    # silently lose in-place mutations.
     times: Mapped[List[datetime]] = mapped_column(
-        MutableList.as_mutable(ARRAY(DateTime(timezone=False))), default=[]
+        MutableList.as_mutable(ARRAY(DateTime(timezone=False))), default=list
     )
 
-    score_per_checkpoint: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
+    score_per_checkpoint: Mapped[List[int]] = mapped_column(
+        MutableList.as_mutable(ARRAY(Integer)), default=list
+    )
 
     # Additional arrays needed for Rally functionality
-    question_scores: Mapped[List[bool]] = mapped_column(ARRAY(Boolean), default=[])
-    time_scores: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
-    pukes: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
-    skips: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
+    question_scores: Mapped[List[bool]] = mapped_column(
+        MutableList.as_mutable(ARRAY(Boolean)), default=list
+    )
+    time_scores: Mapped[List[int]] = mapped_column(
+        MutableList.as_mutable(ARRAY(Integer)), default=list
+    )
+    pukes: Mapped[List[int]] = mapped_column(
+        MutableList.as_mutable(ARRAY(Integer)), default=list
+    )
+    skips: Mapped[List[int]] = mapped_column(
+        MutableList.as_mutable(ARRAY(Integer)), default=list
+    )
 
     total: Mapped[int] = mapped_column(default=0)
     classification: Mapped[int] = mapped_column(default=-1)

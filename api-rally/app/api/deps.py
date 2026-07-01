@@ -12,9 +12,6 @@ from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
 from app.core.config import settings
 from app.schemas.team_auth import TeamTokenData
-from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-
-
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -73,6 +70,18 @@ async def get_current_user_optional(
         return None
 
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
+    if user is None and auth.email:
+        # Same placeholder backfill as get_current_user: an email-matched row
+        # mirrored from an Authentik group may exist before first login.
+        placeholder = await crud.user.get_by_email(db, email=auth.email)
+        if placeholder is not None and placeholder.authentik_sub is None:
+            user = placeholder
+            user.authentik_sub = auth.oidc_sub
+            user.name = auth.name
+            user.scopes = auth.scopes
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
     if user is None:
         return None
 

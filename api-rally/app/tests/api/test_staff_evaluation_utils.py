@@ -48,44 +48,96 @@ class TestActivityResultCreation:
 class TestTeamCheckpointProgression:
     """Test team checkpoint progression functions"""
     
-    async def test_check_and_advance_team_with_scored_results(self):
-        """Test team advancement when scored results exist"""
-        mock_db = AsyncMock()
-        team_id = 1
-        
+    @staticmethod
+    def _wire_advance_mocks(mock_db, *, final_score, team_times=None, checkpoint_order=1):
+        """Common mock wiring for check_and_advance_team tests."""
         mock_activity = Mock()
         mock_activity.checkpoint_id = 1
-        
-        # Mock activity result with score
+
+        # The single activity at this checkpoint
+        mock_checkpoint_activity = Mock()
+        mock_checkpoint_activity.id = 10
+        mock_checkpoint_activity.is_active = True
+
+        # The team's result for that activity
         mock_result = Mock()
         mock_result.activity = Mock()
         mock_result.activity.checkpoint_id = 1
-        mock_result.final_score = 100
-        
-        mock_db.scalars = AsyncMock(return_value=Mock(unique=Mock(return_value=Mock(all=Mock(return_value=[mock_result])))))
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
+        mock_result.activity_id = 10
+        mock_result.final_score = final_score
+
+        mock_db.scalars = AsyncMock(
+            return_value=Mock(unique=Mock(return_value=Mock(all=Mock(return_value=[mock_result]))))
+        )
+
+        patches = [
+            patch(
+                'app.crud.crud_checkpoint.checkpoint.get',
+                AsyncMock(return_value=Mock(id=1, order=checkpoint_order)),
+            ),
+            patch(
+                'app.api.api_v1.staff_evaluation_utils.team.get',
+                AsyncMock(return_value=Mock(times=team_times if team_times is not None else [])),
+            ),
+            patch(
+                'app.crud.crud_activity.activity.get_by_checkpoint',
+                AsyncMock(return_value=[mock_checkpoint_activity]),
+            ),
+        ]
+        return mock_activity, patches
+
+    async def test_check_and_advance_team_with_scored_results(self):
+        """Team advances once all checkpoint activities have scored results"""
+        mock_db = AsyncMock()
+        team_id = 1
+        mock_activity, patches = self._wire_advance_mocks(
+            mock_db, final_score=100, team_times=[datetime.now(timezone.utc)]
+        )
+
+        with patches[0], patches[1], patches[2], patch(
+            'app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance'
+        ) as mock_advance:
             await check_and_advance_team(mock_db, team_id, mock_activity)
             mock_advance.assert_called_once_with(mock_db, team_id, 1)
-    
+
     async def test_check_and_advance_team_no_scored_results(self):
-        """Test team does not advance when no scored results exist"""
+        """Team does not advance when activities are unscored"""
         mock_db = AsyncMock()
         team_id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 1
-        
-        # Mock activity result without score
-        mock_result = Mock()
-        mock_result.activity = Mock()
-        mock_result.activity.checkpoint_id = 1
-        mock_result.final_score = None
-        
-        mock_db.scalars = AsyncMock(return_value=Mock(unique=Mock(return_value=Mock(all=Mock(return_value=[mock_result])))))
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
+        mock_activity, patches = self._wire_advance_mocks(mock_db, final_score=None)
+
+        with patches[0], patches[1], patches[2], patch(
+            'app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance'
+        ) as mock_advance:
             await check_and_advance_team(mock_db, team_id, mock_activity)
+            mock_advance.assert_not_called()
+
+    async def test_check_and_advance_team_idempotent_when_already_past(self):
+        """Re-evaluating at a checkpoint the team already passed never advances again"""
+        mock_db = AsyncMock()
+        team_id = 1
+        # Team already visited 2 checkpoints; activity's checkpoint has order 1.
+        past_times = [datetime.now(timezone.utc), datetime.now(timezone.utc)]
+        mock_activity, patches = self._wire_advance_mocks(
+            mock_db, final_score=100, team_times=past_times, checkpoint_order=1
+        )
+
+        with patches[0], patches[1], patches[2], patch(
+            'app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance'
+        ) as mock_advance:
+            await check_and_advance_team(mock_db, team_id, mock_activity)
+            mock_advance.assert_not_called()
+
+    async def test_check_and_advance_team_global_activity_never_advances(self):
+        """Global activities (checkpoint_id None) must not drive progression"""
+        mock_db = AsyncMock()
+        mock_activity = Mock()
+        mock_activity.checkpoint_id = None
+
+        with patch(
+            'app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance'
+        ) as mock_advance:
+            await check_and_advance_team(mock_db, 1, mock_activity)
             mock_advance.assert_not_called()
     
     async def test_ensure_team_checkpoint_and_advance_needs_checkin(self):

@@ -307,10 +307,16 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         # Teams at this checkpoint have visited exactly (order) checkpoints.
         # Eager-load members so callers can read team.members without a lazy load.
+        # Scope to the current event so editions never leak into each other
+        # (legacy NULL rows count as current, same as list()).
+        event_id = await current_event_id(db)
         stmt = (
             select(Team)
             .options(selectinload(Team.members))
-            .where(func.cardinality(Team.times) == checkpoint_order)
+            .where(
+                func.cardinality(Team.times) == checkpoint_order,
+                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+            )
         )
         return (await db.scalars(stmt)).all()
 

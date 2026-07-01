@@ -83,10 +83,16 @@ async def get_teams_at_my_checkpoint(
 
     # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints).
     # Eager-load members (build_team_for_staff reads team.members).
+    # Scoped to the current event (legacy NULL rows count as current).
+    from app.crud._event_scope import current_event_id
+    event_id = await current_event_id(db)
     teams_stmt = (
         select(Team)
         .options(selectinload(Team.members))
-        .where(func.cardinality(Team.times) <= staff_checkpoint_order)
+        .where(
+            func.cardinality(Team.times) <= staff_checkpoint_order,
+            (Team.event_id == event_id) | (Team.event_id.is_(None)),
+        )
     )
     teams = (await db.scalars(teams_stmt)).all()
 
@@ -251,6 +257,38 @@ async def evaluate_team_activity(
     return ActivityResultResponse.model_validate(db_result)
 
 
+async def _load_activity_and_team_for_update(
+    db: AsyncSession,
+    *,
+    team_id: int,
+    activity_id: int,
+    current_user: DetailedUser,
+    is_manager: bool,
+):
+    """Resolve+authorize the activity/team pair for an evaluation update.
+
+    Staff are restricted to activities at their own checkpoint; managers/admins
+    may update any team's activity. Raises the appropriate RallyForbidden/NotFound
+    error when the target activity or team is not accessible.
+    """
+    from app.crud.crud_activity import activity as activity_crud
+
+    if not is_manager and not current_user.staff_checkpoint_id:
+        raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
+
+    activity_obj = await activity_crud.get(db, id=activity_id)
+    if not is_manager and (
+        not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id
+    ):
+        raise RallyNotFoundError("Activity not found at your assigned checkpoint")
+
+    team_obj = await team.get(db, id=team_id)
+    if not team_obj:
+        raise RallyNotFoundError(TEAM_NOT_FOUND)
+
+    return activity_obj, team_obj
+
+
 @router.put("/teams/{team_id}/activities/{activity_id}/evaluate/{result_id}")
 async def update_team_activity_evaluation(
     *,
@@ -263,32 +301,17 @@ async def update_team_activity_evaluation(
     auth: Annotated[AuthData, Depends(api_nei_auth)]
 ) -> ActivityResultResponse:
     """Update a team's activity evaluation"""
-    # Check if user has rally permissions
-    has_rally_access = any(scope in auth.scopes for scope in ["rally-staff", "manager-rally", "admin"])
-    if not has_rally_access:
+    if not validate_rally_permissions(auth):
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
-    # For staff users, check checkpoint assignment
-    from app.crud.crud_activity import activity as activity_crud
-    is_manager = any(scope in auth.scopes for scope in ["manager-rally", "admin"])
-    if not is_manager:
-        if not current_user.staff_checkpoint_id:
-            raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
-
-        # Ensure the activity being updated belongs to the staff's checkpoint
-        activity_obj = await activity_crud.get(db, id=activity_id)
-        if not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id:
-            raise RallyNotFoundError("Activity not found at your assigned checkpoint")
-
-        team_obj = await team.get(db, id=team_id)
-        if not team_obj:
-            raise RallyNotFoundError(TEAM_NOT_FOUND)
-    else:
-        # For managers/admins, just verify team exists
-        activity_obj = await activity_crud.get(db, id=activity_id)
-        team_obj = await team.get(db, id=team_id)
-        if not team_obj:
-            raise RallyNotFoundError(TEAM_NOT_FOUND)
+    is_manager = is_admin_or_manager(auth)
+    activity_obj, _team_obj = await _load_activity_and_team_for_update(
+        db,
+        team_id=team_id,
+        activity_id=activity_id,
+        current_user=current_user,
+        is_manager=is_manager,
+    )
 
     # Get the result
     db_result = await activity_result.get(db, id=result_id)

@@ -46,6 +46,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+CHECKPOINT_NOT_FOUND = "Checkpoint not found"
+
 
 class CheckinRequest(BaseModel):
     token: str
@@ -60,6 +62,20 @@ class CheckinResponse(BaseModel):
 def _require_enabled() -> None:
     if not settings.SELF_CHECKIN_ENABLED:
         raise RallyNotFoundError("Self check-in is disabled")
+
+
+def _require_same_event(team_event_id: int | None, checkpoint_event_id: int | None) -> None:
+    """Reject cross-event check-ins.
+
+    A valid token/scan for a checkpoint of another edition must not advance a
+    team in this one. NULL event ids (legacy rows) are treated as compatible.
+    """
+    if (
+        team_event_id is not None
+        and checkpoint_event_id is not None
+        and team_event_id != checkpoint_event_id
+    ):
+        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
 
 
 async def _claim_nonce(nonce: str, team_id: int) -> bool:
@@ -136,14 +152,14 @@ class StaffCheckinResponse(BaseModel):
     status: str
 
 
-@router.post("/checkpoint/staff-check-in", response_model=StaffCheckinResponse)
+@router.post("/checkpoint/staff-check-in")
 async def staff_check_in(
     body: StaffCheckinRequest,
     current_user: Annotated[
         DetailedUser, Depends(get_staff_with_checkpoint_access)
     ],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StaffCheckinResponse:
     """Staff scans an arriving team's QR (its access code).
 
@@ -171,7 +187,9 @@ async def staff_check_in(
 
     checkpoint = await checkpoint_crud.get(db, id=checkpoint_id)
     if checkpoint is None:
-        raise RallyNotFoundError("Checkpoint not found")
+        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
+
+    _require_same_event(team_obj.event_id, checkpoint.event_id)
 
     # times[] holds posts already reached; the next expected post is len + 1.
     reached = len(team_obj.times)
@@ -201,12 +219,12 @@ async def staff_check_in(
     )
 
 
-@router.post("/checkpoint/check-in", response_model=CheckinResponse)
+@router.post("/checkpoint/check-in")
 async def check_in(
     body: CheckinRequest,
     *,
     team: Annotated[TeamTokenData, Depends(get_current_team)],
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CheckinResponse:
     """Check the calling team into the checkpoint encoded in the scanned token."""
     _require_enabled()
@@ -226,11 +244,13 @@ async def check_in(
 
     checkpoint = await checkpoint_crud.get(db, id=claims.checkpoint_id)
     if checkpoint is None:
-        raise RallyNotFoundError("Checkpoint not found")
+        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
 
     team_obj = await team_crud.get(db, id=team.team_id)
     if team_obj is None:
         raise RallyNotFoundError("Team not found")
+
+    _require_same_event(team_obj.event_id, checkpoint.event_id)
 
     # Sequential guard: a team may only check into its next checkpoint. times[]
     # holds the checkpoints already visited, so the next expected order is

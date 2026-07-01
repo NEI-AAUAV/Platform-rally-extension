@@ -45,7 +45,7 @@ export function useAuthSync() {
     // Return to the current page after re-authentication.
     sessionStorage.setItem(
       "rally_auth_return_url",
-      window.location.pathname + window.location.search,
+      globalThis.location.pathname + globalThis.location.search,
     );
     auth.signinRedirect();
   }, [auth, queryClient, clearSession]);
