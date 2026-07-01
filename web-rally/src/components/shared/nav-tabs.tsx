@@ -20,10 +20,13 @@ interface NavLink {
   readonly show: boolean;
 }
 
-const linkClass = (isActive: boolean) =>
+const linkClass = (isActive: boolean, isSidebar = false) =>
   cn(
-    "block px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-colors",
-    isActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
+    "block rounded-md text-xs font-bold uppercase tracking-wider transition-colors",
+    isSidebar ? "px-3 py-2.5" : "px-2.5 py-1",
+    isActive
+      ? cn("rally-accent", isSidebar && "bg-accent")
+      : "text-muted-foreground hover:text-foreground hover:bg-accent",
   );
 
 function NavGroup({ label, items }: { readonly label: string; readonly items: readonly NavLink[] }) {
@@ -105,6 +108,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff || isGuide;
+  const showGuideFeature =
+    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
+    settings?.event_type === "peddy_paper";
   const isDualRole = isPrivileged && isTeamAuthenticated;
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -152,17 +158,17 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Admin", href: "/admin", show: !showTeamView && isAdminOrManager },
     { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
     { name: "Membros", href: "/team-members", show: !showTeamView && isStaff && !isAdminOrManager },
-    { name: "Guia", href: "/guide", show: !showTeamView && (isGuide || isStaff || isAdminOrManager) },
+    { name: "Guia", href: "/guide", show: !showTeamView && showGuideFeature && (isGuide || isStaff || isAdminOrManager) },
   ].filter((item) => item.show);
 
-  const renderLink = (item: NavLink) => {
+  const renderLink = (item: NavLink, isSidebar = false) => {
     const isActive = location.pathname === item.href;
     return (
       <li key={`${item.name}-${item.href}`}>
         <Link
           to={item.href}
           onClick={() => setIsMobileMenuOpen(false)}
-          className={linkClass(isActive)}
+          className={linkClass(isActive, isSidebar)}
         >
           {item.name}
         </Link>
@@ -198,41 +204,57 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       </ul>
 
       {/* Mobile overflow */}
-      <div className="sm:hidden" ref={mobileMenuRef}>
+      <div className="sm:hidden">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label="Abrir menu"
+          aria-expanded={isMobileMenuOpen}
           className="flex items-center justify-center rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-accent"
         >
           <Menu className="h-5 w-5" />
         </button>
 
         {isMobileMenuOpen && (
-          <div className="rally-elevate absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-border bg-popover">
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">Menu</span>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                aria-label="Fechar menu"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <ul className="space-y-0.5 p-2">
-              {primary.map(renderLink)}
-              {management.length > 0 && (
-                <>
-                  <li className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Gestão
-                  </li>
-                  {management.map(renderLink)}
-                </>
-              )}
-              <ViewToggle />
-            </ul>
-          </div>
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
         )}
+
+        <div
+          ref={mobileMenuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          className={cn(
+            "rally-elevate fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col border-l border-border bg-popover transition-transform duration-300 ease-out",
+            isMobileMenuOpen ? "translate-x-0" : "translate-x-full",
+          )}
+        >
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">Menu</span>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Fechar menu"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <ul className="flex-1 space-y-0.5 overflow-y-auto p-3">
+            {primary.map((item) => renderLink(item, true))}
+            {management.length > 0 && (
+              <>
+                <li className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Gestão
+                </li>
+                {management.map((item) => renderLink(item, true))}
+              </>
+            )}
+            <ViewToggle />
+          </ul>
+        </div>
       </div>
     </div>
   );

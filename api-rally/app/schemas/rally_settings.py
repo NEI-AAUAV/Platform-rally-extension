@@ -1,25 +1,93 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
 from datetime import datetime
+
+# Canonical, ordered set of home page section keys. Any home_layout entry
+# with an unknown key is dropped; any missing key is appended (visible by
+# default) so the client always receives every section, in some order.
+HOME_SECTION_KEYS = (
+    "home_hero",
+    "rally_marquee",
+    "event_stats",
+    "live_top5",
+    "how_it_works",
+    "postos_preview",
+    "home_bottom_banner",
+)
+
+DEFAULT_HOME_LAYOUT = [{"key": key, "visible": True} for key in HOME_SECTION_KEYS]
+
+DEFAULT_TICKER_ITEMS = [
+    "RALLY TASCAS 2026",
+    "NEI",
+    "EQUIPAS",
+    "POSTOS",
+    "PONTUAÇÃO",
+]
+
+MAX_TICKER_ITEMS = 20
+MAX_TICKER_ITEM_LENGTH = 40
+
+
+class HomeSection(BaseModel):
+    key: str
+    visible: bool = True
+
+
+def normalize_home_layout(value: list) -> list[dict]:
+    """Drop unknown keys, dedupe, and append any missing known section keys.
+
+    Existing order/visibility for known keys is preserved; this only fills
+    gaps so a partial or legacy (empty) layout still yields every section.
+    """
+    seen: set[str] = set()
+    normalized: list[dict] = []
+    for entry in value or []:
+        key = entry.get("key") if isinstance(entry, dict) else getattr(entry, "key", None)
+        visible = entry.get("visible") if isinstance(entry, dict) else getattr(entry, "visible", True)
+        if key not in HOME_SECTION_KEYS or key in seen:
+            continue
+        seen.add(key)
+        normalized.append({"key": key, "visible": bool(visible)})
+
+    for key in HOME_SECTION_KEYS:
+        if key not in seen:
+            normalized.append({"key": key, "visible": True})
+
+    return normalized
+
+
+def normalize_ticker_items(value: list) -> list[str]:
+    """Trim, drop blanks, cap item length and total count."""
+    items: list[str] = []
+    for item in value or []:
+        text = str(item).strip()[:MAX_TICKER_ITEM_LENGTH]
+        if not text:
+            continue
+        items.append(text)
+        if len(items) >= MAX_TICKER_ITEMS:
+            break
+    return items
+
 
 class RallySettingsBase(BaseModel):
     # Team management
     max_teams: int
     max_members_per_team: int
     enable_versus: bool
-    
+
     # Scoring system
     penalty_per_puke: int
     penalty_per_not_drinking: int
     bonus_per_extra_shot: int
     max_extra_shots_per_member: int
-    
+
     # Checkpoint behavior
     checkpoint_order_matters: bool
-    
+
     # Staff and scoring
     enable_staff_scoring: bool
-    
+
     # Display settings
     show_live_leaderboard: bool
     show_team_details: bool
@@ -27,7 +95,7 @@ class RallySettingsBase(BaseModel):
     participant_view_enabled: bool
     show_route_mode: str  # 'focused' or 'complete'
     show_score_mode: str  # 'hidden', 'individual', or 'competitive'
-    
+
     # Rally customization
     rally_theme: str  # skin preset: 'bloody' | 'nei' | 'default'
 
@@ -44,6 +112,27 @@ class RallySettingsBase(BaseModel):
 
     # Staff can promote a deferred-judging photo to be the team's official photo
     allow_photo_as_team_photo: bool = False
+
+    # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
+    # admin has both enabled the feature and switched it on for the event
+    guide_mode_enabled: bool = False
+    guide_mode_active: bool = False
+
+    # Home page layout: ordered section visibility, admin-editable
+    home_layout: list[HomeSection] = [HomeSection(key=key) for key in HOME_SECTION_KEYS]
+
+    # Home page ticker items, in display order
+    ticker_items: list[str] = list(DEFAULT_TICKER_ITEMS)
+
+    @field_validator("home_layout", mode="before")
+    @classmethod
+    def _normalize_home_layout(cls, value: list) -> list[dict]:
+        return normalize_home_layout(value)
+
+    @field_validator("ticker_items", mode="before")
+    @classmethod
+    def _normalize_ticker_items(cls, value: list) -> list[str]:
+        return normalize_ticker_items(value)
 
 class RallySettingsUpdate(RallySettingsBase):
     ...

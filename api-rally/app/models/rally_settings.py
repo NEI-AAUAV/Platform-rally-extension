@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Boolean, DateTime, String, ForeignKey
+from sqlalchemy import Column, Integer, Boolean, DateTime, String, ForeignKey, JSON
 from app.models.base import Base
 from app.core.config import settings as app_settings
 
@@ -67,3 +67,15 @@ class RallySettings(Base):
 
     # Staff can promote a deferred-judging photo to be the team's official photo
     allow_photo_as_team_photo = Column(Boolean, nullable=False, default=False)
+
+    # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
+    guide_mode_enabled = Column(Boolean, nullable=False, default=False)
+    guide_mode_active = Column(Boolean, nullable=False, default=False)
+
+    # Home page layout: ordered list of {"key": str, "visible": bool} covering
+    # every home section. Admin-editable via the settings PUT; the app must
+    # normalize this on read since it's free-form JSON (see crud_rally_settings).
+    home_layout = Column(JSON, nullable=False, default=list)
+
+    # Home page ticker (marquee) items, in display order.
+    ticker_items = Column(JSON, nullable=False, default=list)

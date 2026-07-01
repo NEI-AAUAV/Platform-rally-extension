@@ -48,12 +48,19 @@ export default function CheckpointCard({
         isSelected ? "rally-border-accent bg-card" : "border-border bg-card hover:border-muted-foreground/30",
       ].join(" ")}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelect(checkpoint)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect(checkpoint);
+          }
+        }}
         aria-pressed={isSelected}
         aria-label={`Selecionar posto ${checkpoint.name}`}
-        className="flex w-full items-center gap-4 p-[16px_18px] text-left"
+        className="flex w-full cursor-pointer items-center gap-4 p-[16px_18px] text-left"
       >
         <span
           className={[
@@ -98,7 +105,7 @@ export default function CheckpointCard({
             </a>
           )}
         </div>
-      </button>
+      </div>
 
       {galleryOpen && (
         <div className="border-t border-border px-4 pb-4 pt-3">

@@ -217,6 +217,42 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Permitir staff definir foto de atividade como foto da equipa
           </Label>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="guide_mode_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <Label htmlFor="guide_mode_enabled">
+            Ativar funcionalidade de modo guia
+          </Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="guide_mode_active"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <Label htmlFor="guide_mode_active">
+            Modo guia ativo neste evento
+          </Label>
+        </div>
       </CardContent>
     </div>
   );

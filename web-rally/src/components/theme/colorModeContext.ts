@@ -8,7 +8,7 @@ export const DEFAULT_COLOR_MODE: ColorMode = "dark"; // rally is an evening even
 export interface ColorModeContextValue {
   mode: ColorMode;
   setMode: (mode: ColorMode) => void;
-  toggle: () => void;
+  toggle: (e?: { clientX: number; clientY: number }) => void;
 }
 
 export const ColorModeContext = createContext<ColorModeContextValue | null>(null);

@@ -36,6 +36,8 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
   useEffect(() => {
     if (!isOpen) return;
 
+    let cancelled = false;
+
     const startCamera = async () => {
       try {
         setCameraError(null);
@@ -51,6 +53,11 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
         };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -79,6 +86,7 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
     startCamera();
 
     return () => {
+      cancelled = true;
       stopCamera();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

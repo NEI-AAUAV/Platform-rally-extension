@@ -15,6 +15,7 @@ export default function StaffEvaluationPage() {
       return await StaffEvaluationService.getMyCheckpointApiRallyV1StaffMyCheckpointGet();
     },
     enabled: !!userStore.token,
+    staleTime: 0, // Always refetch: admin may reassign this staff member's checkpoint at any time
   });
 
   useEffect(() => {

@@ -3,21 +3,29 @@ import { Button } from "../../ui/button";
 import { cn } from "@/lib/utils";
 import { type VariantProps } from "class-variance-authority";
 import { rallyButtonVariants } from "./button.variants";
+import RallyBlood from "./blood";
 
 type RallyButtonProps = VariantProps<typeof rallyButtonVariants> &
   Omit<ComponentProps<typeof Button>, "variant" | "size"> & {
-    /** Legacy liquid-drip flag from the old bloody skin; now a no-op. */
+    /** Renders the blood-drip accent; visible only on the bloody theme (via [data-rally-theme] CSS). */
     readonly blood?: boolean;
   };
 
-/** Accent-driven themed button (replaces the bloody/nei skin buttons). */
-function RallyButton({ className, variant, blood, ...props }: RallyButtonProps) {
-  void blood; // legacy no-op flag — consumed so it is not forwarded to the DOM
+/** Accent-driven themed button; grows a blood drip on the bloody theme. */
+function RallyButton({ className, variant, blood, children, ...props }: RallyButtonProps) {
   return (
     <Button
-      className={cn(rallyButtonVariants({ variant }), className)}
+      className={cn(rallyButtonVariants({ variant }), blood && "rally-blood-button", className)}
       {...props}
-    />
+    >
+      {children}
+      {blood && (
+        <RallyBlood
+          className="rally-blood-drip"
+          variant={variant === "primary" ? "primary" : variant === "neutral" ? "neutral" : "default"}
+        />
+      )}
+    </Button>
   );
 }
 

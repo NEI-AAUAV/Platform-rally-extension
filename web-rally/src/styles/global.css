@@ -133,6 +133,24 @@
     box-shadow: 0 18px 48px -18px var(--rally-accent, var(--rally-accent-fallback));
   }
 
+  /* --- Bloody theme: drippy blood-soaked buttons --- */
+  .rally-blood-drip {
+    display: none;
+  }
+  [data-rally-theme="bloody"] .rally-blood-button {
+    position: relative;
+    overflow: visible;
+    border-radius: 0.75rem 0.75rem 40% 40% / 0.75rem 0.75rem 65% 65%;
+  }
+  [data-rally-theme="bloody"] .rally-blood-drip {
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: -4px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
   /* --- Soft-depth surfaces (the rally design language) --- */
   .rally-surface {
     background-color: hsl(var(--card));
@@ -227,6 +245,30 @@
   }
 }
 
+/* View Transition: circular reveal for light/dark toggle */
+::view-transition-new(root) {
+  animation: rally-reveal-in 0.6s ease-in-out forwards;
+  z-index: 2;
+}
+
+::view-transition-old(root) {
+  animation: none;
+  z-index: 1;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
+@keyframes rally-reveal-in {
+  from {
+    clip-path: circle(0% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rally-marquee-track {
     animation: none;
@@ -234,5 +276,9 @@
   .rally-press,
   .brutal-press {
     transition: none;
+  }
+  ::view-transition-new(root),
+  ::view-transition-old(root) {
+    animation: none;
   }
 }

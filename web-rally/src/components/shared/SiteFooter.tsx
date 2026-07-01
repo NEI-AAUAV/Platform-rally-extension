@@ -40,20 +40,20 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.20] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.45] dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.20] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.45] dark:block"
       />
 
       <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
-          <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden" />
-          <img src={neiLogoWhite} alt="NEI" className="hidden h-12 object-contain dark:block" />
+          <img src={neiLogoBlack} alt="NEI" className="h-20 object-contain dark:hidden" />
+          <img src={neiLogoWhite} alt="NEI" className="hidden h-20 object-contain dark:block" />
           <p className="max-w-xs text-sm text-muted-foreground">
             Núcleo de Estudantes de Informática da AAUAv. A apoiar os estudantes desde 2013.
           </p>

@@ -87,3 +87,56 @@ async def stream_scoreboard(request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/events/stream")
+async def stream_rally_events(request: Request) -> StreamingResponse:
+    """Server-Sent Events stream that forwards raw activity_result/team events.
+
+    Unlike /scoreboard/stream (which only signals "leaderboard changed"), this
+    stream forwards each event's type and JSON payload so callers can react to
+    the specific team/activity involved — e.g. staff-evaluation and
+    team-progress pages invalidating only their own affected queries instead
+    of refetching on every unrelated event.
+    """
+    if not settings.EVENTS_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Realtime events are disabled",
+        )
+
+    async def event_stream() -> AsyncIterator[str]:
+        client = get_async_redis_client()
+        pubsub = client.pubsub()
+        await pubsub.psubscribe(
+            Channels.ALL_ACTIVITY_RESULT_EVENTS, Channels.ALL_TEAM_EVENTS
+        )
+        try:
+            yield ": connected\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=_HEARTBEAT_SECONDS
+                )
+                if message and message.get("type") == "pmessage":
+                    channel = message["channel"]
+                    if isinstance(channel, bytes):
+                        channel = channel.decode()
+                    data = message["data"]
+                    if isinstance(data, bytes):
+                        data = data.decode()
+                    yield f"event: {channel}\ndata: {data}\n\n"
+                else:
+                    yield ": ping\n\n"
+        except asyncio.CancelledError:
+            raise
+        finally:
+            await pubsub.aclose()  # type: ignore[no-untyped-call]
+            await client.aclose()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

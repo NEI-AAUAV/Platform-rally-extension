@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
+import useRallyEventStream from "@/hooks/useRallyEventStream";
 import {
   CheckPointService,
   TeamService,
@@ -11,6 +12,9 @@ import {
 } from "@/client";
 import type { ExtendedRallySettingsResponse } from "./teamProgress.types";
 
+// SSE push (useRallyEventStream) handles near-instant updates when the
+// realtime subsystem is enabled; this interval is just the fallback for when
+// it's off or the connection drops.
 const REFRESH_INTERVAL_MS = 30000;
 
 export function useTeamProgress() {
@@ -94,6 +98,11 @@ export function useTeamProgress() {
   const showRanking = settings?.show_score_mode === "competitive";
 
   const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
+
+  useRallyEventStream([
+    ["team", teamData?.team_id],
+    ["checkpoints", teamData?.team_id],
+  ]);
 
   return {
     settings,

@@ -168,8 +168,8 @@ export default function TeamsById() {
             </div>
 
             <div className="space-y-4">
-              {team?.times && team.times.length > 0 ? (
-                team.times.map((_, index: number) => (
+              {(team?.last_checkpoint_number ?? team?.times?.length ?? 0) > 0 ? (
+                Array.from({ length: team.last_checkpoint_number ?? team.times.length }).map((_, index: number) => (
                   <CheckpointTimelineItem
                     key={checkpoints?.find((cp) => cp.order === index + 1)?.id ?? `checkpoint-${index}`}
                     team={team}

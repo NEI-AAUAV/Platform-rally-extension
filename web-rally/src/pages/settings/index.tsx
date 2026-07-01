@@ -10,7 +10,8 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
-import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";
+import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings, HomeLayoutSettings } from "./components";
+import { DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
 import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
 
@@ -60,6 +61,16 @@ const rallySettingsSchema = z.object({
 
   // Staff capability: promote a deferred-judging photo to team photo
   allow_photo_as_team_photo: z.boolean(),
+
+  // Guide mode gates
+  guide_mode_enabled: z.boolean(),
+  guide_mode_active: z.boolean(),
+
+  // Home page layout: ordered section visibility
+  home_layout: z.array(z.object({ key: z.string(), visible: z.boolean() })),
+
+  // Ticker items, edited as a field array of { value } for useFieldArray
+  ticker_items_list: z.array(z.object({ value: z.string().max(40, "Máximo 40 caracteres") })),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -129,6 +140,10 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
       allow_photo_as_team_photo: false,
+      guide_mode_enabled: false,
+      guide_mode_active: false,
+      home_layout: DEFAULT_HOME_LAYOUT,
+      ticker_items_list: DEFAULT_TICKER_ITEMS.map((value) => ({ value })),
     },
   });
 
@@ -160,6 +175,12 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
         allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
+        guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
+        guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+        home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
+        ticker_items_list: (settings.ticker_items?.length ? settings.ticker_items : DEFAULT_TICKER_ITEMS).map(
+          (value) => ({ value }),
+        ),
       });
     }
     // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
@@ -188,8 +209,16 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
   const handleSave = (data: RallySettingsForm) => {
     // rally_start_time/rally_end_time are read-only here — they're set on the
     // event (see EventsManagement), not via this settings form.
-    const { rally_start_time: _rallyStartTime, rally_end_time: _rallyEndTime, ...settingsData } = data;
-    updateSettings(settingsData as RallySettingsUpdate);
+    const {
+      rally_start_time: _rallyStartTime,
+      rally_end_time: _rallyEndTime,
+      ticker_items_list,
+      ...settingsData
+    } = data;
+    updateSettings({
+      ...settingsData,
+      ticker_items: ticker_items_list.map((item) => item.value).filter((value) => value.trim().length > 0),
+    } as RallySettingsUpdate);
   };
 
   const handleSubmitError = (errors: FieldErrors<RallySettingsForm>) => {
@@ -229,9 +258,18 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         show_live_leaderboard: settings.show_live_leaderboard,
         show_team_details: settings.show_team_details,
         show_checkpoint_map: settings.show_checkpoint_map,
+        participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
+        show_route_mode: extendedSettings?.show_route_mode ?? "focused",
+        show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
         allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
+        guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
+        guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+        home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
+        ticker_items_list: (settings.ticker_items?.length ? settings.ticker_items : DEFAULT_TICKER_ITEMS).map(
+          (value) => ({ value }),
+        ),
       });
     }
     setIsEditing(false);
@@ -311,6 +349,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
             <TeamSettings disabled={!isEditing} />
             <RallyTimingSettings disabled={!isEditing} />
             <ScoringSettings disabled={!isEditing} />
+            <HomeLayoutSettings disabled={!isEditing} className="xl:col-span-2" />
           </div>
 
           {/* Sticky action bar */}

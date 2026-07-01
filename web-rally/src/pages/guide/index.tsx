@@ -5,6 +5,7 @@ import { BookOpen, MapPin, ChevronDown, ChevronUp, Image } from "lucide-react";
 import { GuideService, type GuideCheckpointResponse, type GuideMediaItem } from "@/client";
 import { useUserStore } from "@/stores/useUserStore";
 import { LoadingState } from "@/components/shared";
+import useRallySettings from "@/hooks/useRallySettings";
 
 function MediaGallery({ media }: { media: GuideMediaItem[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -109,13 +110,20 @@ function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
 export default function GuidePage() {
   const scopes = useUserStore((s) => s.scopes);
   const sessionLoading = useUserStore((s) => s.sessionLoading);
+  const { settings, isLoading: settingsLoading } = useRallySettings();
 
-  const isAllowed =
+  const hasGuideRole =
     scopes?.includes("rally-guide") ||
     scopes?.includes("rally-staff") ||
     scopes?.includes("admin") ||
     scopes?.includes("manager-rally") ||
     scopes?.includes("rally:admin");
+
+  const showGuideFeature =
+    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
+    settings?.event_type === "peddy_paper";
+
+  const isAllowed = hasGuideRole && showGuideFeature;
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({
     queryKey: ["guide-checkpoints"],
@@ -123,7 +131,7 @@ export default function GuidePage() {
     enabled: !!isAllowed,
   });
 
-  if (sessionLoading) return <LoadingState message="A carregar…" />;
+  if (sessionLoading || settingsLoading) return <LoadingState message="A carregar…" />;
   if (!isAllowed) return <Navigate to="/" replace />;
   if (isLoading) return <LoadingState message="A carregar postos do guia…" />;
 

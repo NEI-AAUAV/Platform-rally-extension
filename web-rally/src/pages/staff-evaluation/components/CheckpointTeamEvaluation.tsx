@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, Loader2 } from "lucide-react";
 import { useParams } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
+import useRallyEventStream from "@/hooks/useRallyEventStream";
 import type { ListingTeam } from "@/client";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { TeamSection } from "./TeamSection";
@@ -9,9 +10,16 @@ import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
 import { StaffCheckinScanner } from "@/components/checkin/StaffCheckinScanner";
 
+const STREAM_QUERY_KEYS = [
+  ["checkpointTeams"],
+  ["teamEvaluationStatus"],
+  ["teamActivities"],
+] as const;
+
 export default function CheckpointTeamEvaluation() {
   const { checkpointId } = useParams({ strict: false }) as { checkpointId: string };
   const { settings } = useRallySettings();
+  useRallyEventStream(STREAM_QUERY_KEYS);
   const {
     checkpoint,
     checkpointTeams,

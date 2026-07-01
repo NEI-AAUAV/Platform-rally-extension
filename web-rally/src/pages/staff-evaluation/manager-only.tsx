@@ -8,6 +8,7 @@ import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
+import useRallyEventStream from "@/hooks/useRallyEventStream";
 import {
   CheckPointService,
   ActivitiesService,
@@ -24,11 +25,14 @@ interface ManagerEvaluationPageProps {
   readonly embedded?: boolean;
 }
 
+const STREAM_QUERY_KEYS = [["allTeams"], ["allEvaluations"], ["allCheckpoints"]] as const;
+
 export default function ManagerEvaluationPage({ embedded = false }: ManagerEvaluationPageProps) {
   const userStore = useUserStore();
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
   const { settings } = useRallySettings();
+  useRallyEventStream(STREAM_QUERY_KEYS);
 
 
   // Get all checkpoints

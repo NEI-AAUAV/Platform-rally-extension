@@ -33,7 +33,6 @@ from app.models import (  # noqa: F401
     RallySettings,
     TeamBadge,
     EventParticipation,
-    TeamScoreHistory,
 )
 
 config = context.config

@@ -1,7 +1,13 @@
 from typing import TYPE_CHECKING
 from app.crud.base import CRUDBase
 from app.models.rally_settings import RallySettings
-from app.schemas.rally_settings import RallySettingsUpdate
+from app.schemas.rally_settings import (
+    RallySettingsUpdate,
+    DEFAULT_HOME_LAYOUT,
+    DEFAULT_TICKER_ITEMS,
+    normalize_home_layout,
+    normalize_ticker_items,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +29,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             select(RallySettings).where(RallySettings.event_id == event.id)
         )
         if settings is not None:
+            settings = await self._normalize_home_fields(db, settings)
             return await self._sync_timing_from_event(db, settings, event)
 
         # Fall back to adopting a legacy unscoped row (event_id NULL) once, so
@@ -35,6 +42,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             db.add(legacy)
             await db.commit()
             await db.refresh(legacy)
+            legacy = await self._normalize_home_fields(db, legacy)
             return await self._sync_timing_from_event(db, legacy, event)
 
         if not settings:
@@ -73,7 +81,10 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 logo_url="",
                 favicon_url="",
                 # Access control
-                public_access_enabled=True
+                public_access_enabled=True,
+                # Home page layout
+                home_layout=list(DEFAULT_HOME_LAYOUT),
+                ticker_items=list(DEFAULT_TICKER_ITEMS),
             )
             db.add(settings)
             await db.commit()
@@ -97,6 +108,28 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         if settings.rally_start_time != event_start or settings.rally_end_time != event_end:
             settings.rally_start_time = event_start
             settings.rally_end_time = event_end
+            db.add(settings)
+            await db.commit()
+            await db.refresh(settings)
+        return settings
+
+    async def _normalize_home_fields(
+        self, db: "AsyncSession", settings: RallySettings
+    ) -> RallySettings:
+        """Self-heal legacy rows whose home_layout/ticker_items are empty or
+        missing known section keys, without disturbing an admin's existing
+        order/visibility choices for keys already present.
+        """
+        normalized_layout = normalize_home_layout(settings.home_layout)
+        normalized_ticker = normalize_ticker_items(settings.ticker_items) or list(DEFAULT_TICKER_ITEMS)
+
+        changed = (
+            normalized_layout != (settings.home_layout or [])
+            or normalized_ticker != (settings.ticker_items or [])
+        )
+        if changed:
+            settings.home_layout = normalized_layout
+            settings.ticker_items = normalized_ticker
             db.add(settings)
             await db.commit()
             await db.refresh(settings)
