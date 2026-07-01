@@ -160,7 +160,10 @@ async def get_team_activities_for_evaluation(
             pending_activities.append(activity_obj.name)
 
     # Calculate completion ratio
-    has_incomplete = completed_activities < total_activities if total_activities > 0 else False
+    # Only flag as "incomplete" when some activities are already done but not
+    # all — a fresh team with zero evaluations is the normal starting state,
+    # not a stale/partial one, so it should not trigger the warning.
+    has_incomplete = 0 < completed_activities < total_activities
 
     return {
         # Plain dict (not raw ORM) so the encoder doesn't lazy-load relationships.

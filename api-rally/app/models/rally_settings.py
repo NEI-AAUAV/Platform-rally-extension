@@ -64,3 +64,6 @@ class RallySettings(Base):
 
     # Walk-up registration: staff can add team members during event (B4)
     allow_staff_registration = Column(Boolean, nullable=False, default=False)
+
+    # Staff can promote a deferred-judging photo to be the team's official photo
+    allow_photo_as_team_photo = Column(Boolean, nullable=False, default=False)

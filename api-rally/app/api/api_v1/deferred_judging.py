@@ -20,8 +20,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.api.abac_deps import require_checkpoint_management_permission
+from app.api.abac_deps import get_staff_with_checkpoint_access
+from app import crud
 from app.crud.crud_activity import activity_result as crud_result, activity as crud_activity
+from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import ActivityResult
 from app.schemas.activity_types import ActivityType
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
@@ -33,6 +35,15 @@ router = APIRouter()
 class JudgeRequest(BaseModel):
     points: float
     notes: Optional[str] = None
+
+
+class SetTeamPhotoRequest(BaseModel):
+    image_url: str
+
+
+class SetTeamPhotoResponse(BaseModel):
+    team_id: int
+    photo_url: str
 
 
 class DeferredResultResponse(BaseModel):
@@ -55,7 +66,7 @@ async def capture_deferred_result(
     images: List[UploadFile] = File(default=[]),
     team_id: int = 0,
     db: AsyncSession = Depends(deps.get_db),
-    _: None = Depends(require_checkpoint_management_permission),
+    _: object = Depends(get_staff_with_checkpoint_access),
 ) -> DeferredResultResponse:
     activity = await crud_activity.get(db, activity_id)
     if not activity:
@@ -81,6 +92,7 @@ async def capture_deferred_result(
     if existing:
         existing.media_urls = existing.media_urls + urls
         existing.judgment_status = "pending_judgment"
+        existing.is_completed = True
         await db.commit()
         await db.refresh(existing)
         return DeferredResultResponse(
@@ -99,7 +111,7 @@ async def capture_deferred_result(
         result_data={},
         media_urls=urls,
         judgment_status="pending_judgment",
-        is_completed=False,
+        is_completed=True,
     )
     db.add(result)
     await db.commit()
@@ -155,6 +167,40 @@ async def judge_deferred_result(
         final_score=result.final_score,
         is_completed=result.is_completed,
     )
+
+
+@router.put(
+    "/activities/results/{result_id}/set-team-photo",
+    response_model=SetTeamPhotoResponse,
+)
+async def set_team_photo_from_result(
+    result_id: int,
+    body: SetTeamPhotoRequest,
+    db: AsyncSession = Depends(deps.get_db),
+    _: object = Depends(get_staff_with_checkpoint_access),
+) -> SetTeamPhotoResponse:
+    """Promote one of a deferred-judging result's submitted photos to the team's official photo.
+
+    Gated by rally_settings.allow_photo_as_team_photo so an admin can turn
+    this capability off event-wide. The chosen URL must already be one of
+    the result's own media_urls (already stored in R2) to prevent staff
+    from pointing a team's photo at an arbitrary URL.
+    """
+    settings = await rally_settings.get_or_create(db)
+    if not settings.allow_photo_as_team_photo:
+        raise HTTPException(
+            status_code=403,
+            detail="Setting a team photo from an activity photo is disabled",
+        )
+
+    result = await crud_result.get(db, result_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+    if body.image_url not in (result.media_urls or []):
+        raise HTTPException(status_code=400, detail="Photo does not belong to this result")
+
+    team_db = await crud.team.set_photo_url(db=db, id=result.team_id, url=body.image_url)
+    return SetTeamPhotoResponse(team_id=team_db.id, photo_url=team_db.photo_url)
 
 
 @router.get(

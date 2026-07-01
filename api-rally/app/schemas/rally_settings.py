@@ -42,6 +42,9 @@ class RallySettingsBase(BaseModel):
     # Walk-up registration gate (B4)
     allow_staff_registration: bool = False
 
+    # Staff can promote a deferred-judging photo to be the team's official photo
+    allow_photo_as_team_photo: bool = False
+
 class RallySettingsUpdate(RallySettingsBase):
     ...
 

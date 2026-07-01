@@ -1,4 +1,4 @@
-import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from "./index";
+import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm, DeferredJudgedForm } from "./index";
 import type { ActivityResponse, ActivityResultResponse } from "@/client";
 import type { FormSubmitHandler, Team } from "@/types/forms";
 
@@ -19,6 +19,8 @@ interface ActivityEvaluationFormProps {
   onSubmit: FormSubmitHandler;
   /** Whether the form is currently submitting */
   isSubmitting: boolean;
+  /** Called when a deferred-judged photo capture completes (no score yet, just upload) */
+  onCaptured?: () => void;
 }
 
 /**
@@ -46,7 +48,7 @@ interface ActivityEvaluationFormProps {
  * />
  * ```
  */
-export default function ActivityEvaluationForm({ activity, team, onSubmit, isSubmitting }: ActivityEvaluationFormProps) {
+export default function ActivityEvaluationForm({ activity, team, onSubmit, isSubmitting, onCaptured }: ActivityEvaluationFormProps) {
   const renderForm = () => {
     switch (activity.activity_type) {
       case "TimeBasedActivity":
@@ -98,6 +100,16 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
             config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+          />
+        );
+
+      case "DeferredJudgedActivity":
+        return (
+          <DeferredJudgedForm
+            activityId={activity.id}
+            team={team}
+            existingResult={activity.existing_result}
+            onCaptured={onCaptured}
           />
         );
 

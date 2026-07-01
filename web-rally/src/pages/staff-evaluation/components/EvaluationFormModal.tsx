@@ -56,6 +56,7 @@ export default function EvaluationFormModal({
           team={team}
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}
+          onCaptured={onCancel}
         />
 
         <div className="flex gap-3 mt-6">

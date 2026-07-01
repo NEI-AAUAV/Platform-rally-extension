@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Activity, CheckCircle, Clock, Star, Trophy, Edit } from "lucide-react";
+import { Activity, CheckCircle, Clock, Star, Trophy, Edit, Camera } from "lucide-react";
 import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 type TeamActivitiesListProps = Readonly<{
   team: Team;
   activities: ActivityResponse[];
-  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => void;
+  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => Promise<void>;
   isEvaluating: boolean;
 }>;
 
@@ -19,6 +19,7 @@ const activityTypeIcons = {
   BooleanActivity: CheckCircle,
   TeamVsActivity: Trophy,
   GeneralActivity: Activity,
+  DeferredJudgedActivity: Camera,
 };
 
 function getActivityTypeIcon(activityType: string) {
@@ -34,9 +35,9 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
     setShowEvaluationForm(true);
   };
 
-  const handleFormSubmit = (resultData: ActivityResultData) => {
+  const handleFormSubmit = async (resultData: ActivityResultData) => {
     if (selectedActivity) {
-      onEvaluate(team.id, selectedActivity.id, resultData);
+      await onEvaluate(team.id, selectedActivity.id, resultData);
     }
     setShowEvaluationForm(false);
     setSelectedActivity(null);
@@ -72,6 +73,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
             team={team}
             onSubmit={handleFormSubmit}
             isSubmitting={isEvaluating}
+            onCaptured={handleFormCancel}
           />
         </div>
       </div>

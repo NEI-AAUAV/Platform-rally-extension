@@ -215,23 +215,32 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         throw error;
       }
     },
-    onSuccess: (_data, variables) => {
-      // Invalidate relevant queries so other views pick up latest scores
-      queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
-      queryClient.invalidateQueries({ queryKey: ["teamEvaluationStatus"] });
-      queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
-      queryClient.invalidateQueries({ queryKey: ["allTeams"] });
-      queryClient.invalidateQueries({ queryKey: ["allEvaluations"] });
+    onSuccess: async (_data, variables) => {
+      // Invalidate + actively refetch so the UI reflects the new evaluation
+      // status immediately instead of waiting for the next mount/focus event.
+      const invalidations = [
+        queryClient.invalidateQueries({ queryKey: ["teamActivities"], refetchType: "active" }),
+        queryClient.invalidateQueries({ queryKey: ["teamEvaluationStatus"], refetchType: "active" }),
+        queryClient.invalidateQueries({ queryKey: ["checkpointTeams"], refetchType: "active" }),
+        queryClient.invalidateQueries({ queryKey: ["allTeams"], refetchType: "active" }),
+        queryClient.invalidateQueries({ queryKey: ["allEvaluations"], refetchType: "active" }),
+      ];
 
       if (variables?.teamId != null) {
         const numericKey = Number.isNaN(Number(variables.teamId)) ? undefined : Number(variables.teamId);
         const stringKey = variables.teamId.toString();
 
         if (numericKey !== undefined) {
-          queryClient.invalidateQueries({ queryKey: ["team", numericKey] });
+          invalidations.push(
+            queryClient.invalidateQueries({ queryKey: ["team", numericKey], refetchType: "active" }),
+          );
         }
-        queryClient.invalidateQueries({ queryKey: ["team", stringKey] });
+        invalidations.push(
+          queryClient.invalidateQueries({ queryKey: ["team", stringKey], refetchType: "active" }),
+        );
       }
+
+      await Promise.all(invalidations);
 
       toast.success("Atividade avaliada com sucesso!");
     },
@@ -246,11 +255,16 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
     activityId: number,
     resultData: ActivityResultData,
   ) => {
-    evaluateActivityMutation.mutate({
-      teamId,
-      activityId,
-      resultData,
-    });
+    try {
+      await evaluateActivityMutation.mutateAsync({
+        teamId,
+        activityId,
+        resultData,
+      });
+    } catch {
+      // Error toast already shown via mutation's onError; swallow here so
+      // callers awaiting this (e.g. to close the form) don't need a try/catch.
+    }
   };
 
   const selectTeam = (team: ListingTeam) => {

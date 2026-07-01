@@ -15,10 +15,11 @@ import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
 
 // Extended interface to include possibly missing properties
-type ExtendedRallySettingsResponse = Omit<RallySettingsResponse, 'participant_view_enabled' | 'show_route_mode' | 'show_score_mode'> & {
+type ExtendedRallySettingsResponse = Omit<RallySettingsResponse, 'participant_view_enabled' | 'show_route_mode' | 'show_score_mode' | 'allow_photo_as_team_photo'> & {
   participant_view_enabled?: boolean;
   show_route_mode?: string;
   show_score_mode?: string;
+  allow_photo_as_team_photo?: boolean;
 };
 
 const rallySettingsSchema = z.object({
@@ -56,6 +57,9 @@ const rallySettingsSchema = z.object({
 
   // Access control
   public_access_enabled: z.boolean(),
+
+  // Staff capability: promote a deferred-judging photo to team photo
+  allow_photo_as_team_photo: z.boolean(),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -124,6 +128,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       show_score_mode: "hidden",
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
+      allow_photo_as_team_photo: false,
     },
   });
 
@@ -154,6 +159,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
+        allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
       });
     }
     // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
@@ -225,6 +231,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         show_checkpoint_map: settings.show_checkpoint_map,
         rally_theme: mappedTheme,
         public_access_enabled: settings.public_access_enabled,
+        allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
       });
     }
     setIsEditing(false);

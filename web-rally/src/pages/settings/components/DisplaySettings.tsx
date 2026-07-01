@@ -199,6 +199,24 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Permitir acesso público (sem login)
           </Label>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="allow_photo_as_team_photo"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <Label htmlFor="allow_photo_as_team_photo">
+            Permitir staff definir foto de atividade como foto da equipa
+          </Label>
+        </div>
       </CardContent>
     </div>
   );
