@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.api.deps import get_db, get_admin
+from app.api.api_v1.badge_admin import require_badges_enabled
 from app.models.badge_definition import BadgeDefinition
 
 
@@ -26,7 +27,36 @@ def clear_overrides():
 @pytest.fixture
 def admin_client() -> TestClient:
     app.dependency_overrides[get_admin] = lambda: None
+    # Badges feature on by default; the gate is exercised separately below.
+    app.dependency_overrides[require_badges_enabled] = lambda: None
     return TestClient(app)
+
+
+# ---------- kill-switch gate ----------
+
+def test_write_endpoints_blocked_when_badges_disabled(admin_client: TestClient) -> None:
+    from fastapi import HTTPException
+
+    db_mock = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: db_mock
+
+    def _disabled() -> None:
+        raise HTTPException(status_code=403, detail="Badges feature is disabled")
+
+    app.dependency_overrides[require_badges_enabled] = _disabled
+
+    # Every write refuses; the list endpoint stays reachable.
+    assert admin_client.post(
+        "/api/rally/v1/badge-definitions", json={"code": "x", "name": "X"}
+    ).status_code == 403
+    assert admin_client.put(
+        "/api/rally/v1/badge-definitions/1", json={"name": "X"}
+    ).status_code == 403
+    assert admin_client.delete("/api/rally/v1/badge-definitions/1").status_code == 403
+    assert admin_client.post(
+        "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "x"}
+    ).status_code == 403
+    assert admin_client.delete("/api/rally/v1/badges/5").status_code == 403
 
 
 # ---------- list ----------

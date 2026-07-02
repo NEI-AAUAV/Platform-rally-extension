@@ -2,6 +2,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.crud._event_scope import current_event_id
 from app.models.badge_definition import BadgeDefinition
 from app.schemas.badge_definition import BadgeDefinitionCreate, BadgeDefinitionUpdate
 from app.services.storage import storage_client
@@ -17,11 +18,21 @@ class CRUDBadgeDefinition:
         return result.scalars().first()
 
     async def get_all(self, db: AsyncSession) -> List[BadgeDefinition]:
-        result = await db.execute(select(BadgeDefinition).order_by(BadgeDefinition.id))
+        """List badges visible in the current event: event-stamped rows plus
+        legacy/global (NULL event_id) ones, same pattern as Team/CheckPoint."""
+        event_id = await current_event_id(db)
+        stmt = (
+            select(BadgeDefinition)
+            .where((BadgeDefinition.event_id == event_id) | (BadgeDefinition.event_id.is_(None)))
+            .order_by(BadgeDefinition.id)
+        )
+        result = await db.execute(stmt)
         return list(result.scalars().all())
 
     async def create(self, db: AsyncSession, *, obj_in: BadgeDefinitionCreate) -> BadgeDefinition:
+        event_id = await current_event_id(db)
         db_obj = BadgeDefinition(
+            event_id=event_id,
             code=obj_in.code,
             name=obj_in.name,
             description=obj_in.description,

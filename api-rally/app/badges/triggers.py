@@ -29,6 +29,14 @@ class BadgeTrigger(str, Enum):
     FIRST_COMPLETE_ACTIVITY = "first_complete_activity"
     # First team to complete every active activity of a checkpoint (single-holder).
     FIRST_COMPLETE_CHECKPOINT = "first_complete_checkpoint"
+    # Completed at least N activities (milestone; criteria: count).
+    COMPLETE_N_ACTIVITIES = "complete_n_activities"
+    # Completed every active activity across the whole rally (all checkpoints).
+    COMPLETE_ALL_CHECKPOINTS = "complete_all_checkpoints"
+    # Reached a total score threshold (criteria: min_score).
+    SCORE_THRESHOLD = "score_threshold"
+    # Completed an activity fast enough (criteria: max_seconds; optional scope).
+    FAST_COMPLETE = "fast_complete"
 
 
 # Legacy BadgeType code -> trigger, used by migration 0017 to backfill the seeds.

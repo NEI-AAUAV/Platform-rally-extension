@@ -1,6 +1,6 @@
 """Unit tests for the data-driven badge rule evaluators."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -222,6 +222,206 @@ async def test_first_complete_checkpoint_skips_when_no_team_finished_all(
     ]
     awards = await evaluators._handle_first_complete_checkpoint(
         db, _checkpoint_result(), _defn(trigger=BadgeTrigger.FIRST_COMPLETE_CHECKPOINT)
+    )
+    assert awards == []
+
+
+# --- complete_n_activities --------------------------------------------------
+
+
+def _milestone_result(team_id: int = 10) -> Any:
+    return SimpleNamespace(
+        id=4, team_id=team_id, activity_id=99, is_completed=True
+    )
+
+
+async def test_complete_n_activities_awards_at_threshold() -> None:
+    db = AsyncMock()
+    db.scalars.return_value = _scalars([1, 2, 3])  # 3 distinct completed
+    awards = await evaluators._handle_complete_n_activities(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.COMPLETE_N_ACTIVITIES, criteria={"count": 3}),
+    )
+    assert len(awards) == 1
+    assert awards[0].team_id == 10
+    assert awards[0].meta["count"] == 3
+
+
+async def test_complete_n_activities_skips_below_threshold() -> None:
+    db = AsyncMock()
+    db.scalars.return_value = _scalars([1, 2])  # only 2
+    awards = await evaluators._handle_complete_n_activities(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.COMPLETE_N_ACTIVITIES, criteria={"count": 3}),
+    )
+    assert awards == []
+
+
+async def test_complete_n_activities_skips_missing_count() -> None:
+    awards = await evaluators._handle_complete_n_activities(
+        AsyncMock(),
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.COMPLETE_N_ACTIVITIES, criteria={}),
+    )
+    assert awards == []
+
+
+async def test_complete_n_activities_skips_incomplete_result() -> None:
+    result = _milestone_result()
+    result.is_completed = False
+    awards = await evaluators._handle_complete_n_activities(
+        AsyncMock(),
+        result,
+        _defn(trigger=BadgeTrigger.COMPLETE_N_ACTIVITIES, criteria={"count": 1}),
+    )
+    assert awards == []
+
+
+# --- complete_all_checkpoints -----------------------------------------------
+
+
+async def test_complete_all_checkpoints_awards_when_all_covered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = AsyncMock()
+    # First scalars call: all active activity ids. Second: team's completed subset.
+    db.scalars.side_effect = [_scalars([1, 2, 3]), _scalars([1, 2, 3])]
+    awards = await evaluators._handle_complete_all_checkpoints(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.COMPLETE_ALL_CHECKPOINTS),
+    )
+    assert len(awards) == 1
+    assert awards[0].meta["activities"] == 3
+
+
+async def test_complete_all_checkpoints_skips_when_partial() -> None:
+    db = AsyncMock()
+    db.scalars.side_effect = [_scalars([1, 2, 3]), _scalars([1, 2])]  # missing 3
+    awards = await evaluators._handle_complete_all_checkpoints(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.COMPLETE_ALL_CHECKPOINTS),
+    )
+    assert awards == []
+
+
+async def test_complete_all_checkpoints_single_holder_skips_when_held(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.badge_service.badge_holder_exists",
+        AsyncMock(return_value=True),
+    )
+    awards = await evaluators._handle_complete_all_checkpoints(
+        AsyncMock(),
+        _milestone_result(),
+        _defn(
+            trigger=BadgeTrigger.COMPLETE_ALL_CHECKPOINTS,
+            criteria={"single_holder": True},
+        ),
+    )
+    assert awards == []
+
+
+# --- score_threshold --------------------------------------------------------
+
+
+async def test_score_threshold_awards_at_or_above() -> None:
+    db = AsyncMock()
+    db.scalar.return_value = 120.0
+    awards = await evaluators._handle_score_threshold(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.SCORE_THRESHOLD, criteria={"min_score": 100}),
+    )
+    assert len(awards) == 1
+    assert awards[0].meta["total_score"] == 120.0
+
+
+async def test_score_threshold_skips_below() -> None:
+    db = AsyncMock()
+    db.scalar.return_value = 80.0
+    awards = await evaluators._handle_score_threshold(
+        db,
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.SCORE_THRESHOLD, criteria={"min_score": 100}),
+    )
+    assert awards == []
+
+
+async def test_score_threshold_skips_missing_criterion() -> None:
+    awards = await evaluators._handle_score_threshold(
+        AsyncMock(),
+        _milestone_result(),
+        _defn(trigger=BadgeTrigger.SCORE_THRESHOLD, criteria={}),
+    )
+    assert awards == []
+
+
+# --- fast_complete ----------------------------------------------------------
+
+
+def _timed_result(*, seconds: float, team_id: int = 10, activity_id: int = 99) -> Any:
+    start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    return SimpleNamespace(
+        id=5,
+        team_id=team_id,
+        activity_id=activity_id,
+        is_completed=True,
+        created_at=start,
+        completed_at=start + timedelta(seconds=seconds),
+    )
+
+
+async def test_fast_complete_awards_within_limit() -> None:
+    awards = await evaluators._handle_fast_complete(
+        AsyncMock(),
+        _timed_result(seconds=90),
+        _defn(trigger=BadgeTrigger.FAST_COMPLETE, criteria={"max_seconds": 120}),
+    )
+    assert len(awards) == 1
+    assert awards[0].activity_id == 99
+    assert awards[0].meta["duration_seconds"] == 90.0
+
+
+async def test_fast_complete_skips_over_limit() -> None:
+    awards = await evaluators._handle_fast_complete(
+        AsyncMock(),
+        _timed_result(seconds=200),
+        _defn(trigger=BadgeTrigger.FAST_COMPLETE, criteria={"max_seconds": 120}),
+    )
+    assert awards == []
+
+
+async def test_fast_complete_scoped_to_other_activity_skips() -> None:
+    awards = await evaluators._handle_fast_complete(
+        AsyncMock(),
+        _timed_result(seconds=10, activity_id=99),
+        _defn(
+            trigger=BadgeTrigger.FAST_COMPLETE,
+            criteria={"max_seconds": 120, "activity_id": 1234},
+        ),
+    )
+    assert awards == []
+
+
+async def test_fast_complete_single_holder_skips_when_held(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.badge_service.badge_holder_exists",
+        AsyncMock(return_value=True),
+    )
+    awards = await evaluators._handle_fast_complete(
+        AsyncMock(),
+        _timed_result(seconds=10),
+        _defn(
+            trigger=BadgeTrigger.FAST_COMPLETE,
+            criteria={"max_seconds": 120, "single_holder": True},
+        ),
     )
     assert awards == []
 

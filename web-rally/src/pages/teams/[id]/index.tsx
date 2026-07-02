@@ -121,7 +121,7 @@ export default function TeamsById() {
               </div>
             </div>
 
-            <BadgeShowcase teamId={Number(id)} />
+            {settings?.badges_enabled !== false && <BadgeShowcase teamId={Number(id)} />}
 
             <div>
               <h2 className="mb-3 text-lg font-semibold">Membros</h2>

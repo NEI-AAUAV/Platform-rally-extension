@@ -21,6 +21,7 @@ from app.events import (
     EventType,
     publish_event,
 )
+from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import ActivityResult
 from app.services import badge_service
 from app.workers.base import BaseWorker
@@ -48,6 +49,10 @@ class BadgesWorker(BaseWorker):
             return
 
         async with worker_session() as session:
+            settings = await rally_settings.get_or_create(session)
+            if not settings.badges_enabled:
+                # Feature switched off: stop auto-awarding entirely.
+                return
             result = await self._load_result(session, result_id)
             if result is None:
                 # Result vanished between commit and handling; nothing to award.

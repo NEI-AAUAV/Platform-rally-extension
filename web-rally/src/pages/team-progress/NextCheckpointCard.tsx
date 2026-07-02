@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { MapPin, Navigation, LocateFixed, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { MapPin, Navigation, LocateFixed, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import type { DetailedCheckPoint } from "@/client";
 import { CheckpointArriveService } from "@/client";
+import { CheckpointDiscovery } from "@/components/shared";
+import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
@@ -15,6 +17,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
   const [gpsState, setGpsState] = useState<GpsState>("idle");
   const [gpsMsg, setGpsMsg] = useState("");
+  const qc = useQueryClient();
 
   const arriveMutation = useMutation({
     mutationFn: ({ lat, lng }: { lat: number; lng: number }) =>
@@ -23,7 +26,13 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         { latitude: lat, longitude: lng },
       ),
     onSuccess: (data) => {
-      if (data.already_registered) {
+      if (data.auto_completed) {
+        setGpsMsg("Posto concluído! A avançar para o próximo…");
+        // Progress changed server-side — refresh team + checkpoints so the
+        // route jumps to the next post without a manual reload.
+        qc.invalidateQueries({ queryKey: ["team"] });
+        qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      } else if (data.already_registered) {
         setGpsMsg(`Já registado. Distância: ${Math.round(data.distance_m)} m.`);
       } else {
         setGpsMsg(`Check-in registado! Distância: ${Math.round(data.distance_m)} m.`);
@@ -58,6 +67,9 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   };
 
   const canCheckin = hasCoords && (checkpoint.arrival_radius_m ?? 0) > 0;
+
+  const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
+  const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!checkpoint.description;
 
   return (
     <div className="rally-surface rally-elevate rounded-2xl p-6 space-y-4">
@@ -149,6 +161,17 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
               Limpar erro
             </button>
           )}
+        </div>
+      )}
+
+      {/* Discover the place — revealed as the reward for reaching this stop */}
+      {hasDiscovery && (
+        <div className="border-t border-border pt-4">
+          <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide rally-accent">
+            <Sparkles className="h-3.5 w-3.5" />
+            {gpsState === "done" ? "Chegaste! Descobre o local" : "Sobre este local"}
+          </div>
+          <CheckpointDiscovery checkpointId={checkpoint.id} description={checkpoint.description} />
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.crud.crud_rally_settings import rally_settings
 from app.schemas.badge import (
     BadgeDefinitionLite,
     BadgeShowcaseResponse,
@@ -19,11 +20,19 @@ from app.services import badge_service
 router = APIRouter()
 
 
+async def _badges_enabled(db: AsyncSession) -> bool:
+    """Whether the badges feature is switched on for the current event."""
+    settings = await rally_settings.get_or_create(db)
+    return bool(settings.badges_enabled)
+
+
 @router.get("/badges", response_model=list[TeamBadgeRead])
 async def list_all_badges(
     *, db: AsyncSession = Depends(get_db)
 ) -> list[TeamBadgeRead]:
     """Every badge awarded across all teams, newest first."""
+    if not await _badges_enabled(db):
+        return []
     badges = await badge_service.list_all_badges(db)
     return [TeamBadgeRead.model_validate(b) for b in badges]
 
@@ -33,6 +42,8 @@ async def list_team_badges(
     team_id: int, *, db: AsyncSession = Depends(get_db)
 ) -> list[TeamBadgeRead]:
     """All badges a single team holds, newest first."""
+    if not await _badges_enabled(db):
+        return []
     badges = await badge_service.list_team_badges(db, team_id)
     return [TeamBadgeRead.model_validate(b) for b in badges]
 
@@ -45,7 +56,11 @@ async def team_badge_showcase(
 
     One request drives the locked/earned grid. ``earned`` collapses to the
     earliest award per badge code (a team may hold a code for several scopes).
+    When the feature is disabled the board is empty so a direct API hit
+    reveals nothing.
     """
+    if not await _badges_enabled(db):
+        return BadgeShowcaseResponse(definitions=[], earned=[])
     definitions, awards = await badge_service.get_showcase(db, team_id)
 
     earliest: dict[str, EarnedBadge] = {}

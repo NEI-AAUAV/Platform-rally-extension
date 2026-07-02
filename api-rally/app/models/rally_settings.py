@@ -72,6 +72,12 @@ class RallySettings(Base):
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)
 
+    # Badges / "Conquistas": master kill-switch for the whole achievements
+    # feature. When off, participant badge pages/nav are hidden, admin badge
+    # writes are blocked, and the worker stops auto-awarding. Default True so
+    # existing events keep badges on.
+    badges_enabled = Column(Boolean, nullable=False, default=True)
+
     # Home page layout: ordered list of {"key": str, "visible": bool} covering
     # every home section. Admin-editable via the settings PUT; the app must
     # normalize this on read since it's free-form JSON (see crud_rally_settings).

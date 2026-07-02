@@ -33,10 +33,14 @@ interface FormState {
   triggerType: string; // "" = manual only
   criteriaActivityId: string; // "" = any
   criteriaCheckpointId: string; // "" = any
+  criteriaNumber: string; // count / min_score / max_seconds, "" = unset
 }
 
 function initialState(editing: BadgeDefinitionResponse | null): FormState {
   const criteria = (editing?.criteria ?? {}) as Record<string, unknown>;
+  // Only one numeric criteria key is ever present per trigger.
+  const numberValue =
+    criteria.count ?? criteria.min_score ?? criteria.max_seconds;
   return {
     code: editing?.code ?? "",
     name: editing?.name ?? "",
@@ -49,6 +53,7 @@ function initialState(editing: BadgeDefinitionResponse | null): FormState {
       criteria.activity_id != null ? String(criteria.activity_id) : "",
     criteriaCheckpointId:
       criteria.checkpoint_id != null ? String(criteria.checkpoint_id) : "",
+    criteriaNumber: numberValue != null ? String(numberValue) : "",
   };
 }
 
@@ -83,20 +88,32 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
   const buildCriteria = (): Record<string, unknown> => {
     if (!form.isAuto || !selectedTrigger) return {};
+    const criteria: Record<string, unknown> = {};
     if (selectedTrigger.param === "activity" && form.criteriaActivityId) {
-      return { activity_id: Number(form.criteriaActivityId) };
+      criteria.activity_id = Number(form.criteriaActivityId);
     }
     if (selectedTrigger.param === "checkpoint" && form.criteriaCheckpointId) {
-      return { checkpoint_id: Number(form.criteriaCheckpointId) };
+      criteria.checkpoint_id = Number(form.criteriaCheckpointId);
     }
-    return {};
+    if (selectedTrigger.numberParam && form.criteriaNumber.trim() !== "") {
+      criteria[selectedTrigger.numberParam.key] = Number(form.criteriaNumber);
+    }
+    return criteria;
   };
 
   const mutation = isEdit ? update : create;
   const errorMessage =
     mutation.isError && apiErrorMessage(mutation.error, "Erro ao gravar crachá.");
 
-  const canSubmit = form.name.trim() && (isEdit || form.code.trim());
+  // An auto badge must pick a trigger, and any trigger with a required numeric
+  // criterion must have that value filled in.
+  const autoValid =
+    !form.isAuto ||
+    (!!selectedTrigger &&
+      (!selectedTrigger.numberParam || form.criteriaNumber.trim() !== ""));
+  const canSubmit = Boolean(
+    form.name.trim() && (isEdit || form.code.trim()) && autoValid,
+  );
 
   const handleSubmit = async () => {
     const payload = {
@@ -318,6 +335,24 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </label>
+            )}
+
+            {selectedTrigger?.numberParam && (
+              <label className="block space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  {selectedTrigger.numberParam.label} *
+                </span>
+                <input
+                  type="number"
+                  className={inputClass}
+                  min={selectedTrigger.numberParam.min}
+                  placeholder={selectedTrigger.numberParam.placeholder}
+                  value={form.criteriaNumber}
+                  onChange={(e) =>
+                    setForm({ ...form, criteriaNumber: e.target.value })
+                  }
+                />
               </label>
             )}
           </div>

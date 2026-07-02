@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.crud.base import CRUDBase
+from app.crud._event_scope import current_event_id
+from app.models.checkpoint import CheckPoint
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.schemas.rally_staff_assignment import (
     RallyStaffAssignmentCreate,
@@ -23,8 +25,19 @@ class CRUDRallyStaffAssignment(CRUDBase[RallyStaffAssignment, RallyStaffAssignme
         return (await db.scalars(stmt)).all()
 
     async def get_multi_with_checkpoint(self, db: AsyncSession) -> Sequence[RallyStaffAssignment]:
-        """Get all staff assignments with checkpoint details loaded"""
-        stmt = select(RallyStaffAssignment).options(selectinload(RallyStaffAssignment.checkpoint))
+        """Get staff assignments scoped to the current event's checkpoints.
+
+        Assignments pointing at a checkpoint from a different event (or with
+        no checkpoint) are excluded, so switching events doesn't leak another
+        event's staff-to-posto assignments.
+        """
+        event_id = await current_event_id(db)
+        stmt = (
+            select(RallyStaffAssignment)
+            .join(CheckPoint, RallyStaffAssignment.checkpoint_id == CheckPoint.id)
+            .where((CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)))
+            .options(selectinload(RallyStaffAssignment.checkpoint))
+        )
         return (await db.scalars(stmt)).all()
 
     async def create_or_update(self, db: AsyncSession, *, user_id: int, checkpoint_id: Optional[int] = None) -> Optional[RallyStaffAssignment]:

@@ -18,6 +18,7 @@ export const checkpointFormSchema = z.object({
   description: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
+  arrival_radius_m: z.number().min(0, 'O raio não pode ser negativo'),
   order: z.number().min(1, 'Ordem deve ser maior que 0'),
 });
 
@@ -30,6 +31,7 @@ function toRequestBody(data: CheckpointForm): CheckPointCreate {
     description: data.description,
     latitude: data.latitude ? Number.parseFloat(data.latitude) : null,
     longitude: data.longitude ? Number.parseFloat(data.longitude) : null,
+    arrival_radius_m: data.arrival_radius_m,
     order: data.order,
   };
 }
@@ -55,6 +57,7 @@ export function useCheckpointManagement(userStore: UserState) {
       description: "",
       latitude: "",
       longitude: "",
+      arrival_radius_m: 50,
       order: 1,
     },
   });
@@ -124,6 +127,7 @@ export function useCheckpointManagement(userStore: UserState) {
     checkpointForm.setValue("description", checkpoint.description ?? "");
     checkpointForm.setValue("latitude", checkpoint.latitude?.toString() || "");
     checkpointForm.setValue("longitude", checkpoint.longitude?.toString() || "");
+    checkpointForm.setValue("arrival_radius_m", checkpoint.arrival_radius_m ?? 50);
     checkpointForm.setValue("order", checkpoint.order || 1);
   };
 

@@ -66,6 +66,9 @@ const rallySettingsSchema = z.object({
   guide_mode_enabled: z.boolean(),
   guide_mode_active: z.boolean(),
 
+  // Badges / conquistas master kill-switch
+  badges_enabled: z.boolean(),
+
   // Home page layout: ordered section visibility
   home_layout: z.array(z.object({ key: z.string(), visible: z.boolean() })),
 
@@ -142,6 +145,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       allow_photo_as_team_photo: false,
       guide_mode_enabled: false,
       guide_mode_active: false,
+      badges_enabled: true,
       home_layout: DEFAULT_HOME_LAYOUT,
       ticker_items_list: DEFAULT_TICKER_ITEMS.map((value) => ({ value })),
     },
@@ -177,6 +181,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
         guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
         guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+        badges_enabled: extendedSettings?.badges_enabled ?? true,
         home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
         ticker_items_list: (settings.ticker_items?.length ? settings.ticker_items : DEFAULT_TICKER_ITEMS).map(
           (value) => ({ value }),
@@ -266,6 +271,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
         guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
         guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+        badges_enabled: extendedSettings?.badges_enabled ?? true,
         home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
         ticker_items_list: (settings.ticker_items?.length ? settings.ticker_items : DEFAULT_TICKER_ITEMS).map(
           (value) => ({ value }),

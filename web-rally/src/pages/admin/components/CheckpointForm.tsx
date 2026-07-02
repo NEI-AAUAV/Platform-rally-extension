@@ -100,6 +100,29 @@ export default function CheckpointForm({
           />
           <FormField
             control={form.control}
+            name="arrival_radius_m"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Raio de chegada (metros)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Ex: 50"
+                    {...field}
+                    onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Distância a que a equipa tem de estar para "adivinhar" o sítio via GPS. 0 desativa o check-in por localização.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="order"
             render={({ field }) => (
               <FormItem>

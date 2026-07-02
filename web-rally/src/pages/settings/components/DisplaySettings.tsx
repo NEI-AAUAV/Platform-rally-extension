@@ -253,6 +253,24 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             Modo guia ativo neste evento
           </Label>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="badges_enabled"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <Label htmlFor="badges_enabled">
+            Ativar crachás / conquistas
+          </Label>
+        </div>
       </CardContent>
     </div>
   );

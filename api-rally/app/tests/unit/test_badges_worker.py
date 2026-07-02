@@ -12,12 +12,17 @@ from app.workers import worker_badges
 from app.workers.worker_badges import BadgesWorker
 
 
-def _patch_session(monkeypatch: pytest.MonkeyPatch) -> None:
+def _patch_session(monkeypatch: pytest.MonkeyPatch, *, badges_enabled: bool = True) -> None:
     @asynccontextmanager
     async def fake_session() -> AsyncIterator[Any]:
         yield AsyncMock()
 
     monkeypatch.setattr(worker_badges, "worker_session", fake_session)
+    monkeypatch.setattr(
+        worker_badges.rally_settings,
+        "get_or_create",
+        AsyncMock(return_value=SimpleNamespace(badges_enabled=badges_enabled)),
+    )
 
 
 def _created_event(result_id: int = 5) -> dict[str, Any]:
@@ -81,6 +86,20 @@ async def test_no_publish_when_already_held(monkeypatch: pytest.MonkeyPatch) -> 
 
     await BadgesWorker().handle_event("rally.activity_result.created", _created_event())
     assert published == []
+
+
+async def test_no_award_when_badges_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_session(monkeypatch, badges_enabled=False)
+    load = AsyncMock()
+    monkeypatch.setattr(BadgesWorker, "_load_result", load)
+    evaluate = AsyncMock()
+    monkeypatch.setattr(worker_badges, "evaluate_result", evaluate)
+
+    await BadgesWorker().handle_event("rally.activity_result.created", _created_event())
+
+    # Kill-switch off: the worker never even loads the result or evaluates rules.
+    load.assert_not_called()
+    evaluate.assert_not_called()
 
 
 async def test_deletion_event_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:

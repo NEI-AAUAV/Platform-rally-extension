@@ -145,7 +145,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },
     { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
-    { name: "Conquistas", href: "/conquistas", show: showTeamView },
+    { name: "Conquistas", href: "/conquistas", show: showTeamView && settings?.badges_enabled !== false },
     { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
 
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },

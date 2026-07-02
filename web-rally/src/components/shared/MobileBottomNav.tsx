@@ -53,7 +53,7 @@ export function MobileBottomNav() {
         { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
         { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
-        { name: "Conquistas", href: "/conquistas", Icon: Award, show: true },
+        { name: "Conquistas", href: "/conquistas", Icon: Award, show: settings?.badges_enabled !== false },
         { name: "Equipa", href: "/team-info", Icon: Users, show: true },
         { name: "Definições", href: "/team-settings", Icon: Settings, show: true },
       ].filter((i) => i.show)

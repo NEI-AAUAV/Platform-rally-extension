@@ -118,6 +118,10 @@ class RallySettingsBase(BaseModel):
     guide_mode_enabled: bool = False
     guide_mode_active: bool = False
 
+    # Badges / "Conquistas" master kill-switch. Default True so existing
+    # events keep the achievements feature on.
+    badges_enabled: bool = True
+
     # Home page layout: ordered section visibility, admin-editable
     home_layout: list[HomeSection] = [HomeSection(key=key) for key in HOME_SECTION_KEYS]
 

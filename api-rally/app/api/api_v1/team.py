@@ -44,15 +44,25 @@ async def _compute_checkpoint_progress(db: AsyncSession, team_obj: Team) -> Tupl
     checkpoints = await checkpoint_crud.get_all_ordered(db)
     team_results = await activity_result_crud.get_by_team(db, team_id=team_obj.id)
     completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
+    # Number of checkpoints the team has physically checked into (times grows by
+    # one per checkpoint reached, in order).
+    checked_in_count = len(team_obj.times)
 
     last_completed_order = 0
     last_completed_name: str | None = None
     for cp in checkpoints:
         cp_activities = await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
-        ids = [a.id for a in cp_activities]
-        if not ids:
+        active_ids = [a.id for a in cp_activities if a.is_active]
+        if not active_ids:
+            # No activity to judge here: the post counts as done once the team
+            # has checked in (via GPS arrival auto-complete). Otherwise it is
+            # still their current, not-yet-reached post — stop here.
+            if checked_in_count >= cp.order:
+                last_completed_order = cp.order
+                last_completed_name = cp.name
+                continue
             break
-        if all(aid in completed_activity_ids for aid in ids):
+        if all(aid in completed_activity_ids for aid in active_ids):
             last_completed_order = cp.order
             last_completed_name = cp.name
         else:
@@ -103,7 +113,9 @@ async def _detailed_team(db: AsyncSession, team_obj: Team, *, with_progress: boo
 
 @router.get("/", status_code=200)
 async def get_teams(*, db: AsyncSession = Depends(deps.get_db)) -> List[ListingTeam]:
-    teams = (await db.scalars(select(Team).options(selectinload(Team.members)))).all()
+    teams = await crud.team.get_multi(db)
+    for team in teams:
+        await db.refresh(team, ["members"])
     return [await _build_team_data(db, team) for team in teams]
 
 

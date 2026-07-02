@@ -22,7 +22,6 @@ from app.schemas.team import (
 
 from app.crud.crud_rally_settings import rally_settings
 from app.crud._event_scope import current_event_id
-from ._deps import unique_key_error_regex
 
 locked_arrays = [
     "times",
@@ -32,7 +31,13 @@ locked_arrays = [
     "skips",
 ]
 
-_name_unique_error_regex = unique_key_error_regex(Team.name.name)
+import re
+
+# Matches the composite (event_id, name) unique constraint by its Postgres
+# constraint name, not column list — asyncpg reports "Key (event_id, name)=(...)
+# already exists" for composite constraints, which unique_key_error_regex's
+# single-column pattern does not match.
+_name_unique_error_regex = re.compile(r"uq_team_event_name")
 
 
 async def _generate_access_code(db: AsyncSession) -> str:

@@ -5,7 +5,7 @@ field maps 1-to-1 with legacy ``BadgeType`` enum values, ensuring existing
 ``TeamBadge`` rows remain valid. New badges can be added by inserting here.
 """
 from typing import Any, Optional
-from sqlalchemy import JSON, Boolean, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -21,6 +21,13 @@ class BadgeDefinition(Base):
     __table_args__ = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # NULL = global/seeded badge visible in every event. Admin-created badges
+    # are stamped with the current event so per-edition catalogues stay apart.
+    event_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"),
+        nullable=True,
+    )
     code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

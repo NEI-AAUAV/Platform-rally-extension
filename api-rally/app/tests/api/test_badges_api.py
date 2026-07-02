@@ -1,6 +1,7 @@
 """API tests for the read-only badge endpoints (service layer mocked)."""
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -29,6 +30,22 @@ def _badge(badge_id: int, team_id: int, badge_type: str, activity_id: int) -> Te
     badge.id = badge_id
     badge.awarded_at = datetime.now(timezone.utc)
     return badge
+
+
+@pytest.fixture(autouse=True)
+def _badges_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default the kill-switch on for these read-only tests."""
+    monkeypatch.setattr(
+        "app.api.api_v1.badges.rally_settings.get_or_create",
+        AsyncMock(return_value=SimpleNamespace(badges_enabled=True)),
+    )
+
+
+def _disable_badges(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.api.api_v1.badges.rally_settings.get_or_create",
+        AsyncMock(return_value=SimpleNamespace(badges_enabled=False)),
+    )
 
 
 def test_list_all_badges(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -82,3 +99,35 @@ def test_team_badge_showcase(client: TestClient, monkeypatch: pytest.MonkeyPatch
     earned_codes = [e["code"] for e in body["earned"]]
     assert earned_codes == ["won_duel"]  # only what the team holds
     assert "locked_one" not in earned_codes
+
+
+# ---------- kill-switch: disabled hides everything ----------
+
+def test_list_all_badges_empty_when_disabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _disable_badges(monkeypatch)
+    service = AsyncMock()
+    monkeypatch.setattr("app.services.badge_service.list_all_badges", service)
+
+    resp = client.get("/api/rally/v1/badges")
+
+    assert resp.status_code == 200
+    assert resp.json() == []
+    service.assert_not_awaited()
+
+
+def test_showcase_empty_when_disabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _disable_badges(monkeypatch)
+    service = AsyncMock()
+    monkeypatch.setattr("app.services.badge_service.get_showcase", service)
+
+    resp = client.get("/api/rally/v1/teams/7/badge-showcase")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["definitions"] == []
+    assert body["earned"] == []
+    service.assert_not_awaited()

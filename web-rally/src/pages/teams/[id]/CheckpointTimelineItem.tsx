@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
+import { CheckpointDiscovery } from "@/components/shared";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
 
@@ -111,9 +112,6 @@ export function CheckpointTimelineItem({
               {hasPendingTimeBasedActivity && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
             </div>
             <h3 className="text-lg font-semibold mb-1">{checkpoint?.name || `Checkpoint ${index + 1}`}</h3>
-            {checkpoint?.description && (
-              <p className="text-sm text-muted-foreground mb-2">{checkpoint.description}</p>
-            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -134,6 +132,17 @@ export function CheckpointTimelineItem({
           </div>
         </div>
       </div>
+
+      {/* Discover the place: description + photos + fun facts */}
+      {checkpoint && (
+        <CheckpointDiscovery
+          checkpointId={checkpoint.id}
+          description={checkpoint.description}
+          heading="Descobre o local"
+          compact
+          className="mt-3 rounded-2xl border border-border bg-card/40 p-4 sm:p-5"
+        />
+      )}
 
       {/* Activity-level cards - only show when expanded */}
       {isExpanded && evaluationResults.length > 0 && (

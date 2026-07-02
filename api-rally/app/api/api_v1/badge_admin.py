@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.crud.crud_badge_definition import badge_definition as crud_def
+from app.crud.crud_rally_settings import rally_settings
 from app.models.badge import BadgeType, TeamBadge
 from app.models.badge_definition import BadgeDefinition
 from app.schemas.badge_definition import (
@@ -24,6 +25,17 @@ from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_
 router = APIRouter()
 
 
+async def require_badges_enabled(db: AsyncSession = Depends(deps.get_db)) -> None:
+    """Block badge write operations when the feature is switched off.
+
+    The catalog list (GET) stays reachable so an admin can still inspect
+    definitions, but every mutation is refused while the kill-switch is off.
+    """
+    settings = await rally_settings.get_or_create(db)
+    if not settings.badges_enabled:
+        raise HTTPException(status_code=403, detail="Badges feature is disabled")
+
+
 @router.get("/badge-definitions", response_model=List[BadgeDefinitionResponse])
 async def list_badge_definitions(
     db: AsyncSession = Depends(deps.get_db),
@@ -35,7 +47,7 @@ async def list_badge_definitions(
     "/badge-definitions",
     response_model=BadgeDefinitionResponse,
     status_code=201,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def create_badge_definition(
     obj_in: BadgeDefinitionCreate,
@@ -50,7 +62,7 @@ async def create_badge_definition(
 @router.put(
     "/badge-definitions/{id}",
     response_model=BadgeDefinitionResponse,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def update_badge_definition(
     id: int,
@@ -66,7 +78,7 @@ async def update_badge_definition(
 @router.post(
     "/badge-definitions/{id}/icon",
     response_model=BadgeDefinitionResponse,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def upload_badge_icon(
     id: int,
@@ -87,7 +99,7 @@ async def upload_badge_icon(
 @router.delete(
     "/badge-definitions/{id}",
     status_code=204,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def delete_badge_definition(
     id: int,
@@ -103,7 +115,7 @@ async def delete_badge_definition(
     "/badges/award",
     response_model=TeamBadgeRead,
     status_code=201,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def manual_award_badge(
     obj_in: ManualBadgeAwardCreate,
@@ -150,7 +162,7 @@ async def manual_award_badge(
 @router.delete(
     "/badges/{badge_id}",
     status_code=204,
-    dependencies=[Depends(deps.get_admin)],
+    dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
 )
 async def revoke_badge(
     badge_id: int,

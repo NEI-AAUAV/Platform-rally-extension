@@ -18,4 +18,4 @@ COPY . .
 RUN poetry install
 
 EXPOSE 8003
-CMD poetry run uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+CMD poetry run uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload --reload-dir app

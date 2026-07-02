@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Awaitable, Callable
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.badges.triggers import BadgeTrigger
@@ -217,11 +217,203 @@ async def _handle_first_complete_checkpoint(
     ]
 
 
+async def _team_completed_activity_ids(
+    db: AsyncSession, team_id: int, activity_ids: set[int] | None = None
+) -> set[int]:
+    """The set of distinct activity ids a team has a completed result for.
+
+    Restricted to ``activity_ids`` when given (used to check checkpoint/rally
+    coverage without scanning the whole results table).
+    """
+    stmt = select(ActivityResult.activity_id).where(
+        ActivityResult.team_id == team_id,
+        ActivityResult.is_completed.is_(True),
+    )
+    if activity_ids is not None:
+        stmt = stmt.where(ActivityResult.activity_id.in_(activity_ids))
+    return set((await db.scalars(stmt)).all())
+
+
+async def _handle_complete_n_activities(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
+) -> list[BadgeAward]:
+    """Award once a team has completed at least ``count`` distinct activities.
+
+    A milestone badge — many teams can earn it. Not scoped to any single
+    activity/checkpoint.
+
+    Criteria:
+      - ``count`` (int, required, >= 1): how many completed activities to reach.
+    """
+    if not result.is_completed:
+        return []
+
+    criteria = defn.criteria or {}
+    try:
+        count = int(criteria.get("count", 0))
+    except (TypeError, ValueError):
+        return []
+    if count < 1:
+        return []
+
+    completed = await _team_completed_activity_ids(db, result.team_id)
+    if len(completed) < count:
+        return []
+
+    return [
+        BadgeAward(
+            team_id=result.team_id,
+            badge_code=defn.code,
+            meta={"count": len(completed)},
+        )
+    ]
+
+
+async def _handle_complete_all_checkpoints(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
+) -> list[BadgeAward]:
+    """Award a team that has completed every active activity in the rally.
+
+    "Finished the whole rally": the team has a completed result for every
+    active activity across all checkpoints.
+
+    Criteria (optional):
+      - ``single_holder`` (bool, default False): only the first team to finish
+        keeps the badge.
+    """
+    if not result.is_completed:
+        return []
+
+    criteria = defn.criteria or {}
+    if criteria.get("single_holder") and await badge_service.badge_holder_exists(
+        db, defn.code, None
+    ):
+        return []
+
+    all_active = set(
+        (
+            await db.scalars(
+                select(Activity.id).where(Activity.is_active.is_(True))
+            )
+        ).all()
+    )
+    if not all_active:
+        return []
+
+    completed = await _team_completed_activity_ids(db, result.team_id, all_active)
+    if not (all_active <= completed):
+        return []
+
+    return [
+        BadgeAward(
+            team_id=result.team_id,
+            badge_code=defn.code,
+            meta={"activities": len(all_active)},
+        )
+    ]
+
+
+async def _handle_score_threshold(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
+) -> list[BadgeAward]:
+    """Award once a team's total score reaches ``min_score``.
+
+    Total = sum of ``final_score`` over the team's completed results (the same
+    quantity the leaderboard sums; kept as a pure read here so re-running is
+    safe). A milestone badge — many teams can earn it.
+
+    Criteria:
+      - ``min_score`` (number, required): the total to reach.
+    """
+    if not result.is_completed:
+        return []
+
+    criteria = defn.criteria or {}
+    if "min_score" not in criteria:
+        return []
+    try:
+        min_score = float(criteria["min_score"])
+    except (TypeError, ValueError):
+        return []
+
+    total = (
+        await db.scalar(
+            select(func.coalesce(func.sum(ActivityResult.final_score), 0.0)).where(
+                ActivityResult.team_id == result.team_id,
+                ActivityResult.is_completed.is_(True),
+                ActivityResult.final_score.is_not(None),
+            )
+        )
+    ) or 0.0
+    if float(total) < min_score:
+        return []
+
+    return [
+        BadgeAward(
+            team_id=result.team_id,
+            badge_code=defn.code,
+            meta={"total_score": float(total)},
+        )
+    ]
+
+
+async def _handle_fast_complete(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
+) -> list[BadgeAward]:
+    """Award a team that completed an activity within a time limit.
+
+    Duration is measured from the result's creation to its completion
+    (``completed_at - created_at``), since results carry no separate start
+    time. Reacts to the triggering result only.
+
+    Criteria:
+      - ``max_seconds`` (number, required): the time budget.
+      - ``activity_id`` (optional): restrict to one activity.
+      - ``single_holder`` (bool, default False): only the first fast team keeps it.
+    """
+    if not result.is_completed or result.completed_at is None or result.created_at is None:
+        return []
+
+    criteria = defn.criteria or {}
+    if "max_seconds" not in criteria:
+        return []
+    try:
+        max_seconds = float(criteria["max_seconds"])
+    except (TypeError, ValueError):
+        return []
+
+    scoped_activity = criteria.get("activity_id")
+    if scoped_activity is not None and result.activity_id != scoped_activity:
+        return []
+
+    duration = (result.completed_at - result.created_at).total_seconds()
+    if duration > max_seconds:
+        return []
+
+    if criteria.get("single_holder") and await badge_service.badge_holder_exists(
+        db, defn.code, result.activity_id
+    ):
+        return []
+
+    return [
+        BadgeAward(
+            team_id=result.team_id,
+            badge_code=defn.code,
+            activity_id=result.activity_id,
+            meta={"duration_seconds": duration},
+        )
+    ]
+
+
 # Registry mapping each trigger kind to its handler.
 _TRIGGER_HANDLERS: dict[BadgeTrigger, Handler] = {
     BadgeTrigger.WIN_ACTIVITY: _handle_win_activity,
     BadgeTrigger.FIRST_COMPLETE_ACTIVITY: _handle_first_complete_activity,
     BadgeTrigger.FIRST_COMPLETE_CHECKPOINT: _handle_first_complete_checkpoint,
+    BadgeTrigger.COMPLETE_N_ACTIVITIES: _handle_complete_n_activities,
+    BadgeTrigger.COMPLETE_ALL_CHECKPOINTS: _handle_complete_all_checkpoints,
+    BadgeTrigger.SCORE_THRESHOLD: _handle_score_threshold,
+    BadgeTrigger.FAST_COMPLETE: _handle_fast_complete,
 }
 
 
