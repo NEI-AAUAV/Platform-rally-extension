@@ -27,6 +27,10 @@ class CRUDBadgeDefinition:
             description=obj_in.description,
             is_active=obj_in.is_active,
             is_auto=obj_in.is_auto,
+            color=obj_in.color,
+            glyph=obj_in.glyph,
+            trigger_type=obj_in.trigger_type,
+            criteria=obj_in.criteria or {},
         )
         db.add(db_obj)
         await db.commit()
@@ -47,6 +51,16 @@ class CRUDBadgeDefinition:
             db_obj.description = obj_in.description
         if obj_in.is_active is not None:
             db_obj.is_active = obj_in.is_active
+        if obj_in.is_auto is not None:
+            db_obj.is_auto = obj_in.is_auto
+        if obj_in.color is not None:
+            db_obj.color = obj_in.color
+        if obj_in.glyph is not None:
+            db_obj.glyph = obj_in.glyph
+        if obj_in.trigger_type is not None:
+            db_obj.trigger_type = obj_in.trigger_type
+        if obj_in.criteria is not None:
+            db_obj.criteria = obj_in.criteria
         if icon_url is not None:
             if db_obj.icon_url:
                 storage_client.delete_image(db_obj.icon_url)

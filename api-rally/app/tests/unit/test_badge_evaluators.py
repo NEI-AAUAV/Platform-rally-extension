@@ -1,4 +1,4 @@
-"""Unit tests for the badge rule evaluators."""
+"""Unit tests for the data-driven badge rule evaluators."""
 
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -8,8 +8,25 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.badges import evaluators
-from app.models.badge import BadgeType
+from app.badges.triggers import BadgeTrigger
 from app.schemas.activity_types import ActivityType
+
+
+def _defn(
+    *,
+    code: str = "test_badge",
+    trigger: BadgeTrigger = BadgeTrigger.WIN_ACTIVITY,
+    criteria: dict[str, Any] | None = None,
+    is_active: bool = True,
+    is_auto: bool = True,
+) -> Any:
+    return SimpleNamespace(
+        code=code,
+        trigger_type=trigger.value,
+        criteria=criteria or {},
+        is_active=is_active,
+        is_auto=is_auto,
+    )
 
 
 def _vs_result(*, completed: bool = True, outcome: str = "win") -> Any:
@@ -25,39 +42,61 @@ def _vs_result(*, completed: bool = True, outcome: str = "win") -> Any:
     )
 
 
-async def test_head_to_head_awards_on_win() -> None:
-    awards = await evaluators._evaluate_head_to_head_win(AsyncMock(), _vs_result())
+# --- win_activity -----------------------------------------------------------
+
+
+async def test_win_activity_awards_on_win() -> None:
+    awards = await evaluators._handle_win_activity(AsyncMock(), _vs_result(), _defn())
 
     assert len(awards) == 1
     award = awards[0]
-    assert award.badge_type == BadgeType.HEAD_TO_HEAD_WIN
+    assert award.badge_code == "test_badge"
     assert award.team_id == 10
     assert award.activity_id == 99
     assert award.meta["opponent_team_id"] == 20
 
 
-async def test_head_to_head_skips_loss() -> None:
-    awards = await evaluators._evaluate_head_to_head_win(
-        AsyncMock(), _vs_result(outcome="lose")
+async def test_win_activity_skips_loss() -> None:
+    awards = await evaluators._handle_win_activity(
+        AsyncMock(), _vs_result(outcome="lose"), _defn()
     )
     assert awards == []
 
 
-async def test_head_to_head_skips_incomplete() -> None:
-    awards = await evaluators._evaluate_head_to_head_win(
-        AsyncMock(), _vs_result(completed=False)
+async def test_win_activity_skips_incomplete() -> None:
+    awards = await evaluators._handle_win_activity(
+        AsyncMock(), _vs_result(completed=False), _defn()
     )
     assert awards == []
 
 
-async def test_head_to_head_skips_non_versus_activity() -> None:
+async def test_win_activity_skips_non_versus_activity() -> None:
     result = _vs_result()
-    result.activity = SimpleNamespace(activity_type=ActivityType.TIME_BASED.value)
-    awards = await evaluators._evaluate_head_to_head_win(AsyncMock(), result)
+    result.activity = SimpleNamespace(
+        activity_type=ActivityType.TIME_BASED.value, checkpoint_id=7
+    )
+    awards = await evaluators._handle_win_activity(AsyncMock(), result, _defn())
     assert awards == []
 
 
-async def test_first_to_complete_awards_earliest_team(
+async def test_win_activity_scoped_to_other_activity_skips() -> None:
+    awards = await evaluators._handle_win_activity(
+        AsyncMock(), _vs_result(), _defn(criteria={"activity_id": 1234})
+    )
+    assert awards == []
+
+
+async def test_win_activity_scoped_to_matching_activity_fires() -> None:
+    awards = await evaluators._handle_win_activity(
+        AsyncMock(), _vs_result(), _defn(criteria={"activity_id": 99})
+    )
+    assert len(awards) == 1
+
+
+# --- first_complete_activity ------------------------------------------------
+
+
+async def test_first_complete_activity_awards_earliest_team(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -76,15 +115,17 @@ async def test_first_to_complete_awards_earliest_team(
     triggering: Any = SimpleNamespace(
         id=2, team_id=8, activity_id=99, is_completed=True
     )
-    awards = await evaluators._evaluate_first_to_complete(db, triggering)
+    awards = await evaluators._handle_first_complete_activity(
+        db, triggering, _defn(trigger=BadgeTrigger.FIRST_COMPLETE_ACTIVITY)
+    )
 
     assert len(awards) == 1
     # Awarded to the actual first finisher, not whoever triggered the event.
     assert awards[0].team_id == 7
-    assert awards[0].badge_type == BadgeType.FIRST_TO_COMPLETE_ACTIVITY
+    assert awards[0].badge_code == "test_badge"
 
 
-async def test_first_to_complete_skips_when_already_held(
+async def test_first_complete_activity_skips_when_already_held(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -94,8 +135,13 @@ async def test_first_to_complete_skips_when_already_held(
     triggering: Any = SimpleNamespace(
         id=2, team_id=8, activity_id=99, is_completed=True
     )
-    awards = await evaluators._evaluate_first_to_complete(AsyncMock(), triggering)
+    awards = await evaluators._handle_first_complete_activity(
+        AsyncMock(), triggering, _defn(trigger=BadgeTrigger.FIRST_COMPLETE_ACTIVITY)
+    )
     assert awards == []
+
+
+# --- first_complete_checkpoint ----------------------------------------------
 
 
 def _checkpoint_result() -> Any:
@@ -114,7 +160,7 @@ def _scalars(values: list[Any]) -> MagicMock:
     return scalars
 
 
-async def test_first_to_complete_checkpoint_awards_earliest_full_team(
+async def test_first_complete_checkpoint_awards_earliest_full_team(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -135,30 +181,32 @@ async def test_first_to_complete_checkpoint_awards_earliest_full_team(
     db = AsyncMock()
     db.scalars.side_effect = [_scalars([1, 2]), _scalars(completed)]
 
-    awards = await evaluators._evaluate_first_to_complete_checkpoint(
-        db, _checkpoint_result()
+    awards = await evaluators._handle_first_complete_checkpoint(
+        db, _checkpoint_result(), _defn(trigger=BadgeTrigger.FIRST_COMPLETE_CHECKPOINT)
     )
 
     assert len(awards) == 1
     assert awards[0].team_id == 5
-    assert awards[0].badge_type == BadgeType.FIRST_TO_COMPLETE_CHECKPOINT
+    assert awards[0].badge_code == "test_badge"
     assert awards[0].checkpoint_id == 50
 
 
-async def test_first_to_complete_checkpoint_skips_when_held(
+async def test_first_complete_checkpoint_skips_when_held(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         "app.services.badge_service.badge_holder_exists",
         AsyncMock(return_value=True),
     )
-    awards = await evaluators._evaluate_first_to_complete_checkpoint(
-        AsyncMock(), _checkpoint_result()
+    awards = await evaluators._handle_first_complete_checkpoint(
+        AsyncMock(),
+        _checkpoint_result(),
+        _defn(trigger=BadgeTrigger.FIRST_COMPLETE_CHECKPOINT),
     )
     assert awards == []
 
 
-async def test_first_to_complete_checkpoint_skips_when_no_team_finished_all(
+async def test_first_complete_checkpoint_skips_when_no_team_finished_all(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -172,30 +220,62 @@ async def test_first_to_complete_checkpoint_skips_when_no_team_finished_all(
         _scalars([1, 2]),
         _scalars([SimpleNamespace(team_id=5, activity_id=1, completed_at=t1)]),
     ]
-    awards = await evaluators._evaluate_first_to_complete_checkpoint(
-        db, _checkpoint_result()
+    awards = await evaluators._handle_first_complete_checkpoint(
+        db, _checkpoint_result(), _defn(trigger=BadgeTrigger.FIRST_COMPLETE_CHECKPOINT)
     )
     assert awards == []
 
 
-async def test_evaluate_result_collects_from_all_rules(
+# --- engine (evaluate_result) -----------------------------------------------
+
+
+async def test_evaluate_result_runs_configured_rule(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.badge_service.badge_holder_exists",
-        AsyncMock(return_value=True),
+        evaluators,
+        "_load_auto_definitions",
+        AsyncMock(return_value=[_defn(code="duel", trigger=BadgeTrigger.WIN_ACTIVITY)]),
     )
-    # A winning versus result earns exactly the head-to-head badge.
     awards = await evaluators.evaluate_result(AsyncMock(), _vs_result())
-    assert [a.badge_type for a in awards] == [BadgeType.HEAD_TO_HEAD_WIN]
+    assert [a.badge_code for a in awards] == ["duel"]
+
+
+async def test_evaluate_result_ignores_non_auto_and_inactive() -> None:
+    # _load_auto_definitions already filters is_active/is_auto in SQL; verify the
+    # engine simply runs whatever it returns and returns [] when it returns none.
+    async def _none(_db: object) -> list[object]:
+        return []
+
+    original = evaluators._load_auto_definitions
+    evaluators._load_auto_definitions = _none  # type: ignore[assignment]
+    try:
+        assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
+    finally:
+        evaluators._load_auto_definitions = original  # type: ignore[assignment]
 
 
 async def test_evaluate_result_isolates_failing_rule(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def boom(db: object, result: object) -> list[object]:
+    async def boom(db: object, result: object, defn: object) -> list[object]:
         raise RuntimeError("rule exploded")
 
-    monkeypatch.setattr(evaluators, "_EVALUATORS", [boom])
+    monkeypatch.setattr(
+        evaluators,
+        "_load_auto_definitions",
+        AsyncMock(return_value=[_defn(trigger=BadgeTrigger.WIN_ACTIVITY)]),
+    )
+    monkeypatch.setitem(evaluators._TRIGGER_HANDLERS, BadgeTrigger.WIN_ACTIVITY, boom)
     # Failure is swallowed; no awards, no exception.
+    assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
+
+
+async def test_evaluate_result_skips_unknown_trigger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bad = SimpleNamespace(code="x", trigger_type="not_a_trigger", criteria={})
+    monkeypatch.setattr(
+        evaluators, "_load_auto_definitions", AsyncMock(return_value=[bad])
+    )
     assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []

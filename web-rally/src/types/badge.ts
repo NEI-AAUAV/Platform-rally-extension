@@ -1,14 +1,11 @@
-/** Team badge types — mirror of api-rally app/models/badge.py BadgeType. */
-export type BadgeType =
-  | "head_to_head_win"
-  | "first_to_complete_activity"
-  | "first_to_complete_checkpoint";
+/** A badge code — dynamic now (admin-defined), mirror of BadgeDefinition.code. */
+export type BadgeCode = string;
 
 /** A single badge a team holds — mirror of TeamBadgeRead. */
 export interface TeamBadge {
   id: number;
   team_id: number;
-  badge_type: BadgeType | string;
+  badge_type: BadgeCode;
   activity_id: number | null;
   checkpoint_id: number | null;
   meta: Record<string, unknown>;

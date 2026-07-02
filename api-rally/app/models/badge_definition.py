@@ -4,12 +4,16 @@ Each row represents one badge type that can exist in the system. The ``code``
 field maps 1-to-1 with legacy ``BadgeType`` enum values, ensuring existing
 ``TeamBadge`` rows remain valid. New badges can be added by inserting here.
 """
-from typing import Optional
-from sqlalchemy import Boolean, String, Text
+from typing import Any, Optional
+from sqlalchemy import JSON, Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 from app.core.config import settings
+
+# Default badge colour when the admin has not picked one (matches the frontend
+# FALLBACK). Kept here so the model, migration and API share one source.
+DEFAULT_BADGE_COLOR = "#8b5cf6"
 
 
 class BadgeDefinition(Base):
@@ -23,3 +27,13 @@ class BadgeDefinition(Base):
     icon_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_auto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Display: hex colour (incl. optional alpha) + a single emoji/glyph. The
+    # showcase renders these when there is no icon image.
+    color: Mapped[str] = mapped_column(
+        String(9), nullable=False, server_default=DEFAULT_BADGE_COLOR
+    )
+    glyph: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    # Auto-award behaviour. ``trigger_type`` is a BadgeTrigger value (NULL =
+    # manual-only); ``criteria`` holds its params (e.g. {"activity_id": 12}).
+    trigger_type: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
+    criteria: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)

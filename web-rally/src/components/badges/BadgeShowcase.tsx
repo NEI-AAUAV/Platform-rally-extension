@@ -1,35 +1,35 @@
 import { motion } from "framer-motion";
-import { useTeamBadges } from "@/hooks/useBadges";
-import { BADGE_CATALOG, getBadgeDisplay } from "@/lib/badges";
+import { useBadgeShowcase } from "@/hooks/useBadges";
+import { getBadgeDisplay } from "@/lib/badges";
 
 interface BadgeShowcaseProps {
   teamId: number;
 }
 
 /**
- * Full "Conquistas" board: every known badge type rendered as a card, earned
- * ones in full colour with their award time, locked ones dimmed with "Por
- * conquistar". Tops the grid with a count chip + progress bar, mirroring the
- * prototype's badges screen.
+ * Full "Conquistas" board, data-driven from the DB badge catalogue: every
+ * active badge is rendered as a card, earned ones in full colour with their
+ * award time, locked ones dimmed with "Por conquistar". Tops the grid with a
+ * count chip + progress bar.
  */
 export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
-  const { data: badges, isLoading, isError } = useTeamBadges(teamId);
+  const { data, isLoading, isError } = useBadgeShowcase(teamId);
 
-  if (isLoading || isError) return null;
+  if (isLoading || isError || !data) return null;
 
-  const earned = badges ?? [];
+  const { definitions, earned } = data;
 
-  // Earliest award per badge type → shown on the card.
-  const earnedByType = new Map<string, string>();
+  // Earliest award time per code → shown on the card.
+  const earnedByCode = new Map<string, string>();
   for (const b of earned) {
-    const prev = earnedByType.get(b.badge_type);
-    if (!prev || (b.awarded_at && b.awarded_at < prev)) {
-      earnedByType.set(b.badge_type, b.awarded_at);
+    const prev = earnedByCode.get(b.code);
+    if (!prev || b.awarded_at < prev) {
+      earnedByCode.set(b.code, b.awarded_at);
     }
   }
 
-  const total = BADGE_CATALOG.length;
-  const earnedCount = BADGE_CATALOG.filter((t) => earnedByType.has(t)).length;
+  const total = definitions.length;
+  const earnedCount = definitions.filter((d) => earnedByCode.has(d.code)).length;
   const pct = total ? Math.round((earnedCount / total) * 100) : 0;
 
   return (
@@ -73,9 +73,9 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
 
       {/* grid */}
       <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
-        {BADGE_CATALOG.map((type) => {
-          const { label, description, color, glyph } = getBadgeDisplay(type);
-          const awardedRaw = earnedByType.get(type);
+        {definitions.map((defn) => {
+          const { label, description, color, glyph, iconUrl } = getBadgeDisplay(defn);
+          const awardedRaw = earnedByCode.get(defn.code);
           const isEarned = awardedRaw != null;
           const awardedAt = awardedRaw
             ? new Date(awardedRaw).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })
@@ -83,7 +83,7 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
 
           return (
             <div
-              key={type}
+              key={defn.code}
               className="rounded-[18px] border border-border bg-card p-[22px] transition-opacity"
               style={{
                 opacity: isEarned ? 1 : 0.5,
@@ -91,22 +91,29 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
               }}
             >
               <div className="flex items-start gap-4">
-                <div
-                  className="grid shrink-0 place-items-center rounded-[18px] text-[28px] text-white"
-                  style={{ height: 60, width: 60, background: color, opacity: isEarned ? 1 : 0.4 }}
-                  aria-hidden
-                >
-                  {glyph}
-                </div>
+                {iconUrl ? (
+                  <img
+                    src={iconUrl}
+                    alt=""
+                    aria-hidden
+                    className="h-[60px] w-[60px] shrink-0 rounded-[18px] object-cover"
+                    style={{ opacity: isEarned ? 1 : 0.5 }}
+                  />
+                ) : (
+                  <div
+                    className="grid shrink-0 place-items-center rounded-[18px] text-[28px] text-white"
+                    style={{ height: 60, width: 60, background: color, opacity: isEarned ? 1 : 0.4 }}
+                    aria-hidden
+                  >
+                    {glyph}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-[16px] text-foreground">{label}</div>
                   <p className="text-[13px] text-muted-foreground mt-[5px] mb-[10px] leading-[1.45]">
                     {description}
                   </p>
-                  <span
-                    className="rally-display text-[13px] font-bold"
-                    style={{ color: isEarned ? undefined : "var(--muted-foreground)" }}
-                  >
+                  <span className="rally-display text-[13px] font-bold">
                     <span className={isEarned ? "rally-accent" : "text-muted-foreground"}>
                       {awardedAt ?? "Por conquistar"}
                     </span>

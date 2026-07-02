@@ -7,6 +7,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.models.badge import TeamBadge
+from app.models.badge_definition import BadgeDefinition
+
+
+def _defn(code: str, name: str) -> BadgeDefinition:
+    d = BadgeDefinition(code=code, name=name, is_active=True, is_auto=True)
+    d.description = None
+    d.icon_url = None
+    d.color = "#8b5cf6"
+    d.glyph = "★"
+    return d
 
 
 def _badge(badge_id: int, team_id: int, badge_type: str, activity_id: int) -> TeamBadge:
@@ -52,3 +62,23 @@ def test_list_team_badges(client: TestClient, monkeypatch: pytest.MonkeyPatch) -
     # Path team_id reached the service.
     assert mock.await_args is not None
     assert mock.await_args.args[1] == 7
+
+
+def test_team_badge_showcase(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Catalogue has two active badges; the team earned only the first.
+    definitions = [_defn("won_duel", "Duelo"), _defn("locked_one", "Bloqueado")]
+    earned = [_badge(1, 7, "won_duel", 99)]
+    monkeypatch.setattr(
+        "app.services.badge_service.get_showcase",
+        AsyncMock(return_value=(definitions, earned)),
+    )
+
+    resp = client.get("/api/rally/v1/teams/7/badge-showcase")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    codes = [d["code"] for d in body["definitions"]]
+    assert codes == ["won_duel", "locked_one"]  # all active, incl. locked
+    earned_codes = [e["code"] for e in body["earned"]]
+    assert earned_codes == ["won_duel"]  # only what the team holds
+    assert "locked_one" not in earned_codes

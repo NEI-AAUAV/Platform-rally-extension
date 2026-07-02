@@ -1,12 +1,18 @@
-"""Badge rules.
+"""Data-driven badge rules.
 
-Each evaluator inspects a changed activity result and returns the badges that
-should now exist. Evaluators own all *rule* logic (including single-holder
-checks); the worker owns persistence and publishing. Evaluators are pure reads
-— they never write — so re-running one is always safe.
+A badge's award behaviour is *configured*, not hardcoded: each active auto
+``BadgeDefinition`` names a ``trigger_type`` (a :class:`BadgeTrigger`) plus a
+``criteria`` dict. ``evaluate_result`` loads those definitions and dispatches to
+the matching handler, so an admin can create new auto badges from the UI with no
+code change.
 
-Add a new badge by writing an ``async def evaluate_*`` and appending it to
-``_EVALUATORS``.
+Handlers are pure reads — they never write — so re-running one is always safe.
+Each returns the badges that *should now exist*; the worker owns persistence.
+
+To add a new rule *kind*: add a ``BadgeTrigger`` value, write an
+``async def _handle_*`` taking ``(db, result, defn)``, and register it in
+``_TRIGGER_HANDLERS``. To add a badge that reuses an existing rule: pure admin
+data entry, no change here.
 """
 
 import logging
@@ -18,8 +24,8 @@ from typing import Any, Awaitable, Callable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.badges.triggers import BadgeTrigger
 from app.models.activity import Activity, ActivityResult
-from app.models.badge import BadgeType
 from app.models.badge_definition import BadgeDefinition
 from app.schemas.activity_types import ActivityType
 from app.services import badge_service
@@ -27,42 +33,43 @@ from app.services import badge_service
 logger = logging.getLogger(__name__)
 
 
-async def _is_badge_active(db: AsyncSession, badge_type: BadgeType) -> bool:
-    """Return True if the BadgeDefinition for this code is active (or missing = active).
-
-    Falls back to True on any error so a missing/misconfigured table never
-    silently disables all badges.
-    """
-    try:
-        stmt = select(BadgeDefinition.is_active).where(BadgeDefinition.code == badge_type.value)
-        result = await db.execute(stmt)
-        row = result.scalar_one_or_none()
-        return row if row is not None else True
-    except Exception:
-        return True
-
-
 @dataclass(frozen=True)
 class BadgeAward:
     """A badge that an evaluator decided a team should hold."""
 
     team_id: int
-    badge_type: BadgeType
+    badge_code: str
     activity_id: int | None = None
     checkpoint_id: int | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
 
-async def _evaluate_head_to_head_win(
-    db: AsyncSession, result: ActivityResult
+Handler = Callable[
+    [AsyncSession, ActivityResult, BadgeDefinition], Awaitable[list[BadgeAward]]
+]
+
+
+async def _handle_win_activity(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
 ) -> list[BadgeAward]:
-    """Award HEAD_TO_HEAD_WIN to a team that won a completed TeamVs match."""
-    if not await _is_badge_active(db, BadgeType.HEAD_TO_HEAD_WIN):
-        return []
+    """Award to a team that won a completed match.
+
+    Criteria (all optional):
+      - ``activity_type``: which activity type counts (default ``TeamVsActivity``).
+      - ``activity_id``: restrict to one activity; omit for any.
+    """
     if not result.is_completed:
         return []
     activity = result.activity
-    if activity is None or activity.activity_type != ActivityType.TEAM_VS.value:
+    if activity is None:
+        return []
+
+    criteria = defn.criteria or {}
+    wanted_type = criteria.get("activity_type", ActivityType.TEAM_VS.value)
+    if activity.activity_type != wanted_type:
+        return []
+    scoped_activity = criteria.get("activity_id")
+    if scoped_activity is not None and result.activity_id != scoped_activity:
         return []
     if (result.result_data or {}).get("result") != "win":
         return []
@@ -70,29 +77,33 @@ async def _evaluate_head_to_head_win(
     return [
         BadgeAward(
             team_id=result.team_id,
-            badge_type=BadgeType.HEAD_TO_HEAD_WIN,
+            badge_code=defn.code,
             activity_id=result.activity_id,
             meta={"opponent_team_id": (result.result_data or {}).get("opponent_team_id")},
         )
     ]
 
 
-async def _evaluate_first_to_complete(
-    db: AsyncSession, result: ActivityResult
+async def _handle_first_complete_activity(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
 ) -> list[BadgeAward]:
-    """Award FIRST_TO_COMPLETE_ACTIVITY to the earliest team to finish it.
+    """Award to the earliest team to finish an activity (single-holder).
 
-    Single-holder: skip if any team already holds it for this activity. The
-    triggering result may not be the earliest, so award the actual first
+    Criteria (optional):
+      - ``activity_id``: restrict to one activity; omit for any completed activity.
+
+    The triggering result may not be the earliest, so award the actual first
     finisher rather than whoever fired this event.
     """
-    if not await _is_badge_active(db, BadgeType.FIRST_TO_COMPLETE_ACTIVITY):
-        return []
     if not result.is_completed:
         return []
-    if await badge_service.badge_holder_exists(
-        db, BadgeType.FIRST_TO_COMPLETE_ACTIVITY, result.activity_id
-    ):
+
+    criteria = defn.criteria or {}
+    scoped_activity = criteria.get("activity_id")
+    if scoped_activity is not None and result.activity_id != scoped_activity:
+        return []
+
+    if await badge_service.badge_holder_exists(db, defn.code, result.activity_id):
         return []
 
     stmt = (
@@ -112,7 +123,7 @@ async def _evaluate_first_to_complete(
     return [
         BadgeAward(
             team_id=earliest.team_id,
-            badge_type=BadgeType.FIRST_TO_COMPLETE_ACTIVITY,
+            badge_code=defn.code,
             activity_id=earliest.activity_id,
             meta={
                 "completed_at": earliest.completed_at.isoformat()
@@ -123,27 +134,34 @@ async def _evaluate_first_to_complete(
     ]
 
 
-async def _evaluate_first_to_complete_checkpoint(
-    db: AsyncSession, result: ActivityResult
+async def _handle_first_complete_checkpoint(
+    db: AsyncSession, result: ActivityResult, defn: BadgeDefinition
 ) -> list[BadgeAward]:
-    """Award FIRST_TO_COMPLETE_CHECKPOINT to the first team to finish a checkpoint.
+    """Award to the first team to complete every active activity of a checkpoint.
 
-    A checkpoint is "completed" by a team when it has a completed result for
-    every active activity in that checkpoint. The winner is the team whose last
-    such result landed earliest. Single-holder per checkpoint.
+    A team "completes" a checkpoint when it has a completed result for every
+    active activity in it. Winner = team whose last such result landed earliest.
+    Single-holder per checkpoint.
+
+    Criteria (optional):
+      - ``checkpoint_id``: restrict to one checkpoint; omit for the triggering
+        result's checkpoint.
     """
-    if not await _is_badge_active(db, BadgeType.FIRST_TO_COMPLETE_CHECKPOINT):
-        return []
     if not result.is_completed:
         return []
     activity = result.activity
     if activity is None:
         return []
-    checkpoint_id = activity.checkpoint_id
 
-    if await badge_service.badge_holder_exists(
-        db, BadgeType.FIRST_TO_COMPLETE_CHECKPOINT, None, checkpoint_id
-    ):
+    criteria = defn.criteria or {}
+    checkpoint_id = criteria.get("checkpoint_id", activity.checkpoint_id)
+    if checkpoint_id is None:
+        return []
+    # If scoped to a specific checkpoint, only react to results within it.
+    if criteria.get("checkpoint_id") is not None and activity.checkpoint_id != checkpoint_id:
+        return []
+
+    if await badge_service.badge_holder_exists(db, defn.code, None, checkpoint_id):
         return []
 
     activity_ids = set(
@@ -192,35 +210,55 @@ async def _evaluate_first_to_complete_checkpoint(
     return [
         BadgeAward(
             team_id=winner_team,
-            badge_type=BadgeType.FIRST_TO_COMPLETE_CHECKPOINT,
+            badge_code=defn.code,
             checkpoint_id=checkpoint_id,
             meta={"completed_at": finished_at.isoformat()},
         )
     ]
 
 
-# Ordered registry of all result-driven evaluators.
-_EVALUATORS: list[
-    Callable[[AsyncSession, ActivityResult], Awaitable[list[BadgeAward]]]
-] = [
-    _evaluate_head_to_head_win,
-    _evaluate_first_to_complete,
-    _evaluate_first_to_complete_checkpoint,
-]
+# Registry mapping each trigger kind to its handler.
+_TRIGGER_HANDLERS: dict[BadgeTrigger, Handler] = {
+    BadgeTrigger.WIN_ACTIVITY: _handle_win_activity,
+    BadgeTrigger.FIRST_COMPLETE_ACTIVITY: _handle_first_complete_activity,
+    BadgeTrigger.FIRST_COMPLETE_CHECKPOINT: _handle_first_complete_checkpoint,
+}
+
+
+async def _load_auto_definitions(db: AsyncSession) -> list[BadgeDefinition]:
+    """Active, auto badges that have a trigger. These are the rules to run."""
+    stmt = select(BadgeDefinition).where(
+        BadgeDefinition.is_active.is_(True),
+        BadgeDefinition.is_auto.is_(True),
+        BadgeDefinition.trigger_type.is_not(None),
+    )
+    return list((await db.scalars(stmt)).all())
 
 
 async def evaluate_result(
     db: AsyncSession, result: ActivityResult
 ) -> list[BadgeAward]:
-    """Run every evaluator against a changed result and collect the awards.
+    """Run every configured auto rule against a changed result, collect awards.
 
-    A failing evaluator is logged and skipped so one bad rule never blocks the
+    A failing rule is logged and skipped so one bad definition never blocks the
     others.
     """
     awards: list[BadgeAward] = []
-    for evaluator in _EVALUATORS:
+    for defn in await _load_auto_definitions(db):
         try:
-            awards.extend(await evaluator(db, result))
+            trigger = BadgeTrigger(defn.trigger_type)
+        except ValueError:
+            logger.warning(
+                "Badge %s has unknown trigger_type %r; skipping",
+                defn.code,
+                defn.trigger_type,
+            )
+            continue
+        handler = _TRIGGER_HANDLERS.get(trigger)
+        if handler is None:
+            continue
+        try:
+            awards.extend(await handler(db, result, defn))
         except Exception:  # noqa: BLE001 — one rule must not break the rest
-            logger.exception("Badge evaluator %s failed", evaluator.__name__)
+            logger.exception("Badge rule %s (%s) failed", defn.code, trigger.value)
     return awards

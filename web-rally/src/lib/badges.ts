@@ -1,47 +1,28 @@
-import type { BadgeType } from "@/types/badge";
+import type { BadgeDefinitionLite } from "@/client";
 
-interface BadgeDisplay {
+/** Resolved display props for one badge, derived from its DB definition. */
+export interface BadgeDisplay {
   label: string;
   description: string;
   color: string;
   glyph: string;
+  iconUrl: string | null;
 }
 
-const BADGE_DISPLAY: Record<BadgeType, BadgeDisplay> = {
-  head_to_head_win: {
-    label: "Duelo Vencido",
-    description: "Venceu um confronto direto entre equipas.",
-    color: "#6366f1",
-    glyph: "⚔",
-  },
-  first_to_complete_activity: {
-    label: "Primeiro na Prova",
-    description: "Primeira equipa a completar uma prova.",
-    color: "#f59e0b",
-    glyph: "↯",
-  },
-  first_to_complete_checkpoint: {
-    label: "Primeiro no Posto",
-    description: "Primeira equipa a concluir todas as provas de um posto.",
-    color: "#1fbf6b",
-    glyph: "★",
-  },
-};
-
-/** Ordered catalogue of known badge types — drives the locked/earned showcase. */
-export const BADGE_CATALOG: BadgeType[] = [
-  "first_to_complete_checkpoint",
-  "first_to_complete_activity",
-  "head_to_head_win",
-];
-
-const FALLBACK: BadgeDisplay = {
-  label: "Conquista",
-  description: "Distinção atribuída à equipa.",
+/** Fallback visuals when a definition omits colour/glyph. */
+export const BADGE_FALLBACK = {
   color: "#8b5cf6",
   glyph: "◈",
-};
+  description: "Distinção atribuída à equipa.",
+} as const;
 
-export function getBadgeDisplay(badgeType: string): BadgeDisplay {
-  return BADGE_DISPLAY[badgeType as BadgeType] ?? FALLBACK;
+/** Map a DB badge definition to its showcase display props. */
+export function getBadgeDisplay(defn: BadgeDefinitionLite): BadgeDisplay {
+  return {
+    label: defn.name,
+    description: defn.description || BADGE_FALLBACK.description,
+    color: defn.color || BADGE_FALLBACK.color,
+    glyph: defn.glyph || BADGE_FALLBACK.glyph,
+    iconUrl: defn.icon_url ?? null,
+  };
 }

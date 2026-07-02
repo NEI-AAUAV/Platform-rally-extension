@@ -56,6 +56,57 @@ def test_create_badge_definition(admin_client: TestClient) -> None:
     assert resp.json()["code"] == "new_badge"
 
 
+def test_create_badge_definition_with_full_fields(admin_client: TestClient) -> None:
+    db_mock = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: db_mock
+    new_defn = _defn(id=3, code="fast_badge")
+    new_defn.color = "#123456"
+    new_defn.glyph = "⚡"
+    new_defn.is_auto = True
+    new_defn.trigger_type = "first_complete_activity"
+    new_defn.criteria = {"activity_id": 7}
+    created = AsyncMock(return_value=new_defn)
+    with patch("app.crud.crud_badge_definition.badge_definition.get_by_code", new=AsyncMock(return_value=None)), \
+         patch("app.crud.crud_badge_definition.badge_definition.create", new=created):
+        resp = admin_client.post(
+            "/api/rally/v1/badge-definitions",
+            json={
+                "code": "fast_badge",
+                "name": "Fast",
+                "color": "#123456",
+                "glyph": "⚡",
+                "is_auto": True,
+                "trigger_type": "first_complete_activity",
+                "criteria": {"activity_id": 7},
+            },
+        )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["color"] == "#123456"
+    assert body["trigger_type"] == "first_complete_activity"
+    assert body["criteria"] == {"activity_id": 7}
+
+
+def test_create_badge_definition_rejects_bad_trigger(admin_client: TestClient) -> None:
+    db_mock = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: db_mock
+    resp = admin_client.post(
+        "/api/rally/v1/badge-definitions",
+        json={"code": "x", "name": "X", "trigger_type": "not_a_trigger"},
+    )
+    assert resp.status_code == 422
+
+
+def test_create_badge_definition_rejects_bad_code(admin_client: TestClient) -> None:
+    db_mock = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: db_mock
+    resp = admin_client.post(
+        "/api/rally/v1/badge-definitions",
+        json={"code": "Bad Code!", "name": "X"},
+    )
+    assert resp.status_code == 422
+
+
 def test_create_badge_definition_duplicate(admin_client: TestClient) -> None:
     db_mock = AsyncMock()
     app.dependency_overrides[get_db] = lambda: db_mock

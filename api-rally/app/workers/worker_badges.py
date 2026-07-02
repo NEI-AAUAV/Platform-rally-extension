@@ -70,7 +70,7 @@ class BadgesWorker(BaseWorker):
         badge = await badge_service.award_badge(
             session,
             team_id=award.team_id,
-            badge_type=award.badge_type,
+            badge_code=award.badge_code,
             activity_id=award.activity_id,
             checkpoint_id=award.checkpoint_id,
             meta=award.meta,
@@ -79,13 +79,13 @@ class BadgesWorker(BaseWorker):
             # Already held — idempotent no-op, no event.
             return
         logger.info(
-            "[BadgesWorker] Team %s earned %s", award.team_id, award.badge_type.value
+            "[BadgesWorker] Team %s earned %s", award.team_id, award.badge_code
         )
         await publish_event(
             BadgeAwardedEvent(
                 payload=BadgeAwardedPayload(
                     team_id=award.team_id,
-                    badge_type=award.badge_type.value,
+                    badge_type=award.badge_code,
                     activity_id=award.activity_id,
                     checkpoint_id=award.checkpoint_id,
                 )

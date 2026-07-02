@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.badges.evaluators import BadgeAward
-from app.models.badge import BadgeType
 from app.workers import worker_badges
 from app.workers.worker_badges import BadgesWorker
 
@@ -32,7 +31,7 @@ async def test_awards_and_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
         BadgesWorker, "_load_result", AsyncMock(return_value=result)
     )
     award = BadgeAward(
-        team_id=10, badge_type=BadgeType.HEAD_TO_HEAD_WIN, activity_id=99
+        team_id=10, badge_code="head_to_head_win", activity_id=99
     )
     monkeypatch.setattr(
         worker_badges, "evaluate_result", AsyncMock(return_value=[award])
@@ -65,7 +64,7 @@ async def test_no_publish_when_already_held(monkeypatch: pytest.MonkeyPatch) -> 
         "evaluate_result",
         AsyncMock(
             return_value=[
-                BadgeAward(team_id=1, badge_type=BadgeType.HEAD_TO_HEAD_WIN)
+                BadgeAward(team_id=1, badge_code="head_to_head_win")
             ]
         ),
     )
