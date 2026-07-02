@@ -44,8 +44,10 @@ async def _get_checkpoints_for_team(
     team = await crud.team.get(db=db, id=team_id)
     if not team:
         return []
-    completed_count = len(team.times)
-    return _validate_list(all_checkpoints[: completed_count + 1])
+    from app.api.api_v1.team import _compute_checkpoint_progress  # noqa: PLC0415
+
+    _, current_order, _ = await _compute_checkpoint_progress(db, team)
+    return _validate_list([cp for cp in all_checkpoints if cp.order <= current_order])
 
 
 async def _get_checkpoints_for_public(

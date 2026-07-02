@@ -12,6 +12,7 @@ interface TeamMember {
   name: string;
   email?: string;
   is_captain: boolean;
+  is_linked?: boolean;
 }
 
 type MemberListProps = Readonly<{
@@ -88,15 +89,22 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                 </div>
                 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLinkingId((id) => (id === member.id ? null : member.id))}
-                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-600/20"
-                  >
-                    <Link2 className="w-4 h-4 mr-2" />
-                    {linkingId === member.id ? "Cancelar" : "Ligar conta NEI"}
-                  </Button>
+                  {member.is_linked ? (
+                    <Badge variant="outline" className="bg-emerald-600/20 text-emerald-300 border-emerald-500">
+                      <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                      Conta NEI associada
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLinkingId((id) => (id === member.id ? null : member.id))}
+                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-600/20"
+                    >
+                      <Link2 className="w-4 h-4 mr-2" />
+                      {linkingId === member.id ? "Cancelar" : "Ligar conta NEI"}
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

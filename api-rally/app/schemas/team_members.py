@@ -17,7 +17,8 @@ class TeamMemberResponse(BaseModel):
     name: str
     email: Optional[str] = None
     is_captain: bool = False
-    
+    is_linked: bool = False
+
     class Config:
         from_attributes = True
 

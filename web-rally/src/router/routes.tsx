@@ -112,6 +112,18 @@ const teamMembersRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/team-members")),
 });
 
+const teamSettingsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/team-settings",
+  component: lazyRouteComponent(() => import("@/pages/team-settings")),
+});
+
+const teamInfoRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/team-info",
+  component: lazyRouteComponent(() => import("@/pages/team-info")),
+});
+
 const guideRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/guide",
@@ -149,6 +161,8 @@ export const routeTree = rootRoute.addChildren([
     teamProgressRoute,
     conquistasRoute,
     settingsRoute,
+    teamSettingsRoute,
+    teamInfoRoute,
     teamMembersRoute,
     staffEvaluationRoute,
     checkpointEvaluationRoute,

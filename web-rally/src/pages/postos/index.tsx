@@ -36,6 +36,8 @@ export default function Postos() {
       scopes.includes("rally:admin") ||
       scopes.includes("rally-staff"));
 
+  const canViewPostos = isPrivileged || settings?.show_checkpoint_map === true;
+
   // Fetch checkpoints (always call hooks before any early returns)
   const { data: checkpoints, isLoading } = useQuery({
     queryKey: ["checkpoints"],
@@ -43,11 +45,11 @@ export default function Postos() {
       const response = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
       return response;
     },
-    enabled: !isTeamAuthenticated || isPrivileged,
+    enabled: !isTeamAuthenticated || canViewPostos,
   });
 
-  // Redirect team users to their progress page ONLY if they are not privileged
-  if (isTeamAuthenticated && !isPrivileged) {
+  // Redirect team users to their progress page unless admin allows the checkpoint map for teams
+  if (isTeamAuthenticated && !canViewPostos) {
     return <Navigate to="/team-progress" replace />;
   }
 

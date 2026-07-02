@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class UserBase(BaseModel):
@@ -24,6 +24,23 @@ class ListingUser(UserBase):
 
     id: int
     name: str
+    # True once this member has linked a real NEI (OIDC) account. Derived
+    # from authentik_sub on the underlying User row; the sub itself is never
+    # exposed here.
+    is_linked: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_is_linked(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+        return {
+            "id": data.id,
+            "name": data.name,
+            "team_id": data.team_id,
+            "is_captain": data.is_captain,
+            "is_linked": getattr(data, "authentik_sub", None) is not None,
+        }
 
 
 class DetailedUser(UserBase):

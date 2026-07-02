@@ -53,4 +53,23 @@ export class TeamMemberLinkService {
       errors: { 404: "Not found", 422: "Validation Error" },
     });
   }
+
+  /**
+   * Self-serve link: whoever is holding the team access-code session claims
+   * a placeholder slot in that team using the NEI account they just logged
+   * in with. Authenticated by the OIDC bearer alone (the team token is no
+   * longer sent once the OIDC login completes), so `teamId` must be passed
+   * explicitly — captured by the caller before the OIDC redirect.
+   */
+  public static linkSelf(
+    teamId: number,
+    placeholderUserId: number,
+  ): CancelablePromise<LinkedMemberResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/rally/v1/team/{team_id}/members/{user_id}/link-self",
+      path: { team_id: teamId, user_id: placeholderUserId },
+      errors: { 401: "Unauthorized", 404: "Not found", 422: "Validation Error" },
+    });
+  }
 }

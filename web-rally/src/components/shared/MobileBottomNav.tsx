@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Trophy, MapPin, Users, Award, QrCode, X, ShieldCheck, ClipboardCheck, Compass } from "lucide-react";
+import { Home, Trophy, MapPin, Users, Award, QrCode, X, ShieldCheck, ClipboardCheck, Compass, Settings } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/useUserStore";
@@ -52,8 +52,10 @@ export function MobileBottomNav() {
     ? [
         { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
+        { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
         { name: "Conquistas", href: "/conquistas", Icon: Award, show: true },
-        { name: "Equipa", href: "/team-login", Icon: Users, show: true },
+        { name: "Equipa", href: "/team-info", Icon: Users, show: true },
+        { name: "Definições", href: "/team-settings", Icon: Settings, show: true },
       ].filter((i) => i.show)
     : [
         { name: "Início", href: "/", Icon: Home, show: true },
