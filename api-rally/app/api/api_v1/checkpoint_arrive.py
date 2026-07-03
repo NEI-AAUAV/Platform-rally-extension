@@ -117,40 +117,33 @@ async def arrive_at_checkpoint(
             CheckpointArrival.checkpoint_id == checkpoint_id,
         )
     )
-    if existing.scalars().first():
-        return ArriveResponse(
-            team_id=team.team_id,
-            checkpoint_id=checkpoint_id,
-            distance_m=round(dist, 1),
-            already_registered=True,
-        )
+    already_registered = existing.scalars().first() is not None
 
-    arrival = CheckpointArrival(
-        team_id=team.team_id,
-        checkpoint_id=checkpoint_id,
-        latitude=body.latitude,
-        longitude=body.longitude,
-    )
-    db.add(arrival)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        return ArriveResponse(
+    if not already_registered:
+        arrival = CheckpointArrival(
             team_id=team.team_id,
             checkpoint_id=checkpoint_id,
-            distance_m=round(dist, 1),
-            already_registered=True,
+            latitude=body.latitude,
+            longitude=body.longitude,
         )
+        db.add(arrival)
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            already_registered = True
 
     # No-activity posts complete immediately on arrival; posts with activities
-    # wait for staff to submit the result before the team advances.
+    # wait for staff to submit the result before the team advances. Run this on
+    # every check-in (including repeats): the order guard inside makes it a
+    # no-op once the team has already advanced, so a team that arrived before
+    # this behaviour existed still gets unstuck on their next check-in.
     auto_completed = await _auto_complete_if_no_activities(db, team.team_id, checkpoint_id)
 
     return ArriveResponse(
         team_id=team.team_id,
         checkpoint_id=checkpoint_id,
         distance_m=round(dist, 1),
-        already_registered=False,
+        already_registered=already_registered,
         auto_completed=auto_completed,
     )

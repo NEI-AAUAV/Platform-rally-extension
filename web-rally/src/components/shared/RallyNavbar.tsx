@@ -151,13 +151,17 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
         </div>
 
         {/* Nav links (desktop inline / mobile overflow live inside NavTabs) */}
-        <div className="flex flex-1 justify-end sm:justify-center">
+        <div className="flex flex-1 items-center justify-end gap-2 sm:justify-center">
+          {/* Lamp sits left of the hamburger on mobile */}
+          <ColorModeToggle className="sm:hidden" />
           <NavTabs />
         </div>
 
-        {/* Controls */}
+        {/* Controls. On mobile the lamp moves next to the hamburger and the
+            logged-out login buttons live in the sidebar, so this slot only
+            shows the desktop lamp plus the (mobile-aware) user menu. */}
         <div className="flex shrink-0 items-center gap-2">
-          <ColorModeToggle />
+          <ColorModeToggle className="hidden sm:inline-flex" />
           <UserMenu />
         </div>
       </nav>

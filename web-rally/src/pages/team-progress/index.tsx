@@ -72,14 +72,14 @@ export default function TeamProgress() {
             showScore={showScore}
           />
 
-          {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
-
           {showMap && checkpoints && checkpoints.length > 0 && (
             <MapSection
               checkpoints={checkpoints}
               selectedCheckpoint={nextCheckpoint ?? null}
             />
           )}
+
+          {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
         </div>
 
         {checkpoints && checkpoints.length > 0 && (

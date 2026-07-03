@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Navigation, LocateFixed, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { MapPin, LocateFixed, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import type { DetailedCheckPoint } from "@/client";
 import { CheckpointArriveService } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
@@ -12,6 +13,15 @@ type NextCheckpointCardProps = Readonly<{
 }>;
 
 type GpsState = "idle" | "locating" | "done" | "error";
+
+/** "Too far from checkpoint: 240m (max 50m)" → friendly PT message. */
+function traduzirDistancia(detail: string): string {
+  const m = detail.match(/(\d+)m.*max\s+(\d+)m/);
+  if (m) {
+    return `Ainda estás longe do posto: ${m[1]} m (tens de estar a menos de ${m[2]} m). Aproxima-te e tenta outra vez.`;
+  }
+  return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
+}
 
 export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
@@ -40,7 +50,12 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       setGpsState("done");
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Erro ao registar check-in.";
+      // ApiError.message is a generic "Bad Request"; the useful text
+      // ("Too far from checkpoint: …") lives in body.detail.
+      const raw = getErrorMessage(err, "Erro ao registar check-in.");
+      const msg = raw.startsWith("Too far from checkpoint")
+        ? traduzirDistancia(raw)
+        : raw;
       setGpsMsg(msg);
       setGpsState("error");
     },
@@ -86,22 +101,11 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       </div>
 
       {showMap && hasCoords && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 shrink-0" />
-            <span className="font-mono">
-              {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
-            </span>
-          </div>
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rally-bg-accent rally-press flex items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold text-white transition-all hover:brightness-110"
-          >
-            <Navigation className="h-5 w-5" />
-            Abrir no Google Maps
-          </a>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4 shrink-0" />
+          <span className="font-mono">
+            {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
+          </span>
         </div>
       )}
 

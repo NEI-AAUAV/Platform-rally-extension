@@ -3,11 +3,12 @@ import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShieldCheck, Users, ChevronDown } from "lucide-react";
+import { Menu, X, ShieldCheck, Users, ChevronDown, UserPlus, LogIn } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
+import useStaffLogin from "@/hooks/useLoginLink";
 
 type NavTabsProps = ComponentProps<"ul">;
 
@@ -100,6 +101,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { scopes } = useUserStore((state) => state);
   const { settings } = useRallySettings();
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
+  const onStaffLogin = useStaffLogin();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -150,8 +152,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
 
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
     { name: checkpointsLabel, href: "/postos", show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true) },
-    { name: "Login", href: "/team-login", show: !showTeamView && !isTeamAuthenticated && scopes === undefined },
   ].filter((item) => item.show);
+
+  const isLoggedOut = !isTeamAuthenticated && scopes === undefined;
 
   // Admin sees /admin (everything consolidated); staff sees evaluation + members; guides see guide page
   const management: NavLink[] = [
@@ -244,6 +247,40 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           </div>
           <ul className="flex-1 space-y-0.5 overflow-y-auto p-3">
             {primary.map((item) => renderLink(item, true))}
+            {isLoggedOut && (
+              <li className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onStaffLogin({ mode: "registration" });
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Registar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onStaffLogin({ mode: "login" });
+                  }}
+                  className="rally-bg-accent flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Iniciar sessão
+                </button>
+                <Link
+                  to="/team-login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+                >
+                  <Users className="h-4 w-4" />
+                  Código de Equipa
+                </Link>
+              </li>
+            )}
             {management.length > 0 && (
               <>
                 <li className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">

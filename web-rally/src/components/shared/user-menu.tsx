@@ -16,7 +16,9 @@ export function UserMenu() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center gap-2">
+      // Login buttons render inline on desktop; on mobile they live in the
+      // hamburger sidebar (see nav-tabs.tsx), so hide this block there.
+      <div className="hidden items-center gap-2 sm:flex">
         <Button
           type="button"
           size="sm"
