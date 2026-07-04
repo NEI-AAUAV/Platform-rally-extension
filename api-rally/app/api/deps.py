@@ -7,6 +7,7 @@ from jose import jwt, JWTError
 
 from app import crud
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.db.session import SessionLocal
 from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
@@ -58,6 +59,10 @@ async def get_current_user(
         staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+    if "rally-guide" in auth.scopes:
+        guide_assignment = await rally_guide_assignment.get_by_user_id(db, user.id)
+        if guide_assignment:
+            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
 
     return detailed_user
 
@@ -98,6 +103,10 @@ async def get_current_user_optional(
         staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+    if "rally-guide" in auth.scopes:
+        guide_assignment = await rally_guide_assignment.get_by_user_id(db, user.id)
+        if guide_assignment:
+            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
 
     return detailed_user
 

@@ -76,6 +76,12 @@ const assignmentRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/assignment")),
 });
 
+const guideAssignmentRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/guide-assignment",
+  component: lazyRouteComponent(() => import("@/pages/guide-assignment")),
+});
+
 const versusRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/versus",
@@ -156,6 +162,7 @@ export const routeTree = rootRoute.addChildren([
     teamByIdRoute,
     adminRoute,
     assignmentRoute,
+    guideAssignmentRoute,
     versusRoute,
     teamLoginRoute,
     teamProgressRoute,

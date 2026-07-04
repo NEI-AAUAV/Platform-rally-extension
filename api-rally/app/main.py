@@ -73,14 +73,21 @@ async def rally_error_handler(request: Request, exc: RallyError) -> ORJSONRespon
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> ORJSONResponse:
-    """Log validation errors for debugging"""
-    logger.error(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
-    body = await request.body()
-    body_str = body.decode('utf-8') if body else 'empty'
-    logger.error(f"Request body: {body_str}")
+    """Log validation errors for debugging.
+
+    Logs only the field-level error list (which omits raw input values), never
+    the raw request body — bodies can carry access codes / bearer tokens.
+    """
+    # Strip the offending input value (and ctx, which can echo it) so secrets
+    # never reach the logs or the error response.
+    safe_errors = [
+        {k: v for k, v in err.items() if k not in ("input", "ctx")}
+        for err in exc.errors()
+    ]
+    logger.error(f"Validation error on {request.method} {request.url.path}: {safe_errors}")
     return ORJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()}
+        content={"detail": safe_errors}
     )
 # CORSMiddleware works correctly at runtime, but mypy type stubs for Starlette 0.50 are outdated
 app.add_middleware(
@@ -90,6 +97,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """Attach baseline security response headers.
+
+    HSTS is only sent in production (over HTTPS) — asserting it over plain HTTP
+    in dev would pin browsers to https://localhost.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if settings.PRODUCTION:
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains",
+        )
+    return response
+
 
 app.mount(settings.STATIC_STR, StaticFiles(directory="static"), name="static")
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)

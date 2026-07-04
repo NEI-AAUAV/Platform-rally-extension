@@ -2,9 +2,11 @@ from .crud_team import team, CRUDTeam
 from .crud_checkpoint import checkpoint
 from .crud_user import user
 from .crud_rally_staff_assignment import rally_staff_assignment
+from .crud_rally_guide_assignment import rally_guide_assignment
 from .crud_activity import activity, activity_result, rally_event
 from .crud_participation import participation
 from .crud_checkpoint_media import checkpoint_media
+from .crud_checkpoint_guide_indication import checkpoint_guide_indication
 from app.models.team import Team
 
 __all__ = [
@@ -12,11 +14,13 @@ __all__ = [
     "checkpoint",
     "user",
     "rally_staff_assignment",
+    "rally_guide_assignment",
     "activity",
     "activity_result",
     "rally_event",
     "participation",
     "checkpoint_media",
+    "checkpoint_guide_indication",
     "Team",
     "CRUDTeam",
 ]

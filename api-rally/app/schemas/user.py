@@ -50,4 +50,5 @@ class DetailedUser(UserBase):
     name: str
     disabled: bool
     staff_checkpoint_id: Optional[int] = None
+    guide_checkpoint_id: Optional[int] = None
     scopes: Optional[list[str]] = []

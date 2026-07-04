@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint } from "./useCheckpointManagement";
 import CheckpointMediaManager from "./CheckpointMediaManager";
+import CheckpointGuideIndicationsManager from "./CheckpointGuideIndicationsManager";
 
 type CheckpointListItemProps = Readonly<{
   checkpoint: Checkpoint;
@@ -91,6 +92,7 @@ export default function CheckpointListItem({
       {showMedia && (
         <div className="border border-t-0 border-border bg-card/40 rounded-b-xl p-4 sm:p-6">
           <CheckpointMediaManager checkpointId={checkpoint.id} />
+          <CheckpointGuideIndicationsManager checkpointId={checkpoint.id} />
         </div>
       )}
     </div>

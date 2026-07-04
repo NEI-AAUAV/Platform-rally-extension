@@ -7,8 +7,10 @@ from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.models.rally_staff_assignment import RallyStaffAssignment
+    from app.models.rally_guide_assignment import RallyGuideAssignment
     from app.models.activity import Activity
     from app.models.checkpoint_media import CheckpointMedia
+    from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 
 
 class CheckPoint(Base):
@@ -34,6 +36,8 @@ class CheckPoint(Base):
 
     # Relationship to staff assignments
     staff_assignments: Mapped[List["RallyStaffAssignment"]] = relationship("RallyStaffAssignment", back_populates="checkpoint")
+
+    guide_assignments: Mapped[List["RallyGuideAssignment"]] = relationship("RallyGuideAssignment", back_populates="checkpoint")
     
     # Relationship to activities
     activities: Mapped[List["Activity"]] = relationship("Activity", back_populates="checkpoint")
@@ -43,4 +47,11 @@ class CheckPoint(Base):
         back_populates="checkpoint",
         cascade="all, delete-orphan",
         order_by="CheckpointMedia.order",
+    )
+
+    guide_indications: Mapped[List["CheckpointGuideIndication"]] = relationship(
+        "CheckpointGuideIndication",
+        back_populates="checkpoint",
+        cascade="all, delete-orphan",
+        order_by="CheckpointGuideIndication.order",
     )

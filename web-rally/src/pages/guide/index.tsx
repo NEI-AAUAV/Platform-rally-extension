@@ -1,14 +1,21 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
-import { BookOpen, MapPin, ChevronDown, ChevronUp, Image } from "lucide-react";
-import { GuideService, type GuideCheckpointResponse, type GuideMediaItem } from "@/client";
-import { useUserStore } from "@/stores/useUserStore";
+import { BookOpen, MapPin, ChevronDown, ChevronUp, Image, Lightbulb, Compass, HelpCircle, CheckCircle2 } from "lucide-react";
+import {
+  GuideService,
+  type GuideCheckpointResponse,
+  type GuideMediaItem,
+  type GuideIndicationItem,
+} from "@/client";
 import { LoadingState } from "@/components/shared";
-import useRallySettings from "@/hooks/useRallySettings";
+import useGuideAccess from "@/hooks/useGuideAccess";
 
 function MediaGallery({ media }: { media: GuideMediaItem[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const photos = media.filter((m) => m.kind === "photo" && m.url);
+  const funFacts = media.filter((m) => m.kind === "fun_fact");
 
   if (media.length === 0) {
     return (
@@ -21,35 +28,45 @@ function MediaGallery({ media }: { media: GuideMediaItem[] }) {
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        {media
-          .slice()
-          .sort((a, b) => a.display_order - b.display_order)
-          .map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setLightbox(item.url)}
-              className="rally-press shrink-0 overflow-hidden rounded-lg ring-1 ring-border focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {item.kind === "image" ? (
+      {photos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {photos
+            .slice()
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setLightbox(item.url)}
+                className="rally-press shrink-0 overflow-hidden rounded-lg ring-1 ring-border focus:outline-none focus:ring-2 focus:ring-primary"
+              >
                 <img
-                  src={item.url}
-                  alt={item.caption ?? `Media ${item.id}`}
+                  src={item.url ?? undefined}
+                  alt={item.caption ?? `Foto ${item.id}`}
                   className="h-24 w-24 object-cover sm:h-32 sm:w-32"
                   loading="lazy"
                 />
-              ) : (
-                <video
-                  src={item.url}
-                  className="h-24 w-24 object-cover sm:h-32 sm:w-32"
-                  muted
-                  preload="metadata"
-                />
-              )}
-            </button>
-          ))}
-      </div>
+              </button>
+            ))}
+        </div>
+      )}
+
+      {funFacts.length > 0 && (
+        <ul className="space-y-1.5">
+          {funFacts
+            .slice()
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((item) => (
+              <li
+                key={item.id}
+                className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+              >
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>{item.caption}</span>
+              </li>
+            ))}
+        </ul>
+      )}
 
       {lightbox && (
         <div
@@ -64,6 +81,45 @@ function MediaGallery({ media }: { media: GuideMediaItem[] }) {
         </div>
       )}
     </>
+  );
+}
+
+function IndicationList({ indications }: { indications: GuideIndicationItem[] }) {
+  if (indications.length === 0) return null;
+
+  return (
+    <section className="space-y-2">
+      <p className="rally-accent flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">
+        <Compass className="h-3.5 w-3.5" /> Indicações do guia
+      </p>
+      <ol className="space-y-2">
+        {indications
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .map((ind) => (
+            <li
+              key={ind.id}
+              className="rounded-xl border border-primary/20 bg-primary/5 p-3"
+            >
+              <p className="text-sm font-semibold leading-snug text-foreground">
+                {ind.hint}
+              </p>
+              {ind.question && (
+                <p className="mt-2 flex items-start gap-1.5 text-sm text-foreground">
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>{ind.question}</span>
+                </p>
+              )}
+              {ind.expected_answer && (
+                <p className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  <span>{ind.expected_answer}</span>
+                </p>
+              )}
+            </li>
+          ))}
+      </ol>
+    </section>
   );
 }
 
@@ -100,6 +156,7 @@ function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
           {cp.description && (
             <p className="text-sm text-muted-foreground">{cp.description}</p>
           )}
+          <IndicationList indications={cp.indications} />
           <MediaGallery media={cp.media} />
         </div>
       )}
@@ -108,30 +165,15 @@ function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
 }
 
 export default function GuidePage() {
-  const scopes = useUserStore((s) => s.scopes);
-  const sessionLoading = useUserStore((s) => s.sessionLoading);
-  const { settings, isLoading: settingsLoading } = useRallySettings();
-
-  const hasGuideRole =
-    scopes?.includes("rally-guide") ||
-    scopes?.includes("rally-staff") ||
-    scopes?.includes("admin") ||
-    scopes?.includes("manager-rally") ||
-    scopes?.includes("rally:admin");
-
-  const showGuideFeature =
-    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
-    settings?.event_type === "peddy_paper";
-
-  const isAllowed = hasGuideRole && showGuideFeature;
+  const { isAllowed, isLoading: accessLoading } = useGuideAccess();
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({
     queryKey: ["guide-checkpoints"],
     queryFn: () => GuideService.listGuideCheckpointsApiRallyV1GuideCheckpointsGet(),
-    enabled: !!isAllowed,
+    enabled: isAllowed,
   });
 
-  if (sessionLoading || settingsLoading) return <LoadingState message="A carregar…" />;
+  if (accessLoading) return <LoadingState message="A carregar…" />;
   if (!isAllowed) return <Navigate to="/" replace />;
   if (isLoading) return <LoadingState message="A carregar postos do guia…" />;
 

@@ -13,6 +13,7 @@ from app.api.abac_deps import require_team_management_permission
 from app.core.config import settings
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
+from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
 from app.models.user import User
 
 router = APIRouter()
@@ -189,3 +190,92 @@ async def update_checkpoint_assignment(
             )
     except Exception as e:
         raise RallyValidationError(f"Failed to update checkpoint assignment: {str(e)}")
+
+
+@router.get("/guide-assignments")
+async def get_guide_assignments(
+    *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
+) -> List[RallyGuideAssignmentWithCheckpoint]:
+    """
+    Get all rally-guide users and their checkpoint assignments.
+
+    Mirrors the staff-assignment flow: members of the Authentik guide group
+    are fetched live and mirrored locally, so an account shows up as soon as
+    it is added to the group, with no prior login required.
+    """
+    group_members = await authentik_client.list_group_members(settings.OIDC_GUIDE_GROUP)
+    for member in group_members:
+        await crud.user.get_or_create_mirror(
+            db,
+            name=member.name,
+            email=member.email,
+            scope="rally-guide",
+        )
+
+    stmt = select(User).where(User.scopes.contains(['rally-guide']))
+    rally_guide_users = (await db.scalars(stmt)).all()
+
+    existing_assignments = await crud.rally_guide_assignment.get_multi_with_checkpoint(db)
+    assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
+
+    result = []
+    for user in rally_guide_users:
+        user_id = user.id
+        assignment = assignment_map.get(user_id)
+
+        if assignment:
+            assignment_data = {
+                "id": assignment.id,
+                "user_id": user_id,
+                "user_name": user.name,
+                "user_email": user.email,
+                "checkpoint_id": assignment.checkpoint_id,
+                "checkpoint_name": assignment.checkpoint.name if assignment.checkpoint else None,
+                "checkpoint_description": assignment.checkpoint.description if assignment.checkpoint else None,
+            }
+        else:
+            assignment_data = {
+                "id": 0,
+                "user_id": user_id,
+                "user_name": user.name,
+                "user_email": user.email,
+                "checkpoint_id": None,
+                "checkpoint_name": None,
+                "checkpoint_description": None,
+            }
+
+        result.append(RallyGuideAssignmentWithCheckpoint(**assignment_data))
+
+    return result
+
+
+@router.put("/{user_id}/guide-checkpoint-assignment")
+async def update_guide_checkpoint_assignment(
+    *,
+    db: AsyncSession = Depends(get_db),
+    user_id: int,
+    assignment: CheckpointAssignmentUpdate,
+    _: DetailedUser = Depends(get_admin)
+) -> RallyGuideAssignmentWithCheckpoint:
+    """Update a guide user's checkpoint assignment."""
+    try:
+        updated_assignment = await crud.rally_guide_assignment.create_or_update(
+            db=db, user_id=user_id, checkpoint_id=assignment.checkpoint_id
+        )
+
+        if updated_assignment:
+            assignment_data = {
+                "id": updated_assignment.id,
+                "user_id": updated_assignment.user_id,
+                "checkpoint_id": updated_assignment.checkpoint_id,
+                "checkpoint_name": updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
+                "checkpoint_description": updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
+            }
+            return RallyGuideAssignmentWithCheckpoint(**assignment_data)
+        else:
+            return RallyGuideAssignmentWithCheckpoint(
+                id=0, user_id=user_id, checkpoint_id=None,
+                checkpoint_name=None, checkpoint_description=None
+            )
+    except Exception as e:
+        raise RallyValidationError(f"Failed to update guide checkpoint assignment: {str(e)}")

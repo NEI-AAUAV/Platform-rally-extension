@@ -5,6 +5,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import { useState, useEffect, useRef } from "react";
 import { Menu, X, ShieldCheck, Users, ChevronDown, UserPlus, LogIn } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
+import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -110,9 +111,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff || isGuide;
-  const showGuideFeature =
-    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
-    settings?.event_type === "peddy_paper";
+  const { showGuideFeature } = useGuideAccess();
   const isDualRole = isPrivileged && isTeamAuthenticated;
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {

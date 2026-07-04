@@ -143,6 +143,44 @@ class Settings(BaseSettings):
     TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = int(
         os.getenv("TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300")
     )
+    ## Coarse rate limit for authenticated write/verify endpoints (per client,
+    ## per window). Higher than login: legitimate teams check in repeatedly.
+    WRITE_RATE_LIMIT_ATTEMPTS: int = int(
+        os.getenv("WRITE_RATE_LIMIT_ATTEMPTS", "60")
+    )
+    WRITE_RATE_LIMIT_WINDOW_SECONDS: int = int(
+        os.getenv("WRITE_RATE_LIMIT_WINDOW_SECONDS", "60")
+    )
+
+    ## Reverse-proxy hops we trust to set X-Forwarded-For. Comma-separated list
+    ## of proxy IPs (e.g. "10.0.0.1,10.0.0.2"). Empty (default) => never trust
+    ## the header, always use the direct peer address. Prevents both spoofed
+    ## client IPs and proxy-collapse over-blocking.
+    TRUSTED_PROXIES: list[str] = []
+
+    @field_validator("TRUSTED_PROXIES", mode="before")
+    @classmethod
+    def assemble_trusted_proxies(cls, v: Any) -> list[str] | Any:
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
+
+    ## OIDC JWKS cache TTL (seconds). The resource server caches the provider
+    ## keyset instead of refetching it on every token validation; a cache miss
+    ## on an unknown signing key forces a refresh to support key rotation.
+    OIDC_JWKS_CACHE_TTL_SECONDS: int = int(
+        os.getenv("OIDC_JWKS_CACHE_TTL_SECONDS", "600")
+    )
+    ## Algorithms the resource server accepts for provider tokens. Pinned so a
+    ## token cannot dictate its own (alg-confusion / "none" defence).
+    OIDC_ALLOWED_ALGORITHMS: list[str] = ["RS256"]
+
+    @field_validator("OIDC_ALLOWED_ALGORITHMS", mode="before")
+    @classmethod
+    def assemble_oidc_algs(cls, v: Any) -> list[str] | Any:
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
 
     @field_validator("TEAM_JWT_SECRET_KEY")
     @classmethod

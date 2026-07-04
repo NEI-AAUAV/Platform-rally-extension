@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/useUserStore";
 import useRallySettings from "@/hooks/useRallySettings";
+import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -35,9 +36,7 @@ export function MobileBottomNav() {
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff;
-  const showGuideFeature =
-    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
-    settings?.event_type === "peddy_paper";
+  const { showGuideFeature } = useGuideAccess();
 
   const showScore = settings?.show_score_mode !== "hidden";
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;

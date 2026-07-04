@@ -12,6 +12,7 @@ import {
   Swords,
   UserCog,
   ClipboardCheck,
+  Compass,
   LayoutDashboard,
   Gavel,
   Trophy,
@@ -34,6 +35,7 @@ import {
 import { CheckPointService } from "@/client";
 import RallySettings from "@/pages/settings";
 import Assignment from "@/pages/assignment";
+import GuideAssignment from "@/pages/guide-assignment";
 import Versus from "@/pages/versus";
 import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
@@ -53,6 +55,7 @@ type TabId =
   | "activities"
   | "members"
   | "assignment"
+  | "guide-assignment"
   | "evaluation"
   | "versus"
   | "badges"
@@ -69,6 +72,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
   { id: "activities", label: "Atividades", icon: ActivityIcon },
   { id: "members", label: "Membros", icon: UserCog },
   { id: "assignment", label: "Atribuições", icon: ClipboardList },
+  { id: "guide-assignment", label: "Guias", icon: Compass },
   { id: "evaluation", label: "Avaliação", icon: ClipboardCheck },
   { id: "versus", label: "Versus", icon: Swords },
   { id: "judging", label: "Julgamento", icon: Gavel },
@@ -148,6 +152,7 @@ export default function Admin() {
           {activeTab === "events" && <EventsManagement />}
           {activeTab === "members" && <TeamMembers embedded />}
           {activeTab === "assignment" && <Assignment embedded />}
+          {activeTab === "guide-assignment" && <GuideAssignment embedded />}
           {activeTab === "versus" && <Versus embedded />}
           {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
           {activeTab === "judging" && <DeferredJudgingTab />}

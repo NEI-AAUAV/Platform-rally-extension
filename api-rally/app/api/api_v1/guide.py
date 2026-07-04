@@ -30,9 +30,19 @@ router = APIRouter()
 class GuideMediaItem(BaseModel):
     id: int
     kind: str
-    url: str
+    url: Optional[str]
     caption: Optional[str]
     display_order: int
+
+    model_config = {"from_attributes": True}
+
+
+class GuideIndicationItem(BaseModel):
+    id: int
+    hint: str
+    question: Optional[str]
+    expected_answer: Optional[str]
+    order: int
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +55,7 @@ class GuideCheckpointResponse(BaseModel):
     latitude: Optional[float]
     longitude: Optional[float]
     media: List[GuideMediaItem]
+    indications: List[GuideIndicationItem]
 
     model_config = {"from_attributes": True}
 
@@ -71,7 +82,10 @@ async def list_guide_checkpoints(
     stmt = (
         select(CheckPoint)
         .where(event_filter)
-        .options(selectinload(CheckPoint.media))
+        .options(
+            selectinload(CheckPoint.media),
+            selectinload(CheckPoint.guide_indications),
+        )
         .order_by(CheckPoint.order)
     )
     checkpoints = list((await db.scalars(stmt)).all())
@@ -87,12 +101,22 @@ async def list_guide_checkpoints(
             media=[
                 GuideMediaItem(
                     id=m.id,
-                    kind=m.kind,
-                    url=m.url,
+                    kind=m.kind.value if hasattr(m.kind, "value") else m.kind,
+                    url=m.image_url,
                     caption=m.caption,
-                    display_order=m.display_order,
+                    display_order=m.order,
                 )
-                for m in sorted(cp.media, key=lambda m: m.display_order)
+                for m in sorted(cp.media, key=lambda m: m.order)
+            ],
+            indications=[
+                GuideIndicationItem(
+                    id=i.id,
+                    hint=i.hint,
+                    question=i.question,
+                    expected_answer=i.expected_answer,
+                    order=i.order,
+                )
+                for i in sorted(cp.guide_indications, key=lambda i: i.order)
             ],
         )
         for cp in checkpoints

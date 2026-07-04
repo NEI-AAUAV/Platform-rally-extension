@@ -1,9 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TeamLoginRequest(BaseModel):
     """Request schema for team login"""
-    access_code: str
+
+    # Access codes are generated as XXXX-XXXX (uppercase A-Z / 0-9), see
+    # crud_team._generate_access_code. Constrain the input to that exact shape
+    # so malformed / oversized guesses are rejected before the DB lookup.
+    access_code: str = Field(pattern=r"^[A-Z0-9]{4}-[A-Z0-9]{4}$")
 
 
 class TeamLoginResponse(BaseModel):

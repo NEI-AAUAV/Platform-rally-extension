@@ -8,14 +8,20 @@ JWKS fetching. It never mints its own tokens.
 Ported from the nei-gamification-system api-game auth module.
 """
 
+import time
 from typing import Any, Dict
 
 import httpx
-from authlib.jose import jwt
+from authlib.jose import JsonWebToken
 from authlib.jose.errors import JoseError
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+
+# Pin the accepted JWS algorithms at the decoder level so a token cannot
+# dictate its own algorithm (alg-confusion / "none" defence). authlib rejects
+# any token whose header alg is outside this allowlist.
+_jwt = JsonWebToken(settings.OIDC_ALLOWED_ALGORITHMS)
 
 
 class OIDCJWTValidator:
@@ -24,9 +30,15 @@ class OIDCJWTValidator:
     def __init__(self) -> None:
         self._jwks_uri: str | None = None
         self._issuer: str | None = None
+        self._jwks: Dict[str, Any] | None = None
+        self._jwks_fetched_at: float = 0.0
 
     async def _get_oidc_config(self) -> Dict[str, Any]:
-        """Fetch (and cache) the OIDC discovery document."""
+        """Fetch (and cache) the OIDC discovery document.
+
+        The expected issuer is normalised once here (docker→localhost) so the
+        hot validation path compares against a ready value.
+        """
         if self._jwks_uri and self._issuer:
             return {"jwks_uri": self._jwks_uri, "issuer": self._issuer}
 
@@ -41,7 +53,9 @@ class OIDCJWTValidator:
                 oidc_config = response.json()
 
             self._jwks_uri = oidc_config["jwks_uri"]
-            self._issuer = oidc_config["issuer"]
+            self._issuer = oidc_config["issuer"].replace(
+                "host.docker.internal", "localhost"
+            )
             return oidc_config
         except Exception as e:
             raise HTTPException(
@@ -49,25 +63,47 @@ class OIDCJWTValidator:
                 detail=f"Failed to fetch OIDC configuration: {str(e)}",
             )
 
+    async def _get_jwks(self, jwks_uri: str, force_refresh: bool = False) -> Dict[str, Any]:
+        """Return the provider JWKS, cached for OIDC_JWKS_CACHE_TTL_SECONDS.
+
+        Refetched when the cache is empty, expired, or a caller forces refresh
+        (e.g. after an unknown-key verification failure — key rotation).
+        """
+        ttl = settings.OIDC_JWKS_CACHE_TTL_SECONDS
+        fresh = (time.monotonic() - self._jwks_fetched_at) < ttl
+        if self._jwks is not None and fresh and not force_refresh:
+            return self._jwks
+
+        async with httpx.AsyncClient() as client:
+            jwks_response = await client.get(jwks_uri, timeout=10.0)
+            jwks_response.raise_for_status()
+            self._jwks = jwks_response.json()
+            self._jwks_fetched_at = time.monotonic()
+        return self._jwks
+
     async def validate_token(self, token: str) -> Dict[str, Any]:
         """Validate a JWT access token and return its decoded claims.
 
-        Verifies the signature against the provider JWKS, the issuer, and the
-        audience (must contain OIDC_CLIENT_ID).
+        Verifies the signature against the (cached) provider JWKS using a
+        pinned algorithm allowlist, then the issuer and audience (must contain
+        OIDC_CLIENT_ID). On a key-not-found error the JWKS is refreshed once to
+        tolerate provider key rotation.
         """
         try:
             oidc_config = await self._get_oidc_config()
+            jwks = await self._get_jwks(oidc_config["jwks_uri"])
 
-            async with httpx.AsyncClient() as client:
-                jwks_response = await client.get(oidc_config["jwks_uri"], timeout=10.0)
-                jwks_response.raise_for_status()
-                jwks = jwks_response.json()
-
-            claims = jwt.decode(token, jwks)
+            try:
+                claims = _jwt.decode(token, jwks)
+            except JoseError:
+                # Possible key rotation: refresh JWKS once and retry.
+                jwks = await self._get_jwks(
+                    oidc_config["jwks_uri"], force_refresh=True
+                )
+                claims = _jwt.decode(token, jwks)
             claims.validate()
 
-            issuer_to_check = self._issuer.replace("host.docker.internal", "localhost")
-            if claims.get("iss") != issuer_to_check:
+            if claims.get("iss") != self._issuer:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token issuer",

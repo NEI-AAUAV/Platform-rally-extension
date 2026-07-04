@@ -8,8 +8,8 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.api.rate_limit import check_login_rate_limit, rate_limit
 from app.core.config import settings
-from app.core.redis import get_async_redis_client
 from app.crud.crud_team import team as crud_team
 from app.schemas.team_auth import TeamLoginRequest, TeamLoginResponse, TeamTokenData
 
@@ -18,31 +18,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer()
 
-
-async def _check_login_rate_limit(request: Request) -> None:
-    """Best-effort brute-force guard on team login, keyed by client IP.
-
-    Uses a fixed-window Redis counter. Fails open when Redis is unavailable —
-    the access codes remain the authoritative secret; this only slows guessing.
-    """
-    client_host = request.client.host if request.client else "unknown"
-    key = f"rally:team-login:{client_host}"
-    client = get_async_redis_client()
-    try:
-        attempts = await client.incr(key)
-        if attempts == 1:
-            await client.expire(key, settings.TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS)
-        if attempts > settings.TEAM_LOGIN_RATE_LIMIT_ATTEMPTS:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many login attempts, try again later",
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001 — rate limit is best-effort
-        logger.warning("Team login rate limit unavailable: %s", exc)
-    finally:
-        await client.aclose()
+# Coarse guard on token verify/refresh (authenticated, client-driven).
+_write_rate_limit = rate_limit(
+    "team-token",
+    settings.WRITE_RATE_LIMIT_ATTEMPTS,
+    settings.WRITE_RATE_LIMIT_WINDOW_SECONDS,
+)
 
 
 def create_team_access_token(
@@ -114,7 +95,7 @@ async def team_login(
     Authenticate a team using their access code.
     Returns a JWT token for subsequent requests.
     """
-    await _check_login_rate_limit(request)
+    await check_login_rate_limit(request, login_data.access_code)
 
     # Find team by access code
     team = await crud_team.get_by_access_code(db, access_code=login_data.access_code)
@@ -135,7 +116,7 @@ async def team_login(
     )
 
 
-@router.get("/verify")
+@router.get("/verify", dependencies=[Depends(_write_rate_limit)])
 def verify_token(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> TeamTokenData:
@@ -147,7 +128,7 @@ def verify_token(
     return verify_team_token(token)
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[Depends(_write_rate_limit)])
 def refresh_team_token(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> TeamLoginResponse:

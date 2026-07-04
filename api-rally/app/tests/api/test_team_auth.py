@@ -195,7 +195,7 @@ class TestTeamAuthAPI:
 
             response = client_with_mocked_db.post(
                 "/api/rally/v1/team-auth/login",
-                json={"access_code": "WRONG-CODE"},
+                json={"access_code": "WRNG-CODE"},
             )
 
         assert response.status_code == 401
@@ -203,6 +203,18 @@ class TestTeamAuthAPI:
     def test_login_missing_body(self, client_with_mocked_db):
         """POST /team-auth/login without body should return 422"""
         response = client_with_mocked_db.post("/api/rally/v1/team-auth/login", json={})
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "bad_code",
+        ["short", "abcd-1234", "ABCD1234", "ABCD-12345", "A" * 100, "ABCD-123!"],
+    )
+    def test_login_rejects_malformed_access_code(self, client_with_mocked_db, bad_code):
+        """Access codes outside XXXX-XXXX are rejected before the DB lookup."""
+        response = client_with_mocked_db.post(
+            "/api/rally/v1/team-auth/login",
+            json={"access_code": bad_code},
+        )
         assert response.status_code == 422
 
     def test_refresh_with_valid_token(self, client_with_mocked_db, mock_db, mock_team):
