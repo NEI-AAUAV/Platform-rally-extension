@@ -57,6 +57,26 @@ def test_list_indications():
     assert data[1]["expected_answer"] == "Lisbon"
 
 
+def test_list_indications_requires_authentication():
+    # No auth override: an anonymous caller must never see indications
+    # (they include expected answers).
+    app.dependency_overrides[get_db] = lambda: Mock()
+    resp = TestClient(app).get("/api/rally/v1/checkpoint/10/guide-indications")
+    assert resp.status_code in (401, 403)
+
+
+def test_list_indications_403_for_participant():
+    # Authenticated but without guide/staff/admin scope → forbidden.
+    participant = DetailedUser(
+        id=2, name="Player", disabled=False, team_id=1, is_captain=False, scopes=[]
+    )
+    app.dependency_overrides[get_db] = lambda: Mock()
+    app.dependency_overrides[get_participant] = lambda: participant
+    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=[])
+    resp = TestClient(app).get("/api/rally/v1/checkpoint/10/guide-indications")
+    assert resp.status_code == 403
+
+
 def test_list_indications_404_if_checkpoint_missing():
     client = _make_client(_admin_user())
     with patch("app.api.api_v1.checkpoint_guide_indication.crud.checkpoint.get", new=AsyncMock(return_value=None)):

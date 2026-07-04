@@ -27,6 +27,9 @@ async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int):
 @router.get(
     "/checkpoint/{checkpoint_id}/guide-indications",
     response_model=List[CheckpointGuideIndication],
+    # Indications include expected answers, so they must never be readable by
+    # participants — only guides, staff, and admins.
+    dependencies=[Depends(deps.get_guide)],
 )
 async def list_guide_indications(
     checkpoint_id: int,

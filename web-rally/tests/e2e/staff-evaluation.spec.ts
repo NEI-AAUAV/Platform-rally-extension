@@ -13,6 +13,7 @@ import {
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
 } from '../mocks/data';
+import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from './helpers/session';
 
 test.describe('Staff Evaluation Flow', () => {
   test.beforeEach(async ({ page, context }) => {
@@ -136,13 +137,8 @@ test.describe('Staff Evaluation Flow', () => {
       });
     });
 
-    // Set mock JWT token in localStorage before navigation
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    // Seed a signed-in staff OIDC session before navigation
+    await seedOidcSession(context, STAFF_GROUPS);
 
     // Navigate to staff evaluation page
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
@@ -176,7 +172,7 @@ test.describe('Staff Evaluation Flow', () => {
     // Verify checkpoint name is displayed in the heading
     // Use getByRole to target the heading specifically
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(MOCK_CHECKPOINT.name, { exact: true }).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -301,13 +297,8 @@ test.describe('Manager Evaluation Flow', () => {
       });
     });
 
-    // Set manager token in localStorage
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    // Seed a signed-in manager OIDC session
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     // Navigate to manager evaluation page
     await page.goto('/rally/staff-evaluation', {
@@ -340,7 +331,7 @@ test.describe('Manager Evaluation Flow', () => {
   test('displays manager evaluation dashboard', async ({ page }) => {
     // Verify manager dashboard is displayed
     await expect(
-      page.getByRole('heading', { name: /manager.*evaluation.*dashboard/i }),
+      page.getByRole('heading', { name: 'Painel de avaliação' }),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -361,7 +352,7 @@ test.describe('Manager Evaluation Flow', () => {
   test('displays all evaluations section', async ({ page }) => {
     // Manager should see "All Evaluations" section
     await expect(
-      page.getByText(/all.*evaluations/i).first(),
+      page.getByText(/Todas as Avaliações/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -419,9 +410,19 @@ test.describe('Staff Evaluation - Authentication', () => {
       });
     });
 
-    // Set expired token
+    // Seed an already-expired OIDC session
     await context.addInitScript(() => {
-      localStorage.setItem('rally_token', 'expired-token');
+      const now = Math.floor(Date.now() / 1000);
+      localStorage.setItem(
+        'oidc.user::',
+        JSON.stringify({
+          access_token: 'expired-token',
+          token_type: 'Bearer',
+          profile: { sub: 'e2e-user-1', groups: ['rally-staff'], iss: '', aud: '', exp: now - 100, iat: now - 4000 },
+          expires_at: now - 100,
+          scope: 'openid profile email',
+        }),
+      );
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
@@ -442,7 +443,7 @@ test.describe('Staff Evaluation - Authentication', () => {
     });
 
     await context.addInitScript(() => {
-      localStorage.setItem('rally_token', 'invalid-token-format');
+      localStorage.setItem('oidc.user::', 'not-json{{{');
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
@@ -474,12 +475,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -530,12 +526,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -565,12 +556,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       timeout: 10000,
@@ -608,12 +594,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -651,12 +632,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
@@ -701,12 +677,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -777,12 +748,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -872,12 +838,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -963,12 +924,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -1069,12 +1025,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -1195,12 +1146,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
@@ -1326,12 +1272,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -1371,7 +1312,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluate.*test activity|avaliar/i).first(),
+        page.getByText(/evaluation|avalia/i).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
@@ -1411,7 +1352,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluate|avaliar/i).first(),
+        page.getByText(/evaluation|avalia/i).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
@@ -1551,12 +1492,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -1895,12 +1831,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -2168,12 +2099,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -2211,7 +2137,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
       // Form should be visible with existing values
       await expect(
-        page.getByText(/evaluate|avaliar/i).first(),
+        page.getByText(/evaluation|avalia/i).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Update the points value
@@ -2336,12 +2262,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -2460,12 +2381,7 @@ test.describe('Manager Evaluation - Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
@@ -2505,12 +2421,7 @@ test.describe('Manager Evaluation - Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
@@ -2519,7 +2430,7 @@ test.describe('Manager Evaluation - Edge Cases', () => {
 
     // Should handle empty checkpoints gracefully
     await expect(
-      page.getByRole('heading', { name: /manager.*evaluation.*dashboard/i }),
+      page.getByRole('heading', { name: 'Painel de avaliação' }),
     ).toBeVisible({ timeout: 10000 });
   });
 });

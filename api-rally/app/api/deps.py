@@ -1,6 +1,7 @@
 from typing import Annotated, AsyncGenerator, List, Optional
 
 from fastapi import Depends, HTTPException, Security
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
@@ -39,13 +40,21 @@ async def get_current_user(
             await db.refresh(user)
     if user is None:
         # First login: mirror the authentik identity into a local user row.
-        user = await crud.user.create_for_oidc(
-            db,
-            authentik_sub=auth.oidc_sub,
-            name=auth.name,
-            email=auth.email,
-            scopes=auth.scopes,
-        )
+        # Two concurrent first requests can race on the insert; the loser
+        # re-fetches the row the winner created.
+        try:
+            user = await crud.user.create_for_oidc(
+                db,
+                authentik_sub=auth.oidc_sub,
+                name=auth.name,
+                email=auth.email,
+                scopes=auth.scopes,
+            )
+        except IntegrityError:
+            await db.rollback()
+            user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
+            if user is None:
+                raise HTTPException(status_code=500, detail="Failed to initialise user")
     elif user.scopes != auth.scopes:
         # Keep local scopes in sync with the identity provider.
         user.scopes = auth.scopes

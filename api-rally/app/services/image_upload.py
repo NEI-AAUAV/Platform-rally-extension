@@ -68,12 +68,22 @@ async def validate_and_store(
             ),
         )
 
-    data = await image.read()
-    if len(data) > MAX_IMAGE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Max size is {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
-        )
+    # Read in bounded chunks and stop as soon as the cap is exceeded, so an
+    # oversized upload cannot balloon memory before the size check runs.
+    chunks: list[bytes] = []
+    read_bytes = 0
+    while True:
+        chunk = await image.read(1024 * 1024)
+        if not chunk:
+            break
+        read_bytes += len(chunk)
+        if read_bytes > MAX_IMAGE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Max size is {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+            )
+        chunks.append(chunk)
+    data = b"".join(chunks)
 
     ext = EXT_BY_CONTENT_TYPE.get(image.content_type or "", "png")
     key = f"{key_prefix.rstrip('/')}/{uuid.uuid4().hex}.{ext}"

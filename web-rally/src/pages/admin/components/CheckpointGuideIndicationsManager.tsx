@@ -43,7 +43,8 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
           hint: hint.trim(),
           question: question.trim() || null,
           expected_answer: expectedAnswer.trim() || null,
-          order: indications.length,
+          // length collides with existing orders after deletes; max+1 does not
+          order: indications.reduce((max, i) => Math.max(max, (i.order ?? 0) + 1), 0),
         },
       ),
     onSuccess: () => {

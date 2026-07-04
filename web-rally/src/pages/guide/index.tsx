@@ -69,16 +69,21 @@ function MediaGallery({ media }: { media: GuideMediaItem[] }) {
       )}
 
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        <button
+          type="button"
+          aria-label="Fechar imagem ampliada"
+          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
           onClick={() => setLightbox(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setLightbox(null);
+          }}
         >
           <img
             src={lightbox}
             alt="Ampliado"
             className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
           />
-        </div>
+        </button>
       )}
     </>
   );
@@ -139,7 +144,7 @@ function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold leading-tight">{cp.name}</p>
-          {cp.latitude && cp.longitude && (
+          {cp.latitude != null && cp.longitude != null && (
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="h-3 w-3" />
               {cp.latitude.toFixed(5)}, {cp.longitude.toFixed(5)}

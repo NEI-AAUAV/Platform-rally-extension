@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, Security
 from app.core.exceptions import RallyValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from sqlalchemy import select, text
@@ -188,7 +189,7 @@ async def update_checkpoint_assignment(
                 id=0, user_id=user_id, checkpoint_id=None, 
                 checkpoint_name=None, checkpoint_description=None
             )
-    except Exception as e:
+    except SQLAlchemyError as e:
         raise RallyValidationError(f"Failed to update checkpoint assignment: {str(e)}")
 
 
@@ -277,5 +278,5 @@ async def update_guide_checkpoint_assignment(
                 id=0, user_id=user_id, checkpoint_id=None,
                 checkpoint_name=None, checkpoint_description=None
             )
-    except Exception as e:
+    except SQLAlchemyError as e:
         raise RallyValidationError(f"Failed to update guide checkpoint assignment: {str(e)}")

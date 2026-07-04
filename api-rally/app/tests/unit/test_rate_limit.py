@@ -36,10 +36,11 @@ def test_resolve_client_ip_trusts_xff_from_trusted_proxy():
 
 # --- fixed-window enforcement ----------------------------------------------
 
-def _fake_redis(count: int) -> Mock:
+def _fake_redis(count: int, ttl: int = 30) -> Mock:
     client = Mock()
     client.incr = AsyncMock(return_value=count)
     client.expire = AsyncMock()
+    client.ttl = AsyncMock(return_value=ttl)
     client.aclose = AsyncMock()
     return client
 
@@ -56,6 +57,19 @@ async def test_enforce_blocks_over_limit():
         with pytest.raises(HTTPException) as exc:
             await rl._enforce("k", limit=5, window_seconds=60)
         assert exc.value.status_code == 429
+        assert exc.value.headers["Retry-After"] == "30"
+
+
+@pytest.mark.asyncio
+async def test_enforce_rearms_orphaned_key_on_block():
+    """A key without TTL (crash between INCR and EXPIRE) must be re-armed
+    so the block cannot last forever."""
+    client = _fake_redis(6, ttl=-1)
+    with patch.object(rl, "get_async_redis_client", return_value=client):
+        with pytest.raises(HTTPException) as exc:
+            await rl._enforce("k", limit=5, window_seconds=60)
+    assert exc.value.headers["Retry-After"] == "60"
+    client.expire.assert_awaited_with("k", 60)
 
 
 @pytest.mark.asyncio

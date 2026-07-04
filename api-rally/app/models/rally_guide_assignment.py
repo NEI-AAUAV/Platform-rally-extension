@@ -1,4 +1,6 @@
-from sqlalchemy import ForeignKey, Integer
+from typing import Optional
+
+from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from app.models.base import Base
@@ -12,13 +14,19 @@ class RallyGuideAssignment(Base):
     (that comes from the authentik group), it only records which checkpoint
     a guide is accompanying teams through.
     """
+    # One assignment row per guide — create_or_update relies on this.
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_rally_guide_assignment_user_id"),
+        {"schema": settings.SCHEMA_NAME},
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # Reference to NEI user (by ID, not foreign key to avoid coupling)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Reference to Rally checkpoint
-    checkpoint_id: Mapped[int] = mapped_column(
+    checkpoint_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"),
         nullable=True
     )

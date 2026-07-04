@@ -48,10 +48,12 @@ async def get_team_rally_duration(
 
     # Get team's first checkpoint time as start time
     from app.crud.crud_team import team
+    from app.core.exceptions import RallyNotFoundError
+
     team_obj = await team.get(db=db, id=team_id)
 
     if not team_obj or not team_obj.times:
-        return {"error": "Team not found or has no checkpoint times"}
+        raise RallyNotFoundError("Team not found or has no checkpoint times")
 
     team_start_time = team_obj.times[0]  # First checkpoint time
     return await get_team_duration_info(db, team_start_time)

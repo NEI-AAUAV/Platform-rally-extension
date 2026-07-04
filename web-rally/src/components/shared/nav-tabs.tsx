@@ -196,7 +196,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     <div className="relative">
       {/* Desktop */}
       <ul {...props} className={cn("hidden items-center gap-1 sm:flex", className)}>
-        {primary.map(renderLink)}
+        {primary.map((item) => renderLink(item))}
         {management.length > 0 && (
           <li>
             <NavGroup label="Gestão" items={management} />

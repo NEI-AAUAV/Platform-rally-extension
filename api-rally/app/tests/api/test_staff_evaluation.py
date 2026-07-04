@@ -164,35 +164,35 @@ class TestStaffEvaluationEdgeCases:
     async def test_staff_without_checkpoint_assigned(self):
         """Test that staff without checkpoint assignment cannot evaluate"""
         from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyForbiddenError
         from unittest.mock import Mock
-        
+
         mock_db = Mock()
         mock_user = Mock()
         mock_user.staff_checkpoint_id = None
-        
-        with pytest.raises(HTTPException) as exc_info:
+
+        with pytest.raises(RallyForbiddenError) as exc_info:
             await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-        
+
         assert exc_info.value.status_code == 403
-        assert "No checkpoint assigned" in exc_info.value.detail
-    
+        assert "No checkpoint assigned" in exc_info.value.message
+
     async def test_team_not_found_during_evaluation(self):
         """Test error when team doesn't exist"""
         from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyNotFoundError
         from unittest.mock import Mock, patch
-        
+
         mock_db = Mock()
         mock_user = Mock()
         mock_user.staff_checkpoint_id = 1
-        
+
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(RallyNotFoundError) as exc_info:
                 await validate_staff_checkpoint_access(mock_db, mock_user, team_id=999, activity_id=1)
-            
+
             assert exc_info.value.status_code == 404
-            assert "Team not found" in exc_info.value.detail
+            assert "Team not found" in exc_info.value.message
     
     async def test_team_at_different_checkpoint_allowed(self):
         """Test that staff can evaluate teams regardless of checkpoint progress (for error recovery)"""
@@ -220,28 +220,28 @@ class TestStaffEvaluationEdgeCases:
     
     async def test_activity_not_at_staff_checkpoint(self):
         """Test error when activity is not at staff's checkpoint"""
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyNotFoundError
         from unittest.mock import Mock, patch
         from datetime import datetime, timezone
-        
+
         mock_db = Mock()
         mock_user = Mock()
         mock_user.staff_checkpoint_id = 1
-        
+
         mock_team = Mock()
         mock_team.times = [datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)]
         mock_team.id = 1
-        
+
         mock_activity = Mock()
         mock_activity.checkpoint_id = 2  # Activity at checkpoint 2, staff at checkpoint 1
-        
+
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                with pytest.raises(HTTPException) as exc_info:
+                with pytest.raises(RallyNotFoundError) as exc_info:
                     await validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                
+
                 assert exc_info.value.status_code == 404
-                assert "Activity not found at your assigned checkpoint" in exc_info.value.detail
+                assert "Activity not found at your assigned checkpoint" in exc_info.value.message
     
     async def testvalidate_rally_permissions_staff(self):
         """Test permission validation for staff users"""
@@ -409,18 +409,18 @@ class TestStaffEvaluationEdgeCases:
     async def testcheck_existing_result_exists(self):
         """Test error when result already exists"""
         from app.api.api_v1.staff_evaluation import check_existing_result
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyValidationError
         from unittest.mock import Mock, patch
-        
+
         mock_db = Mock()
         mock_existing_result = Mock()
-        
+
         with patch('app.api.api_v1.staff_evaluation.activity_result.get_by_activity_and_team', return_value=mock_existing_result):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(RallyValidationError) as exc_info:
                 await check_existing_result(mock_db, activity_id=1, team_id=1)
-            
+
             assert exc_info.value.status_code == 400
-            assert "Result already exists" in exc_info.value.detail
+            assert "Result already exists" in exc_info.value.message
     
     async def testcheck_existing_result_not_exists(self):
         """Test that no error is raised when result doesn't exist"""
@@ -540,34 +540,34 @@ class TestStaffEvaluationEdgeCases:
     async def testvalidate_admin_access_team_not_found(self):
         """Test admin access validation when team doesn't exist"""
         from app.api.api_v1.staff_evaluation import validate_admin_access
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyNotFoundError
         from unittest.mock import Mock, patch
-        
+
         mock_db = Mock()
-        
+
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(RallyNotFoundError) as exc_info:
                 await validate_admin_access(mock_db, team_id=999, activity_id=1)
-            
+
             assert exc_info.value.status_code == 404
-            assert "Team not found" in exc_info.value.detail
-    
+            assert "Team not found" in exc_info.value.message
+
     async def testvalidate_admin_access_activity_not_found(self):
         """Test admin access validation when activity doesn't exist"""
-        from fastapi import HTTPException
+        from app.core.exceptions import RallyNotFoundError
         from unittest.mock import Mock, patch
-        
+
         mock_db = Mock()
         mock_team = Mock()
         mock_team.id = 1
-        
+
         with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
             with patch('app.crud.crud_activity.activity.get', return_value=None):
-                with pytest.raises(HTTPException) as exc_info:
+                with pytest.raises(RallyNotFoundError) as exc_info:
                     await validate_admin_access(mock_db, team_id=1, activity_id=999)
-                
+
                 assert exc_info.value.status_code == 404
-                assert "Activity not found" in exc_info.value.detail
+                assert "Activity not found" in exc_info.value.message
     
     async def testvalidate_admin_access_success(self):
         """Test successful admin access validation"""

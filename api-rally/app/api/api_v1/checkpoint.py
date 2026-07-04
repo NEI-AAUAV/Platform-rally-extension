@@ -254,14 +254,17 @@ async def delete_checkpoint(
 ) -> Dict[str, str]:
     """Delete a checkpoint. Only admins can delete checkpoints."""
     try:
-        # First, remove any staff assignments to this checkpoint
+        # First, remove any staff/guide assignments to this checkpoint
         from app.models.rally_staff_assignment import RallyStaffAssignment
+        from app.models.rally_guide_assignment import RallyGuideAssignment
         from app.models.user import User
         from sqlalchemy import delete, update
 
-        # Delete staff assignments referencing this checkpoint
+        # Delete staff and guide assignments referencing this checkpoint
         delete_stmt = delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == id)
         await db.execute(delete_stmt)
+        delete_guides_stmt = delete(RallyGuideAssignment).where(RallyGuideAssignment.checkpoint_id == id)
+        await db.execute(delete_guides_stmt)
 
         # Clear staff_checkpoint_id from Rally users
         update_stmt = update(User).where(User.staff_checkpoint_id == id).values(staff_checkpoint_id=None)

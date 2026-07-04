@@ -272,9 +272,13 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     async def add_checkpoint(
         self, db: AsyncSession, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
     ) -> Team:
+        # Resolve settings BEFORE opening the savepoint: get_or_create may
+        # commit (event bootstrap, legacy adoption, timing sync), and a commit
+        # inside begin_nested() closes the outer transaction, blowing up every
+        # statement that follows with InvalidRequestError.
+        settings = await rally_settings.get_or_create(db)
         async with db.begin_nested():
             team = await self.get(db=db, id=id, for_update=True)
-            settings = await rally_settings.get_or_create(db)
             current_time = datetime.now(timezone.utc)
 
             # Validate timing and order constraints

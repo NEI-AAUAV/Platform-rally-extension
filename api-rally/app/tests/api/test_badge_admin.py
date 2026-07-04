@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.api.deps import get_db, get_admin
 from app.api.api_v1.badge_admin import require_badges_enabled
-from app.models.badge_definition import BadgeDefinition
+from app.models.badge_definition import DEFAULT_BADGE_COLOR, BadgeDefinition
 
 
 def _defn(id: int = 1, code: str = "test_badge", active: bool = True) -> BadgeDefinition:
@@ -15,6 +15,10 @@ def _defn(id: int = 1, code: str = "test_badge", active: bool = True) -> BadgeDe
     d.id = id
     d.description = None
     d.icon_url = None
+    # Column defaults only apply at flush time; set them explicitly since the
+    # fixture never touches a database.
+    d.color = DEFAULT_BADGE_COLOR
+    d.criteria = {}
     return d
 
 

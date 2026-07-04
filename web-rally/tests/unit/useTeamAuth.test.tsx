@@ -11,16 +11,20 @@ import { TeamAuthService } from '@/client'
 const TEAM_TOKEN_KEY = 'rally_team_token'
 const TEAM_DATA_KEY = 'rally_team_data'
 
-// Mock the generated API client
-class MockApiError extends Error {
-  status: number
-  body: unknown
-  constructor(status: number, body: unknown) {
-    super('ApiError')
-    this.status = status
-    this.body = body
+// Mock the generated API client. vi.mock factories are hoisted above imports,
+// so the error class they reference must be hoisted too.
+const { MockApiError } = vi.hoisted(() => {
+  class MockApiError extends Error {
+    status: number
+    body: unknown
+    constructor(status: number, body: unknown) {
+      super('ApiError')
+      this.status = status
+      this.body = body
+    }
   }
-}
+  return { MockApiError }
+})
 
 vi.mock('@/client', () => ({
   TeamService: {
@@ -137,10 +141,9 @@ describe('useTeamAuth', () => {
     })
 
     it('should throw generic error when no detail in response', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({}),
-      } as Response)
+      vi.mocked(
+        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
+      ).mockRejectedValueOnce(new MockApiError(400, {}))
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 

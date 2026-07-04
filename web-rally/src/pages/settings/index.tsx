@@ -353,7 +353,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
             <DisplaySettings disabled={!isEditing} />
             <TeamSettings disabled={!isEditing} />
-            <RallyTimingSettings disabled={!isEditing} />
+            <RallyTimingSettings />
             <ScoringSettings disabled={!isEditing} />
             <HomeLayoutSettings disabled={!isEditing} className="xl:col-span-2" />
           </div>

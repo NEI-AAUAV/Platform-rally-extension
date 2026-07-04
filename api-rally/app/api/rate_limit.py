@@ -45,9 +45,16 @@ async def _enforce(key: str, limit: int, window_seconds: int) -> None:
         if attempts == 1:
             await client.expire(key, window_seconds)
         if attempts > limit:
+            ttl = await client.ttl(key)
+            if ttl < 0:
+                # Key orphaned without TTL (crash between INCR and EXPIRE):
+                # re-arm so the block cannot last forever.
+                await client.expire(key, window_seconds)
+                ttl = window_seconds
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests, try again later",
+                headers={"Retry-After": str(max(ttl, 1))},
             )
     except HTTPException:
         raise

@@ -14,6 +14,7 @@ export function mapGroupsToScopes(groups: readonly string[] | undefined): string
   if (groups.includes(config.OIDC_ADMIN_GROUP)) scopes.push("admin");
   if (groups.includes(config.OIDC_MANAGER_GROUP)) scopes.push("manager-rally");
   if (groups.includes(config.OIDC_STAFF_GROUP)) scopes.push("rally-staff");
+  if (groups.includes(config.OIDC_GUIDE_GROUP)) scopes.push("rally-guide");
   return scopes;
 }
 

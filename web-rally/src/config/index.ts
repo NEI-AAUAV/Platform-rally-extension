@@ -36,6 +36,7 @@ const config = {
   OIDC_ADMIN_GROUP: import.meta.env.VITE_OIDC_ADMIN_GROUP ?? "admin",
   OIDC_MANAGER_GROUP: import.meta.env.VITE_OIDC_MANAGER_GROUP ?? "manager-rally",
   OIDC_STAFF_GROUP: import.meta.env.VITE_OIDC_STAFF_GROUP ?? "rally-staff",
+  OIDC_GUIDE_GROUP: import.meta.env.VITE_OIDC_GUIDE_GROUP ?? "rally-guide",
 
   // Realtime scoreboard: when enabled, the SPA opens an SSE connection and
   // refreshes the leaderboard on push instead of relying on polling. Mirrors

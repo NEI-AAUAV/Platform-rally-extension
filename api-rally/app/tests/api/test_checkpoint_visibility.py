@@ -1,5 +1,6 @@
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from datetime import datetime, timezone
@@ -26,10 +27,12 @@ def client_with_mocked_db(mock_db):
 
 @pytest.fixture
 def mock_checkpoints():
+    # Attribute-style objects: the endpoint reads `cp.order` and the response
+    # schema validates via from_attributes.
     return [
-        {"id": 1, "name": "CP1", "order": 1, "latitude": 1.0, "longitude": 1.0, "description": "d1", "is_active": True},
-        {"id": 2, "name": "CP2", "order": 2, "latitude": 2.0, "longitude": 2.0, "description": "d2", "is_active": True},
-        {"id": 3, "name": "CP3", "order": 3, "latitude": 3.0, "longitude": 3.0, "description": "d3", "is_active": True},
+        SimpleNamespace(id=1, name="CP1", order=1, latitude=1.0, longitude=1.0, description="d1", is_active=True),
+        SimpleNamespace(id=2, name="CP2", order=2, latitude=2.0, longitude=2.0, description="d2", is_active=True),
+        SimpleNamespace(id=3, name="CP3", order=3, latitude=3.0, longitude=3.0, description="d3", is_active=True),
     ]
 
 @pytest.fixture
@@ -114,9 +117,14 @@ class TestCheckpointVisibility:
         with patch("app.crud.crud_rally_settings.rally_settings.get_or_create", return_value=mock_settings):
             with patch("app.crud.crud_checkpoint.checkpoint.get_all_ordered", return_value=mock_checkpoints):
                 with patch("app.crud.crud_team.team.get", return_value=mock_team):
-                    
-                    response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
-                    
+                    # Progress computation hits activity/result queries; the mocked
+                    # db can't answer them, so stub the computed progress instead.
+                    with patch(
+                        "app.api.api_v1.team._compute_checkpoint_progress",
+                        return_value=(0, 1, None),
+                    ):
+                        response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
+
                     assert response.status_code == 200
                     data = response.json()
                     assert len(data) == 1
@@ -140,9 +148,12 @@ class TestCheckpointVisibility:
         with patch("app.crud.crud_rally_settings.rally_settings.get_or_create", return_value=mock_settings):
             with patch("app.crud.crud_checkpoint.checkpoint.get_all_ordered", return_value=mock_checkpoints):
                 with patch("app.crud.crud_team.team.get", return_value=mock_team):
-                    
-                    response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
-                    
+                    with patch(
+                        "app.api.api_v1.team._compute_checkpoint_progress",
+                        return_value=(1, 2, "CP1"),
+                    ):
+                        response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
+
                     assert response.status_code == 200
                     data = response.json()
                     assert len(data) == 2

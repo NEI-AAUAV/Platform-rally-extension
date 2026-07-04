@@ -246,3 +246,99 @@ class TestTeamAuthAPI:
         """POST /team-auth/refresh without Authorization header should return 401/403"""
         response = client_with_mocked_db.post("/api/rally/v1/team-auth/refresh")
         assert response.status_code in [401, 403, 404, 422]
+
+
+class TestTokenLifecycleHardening:
+    """Session-lifetime and token-integrity guarantees."""
+
+    def _client(self, mock_db):
+        app.dependency_overrides[get_db] = lambda: mock_db
+        return TestClient(app)
+
+    def teardown_method(self):
+        app.dependency_overrides.clear()
+
+    def test_refresh_carries_original_login_time(self, mock_db):
+        """orig_iat must survive a refresh so the absolute lifetime holds."""
+        from app.api.api_v1.team_auth import create_team_access_token
+
+        orig = int((datetime.now(timezone.utc) - timedelta(hours=2)).timestamp())
+        token = create_team_access_token(team_id=1, team_name="T", orig_iat=orig)
+
+        response = self._client(mock_db).post(
+            "/api/rally/v1/team-auth/refresh",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        payload = jwt.decode(
+            response.json()["access_token"],
+            settings.TEAM_JWT_SECRET_KEY,
+            algorithms=["HS256"],
+        )
+        assert payload["orig_iat"] == orig
+
+    def test_refresh_rejected_beyond_absolute_lifetime(self, mock_db):
+        """A token chain older than TEAM_TOKEN_MAX_LIFETIME_HOURS cannot be
+        extended — the team must log in again."""
+        from app.api.api_v1.team_auth import create_team_access_token
+
+        too_old = int(
+            (
+                datetime.now(timezone.utc)
+                - timedelta(hours=settings.TEAM_TOKEN_MAX_LIFETIME_HOURS + 1)
+            ).timestamp()
+        )
+        token = create_team_access_token(team_id=1, team_name="T", orig_iat=too_old)
+
+        response = self._client(mock_db).post(
+            "/api/rally/v1/team-auth/refresh",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 401
+        assert "log in again" in response.json()["detail"].lower()
+
+    def test_verify_accepts_valid_and_rejects_expired(self, mock_db):
+        from app.api.api_v1.team_auth import create_team_access_token
+
+        client = self._client(mock_db)
+        valid = create_team_access_token(team_id=7, team_name="Sete")
+        ok = client.get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {valid}"},
+        )
+        assert ok.status_code == 200
+        assert ok.json()["team_id"] == 7
+
+        expired = jwt.encode(
+            {
+                "team_id": 7,
+                "team_name": "Sete",
+                "type": "team_access",
+                "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+            },
+            settings.TEAM_JWT_SECRET_KEY,
+            algorithm="HS256",
+        )
+        bad = client.get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {expired}"},
+        )
+        assert bad.status_code == 401
+
+    def test_verify_rejects_token_signed_with_other_algorithm_key(self, mock_db):
+        """A token signed with a different secret must never verify."""
+        forged = jwt.encode(
+            {
+                "team_id": 1,
+                "team_name": "Forjada",
+                "type": "team_access",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
+            "attacker-secret",
+            algorithm="HS256",
+        )
+        response = self._client(mock_db).get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {forged}"},
+        )
+        assert response.status_code == 401

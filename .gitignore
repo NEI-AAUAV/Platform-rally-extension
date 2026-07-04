@@ -46,3 +46,5 @@ __pycache__/
 
 # JWT keys (keep private key secret)
 dev-keys/jwt.key
+coverage.xml
+test-results.xml

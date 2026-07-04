@@ -95,7 +95,7 @@ async def list_guide_checkpoints(
             id=cp.id,
             name=cp.name,
             order=cp.order,
-            description=getattr(cp, "description", None),
+            description=cp.description,
             latitude=cp.latitude,
             longitude=cp.longitude,
             media=[

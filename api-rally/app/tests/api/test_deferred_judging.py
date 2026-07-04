@@ -7,7 +7,10 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.api.deps import get_db, get_admin
-from app.api.abac_deps import require_checkpoint_management_permission
+from app.api.abac_deps import (
+    get_staff_with_checkpoint_access,
+    require_checkpoint_management_permission,
+)
 from app.models.activity import ActivityResult
 from app.schemas.activity_types import ActivityType
 
@@ -50,6 +53,7 @@ def clear_overrides():
 def staff_client() -> TestClient:
     app.dependency_overrides[require_checkpoint_management_permission] = lambda: None
     app.dependency_overrides[get_admin] = lambda: None
+    app.dependency_overrides[get_staff_with_checkpoint_access] = lambda: None
     return TestClient(app)
 
 
