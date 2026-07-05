@@ -104,7 +104,7 @@ async def test_get_current_user_survives_creation_race():
          patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)), \
          patch(
              "app.crud.user.create_for_oidc",
-             new=AsyncMock(side_effect=IntegrityError("dup", None, Exception())),
+             new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
          ), \
          patch.object(DetailedUser, "model_validate", return_value=_detailed(winner)):
         result = await deps.get_current_user(_auth(), db)
@@ -152,15 +152,16 @@ async def test_get_guide_gate_matrix(scopes, allowed):
         assert exc.value.status_code == 403
 
 
-async def test_get_admin_rejects_staff():
+def test_get_admin_rejects_staff():
     auth = Mock()
     auth.scopes = ["rally-staff"]
+    gate_user = _gate_user(["rally-staff"])
     with pytest.raises(HTTPException) as exc:
-        deps.get_admin(auth, _gate_user(["rally-staff"]))
+        deps.get_admin(auth, gate_user)
     assert exc.value.status_code == 403
 
 
-async def test_get_participant_rejects_disabled_user():
+def test_get_participant_rejects_disabled_user():
     user = DetailedUser(
         id=1, name="U", disabled=True, team_id=None, is_captain=False, scopes=[]
     )

@@ -77,7 +77,7 @@ class _Broken:
         raise ConnectionError("down")
 
     async def aclose(self) -> None:
-        return None
+        pass
 
 
 async def test_publish_swallows_redis_errors(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -99,7 +99,8 @@ async def test_publish_raises_when_not_fail_silently(
 
     from app.events.exceptions import EventPublishError
 
+    call = publish_event(
+        TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=1))
+    )
     with pytest.raises(EventPublishError):
-        await publish_event(
-            TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=1))
-        )
+        await call
