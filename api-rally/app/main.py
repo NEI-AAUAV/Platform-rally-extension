@@ -50,7 +50,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             worker.stop()
         _workers.clear()
         if settings.EVENTS_ENABLED:
-            await close_pools()
+            close_pools()
 
 
 app = FastAPI(
