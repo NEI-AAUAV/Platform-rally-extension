@@ -50,7 +50,7 @@ async def _self_user(db: AsyncSession, auth: AuthData) -> User | None:
     return await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
 
 
-@router.get("/profile/me", response_model=ProfileResponse)
+@router.get("/profile/me")
 async def get_my_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
     _curr: Annotated[DetailedUser, Depends(get_participant)],
@@ -88,7 +88,7 @@ async def get_my_profile(
     )
 
 
-@router.get("/profile/history", response_model=list[ParticipationEntry])
+@router.get("/profile/history")
 async def get_my_history(
     db: Annotated[AsyncSession, Depends(get_db)],
     _curr: Annotated[DetailedUser, Depends(get_participant)],
@@ -99,7 +99,7 @@ async def get_my_history(
     return [await _entry(db, r) for r in rows]
 
 
-@router.get("/profile/claimable", response_model=ClaimableTeam)
+@router.get("/profile/claimable")
 async def get_claimable_members(
     access_code: str,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -127,7 +127,7 @@ async def get_claimable_members(
     )
 
 
-@router.post("/profile/claim/{member_user_id}", response_model=ParticipationEntry, status_code=201)
+@router.post("/profile/claim/{member_user_id}", status_code=201)
 async def claim_membership(
     member_user_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
