@@ -57,7 +57,8 @@ async def create_checkpoint_media(
             key_prefix=f"rally/checkpoints/{checkpoint_id}/media",
         )
     obj_in = CheckpointMediaCreate(kind=kind, caption=caption, order=order)
-    return await crud_media.create(db, checkpoint_id=checkpoint_id, obj_in=obj_in, image_url=image_url)
+    created = await crud_media.create(db, checkpoint_id=checkpoint_id, obj_in=obj_in, image_url=image_url)
+    return CheckpointMediaResponse.model_validate(created)
 
 
 @router.put(
@@ -83,7 +84,8 @@ async def update_checkpoint_media(
             key_prefix=f"rally/checkpoints/{db_obj.checkpoint_id}/media",
         )
     obj_in = CheckpointMediaUpdate(caption=caption, order=order)
-    return await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
+    updated = await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
+    return CheckpointMediaResponse.model_validate(updated)
 
 
 @router.delete(
@@ -112,4 +114,5 @@ async def reorder_checkpoint_media(
     db: AsyncSession = Depends(deps.get_db),
 ) -> List[CheckpointMediaResponse]:
     await _get_checkpoint_or_404(db, checkpoint_id)
-    return await crud_media.reorder(db, checkpoint_id=checkpoint_id, ordered_ids=ordered_ids)
+    items = await crud_media.reorder(db, checkpoint_id=checkpoint_id, ordered_ids=ordered_ids)
+    return [CheckpointMediaResponse.model_validate(item) for item in items]

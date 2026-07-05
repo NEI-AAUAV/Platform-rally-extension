@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +17,7 @@ from app import crud
 router = APIRouter()
 
 
-async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int):
+async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
     cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
