@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Annotated, List, Dict, Any
 from fastapi import APIRouter, Depends, Security
 from app.core.exceptions import RallyValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -40,9 +40,9 @@ class OidcUserSearchResult(BaseModel):
 @router.get("/search")
 async def search_oidc_users(
     q: str,
-    db: AsyncSession = Depends(get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(get_participant),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
 ) -> List[OidcUserSearchResult]:
     """Search NEI accounts by name, username or email.
 
@@ -84,7 +84,8 @@ async def search_oidc_users(
 
 @router.get("/staff-assignments")
 async def get_staff_assignments(
-    *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[DetailedUser, Depends(get_admin)],
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
     Get all rally-staff users and their checkpoint assignments.
@@ -144,7 +145,7 @@ async def get_staff_assignments(
 
 
 @router.get("/me")
-async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> Dict[str, Any]:
+async def get_me(auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])]) -> Dict[str, Any]:
     """
     Get current user information from the validated authentik token.
     """
@@ -159,11 +160,10 @@ async def get_me(*, auth: AuthData = Security(api_nei_auth, scopes=[])) -> Dict[
 
 @router.put("/{user_id}/checkpoint-assignment")
 async def update_checkpoint_assignment(
-    *,
-    db: AsyncSession = Depends(get_db),
     user_id: int,
     assignment: CheckpointAssignmentUpdate,
-    _: DetailedUser = Depends(get_admin)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[DetailedUser, Depends(get_admin)],
 ) -> RallyStaffAssignmentWithCheckpoint:
     """
     Update a user's checkpoint assignment.
@@ -196,7 +196,8 @@ async def update_checkpoint_assignment(
 
 @router.get("/guide-assignments")
 async def get_guide_assignments(
-    *, db: AsyncSession = Depends(get_db), _: DetailedUser = Depends(get_admin)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[DetailedUser, Depends(get_admin)],
 ) -> List[RallyGuideAssignmentWithCheckpoint]:
     """
     Get all rally-guide users and their checkpoint assignments.
@@ -253,11 +254,10 @@ async def get_guide_assignments(
 
 @router.put("/{user_id}/guide-checkpoint-assignment")
 async def update_guide_checkpoint_assignment(
-    *,
-    db: AsyncSession = Depends(get_db),
     user_id: int,
     assignment: CheckpointAssignmentUpdate,
-    _: DetailedUser = Depends(get_admin)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[DetailedUser, Depends(get_admin)],
 ) -> RallyGuideAssignmentWithCheckpoint:
     """Update a guide user's checkpoint assignment."""
     try:
