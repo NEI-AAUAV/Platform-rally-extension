@@ -131,7 +131,7 @@ async def generate_rotation_schedule(
         raise HTTPException(status_code=400, detail="Rotation schedule only available for Olympic events")
 
     teams = list((await db.scalars(
-        select(Team).where(Team.event_id == event_id, Team.is_active.is_(True))
+        select(Team).where(Team.event_id == event_id)
     )).all())
     checkpoints = list((await db.scalars(
         select(CheckPoint).where(CheckPoint.event_id == event_id)

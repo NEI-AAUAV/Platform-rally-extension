@@ -1,4 +1,4 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import Any, ClassVar, List, Optional, TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -18,7 +18,7 @@ class Team(Base):
     # Team name is unique within an event, not globally. access_code stays
     # globally unique so team login can resolve a team (and its event) from
     # the code alone.
-    __table_args__ = (
+    __table_args__: ClassVar[tuple[Any, ...]] = (
         UniqueConstraint("event_id", "name", name="uq_team_event_name"),
         {"schema": settings.SCHEMA_NAME},
     )
