@@ -73,7 +73,7 @@ def test_update_rule(admin_client: TestClient) -> None:
     app.dependency_overrides[get_db] = lambda: db
     resp = admin_client.put("/api/rally/v1/dynamic-rules/1", json={"points": 75.0})
     assert resp.status_code == 200
-    assert rule.points == 75.0
+    assert rule.points == pytest.approx(75.0)
 
 
 def test_update_rule_not_found(admin_client: TestClient) -> None:
@@ -131,7 +131,7 @@ def test_create_award(admin_client: TestClient) -> None:
             json={"team_id": 5, "points": 25.0, "reason": "creativity"},
         )
     assert resp.status_code == 201
-    assert resp.json()["points"] == 25.0
+    assert resp.json()["points"] == pytest.approx(25.0)
 
 
 def test_delete_award(admin_client: TestClient) -> None:
