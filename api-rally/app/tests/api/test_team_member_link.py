@@ -71,7 +71,7 @@ def _link_db(*, team, placeholder) -> AsyncMock:
     """db.get dispatches: Team→team, User(placeholder.id)→placeholder."""
     from app.models.team import Team
 
-    async def _get(model, oid):
+    def _get(model, oid):
         if model is Team:
             return team
         if oid == placeholder.id:

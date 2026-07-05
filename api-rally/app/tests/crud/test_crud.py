@@ -290,7 +290,7 @@ class TestUserCRUD:
 class TestRallyDurationLogic:
     """Test Rally Duration Logic"""
     
-    async def test_rally_status_calculations(self):
+    def test_rally_status_calculations(self):
         """Test rally status calculations"""
         # Test basic datetime logic without importing non-existent functions
         mock_settings = {
@@ -309,7 +309,7 @@ class TestRallyDurationLogic:
         
         assert status == "not_started"
     
-    async def test_team_duration_calculation(self):
+    def test_team_duration_calculation(self):
         """Test team duration calculation"""
         # Test basic duration calculation logic
         mock_team = {
@@ -330,7 +330,7 @@ class TestRallyDurationLogic:
 class TestTimezoneHandling:
     """Test Timezone Handling"""
     
-    async def test_datetime_utc_handling(self):
+    def test_datetime_utc_handling(self):
         """Test UTC datetime handling"""
         utc_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
         

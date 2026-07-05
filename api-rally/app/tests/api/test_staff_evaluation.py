@@ -91,7 +91,7 @@ def mock_manager_auth_data():
 class TestStaffEvaluationAPI:
     """Test Staff Evaluation API endpoints"""
     
-    async def test_get_teams_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_staff_user, mock_auth_data):
+    def test_get_teams_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_staff_user, mock_auth_data):
         """Test getting teams available for evaluation"""
         with patch('app.api.api_v1.staff_evaluation.get_staff_with_checkpoint_access') as mock_get_user, \
              patch('app.api.api_v1.staff_evaluation.api_nei_auth') as mock_auth, \
@@ -138,7 +138,7 @@ class TestStaffEvaluationAPI:
 class TestStaffEvaluationBusinessLogic:
     """Test staff evaluation business logic"""
     
-    async def test_team_checkpoint_validation(self):
+    def test_team_checkpoint_validation(self):
         """Test that teams can only be evaluated at correct checkpoint"""
         from datetime import datetime, timezone
         
@@ -148,7 +148,7 @@ class TestStaffEvaluationBusinessLogic:
         
         assert team_checkpoint <= staff_checkpoint  # Should pass
     
-    async def test_evaluation_summary_calculation(self):
+    def test_evaluation_summary_calculation(self):
         """Test evaluation summary calculation logic"""
         total_activities = 5
         completed_activities = 3
@@ -243,7 +243,7 @@ class TestStaffEvaluationEdgeCases:
                 assert exc_info.value.status_code == 404
                 assert "Activity not found at your assigned checkpoint" in exc_info.value.message
     
-    async def testvalidate_rally_permissions_staff(self):
+    def testvalidate_rally_permissions_staff(self):
         """Test permission validation for staff users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -253,7 +253,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_staff) is True
     
-    async def testvalidate_rally_permissions_manager(self):
+    def testvalidate_rally_permissions_manager(self):
         """Test permission validation for manager users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -263,7 +263,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_manager) is True
     
-    async def testvalidate_rally_permissions_admin(self):
+    def testvalidate_rally_permissions_admin(self):
         """Test permission validation for admin users"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -273,7 +273,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_admin) is True
     
-    async def testvalidate_rally_permissions_no_access(self):
+    def testvalidate_rally_permissions_no_access(self):
         """Test permission validation for users without rally access"""
         from app.api.api_v1.staff_evaluation import validate_rally_permissions
         from unittest.mock import Mock
@@ -283,7 +283,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert validate_rally_permissions(auth_no_access) is False
     
-    async def testis_admin_or_manager_admin(self):
+    def testis_admin_or_manager_admin(self):
         """Test admin/manager check for admin users"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -293,7 +293,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_admin) is True
     
-    async def testis_admin_or_manager_manager(self):
+    def testis_admin_or_manager_manager(self):
         """Test admin/manager check for manager users"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -303,7 +303,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_manager) is True
     
-    async def testis_admin_or_manager_staff(self):
+    def testis_admin_or_manager_staff(self):
         """Test admin/manager check for staff users (should be False)"""
         from app.api.api_v1.staff_evaluation import is_admin_or_manager
         from unittest.mock import Mock
@@ -313,7 +313,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert is_admin_or_manager(auth_staff) is False
     
-    async def testserialize_activity_with_all_fields(self):
+    def testserialize_activity_with_all_fields(self):
         """Test activity serialization with all fields"""
         from app.api.api_v1.staff_evaluation import serialize_activity
         from unittest.mock import Mock
@@ -341,7 +341,7 @@ class TestStaffEvaluationEdgeCases:
         assert result["config"] == {"max_points": 100}
         assert result["is_active"] is True
     
-    async def testserialize_activity_without_activity(self):
+    def testserialize_activity_without_activity(self):
         """Test activity serialization when activity is None"""
         from app.api.api_v1.staff_evaluation import serialize_activity
         from unittest.mock import Mock
@@ -353,7 +353,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert result is None
     
-    async def testserialize_team_with_members(self):
+    def testserialize_team_with_members(self):
         """Test team serialization with members"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -375,7 +375,7 @@ class TestStaffEvaluationEdgeCases:
         assert result["total"] == 100
         assert result["num_members"] == 3
     
-    async def testserialize_team_without_members(self):
+    def testserialize_team_without_members(self):
         """Test team serialization without members"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -394,7 +394,7 @@ class TestStaffEvaluationEdgeCases:
         assert result is not None
         assert result["num_members"] == 0
     
-    async def testserialize_team_without_team(self):
+    def testserialize_team_without_team(self):
         """Test team serialization when team is None"""
         from app.api.api_v1.staff_evaluation import serialize_team
         from unittest.mock import Mock
@@ -508,7 +508,7 @@ class TestStaffEvaluationEdgeCases:
                 assert team_obj == mock_team
                 assert activity_obj == mock_activity
     
-    async def test_completion_rate_calculation_zero_total(self):
+    def test_completion_rate_calculation_zero_total(self):
         """Test completion rate calculation with zero total activities (edge case)"""
         total_activities = 0
         completed_activities = 0
@@ -521,7 +521,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert completion_rate == 0
     
-    async def test_completion_rate_calculation_all_completed(self):
+    def test_completion_rate_calculation_all_completed(self):
         """Test completion rate calculation when all activities are completed"""
         total_activities = 5
         completed_activities = 5
@@ -529,7 +529,7 @@ class TestStaffEvaluationEdgeCases:
         
         assert completion_rate == 100.0
     
-    async def test_completion_rate_calculation_none_completed(self):
+    def test_completion_rate_calculation_none_completed(self):
         """Test completion rate calculation when no activities are completed"""
         total_activities = 5
         completed_activities = 0
