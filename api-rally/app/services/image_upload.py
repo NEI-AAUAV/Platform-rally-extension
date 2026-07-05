@@ -90,7 +90,7 @@ async def validate_and_store(
 
     ext = EXT_BY_CONTENT_TYPE.get(image.content_type or "", "png")
     key = f"{key_prefix.rstrip('/')}/{uuid.uuid4().hex}.{ext}"
-    url = storage_client.upload_image(key, data, image.content_type or "image/jpeg")
+    url = storage_client.upload_image(key, data, image.content_type or JPEG_CONTENT_TYPE)
     if url is None:
         raise HTTPException(status_code=503, detail="Failed to upload image to storage.")
     return url
