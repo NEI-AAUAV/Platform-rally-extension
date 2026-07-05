@@ -189,7 +189,7 @@ class TestABACDependencies:
                     resource=Resource.TEAM
                 )
     
-    async def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
+    def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
         """Test staff user with checkpoint access"""
         mock_db = AsyncMock()
         with patch('app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id') as mock_get_assignment:
@@ -203,7 +203,7 @@ class TestABACDependencies:
 
             assert result == mock_staff_user
 
-    async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
+    def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
         mock_db = AsyncMock()
 
