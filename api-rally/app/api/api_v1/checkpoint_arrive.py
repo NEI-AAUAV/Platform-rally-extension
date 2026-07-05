@@ -4,7 +4,7 @@ Team app posts its current GPS coords; server checks distance vs
 checkpoint.arrival_radius_m and records idempotent arrival.
 Only available when the current event is PEDDY_PAPER.
 """
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -84,12 +84,18 @@ async def _auto_complete_if_no_activities(
         return False
 
 
-@router.post("/checkpoint/{checkpoint_id}/arrive", response_model=ArriveResponse)
+@router.post(
+    "/checkpoint/{checkpoint_id}/arrive",
+    responses={
+        400: {"description": "GPS check-in unavailable, missing coordinates, or too far from checkpoint"},
+        404: {"description": "Checkpoint not found"},
+    },
+)
 async def arrive_at_checkpoint(
     checkpoint_id: int,
     body: ArriveRequest,
-    db: AsyncSession = Depends(deps.get_db),
-    team: TeamTokenData = Depends(deps.get_current_team),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
 ) -> ArriveResponse:
     event = await crud_activity.rally_event.get_current(db)
     if not event or event.event_type != EventType.PEDDY_PAPER.value:
