@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Any, ClassVar, Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,7 +18,7 @@ class CheckpointGuideIndication(Base):
     """
 
     __tablename__ = "checkpoint_guide_indication"  # type: ignore[assignment]
-    __table_args__ = {"schema": settings.SCHEMA_NAME}
+    __table_args__: ClassVar[dict[str, Any]] = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     checkpoint_id: Mapped[int] = mapped_column(
