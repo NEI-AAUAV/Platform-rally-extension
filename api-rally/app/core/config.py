@@ -12,6 +12,12 @@ from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
+def _split_comma_list(v: Any) -> list[str] | Any:
+    if isinstance(v, str):
+        return [i.strip() for i in v.split(",") if i.strip()]
+    return v
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(case_sensitive=True)
 
@@ -161,9 +167,7 @@ class Settings(BaseSettings):
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod
     def assemble_trusted_proxies(cls, v: Any) -> list[str] | Any:
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        return v
+        return _split_comma_list(v)
 
     ## OIDC JWKS cache TTL (seconds). The resource server caches the provider
     ## keyset instead of refetching it on every token validation; a cache miss
@@ -178,9 +182,7 @@ class Settings(BaseSettings):
     @field_validator("OIDC_ALLOWED_ALGORITHMS", mode="before")
     @classmethod
     def assemble_oidc_algs(cls, v: Any) -> list[str] | Any:
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        return v
+        return _split_comma_list(v)
 
     @field_validator("TEAM_JWT_SECRET_KEY")
     @classmethod
