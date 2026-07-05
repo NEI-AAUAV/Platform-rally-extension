@@ -3,8 +3,8 @@ import { ActivityType } from "@/types/activityTypes";
 import { ConfigNumberField, type ConfigValue } from "./ConfigNumberField";
 
 interface ConfigSectionProps {
-  title: string;
-  children: ReactNode;
+  readonly title: string;
+  readonly children: ReactNode;
 }
 
 function ConfigSection({ title, children }: ConfigSectionProps) {
@@ -17,9 +17,9 @@ function ConfigSection({ title, children }: ConfigSectionProps) {
 }
 
 interface ActivityConfigFieldsProps {
-  activityType: ActivityType;
-  configData: Record<string, ConfigValue>;
-  updateConfig: (key: string, value: number) => void;
+  readonly activityType: ActivityType;
+  readonly configData: Record<string, ConfigValue>;
+  readonly updateConfig: (key: string, value: number) => void;
 }
 
 export function ActivityConfigFields({
