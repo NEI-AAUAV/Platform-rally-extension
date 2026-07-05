@@ -1312,7 +1312,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /avaliar:/i }).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
@@ -1352,7 +1352,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /avaliar:/i }).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
