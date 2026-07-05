@@ -14,7 +14,7 @@
           if (m !== "light" && m !== "dark") m = "dark";
           document.documentElement.classList.add(m);
           document.documentElement.style.colorScheme = m;
-        } catch (e) {
+        } catch {
           document.documentElement.classList.add("dark");
         }
       })();
