@@ -69,6 +69,7 @@ async def _get_checkpoints_for_public(
     return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
 
 
+
 @router.get(
     "/",
     status_code=200,
