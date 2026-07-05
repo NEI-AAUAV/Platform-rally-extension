@@ -64,12 +64,12 @@ async def _upload_branding_image(
     updated = await rally_settings.set_image_url(db, field=field, url=url)
     return await _settings_response(db, updated)
 
-@router.put("/rally/settings", status_code=200, response_model=RallySettingsResponse)
+@router.put("/rally/settings", status_code=200)
 async def update_rally_settings(
     settings_in: RallySettingsUpdate,
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[])
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> RallySettingsResponse:
     """
     Update global rally configuration (admin only).
@@ -90,11 +90,11 @@ async def update_rally_settings(
     return await _settings_response(db, updated)
 
 
-@router.get("/rally/settings", status_code=200, response_model=RallySettingsResponse)
+@router.get("/rally/settings", status_code=200)
 async def view_rally_settings(
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[])
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> RallySettingsResponse:
     """View rally settings"""
     validate_settings_view_access(curr_user, auth)
@@ -102,9 +102,9 @@ async def view_rally_settings(
     return await _settings_response(db, settings)
 
 
-@router.get("/rally/settings/public", status_code=200, response_model=RallySettingsResponse)
+@router.get("/rally/settings/public", status_code=200)
 async def view_rally_settings_public(
-    db: AsyncSession = Depends(get_db)
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RallySettingsResponse:
     """View rally settings (public access - no authentication required)"""
     settings = await rally_settings.get_or_create(db)
@@ -114,7 +114,6 @@ async def view_rally_settings_public(
 @router.put(
     "/rally/settings/banner",
     status_code=200,
-    response_model=RallySettingsResponse,
     responses={
         400: {"description": "Invalid file"},
         403: {"description": "Not authorized"},
@@ -123,9 +122,9 @@ async def view_rally_settings_public(
 )
 async def upload_rally_banner(
     image: Annotated[UploadFile, File(...)],
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> RallySettingsResponse:
     """Upload the event banner image to Cloudflare R2 (admin only)."""
     return await _upload_branding_image(
@@ -141,7 +140,6 @@ async def upload_rally_banner(
 @router.put(
     "/rally/settings/logo",
     status_code=200,
-    response_model=RallySettingsResponse,
     responses={
         400: {"description": "Invalid file"},
         403: {"description": "Not authorized"},
@@ -150,9 +148,9 @@ async def upload_rally_banner(
 )
 async def upload_rally_logo(
     image: Annotated[UploadFile, File(...)],
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> RallySettingsResponse:
     """Upload the event logo image to Cloudflare R2 (admin only)."""
     return await _upload_branding_image(
@@ -168,7 +166,6 @@ async def upload_rally_logo(
 @router.put(
     "/rally/settings/favicon",
     status_code=200,
-    response_model=RallySettingsResponse,
     responses={
         400: {"description": "Invalid file"},
         403: {"description": "Not authorized"},
@@ -177,9 +174,9 @@ async def upload_rally_logo(
 )
 async def upload_rally_favicon(
     image: Annotated[UploadFile, File(...)],
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> RallySettingsResponse:
     """Upload the browser-tab favicon to Cloudflare R2 (admin only). Accepts png/ico/svg."""
     return await _upload_branding_image(

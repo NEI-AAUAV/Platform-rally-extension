@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Annotated, Dict, Any
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,9 +13,9 @@ router = APIRouter()
 
 @router.get("/rally/duration", status_code=200)
 async def get_rally_duration(
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[])
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> Dict[str, Any]:
     """
     Get rally duration and timing information.
@@ -31,9 +31,9 @@ async def get_rally_duration(
 @router.get("/rally/team-duration/{team_id}", status_code=200)
 async def get_team_rally_duration(
     team_id: int,
-    db: AsyncSession = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[])
+    db: Annotated[AsyncSession, Depends(get_db)],
+    curr_user: Annotated[DetailedUser, Depends(get_participant)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> Dict[str, Any]:
     """
     Get rally duration information for a specific team.
