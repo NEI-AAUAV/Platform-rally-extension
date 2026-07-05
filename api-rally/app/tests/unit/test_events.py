@@ -77,7 +77,7 @@ class _Broken:
         raise ConnectionError("down")
 
     async def aclose(self) -> None:
-        pass
+        """No-op close for the broken redis stub."""
 
 
 async def test_publish_swallows_redis_errors(monkeypatch: pytest.MonkeyPatch) -> None:
