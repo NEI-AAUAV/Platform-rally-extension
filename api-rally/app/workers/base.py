@@ -52,10 +52,10 @@ class BaseWorker(ABC):
         try:
             data = json.loads(raw) if isinstance(raw, str) else raw
             asyncio.run(self.handle_event(channel, data))
-        except json.JSONDecodeError as exc:
-            logger.exception("[%s] Bad JSON on %s: %s", self.name, channel, exc)
-        except Exception as exc:  # noqa: BLE001 — one bad event must not kill the worker
-            logger.exception("[%s] Error handling %s: %s", self.name, channel, exc)
+        except json.JSONDecodeError:
+            logger.exception("[%s] Bad JSON on %s", self.name, channel)
+        except Exception:  # noqa: BLE001 — one bad event must not kill the worker
+            logger.exception("[%s] Error handling %s", self.name, channel)
 
     def _run_loop(self) -> None:
         logger.info("[%s] Worker loop starting", self.name)
@@ -75,8 +75,8 @@ class BaseWorker(ABC):
                 message = pubsub.get_message(timeout=1.0)
                 if message:
                     self._dispatch(message)
-        except redis.RedisError as exc:
-            logger.exception("[%s] Redis error: %s", self.name, exc)
+        except redis.RedisError:
+            logger.exception("[%s] Redis error", self.name)
         finally:
             pubsub.close()
             logger.info("[%s] Worker loop ended", self.name)
