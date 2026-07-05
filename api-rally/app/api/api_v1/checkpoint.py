@@ -117,7 +117,11 @@ async def get_checkpoints_count(
     return await crud.checkpoint.count(db=db)
 
 
-@router.get("/me", status_code=200)
+@router.get(
+    "/me",
+    status_code=200,
+    responses={401: {"description": "Authentication required (User with Team or Team Token)"}},
+)
 async def get_next_checkpoint(
     *,
     db: AsyncSession = Depends(deps.get_db),
@@ -142,7 +146,11 @@ async def get_next_checkpoint(
     return DetailedCheckPoint.model_validate(checkpoint)
 
 
-@router.get("/teams", status_code=200)
+@router.get(
+    "/teams",
+    status_code=200,
+    responses={401: {"description": "Authentication required"}},
+)
 async def get_checkpoint_teams(
     *,
     db: AsyncSession = Depends(deps.get_db),
