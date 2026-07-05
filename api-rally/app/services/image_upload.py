@@ -13,10 +13,13 @@ from app.services.storage import storage_client
 
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 
+JPEG_CONTENT_TYPE = "image/jpeg"
+PNG_CONTENT_TYPE = "image/png"
+
 # Map an allowed content type to the file extension used in the R2 key.
 EXT_BY_CONTENT_TYPE: dict[str, str] = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
+    JPEG_CONTENT_TYPE: "jpg",
+    PNG_CONTENT_TYPE: "png",
     "image/webp": "webp",
     "image/gif": "gif",
     "image/svg+xml": "svg",
@@ -25,10 +28,10 @@ EXT_BY_CONTENT_TYPE: dict[str, str] = {
 }
 
 # Raster photos (banners, logos, checkpoint media, team/badge images).
-ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_PHOTO_CONTENT_TYPES = {JPEG_CONTENT_TYPE, PNG_CONTENT_TYPE, "image/webp", "image/gif"}
 # Tab-icon formats (favicons).
 ALLOWED_FAVICON_CONTENT_TYPES = {
-    "image/png",
+    PNG_CONTENT_TYPE,
     "image/svg+xml",
     "image/x-icon",
     "image/vnd.microsoft.icon",
