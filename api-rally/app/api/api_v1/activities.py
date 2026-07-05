@@ -1,7 +1,7 @@
 """
 API endpoints for activities management
 """
-from typing import List, Optional, Dict, Any
+from typing import Annotated, List, Optional, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
@@ -28,12 +28,12 @@ ACTIVITY_RESULT_NOT_FOUND = "Activity result not found"
 router = APIRouter()
 
 
-@router.post("/", response_model=ActivityResponse)
+@router.post("/")
 async def create_activity(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_in: ActivityCreate,
-    _: None = Depends(require(Action.CREATE_ACTIVITY, Resource.ACTIVITY)),
+    _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY, Resource.ACTIVITY))],
 ) -> ActivityResponse:
     """Create a new activity"""
     # Validate activity type and config
@@ -51,14 +51,14 @@ async def create_activity(
     return ActivityResponse.model_validate(db_activity)
 
 
-@router.get("/", response_model=ActivityListResponse)
+@router.get("/")
 async def get_activities(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY))],
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     checkpoint_id: Optional[int] = Query(None, gt=0),
-    _: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY)),
 ) -> ActivityListResponse:
     """Get activities list"""
     if checkpoint_id:
@@ -76,11 +76,11 @@ async def get_activities(
     )
 
 
-@router.get("/results", response_model=List[ActivityResultResponse])
+@router.get("/results")
 async def get_all_activity_results(
     *,
-    db: AsyncSession = Depends(get_db),
-    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> List[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
     # Get all activity results with related data
@@ -94,12 +94,12 @@ async def get_all_activity_results(
     return [ActivityResultResponse.model_validate(r) for r in results]
 
 
-@router.get("/{activity_id}", response_model=ActivityResponse)
+@router.get("/{activity_id}")
 async def get_activity(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
-    _: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY)),
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY))],
 ) -> ActivityResponse:
     """Get activity by ID"""
     db_activity = await activity.get(db, id=activity_id)
@@ -109,13 +109,13 @@ async def get_activity(
     return ActivityResponse.model_validate(db_activity)
 
 
-@router.put("/{activity_id}", response_model=ActivityResponse)
+@router.put("/{activity_id}")
 async def update_activity(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
     activity_in: ActivityUpdate,
-    _: None = Depends(require(Action.UPDATE_ACTIVITY, Resource.ACTIVITY)),
+    _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY, Resource.ACTIVITY))],
 ) -> ActivityResponse:
     """Update an activity"""
     db_activity = await activity.get(db, id=activity_id)
@@ -129,9 +129,9 @@ async def update_activity(
 @router.delete("/{activity_id}")
 async def delete_activity(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
-    _: None = Depends(require(Action.DELETE_ACTIVITY, Resource.ACTIVITY)),
+    _: Annotated[None, Depends(require(Action.DELETE_ACTIVITY, Resource.ACTIVITY))],
 ) -> Dict[str, str]:
     """Delete an activity"""
     db_activity = await activity.get(db, id=activity_id)
@@ -142,12 +142,12 @@ async def delete_activity(
     return {"message": "Activity deleted successfully"}
 
 
-@router.post("/results/", response_model=ActivityResultResponse)
+@router.post("/results/")
 async def create_activity_result(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     result_in: ActivityResultCreate,
-    _: None = Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> ActivityResultResponse:
     """Create a new activity result"""
     # Check if result already exists
@@ -161,12 +161,12 @@ async def create_activity_result(
     return ActivityResultResponse.model_validate(db_result)
 
 
-@router.get("/results/{result_id}", response_model=ActivityResultResponse)
+@router.get("/results/{result_id}")
 async def get_activity_result(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     result_id: int,
-    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> ActivityResultResponse:
     """Get activity result by ID"""
     db_result = await activity_result.get(db, id=result_id)
@@ -176,13 +176,13 @@ async def get_activity_result(
     return ActivityResultResponse.model_validate(db_result)
 
 
-@router.put("/results/{result_id}", response_model=ActivityResultResponse)
+@router.put("/results/{result_id}")
 async def update_activity_result(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     result_id: int,
     result_in: ActivityResultUpdate,
-    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> ActivityResultResponse:
     """Update an activity result"""
     db_result = await activity_result.get(db, id=result_id)
@@ -196,10 +196,10 @@ async def update_activity_result(
 @router.post("/results/{result_id}/extra-shots")
 async def apply_extra_shots(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     result_id: int,
+    _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
     extra_shots: int = Query(..., ge=0),
-    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, str]:
     """Apply extra shots bonus to activity result"""
     db_result = await activity_result.get(db, id=result_id)
@@ -220,11 +220,11 @@ async def apply_extra_shots(
 @router.post("/results/{result_id}/penalty")
 async def apply_penalty(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     result_id: int,
+    _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
     penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
     penalty_value: int = Query(..., ge=1),
-    _: None = Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
 ) -> Dict[str, str]:
     """Apply penalty to activity result"""
     db_result = await activity_result.get(db, id=result_id)
@@ -242,12 +242,12 @@ async def apply_penalty(
     return {"message": "Penalty applied successfully"}
 
 
-@router.get("/{activity_id}/ranking", response_model=ActivityRanking)
+@router.get("/{activity_id}/ranking")
 async def get_activity_ranking(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
-    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> ActivityRanking:
     """Get ranking for a specific activity"""
     db_activity = await activity.get(db, id=activity_id)
@@ -277,11 +277,11 @@ async def get_activity_ranking(
     )
 
 
-@router.get("/ranking/global", response_model=GlobalRanking)
+@router.get("/ranking/global")
 async def get_global_ranking(
     *,
-    db: AsyncSession = Depends(get_db),
-    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> GlobalRanking:
     """Get global team ranking"""
     scoring_service = ScoringService(db)
@@ -299,13 +299,13 @@ async def get_global_ranking(
 @router.post("/team-vs/{activity_id}")
 async def create_team_vs_result(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
     team1_id: int,
     team2_id: int,
     winner_id: int,  # 0 for draw
     match_data: Dict[str, Any],
-    _: None = Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> Dict[str, str]:
     """Create team vs team activity results"""
     scoring_service = ScoringService(db)
@@ -318,9 +318,9 @@ async def create_team_vs_result(
 @router.get("/{activity_id}/statistics")
 async def get_activity_statistics(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
-    _: None = Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT)),
+    _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
 ) -> Dict[str, Any]:
     """Get statistics for a specific activity"""
     db_activity = await activity.get(db, id=activity_id)
