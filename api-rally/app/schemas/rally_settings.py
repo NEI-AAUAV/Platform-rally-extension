@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, field_validator
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 
 # Canonical, ordered set of home page section keys. Any home_layout entry
@@ -34,14 +34,14 @@ class HomeSection(BaseModel):
     visible: bool = True
 
 
-def normalize_home_layout(value: list) -> list[dict]:
+def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
     """Drop unknown keys, dedupe, and append any missing known section keys.
 
     Existing order/visibility for known keys is preserved; this only fills
     gaps so a partial or legacy (empty) layout still yields every section.
     """
     seen: set[str] = set()
-    normalized: list[dict] = []
+    normalized: list[dict[str, Any]] = []
     for entry in value or []:
         key = entry.get("key") if isinstance(entry, dict) else getattr(entry, "key", None)
         visible = entry.get("visible") if isinstance(entry, dict) else getattr(entry, "visible", True)
@@ -57,7 +57,7 @@ def normalize_home_layout(value: list) -> list[dict]:
     return normalized
 
 
-def normalize_ticker_items(value: list) -> list[str]:
+def normalize_ticker_items(value: list[Any]) -> list[str]:
     """Trim, drop blanks, cap item length and total count."""
     items: list[str] = []
     for item in value or []:
@@ -130,12 +130,12 @@ class RallySettingsBase(BaseModel):
 
     @field_validator("home_layout", mode="before")
     @classmethod
-    def _normalize_home_layout(cls, value: list) -> list[dict]:
+    def _normalize_home_layout(cls, value: list[Any]) -> list[dict[str, Any]]:
         return normalize_home_layout(value)
 
     @field_validator("ticker_items", mode="before")
     @classmethod
-    def _normalize_ticker_items(cls, value: list) -> list[str]:
+    def _normalize_ticker_items(cls, value: list[Any]) -> list[str]:
         return normalize_ticker_items(value)
 
 class RallySettingsUpdate(RallySettingsBase):
