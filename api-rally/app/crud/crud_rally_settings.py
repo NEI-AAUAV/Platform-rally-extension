@@ -105,8 +105,8 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         event_start = getattr(event, "start_time", None)
         event_end = getattr(event, "end_time", None)
         if settings.rally_start_time != event_start or settings.rally_end_time != event_end:
-            settings.rally_start_time = event_start
-            settings.rally_end_time = event_end
+            settings.rally_start_time = event_start  # type: ignore[assignment]
+            settings.rally_end_time = event_end  # type: ignore[assignment]
             db.add(settings)
             await db.commit()
             await db.refresh(settings)
@@ -119,16 +119,18 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         missing known section keys, without disturbing an admin's existing
         order/visibility choices for keys already present.
         """
-        normalized_layout = normalize_home_layout(settings.home_layout)
-        normalized_ticker = normalize_ticker_items(settings.ticker_items) or list(DEFAULT_TICKER_ITEMS)
+        normalized_layout = normalize_home_layout(settings.home_layout)  # type: ignore[arg-type]
+        normalized_ticker = normalize_ticker_items(settings.ticker_items) or list(  # type: ignore[arg-type]
+            DEFAULT_TICKER_ITEMS
+        )
 
         changed = (
             normalized_layout != (settings.home_layout or [])
             or normalized_ticker != (settings.ticker_items or [])
         )
         if changed:
-            settings.home_layout = normalized_layout
-            settings.ticker_items = normalized_ticker
+            settings.home_layout = normalized_layout  # type: ignore[assignment]
+            settings.ticker_items = normalized_ticker  # type: ignore[assignment]
             db.add(settings)
             await db.commit()
             await db.refresh(settings)
