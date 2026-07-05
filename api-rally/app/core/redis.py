@@ -92,7 +92,7 @@ async def check_redis_health() -> bool:
         await client.aclose()
 
 
-async def close_pools() -> None:
+def close_pools() -> None:
     """Disconnect the sync pool (called on application shutdown).
 
     Async clients are pool-less and closed by their callers, so there is no
