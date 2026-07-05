@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Dict, Any
+from typing import Annotated, List, Tuple, Optional, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,7 +112,7 @@ async def _detailed_team(db: AsyncSession, team_obj: Team, *, with_progress: boo
 
 
 @router.get("/", status_code=200)
-async def get_teams(*, db: AsyncSession = Depends(deps.get_db)) -> List[ListingTeam]:
+async def get_teams(*, db: Annotated[AsyncSession, Depends(deps.get_db)]) -> List[ListingTeam]:
     teams = await crud.team.get_multi(db)
     for team in teams:
         await db.refresh(team, ["members"])
@@ -121,8 +121,8 @@ async def get_teams(*, db: AsyncSession = Depends(deps.get_db)) -> List[ListingT
 
 @router.get("/me", status_code=200)
 async def get_own_team(
-    db: AsyncSession = Depends(deps.get_db),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> DetailedTeam:
     team_obj = await crud.team.get(db=db, id=curr_user.team_id)
     return await _detailed_team(db, team_obj, with_progress=True)
@@ -132,7 +132,7 @@ async def get_own_team(
 async def get_team_by_id(
     *,
     id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DetailedTeam:
     team_obj = await crud.team.get(db=db, id=id)
     return await _detailed_team(db, team_obj, with_progress=True)
@@ -141,11 +141,11 @@ async def get_team_by_id(
 @router.put("/{id}/checkpoint", status_code=201)
 async def add_checkpoint(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     obj_in: TeamScoresUpdate,
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    staff_user: DetailedUser = Depends(deps.get_admin_or_staff),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
 ) -> DetailedTeam:
     # Use ABAC to validate checkpoint access
     checkpoint_id = validate_checkpoint_access(
@@ -175,10 +175,10 @@ async def add_checkpoint(
 @router.post("/", status_code=201)
 async def create_team(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     team_in: TeamCreate,
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> DetailedTeam:
     # Enforce ABAC permission for team creation
     require_team_management_permission(auth=auth, curr_user=curr_user)
@@ -187,26 +187,30 @@ async def create_team(
     return await _detailed_team(db, team_db)
 
 
-@router.put("/{id}", status_code=200, response_model=DetailedTeam)
+@router.put("/{id}", status_code=200)
 async def update_team(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     team_in: TeamUpdate,
-    _: DetailedUser = Depends(deps.get_admin),
+    _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> DetailedTeam:
     team_db = await crud.team.update(db=db, id=id, obj_in=team_in)
     return await _detailed_team(db, team_db)
 
 
-@router.put("/{id}/photo", status_code=200, response_model=DetailedTeam)
+@router.put(
+    "/{id}/photo",
+    status_code=200,
+    responses={403: {"description": "Not allowed to change this team's photo"}},
+)
 async def upload_team_photo(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
-    image: UploadFile = File(...),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    image: Annotated[UploadFile, File(...)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> DetailedTeam:
     """Upload the team's official photo to R2 and persist its URL.
 
@@ -234,9 +238,9 @@ async def upload_team_photo(
 @router.delete("/{id}", status_code=200)
 async def delete_team(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
-    _: DetailedUser = Depends(deps.get_admin),
+    _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> Dict[str, str]:
     """Delete a team. Only admins can delete teams."""
     try:
@@ -257,12 +261,12 @@ async def delete_team(
 @router.get("/{id}/evaluations", status_code=200)
 async def get_team_evaluations(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     # Use optional auth to allow either NEI user or Team token
-    current_user: Optional[DetailedUser] = Depends(deps.get_current_user_optional),
-    auth: Optional[AuthData] = Depends(api_nei_auth_optional),
-    current_team: Optional[TeamTokenData] = Depends(deps.get_current_team_optional),
+    current_user: Annotated[Optional[DetailedUser], Depends(deps.get_current_user_optional)] = None,
+    auth: Annotated[Optional[AuthData], Depends(api_nei_auth_optional)] = None,
+    current_team: Annotated[Optional[TeamTokenData], Depends(deps.get_current_team_optional)] = None,
 ) -> Dict[str, Any]:
     """
     Get evaluations for a specific team.
