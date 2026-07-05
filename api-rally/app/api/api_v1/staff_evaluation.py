@@ -264,7 +264,7 @@ async def _load_activity_and_team_for_update(
     activity_id: int,
     current_user: DetailedUser,
     is_manager: bool,
-):
+) -> tuple[Any, Team]:
     """Resolve+authorize the activity/team pair for an evaluation update.
 
     Staff are restricted to activities at their own checkpoint; managers/admins
