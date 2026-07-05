@@ -92,7 +92,7 @@ test.describe('Staff Evaluation Flow', () => {
 
     await page.route('**/api/rally/v1/staff/teams/*/activities**', async (route) => {
       const url = new URL(route.request().url());
-      const teamIdMatch = url.pathname.match(/\/teams\/(\d+)\/activities/);
+      const teamIdMatch = /\/teams\/(\d+)\/activities/.exec(url.pathname);
       const teamId = teamIdMatch ? Number(teamIdMatch[1]) : null;
 
       if (teamId === MOCK_TEAM.id) {
