@@ -19,7 +19,7 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      TEST_DB_PASSWORD: postgres # NOSONAR test-only credential, ephemeral CI service container
+      TEST_DB_SECRET: postgres # NOSONAR test-only credential, ephemeral CI service container
       TEST_DB_USER: postgres
       TEST_DB_NAME: postgres_test
 
@@ -27,7 +27,7 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_SECRET }}
           POSTGRES_USER: ${{ env.TEST_DB_USER }}
           POSTGRES_DB: ${{ env.TEST_DB_NAME }}
         options: >-
@@ -92,9 +92,10 @@ jobs:
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
           cd api-rally
+          # NOSONAR: source builds required for native deps pinned in poetry.lock
           poetry install --no-root
-          poetry run pip install pytest-cov
-          poetry run pip install requests
+          poetry run pip install --only-binary :all: pytest-cov
+          poetry run pip install --only-binary :all: requests
 
       - name: Cache pnpm store (Web)
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
@@ -116,7 +117,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          PGPASSWORD="$TEST_DB_PASSWORD" psql -h localhost -U "$TEST_DB_USER" -d "$TEST_DB_NAME" -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+          PGPASSWORD="$TEST_DB_SECRET" psql -h localhost -U "$TEST_DB_USER" -d "$TEST_DB_NAME" -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
         env:
           POSTGRES_SERVER: localhost
 
@@ -127,7 +128,7 @@ jobs:
           poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
         env:
           POSTGRES_SERVER: localhost
-          POSTGRES_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_SECRET }}
           POSTGRES_USER: ${{ env.TEST_DB_USER }}
           POSTGRES_DB: ${{ env.TEST_DB_NAME }}
           TEAM_JWT_SECRET_KEY: test_secret
