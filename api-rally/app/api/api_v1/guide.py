@@ -30,8 +30,8 @@ router = APIRouter()
 class GuideMediaItem(BaseModel):
     id: int
     kind: str
-    url: Optional[str]
-    caption: Optional[str]
+    url: Optional[str] = None
+    caption: Optional[str] = None
     display_order: int
 
     model_config = {"from_attributes": True}
@@ -40,8 +40,8 @@ class GuideMediaItem(BaseModel):
 class GuideIndicationItem(BaseModel):
     id: int
     hint: str
-    question: Optional[str]
-    expected_answer: Optional[str]
+    question: Optional[str] = None
+    expected_answer: Optional[str] = None
     order: int
 
     model_config = {"from_attributes": True}
@@ -51,19 +51,22 @@ class GuideCheckpointResponse(BaseModel):
     id: int
     name: str
     order: int
-    description: Optional[str]
-    latitude: Optional[float]
-    longitude: Optional[float]
+    description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     media: List[GuideMediaItem]
     indications: List[GuideIndicationItem]
 
     model_config = {"from_attributes": True}
 
 
-@router.get("/guide/checkpoints", response_model=List[GuideCheckpointResponse])
+@router.get(
+    "/guide/checkpoints",
+    responses={403: {"description": "Guide mode is not active for this event"}},
+)
 async def list_guide_checkpoints(
-    db: AsyncSession = Depends(get_db),
-    _: DetailedUser = Depends(get_guide),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[DetailedUser, Depends(get_guide)],
 ) -> List[GuideCheckpointResponse]:
     """Return all checkpoints with their media gallery for the current event.
 
