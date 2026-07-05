@@ -41,6 +41,7 @@ async def list_checkpoint_media(
     "/checkpoint/{checkpoint_id}/media",
     status_code=201,
     dependencies=[Depends(require_checkpoint_management_permission)],
+    responses={404: {"description": "Checkpoint not found"}},
 )
 async def create_checkpoint_media(
     checkpoint_id: int,
@@ -109,6 +110,7 @@ async def delete_checkpoint_media(
 @router.post(
     "/checkpoint/{checkpoint_id}/media/reorder",
     dependencies=[Depends(require_checkpoint_management_permission)],
+    responses={404: {"description": "Checkpoint not found"}},
 )
 async def reorder_checkpoint_media(
     checkpoint_id: int,
