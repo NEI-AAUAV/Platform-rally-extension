@@ -18,7 +18,7 @@ async def _fake_session():
 
 class _FakeScoringService:
     def __init__(self, _session: Any) -> None:
-        pass
+        """Session is unused; ranking is stubbed below."""
 
     async def get_team_ranking(self) -> list[dict[str, Any]]:
         return [
