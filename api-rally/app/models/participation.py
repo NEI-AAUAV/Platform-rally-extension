@@ -12,7 +12,7 @@ snapshots taken at claim time; live values are preferred at read time while the
 team still exists.
 """
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, ClassVar, Optional
 
 from sqlalchemy import (
     Boolean,

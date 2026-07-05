@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, ClassVar, Optional
 
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import mapped_column, Mapped, relationship
@@ -15,7 +15,7 @@ class RallyGuideAssignment(Base):
     a guide is accompanying teams through.
     """
     # One assignment row per guide — create_or_update relies on this.
-    __table_args__ = (
+    __table_args__: ClassVar[tuple[Any, ...]] = (
         UniqueConstraint("user_id", name="uq_rally_guide_assignment_user_id"),
         {"schema": settings.SCHEMA_NAME},
     )
