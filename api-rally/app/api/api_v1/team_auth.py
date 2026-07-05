@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -58,7 +58,7 @@ def verify_team_token(token: str) -> TeamTokenData:
     return TeamTokenData(team_id=payload["team_id"], team_name=payload["team_name"])
 
 
-def _decode_team_token(token: str) -> dict:
+def _decode_team_token(token: str) -> dict[str, Any]:
     """Decode and validate a team JWT, returning its full payload."""
     try:
         assert settings.TEAM_JWT_SECRET_KEY is not None  # validated at startup

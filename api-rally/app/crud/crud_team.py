@@ -94,7 +94,8 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
     async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
         """Get a team by their access code (access_code is globally unique)."""
-        return await db.scalar(select(Team).where(Team.access_code == access_code))
+        result: Team | None = await db.scalar(select(Team).where(Team.access_code == access_code))
+        return result
 
     async def get_multi(
         self,

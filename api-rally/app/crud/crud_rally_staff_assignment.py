@@ -17,7 +17,8 @@ class CRUDRallyStaffAssignment(CRUDBase[RallyStaffAssignment, RallyStaffAssignme
     async def get_by_user_id(self, db: AsyncSession, user_id: int) -> Optional[RallyStaffAssignment]:
         """Get staff assignment for a specific user"""
         stmt = select(RallyStaffAssignment).where(RallyStaffAssignment.user_id == user_id)
-        return await db.scalar(stmt)
+        result: Optional[RallyStaffAssignment] = await db.scalar(stmt)
+        return result
 
     async def get_by_checkpoint_id(self, db: AsyncSession, checkpoint_id: int) -> Sequence[RallyStaffAssignment]:
         """Get all staff assignments for a specific checkpoint"""

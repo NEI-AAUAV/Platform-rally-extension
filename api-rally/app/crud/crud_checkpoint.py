@@ -1,5 +1,6 @@
 from typing import Optional, Sequence
 from sqlalchemy import select, func
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -10,7 +11,7 @@ from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
 from app.core.config import settings
 
 
-def _event_filter(event_id: int):
+def _event_filter(event_id: int) -> "ColumnElement[bool]":
     """Match the current event's checkpoints, including legacy NULL rows."""
     return (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None))
 
@@ -48,7 +49,8 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         """Get checkpoint by its order number (within the current event)."""
         event_id = await current_event_id(db)
         stmt = select(CheckPoint).where(CheckPoint.order == order, _event_filter(event_id))
-        return await db.scalar(stmt)
+        result: Optional[CheckPoint] = await db.scalar(stmt)
+        return result
 
     async def get_all_ordered(self, db: AsyncSession) -> Sequence[CheckPoint]:
         """Get the current event's checkpoints ordered by their order field."""
