@@ -18,20 +18,20 @@ from app.models.activity import EventType
 
 def _event(**over) -> SimpleNamespace:
     """A stand-in RallyEvent with every field RallyEventResponse needs."""
-    base = dict(
-        id=1,
-        name="Rally Tascas",
-        slug="rally-tascas",
-        description="",
-        event_type=EventType.RALLY_TASCAS.value,
-        config={},
-        is_active=True,
-        is_current=True,
-        start_time=None,
-        end_time=None,
-        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
+    base = {
+        "id": 1,
+        "name": "Rally Tascas",
+        "slug": "rally-tascas",
+        "description": "",
+        "event_type": EventType.RALLY_TASCAS.value,
+        "config": {},
+        "is_active": True,
+        "is_current": True,
+        "start_time": None,
+        "end_time": None,
+        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "updated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
     base.update(over)
     return SimpleNamespace(**base)
 

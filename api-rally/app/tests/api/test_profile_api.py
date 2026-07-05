@@ -16,10 +16,10 @@ def _auth() -> SimpleNamespace:
 
 
 def _participation(**over) -> SimpleNamespace:
-    base = dict(
-        event_id=5, team_id=10, team_name="Os Bons", team_total=42,
-        team_classification=2, is_captain=True, joined_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
+    base = {
+        "event_id": 5, "team_id": 10, "team_name": "Os Bons", "team_total": 42,
+        "team_classification": 2, "is_captain": True, "joined_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
     base.update(over)
     return SimpleNamespace(**base)
 
