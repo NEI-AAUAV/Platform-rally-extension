@@ -81,7 +81,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <label htmlFor="general-points" className="block text-sm font-medium mb-2 text-foreground">
           Assigned Points

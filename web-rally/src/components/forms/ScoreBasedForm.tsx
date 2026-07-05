@@ -72,7 +72,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <label htmlFor="score-achieved" className="block text-sm font-medium mb-2 text-foreground">
           Achieved Points
