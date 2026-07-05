@@ -2008,6 +2008,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
     // Mock activity with existing completed result
     const activityWithResult = {
       ...MOCK_ACTIVITY,
+      evaluation_status: 'completed' as const,
       existing_result: {
         ...MOCK_ACTIVITY_RESULT,
         is_completed: true,
@@ -2145,7 +2146,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
       // Form should be visible with existing values
       await expect(
-        page.getByText(/evaluation|avalia/i).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Update the points value
