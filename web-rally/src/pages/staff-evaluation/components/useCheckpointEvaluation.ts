@@ -71,6 +71,28 @@ async function tryLoadStaffActivities({
   }
 }
 
+function computeTeamEvaluationStatus(
+  checkpointTeams: ListingTeam[],
+  checkpointActivities: ActivityResponse[],
+  results: ActivityResultWithRelations[],
+): TeamEvaluationStatusMap {
+  const evaluationStatus: TeamEvaluationStatusMap = {};
+
+  for (const team of checkpointTeams) {
+    const completedResults = results.filter(
+      (result) =>
+        result.team_id === team.id &&
+        result.is_completed === true &&
+        checkpointActivities.some((activity) => activity.id === result.activity_id),
+    );
+
+    evaluationStatus[team.id] =
+      checkpointActivities.length > 0 && completedResults.length === checkpointActivities.length;
+  }
+
+  return evaluationStatus;
+}
+
 async function loadGeneralActivities(
   checkpoint: DetailedCheckPoint,
   teamId: number,
@@ -150,8 +172,6 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         return {};
       }
 
-      const evaluationStatus: TeamEvaluationStatusMap = {};
-
       try {
         const activitiesData = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
         const checkpointActivities: ActivityResponse[] = (activitiesData.activities ?? []).filter(
@@ -160,24 +180,14 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
 
         const results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
 
-        checkpointTeams.forEach((team) => {
-          const completedResults = results.filter(
-            (result) =>
-              result.team_id === team.id &&
-              result.is_completed === true &&
-              checkpointActivities.some((activity) => activity.id === result.activity_id),
-          );
-
-          evaluationStatus[team.id] =
-            checkpointActivities.length > 0 && completedResults.length === checkpointActivities.length;
-        });
+        return computeTeamEvaluationStatus(checkpointTeams, checkpointActivities, results);
       } catch {
-        checkpointTeams.forEach((team) => {
+        const evaluationStatus: TeamEvaluationStatusMap = {};
+        for (const team of checkpointTeams) {
           evaluationStatus[team.id] = false;
-        });
+        }
+        return evaluationStatus;
       }
-
-      return evaluationStatus;
     },
     enabled: !!userStore.token && !!checkpoint && !!checkpointTeams,
     staleTime: 30000, // Cache for 30 seconds

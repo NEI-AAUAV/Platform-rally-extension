@@ -172,7 +172,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
           <p className="text-muted-foreground text-sm mt-1">
             Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
           </p>
-        </div>
+        </fieldset>
       )}
 
       <div>
