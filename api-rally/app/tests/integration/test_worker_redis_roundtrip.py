@@ -97,7 +97,7 @@ async def test_published_event_reaches_worker_over_real_redis(
             await asyncio.sleep(0.1)
     finally:
         worker.stop()
-        await redis_mod.close_pools()
+        redis_mod.close_pools()
 
     assert worker.received, "worker never received the published event"
     channel, data = worker.received[0]
