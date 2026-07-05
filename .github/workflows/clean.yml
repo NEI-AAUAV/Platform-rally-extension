@@ -3,6 +3,9 @@ name: Clean from NEI VM
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PROD_COMPOSE: docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml
 
