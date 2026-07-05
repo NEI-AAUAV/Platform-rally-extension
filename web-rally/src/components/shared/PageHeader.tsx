@@ -1,13 +1,13 @@
 import type { ComponentType } from "react";
 
 interface PageHeaderProps {
-  title: string;
-  description?: string;
+  readonly title: string;
+  readonly description?: string;
   /** Small accent eyebrow above the title. */
-  eyebrow?: string;
+  readonly eyebrow?: string;
   /** Optional icon shown beside the eyebrow. */
-  icon?: ComponentType<{ className?: string }>;
-  className?: string;
+  readonly icon?: ComponentType<{ className?: string }>;
+  readonly className?: string;
 }
 
 /**

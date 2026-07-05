@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useColorMode } from "./useColorMode";
 
 interface ColorModeToggleProps {
-  className?: string;
+  readonly className?: string;
 }
 
 const PULL_THRESHOLD = 8;

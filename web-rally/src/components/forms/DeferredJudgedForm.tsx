@@ -8,10 +8,10 @@ import type { Team } from "@/types/forms";
 import type { ActivityResultResponse } from "@/client";
 
 interface DeferredJudgedFormProps {
-  activityId: number;
-  team: Team;
-  existingResult?: ActivityResultResponse | null;
-  onCaptured?: () => void;
+  readonly activityId: number;
+  readonly team: Team;
+  readonly existingResult?: ActivityResultResponse | null;
+  readonly onCaptured?: () => void;
 }
 
 export default function DeferredJudgedForm({ activityId, team, existingResult, onCaptured }: DeferredJudgedFormProps) {
@@ -84,13 +84,16 @@ export default function DeferredJudgedForm({ activityId, team, existingResult, o
     }
   };
 
+  const countSuffix = files.length > 0 ? `(${files.length})` : "";
+  const submitLabel = isUploading ? "A enviar..." : `Enviar ${countSuffix} fotos`;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {mediaUrls.length > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-2 text-foreground">
+          <p className="block text-sm font-medium mb-2 text-foreground">
             Fotos já enviadas
-          </label>
+          </p>
           <div className="grid grid-cols-3 gap-2">
             {mediaUrls.map((url) => (
               <div key={url} className="relative">
@@ -174,7 +177,7 @@ export default function DeferredJudgedForm({ activityId, team, existingResult, o
           blood={true}
           className="flex-1 px-6 py-3"
         >
-          {isUploading ? "A enviar..." : `Enviar ${files.length > 0 ? `(${files.length})` : ""} fotos`}
+          {submitLabel}
         </BloodyButton>
       </div>
     </form>

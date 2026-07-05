@@ -10,7 +10,7 @@ import {
 import type { ListingTeam } from "@/client";
 
 interface PointsDistributionChartProps {
-  teams: ListingTeam[];
+  readonly teams: ListingTeam[];
 }
 
 const ACCENT = "var(--rally-accent, var(--rally-accent-fallback))";

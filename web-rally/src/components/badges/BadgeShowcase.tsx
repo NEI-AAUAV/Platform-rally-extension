@@ -3,7 +3,7 @@ import { useBadgeShowcase } from "@/hooks/useBadges";
 import { getBadgeDisplay } from "@/lib/badges";
 
 interface BadgeShowcaseProps {
-  teamId: number;
+  readonly teamId: number;
 }
 
 /**

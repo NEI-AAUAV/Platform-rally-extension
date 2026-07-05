@@ -8,9 +8,9 @@ import { ApiError } from "@/client";
 
 interface StaffCheckinScannerProps {
   /** Checkpoint the staff member is scanning teams into. */
-  checkpointId: number;
+  readonly checkpointId: number;
   /** Called after a successful scan so the caller can open that team's evaluation. */
-  onTeamIdentified?: (teamId: number) => void;
+  readonly onTeamIdentified?: (teamId: number) => void;
 }
 
 interface RecentScan {

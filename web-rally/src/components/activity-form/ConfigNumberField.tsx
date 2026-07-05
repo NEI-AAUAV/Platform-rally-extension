@@ -3,16 +3,16 @@ import { Input } from "@/components/ui/input";
 export type ConfigValue = string | number | boolean;
 
 interface ConfigNumberFieldProps {
-  id: string;
-  label: string;
-  configKey: string;
+  readonly id: string;
+  readonly label: string;
+  readonly configKey: string;
   /** Raw value from configData[configKey] (may be undefined). */
-  value: ConfigValue | undefined;
-  defaultValue: number;
-  placeholder: string;
-  onChange: (key: string, value: number) => void;
-  helpText?: string;
-  testId?: string;
+  readonly value: ConfigValue | undefined;
+  readonly defaultValue: number;
+  readonly placeholder: string;
+  readonly onChange: (key: string, value: number) => void;
+  readonly helpText?: string;
+  readonly testId?: string;
 }
 
 /** Resolve the displayed numeric value, matching the original inline logic. */

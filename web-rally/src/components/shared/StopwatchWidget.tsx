@@ -2,7 +2,7 @@ import { Play, Pause, RotateCcw, Flag } from "lucide-react";
 import { useStopwatch, formatStopwatchTime } from "@/hooks/useStopwatch";
 
 interface StopwatchWidgetProps {
-  onUseTime: (seconds: number) => void;
+  readonly onUseTime: (seconds: number) => void;
 }
 
 export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
@@ -22,16 +22,7 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
       </time>
 
       <div className="flex gap-2">
-        {!running ? (
-          <button
-            type="button"
-            onClick={start}
-            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white shadow transition hover:bg-green-600"
-            aria-label="Iniciar"
-          >
-            <Play className="h-4 w-4 fill-current" />
-          </button>
-        ) : (
+        {running ? (
           <button
             type="button"
             onClick={pause}
@@ -39,6 +30,15 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
             aria-label="Pausar"
           >
             <Pause className="h-4 w-4 fill-current" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={start}
+            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white shadow transition hover:bg-green-600"
+            aria-label="Iniciar"
+          >
+            <Play className="h-4 w-4 fill-current" />
           </button>
         )}
 
@@ -86,14 +86,17 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
               {[...laps].reverse().map((l) => {
                 const isBest = bestLap !== null && l.split === bestLap;
                 const isWorst = worstLap !== null && l.split === worstLap;
+                let splitClass = "";
+                if (isBest) {
+                  splitClass = "text-green-500";
+                } else if (isWorst) {
+                  splitClass = "text-red-500";
+                }
                 return (
                   <tr key={l.n} className="border-b border-border/50 last:border-0">
                     <td className="px-3 py-1.5 font-semibold text-muted-foreground">{l.n}</td>
                     <td
-                      className={[
-                        "px-3 py-1.5 font-mono font-semibold tabular-nums",
-                        isBest ? "text-green-500" : isWorst ? "text-red-500" : "",
-                      ].join(" ")}
+                      className={["px-3 py-1.5 font-mono font-semibold tabular-nums", splitClass].join(" ")}
                     >
                       {formatStopwatchTime(l.split)}
                     </td>

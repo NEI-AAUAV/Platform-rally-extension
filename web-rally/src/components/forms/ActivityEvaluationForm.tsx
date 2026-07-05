@@ -12,15 +12,15 @@ interface ActivityWithStatus extends ActivityResponse {
  */
 interface ActivityEvaluationFormProps {
   /** Activity to evaluate with status information */
-  activity: ActivityWithStatus;
+  readonly activity: ActivityWithStatus;
   /** Team being evaluated */
-  team: Team;
+  readonly team: Team;
   /** Callback when form is submitted */
-  onSubmit: FormSubmitHandler;
+  readonly onSubmit: FormSubmitHandler;
   /** Whether the form is currently submitting */
-  isSubmitting: boolean;
+  readonly isSubmitting: boolean;
   /** Called when a deferred-judged photo capture completes (no score yet, just upload) */
-  onCaptured?: () => void;
+  readonly onCaptured?: () => void;
 }
 
 /**

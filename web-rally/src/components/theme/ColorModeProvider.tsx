@@ -13,12 +13,16 @@ import {
   type ColorMode,
 } from "./colorModeContext";
 
-export function ColorModeProvider({ children }: { children: ReactNode }) {
+interface ColorModeProviderProps {
+  readonly children: ReactNode;
+}
+
+export function ColorModeProvider({ children }: ColorModeProviderProps) {
   const [mode, setModeState] = useState<ColorMode>(readStoredMode);
 
   useEffect(() => {
     applyColorMode(mode);
-    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+    globalThis.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
   }, [mode]);
 
   const setMode = useCallback((next: ColorMode) => setModeState(next), []);

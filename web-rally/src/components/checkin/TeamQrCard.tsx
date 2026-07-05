@@ -2,7 +2,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { QrCode } from "lucide-react";
 
 interface TeamQrCardProps {
-  accessCode: string;
+  readonly accessCode: string;
 }
 
 /**
