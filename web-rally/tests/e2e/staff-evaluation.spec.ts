@@ -638,7 +638,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
 
     // Should show "No Checkpoint Assigned" message
     await expect(
-      page.getByText(/no checkpoint assigned|haven't been assigned/i).first(),
+      page.getByText(/sem posto atribuído|não foste atribuído/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -687,7 +687,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
     // Should handle empty teams list (may show empty state or message)
     // Checkpoint name should still be visible
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(new RegExp(MOCK_CHECKPOINT.name)).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -1312,7 +1312,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluation|avalia/i).first(),
+        page.getByRole('heading', { name: /avaliar:/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
@@ -1352,7 +1352,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluation|avalia/i).first(),
+        page.getByRole('heading', { name: /avaliar:/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
@@ -2126,7 +2126,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
     // Should show activity as completed
     await expect(
-      page.getByText(/completed|complet|update/i).first(),
+      page.getByText(/avaliado|atualizar/i).first(),
     ).toBeVisible({ timeout: 5000 });
 
     // Click update button (should be visible for completed activities)
@@ -2390,7 +2390,7 @@ test.describe('Manager Evaluation - Edge Cases', () => {
 
     // Should show empty evaluations state
     await expect(
-      page.getByText(/all.*evaluations/i).first(),
+      page.getByText(/todas as avaliaç/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
