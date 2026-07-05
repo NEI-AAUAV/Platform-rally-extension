@@ -21,7 +21,7 @@ class DynamicRule(Base):
     ``rule_type`` is a free-form tag (e.g. "first_arrival", "bonus", "penalty").
     """
     __tablename__ = "dynamic_rules"  # type: ignore[assignment]
-    __table_args__ = {"schema": settings.SCHEMA_NAME}
+    __table_args__: ClassVar[dict[str, Any]] = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[Optional[int]] = mapped_column(
@@ -46,7 +46,7 @@ class DynamicAward(Base):
     on the leaderboard without needing an ActivityResult row.
     """
     __tablename__ = "dynamic_awards"  # type: ignore[assignment]
-    __table_args__ = {"schema": settings.SCHEMA_NAME}
+    __table_args__: ClassVar[dict[str, Any]] = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     team_id: Mapped[int] = mapped_column(
