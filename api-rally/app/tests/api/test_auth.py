@@ -122,12 +122,13 @@ class TestApiNeiAuth:
     async def test_missing_required_scope_raises_403(self, settings, credentials):
         claims = {"sub": "uuid-s", "name": "Staffer", "groups": ["rally-staff"]}
         with patch("app.api.auth.jwt_validator.validate_token", new=AsyncMock(return_value=claims)):
+            call = api_nei_auth(
+                settings=settings,
+                security_scopes=_scopes_obj(["manager-rally"]),
+                credentials=credentials,
+            )
             with pytest.raises(HTTPException) as exc:
-                await api_nei_auth(
-                    settings=settings,
-                    security_scopes=_scopes_obj(["manager-rally"]),
-                    credentials=credentials,
-                )
+                await call
         assert exc.value.status_code == 403
 
     async def test_invalid_token_propagates(self, settings, credentials):
@@ -135,12 +136,13 @@ class TestApiNeiAuth:
             "app.api.auth.jwt_validator.validate_token",
             new=AsyncMock(side_effect=HTTPException(status_code=401, detail="bad")),
         ):
+            call = api_nei_auth(
+                settings=settings,
+                security_scopes=_scopes_obj([]),
+                credentials=credentials,
+            )
             with pytest.raises(HTTPException) as exc:
-                await api_nei_auth(
-                    settings=settings,
-                    security_scopes=_scopes_obj([]),
-                    credentials=credentials,
-                )
+                await call
         assert exc.value.status_code == 401
 
 
