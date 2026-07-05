@@ -7,13 +7,13 @@ WORKDIR /api_rally
 RUN apt-get update && \
     apt-get -y install --no-install-recommends libpq-dev=17.10-0+deb13u1 gcc=4:14.2.0-1 && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir --upgrade pip==24.3.1 && \
-    pip install --no-cache-dir poetry==1.8.5 && \
+    pip install --no-cache-dir --upgrade --only-binary :all: pip==24.3.1 && \
+    pip install --no-cache-dir --only-binary :all: poetry==1.8.5 && \
     useradd --create-home appuser
 
 COPY poetry.lock pyproject.toml ./
 
-RUN poetry install --no-root --no-cache
+RUN poetry install --no-root --no-cache --no-directory
 
 COPY --chown=appuser:appuser app ./app
 COPY --chown=appuser:appuser alembic ./alembic
