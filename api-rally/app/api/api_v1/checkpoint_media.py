@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Annotated, Any, List, Optional
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,10 +24,13 @@ async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
     return cp
 
 
-@router.get("/checkpoint/{checkpoint_id}/media", response_model=List[CheckpointMediaResponse])
+@router.get(
+    "/checkpoint/{checkpoint_id}/media",
+    responses={404: {"description": "Checkpoint not found"}},
+)
 async def list_checkpoint_media(
     checkpoint_id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> List[CheckpointMediaResponse]:
     await _get_checkpoint_or_404(db, checkpoint_id)
     items = await crud_media.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
