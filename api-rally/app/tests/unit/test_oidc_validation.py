@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from authlib.jose import JsonWebKey, JsonWebToken
+from fastapi import HTTPException
 
 from app.api.oidc import OIDCJWTValidator
 from app.core.config import settings
@@ -72,8 +73,9 @@ async def test_hs256_token_rejected_alg_confusion():
     )
     hs_token = hs.decode() if isinstance(hs, bytes) else hs
     with _wired_validator() as v:
-        with pytest.raises(Exception):
-            await v.validate_token(hs_token)
+        call = v.validate_token(hs_token)
+        with pytest.raises(HTTPException):
+            await call
 
 
 @pytest.mark.asyncio
