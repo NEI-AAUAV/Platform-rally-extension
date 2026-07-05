@@ -39,17 +39,16 @@ async def list_checkpoint_media(
 
 @router.post(
     "/checkpoint/{checkpoint_id}/media",
-    response_model=CheckpointMediaResponse,
     status_code=201,
     dependencies=[Depends(require_checkpoint_management_permission)],
 )
 async def create_checkpoint_media(
     checkpoint_id: int,
-    kind: MediaKind = Form(...),
-    caption: Optional[str] = Form(None),
-    order: int = Form(0),
-    image: Optional[UploadFile] = File(None),
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    kind: Annotated[MediaKind, Form()],
+    caption: Annotated[Optional[str], Form()] = None,
+    order: Annotated[int, Form()] = 0,
+    image: Annotated[Optional[UploadFile], File()] = None,
 ) -> CheckpointMediaResponse:
     await _get_checkpoint_or_404(db, checkpoint_id)
     image_url: Optional[str] = None
@@ -66,15 +65,15 @@ async def create_checkpoint_media(
 
 @router.put(
     "/checkpoint/media/{media_id}",
-    response_model=CheckpointMediaResponse,
     dependencies=[Depends(require_checkpoint_management_permission)],
+    responses={404: {"description": "Media not found"}},
 )
 async def update_checkpoint_media(
     media_id: int,
-    caption: Optional[str] = Form(None),
-    order: Optional[int] = Form(None),
-    image: Optional[UploadFile] = File(None),
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    caption: Annotated[Optional[str], Form()] = None,
+    order: Annotated[Optional[int], Form()] = None,
+    image: Annotated[Optional[UploadFile], File()] = None,
 ) -> CheckpointMediaResponse:
     db_obj = await crud_media.get(db, id=media_id)
     if not db_obj:
@@ -95,10 +94,11 @@ async def update_checkpoint_media(
     "/checkpoint/media/{media_id}",
     status_code=204,
     dependencies=[Depends(require_checkpoint_management_permission)],
+    responses={404: {"description": "Media not found"}},
 )
 async def delete_checkpoint_media(
     media_id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     db_obj = await crud_media.get(db, id=media_id)
     if not db_obj:
@@ -108,13 +108,12 @@ async def delete_checkpoint_media(
 
 @router.post(
     "/checkpoint/{checkpoint_id}/media/reorder",
-    response_model=List[CheckpointMediaResponse],
     dependencies=[Depends(require_checkpoint_management_permission)],
 )
 async def reorder_checkpoint_media(
     checkpoint_id: int,
     ordered_ids: List[int],
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> List[CheckpointMediaResponse]:
     await _get_checkpoint_or_404(db, checkpoint_id)
     items = await crud_media.reorder(db, checkpoint_id=checkpoint_id, ordered_ids=ordered_ids)
