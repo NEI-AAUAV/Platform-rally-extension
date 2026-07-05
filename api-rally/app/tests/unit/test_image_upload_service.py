@@ -40,23 +40,25 @@ def _storage(enabled=True, url="https://cdn.example/x.png"):
 
 async def test_rejects_when_storage_disabled():
     with patch.object(image_upload, "storage_client", _storage(enabled=False)):
+        call = validate_and_store(
+            image=_FakeUpload(b"x", "image/png"),
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            key_prefix="rally/test",
+        )
         with pytest.raises(HTTPException) as exc:
-            await validate_and_store(
-                image=_FakeUpload(b"x", "image/png"),
-                allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-                key_prefix="rally/test",
-            )
+            await call
     assert exc.value.status_code == 503
 
 
 async def test_rejects_disallowed_content_type():
     with patch.object(image_upload, "storage_client", _storage()):
+        call = validate_and_store(
+            image=_FakeUpload(b"<svg/>", "image/svg+xml"),
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            key_prefix="rally/test",
+        )
         with pytest.raises(HTTPException) as exc:
-            await validate_and_store(
-                image=_FakeUpload(b"<svg/>", "image/svg+xml"),
-                allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-                key_prefix="rally/test",
-            )
+            await call
     assert exc.value.status_code == 400
     assert "Invalid file type" in exc.value.detail
 
@@ -99,10 +101,11 @@ async def test_returns_503_when_upload_fails():
     storage = _storage(url=None)
     storage.upload_image = Mock(return_value=None)
     with patch.object(image_upload, "storage_client", storage):
+        call = validate_and_store(
+            image=_FakeUpload(b"x", "image/jpeg"),
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            key_prefix="rally/test",
+        )
         with pytest.raises(HTTPException) as exc:
-            await validate_and_store(
-                image=_FakeUpload(b"x", "image/jpeg"),
-                allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-                key_prefix="rally/test",
-            )
+            await call
     assert exc.value.status_code == 503
