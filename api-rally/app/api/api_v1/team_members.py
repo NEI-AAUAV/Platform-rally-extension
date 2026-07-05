@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict
+from typing import Annotated, List, Dict
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.api import deps
@@ -19,6 +19,7 @@ router = APIRouter()
 # Constants
 TEAM_NOT_FOUND_MESSAGE = "Team not found"
 USER_NOT_FOUND_MESSAGE = "User not found"
+USER_NOT_TEAM_MEMBER_MESSAGE = "User is not a member of this team"
 
 
 async def _link_placeholder_to_authentik_account(
@@ -73,9 +74,9 @@ async def _link_placeholder_to_authentik_account(
 async def add_team_member(
     team_id: int,
     member_data: TeamMemberAdd,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> TeamMemberResponse:
     """
     Add a member to a team.
@@ -135,9 +136,9 @@ async def link_team_member(
     team_id: int,
     user_id: int,
     link_data: TeamMemberLink,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> TeamMemberResponse:
     """Link a name-only placeholder member to a real NEI (OIDC) account.
 
@@ -158,7 +159,7 @@ async def link_team_member(
     if placeholder is None:
         raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
     if placeholder.team_id != team_id:
-        raise RallyValidationError("User is not a member of this team")
+        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
 
     target = await _link_placeholder_to_authentik_account(
         db,
@@ -182,8 +183,8 @@ async def link_team_member(
 async def link_self_team_member(
     team_id: int,
     user_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> TeamMemberResponse:
     """Self-serve variant of ``link_team_member``.
 
@@ -206,7 +207,7 @@ async def link_self_team_member(
     if placeholder is None:
         raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
     if placeholder.team_id != team_id:
-        raise RallyValidationError("User is not a member of this team")
+        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
 
     target = await _link_placeholder_to_authentik_account(
         db,
@@ -230,9 +231,9 @@ async def link_self_team_member(
 async def remove_team_member(
     team_id: int,
     user_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> Dict[str, str]:
     """
     Remove a member from a team.
@@ -250,7 +251,7 @@ async def remove_team_member(
         raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if user.team_id != team_id:
-        raise RallyValidationError("User is not a member of this team")
+        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
 
     # Remove user from team
     user.team_id = None
@@ -264,9 +265,9 @@ async def update_team_member(
     team_id: int,
     user_id: int,
     member_data: TeamMemberUpdate,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> TeamMemberResponse:
     """
     Update a team member's information.
@@ -284,7 +285,7 @@ async def update_team_member(
         raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if user.team_id != team_id:
-        raise RallyValidationError("User is not a member of this team")
+        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
 
     # If setting as captain, check if team already has a captain
     if member_data.is_captain is True:
@@ -320,9 +321,9 @@ async def update_team_member(
 @router.get("/team/{team_id}/members", status_code=200)
 async def get_team_members(
     team_id: int,
-    db: AsyncSession = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> List[TeamMemberResponse]:
     """
     Get all members of a team.
