@@ -1,4 +1,4 @@
-from typing import Annotated, AsyncGenerator, List, Optional
+from typing import Annotated, Any, AsyncGenerator, List, Optional
 
 from fastapi import Depends, HTTPException, Security
 from sqlalchemy.exc import IntegrityError
@@ -21,23 +21,55 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db
 
 
+async def _adopt_email_placeholder(
+    db: AsyncSession, auth: AuthData
+) -> Optional[Any]:
+    """Backfill: an email-matched placeholder mirrored eagerly from an
+    Authentik group (e.g. rally-staff) may exist before this first login."""
+    if not auth.email:
+        return None
+    placeholder = await crud.user.get_by_email(db, email=auth.email)
+    if placeholder is None or placeholder.authentik_sub is not None:
+        return None
+    placeholder.authentik_sub = auth.oidc_sub
+    placeholder.name = auth.name
+    placeholder.scopes = auth.scopes
+    db.add(placeholder)
+    await db.commit()
+    await db.refresh(placeholder)
+    return placeholder
+
+
+async def _sync_scopes(db: AsyncSession, user: Any, auth: AuthData) -> None:
+    if user.scopes == auth.scopes:
+        return
+    user.scopes = auth.scopes
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+
+async def _load_checkpoint_assignments(
+    db: AsyncSession, user_id: int, scopes: List[str], detailed_user: DetailedUser
+) -> None:
+    if "rally-staff" in scopes:
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, user_id)
+        if staff_assignment:
+            detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+    if "rally-guide" in scopes:
+        guide_assignment = await rally_guide_assignment.get_by_user_id(db, user_id)
+        if guide_assignment:
+            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
+
+
 async def get_current_user(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DetailedUser:
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
-    if user is None and auth.email:
-        # May already exist as an email-matched placeholder mirrored eagerly
-        # from an Authentik group (e.g. rally-staff) before this first login.
-        placeholder = await crud.user.get_by_email(db, email=auth.email)
-        if placeholder is not None and placeholder.authentik_sub is None:
-            user = placeholder
-            user.authentik_sub = auth.oidc_sub
-            user.name = auth.name
-            user.scopes = auth.scopes
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
+    if user is None:
+        user = await _adopt_email_placeholder(db, auth)
+
     if user is None:
         # First login: mirror the authentik identity into a local user row.
         # Two concurrent first requests can race on the insert; the loser
@@ -55,24 +87,11 @@ async def get_current_user(
             user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
             if user is None:
                 raise HTTPException(status_code=500, detail="Failed to initialise user")
-    elif user.scopes != auth.scopes:
-        # Keep local scopes in sync with the identity provider.
-        user.scopes = auth.scopes
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    else:
+        await _sync_scopes(db, user, auth)
 
-    # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
-    if "rally-staff" in auth.scopes:
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
-        if staff_assignment:
-            detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-    if "rally-guide" in auth.scopes:
-        guide_assignment = await rally_guide_assignment.get_by_user_id(db, user.id)
-        if guide_assignment:
-            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
-
+    await _load_checkpoint_assignments(db, user.id, auth.scopes, detailed_user)
     return detailed_user
 
 
@@ -84,39 +103,15 @@ async def get_current_user_optional(
         return None
 
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
-    if user is None and auth.email:
-        # Same placeholder backfill as get_current_user: an email-matched row
-        # mirrored from an Authentik group may exist before first login.
-        placeholder = await crud.user.get_by_email(db, email=auth.email)
-        if placeholder is not None and placeholder.authentik_sub is None:
-            user = placeholder
-            user.authentik_sub = auth.oidc_sub
-            user.name = auth.name
-            user.scopes = auth.scopes
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
+    if user is None:
+        user = await _adopt_email_placeholder(db, auth)
     if user is None:
         return None
 
-    # Update scopes if they've changed (sync with identity provider)
-    if user.scopes != auth.scopes:
-        user.scopes = auth.scopes
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    await _sync_scopes(db, user, auth)
 
-    # Load staff checkpoint assignment if user is staff
     detailed_user = DetailedUser.model_validate(user)
-    if "rally-staff" in auth.scopes:
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, user.id)
-        if staff_assignment:
-            detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-    if "rally-guide" in auth.scopes:
-        guide_assignment = await rally_guide_assignment.get_by_user_id(db, user.id)
-        if guide_assignment:
-            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
-
+    await _load_checkpoint_assignments(db, user.id, auth.scopes, detailed_user)
     return detailed_user
 
 
