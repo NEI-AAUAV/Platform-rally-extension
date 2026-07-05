@@ -11,7 +11,7 @@ function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
   return hasExisting ? "Update Evaluation" : "Submit Evaluation";
 }
 
-export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
+export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmitting }: Readonly<BaseActivityFormProps>) {
   const [achievedPoints, setAchievedPoints] = useState<number>(0);
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
@@ -116,10 +116,10 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
       )}
 
       {showPenalties && (
-        <div>
-          <label className="block text-sm font-medium mb-2 text-foreground">
+        <fieldset>
+          <legend className="block text-sm font-medium mb-2 text-foreground">
             Penalties
-          </label>
+          </legend>
           <div className="space-y-2">
             {showVomitPenalty && (
               <div className="flex items-center space-x-3">
@@ -159,7 +159,7 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
           <p className="text-muted-foreground text-sm mt-1">
             Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
           </p>
-        </div>
+        </fieldset>
       )}
 
       <div>

@@ -20,7 +20,7 @@ function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
   return hasExisting ? "Update Evaluation" : "Submit Evaluation";
 }
 
-export default function GeneralForm({ existingResult, team, config, onSubmit, isSubmitting }: GeneralFormProps) {
+export default function GeneralForm({ existingResult, team, config, onSubmit, isSubmitting }: Readonly<GeneralFormProps>) {
   const [assignedPoints, setAssignedPoints] = useState<number>(getDefaultPoints(config));
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
@@ -129,10 +129,10 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
       )}
 
       {showPenalties && (
-        <div>
-          <label className="block text-sm font-medium mb-2 text-foreground">
+        <fieldset>
+          <legend className="block text-sm font-medium mb-2 text-foreground">
             Penalties
-          </label>
+          </legend>
           <div className="space-y-2">
             {showVomitPenalty && (
               <div className="flex items-center space-x-3">
