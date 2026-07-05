@@ -23,11 +23,11 @@ class TestTeamVsActivity:
         
         # Test basic win
         score = activity.calculate_score({"result": "win", "completed": False})
-        assert score == 40.0  # 10 + 30
-        
+        assert score == pytest.approx(40.0)  # 10 + 30
+
         # Test win + completed
         score = activity.calculate_score({"result": "win", "completed": True})
-        assert score == 60.0  # 10 + 20 + 30
+        assert score == pytest.approx(60.0)  # 10 + 20 + 30
 
     def test_calculate_score_draw(self):
         """Test score calculation for a draw"""
@@ -40,7 +40,7 @@ class TestTeamVsActivity:
         })
         
         score = activity.calculate_score({"result": "draw", "completed": True})
-        assert score == 45.0  # 10 + 20 + 15
+        assert score == pytest.approx(45.0)  # 10 + 20 + 15
 
     def test_calculate_score_lose(self):
         """Test score calculation for a loss"""
@@ -53,7 +53,7 @@ class TestTeamVsActivity:
         })
         
         score = activity.calculate_score({"result": "lose", "completed": True})
-        assert score == 35.0  # 10 + 20 + 5
+        assert score == pytest.approx(35.0)  # 10 + 20 + 5
 
     def test_backwards_compatibility(self):
         """Test that old configs (missing base/completion points) still work"""
@@ -65,10 +65,10 @@ class TestTeamVsActivity:
         
         # Should default to 0 for missing fields
         score = activity.calculate_score({"result": "win"})
-        assert score == 100.0
-        
+        assert score == pytest.approx(100.0)
+
         score = activity.calculate_score({"result": "win", "completed": True})
-        assert score == 100.0  # No completion points configured
+        assert score == pytest.approx(100.0)  # No completion points configured
 
     def test_get_score_breakdown(self):
         """Test the score breakdown method"""
