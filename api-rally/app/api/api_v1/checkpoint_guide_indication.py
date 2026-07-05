@@ -36,7 +36,8 @@ async def list_guide_indications(
     db: AsyncSession = Depends(deps.get_db),
 ) -> List[CheckpointGuideIndication]:
     await _get_checkpoint_or_404(db, checkpoint_id)
-    return await crud_indication.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+    items = await crud_indication.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+    return [CheckpointGuideIndication.model_validate(item) for item in items]
 
 
 @router.post(
@@ -51,7 +52,8 @@ async def create_guide_indication(
     db: AsyncSession = Depends(deps.get_db),
 ) -> CheckpointGuideIndication:
     await _get_checkpoint_or_404(db, checkpoint_id)
-    return await crud_indication.create(db, checkpoint_id=checkpoint_id, obj_in=obj_in)
+    created = await crud_indication.create(db, checkpoint_id=checkpoint_id, obj_in=obj_in)
+    return CheckpointGuideIndication.model_validate(created)
 
 
 @router.put(
@@ -67,7 +69,8 @@ async def update_guide_indication(
     db_obj = await crud_indication.get(db, id=indication_id)
     if not db_obj:
         raise HTTPException(status_code=404, detail="Guide indication not found")
-    return await crud_indication.update(db, db_obj=db_obj, obj_in=obj_in)
+    updated = await crud_indication.update(db, db_obj=db_obj, obj_in=obj_in)
+    return CheckpointGuideIndication.model_validate(updated)
 
 
 @router.delete(
