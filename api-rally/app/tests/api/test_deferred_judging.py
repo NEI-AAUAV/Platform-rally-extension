@@ -111,7 +111,7 @@ def test_capture_existing_result_appends(staff_client: TestClient) -> None:
     db_mock.commit = AsyncMock()
     db_mock.refresh = AsyncMock()
     app.dependency_overrides[get_db] = lambda: db_mock
-    existing = _result(media_urls=["http://r2/existing.jpg"])
+    existing = _result(media_urls=["https://r2/existing.jpg"])
 
     with patch("app.api.api_v1.deferred_judging.crud_activity.get", new=AsyncMock(return_value=_activity())), \
          patch("app.api.api_v1.deferred_judging.crud_result.get_by_activity_and_team", new=AsyncMock(return_value=existing)):
