@@ -4,6 +4,8 @@ Badges are awarded asynchronously by the badge worker; these endpoints only
 read them. Like the scoreboard, they are public-facing.
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,9 +28,9 @@ async def _badges_enabled(db: AsyncSession) -> bool:
     return bool(settings.badges_enabled)
 
 
-@router.get("/badges", response_model=list[TeamBadgeRead])
+@router.get("/badges")
 async def list_all_badges(
-    *, db: AsyncSession = Depends(get_db)
+    *, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> list[TeamBadgeRead]:
     """Every badge awarded across all teams, newest first."""
     if not await _badges_enabled(db):
@@ -37,9 +39,9 @@ async def list_all_badges(
     return [TeamBadgeRead.model_validate(b) for b in badges]
 
 
-@router.get("/teams/{team_id}/badges", response_model=list[TeamBadgeRead])
+@router.get("/teams/{team_id}/badges")
 async def list_team_badges(
-    team_id: int, *, db: AsyncSession = Depends(get_db)
+    team_id: int, *, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> list[TeamBadgeRead]:
     """All badges a single team holds, newest first."""
     if not await _badges_enabled(db):
@@ -48,9 +50,9 @@ async def list_team_badges(
     return [TeamBadgeRead.model_validate(b) for b in badges]
 
 
-@router.get("/teams/{team_id}/badge-showcase", response_model=BadgeShowcaseResponse)
+@router.get("/teams/{team_id}/badge-showcase")
 async def team_badge_showcase(
-    team_id: int, *, db: AsyncSession = Depends(get_db)
+    team_id: int, *, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> BadgeShowcaseResponse:
     """The full badge board for a team: active catalogue + what it has earned.
 
