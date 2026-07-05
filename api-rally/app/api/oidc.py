@@ -56,7 +56,7 @@ class OIDCJWTValidator:
             self._issuer = oidc_config["issuer"].replace(
                 "host.docker.internal", "localhost"
             )
-            return oidc_config
+            return dict(oidc_config)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -79,6 +79,7 @@ class OIDCJWTValidator:
             jwks_response.raise_for_status()
             self._jwks = jwks_response.json()
             self._jwks_fetched_at = time.monotonic()
+        assert self._jwks is not None
         return self._jwks
 
     async def validate_token(self, token: str) -> Dict[str, Any]:

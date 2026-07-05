@@ -47,7 +47,7 @@ async def search_users(q: str, *, limit: int = _SEARCH_LIMIT) -> list[AuthentikU
 
     url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
     headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
-    params = {"search": q, "page_size": limit}
+    params: dict[str, str | int] = {"search": q, "page_size": limit}
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
@@ -86,7 +86,7 @@ async def list_group_members(group_name: str) -> list[AuthentikUser]:
 
     url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
     headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
-    params = {"groups_by_name": group_name, "page_size": 200}
+    params: dict[str, str | int] = {"groups_by_name": group_name, "page_size": 200}
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
