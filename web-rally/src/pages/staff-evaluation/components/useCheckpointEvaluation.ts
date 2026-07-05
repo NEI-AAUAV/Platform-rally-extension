@@ -123,33 +123,24 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       const expectedPreviousCheckpoint = checkpoint.order ? checkpoint.order - 1 : 0;
       const isFromDifferentCheckpoint = lastCheckpointNum !== expectedPreviousCheckpoint;
 
-      if (!isRallyAdmin) {
-        try {
-          const data = (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
-            selectedTeam.id,
-          )) as TeamActivitiesResponse;
+      const staffResult = isRallyAdmin
+        ? null
+        : await tryLoadStaffActivities({
+            selectedTeam,
+            checkpoint,
+            isFromDifferentCheckpoint,
+            lastCheckpointNum,
+            onShowWarning: (summary) => {
+              setEvaluationSummary(summary);
+              setShowWarningDialog(true);
+            },
+          });
 
-          const activities = Array.isArray(data.activities) ? data.activities : [];
-          const summary = data.evaluation_summary ? toEvaluationSummary(data.evaluation_summary) : null;
+      if (staffResult) {
+        return staffResult;
+      }
 
-          if ((summary && summary.has_incomplete) || isFromDifferentCheckpoint) {
-            const summaryToShow = toEvaluationSummary({
-              ...summary,
-              checkpoint_mismatch: summary?.checkpoint_mismatch ?? isFromDifferentCheckpoint,
-              team_checkpoint: summary?.team_checkpoint ?? lastCheckpointNum,
-              current_checkpoint: summary?.current_checkpoint ?? checkpoint.order,
-            });
-            setEvaluationSummary(summaryToShow);
-            setShowWarningDialog(true);
-          }
-
-          if (!isFromDifferentCheckpoint) {
-            return activities;
-          }
-        } catch {
-          // Fall through to general endpoint on failure
-        }
-      } else if (isFromDifferentCheckpoint) {
+      if (isRallyAdmin && isFromDifferentCheckpoint) {
         setEvaluationSummary(
           toEvaluationSummary({
             checkpoint_mismatch: true,
@@ -160,28 +151,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         setShowWarningDialog(true);
       }
 
-      const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(undefined, 100, checkpoint.id);
-      const activities: ActivityResponse[] = (data.activities ?? []).filter(
-        (activity) => activity.checkpoint_id === checkpoint.id,
-      );
-
-      let results: ActivityResultWithRelations[] = [];
-      try {
-        results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
-      } catch {
-        results = [];
-      }
-
-      return activities.map((activity) => {
-        const existingResult = results.find(
-          (result) => result.activity_id === activity.id && result.team_id === selectedTeam.id,
-        );
-        return {
-          ...activity,
-          evaluation_status: existingResult ? "completed" : "pending",
-          existing_result: existingResult,
-        };
-      });
+      return loadGeneralActivities(checkpoint, selectedTeam.id);
     },
     enabled: !!selectedTeam && !!userStore.token && !!checkpoint,
   });
