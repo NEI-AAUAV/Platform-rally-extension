@@ -4,7 +4,7 @@ Each row represents one badge type that can exist in the system. The ``code``
 field maps 1-to-1 with legacy ``BadgeType`` enum values, ensuring existing
 ``TeamBadge`` rows remain valid. New badges can be added by inserting here.
 """
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,7 +18,7 @@ DEFAULT_BADGE_COLOR = "#8b5cf6"
 
 class BadgeDefinition(Base):
     __tablename__ = "badge_definitions"  # type: ignore[assignment]
-    __table_args__ = {"schema": settings.SCHEMA_NAME}
+    __table_args__: ClassVar[dict[str, Any]] = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # NULL = global/seeded badge visible in every event. Admin-created badges
