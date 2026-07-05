@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column

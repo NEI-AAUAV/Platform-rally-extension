@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

@@ -5,7 +5,7 @@ DynamicRule  — configurable per-event scoring rules (not yet auto-evaluated;
 DynamicAward — one-off manual bonus/penalty applied by admin to a team.
                Picked up by ScoringService.update_team_scores().
 """
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

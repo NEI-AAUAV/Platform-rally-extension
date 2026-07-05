@@ -38,7 +38,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             select(RallySettings).where(RallySettings.event_id.is_(None))
         )
         if legacy is not None:
-            legacy.event_id = event.id
+            legacy.event_id = event.id  # type: ignore[assignment]
             db.add(legacy)
             await db.commit()
             await db.refresh(legacy)

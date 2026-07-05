@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import mapped_column, Mapped, relationship

@@ -4,7 +4,7 @@ Each row represents one badge type that can exist in the system. The ``code``
 field maps 1-to-1 with legacy ``BadgeType`` enum values, ensuring existing
 ``TeamBadge`` rows remain valid. New badges can be added by inserting here.
 """
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

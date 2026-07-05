@@ -1,5 +1,5 @@
 import re
-from typing import Any, ClassVar
+from typing import Any
 
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 from app.core.config import settings

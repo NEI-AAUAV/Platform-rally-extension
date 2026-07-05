@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, ClassVar, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, Float, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
