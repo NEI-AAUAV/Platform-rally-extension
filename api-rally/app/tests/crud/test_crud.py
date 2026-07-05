@@ -338,7 +338,7 @@ class TestTimezoneHandling:
         assert utc_time.tzinfo is not None
         assert utc_time.tzinfo.utcoffset(utc_time).total_seconds() == 0
     
-    async def test_checkpoint_time_utc(self):
+    def test_checkpoint_time_utc(self):
         """Test checkpoint time UTC handling"""
         checkpoint_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
         
