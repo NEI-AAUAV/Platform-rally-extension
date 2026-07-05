@@ -61,7 +61,9 @@ export default function CheckpointTeamEvaluation() {
   const teamsAtPreviousCheckpoints = teams.filter(
     (team) => !teamEvaluationStatus?.[team.id] && lastOf(team) < order - 1,
   );
-  const teamsAlreadyEvaluated = teams.filter((team) => lastOf(team) >= order);
+  const teamsAlreadyEvaluated = teams.filter(
+    (team) => lastOf(team) >= order || !!teamEvaluationStatus?.[team.id],
+  );
 
   return (
     <div className="space-y-6">
