@@ -70,15 +70,16 @@ async def test_add_checkpoint_in_order_appends_scores_and_times(pg_session) -> N
 async def test_add_checkpoint_out_of_order_rejected(pg_session) -> None:
     _, _, _, cp2, team = await _setup_rally(pg_session, order_matters=True)
 
+    call = crud_team.add_checkpoint(
+        db=pg_session,
+        id=team.id,
+        checkpoint_id=cp2.id,
+        obj_in=TeamScoresUpdate(
+            checkpoint_id=cp2.id, question_score=0, time_score=0, pukes=0, skips=0
+        ),
+    )
     with pytest.raises(APIException) as exc:
-        await crud_team.add_checkpoint(
-            db=pg_session,
-            id=team.id,
-            checkpoint_id=cp2.id,
-            obj_in=TeamScoresUpdate(
-                checkpoint_id=cp2.id, question_score=0, time_score=0, pukes=0, skips=0
-            ),
-        )
+        await call
     assert exc.value.status_code == 400
 
 
@@ -93,33 +94,35 @@ async def test_add_checkpoint_twice_rejected(pg_session) -> None:
             checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
         ),
     )
+    call = crud_team.add_checkpoint(
+        db=pg_session,
+        id=team.id,
+        checkpoint_id=cp1.id,
+        obj_in=TeamScoresUpdate(
+            checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
+        ),
+    )
     with pytest.raises(APIException) as exc:
-        await crud_team.add_checkpoint(
-            db=pg_session,
-            id=team.id,
-            checkpoint_id=cp1.id,
-            obj_in=TeamScoresUpdate(
-                checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
-            ),
-        )
+        await call
     assert exc.value.status_code == 400
 
 
 async def test_add_checkpoint_outside_rally_window_rejected(pg_session) -> None:
-    event, settings, cp1, _, team = await _setup_rally(pg_session)
+    event, _, cp1, _, team = await _setup_rally(pg_session)
     # The event is the source of truth for timing; get_or_create syncs the
     # settings row from it on every read.
     event.end_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
     await pg_session.commit()
 
+    call = crud_team.add_checkpoint(
+        db=pg_session,
+        id=team.id,
+        checkpoint_id=cp1.id,
+        obj_in=TeamScoresUpdate(
+            checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
+        ),
+    )
     with pytest.raises(APIException) as exc:
-        await crud_team.add_checkpoint(
-            db=pg_session,
-            id=team.id,
-            checkpoint_id=cp1.id,
-            obj_in=TeamScoresUpdate(
-                checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
-            ),
-        )
+        await call
     assert exc.value.status_code == 400
     assert "ended" in exc.value.detail.lower()

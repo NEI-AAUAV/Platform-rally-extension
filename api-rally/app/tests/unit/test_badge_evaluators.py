@@ -338,7 +338,7 @@ async def test_score_threshold_awards_at_or_above() -> None:
         _defn(trigger=BadgeTrigger.SCORE_THRESHOLD, criteria={"min_score": 100}),
     )
     assert len(awards) == 1
-    assert awards[0].meta["total_score"] == 120.0
+    assert awards[0].meta["total_score"] == pytest.approx(120.0)
 
 
 async def test_score_threshold_skips_below() -> None:
@@ -384,7 +384,7 @@ async def test_fast_complete_awards_within_limit() -> None:
     )
     assert len(awards) == 1
     assert awards[0].activity_id == 99
-    assert awards[0].meta["duration_seconds"] == 90.0
+    assert awards[0].meta["duration_seconds"] == pytest.approx(90.0)
 
 
 async def test_fast_complete_skips_over_limit() -> None:
