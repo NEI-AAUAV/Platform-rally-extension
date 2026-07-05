@@ -9,7 +9,7 @@ from app.api import rate_limit as rl
 from app.core.config import settings
 
 
-def _request(peer: str = "1.2.3.4", headers: dict | None = None) -> Mock:
+def _request(peer: str = "192.0.2.1", headers: dict | None = None) -> Mock:
     req = Mock()
     req.client = Mock()
     req.client.host = peer
@@ -20,18 +20,18 @@ def _request(peer: str = "1.2.3.4", headers: dict | None = None) -> Mock:
 # --- client IP resolution ---------------------------------------------------
 
 def test_resolve_client_ip_uses_peer_by_default():
-    assert rl.resolve_client_ip(_request("9.9.9.9")) == "9.9.9.9"
+    assert rl.resolve_client_ip(_request("198.51.100.1")) == "198.51.100.1"
 
 
 def test_resolve_client_ip_ignores_xff_from_untrusted_peer():
-    req = _request("9.9.9.9", {"x-forwarded-for": "6.6.6.6"})
-    assert rl.resolve_client_ip(req) == "9.9.9.9"
+    req = _request("198.51.100.1", {"x-forwarded-for": "203.0.113.1"})
+    assert rl.resolve_client_ip(req) == "198.51.100.1"
 
 
 def test_resolve_client_ip_trusts_xff_from_trusted_proxy():
-    req = _request("10.0.0.1", {"x-forwarded-for": "6.6.6.6, 10.0.0.1"})
-    with patch.object(settings, "TRUSTED_PROXIES", ["10.0.0.1"]):
-        assert rl.resolve_client_ip(req) == "6.6.6.6"
+    req = _request("192.0.2.1", {"x-forwarded-for": "203.0.113.1, 192.0.2.1"})
+    with patch.object(settings, "TRUSTED_PROXIES", ["192.0.2.1"]):
+        assert rl.resolve_client_ip(req) == "203.0.113.1"
 
 
 # --- fixed-window enforcement ----------------------------------------------
@@ -90,7 +90,7 @@ async def test_login_limit_checks_ip_and_code_keys():
         seen.append(key)
 
     with patch.object(rl, "_enforce", side_effect=fake_enforce):
-        await rl.check_login_rate_limit(_request("1.1.1.1"), "ABCD-1234")
+        await rl.check_login_rate_limit(_request("192.0.2.1"), "ABCD-1234")
 
     assert any(k.startswith("rally:team-login:ip:") for k in seen)
     assert any(k.startswith("rally:team-login:code:") for k in seen)
