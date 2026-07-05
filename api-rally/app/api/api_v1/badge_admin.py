@@ -27,7 +27,7 @@ router = APIRouter()
 BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
 
 
-async def require_badges_enabled(db: AsyncSession = Depends(deps.get_db)) -> None:
+async def require_badges_enabled(db: Annotated[AsyncSession, Depends(deps.get_db)]) -> None:
     """Block badge write operations when the feature is switched off.
 
     The catalog list (GET) stays reachable so an admin can still inspect
@@ -88,7 +88,7 @@ async def update_badge_definition(
 async def upload_badge_icon(
     id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
-    image: UploadFile = File(...),
+    image: Annotated[UploadFile, File()],
 ) -> BadgeDefinitionResponse:
     db_obj = await crud_def.get(db, id=id)
     if not db_obj:
