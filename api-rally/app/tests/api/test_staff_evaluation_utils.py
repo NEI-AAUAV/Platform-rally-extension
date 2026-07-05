@@ -284,7 +284,7 @@ class TestCheckpointProgressCalculation:
             result = await is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
             assert result is False
     
-    async def test_determine_current_order_not_at_max(self):
+    def test_determine_current_order_not_at_max(self):
         """Test current order when not at maximum"""
         mock_checkpoint = Mock()
         mock_checkpoint.order = 5
@@ -294,7 +294,7 @@ class TestCheckpointProgressCalculation:
         result = determine_current_order(checkpoints, last_completed)
         assert result == 3  # last_completed + 1
     
-    async def test_determine_current_order_at_max(self):
+    def test_determine_current_order_at_max(self):
         """Test current order when at maximum"""
         mock_checkpoint = Mock()
         mock_checkpoint.order = 5
@@ -304,7 +304,7 @@ class TestCheckpointProgressCalculation:
         result = determine_current_order(checkpoints, last_completed)
         assert result == 5  # stays at max
     
-    async def test_determine_current_order_empty_checkpoints(self):
+    def test_determine_current_order_empty_checkpoints(self):
         """Test current order with no checkpoints"""
         checkpoints = []
         last_completed = 3
