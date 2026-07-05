@@ -1,4 +1,4 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import Any, ClassVar, List, Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,7 +17,7 @@ class CheckPoint(Base):
     __tablename__ = "checkpoints"  # type: ignore[assignment]
     # Checkpoint order is unique within an event, not globally — different
     # editions can each have an "order 1" checkpoint.
-    __table_args__ = (
+    __table_args__: ClassVar[tuple[Any, ...]] = (
         UniqueConstraint("event_id", "order", name="uq_checkpoint_event_order"),
         {"schema": settings.SCHEMA_NAME},
     )

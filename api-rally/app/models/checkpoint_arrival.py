@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Any, ClassVar, Optional, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, Float, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class CheckpointArrival(Base):
     __tablename__ = "checkpoint_arrivals"  # type: ignore[assignment]
-    __table_args__ = (
+    __table_args__: ClassVar[tuple[Any, ...]] = (
         UniqueConstraint("team_id", "checkpoint_id", name="uq_arrival_team_checkpoint"),
         {"schema": settings.SCHEMA_NAME},
     )
