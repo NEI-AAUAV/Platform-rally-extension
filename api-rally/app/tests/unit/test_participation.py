@@ -14,7 +14,7 @@ def _mock_db() -> AsyncMock:
 
 
 def _team(**over) -> SimpleNamespace:
-    base = dict(id=10, name="Os Bons", total=42, classification=2)
+    base = {"id": 10, "name": "Os Bons", "total": 42, "classification": 2}
     base.update(over)
     return SimpleNamespace(**base)
 
