@@ -25,6 +25,20 @@ function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
   return hasExisting ? "Update Evaluation" : "Submit Evaluation";
 }
 
+async function fetchPreselectedOpponent(
+  teamId: number,
+): Promise<{ id: number; name: string } | null> {
+  try {
+    const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(teamId);
+    if (opponent?.opponent_id) {
+      return { id: opponent.opponent_id, name: opponent.opponent_name || "" };
+    }
+  } catch (error) {
+    console.warn("Failed to fetch preselected opponent, falling back to manual selection", error);
+  }
+  return null;
+}
+
 export default function TeamVsForm({ existingResult, team, config = {}, onSubmit, isSubmitting }: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [completed, setCompleted] = useState<boolean>(true);
@@ -58,48 +72,47 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
 
   // Fetch opponent when team is available, then fetch teams if needed
   useEffect(() => {
+    const loadTeamsList = async (teamId: number) => {
+      teamsFetchedRef.current = true;
+      setIsLoadingTeams(true);
+      try {
+        const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
+        const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== teamId);
+        setTeams(filteredTeams);
+
+        // If we have an opponent ID from existingResult but no name, try to find it now
+        const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
+        const foundTeam = currentOpponentId
+          ? filteredTeams.find((t: ListingTeam) => t.id === currentOpponentId)
+          : undefined;
+        if (foundTeam && !opponentTeamName) {
+          setOpponentTeamName(foundTeam.name);
+        }
+      } catch (error) {
+        toast.error("Failed to load teams list");
+        teamsFetchedRef.current = false; // Allow retry on error
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
+
     const initializeOpponent = async () => {
       if (!team?.id) return;
 
       // First, try to fetch opponent from versus pair (if not in existingResult)
       if (!existingResult?.result_data?.opponent_team_id) {
-        try {
-          const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(team.id);
-          if (opponent?.opponent_id) {
-            setOpponentTeamId(opponent.opponent_id);
-            setOpponentTeamName(opponent.opponent_name || "");
-            setIsOpponentPreselected(true); // Mark as automatically preselected
-            return; // Opponent is preselected, don't fetch teams
-          }
-        } catch (error) {
-          // Silently fail - opponent is optional
+        const preselected = await fetchPreselectedOpponent(team.id);
+        if (preselected) {
+          setOpponentTeamId(preselected.id);
+          setOpponentTeamName(preselected.name);
+          setIsOpponentPreselected(true);
+          return; // Opponent is preselected, don't fetch teams
         }
       }
 
       // If opponent is not preselected, fetch teams list (only once)
       if (!teamsFetchedRef.current && !isLoadingTeams) {
-        teamsFetchedRef.current = true;
-        setIsLoadingTeams(true);
-        try {
-          const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
-          // Exclude current team from the list
-          const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== team.id);
-          setTeams(filteredTeams);
-
-          // If we have an opponent ID from existingResult but no name, try to find it now
-          const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
-          if (currentOpponentId) {
-            const foundTeam = filteredTeams.find((t: ListingTeam) => t.id === currentOpponentId);
-            if (foundTeam && !opponentTeamName) {
-              setOpponentTeamName(foundTeam.name);
-            }
-          }
-        } catch (error) {
-          toast.error("Failed to load teams list");
-          teamsFetchedRef.current = false; // Allow retry on error
-        } finally {
-          setIsLoadingTeams(false);
-        }
+        await loadTeamsList(team.id);
       }
     };
 
@@ -191,11 +204,12 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
       {/* Completed toggle — only shown when activity has tiered scoring configured */}
       {hasTieredScoring && (
         <div>
-          <label className="block text-sm font-medium mb-2 text-foreground">
+          <label htmlFor="teamvs-toggle-completed" className="block text-sm font-medium mb-2 text-foreground">
             Challenge Completed?
           </label>
           <div className="flex items-center gap-3">
             <button
+              id="teamvs-toggle-completed"
               type="button"
               data-testid="toggle-completed"
               onClick={() => setCompleted(!completed)}
@@ -226,7 +240,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               <span>Participação</span>
               <span>+{basePoints} pts</span>
             </div>
-            <div className={`flex justify-between ${!completed ? 'opacity-40 line-through' : ''}`}>
+            <div className={`flex justify-between ${completed ? '' : 'opacity-40 line-through'}`}>
               <span>Completou desafio</span>
               <span>+{completionPoints} pts</span>
             </div>
@@ -313,10 +327,10 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
       )}
 
       {showPenalties && (
-        <div>
-          <label className="block text-sm font-medium mb-2 text-foreground">
+        <fieldset>
+          <legend className="block text-sm font-medium mb-2 text-foreground">
             Penalties
-          </label>
+          </legend>
           <div className="space-y-2">
             {showVomitPenalty && (
               <div className="flex items-center space-x-3">
@@ -356,7 +370,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
           <p className="text-muted-foreground text-sm mt-1">
             Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
           </p>
-        </div>
+        </fieldset>
       )}
 
       <div>
