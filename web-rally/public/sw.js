@@ -197,7 +197,7 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'open') {
     const urlToOpen = '/rally/';
     try {
-      self.clients.openWindow(urlToOpen);
+      globalThis.clients.openWindow(urlToOpen);
     } catch (error) {
       console.error('Service Worker: Failed to open window:', error);
     }
