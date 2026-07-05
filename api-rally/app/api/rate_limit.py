@@ -13,7 +13,7 @@ every client onto the proxy address.
 
 import hashlib
 import logging
-from typing import Callable
+from typing import Any, Callable, Coroutine
 
 from fastapi import HTTPException, Request, status
 
@@ -64,7 +64,9 @@ async def _enforce(key: str, limit: int, window_seconds: int) -> None:
         await client.aclose()
 
 
-def rate_limit(prefix: str, limit: int, window_seconds: int) -> Callable:
+def rate_limit(
+    prefix: str, limit: int, window_seconds: int
+) -> Callable[[Request], Coroutine[Any, Any, None]]:
     """Build a FastAPI dependency enforcing ``limit`` per ``window_seconds``.
 
     Keyed by the resolved client IP under ``rally:ratelimit:{prefix}:{ip}``.
