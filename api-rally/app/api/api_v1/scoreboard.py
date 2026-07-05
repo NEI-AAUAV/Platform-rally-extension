@@ -6,8 +6,7 @@ ranking fresh and signals refreshes on a Redis channel; the SSE stream forwards
 those signals so the SPA can refetch without polling.
 """
 
-import asyncio
-from typing import Any, AsyncIterator
+from typing import Annotated, Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -28,7 +27,7 @@ _HEARTBEAT_SECONDS = 15.0
 
 @router.get("/scoreboard/live")
 async def get_live_scoreboard(
-    *, db: AsyncSession = Depends(get_db)
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[dict[str, Any]]:
     """Return the cached global ranking, recomputing on a cache miss."""
     if not settings.EVENTS_ENABLED:
@@ -75,8 +74,6 @@ async def stream_scoreboard(request: Request) -> StreamingResponse:
                     yield "event: refresh\ndata: 1\n\n"
                 else:
                     yield ": ping\n\n"
-        except asyncio.CancelledError:
-            raise
         finally:
             # redis does not type the async pubsub aclose under strict mypy.
             await pubsub.aclose()  # type: ignore[no-untyped-call]
@@ -87,6 +84,35 @@ async def stream_scoreboard(request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _decode(value: str | bytes) -> str:
+    return value.decode() if isinstance(value, bytes) else value
+
+
+async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
+    client = get_async_redis_client()
+    pubsub = client.pubsub()
+    await pubsub.psubscribe(
+        Channels.ALL_ACTIVITY_RESULT_EVENTS, Channels.ALL_TEAM_EVENTS
+    )
+    try:
+        yield ": connected\n\n"
+        while True:
+            if await request.is_disconnected():
+                break
+            message = await pubsub.get_message(
+                ignore_subscribe_messages=True, timeout=_HEARTBEAT_SECONDS
+            )
+            if message and message.get("type") == "pmessage":
+                channel = _decode(message["channel"])
+                data = _decode(message["data"])
+                yield f"event: {channel}\ndata: {data}\n\n"
+            else:
+                yield ": ping\n\n"
+    finally:
+        await pubsub.aclose()  # type: ignore[no-untyped-call]
+        await client.aclose()
 
 
 @router.get("/events/stream")
@@ -105,38 +131,8 @@ async def stream_rally_events(request: Request) -> StreamingResponse:
             detail="Realtime events are disabled",
         )
 
-    async def event_stream() -> AsyncIterator[str]:
-        client = get_async_redis_client()
-        pubsub = client.pubsub()
-        await pubsub.psubscribe(
-            Channels.ALL_ACTIVITY_RESULT_EVENTS, Channels.ALL_TEAM_EVENTS
-        )
-        try:
-            yield ": connected\n\n"
-            while True:
-                if await request.is_disconnected():
-                    break
-                message = await pubsub.get_message(
-                    ignore_subscribe_messages=True, timeout=_HEARTBEAT_SECONDS
-                )
-                if message and message.get("type") == "pmessage":
-                    channel = message["channel"]
-                    if isinstance(channel, bytes):
-                        channel = channel.decode()
-                    data = message["data"]
-                    if isinstance(data, bytes):
-                        data = data.decode()
-                    yield f"event: {channel}\ndata: {data}\n\n"
-                else:
-                    yield ": ping\n\n"
-        except asyncio.CancelledError:
-            raise
-        finally:
-            await pubsub.aclose()  # type: ignore[no-untyped-call]
-            await client.aclose()
-
     return StreamingResponse(
-        event_stream(),
+        _pmessage_event_stream(request),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
