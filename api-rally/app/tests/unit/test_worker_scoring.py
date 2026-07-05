@@ -21,7 +21,7 @@ class _SpyScoringService:
     calls: list[tuple[str, Any]] = []
 
     def __init__(self, _session: Any) -> None:
-        pass
+        """Session is unused; recompute calls are recorded on the class."""
 
     async def _recalculate_all_results_for_activity(self, activity_id: int) -> None:
         _SpyScoringService.calls.append(("recalc", activity_id))
