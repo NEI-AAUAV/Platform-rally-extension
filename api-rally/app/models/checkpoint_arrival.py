@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class CheckpointArrival(Base):
     __tablename__ = "checkpoint_arrivals"  # type: ignore[assignment]
-    __table_args__: ClassVar[tuple[Any, ...]] = (
+    __table_args__: ClassVar[Any] = (
         UniqueConstraint("team_id", "checkpoint_id", name="uq_arrival_team_checkpoint"),
         {"schema": settings.SCHEMA_NAME},
     )
