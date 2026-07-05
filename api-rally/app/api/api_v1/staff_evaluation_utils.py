@@ -202,7 +202,7 @@ async def mirror_team_vs_result(
     if existing_opponent_result:
         await ScoringService(db).update_result(
             existing_opponent_result,
-            ActivityResultUpdate(result_data=opponent_result_data),
+            ActivityResultUpdate(result_data=opponent_result_data, extra_shots=None),
         )
     else:
         await create_activity_result(

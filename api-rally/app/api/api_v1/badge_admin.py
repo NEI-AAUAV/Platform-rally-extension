@@ -40,7 +40,8 @@ async def require_badges_enabled(db: AsyncSession = Depends(deps.get_db)) -> Non
 async def list_badge_definitions(
     db: AsyncSession = Depends(deps.get_db),
 ) -> List[BadgeDefinitionResponse]:
-    return await crud_def.get_all(db)
+    items = await crud_def.get_all(db)
+    return [BadgeDefinitionResponse.model_validate(item) for item in items]
 
 
 @router.post(

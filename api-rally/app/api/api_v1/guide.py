@@ -73,7 +73,7 @@ async def list_guide_checkpoints(
 
     settings = await rally_settings.get_or_create(db)
     guide_mode_on = settings.guide_mode_enabled and settings.guide_mode_active
-    is_peddy_paper = bool(event) and event.event_type == EventType.PEDDY_PAPER.value
+    is_peddy_paper = event is not None and event.event_type == EventType.PEDDY_PAPER.value
     if not guide_mode_on and not is_peddy_paper:
         raise HTTPException(status_code=403, detail="Guide mode is not active for this event")
 

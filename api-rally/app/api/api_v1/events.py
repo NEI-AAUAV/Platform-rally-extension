@@ -4,7 +4,7 @@ An event scopes teams, checkpoints, activities and settings. Exactly one event
 is "current"; public reads resolve to it. Admins/managers can create new
 editions and switch the current one without wiping the database.
 """
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,7 +100,7 @@ async def set_current_event(
 
 class RotationScheduleResponse(BaseModel):
     event_id: int
-    rounds: list[list[dict]]
+    rounds: list[list[dict[str, Any]]]
 
 
 @router.post(
