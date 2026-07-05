@@ -33,17 +33,17 @@ export type FormSubmitHandler = (data: ActivityResultData) => void;
  * Base props for all activity form components
  */
 export interface BaseActivityFormProps {
-  existingResult?: ActivityResultResponse;
-  team?: Team;
-  onSubmit: FormSubmitHandler;
-  isSubmitting: boolean;
+  readonly existingResult?: ActivityResultResponse;
+  readonly team?: Team;
+  readonly onSubmit: FormSubmitHandler;
+  readonly isSubmitting: boolean;
 }
 
 /**
  * Props for General Activity Form
  */
 export interface GeneralFormProps extends BaseActivityFormProps {
-  config: {
+  readonly config: {
     default_points?: number;
     min_points?: number;
     max_points?: number;
@@ -55,7 +55,7 @@ export interface GeneralFormProps extends BaseActivityFormProps {
  * Props for TeamVs Activity Form
  */
 export interface TeamVsFormProps extends BaseActivityFormProps {
-  config: {
+  readonly config: {
     base_points?: number;
     completion_points?: number;
     win_points?: number;
