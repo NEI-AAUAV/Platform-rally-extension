@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 from app.core.config import settings
@@ -11,4 +12,4 @@ class Base(DeclarativeBase):
         names = re.findall("[A-Z][^A-Z]*", cls.__name__)
         return "_".join(names).lower()
 
-    __table_args__ = ({"schema": settings.SCHEMA_NAME},)
+    __table_args__: tuple[Any, ...] = ({"schema": settings.SCHEMA_NAME},)
