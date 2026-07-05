@@ -57,7 +57,8 @@ async def create_badge_definition(
     existing = await crud_def.get_by_code(db, code=obj_in.code)
     if existing:
         raise HTTPException(status_code=409, detail="Badge code already exists")
-    return await crud_def.create(db, obj_in=obj_in)
+    created = await crud_def.create(db, obj_in=obj_in)
+    return BadgeDefinitionResponse.model_validate(created)
 
 
 @router.put(
@@ -73,7 +74,8 @@ async def update_badge_definition(
     db_obj = await crud_def.get(db, id=id)
     if not db_obj:
         raise HTTPException(status_code=404, detail="Badge definition not found")
-    return await crud_def.update(db, db_obj=db_obj, obj_in=obj_in)
+    updated = await crud_def.update(db, db_obj=db_obj, obj_in=obj_in)
+    return BadgeDefinitionResponse.model_validate(updated)
 
 
 @router.post(
@@ -94,7 +96,8 @@ async def upload_badge_icon(
         allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
         key_prefix=f"rally/badges/{id}",
     )
-    return await crud_def.update(db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url)
+    updated = await crud_def.update(db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url)
+    return BadgeDefinitionResponse.model_validate(updated)
 
 
 @router.delete(
