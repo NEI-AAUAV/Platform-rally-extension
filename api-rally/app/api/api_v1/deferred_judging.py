@@ -12,7 +12,7 @@ Admin list: GET /activities/deferred/pending
   - Lists all pending_judgment results for the judging panel
 """
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -50,23 +50,26 @@ class DeferredResultResponse(BaseModel):
     id: int
     activity_id: int
     team_id: int
-    judgment_status: Optional[str]
+    judgment_status: Optional[str] = None
     media_urls: List[str]
-    final_score: Optional[float]
+    final_score: Optional[float] = None
     is_completed: bool
 
 
 @router.post(
     "/activities/deferred/{activity_id}/capture",
-    response_model=DeferredResultResponse,
     status_code=201,
+    responses={
+        404: {"description": "Activity not found"},
+        400: {"description": "Activity is not deferred-judged type, or team_id is missing"},
+    },
 )
 async def capture_deferred_result(
     activity_id: int,
-    images: List[UploadFile] = File(default=[]),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
+    images: Annotated[List[UploadFile], File()] = [],
     team_id: int = 0,
-    db: AsyncSession = Depends(deps.get_db),
-    _: object = Depends(get_staff_with_checkpoint_access),
 ) -> DeferredResultResponse:
     activity = await crud_activity.get(db, activity_id)
     if not activity:
@@ -129,13 +132,16 @@ async def capture_deferred_result(
 
 @router.put(
     "/activities/results/{result_id}/judge",
-    response_model=DeferredResultResponse,
     dependencies=[Depends(deps.get_admin)],
+    responses={
+        404: {"description": "Result not found"},
+        400: {"description": "Result is not pending judgment"},
+    },
 )
 async def judge_deferred_result(
     result_id: int,
     body: JudgeRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DeferredResultResponse:
     result = await crud_result.get(db, result_id)
     if not result:
@@ -171,13 +177,17 @@ async def judge_deferred_result(
 
 @router.put(
     "/activities/results/{result_id}/set-team-photo",
-    response_model=SetTeamPhotoResponse,
+    responses={
+        403: {"description": "Setting a team photo from an activity photo is disabled"},
+        404: {"description": "Result not found"},
+        400: {"description": "Photo does not belong to this result"},
+    },
 )
 async def set_team_photo_from_result(
     result_id: int,
     body: SetTeamPhotoRequest,
-    db: AsyncSession = Depends(deps.get_db),
-    _: object = Depends(get_staff_with_checkpoint_access),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
 ) -> SetTeamPhotoResponse:
     """Promote one of a deferred-judging result's submitted photos to the team's official photo.
 
@@ -205,11 +215,10 @@ async def set_team_photo_from_result(
 
 @router.get(
     "/activities/deferred/pending",
-    response_model=List[DeferredResultResponse],
     dependencies=[Depends(deps.get_admin)],
 )
 async def list_pending_judgments(
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> List[DeferredResultResponse]:
     result = await db.execute(
         select(ActivityResult).where(ActivityResult.judgment_status == "pending_judgment")
