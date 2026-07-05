@@ -3,7 +3,7 @@
 BadgeDefinition CRUD + icon upload + manual award/revoke.
 All write operations require admin scope.
 """
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,8 @@ from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_
 
 router = APIRouter()
 
+BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
+
 
 async def require_badges_enabled(db: AsyncSession = Depends(deps.get_db)) -> None:
     """Block badge write operations when the feature is switched off.
@@ -36,9 +38,9 @@ async def require_badges_enabled(db: AsyncSession = Depends(deps.get_db)) -> Non
         raise HTTPException(status_code=403, detail="Badges feature is disabled")
 
 
-@router.get("/badge-definitions", response_model=List[BadgeDefinitionResponse])
+@router.get("/badge-definitions")
 async def list_badge_definitions(
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> List[BadgeDefinitionResponse]:
     items = await crud_def.get_all(db)
     return [BadgeDefinitionResponse.model_validate(item) for item in items]
@@ -46,13 +48,13 @@ async def list_badge_definitions(
 
 @router.post(
     "/badge-definitions",
-    response_model=BadgeDefinitionResponse,
     status_code=201,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={409: {"description": "Badge code already exists"}},
 )
 async def create_badge_definition(
     obj_in: BadgeDefinitionCreate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> BadgeDefinitionResponse:
     existing = await crud_def.get_by_code(db, code=obj_in.code)
     if existing:
@@ -63,34 +65,34 @@ async def create_badge_definition(
 
 @router.put(
     "/badge-definitions/{id}",
-    response_model=BadgeDefinitionResponse,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={404: {"description": BADGE_DEFINITION_NOT_FOUND}},
 )
 async def update_badge_definition(
     id: int,
     obj_in: BadgeDefinitionUpdate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> BadgeDefinitionResponse:
     db_obj = await crud_def.get(db, id=id)
     if not db_obj:
-        raise HTTPException(status_code=404, detail="Badge definition not found")
+        raise HTTPException(status_code=404, detail=BADGE_DEFINITION_NOT_FOUND)
     updated = await crud_def.update(db, db_obj=db_obj, obj_in=obj_in)
     return BadgeDefinitionResponse.model_validate(updated)
 
 
 @router.post(
     "/badge-definitions/{id}/icon",
-    response_model=BadgeDefinitionResponse,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={404: {"description": BADGE_DEFINITION_NOT_FOUND}},
 )
 async def upload_badge_icon(
     id: int,
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     image: UploadFile = File(...),
-    db: AsyncSession = Depends(deps.get_db),
 ) -> BadgeDefinitionResponse:
     db_obj = await crud_def.get(db, id=id)
     if not db_obj:
-        raise HTTPException(status_code=404, detail="Badge definition not found")
+        raise HTTPException(status_code=404, detail=BADGE_DEFINITION_NOT_FOUND)
     icon_url = await validate_and_store(
         image=image,
         allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
@@ -104,30 +106,35 @@ async def upload_badge_icon(
     "/badge-definitions/{id}",
     status_code=204,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={404: {"description": BADGE_DEFINITION_NOT_FOUND}},
 )
 async def delete_badge_definition(
     id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     db_obj = await crud_def.get(db, id=id)
     if not db_obj:
-        raise HTTPException(status_code=404, detail="Badge definition not found")
+        raise HTTPException(status_code=404, detail=BADGE_DEFINITION_NOT_FOUND)
     await crud_def.delete(db, db_obj=db_obj)
 
 
 @router.post(
     "/badges/award",
-    response_model=TeamBadgeRead,
     status_code=201,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={
+        404: {"description": BADGE_DEFINITION_NOT_FOUND},
+        400: {"description": "Badge is inactive"},
+        409: {"description": "Team already holds this badge"},
+    },
 )
 async def manual_award_badge(
     obj_in: ManualBadgeAwardCreate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> TeamBadgeRead:
     defn = await crud_def.get_by_code(db, code=obj_in.badge_code)
     if not defn:
-        raise HTTPException(status_code=404, detail="Badge definition not found")
+        raise HTTPException(status_code=404, detail=BADGE_DEFINITION_NOT_FOUND)
     if not defn.is_active:
         raise HTTPException(status_code=400, detail="Badge is inactive")
 
@@ -167,10 +174,11 @@ async def manual_award_badge(
     "/badges/{badge_id}",
     status_code=204,
     dependencies=[Depends(deps.get_admin), Depends(require_badges_enabled)],
+    responses={404: {"description": "Badge not found"}},
 )
 async def revoke_badge(
     badge_id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     from sqlalchemy import select as sa_select
     result = await db.execute(sa_select(TeamBadge).where(TeamBadge.id == badge_id))
