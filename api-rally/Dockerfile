@@ -13,13 +13,15 @@ RUN apt-get update && \
 
 COPY poetry.lock pyproject.toml ./
 
-RUN poetry install --no-root --no-cache --no-directory
+# NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
+RUN poetry install --no-root --no-cache
 
 COPY --chown=appuser:appuser app ./app
 COPY --chown=appuser:appuser alembic ./alembic
 COPY --chown=appuser:appuser alembic.ini pytest.ini ./
 COPY --chown=appuser:appuser static ./static
 
+# NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
 RUN poetry install --no-cache && \
     chown -R appuser:appuser /api_rally
 
