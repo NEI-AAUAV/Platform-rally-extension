@@ -2099,6 +2099,14 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
       });
     });
 
+    await page.route('**/api/rally/v1/activities/results**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([activityWithResult.existing_result]),
+      });
+    });
+
     await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
