@@ -27,6 +27,78 @@ import {
   type EvaluatePayload,
 } from "./checkpointEvaluation.types";
 
+interface StaffActivitiesParams {
+  selectedTeam: ListingTeam;
+  checkpoint: DetailedCheckPoint;
+  isFromDifferentCheckpoint: boolean;
+  lastCheckpointNum: number;
+  onShowWarning: (summary: EvaluationSummary) => void;
+}
+
+/**
+ * Loads activities from the staff-scoped endpoint. Returns null (instead of
+ * throwing) when the caller should fall back to the general activities endpoint.
+ */
+async function tryLoadStaffActivities({
+  selectedTeam,
+  checkpoint,
+  isFromDifferentCheckpoint,
+  lastCheckpointNum,
+  onShowWarning,
+}: StaffActivitiesParams): Promise<TeamActivityWithStatus[] | null> {
+  try {
+    const data = (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
+      selectedTeam.id,
+    )) as TeamActivitiesResponse;
+
+    const activities = Array.isArray(data.activities) ? data.activities : [];
+    const summary = data.evaluation_summary ? toEvaluationSummary(data.evaluation_summary) : null;
+
+    if (summary?.has_incomplete || isFromDifferentCheckpoint) {
+      onShowWarning(
+        toEvaluationSummary({
+          ...summary,
+          checkpoint_mismatch: summary?.checkpoint_mismatch ?? isFromDifferentCheckpoint,
+          team_checkpoint: summary?.team_checkpoint ?? lastCheckpointNum,
+          current_checkpoint: summary?.current_checkpoint ?? checkpoint.order,
+        }),
+      );
+    }
+
+    return isFromDifferentCheckpoint ? null : activities;
+  } catch {
+    return null;
+  }
+}
+
+async function loadGeneralActivities(
+  checkpoint: DetailedCheckPoint,
+  teamId: number,
+): Promise<TeamActivityWithStatus[]> {
+  const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(undefined, 100, checkpoint.id);
+  const activities: ActivityResponse[] = (data.activities ?? []).filter(
+    (activity) => activity.checkpoint_id === checkpoint.id,
+  );
+
+  let results: ActivityResultWithRelations[] = [];
+  try {
+    results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+  } catch {
+    results = [];
+  }
+
+  return activities.map((activity) => {
+    const existingResult = results.find(
+      (result) => result.activity_id === activity.id && result.team_id === teamId,
+    );
+    return {
+      ...activity,
+      evaluation_status: existingResult ? "completed" : "pending",
+      existing_result: existingResult,
+    };
+  });
+}
+
 /**
  * Owns all data fetching, mutation, and selection state for the checkpoint
  * team-evaluation screen. UI is rendered by CheckpointTeamEvaluation.
