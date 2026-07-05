@@ -78,6 +78,7 @@ async def search_oidc_users(
             id=u.id, name=u.name, email=u.email, authentik_sub=u.authentik_sub
         )
         for u in users
+        if u.authentik_sub is not None
     ]
 
 

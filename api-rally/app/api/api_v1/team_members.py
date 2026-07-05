@@ -58,7 +58,7 @@ async def _link_placeholder_to_authentik_account(
 
     await crud.participation.record(
         db,
-        authentik_sub=target.authentik_sub,
+        authentik_sub=authentik_sub,
         event_id=team.event_id or (await crud.rally_event.ensure_current(db)).id,
         team=team,
         is_captain=bool(target.is_captain),
