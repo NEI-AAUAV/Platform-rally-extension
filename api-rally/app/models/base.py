@@ -12,4 +12,4 @@ class Base(DeclarativeBase):
         names = re.findall("[A-Z][^A-Z]*", cls.__name__)
         return "_".join(names).lower()
 
-    __table_args__: ClassVar[Any] = ({"schema": settings.SCHEMA_NAME},)
+    __table_args__: Any = ({"schema": settings.SCHEMA_NAME},)

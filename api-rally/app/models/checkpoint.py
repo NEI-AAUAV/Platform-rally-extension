@@ -17,7 +17,7 @@ class CheckPoint(Base):
     __tablename__ = "checkpoints"  # type: ignore[assignment]
     # Checkpoint order is unique within an event, not globally — different
     # editions can each have an "order 1" checkpoint.
-    __table_args__: ClassVar[Any] = (
+    __table_args__: Any = (
         UniqueConstraint("event_id", "order", name="uq_checkpoint_event_order"),
         {"schema": settings.SCHEMA_NAME},
     )

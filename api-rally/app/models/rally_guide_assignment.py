@@ -15,7 +15,7 @@ class RallyGuideAssignment(Base):
     a guide is accompanying teams through.
     """
     # One assignment row per guide — create_or_update relies on this.
-    __table_args__: ClassVar[Any] = (
+    __table_args__: Any = (
         UniqueConstraint("user_id", name="uq_rally_guide_assignment_user_id"),
         {"schema": settings.SCHEMA_NAME},
     )

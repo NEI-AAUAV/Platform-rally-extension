@@ -18,7 +18,7 @@ class CheckpointGuideIndication(Base):
     """
 
     __tablename__ = "checkpoint_guide_indication"  # type: ignore[assignment]
-    __table_args__: ClassVar[Any] = {"schema": settings.SCHEMA_NAME}
+    __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     checkpoint_id: Mapped[int] = mapped_column(

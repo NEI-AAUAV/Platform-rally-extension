@@ -32,7 +32,7 @@ class EventParticipation(Base):
     """One person's participation in one event edition."""
 
     __tablename__ = "event_participation"  # type: ignore[assignment]
-    __table_args__: ClassVar[Any] = (
+    __table_args__: Any = (
         # One participation per person per event.
         UniqueConstraint("authentik_sub", "event_id", name="uq_participation_person_event"),
         {"schema": settings.SCHEMA_NAME},

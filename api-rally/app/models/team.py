@@ -18,7 +18,7 @@ class Team(Base):
     # Team name is unique within an event, not globally. access_code stays
     # globally unique so team login can resolve a team (and its event) from
     # the code alone.
-    __table_args__: ClassVar[Any] = (
+    __table_args__: Any = (
         UniqueConstraint("event_id", "name", name="uq_team_event_name"),
         {"schema": settings.SCHEMA_NAME},
     )
