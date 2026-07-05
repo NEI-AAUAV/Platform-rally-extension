@@ -25,8 +25,11 @@ from app.utils.round_robin import generate_schedule
 
 router = APIRouter()
 
+EVENT_NOT_FOUND = "Event not found"
+EVENT_NOT_FOUND_RESPONSES = {404: {"description": EVENT_NOT_FOUND}}
 
-@router.get("/events", response_model=list[RallyEventResponse], tags=["Events"])
+
+@router.get("/events", tags=["Events"])
 async def list_events(
     db: Annotated[AsyncSession, Depends(get_db)],
     skip: int = 0,
@@ -37,7 +40,7 @@ async def list_events(
     return [RallyEventResponse.model_validate(e) for e in events]
 
 
-@router.get("/events/current", response_model=RallyEventResponse, tags=["Events"])
+@router.get("/events/current", tags=["Events"])
 async def get_current_event(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RallyEventResponse:
@@ -46,18 +49,18 @@ async def get_current_event(
     return RallyEventResponse.model_validate(event)
 
 
-@router.get("/events/{event_id}", response_model=RallyEventResponse, tags=["Events"])
+@router.get("/events/{event_id}", tags=["Events"], responses=EVENT_NOT_FOUND_RESPONSES)
 async def get_event(
     event_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RallyEventResponse:
     event = await crud.rally_event.get(db, event_id)
     if event is None:
-        raise RallyNotFoundError("Event not found")
+        raise RallyNotFoundError(EVENT_NOT_FOUND)
     return RallyEventResponse.model_validate(event)
 
 
-@router.post("/events", response_model=RallyEventResponse, status_code=201, tags=["Events"])
+@router.post("/events", status_code=201, tags=["Events"])
 async def create_event(
     event_in: RallyEventCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -69,7 +72,7 @@ async def create_event(
     return RallyEventResponse.model_validate(event)
 
 
-@router.put("/events/{event_id}", response_model=RallyEventResponse, tags=["Events"])
+@router.put("/events/{event_id}", tags=["Events"], responses=EVENT_NOT_FOUND_RESPONSES)
 async def update_event(
     event_id: int,
     event_in: RallyEventUpdate,
@@ -79,12 +82,16 @@ async def update_event(
 ) -> RallyEventResponse:
     event = await crud.rally_event.get(db, event_id)
     if event is None:
-        raise RallyNotFoundError("Event not found")
+        raise RallyNotFoundError(EVENT_NOT_FOUND)
     updated = await crud.rally_event.update(db, db_obj=event, obj_in=event_in)
     return RallyEventResponse.model_validate(updated)
 
 
-@router.post("/events/{event_id}/set-current", response_model=RallyEventResponse, tags=["Events"])
+@router.post(
+    "/events/{event_id}/set-current",
+    tags=["Events"],
+    responses=EVENT_NOT_FOUND_RESPONSES,
+)
 async def set_current_event(
     event_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -94,7 +101,7 @@ async def set_current_event(
     """Make the given event the sole current edition (admin/manager only)."""
     event = await crud.rally_event.set_current(db, event_id=event_id)
     if event is None:
-        raise RallyNotFoundError("Event not found")
+        raise RallyNotFoundError(EVENT_NOT_FOUND)
     return RallyEventResponse.model_validate(event)
 
 
@@ -105,8 +112,11 @@ class RotationScheduleResponse(BaseModel):
 
 @router.post(
     "/events/{event_id}/rotation-schedule",
-    response_model=RotationScheduleResponse,
     tags=["Events"],
+    responses={
+        404: {"description": EVENT_NOT_FOUND},
+        400: {"description": "Rotation schedule cannot be generated for this event"},
+    },
 )
 async def generate_rotation_schedule(
     event_id: int,
@@ -126,7 +136,7 @@ async def generate_rotation_schedule(
 
     event = await crud.rally_event.get(db, event_id)
     if event is None:
-        raise RallyNotFoundError("Event not found")
+        raise RallyNotFoundError(EVENT_NOT_FOUND)
     if event.event_type != EventType.OLYMPIC.value:
         raise HTTPException(status_code=400, detail="Rotation schedule only available for Olympic events")
 
