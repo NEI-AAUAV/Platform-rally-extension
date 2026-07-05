@@ -100,9 +100,13 @@ async def get_checkpoints(
     return result
 
 
-@router.get("/count", status_code=200)
+@router.get(
+    "/count",
+    status_code=200,
+    responses={401: {"description": "Authentication required"}},
+)
 async def get_checkpoints_count(
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
     curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)] = None,
 ) -> int:
@@ -124,7 +128,7 @@ async def get_checkpoints_count(
 )
 async def get_next_checkpoint(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
     curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
 ) -> DetailedCheckPoint:
@@ -153,10 +157,10 @@ async def get_next_checkpoint(
 )
 async def get_checkpoint_teams(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     select_in: Annotated[AdminCheckPointSelect, Depends()],
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    admin_or_staff_user: DetailedUser = Depends(deps.get_admin_or_staff)
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    admin_or_staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
 ) -> List[ListingTeam]:
     """
     If a staff is authenticated, returned all teams that just passed
@@ -208,10 +212,10 @@ async def get_checkpoint_teams(
 @router.post("/", status_code=201)
 async def create_checkpoint(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     cp_in: CheckPointCreate,
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
+    auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> DetailedCheckPoint:
     # Enforce ABAC permission for checkpoint creation
     require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
@@ -228,9 +232,9 @@ async def create_checkpoint(
 @router.put("/reorder", status_code=200)
 async def reorder_checkpoints(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     checkpoint_orders: Dict[int, int],
-    _: DetailedUser = Depends(deps.get_admin),
+    _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> Dict[str, str]:
     """Reorder checkpoints by updating their order values."""
     try:
@@ -243,10 +247,10 @@ async def reorder_checkpoints(
 @router.put("/{id}", status_code=200)
 async def update_checkpoint(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     cp_in: CheckPointUpdate,
-    _: DetailedUser = Depends(deps.get_admin),
+    _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> DetailedCheckPoint:
     await crud.checkpoint.get(db=db, id=id, for_update=True)
     updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in)
@@ -256,9 +260,9 @@ async def update_checkpoint(
 @router.delete("/{id}", status_code=200)
 async def delete_checkpoint(
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
-    _: DetailedUser = Depends(deps.get_admin),
+    _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> Dict[str, str]:
     """Delete a checkpoint. Only admins can delete checkpoints."""
     try:
