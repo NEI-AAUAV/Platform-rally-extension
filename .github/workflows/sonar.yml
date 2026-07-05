@@ -19,14 +19,17 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      TEST_DB_PASSWORD: postgres # NOSONAR test-only credential, ephemeral CI service container
+      TEST_DB_USER: postgres
+      TEST_DB_NAME: postgres_test
 
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
+          POSTGRES_USER: ${{ env.TEST_DB_USER }}
+          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -52,12 +55,12 @@ jobs:
           node-version: '24'
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 9
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1
         with:
           version: latest
           virtualenvs-create: true
@@ -106,19 +109,16 @@ jobs:
         if: steps.check_coverage.outputs.has_web_coverage == 'false'
         run: |
           cd web-rally
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Create test database
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+          PGPASSWORD="$TEST_DB_PASSWORD" psql -h localhost -U "$TEST_DB_USER" -d "$TEST_DB_NAME" -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
         env:
           POSTGRES_SERVER: localhost
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
 
       - name: Run Python tests with coverage (API)
         if: steps.check_coverage.outputs.has_api_coverage == 'false'
@@ -127,9 +127,9 @@ jobs:
           poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
         env:
           POSTGRES_SERVER: localhost
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
+          POSTGRES_USER: ${{ env.TEST_DB_USER }}
+          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
           TEAM_JWT_SECRET_KEY: test_secret
         continue-on-error: true
 
@@ -191,7 +191,7 @@ jobs:
       - name: SonarQube Scan (PR)
         # Skip SonarQube for Dependabot PRs (secrets not available)
         if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         with:
           args: >
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
@@ -207,7 +207,7 @@ jobs:
       - name: SonarQube Scan (Branch)
         # Skip for Dependabot PRs (though this step shouldn't run for PRs anyway)
         if: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         with:
           args: >
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
