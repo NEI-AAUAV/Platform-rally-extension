@@ -11,7 +11,7 @@ DynamicAward management:
   POST /dynamic-awards             — apply a one-off award to a team (admin)
   DELETE /dynamic-awards/{id}      — remove an award (admin)
 """
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -48,9 +48,9 @@ class DynamicRuleUpdate(BaseModel):
 
 class DynamicRuleResponse(BaseModel):
     id: int
-    event_id: Optional[int]
+    event_id: Optional[int] = None
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
     rule_type: str
     points: float
     is_active: bool
@@ -69,10 +69,10 @@ class DynamicAwardCreate(BaseModel):
 class DynamicAwardResponse(BaseModel):
     id: int
     team_id: int
-    event_id: Optional[int]
-    rule_id: Optional[int]
+    event_id: Optional[int] = None
+    rule_id: Optional[int] = None
     points: float
-    reason: Optional[str]
+    reason: Optional[str] = None
     is_active: bool
 
     model_config = {"from_attributes": True}
@@ -80,9 +80,9 @@ class DynamicAwardResponse(BaseModel):
 
 # ---------- DynamicRule endpoints ----------
 
-@router.get("/dynamic-rules", response_model=List[DynamicRuleResponse])
+@router.get("/dynamic-rules")
 async def list_dynamic_rules(
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> List[DynamicRuleResponse]:
     event = await rally_event.get_current(db)
     event_id = event.id if event else None
@@ -95,13 +95,12 @@ async def list_dynamic_rules(
 
 @router.post(
     "/dynamic-rules",
-    response_model=DynamicRuleResponse,
     status_code=201,
     dependencies=[Depends(deps.get_admin)],
 )
 async def create_dynamic_rule(
     obj_in: DynamicRuleCreate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicRuleResponse:
     event = await rally_event.get_current(db)
     rule = DynamicRule(
@@ -116,13 +115,13 @@ async def create_dynamic_rule(
 
 @router.put(
     "/dynamic-rules/{rule_id}",
-    response_model=DynamicRuleResponse,
     dependencies=[Depends(deps.get_admin)],
+    responses={404: {"description": "Rule not found"}},
 )
 async def update_dynamic_rule(
     rule_id: int,
     obj_in: DynamicRuleUpdate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicRuleResponse:
     rule = await db.get(DynamicRule, rule_id)
     if not rule:
@@ -138,10 +137,11 @@ async def update_dynamic_rule(
     "/dynamic-rules/{rule_id}",
     status_code=204,
     dependencies=[Depends(deps.get_admin)],
+    responses={404: {"description": "Rule not found"}},
 )
 async def delete_dynamic_rule(
     rule_id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     rule = await db.get(DynamicRule, rule_id)
     if not rule:
@@ -152,11 +152,11 @@ async def delete_dynamic_rule(
 
 # ---------- DynamicAward endpoints ----------
 
-@router.get("/dynamic-awards", response_model=List[DynamicAwardResponse])
+@router.get("/dynamic-awards")
 async def list_dynamic_awards(
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    _: Annotated[None, Depends(deps.get_admin)],
     team_id: Optional[int] = None,
-    db: AsyncSession = Depends(deps.get_db),
-    _: None = Depends(deps.get_admin),
 ) -> List[DynamicAwardResponse]:
     stmt = select(DynamicAward).where(DynamicAward.is_active.is_(True))
     if team_id is not None:
@@ -167,13 +167,12 @@ async def list_dynamic_awards(
 
 @router.post(
     "/dynamic-awards",
-    response_model=DynamicAwardResponse,
     status_code=201,
     dependencies=[Depends(deps.get_admin)],
 )
 async def create_dynamic_award(
     obj_in: DynamicAwardCreate,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicAwardResponse:
     event = await rally_event.get_current(db)
     award = DynamicAward(
@@ -196,10 +195,11 @@ async def create_dynamic_award(
     "/dynamic-awards/{award_id}",
     status_code=204,
     dependencies=[Depends(deps.get_admin)],
+    responses={404: {"description": "Award not found"}},
 )
 async def delete_dynamic_award(
     award_id: int,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     award = await db.get(DynamicAward, award_id)
     if not award:
