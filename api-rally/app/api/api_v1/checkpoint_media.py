@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +17,7 @@ from app import crud
 router = APIRouter()
 
 
-async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int):
+async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
     cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
@@ -30,7 +30,8 @@ async def list_checkpoint_media(
     db: AsyncSession = Depends(deps.get_db),
 ) -> List[CheckpointMediaResponse]:
     await _get_checkpoint_or_404(db, checkpoint_id)
-    return await crud_media.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+    items = await crud_media.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+    return [CheckpointMediaResponse.model_validate(item) for item in items]
 
 
 @router.post(
