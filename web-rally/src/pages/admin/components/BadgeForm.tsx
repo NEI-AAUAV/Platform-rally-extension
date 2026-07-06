@@ -19,8 +19,13 @@ import {
 } from "@/components/ui/select";
 
 interface BadgeFormProps {
-  editing: BadgeDefinitionResponse | null;
-  onDone: () => void;
+  readonly editing: BadgeDefinitionResponse | null;
+  readonly onDone: () => void;
+}
+
+function stringifyCriteriaId(value: unknown): string {
+  if (typeof value === "number" || typeof value === "string") return String(value);
+  return "";
 }
 
 interface FormState {
@@ -49,11 +54,9 @@ function initialState(editing: BadgeDefinitionResponse | null): FormState {
     glyph: editing?.glyph ?? "",
     isAuto: editing?.is_auto ?? false,
     triggerType: editing?.trigger_type ?? "",
-    criteriaActivityId:
-      criteria.activity_id != null ? String(criteria.activity_id) : "",
-    criteriaCheckpointId:
-      criteria.checkpoint_id != null ? String(criteria.checkpoint_id) : "",
-    criteriaNumber: numberValue != null ? String(numberValue) : "",
+    criteriaActivityId: stringifyCriteriaId(criteria.activity_id),
+    criteriaCheckpointId: stringifyCriteriaId(criteria.checkpoint_id),
+    criteriaNumber: stringifyCriteriaId(numberValue),
   };
 }
 
