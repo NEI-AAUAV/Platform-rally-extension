@@ -7,8 +7,8 @@ This guide provides a high-level overview of how to run tests for both the backe
 The most straightforward way to run all backend and frontend tests is to use the provided shell script from the repository root.
 
 ```bash
-# From the Platform repository root
-./Platform/extensions/rally/run-tests.sh
+# From the rally repository root
+./run-tests.sh
 ```
 
 ## Backend Testing (`api-rally`)
@@ -20,13 +20,13 @@ The API is tested with `pytest`.
 
 **Run backend tests:**
 ```bash
-# From Platform/extensions/rally/api-rally
+# From api-rally/
 poetry run pytest app/tests/ -v
 ```
 
 **Run with coverage report:**
 ```bash
-# From Platform/extensions/rally/api-rally
+# From api-rally/
 poetry run pytest app/tests/ --cov=app --cov-report=html
 ```
 
@@ -39,7 +39,7 @@ The frontend uses Vitest for unit tests and Playwright for End-to-End (E2E) test
 
 **Run frontend tests:**
 ```bash
-# From Platform/extensions/rally/web-rally
+# From web-rally/
 
 # Run all unit tests
 pnpm test
