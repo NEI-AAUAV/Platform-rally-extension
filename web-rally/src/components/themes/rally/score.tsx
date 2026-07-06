@@ -6,7 +6,7 @@ import type { ListingTeam } from "@/client";
 import { Link } from "@tanstack/react-router";
 import { formatTime } from "@/utils/timeFormat";
 
-type ScoreProps = { team: ListingTeam } & ComponentProps<"div">;
+type ScoreProps = { team: ListingTeam; isProvisional?: boolean } & ComponentProps<"div">;
 
 const nthNumber = (number: number) => {
   if (number > 3 && number < 21) return "th";
@@ -35,7 +35,7 @@ const variantClassification = (classification: number) => {
 };
 
 /** Team score card on the design tokens; the leader is highlighted with the accent. */
-export function RallyScore({ className, team, ...props }: ScoreProps) {
+export function RallyScore({ className, team, isProvisional = false, ...props }: ScoreProps) {
   const lastCheckpointTime = team.last_checkpoint_time && new Date(team.last_checkpoint_time);
 
   const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
@@ -67,7 +67,9 @@ export function RallyScore({ className, team, ...props }: ScoreProps) {
             <div className="text-xs text-muted-foreground">
               {team.last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
             </div>
-            <div className="text-sm font-medium text-foreground/80">
+            <div
+              className={cn("text-sm font-medium text-foreground/80", isProvisional && "italic")}
+            >
               {team.last_checkpoint_score || 0}pts
             </div>
             {lastCheckpointTime && (
@@ -78,7 +80,12 @@ export function RallyScore({ className, team, ...props }: ScoreProps) {
           <div className="text-sm text-muted-foreground">Sem postos ainda</div>
         )}
       </span>
-      <span className="rally-display grow text-center text-4xl font-bold text-foreground">
+      <span
+        className={cn(
+          "rally-display grow text-center text-4xl font-bold text-foreground",
+          isProvisional && "italic",
+        )}
+      >
         {team.total}pts
       </span>
       <Link to="/teams/$id" params={{ id: String(team.id) }}>

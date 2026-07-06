@@ -152,9 +152,18 @@ export default function Scoreboard() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           {/* Left: podium + rows */}
           <div className="space-y-6">
-            <Podium teams={podium} checkpointsCount={checkpointsCount} />
+            <Podium
+              teams={podium}
+              checkpointsCount={checkpointsCount}
+              isProvisional={isProvisional}
+            />
             {rest.length > 0 && (
-              <ScoreRows teams={rest} startRank={4} checkpointsCount={checkpointsCount} />
+              <ScoreRows
+                teams={rest}
+                startRank={4}
+                checkpointsCount={checkpointsCount}
+                isProvisional={isProvisional}
+              />
             )}
           </div>
 
@@ -207,7 +216,12 @@ export default function Scoreboard() {
                         </span>
                       </div>
                       <p className="mt-2 truncate font-bold text-foreground">{myTeam.name}</p>
-                      <p className="rally-display rally-accent mt-1 text-3xl font-bold tabular-nums">
+                      <p
+                        className={[
+                          "rally-display rally-accent mt-1 text-3xl font-bold tabular-nums",
+                          isProvisional ? "italic" : "",
+                        ].join(" ")}
+                      >
                         {myTeam.total}
                         <span className="ml-1 text-sm font-medium text-muted-foreground">pts</span>
                       </p>

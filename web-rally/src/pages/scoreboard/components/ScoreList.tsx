@@ -61,9 +61,11 @@ const ORDINAL = ["1º", "2º", "3º"];
 export function Podium({
   teams,
   checkpointsCount,
+  isProvisional = false,
 }: {
   readonly teams: ListingTeam[];
   readonly checkpointsCount?: number;
+  readonly isProvisional?: boolean;
 }) {
   const terms = useEventTerms();
   // visual order: 2nd, 1st, 3rd
@@ -125,7 +127,12 @@ export function Podium({
             >
               {team.name}
             </p>
-            <p className="rally-display rally-accent mt-1 text-xl font-bold tabular-nums sm:text-2xl">
+            <p
+              className={[
+                "rally-display rally-accent mt-1 text-xl font-bold tabular-nums sm:text-2xl",
+                isProvisional ? "italic" : "",
+              ].join(" ")}
+            >
               {team.total}
               <span className="ml-1 text-xs font-medium text-muted-foreground">pts</span>
             </p>
@@ -149,10 +156,12 @@ export function ScoreRows({
   teams,
   startRank = 1,
   checkpointsCount,
+  isProvisional = false,
 }: {
   readonly teams: ListingTeam[];
   readonly startRank?: number;
   readonly checkpointsCount?: number;
+  readonly isProvisional?: boolean;
 }) {
   const terms = useEventTerms();
   if (teams.length === 0) return null;
@@ -200,7 +209,12 @@ export function ScoreRows({
                     </span>
                   )}
                 </span>
-                <span className="rally-display shrink-0 text-lg font-bold tabular-nums text-foreground">
+                <span
+                  className={[
+                    "rally-display shrink-0 text-lg font-bold tabular-nums text-foreground",
+                    isProvisional ? "italic" : "",
+                  ].join(" ")}
+                >
                   {team.total}
                   <span className="ml-1 text-xs font-medium text-muted-foreground">pts</span>
                 </span>

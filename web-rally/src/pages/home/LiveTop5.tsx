@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { TeamService, type ListingTeam } from "@/client";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
+import useRallySettings from "@/hooks/useRallySettings";
+import { useCountdown } from "@/pages/home/useCountdown";
 
 function initialsOf(name: string): string {
   return name
@@ -20,6 +22,9 @@ function initialsOf(name: string): string {
  */
 export function LiveTop5() {
   useScoreboardStream([["teams"]]);
+  const { settings } = useRallySettings();
+  const { phase } = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
+  const isProvisional = phase === "live";
   const { data: teams } = useQuery({
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
@@ -76,7 +81,12 @@ export function LiveTop5() {
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
                   {team.name}
                 </span>
-                <span className="rally-display text-[17px] font-bold tabular-nums text-foreground">
+                <span
+                  className={[
+                    "rally-display text-[17px] font-bold tabular-nums text-foreground",
+                    isProvisional ? "italic" : "",
+                  ].join(" ")}
+                >
                   {team.total}
                 </span>
               </Link>

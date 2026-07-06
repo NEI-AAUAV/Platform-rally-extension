@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
-import { CheckpointDiscovery } from "@/components/shared";
+import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
 
@@ -115,7 +115,7 @@ export function CheckpointTimelineItem({
                   {evaluationResults.length} activit{evaluationResults.length === 1 ? "y" : "ies"}
                 </span>
               )}
-              {hasPendingTimeBasedActivity && <AlertTriangle className="h-4 w-4 text-yellow-500" />}
+              {hasPendingTimeBasedActivity && <ProvisionalBadge />}
             </div>
             <h3 className="mb-1 text-lg font-semibold">
               {checkpoint?.name || `Checkpoint ${index + 1}`}
@@ -123,7 +123,12 @@ export function CheckpointTimelineItem({
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="mb-1 text-xl font-bold">{checkpointScore} pts</div>
+              <div className="mb-1 text-xl font-bold">
+                {checkpointScore} pts
+                {hasPendingTimeBasedActivity && (
+                  <span className="italic text-muted-foreground"> *</span>
+                )}
+              </div>
               <div className="text-sm text-muted-foreground">
                 {hasEvaluations && displayTime ? formatTime(displayTime) : "Not evaluated yet"}
               </div>
@@ -178,15 +183,20 @@ export function CheckpointTimelineItem({
                       <p className="text-sm text-muted-foreground">{activity.description}</p>
                     )}
                     {isCompletionPending && (
-                      <div className="mt-2 rounded border border-yellow-500/30 bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
-                        ⚠️ Score may change: {completedCount} of {totalTeams} teams finished
-                        (ranking recalculates as more teams complete)
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <ProvisionalBadge />
+                        <span>
+                          {completedCount} de {totalTeams} equipas terminaram (a pontuação
+                          recalcula à medida que mais equipas terminam)
+                        </span>
                       </div>
                     )}
                   </div>
                   <div className="ml-4 text-right">
                     <div className="mb-1 text-lg font-bold">
-                      {result.final_score?.toFixed(0)} pts
+                      <span className={isCompletionPending ? "italic" : ""}>
+                        {result.final_score?.toFixed(0)} pts
+                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {result.completed_at
