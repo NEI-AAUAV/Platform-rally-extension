@@ -12,7 +12,7 @@ interface BloodProps {
  */
 export default function Blood({ className, variant, isHover }: BloodProps) {
   const variants = {
-    default: isHover ? "currentColor" : "currentColor",
+    default: "currentColor",
     primary: "var(--rally-accent, var(--rally-accent-fallback))",
     neutral: isHover ? "rgb(120 120 120 / 0.4)" : "rgb(120 120 120 / 0.6)",
   };

@@ -15,8 +15,8 @@ export const ColorModeContext = createContext<ColorModeContextValue | null>(null
 
 /** Read the persisted preference, falling back to the default. */
 export function readStoredMode(): ColorMode {
-  if (typeof window === "undefined") return DEFAULT_COLOR_MODE;
-  const stored = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
+  if (globalThis.window === undefined) return DEFAULT_COLOR_MODE;
+  const stored = globalThis.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
   return stored === "light" || stored === "dark" ? stored : DEFAULT_COLOR_MODE;
 }
 

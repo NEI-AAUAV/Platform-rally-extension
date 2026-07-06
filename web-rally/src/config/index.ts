@@ -17,7 +17,7 @@ if (process.env.NODE_ENV === "production") {
   BASE_URL = `${scheme.HTTP}${HOST}`;
 }
 
-const origin = typeof window !== "undefined" ? window.location.origin : BASE_URL;
+const origin = globalThis.window === undefined ? BASE_URL : globalThis.window.location.origin;
 
 const config = {
   PRODUCTION,

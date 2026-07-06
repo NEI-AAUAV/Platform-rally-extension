@@ -21,7 +21,7 @@ export function ShareButton({ title, url, label = "Partilhar" }: ShareButtonProp
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
-    const shareUrl = url ?? window.location.href;
+    const shareUrl = url ?? globalThis.location.href;
 
     if (navigator.share) {
       try {
