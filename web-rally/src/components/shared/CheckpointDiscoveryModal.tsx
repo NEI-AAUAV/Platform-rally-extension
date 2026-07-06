@@ -50,17 +50,20 @@ export default function CheckpointDiscoveryModal({
   const hasCoords = latitude != null && longitude != null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      open
+      className="fixed inset-0 z-50 m-0 flex h-full w-full max-h-none max-w-none items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
       aria-label={`Descobrir ${name}`}
+      onClose={onClose}
+      onCancel={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
     >
-      <div
-        className="animate-in slide-in-from-bottom-4 fade-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl duration-300 sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="animate-in slide-in-from-bottom-4 fade-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl duration-300 sm:rounded-3xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-card/95 px-5 py-4 backdrop-blur">
           <div className="min-w-0">
@@ -101,6 +104,6 @@ export default function CheckpointDiscoveryModal({
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

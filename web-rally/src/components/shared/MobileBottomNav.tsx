@@ -124,11 +124,20 @@ export function MobileBottomNav() {
       </nav>
 
       {qrOpen && accessCode && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-4 sm:hidden"
-          onClick={() => setQrOpen(false)}
+        <dialog
+          open
+          aria-label="QR de equipa"
+          className="fixed inset-0 z-[60] m-0 flex h-full w-full max-h-none max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
+          onClose={() => setQrOpen(false)}
+          onCancel={() => setQrOpen(false)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setQrOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setQrOpen(false);
+          }}
         >
-          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md">
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
@@ -141,7 +150,7 @@ export function MobileBottomNav() {
             </div>
             <TeamQrCard accessCode={accessCode} />
           </div>
-        </div>
+        </dialog>
       )}
     </>
   );

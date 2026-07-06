@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Branding } from "@/lib/branding";
 import NavTabs from "./nav-tabs";
@@ -46,6 +46,8 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
     };
   }, [open]);
 
+  const currentEventId = (events ?? []).find((ev) => ev.is_current)?.id ?? "";
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -68,38 +70,23 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
 
       {open && (
         <div className="absolute left-0 top-full z-50 pt-2">
-          <ul
-            role="listbox"
+          <select
             aria-label="Selecionar evento"
-            className="rally-elevate min-w-[14rem] overflow-hidden rounded-xl border border-border bg-popover p-1.5 space-y-0.5"
+            value={currentEventId}
+            disabled={setCurrent.isPending}
+            onChange={(e) => {
+              setCurrent.mutate(Number(e.target.value));
+              setOpen(false);
+            }}
+            className="rally-elevate min-w-[14rem] overflow-hidden rounded-xl border border-border bg-popover p-1.5 text-xs font-bold uppercase tracking-wider text-foreground"
+            size={Math.min((events ?? []).length || 1, 8)}
           >
-            {(events ?? []).map((ev) => {
-              const isCurrent = ev.is_current;
-              return (
-                <li key={ev.id} role="option" aria-selected={isCurrent}>
-                  <button
-                    type="button"
-                    disabled={isCurrent || setCurrent.isPending}
-                    onClick={() => {
-                      setCurrent.mutate(ev.id);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1 text-left text-xs font-bold uppercase tracking-wider transition-colors",
-                      isCurrent
-                        ? "rally-accent cursor-default"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <Check
-                      className={cn("h-3 w-3 shrink-0", isCurrent ? "opacity-100" : "opacity-0")}
-                    />
-                    <span className="truncate">{ev.name}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+            {(events ?? []).map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
     </div>
