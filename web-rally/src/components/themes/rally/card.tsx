@@ -2,20 +2,20 @@ import { forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface RallyCardProps {
-  children: ReactNode;
-  variant?: "default" | "elevated" | "subtle" | "nested";
-  className?: string;
-  padding?: "none" | "sm" | "md" | "lg";
-  rounded?: "md" | "lg" | "xl" | "2xl";
-  onClick?: () => void;
-  hover?: boolean;
+  readonly children: ReactNode;
+  readonly variant?: "default" | "elevated" | "subtle" | "nested";
+  readonly className?: string;
+  readonly padding?: "none" | "sm" | "md" | "lg";
+  readonly rounded?: "md" | "lg" | "xl" | "2xl";
+  readonly onClick?: () => void;
+  readonly hover?: boolean;
 }
 
 /**
  * Soft-depth themed card on the design tokens. Variants map to elevation rather
  * than the old skin's tinted borders; surfaces adapt to light/dark.
  */
-const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
+const RallyCard = forwardRef<HTMLDivElement | HTMLButtonElement, RallyCardProps>(
   (
     {
       children,
@@ -53,22 +53,32 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
       ? "transition-colors hover:bg-accent"
       : "";
 
-    const interactiveStyles = onClick ? "cursor-pointer" : "";
+    const interactiveStyles = onClick ? "cursor-pointer text-left w-full" : "";
+    const sharedClassName = cn(
+      "border",
+      variantStyles[variant],
+      paddingStyles[padding],
+      roundedStyles[rounded],
+      hoverStyles,
+      interactiveStyles,
+      className,
+    );
+
+    if (onClick) {
+      return (
+        <button
+          ref={ref as React.Ref<HTMLButtonElement>}
+          type="button"
+          onClick={onClick}
+          className={sharedClassName}
+        >
+          {children}
+        </button>
+      );
+    }
 
     return (
-      <div
-        ref={ref}
-        onClick={onClick}
-        className={cn(
-          "border",
-          variantStyles[variant],
-          paddingStyles[padding],
-          roundedStyles[rounded],
-          hoverStyles,
-          interactiveStyles,
-          className,
-        )}
-      >
+      <div ref={ref as React.Ref<HTMLDivElement>} className={sharedClassName}>
         {children}
       </div>
     );

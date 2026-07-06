@@ -2,15 +2,15 @@ import { forwardRef, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 interface RallyInteractiveCardProps {
-  children: ReactNode;
-  onClick?: () => void;
-  selected?: boolean;
-  status?: "default" | "success" | "warning" | "info" | "neutral" | "nested";
-  className?: string;
-  padding?: "sm" | "md" | "lg";
-  rounded?: "lg" | "xl" | "2xl";
-  disabled?: boolean;
-  as?: "div" | "button";
+  readonly children: ReactNode;
+  readonly onClick?: () => void;
+  readonly selected?: boolean;
+  readonly status?: "default" | "success" | "warning" | "info" | "neutral" | "nested";
+  readonly className?: string;
+  readonly padding?: "sm" | "md" | "lg";
+  readonly rounded?: "lg" | "xl" | "2xl";
+  readonly disabled?: boolean;
+  readonly as?: "div" | "button";
 }
 
 /**

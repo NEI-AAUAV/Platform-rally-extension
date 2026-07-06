@@ -11,20 +11,21 @@ type RallyButtonProps = VariantProps<typeof rallyButtonVariants> &
     readonly blood?: boolean;
   };
 
+const BLOOD_VARIANT_BY_BUTTON_VARIANT: Record<string, "primary" | "neutral" | "default"> = {
+  primary: "primary",
+  neutral: "neutral",
+};
+
 /** Accent-driven themed button; grows a blood drip on the bloody theme. */
 function RallyButton({ className, variant, blood, children, ...props }: RallyButtonProps) {
+  const bloodVariant = BLOOD_VARIANT_BY_BUTTON_VARIANT[variant ?? ""] ?? "default";
   return (
     <Button
       className={cn(rallyButtonVariants({ variant }), blood && "rally-blood-button", className)}
       {...props}
     >
       {children}
-      {blood && (
-        <RallyBlood
-          className="rally-blood-drip"
-          variant={variant === "primary" ? "primary" : variant === "neutral" ? "neutral" : "default"}
-        />
-      )}
+      {blood && <RallyBlood className="rally-blood-drip" variant={bloodVariant} />}
     </Button>
   );
 }
