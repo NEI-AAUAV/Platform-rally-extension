@@ -7,7 +7,9 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
 import { CheckPointService, TeamService, type ListingTeam } from "@/client";
-import { Podium, ScoreRows } from "./components/ScoreList";
+import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
+import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
+import { useCountdown } from "@/pages/home/useCountdown";
 
 function NoticeCard({ title, body }: { readonly title: string; readonly body: React.ReactNode }) {
   return (
@@ -21,9 +23,15 @@ function NoticeCard({ title, body }: { readonly title: string; readonly body: Re
 export default function Scoreboard() {
   const { settings } = useRallySettings();
   const terms = useEventTerms();
+  const { phase } = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
+  const isProvisional = phase === "live";
   useScoreboardStream([["teams"]]);
 
-  const { data: teams } = useQuery({
+  const {
+    data: teams,
+    isLoading: teamsLoading,
+    dataUpdatedAt: teamsUpdatedAt,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
   });
@@ -106,6 +114,8 @@ export default function Scoreboard() {
     teamData && sortedTeams ? sortedTeams.findIndex((t) => t.id === teamData.team_id) : -1;
   const myTeam = myRankIndex >= 0 ? sortedTeams?.[myRankIndex] : undefined;
 
+  const showSkeleton = teamsLoading && list.length === 0;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -114,23 +124,31 @@ export default function Scoreboard() {
           <span className="rally-accent text-xs font-bold uppercase tracking-[0.2em]">
             Pontuação ao vivo
           </span>
-          <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
-            Classificação
-          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h1 className="rally-display text-4xl font-bold text-foreground sm:text-5xl">
+              Classificação
+            </h1>
+            {isProvisional && <ProvisionalBadge />}
+          </div>
         </div>
-        {isFullBoard && (
-          <p className="text-sm font-medium text-muted-foreground">
-            {list.length} equipas em {terms.event}
-          </p>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {isFullBoard && (
+            <p className="text-sm font-medium text-muted-foreground">
+              {list.length} equipas em {terms.event}
+            </p>
+          )}
+          <FreshnessIndicator updatedAt={teamsUpdatedAt} />
+        </div>
       </header>
 
-      {list.length === 0 ? (
+      {showSkeleton && <ScoreboardSkeleton />}
+      {!showSkeleton && list.length === 0 && (
         <div className="rally-surface flex min-h-[240px] flex-col items-center justify-center gap-3 text-center">
           <Trophy className="h-10 w-10 text-muted-foreground/50" />
           <p className="font-medium text-muted-foreground">Ainda não há equipas classificadas.</p>
         </div>
-      ) : (
+      )}
+      {!showSkeleton && list.length > 0 && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           {/* Left: podium + rows */}
           <div className="space-y-6">

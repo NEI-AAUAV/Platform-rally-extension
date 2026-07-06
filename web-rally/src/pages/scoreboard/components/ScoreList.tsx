@@ -3,6 +3,28 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ListingTeam } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
+import { Skeleton } from "@/components/shared";
+
+/** Layout-stable placeholder matching the podium + rows structure. */
+export function ScoreboardSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="space-y-6">
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-40 rounded-2xl" />
+          <Skeleton className="h-52 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
+        </div>
+        <div className="space-y-2">
+          {["r1", "r2", "r3", "r4", "r5", "r6"].map((key) => (
+            <Skeleton key={key} className="h-16 rounded-[14px]" />
+          ))}
+        </div>
+      </div>
+      <Skeleton className="order-first h-56 rounded-2xl lg:order-last" />
+    </div>
+  );
+}
 
 /** "3/8 postos" or "Posto 3" using event-aware checkpoint nouns. */
 function reachedLabel(

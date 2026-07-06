@@ -59,10 +59,34 @@ const teamByIdRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/teams/id")),
 });
 
-const adminRoute = createRoute({
+const ADMIN_TAB_IDS = [
+  "dashboard",
+  "teams",
+  "checkpoints",
+  "activities",
+  "members",
+  "assignment",
+  "guide-assignment",
+  "evaluation",
+  "versus",
+  "judging",
+  "badges",
+  "scoring",
+  "branding",
+  "events",
+  "settings",
+] as const;
+
+export type AdminTabId = (typeof ADMIN_TAB_IDS)[number];
+
+export const adminRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/admin",
   component: lazyRouteComponent(() => import("@/pages/admin")),
+  validateSearch: (search: Record<string, unknown>): { tab?: AdminTabId } => {
+    const tab = search.tab;
+    return ADMIN_TAB_IDS.includes(tab as AdminTabId) ? { tab: tab as AdminTabId } : {};
+  },
 });
 
 const assignmentRoute = createRoute({

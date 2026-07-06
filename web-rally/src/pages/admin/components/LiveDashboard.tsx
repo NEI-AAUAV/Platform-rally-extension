@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
 import { TeamService, CheckPointService, StaffEvaluationService, type ListingTeam } from "@/client";
+import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
@@ -82,7 +83,7 @@ export default function LiveDashboard() {
 
   useScoreboardStream([["teams"]]);
 
-  const { data: teams } = useQuery({
+  const { data: teams, dataUpdatedAt: teamsUpdatedAt } = useQuery({
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
     refetchInterval: 15_000,
@@ -128,6 +129,7 @@ export default function LiveDashboard() {
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="rally-display text-lg font-bold text-foreground">Estado do evento</h2>
         <PhaseChip phase={countdownState.phase} state={countdownState} />
+        <FreshnessIndicator updatedAt={teamsUpdatedAt} className="ml-auto" />
       </div>
 
       {/* Stat cards */}
@@ -208,9 +210,10 @@ export default function LiveDashboard() {
       {/* Live teams table */}
       {rankedTeams.length > 0 && (
         <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
-          <h3 className="rally-display mb-4 text-base font-bold text-foreground">
-            Equipas ao vivo
-          </h3>
+          <div className="mb-4 flex items-center gap-2">
+            <h3 className="rally-display text-base font-bold text-foreground">Equipas ao vivo</h3>
+            {countdownState.phase === "live" && <ProvisionalBadge />}
+          </div>
           <div className="flex flex-col gap-2">
             {rankedTeams.map((team, index) => (
               <div

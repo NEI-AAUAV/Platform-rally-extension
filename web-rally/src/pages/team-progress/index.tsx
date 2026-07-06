@@ -2,6 +2,7 @@ import { MapPin } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
 import useTeamNotifications from "@/hooks/useTeamNotifications";
 import StatusScreen from "./StatusScreen";
+import TeamProgressSkeleton from "./TeamProgressSkeleton";
 import TeamHeaderCard from "./TeamHeaderCard";
 import TeamMembersCard from "./TeamMembersCard";
 import ProgressSummaryCard from "./ProgressSummaryCard";
@@ -28,7 +29,7 @@ export default function TeamProgress() {
   useTeamNotifications(team);
 
   if (isLoading) {
-    return <StatusScreen variant="loading" title="A carregar progresso..." />;
+    return <TeamProgressSkeleton />;
   }
 
   if (!settings?.participant_view_enabled) {

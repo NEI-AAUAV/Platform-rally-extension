@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -40,6 +39,7 @@ import Versus from "@/pages/versus";
 import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
 import LiveDashboard from "./components/LiveDashboard";
+import { adminRoute, type AdminTabId } from "@/router/routes";
 
 interface Checkpoint {
   id: number;
@@ -48,24 +48,7 @@ interface Checkpoint {
   order: number;
 }
 
-type TabId =
-  | "dashboard"
-  | "teams"
-  | "checkpoints"
-  | "activities"
-  | "members"
-  | "assignment"
-  | "guide-assignment"
-  | "evaluation"
-  | "versus"
-  | "badges"
-  | "judging"
-  | "scoring"
-  | "branding"
-  | "events"
-  | "settings";
-
-const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
+const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "teams", label: "Equipas", icon: Users },
   { id: "checkpoints", label: "Postos", icon: MapPin },
@@ -86,7 +69,9 @@ const TABS: ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }> = [
 export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
-  const [activeTab, setActiveTab] = useState<TabId>("dashboard");
+  const { tab: activeTab = "dashboard" } = adminRoute.useSearch();
+  const navigate = adminRoute.useNavigate();
+  const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
