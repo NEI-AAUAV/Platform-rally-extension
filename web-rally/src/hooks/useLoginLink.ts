@@ -23,7 +23,7 @@ export default function useStaffLogin(): (opts?: { mode?: "login" | "registratio
   return useCallback(
     (opts?: { mode?: "login" | "registration" }) => {
       sessionStorage.setItem("rally_auth_return_url", href);
-      void auth.signinRedirect(
+      auth.signinRedirect(
         opts?.mode === "registration"
           ? { extraQueryParams: { prompt: "registration" } }
           : undefined,
