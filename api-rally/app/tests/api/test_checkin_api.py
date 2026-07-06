@@ -1,6 +1,7 @@
 """API tests for the team self-check-in endpoint (mock-based)."""
 
 from collections.abc import Iterator
+from contextlib import contextmanager
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -10,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.api.api_v1 import checkin as checkin_api
 from app.api.deps import get_current_team
-from app.core.config import settings
+from app.core.config import get_settings
 from app.main import app
 from app.schemas.team_auth import TeamTokenData
 from app.services.checkin_token import CheckinClaims, CheckinTokenError
@@ -28,9 +29,22 @@ def as_team() -> Iterator[None]:
     app.dependency_overrides.pop(get_current_team, None)
 
 
+@contextmanager
+def _override_settings(**overrides: Any) -> Iterator[None]:
+    """Override the get_settings dependency for the duration of the block."""
+    base = get_settings()
+    patched = base.model_copy(update=overrides)
+    app.dependency_overrides[get_settings] = lambda: patched
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
+
+
 @pytest.fixture
-def enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "SELF_CHECKIN_ENABLED", True)
+def enabled() -> Iterator[None]:
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        yield
 
 
 def _wire(
@@ -82,10 +96,10 @@ def test_check_in_success(
 
 
 def test_check_in_disabled_returns_404(
-    client: TestClient, as_team: None, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, as_team: None
 ) -> None:
-    monkeypatch.setattr(settings, "SELF_CHECKIN_ENABLED", False)
-    resp = client.post(CHECK_IN_URL, json={"token": "x"})
+    with _override_settings(SELF_CHECKIN_ENABLED=False):
+        resp = client.post(CHECK_IN_URL, json={"token": "x"})
     assert resp.status_code == 404
 
 

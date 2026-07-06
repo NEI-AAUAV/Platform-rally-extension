@@ -189,11 +189,11 @@ def _creds(token: str) -> HTTPAuthorizationCredentials:
 
 
 def test_team_optional_none_without_credentials():
-    assert deps.get_current_team_optional(None) is None
+    assert deps.get_current_team_optional(None, settings) is None
 
 
 def test_team_optional_valid_token():
-    data = deps.get_current_team_optional(_creds(_team_token()))
+    data = deps.get_current_team_optional(_creds(_team_token()), settings)
     assert data is not None
     assert data.team_id == 12
     assert data.team_name == "Equipa"
@@ -201,11 +201,11 @@ def test_team_optional_valid_token():
 
 def test_team_optional_rejects_expired_token():
     token = _team_token(exp=datetime.now(timezone.utc) - timedelta(minutes=1))
-    assert deps.get_current_team_optional(_creds(token)) is None
+    assert deps.get_current_team_optional(_creds(token), settings) is None
 
 
 def test_team_optional_rejects_wrong_type():
-    assert deps.get_current_team_optional(_creds(_team_token(type="other"))) is None
+    assert deps.get_current_team_optional(_creds(_team_token(type="other")), settings) is None
 
 
 def test_team_optional_rejects_tampered_signature():
@@ -219,7 +219,7 @@ def test_team_optional_rejects_tampered_signature():
         "wrong-secret",
         algorithm="HS256",
     )
-    assert deps.get_current_team_optional(_creds(token)) is None
+    assert deps.get_current_team_optional(_creds(token), settings) is None
 
 
 def test_get_current_team_raises_401_without_token():

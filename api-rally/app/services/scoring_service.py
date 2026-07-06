@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 import logging
 from datetime import datetime, timezone
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.models.activity import ActivityResult, Activity
 from app.models.dynamic_scoring import DynamicAward
 from app.models.team import Team
@@ -46,6 +46,7 @@ class ScoringService:
         is enabled — without a running worker, deferring would leave team
         totals permanently stale.
         """
+        settings = get_settings()
         return settings.RECOMPUTE_OFF_PATH and settings.EVENTS_ENABLED
 
     async def _team_size(self, team_id: int) -> int:

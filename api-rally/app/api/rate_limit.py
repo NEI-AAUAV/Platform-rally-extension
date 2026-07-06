@@ -17,13 +17,13 @@ from typing import Any, Callable, Coroutine
 
 from fastapi import HTTPException, Request, status
 
-from app.core.config import settings
+from app.core.config import Settings, SettingsDep
 from app.core.redis import get_async_redis_client
 
 logger = logging.getLogger(__name__)
 
 
-def resolve_client_ip(request: Request) -> str:
+def resolve_client_ip(request: Request, settings: Settings) -> str:
     """Resolve the caller's IP, trusting X-Forwarded-For only from a proxy."""
     peer = request.client.host if request.client else "unknown"
     if peer in settings.TRUSTED_PROXIES:
@@ -74,14 +74,16 @@ def rate_limit(
     not a secret to be guessed.
     """
 
-    async def dependency(request: Request) -> None:
-        ip = resolve_client_ip(request)
+    async def dependency(request: Request, settings: SettingsDep) -> None:
+        ip = resolve_client_ip(request, settings)
         await _enforce(f"rally:ratelimit:{prefix}:{ip}", limit, window_seconds)
 
     return dependency
 
 
-async def check_login_rate_limit(request: Request, access_code: str) -> None:
+async def check_login_rate_limit(
+    request: Request, access_code: str, settings: Settings
+) -> None:
     """Brute-force guard for team login.
 
     Enforces two independent fixed-window counters so neither a single IP
@@ -93,7 +95,7 @@ async def check_login_rate_limit(request: Request, access_code: str) -> None:
     The access code is hashed before use as a key so raw secrets never land in
     Redis. Both use the login attempt/window settings. Fails open.
     """
-    ip = resolve_client_ip(request)
+    ip = resolve_client_ip(request, settings)
     code_hash = hashlib.sha256(access_code.encode("utf-8")).hexdigest()[:32]
     limit = settings.TEAM_LOGIN_RATE_LIMIT_ATTEMPTS
     window = settings.TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS

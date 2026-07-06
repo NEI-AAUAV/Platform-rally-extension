@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from app.core.config import get_settings
 from app.events.channels import Channels
 from app.services.scoring_service import ScoringService
 from app.workers.worker_scoring import ScoringWorker
@@ -88,11 +89,7 @@ def test_defer_recompute_gate(
     events_enabled: bool,
     expected: bool,
 ) -> None:
-    monkeypatch.setattr(
-        "app.services.scoring_service.settings.RECOMPUTE_OFF_PATH", off_path
-    )
-    monkeypatch.setattr(
-        "app.services.scoring_service.settings.EVENTS_ENABLED", events_enabled
-    )
+    monkeypatch.setattr(get_settings(), "RECOMPUTE_OFF_PATH", off_path)
+    monkeypatch.setattr(get_settings(), "EVENTS_ENABLED", events_enabled)
     service = ScoringService(db=object())  # property reads settings, not the db
     assert service._defer_recompute is expected

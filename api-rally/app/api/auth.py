@@ -81,7 +81,7 @@ async def api_nei_auth(
             headers={"WWW-Authenticate": authenticate_value},
         )
 
-    claims = await jwt_validator.validate_token(credentials.credentials)
+    claims = await jwt_validator.validate_token(credentials.credentials, settings)
     auth_data = _build_auth_data(claims, settings)
 
     # Bypass scope checks for admins.
@@ -108,7 +108,7 @@ async def api_nei_auth_optional(
         return None
 
     try:
-        claims = await jwt_validator.validate_token(credentials.credentials)
+        claims = await jwt_validator.validate_token(credentials.credentials, settings)
     except HTTPException:
         return None
 

@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.core.config import settings
+from app.core.config import SettingsDep
 from app.core.redis import get_async_redis_client
 from app.events.channels import Channels
 from app.services import leaderboard_cache
@@ -28,6 +28,7 @@ _HEARTBEAT_SECONDS = 15.0
 @router.get("/scoreboard/live")
 async def get_live_scoreboard(
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: SettingsDep,
 ) -> list[dict[str, Any]]:
     """Return the cached global ranking, recomputing on a cache miss."""
     if not settings.EVENTS_ENABLED:
@@ -50,7 +51,7 @@ async def get_live_scoreboard(
 
 
 @router.get("/scoreboard/stream")
-async def stream_scoreboard(request: Request) -> StreamingResponse:
+async def stream_scoreboard(request: Request, settings: SettingsDep) -> StreamingResponse:
     """Server-Sent Events stream that emits a 'refresh' on each leaderboard update."""
     if not settings.EVENTS_ENABLED:
         raise HTTPException(
@@ -116,7 +117,7 @@ async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
 
 
 @router.get("/events/stream")
-async def stream_rally_events(request: Request) -> StreamingResponse:
+async def stream_rally_events(request: Request, settings: SettingsDep) -> StreamingResponse:
     """Server-Sent Events stream that forwards raw activity_result/team events.
 
     Unlike /scoreboard/stream (which only signals "leaderboard changed"), this

@@ -11,7 +11,7 @@ from app.api import authentik_client
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_admin, get_participant
 from app.api.abac_deps import require_team_management_permission
-from app.core.config import settings
+from app.core.config import SettingsDep
 from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
@@ -86,6 +86,7 @@ async def search_oidc_users(
 async def get_staff_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DetailedUser, Depends(get_admin)],
+    settings: SettingsDep,
 ) -> List[RallyStaffAssignmentWithCheckpoint]:
     """
     Get all rally-staff users and their checkpoint assignments.
@@ -198,6 +199,7 @@ async def update_checkpoint_assignment(
 async def get_guide_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DetailedUser, Depends(get_admin)],
+    settings: SettingsDep,
 ) -> List[RallyGuideAssignmentWithCheckpoint]:
     """
     Get all rally-guide users and their checkpoint assignments.

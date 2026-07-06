@@ -27,7 +27,7 @@ from app.api import deps
 from app.api.deps import get_current_team, get_db
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
-from app.core.config import settings
+from app.core.config import Settings, SettingsDep
 from app.core.redis import get_async_redis_client
 from app.events import (
     TeamCheckpointAdvancedEvent,
@@ -59,7 +59,7 @@ class CheckinResponse(BaseModel):
     checkpoint_order: int
 
 
-def _require_enabled() -> None:
+def _require_enabled(settings: Settings) -> None:
     if not settings.SELF_CHECKIN_ENABLED:
         raise RallyNotFoundError("Self check-in is disabled")
 
@@ -78,7 +78,7 @@ def _require_same_event(team_event_id: int | None, checkpoint_event_id: int | No
         raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
 
 
-async def _claim_nonce(nonce: str, team_id: int) -> bool:
+async def _claim_nonce(nonce: str, team_id: int, settings: Settings) -> bool:
     """Best-effort single-use guard for one (token, team) pair.
 
     Returns True when the claim is fresh, False when already claimed. Fails open
@@ -105,6 +105,7 @@ async def get_checkin_token(
         DetailedUser, Depends(get_staff_with_checkpoint_access)
     ],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
+    settings: SettingsDep,
     checkpoint_id: int | None = None,
 ) -> dict[str, str]:
     """Mint a rotating check-in QR token for a checkpoint.
@@ -113,7 +114,7 @@ async def get_checkin_token(
     ``checkpoint_id`` to mint (or preview) the QR for any checkpoint they are
     viewing; staff cannot mint for a checkpoint other than their own.
     """
-    _require_enabled()
+    _require_enabled(settings)
 
     is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
     if checkpoint_id is not None and not is_privileged:
@@ -160,6 +161,7 @@ async def staff_check_in(
     ],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: SettingsDep,
 ) -> StaffCheckinResponse:
     """Staff scans an arriving team's QR (its access code).
 
@@ -169,7 +171,7 @@ async def staff_check_in(
     (team already here) or an early scan never errors, so it stays usable
     alongside versus/head-to-head flows; it just reports the arrival ``status``.
     """
-    _require_enabled()
+    _require_enabled(settings)
 
     is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
     checkpoint_id = (
@@ -225,9 +227,10 @@ async def check_in(
     *,
     team: Annotated[TeamTokenData, Depends(get_current_team)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: SettingsDep,
 ) -> CheckinResponse:
     """Check the calling team into the checkpoint encoded in the scanned token."""
-    _require_enabled()
+    _require_enabled(settings)
 
     try:
         claims = verify_checkin_token(body.token)
@@ -236,7 +239,7 @@ async def check_in(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
 
-    if not await _claim_nonce(claims.nonce, team.team_id):
+    if not await _claim_nonce(claims.nonce, team.team_id, settings):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This QR was already used by your team",

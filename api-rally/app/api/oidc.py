@@ -16,11 +16,13 @@ from authlib.jose import JsonWebToken
 from authlib.jose.errors import JoseError
 from fastapi import HTTPException, status
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 
 # Pin the accepted JWS algorithms at the decoder level so a token cannot
 # dictate its own algorithm (alg-confusion / "none" defence). authlib rejects
 # any token whose header alg is outside this allowlist.
+# This must stay module-level (bound at import time from the global settings),
+# since JsonWebToken itself is not per-request state.
 _jwt = JsonWebToken(settings.OIDC_ALLOWED_ALGORITHMS)
 
 
@@ -33,7 +35,7 @@ class OIDCJWTValidator:
         self._jwks: Dict[str, Any] | None = None
         self._jwks_fetched_at: float = 0.0
 
-    async def _get_oidc_config(self) -> Dict[str, Any]:
+    async def _get_oidc_config(self, settings: Settings) -> Dict[str, Any]:
         """Fetch (and cache) the OIDC discovery document.
 
         The expected issuer is normalised once here (docker→localhost) so the
@@ -63,7 +65,9 @@ class OIDCJWTValidator:
                 detail=f"Failed to fetch OIDC configuration: {str(e)}",
             )
 
-    async def _get_jwks(self, jwks_uri: str, force_refresh: bool = False) -> Dict[str, Any]:
+    async def _get_jwks(
+        self, jwks_uri: str, settings: Settings, force_refresh: bool = False
+    ) -> Dict[str, Any]:
         """Return the provider JWKS, cached for OIDC_JWKS_CACHE_TTL_SECONDS.
 
         Refetched when the cache is empty, expired, or a caller forces refresh
@@ -82,7 +86,7 @@ class OIDCJWTValidator:
         assert self._jwks is not None
         return self._jwks
 
-    async def validate_token(self, token: str) -> Dict[str, Any]:
+    async def validate_token(self, token: str, settings: Settings) -> Dict[str, Any]:
         """Validate a JWT access token and return its decoded claims.
 
         Verifies the signature against the (cached) provider JWKS using a
@@ -91,15 +95,15 @@ class OIDCJWTValidator:
         tolerate provider key rotation.
         """
         try:
-            oidc_config = await self._get_oidc_config()
-            jwks = await self._get_jwks(oidc_config["jwks_uri"])
+            oidc_config = await self._get_oidc_config(settings)
+            jwks = await self._get_jwks(oidc_config["jwks_uri"], settings)
 
             try:
                 claims = _jwt.decode(token, jwks)
             except JoseError:
                 # Possible key rotation: refresh JWKS once and retry.
                 jwks = await self._get_jwks(
-                    oidc_config["jwks_uri"], force_refresh=True
+                    oidc_config["jwks_uri"], settings, force_refresh=True
                 )
                 claims = _jwt.decode(token, jwks)
             claims.validate()

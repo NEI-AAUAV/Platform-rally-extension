@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.rate_limit import check_login_rate_limit, rate_limit
-from app.core.config import settings
+from app.core.config import SettingsDep, settings
 from app.crud.crud_team import team as crud_team
 from app.schemas.team_auth import TeamLoginRequest, TeamLoginResponse, TeamTokenData
 
@@ -89,13 +89,14 @@ def _decode_team_token(token: str) -> dict[str, Any]:
 async def team_login(
     login_data: TeamLoginRequest,
     request: Request,
-    db: Annotated[AsyncSession, Depends(deps.get_db)]
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    settings: SettingsDep,
 ) -> TeamLoginResponse:
     """
     Authenticate a team using their access code.
     Returns a JWT token for subsequent requests.
     """
-    await check_login_rate_limit(request, login_data.access_code)
+    await check_login_rate_limit(request, login_data.access_code, settings)
 
     # Find team by access code
     team = await crud_team.get_by_access_code(db, access_code=login_data.access_code)
@@ -130,7 +131,8 @@ def verify_token(
 
 @router.post("/refresh", dependencies=[Depends(_write_rate_limit)])
 def refresh_team_token(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    settings: SettingsDep,
 ) -> TeamLoginResponse:
     """
     Refresh a team JWT token.

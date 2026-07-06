@@ -57,7 +57,7 @@ def _wired_validator(jwks_calls: list[int] | None = None):
 @pytest.mark.asyncio
 async def test_valid_rs256_token_accepted():
     with _wired_validator() as v:
-        claims = await v.validate_token(_sign("RS256", sub="u1"))
+        claims = await v.validate_token(_sign("RS256", sub="u1"), settings)
     assert claims["sub"] == "u1"
 
 
@@ -73,7 +73,7 @@ async def test_hs256_token_rejected_alg_confusion():
     )
     hs_token = hs.decode() if isinstance(hs, bytes) else hs
     with _wired_validator() as v:
-        call = v.validate_token(hs_token)
+        call = v.validate_token(hs_token, settings)
         with pytest.raises(HTTPException):
             await call
 
@@ -84,6 +84,6 @@ async def test_jwks_cached_across_validations():
     calls: list[int] = []
     with patch.object(settings, "OIDC_JWKS_CACHE_TTL_SECONDS", 600):
         with _wired_validator(jwks_calls=calls) as v:
-            await v.validate_token(_sign("RS256", sub="a"))
-            await v.validate_token(_sign("RS256", sub="b"))
+            await v.validate_token(_sign("RS256", sub="a"), settings)
+            await v.validate_token(_sign("RS256", sub="b"), settings)
     assert len(calls) == 1

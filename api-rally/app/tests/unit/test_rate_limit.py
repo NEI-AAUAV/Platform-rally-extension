@@ -20,18 +20,18 @@ def _request(peer: str = "192.0.2.1", headers: dict | None = None) -> Mock:
 # --- client IP resolution ---------------------------------------------------
 
 def test_resolve_client_ip_uses_peer_by_default():
-    assert rl.resolve_client_ip(_request("198.51.100.1")) == "198.51.100.1"
+    assert rl.resolve_client_ip(_request("198.51.100.1"), settings) == "198.51.100.1"
 
 
 def test_resolve_client_ip_ignores_xff_from_untrusted_peer():
     req = _request("198.51.100.1", {"x-forwarded-for": "203.0.113.1"})
-    assert rl.resolve_client_ip(req) == "198.51.100.1"
+    assert rl.resolve_client_ip(req, settings) == "198.51.100.1"
 
 
 def test_resolve_client_ip_trusts_xff_from_trusted_proxy():
     req = _request("192.0.2.1", {"x-forwarded-for": "203.0.113.1, 192.0.2.1"})
     with patch.object(settings, "TRUSTED_PROXIES", ["192.0.2.1"]):
-        assert rl.resolve_client_ip(req) == "203.0.113.1"
+        assert rl.resolve_client_ip(req, settings) == "203.0.113.1"
 
 
 # --- fixed-window enforcement ----------------------------------------------
@@ -90,7 +90,7 @@ async def test_login_limit_checks_ip_and_code_keys():
         seen.append(key)
 
     with patch.object(rl, "_enforce", side_effect=fake_enforce):
-        await rl.check_login_rate_limit(_request("192.0.2.1"), "ABCD-1234")
+        await rl.check_login_rate_limit(_request("192.0.2.1"), "ABCD-1234", settings)
 
     assert any(k.startswith("rally:team-login:ip:") for k in seen)
     assert any(k.startswith("rally:team-login:code:") for k in seen)

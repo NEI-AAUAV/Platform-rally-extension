@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from unittest.mock import Mock, AsyncMock, patch
 
-from app.core.abac import ABACEngine, Policy, Action, Resource, Context
+from app.core.abac import ABACEngine, Action, Resource, Context
 from app.api.abac_deps import require_permission, get_staff_with_checkpoint_access
 from app.schemas.user import DetailedUser
 
@@ -47,125 +47,120 @@ def mock_staff_user():
     )
 
 
+def _context(action: Action, resource: Resource, scopes: list[str], **kwargs) -> Context:
+    context = Context(
+        user=kwargs.pop("user", Mock(staff_checkpoint_id=None)),
+        auth=Mock(scopes=scopes),
+        action=action,
+        resource=resource,
+        **kwargs,
+    )
+    return context
+
+
 class TestABACEngine:
     """Test ABAC Engine core functionality"""
-    
-    def test_policy_creation(self):
-        """Test policy creation"""
-        policy = Policy(
-            name="test_policy",
-            description="Test policy",
-            effect="allow",
-            conditions={"user.scopes": {"contains": "rally:participant"}},
-            priority=50
-        )
-        
-        assert policy.name == "test_policy"
-        assert policy.description == "Test policy"
-        assert policy.effect == "allow"
-        assert policy.priority == 50
-    
-    def test_abac_engine_initialization(self):
-        """Test ABAC engine initialization"""
+
+    def test_admin_has_full_access(self):
+        """Admins are allowed any action regardless of resource/context"""
         engine = ABACEngine()
-        # The engine loads default policies, so it won't be empty
-        assert isinstance(engine.policies, list)
-        assert len(engine.policies) > 0  # Should have default policies loaded
-    
-    def test_add_policy(self):
-        """Test adding policy to engine"""
+        context = _context(Action.UPDATE_RALLY_SETTINGS, Resource.RALLY_SETTINGS, ["admin"])
+        assert engine.evaluate(context) is True
+
+    def test_manager_allowed_action(self):
+        """Rally managers are allowed actions in their table"""
         engine = ABACEngine()
-        initial_count = len(engine.policies)
-        
-        policy = Policy(
-            name="test_policy",
-            description="Test policy",
-            effect="allow",
-            conditions={"user.scopes": {"contains": "rally:participant"}},
-            priority=50
-        )
-        
-        engine.add_policy(policy)
-        assert len(engine.policies) == initial_count + 1
-        assert engine.policies[-1] == policy
-    
-    def test_evaluate_permission_allow(self):
-        """Test permission evaluation - allow case"""
+        context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.TEAM, ["manager-rally"])
+        assert engine.evaluate(context) is True
+
+    def test_manager_denied_unlisted_action(self):
+        """Rally managers are denied actions not in their table"""
         engine = ABACEngine()
-        policy = Policy(
-            name="participant_read_team",
-            description="Allow participants to read teams",
-            effect="allow",
-            conditions={"user_scopes": {"contains": "rally:participant"}},
-            priority=50
-        )
-        engine.add_policy(policy)
-        
-        # Create mock context
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.VIEW_CHECKPOINT_TEAMS,
-            resource=Resource.TEAM,
-            request_time=None
-        )
-        context.auth.scopes = ["rally:participant"]
-        
-        result = engine.evaluate(context)
-        assert result is True
-    
-    def test_evaluate_permission_deny(self):
-        """Test permission evaluation - deny case"""
+        context = _context(Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["manager-rally"])
+        assert engine.evaluate(context) is False
+
+    def test_unknown_scope_denied(self):
+        """Unrecognized scopes fall through to default deny"""
         engine = ABACEngine()
-        policy = Policy(
-            name="deny_non_participants",
-            description="Deny non-participants",
-            effect="deny",
-            conditions={"user_scopes": {"not_in": ["rally:participant"]}},
-            priority=50
-        )
-        engine.add_policy(policy)
-        
-        # Create mock context
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.VIEW_CHECKPOINT_TEAMS,
-            resource=Resource.TEAM,
-            request_time=None
-        )
-        context.auth.scopes = ["other:scope"]
-        
-        result = engine.evaluate(context)
-        assert result is False
-    
-    def test_evaluate_permission_no_match(self):
-        """Test permission evaluation - no matching policy"""
+        context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.TEAM, ["rally:participant"])
+        assert engine.evaluate(context) is False
+
+    def test_unauthenticated_denied(self):
+        """No scopes at all is denied"""
         engine = ABACEngine()
-        
-        # Create mock context
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.CREATE_TEAM,  # Use an action that might not have specific policies
-            resource=Resource.TEAM,
-            request_time=None
+        context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.TEAM, [])
+        assert engine.evaluate(context) is False
+
+
+class TestABACStaffCheckpointScoping:
+    """Staff access is scoped to their assigned checkpoint"""
+
+    def test_staff_can_score_own_checkpoint(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(
+            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
+            user=user, checkpoint_id=1,
         )
-        context.auth.scopes = ["rally:participant"]
-        
-        result = engine.evaluate(context)
-        # The result depends on the default policies loaded by the engine
-        assert isinstance(result, bool)
+        assert engine.evaluate(context) is True
+
+    def test_staff_cannot_score_other_checkpoint(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(
+            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
+            user=user, checkpoint_id=2,
+        )
+        assert engine.evaluate(context) is False
+
+    def test_staff_cannot_score_without_checkpoint_context(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(
+            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
+            user=user, checkpoint_id=None,
+        )
+        assert engine.evaluate(context) is False
+
+    def test_staff_can_view_activity_results_globally_with_assignment(self):
+        """Global results list carries no checkpoint_id; any assigned staff can view"""
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(
+            Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT, ["rally-staff"],
+            user=user, checkpoint_id=None,
+        )
+        assert engine.evaluate(context) is True
+
+    def test_staff_without_checkpoint_cannot_view_activity_results(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=None)
+        context = _context(
+            Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT, ["rally-staff"],
+            user=user,
+        )
+        assert engine.evaluate(context) is False
+
+    def test_staff_can_view_activities_unconditionally(self):
+        engine = ABACEngine()
+        context = _context(Action.VIEW_ACTIVITY, Resource.ACTIVITY, ["rally-staff"])
+        assert engine.evaluate(context) is True
+
+    def test_staff_denied_action_outside_table(self):
+        """Actions not in the staff table are denied (replaces old default-deny policy)"""
+        engine = ABACEngine()
+        context = _context(Action.CREATE_CHECKPOINT, Resource.CHECKPOINT, ["rally-staff"])
+        assert engine.evaluate(context) is False
 
 
 class TestABACDependencies:
     """Test ABAC dependency functions"""
-    
+
     def test_require_permission_success(self, mock_user, mock_auth_data):
         """Test successful permission requirement"""
         with patch('app.core.abac.abac_engine') as mock_engine:
             mock_engine.evaluate.return_value = True
-            
+
             # This should not raise an exception
             require_permission(
                 user=mock_user,
@@ -173,14 +168,14 @@ class TestABACDependencies:
                 action=Action.VIEW_CHECKPOINT_TEAMS,
                 resource=Resource.TEAM
             )
-            
+
             mock_engine.evaluate.assert_called_once()
-    
+
     def test_require_permission_denied(self, mock_user, mock_auth_data):
         """Test denied permission requirement"""
         with patch('app.core.abac.abac_engine') as mock_engine:
             mock_engine.evaluate.return_value = False
-            
+
             with pytest.raises(HTTPException):
                 require_permission(
                     user=mock_user,
@@ -188,7 +183,7 @@ class TestABACDependencies:
                     action=Action.VIEW_CHECKPOINT_TEAMS,
                     resource=Resource.TEAM
                 )
-    
+
     def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
         """Test staff user with checkpoint access"""
         mock_db = AsyncMock()
@@ -217,7 +212,7 @@ class TestABACDependencies:
 
 class TestActionResourceEnums:
     """Test Action and Resource enums"""
-    
+
     def test_action_values(self):
         """Test Action enum values"""
         assert Action.ADD_CHECKPOINT_SCORE.value == "add_checkpoint_score"
@@ -230,7 +225,7 @@ class TestActionResourceEnums:
         assert Action.UPDATE_RALLY_SETTINGS.value == "update_rally_settings"
         assert Action.CREATE_VERSUS_GROUP.value == "create_versus_group"
         assert Action.VIEW_VERSUS_GROUP.value == "view_versus_group"
-    
+
     def test_resource_values(self):
         """Test Resource enum values"""
         assert Resource.TEAM.value == "team"
@@ -242,67 +237,28 @@ class TestActionResourceEnums:
 
 class TestABACIntegration:
     """Test ABAC integration scenarios"""
-    
-    def test_participant_can_read_team(self):
-        """Test participant can read team data"""
+
+    def test_participant_denied_view_team(self):
+        """Participants have no ABAC rules of their own (view is gated elsewhere)"""
         engine = ABACEngine()
-        
-        # Add participant policy
-        policy = Policy(
-            name="participant_policy",
-            description="Participant permissions",
-            effect="allow",
-            conditions={"user_scopes": {"contains": "rally:participant"}},
-            priority=50
-        )
-        engine.add_policy(policy)
-        
-        # Create mock context
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.VIEW_CHECKPOINT_TEAMS,
-            resource=Resource.TEAM,
-            request_time=None
-        )
-        context.auth.scopes = ["rally:participant"]
-        
-        assert engine.evaluate(context) is True
-    
-    def test_staff_can_manage_checkpoints(self):
-        """Test staff cannot manage checkpoints (only rally managers can)"""
-        engine = ABACEngine()
-        
-        # Test create checkpoint - staff should NOT be able to do this
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.CREATE_CHECKPOINT,
-            resource=Resource.CHECKPOINT,
-            request_time=None
-        )
-        context.auth.scopes = ["rally:staff"]
-        assert engine.evaluate(context) is False
-        
-        # Test update checkpoint - staff should NOT be able to do this
-        context.action = Action.UPDATE_CHECKPOINT
-        assert engine.evaluate(context) is False
-    
-    def test_captain_can_manage_team(self):
-        """Test team captain cannot manage their team (no policy exists)"""
-        engine = ABACEngine()
-        
-        # Create mock context for captain trying to update team
-        context = Context(
-            user=Mock(),
-            auth=Mock(),
-            action=Action.UPDATE_TEAM,
-            resource=Resource.TEAM,
-            request_time=None
-        )
-        context.auth.scopes = ["rally:participant"]
-        context.user.is_captain = True
-        
-        # Captain should NOT be able to manage team (no policy allows this)
+        context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.TEAM, ["rally:participant"])
         assert engine.evaluate(context) is False
 
+    def test_staff_cannot_manage_checkpoints(self):
+        """Test staff cannot manage checkpoints (only rally managers can)"""
+        engine = ABACEngine()
+
+        context = _context(Action.CREATE_CHECKPOINT, Resource.CHECKPOINT, ["rally:staff"])
+        assert engine.evaluate(context) is False
+
+        context.action = Action.UPDATE_CHECKPOINT
+        assert engine.evaluate(context) is False
+
+    def test_captain_cannot_manage_team(self):
+        """Test team captain cannot manage their team (no rule allows this)"""
+        engine = ABACEngine()
+
+        user = Mock(is_captain=True)
+        context = _context(Action.UPDATE_TEAM, Resource.TEAM, ["rally:participant"], user=user)
+
+        assert engine.evaluate(context) is False

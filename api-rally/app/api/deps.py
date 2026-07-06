@@ -12,7 +12,7 @@ from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.db.session import SessionLocal
 from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
-from app.core.config import settings
+from app.core.config import SettingsDep
 from app.schemas.team_auth import TeamTokenData
 
 
@@ -175,6 +175,7 @@ team_security_optional = HTTPBearer(auto_error=False)
 
 def get_current_team_optional(
     token: Annotated[Optional[HTTPAuthorizationCredentials], Depends(team_security_optional)],
+    settings: SettingsDep,
 ) -> Optional[TeamTokenData]:
     """Dependency for optional team authentication"""
     if not token:
