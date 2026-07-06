@@ -42,26 +42,7 @@ jobs:
       
       - name: Generate OpenAPI schema
         working-directory: api-rally
-        run: |
-          poetry run python - << 'PY'
-          from app.main import app
-          from fastapi.openapi.utils import get_openapi
-          import json, os
-          
-          schema = get_openapi(
-              title=getattr(app, 'title', 'API'),
-              version=getattr(app, 'version', '0.0.0'),
-              routes=app.routes,
-          )
-          
-          # Use os.getcwd() since __file__ is undefined when executing via stdin
-          # Since working-directory is api-rally, we need to go up one level to repo root
-          repo_root = os.path.dirname(os.getcwd())
-          out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
-          with open(out_path, 'w') as f:
-              json.dump(schema, f)
-          print(f"Wrote schema to {out_path}")
-          PY
+        run: poetry run python scripts/generate_openapi.py
         env:
           TEAM_JWT_SECRET_KEY: test_secret
       
