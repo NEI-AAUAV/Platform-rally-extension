@@ -97,6 +97,45 @@ function NavGroup({ label, items }: { readonly label: string; readonly items: re
   );
 }
 
+interface RoleFlags {
+  readonly isAdminOrManager: boolean;
+  readonly isStaff: boolean;
+  readonly isGuide: boolean;
+  readonly isPrivileged: boolean;
+}
+
+function deriveRoleFlags(scopes: readonly string[] | undefined): RoleFlags {
+  const isAdminOrManager = scopes !== undefined &&
+    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
+  const isGuide = scopes !== undefined && scopes.includes("rally-guide");
+  return { isAdminOrManager, isStaff, isGuide, isPrivileged: isAdminOrManager || isStaff || isGuide };
+}
+
+function ViewToggle({
+  isDualRole,
+  viewMode,
+  toggleViewMode,
+}: {
+  readonly isDualRole: boolean;
+  readonly viewMode: ViewMode;
+  readonly toggleViewMode: () => void;
+}) {
+  if (!isDualRole) return null;
+  return (
+    <li>
+      <button
+        onClick={toggleViewMode}
+        title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
+        className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
+      >
+        {viewMode === "staff" ? <ShieldCheck className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+        <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
+      </button>
+    </li>
+  );
+}
+
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
   const { scopes } = useUserStore((state) => state);
@@ -106,11 +145,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
-  const isAdminOrManager = scopes !== undefined &&
-    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
-  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  const isGuide = scopes !== undefined && scopes.includes("rally-guide");
-  const isPrivileged = isAdminOrManager || isStaff || isGuide;
+  const { isAdminOrManager, isStaff, isGuide, isPrivileged } = deriveRoleFlags(scopes);
   const { showGuideFeature } = useGuideAccess();
   const isDualRole = isPrivileged && isTeamAuthenticated;
 
@@ -178,20 +213,6 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     );
   };
 
-  const ViewToggle = () =>
-    isDualRole ? (
-      <li>
-        <button
-          onClick={toggleViewMode}
-          title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
-          className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
-        >
-          {viewMode === "staff" ? <ShieldCheck className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
-          <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
-        </button>
-      </li>
-    ) : null;
-
   return (
     <div className="relative">
       {/* Desktop */}
@@ -202,7 +223,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
             <NavGroup label="Gestão" items={management} />
           </li>
         )}
-        <ViewToggle />
+        <ViewToggle isDualRole={isDualRole} viewMode={viewMode} toggleViewMode={toggleViewMode} />
       </ul>
 
       {/* Mobile overflow */}
@@ -288,7 +309,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
                 {management.map((item) => renderLink(item, true))}
               </>
             )}
-            <ViewToggle />
+            <ViewToggle isDualRole={isDualRole} viewMode={viewMode} toggleViewMode={toggleViewMode} />
           </ul>
         </div>
       </div>
