@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
-import { BookOpen, MapPin, ChevronDown, ChevronUp, Image, Lightbulb, Compass, HelpCircle, CheckCircle2 } from "lucide-react";
+import {
+  BookOpen,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  Image,
+  Lightbulb,
+  Compass,
+  HelpCircle,
+  CheckCircle2,
+} from "lucide-react";
 import {
   GuideService,
   type GuideCheckpointResponse,
@@ -37,7 +47,7 @@ function MediaGallery({ media }: { media: GuideMediaItem[] }) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setLightbox(item.url)}
+                onClick={() => setLightbox(item.url ?? null)}
                 className="rally-press shrink-0 overflow-hidden rounded-lg ring-1 ring-border focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <img
@@ -102,13 +112,8 @@ function IndicationList({ indications }: { indications: GuideIndicationItem[] })
           .slice()
           .sort((a, b) => a.order - b.order)
           .map((ind) => (
-            <li
-              key={ind.id}
-              className="rounded-xl border border-primary/20 bg-primary/5 p-3"
-            >
-              <p className="text-sm font-semibold leading-snug text-foreground">
-                {ind.hint}
-              </p>
+            <li key={ind.id} className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm font-semibold leading-snug text-foreground">{ind.hint}</p>
               {ind.question && (
                 <p className="mt-2 flex items-start gap-1.5 text-sm text-foreground">
                   <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -158,9 +163,7 @@ function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
 
       {open && (
         <div className="space-y-4 border-t px-4 pb-4 pt-3">
-          {cp.description && (
-            <p className="text-sm text-muted-foreground">{cp.description}</p>
-          )}
+          {cp.description && <p className="text-sm text-muted-foreground">{cp.description}</p>}
           <IndicationList indications={cp.indications} />
           <MediaGallery media={cp.media} />
         </div>
