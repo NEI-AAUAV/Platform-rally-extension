@@ -92,19 +92,30 @@ export default function CheckpointDiscovery({
       )}
 
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
-          onClick={() => setLightbox(null)}
-          role="dialog"
-          aria-modal="true"
+        <dialog
+          open
+          className="fixed inset-0 z-50 m-0 flex h-full w-full max-h-none max-w-none items-center justify-center bg-black/85 p-4"
           aria-label="Foto ampliada"
+          onClose={() => setLightbox(null)}
+          onCancel={() => setLightbox(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLightbox(null);
+          }}
         >
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-primary"
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
           <img
             src={lightbox}
             alt="Ampliada"
             className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl"
           />
-        </div>
+        </dialog>
       )}
     </div>
   );

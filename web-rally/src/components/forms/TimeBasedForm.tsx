@@ -74,7 +74,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-foreground">
+          <label htmlFor="timebased-completion-time" className="block text-sm font-medium text-foreground">
             Completion Time (seconds)
           </label>
           <button
@@ -96,6 +96,7 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
         )}
 
         <input
+          id="timebased-completion-time"
           type="text"
           inputMode="decimal"
           pattern="[0-9]*[.,]?[0-9]*"
@@ -107,10 +108,11 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="timebased-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
           Extra Shots
         </label>
         <input
+          id="timebased-extra-shots"
           type="number"
           min="0"
           max={maxExtraShots}
@@ -129,13 +131,14 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
         )}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
+      <fieldset>
+        <legend className="block text-sm font-medium mb-2 text-foreground">
           Penalties
-        </label>
+        </legend>
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
             <input
+              id="timebased-vomit"
               type="number"
               min="0"
               value={penalties.vomit || 0}
@@ -143,12 +146,13 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
               className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-muted-foreground text-sm">
+            <label htmlFor="timebased-vomit" className="text-muted-foreground text-sm">
               Vomit penalty ({penaltyValues.vomit} pts each)
-            </span>
+            </label>
           </div>
           <div className="flex items-center space-x-3">
             <input
+              id="timebased-not-drinking"
               type="number"
               min="0"
               value={penalties.not_drinking || 0}
@@ -156,21 +160,22 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
               className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-muted-foreground text-sm">
+            <label htmlFor="timebased-not-drinking" className="text-muted-foreground text-sm">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </span>
+            </label>
           </div>
         </div>
         <p className="text-muted-foreground text-sm mt-1">
           Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
         </p>
-      </div>
+      </fieldset>
       
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="timebased-notes" className="block text-sm font-medium mb-2 text-foreground">
           Notes (Optional)
         </label>
         <textarea
+          id="timebased-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"

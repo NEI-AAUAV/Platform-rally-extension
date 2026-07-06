@@ -84,7 +84,7 @@ const RallyInteractiveCard = forwardRef<
 
     const currentStatus = statusStyles[status];
     const baseStyles = selected ? currentStatus.selected : currentStatus.base;
-    const hoverStyles = !disabled ? currentStatus.hover : "";
+    const hoverStyles = disabled ? "" : currentStatus.hover;
 
     const sharedClassName = cn(
       "border transition-all",
@@ -97,11 +97,11 @@ const RallyInteractiveCard = forwardRef<
       className,
     );
 
-    if (as === "button") {
+    if (as === "button" || onClick) {
       return (
         <button
           ref={ref as Ref<HTMLButtonElement>}
-          onClick={!disabled ? onClick : undefined}
+          onClick={disabled ? undefined : onClick}
           disabled={disabled}
           className={cn(sharedClassName, "w-full text-left")}
           aria-pressed={selected}
@@ -115,11 +115,8 @@ const RallyInteractiveCard = forwardRef<
     return (
       <div
         ref={ref as Ref<HTMLDivElement>}
-        onClick={!disabled ? onClick : undefined}
         className={cn(sharedClassName, "w-full text-left")}
-        aria-pressed={selected}
         aria-disabled={disabled}
-        role={onClick ? "button" : undefined}
       >
         {children}
       </div>
