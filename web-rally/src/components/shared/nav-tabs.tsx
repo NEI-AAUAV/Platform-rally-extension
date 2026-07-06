@@ -174,8 +174,17 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
         setIsMobileMenuOpen(false);
       }
     }
-    if (isMobileMenuOpen) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    }
+    if (isMobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [isMobileMenuOpen]);
 
   const primary: NavLink[] = [
