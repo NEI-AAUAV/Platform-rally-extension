@@ -34,7 +34,6 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const { settings } = useRallySettings();
   useRallyEventStream(STREAM_QUERY_KEYS);
 
-
   // Get all checkpoints
   const { data: allCheckpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["allCheckpoints"],
@@ -62,19 +61,20 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
     enabled: !!userStore.token,
   });
 
-type EvaluationResponse = ActivityResultResponse & {
-  team?: ListingTeam & { members?: Array<unknown> };
-  activity?: ActivityResponse;
-};
+  type EvaluationResponse = ActivityResultResponse & {
+    team?: ListingTeam & { members?: Array<unknown> };
+    activity?: ActivityResponse;
+  };
 
   // Get all evaluations using the dedicated endpoint that includes relationships
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async (): Promise<Evaluation[]> => {
-      const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
-      
+      const response =
+        await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
+
       if (!response || !response.evaluations) return [];
-      
+
       // Transform the results to match the AllEvaluations component interface
       const evaluations = (response.evaluations as EvaluationResponse[]).map((result) => ({
         id: result.id,
@@ -102,7 +102,7 @@ type EvaluationResponse = ActivityResultResponse & {
           description: result.activity?.description ?? undefined,
         },
       }));
-      
+
       return evaluations;
     },
     enabled: !!userStore.token,
@@ -130,24 +130,30 @@ type EvaluationResponse = ActivityResultResponse & {
 
         {/* All Evaluations Section */}
         <div className="relative">
-          <button type="button" onClick={() => setShowAllEvaluations(!showAllEvaluations)} className="rally-surface rounded-lg p-3 sm:p-4 flex items-center justify-between w-full text-left transition-colors hover:bg-accent cursor-pointer">
+          <button
+            type="button"
+            onClick={() => setShowAllEvaluations(!showAllEvaluations)}
+            className="rally-surface flex w-full cursor-pointer items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-accent sm:p-4"
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
+              <CheckCircle className="h-5 w-5" />
               <span className="font-semibold">Todas as Avaliações</span>
-              <Badge variant="outline" className="text-foreground border-border">
-                {evaluationsLoading ? "A carregar..." : (allEvaluations as Evaluation[])?.length || 0}
+              <Badge variant="outline" className="border-border text-foreground">
+                {evaluationsLoading
+                  ? "A carregar..."
+                  : (allEvaluations as Evaluation[])?.length || 0}
               </Badge>
             </div>
-            <ChevronDown 
-              className={`w-5 h-5 transition-transform ${showAllEvaluations ? 'rotate-180' : ''}`} 
+            <ChevronDown
+              className={`h-5 w-5 transition-transform ${showAllEvaluations ? "rotate-180" : ""}`}
             />
           </button>
-          
+
           {showAllEvaluations && (
             <div className="mt-2">
               {evaluationsLoading ? (
                 <div className="rally-surface rounded-2xl p-4 sm:p-6">
-                  <p className="text-muted-foreground text-center">A carregar avaliações...</p>
+                  <p className="text-center text-muted-foreground">A carregar avaliações...</p>
                 </div>
               ) : (
                 <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
@@ -186,9 +192,7 @@ type EvaluationResponse = ActivityResultResponse & {
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p>Membros: {team.num_members || 0}</p>
-                  {settings?.show_score_mode !== "hidden" && (
-                    <p>Pontuação: {team.total || 0}</p>
-                  )}
+                  {settings?.show_score_mode !== "hidden" && <p>Pontuação: {team.total || 0}</p>}
                   {settings?.show_score_mode !== "hidden" && (
                     <p>Classificação: {team.classification || "N/D"}</p>
                   )}
@@ -200,37 +204,29 @@ type EvaluationResponse = ActivityResultResponse & {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">
           <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground mb-2">
-                {allTeams?.length || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Equipas
-              </div>
+              <div className="mb-2 text-2xl font-bold text-foreground">{allTeams?.length || 0}</div>
+              <div className="text-sm text-muted-foreground">Equipas</div>
             </div>
           </div>
 
           <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground mb-2">
+              <div className="mb-2 text-2xl font-bold text-foreground">
                 {allCheckpoints?.length || 0}
               </div>
-              <div className="text-sm text-muted-foreground">
-                Checkpoints
-              </div>
+              <div className="text-sm text-muted-foreground">Checkpoints</div>
             </div>
           </div>
 
           <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground mb-2">
+              <div className="mb-2 text-2xl font-bold text-foreground">
                 {allActivities?.activities?.length || 0}
               </div>
-              <div className="text-sm text-muted-foreground">
-                Atividades
-              </div>
+              <div className="text-sm text-muted-foreground">Atividades</div>
             </div>
           </div>
         </div>

@@ -27,9 +27,7 @@ const RALLY_EVENT_NAMES = [
  *
  * @param queryKeys - React Query keys to invalidate on every rally event.
  */
-export default function useRallyEventStream(
-  queryKeys: readonly (readonly unknown[])[],
-): void {
+export default function useRallyEventStream(queryKeys: readonly (readonly unknown[])[]): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {

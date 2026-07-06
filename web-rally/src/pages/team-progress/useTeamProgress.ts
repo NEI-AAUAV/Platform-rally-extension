@@ -90,7 +90,7 @@ export function useTeamProgress() {
   // since times is appended when staff registers a pass but not all
   // activities may be done yet).
   const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
-  const nextCheckpointOrder = team?.current_checkpoint_number ?? (completedCheckpointsCount + 1);
+  const nextCheckpointOrder = team?.current_checkpoint_number ?? completedCheckpointsCount + 1;
   const nextCheckpoint = checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
 
   // Show score mode: 'hidden', 'individual', or 'competitive'

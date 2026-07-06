@@ -3,14 +3,14 @@ import { type RallySettingsResponse, SettingsService } from "@/client/index";
 
 /**
  * Hook to fetch Rally settings from the public settings endpoint
- * 
+ *
  * Fetches settings that are publicly accessible (no authentication required).
  * Supports custom retry configuration.
- * 
+ *
  * @param options - Optional configuration
  * @param options.retry - Retry configuration (boolean or number of retries)
  * @returns React Query result with Rally settings
- * 
+ *
  * @example
  * ```tsx
  * const { settings, isLoading } = useRallySettings();
@@ -41,4 +41,3 @@ export default function useRallySettings(options?: { retry?: boolean | number })
     refetch,
   };
 }
-

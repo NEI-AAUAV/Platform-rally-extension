@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Rally Card Component - Standardized card styling for the Rally extension
- * 
+ *
  * Variants:
  * - default: Main content cards (bg: 0.04, border: 0.15)
  * - elevated: Data-heavy interfaces (bg: 0.1, border: 0.2)
@@ -32,7 +32,7 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
       onClick,
       hover = false,
     },
-    ref
+    ref,
   ) => {
     // Variant styles
     const variantStyles = {
@@ -59,9 +59,7 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
     };
 
     // Hover styles
-    const hoverStyles = hover
-      ? "transition-colors hover:bg-muted"
-      : "";
+    const hoverStyles = hover ? "transition-colors hover:bg-muted" : "";
 
     // Interactive cursor
     const interactiveStyles = onClick ? "cursor-pointer" : "";
@@ -77,16 +75,15 @@ const RallyCard = forwardRef<HTMLDivElement, RallyCardProps>(
           roundedStyles[rounded],
           hoverStyles,
           interactiveStyles,
-          className
+          className,
         )}
       >
         {children}
       </div>
     );
-  }
+  },
 );
 
 RallyCard.displayName = "RallyCard";
 
 export default RallyCard;
-

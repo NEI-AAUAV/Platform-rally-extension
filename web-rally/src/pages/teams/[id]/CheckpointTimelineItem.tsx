@@ -25,7 +25,6 @@ export function CheckpointTimelineItem({
   isExpanded,
   onToggle,
 }: CheckpointTimelineItemProps) {
-
   // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
   const checkpointOrder = index + 1;
   const checkpoint = checkpoints?.find((cp) => cp.order === checkpointOrder);
@@ -64,7 +63,9 @@ export function CheckpointTimelineItem({
   // Get the latest evaluation timestamp
   const latestResult = evaluationResults.reduce<EvaluationResult | null>((latest, current) => {
     if (!latest) return current;
-    return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0) ? current : latest;
+    return new Date(current.completed_at ?? 0) > new Date(latest.completed_at ?? 0)
+      ? current
+      : latest;
   }, null);
   const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
 
@@ -76,7 +77,8 @@ export function CheckpointTimelineItem({
   const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
   // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
   const displayTime =
-    evaluationTime ?? (isCompletedByActivity && team.times[index] ? new Date(team.times[index]) : null);
+    evaluationTime ??
+    (isCompletedByActivity && team.times[index] ? new Date(team.times[index]) : null);
 
   // Check if any activity in this checkpoint has pending completion (time-based activities)
   const hasPendingTimeBasedActivity = evaluationResults.some((result) => {
@@ -99,23 +101,29 @@ export function CheckpointTimelineItem({
       >
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Checkpoint {index + 1}</span>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">
+                Checkpoint {index + 1}
+              </span>
               {isCurrentCheckpoint && (
-                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">Current</span>
+                <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                  Current
+                </span>
               )}
               {evaluationResults.length > 0 && (
                 <span className="text-xs text-muted-foreground">
                   {evaluationResults.length} activit{evaluationResults.length === 1 ? "y" : "ies"}
                 </span>
               )}
-              {hasPendingTimeBasedActivity && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+              {hasPendingTimeBasedActivity && <AlertTriangle className="h-4 w-4 text-yellow-500" />}
             </div>
-            <h3 className="text-lg font-semibold mb-1">{checkpoint?.name || `Checkpoint ${index + 1}`}</h3>
+            <h3 className="mb-1 text-lg font-semibold">
+              {checkpoint?.name || `Checkpoint ${index + 1}`}
+            </h3>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="text-xl font-bold mb-1">{checkpointScore} pts</div>
+              <div className="mb-1 text-xl font-bold">{checkpointScore} pts</div>
               <div className="text-sm text-muted-foreground">
                 {hasEvaluations && displayTime ? formatTime(displayTime) : "Not evaluated yet"}
               </div>
@@ -123,9 +131,9 @@ export function CheckpointTimelineItem({
             {evaluationResults.length > 0 && (
               <div>
                 {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
             )}
@@ -146,7 +154,7 @@ export function CheckpointTimelineItem({
 
       {/* Activity-level cards - only show when expanded */}
       {isExpanded && evaluationResults.length > 0 && (
-        <div className="mt-3 ml-2 pl-2 border-l-2 border-border space-y-3">
+        <div className="ml-2 mt-3 space-y-3 border-l-2 border-border pl-2">
           {evaluationResults.map((result, resultIndex: number) => {
             const activity = result.activity;
             const isTimeBased = activity?.activity_type === "TimeBasedActivity";
@@ -159,24 +167,31 @@ export function CheckpointTimelineItem({
             const isCompletionPending = isTimeBased && completedCount < totalTeams;
 
             return (
-              <div key={resultIndex} className="border border-border bg-card/60 rounded-xl p-4 sm:p-6">
+              <div
+                key={resultIndex}
+                className="rounded-xl border border-border bg-card/60 p-4 sm:p-6"
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h4 className="text-base font-semibold mb-1">{activity?.name}</h4>
+                    <h4 className="mb-1 text-base font-semibold">{activity?.name}</h4>
                     {activity?.description && (
                       <p className="text-sm text-muted-foreground">{activity.description}</p>
                     )}
                     {isCompletionPending && (
-                      <div className="mt-2 p-2 rounded border border-yellow-500/30 bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
-                        ⚠️ Score may change: {completedCount} of {totalTeams} teams finished (ranking
-                        recalculates as more teams complete)
+                      <div className="mt-2 rounded border border-yellow-500/30 bg-yellow-50 p-2 text-xs text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300">
+                        ⚠️ Score may change: {completedCount} of {totalTeams} teams finished
+                        (ranking recalculates as more teams complete)
                       </div>
                     )}
                   </div>
-                  <div className="text-right ml-4">
-                    <div className="text-lg font-bold mb-1">{result.final_score?.toFixed(0)} pts</div>
+                  <div className="ml-4 text-right">
+                    <div className="mb-1 text-lg font-bold">
+                      {result.final_score?.toFixed(0)} pts
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      {result.completed_at ? formatTime(new Date(result.completed_at)) : "Not evaluated yet"}
+                      {result.completed_at
+                        ? formatTime(new Date(result.completed_at))
+                        : "Not evaluated yet"}
                     </div>
                   </div>
                 </div>

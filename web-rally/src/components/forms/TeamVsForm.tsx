@@ -29,7 +29,8 @@ async function fetchPreselectedOpponent(
   teamId: number,
 ): Promise<{ id: number; name: string } | null> {
   try {
-    const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(teamId);
+    const opponent =
+      await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(teamId);
     if (opponent?.opponent_id) {
       return { id: opponent.opponent_id, name: opponent.opponent_name || "" };
     }
@@ -39,7 +40,13 @@ async function fetchPreselectedOpponent(
   return null;
 }
 
-export default function TeamVsForm({ existingResult, team, config = {}, onSubmit, isSubmitting }: TeamVsFormProps) {
+export default function TeamVsForm({
+  existingResult,
+  team,
+  config = {},
+  onSubmit,
+  isSubmitting,
+}: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [completed, setCompleted] = useState<boolean>(true);
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
@@ -126,7 +133,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
   useEffect(() => {
     if (existingResult?.result_data) {
       setResult(existingResult.result_data.result || "win");
-      if (typeof existingResult.result_data.completed === 'boolean') {
+      if (typeof existingResult.result_data.completed === "boolean") {
         setCompleted(existingResult.result_data.completed);
       }
       const existingOpponentId = existingResult.result_data.opponent_team_id;
@@ -166,7 +173,9 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
 
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(
+        `Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`,
+      );
       return;
     }
 
@@ -185,7 +194,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="teamvs-result" className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="teamvs-result" className="mb-2 block text-sm font-medium text-foreground">
           Match Result
         </label>
         <select
@@ -193,18 +202,27 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
           data-testid="select-result"
           value={result}
           onChange={(e) => setResult(e.target.value)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         >
-          <option value="win" className="bg-gray-800">Win</option>
-          <option value="lose" className="bg-gray-800">Lose</option>
-          <option value="draw" className="bg-gray-800">Draw</option>
+          <option value="win" className="bg-gray-800">
+            Win
+          </option>
+          <option value="lose" className="bg-gray-800">
+            Lose
+          </option>
+          <option value="draw" className="bg-gray-800">
+            Draw
+          </option>
         </select>
       </div>
 
       {/* Completed toggle — only shown when activity has tiered scoring configured */}
       {hasTieredScoring && (
         <div>
-          <label htmlFor="teamvs-toggle-completed" className="block text-sm font-medium mb-2 text-foreground">
+          <label
+            htmlFor="teamvs-toggle-completed"
+            className="mb-2 block text-sm font-medium text-foreground"
+          >
             Challenge Completed?
           </label>
           <div className="flex items-center gap-3">
@@ -213,34 +231,34 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               type="button"
               data-testid="toggle-completed"
               onClick={() => setCompleted(!completed)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${completed ? 'bg-green-500' : 'bg-muted'
-                }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${
+                completed ? "bg-green-500" : "bg-muted"
+              }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${completed ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  completed ? "translate-x-6" : "translate-x-1"
+                }`}
               />
             </button>
-            <span className="text-muted-foreground text-sm">
-              {completed ? '✓ Completou o desafio' : '✗ Não completou o desafio'}
+            <span className="text-sm text-muted-foreground">
+              {completed ? "✓ Completou o desafio" : "✗ Não completou o desafio"}
             </span>
           </div>
-          <p className="text-muted-foreground text-xs mt-1">
-            +{completionPoints} pts se completou
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">+{completionPoints} pts se completou</p>
         </div>
       )}
 
       {/* Live score preview — shown when tiered scoring is configured */}
       {hasTieredScoring && (
-        <div className="bg-muted border border-border rounded p-3 text-sm">
-          <p className="text-muted-foreground font-medium mb-1">Pontuação estimada</p>
+        <div className="rounded border border-border bg-muted p-3 text-sm">
+          <p className="mb-1 font-medium text-muted-foreground">Pontuação estimada</p>
           <div className="space-y-0.5 text-muted-foreground">
             <div className="flex justify-between">
               <span>Participação</span>
               <span>+{basePoints} pts</span>
             </div>
-            <div className={`flex justify-between ${completed ? '' : 'opacity-40 line-through'}`}>
+            <div className={`flex justify-between ${completed ? "" : "line-through opacity-40"}`}>
               <span>Completou desafio</span>
               <span>+{completionPoints} pts</span>
             </div>
@@ -248,7 +266,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               <span className="capitalize">{getOutcomeLabel(result)}</span>
               <span>+{outcomePoints} pts</span>
             </div>
-            <div className="flex justify-between font-semibold text-foreground border-t border-border pt-1 mt-1">
+            <div className="mt-1 flex justify-between border-t border-border pt-1 font-semibold text-foreground">
               <span>Total</span>
               <span>{previewTotal} pts</span>
             </div>
@@ -257,7 +275,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
+        <label className="mb-2 block text-sm font-medium text-foreground">
           Opponent {opponentTeamName && `(${opponentTeamName})`}
         </label>
         {isOpponentPreselected && opponentTeamId && opponentTeamName ? (
@@ -267,9 +285,9 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               type="text"
               value={opponentTeamName}
               disabled
-              className="w-full p-3 bg-muted border border-border rounded text-foreground opacity-50 cursor-not-allowed"
+              className="w-full cursor-not-allowed rounded border border-border bg-muted p-3 text-foreground opacity-50"
             />
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               ✓ Opponent automatically set from versus pair
             </p>
           </div>
@@ -285,7 +303,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               setIsOpponentPreselected(false); // Mark as manually selected
             }}
             disabled={isLoadingTeams || isSubmitting}
-            className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
             required
           >
             <option value="" className="bg-gray-800">
@@ -302,7 +320,10 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
 
       {showExtraShots && (
         <div>
-          <label htmlFor="teamvs-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
+          <label
+            htmlFor="teamvs-extra-shots"
+            className="mb-2 block text-sm font-medium text-foreground"
+          >
             Extra Shots
           </label>
           <input
@@ -312,14 +333,15 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
             max={maxExtraShots}
             value={extraShots}
             onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-            className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
             placeholder="Extra shots taken"
           />
-          <p className="text-muted-foreground text-sm mt-1">
-            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
+            {maxExtraShotsPerMember} per team member)
           </p>
           {extraShots > maxExtraShots && (
-            <p className="text-red-400 text-sm mt-1">
+            <p className="mt-1 text-sm text-red-400">
               ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
             </p>
           )}
@@ -328,9 +350,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
 
       {showPenalties && (
         <fieldset>
-          <legend className="block text-sm font-medium mb-2 text-foreground">
-            Penalties
-          </legend>
+          <legend className="mb-2 block text-sm font-medium text-foreground">Penalties</legend>
           <div className="space-y-2">
             {showVomitPenalty && (
               <div className="flex items-center space-x-3">
@@ -339,12 +359,14 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
                   type="number"
                   min="0"
                   value={penalties.vomit || 0}
-                  onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  onChange={(e) =>
+                    setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
+                  }
+                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="0"
                   aria-label="Vomit penalty count"
                 />
-                <label htmlFor="teamvs-vomit" className="text-muted-foreground text-sm">
+                <label htmlFor="teamvs-vomit" className="text-sm text-muted-foreground">
                   Vomit penalty ({penaltyValues.vomit} pts each)
                 </label>
               </div>
@@ -356,38 +378,46 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
                   type="number"
                   min="0"
                   value={penalties.not_drinking || 0}
-                  onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  onChange={(e) =>
+                    setPenalties({
+                      ...penalties,
+                      not_drinking: Number.parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="0"
                   aria-label="Not drinking penalty count"
                 />
-                <label htmlFor="teamvs-not-drinking" className="text-muted-foreground text-sm">
+                <label htmlFor="teamvs-not-drinking" className="text-sm text-muted-foreground">
                   Not drinking penalty ({penaltyValues.not_drinking} pts each)
                 </label>
               </div>
             )}
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+          <p className="mt-1 text-sm text-muted-foreground">
+            Penalties reduce the final score. Total penalty:{" "}
+            {(penalties.vomit || 0) * penaltyValues.vomit +
+              (penalties.not_drinking || 0) * penaltyValues.not_drinking}{" "}
+            points
           </p>
         </fieldset>
       )}
 
       <div>
-        <label htmlFor="teamvs-notes" className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="teamvs-notes" className="mb-2 block text-sm font-medium text-foreground">
           Notes (Optional)
         </label>
         <textarea
           id="teamvs-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />
       </div>
 
-      <div className="flex gap-3 mt-6">
+      <div className="mt-6 flex gap-3">
         <BloodyButton
           type="submit"
           disabled={isSubmitting}

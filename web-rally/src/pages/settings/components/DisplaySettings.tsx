@@ -1,30 +1,36 @@
-import { cn } from '@/lib/utils';
-import { Eye } from 'lucide-react';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFormContext, Controller } from 'react-hook-form';
+import { cn } from "@/lib/utils";
+import { Eye } from "lucide-react";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useFormContext, Controller } from "react-hook-form";
 
 type DisplaySettingsProps = Readonly<{
-
   className?: string;
   disabled?: boolean;
-}>
+}>;
 
-export default function DisplaySettings({ className = "", disabled = false }: DisplaySettingsProps) {
+export default function DisplaySettings({
+  className = "",
+  disabled = false,
+}: DisplaySettingsProps) {
   const { control } = useFormContext();
 
   return (
     <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Eye className="w-5 h-5" />
+          <Eye className="h-5 w-5" />
           Configurações de Visualização
         </CardTitle>
-        <CardDescription>
-          Controlar o que é visível para os utilizadores
-        </CardDescription>
+        <CardDescription>Controlar o que é visível para os utilizadores</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -35,11 +41,11 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             defaultValue="bloody"
             render={({ field }) => (
               <Select
-                value={field.value || 'bloody'}
+                value={field.value || "bloody"}
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-muted border-border">
+                <SelectTrigger className="border-border bg-muted">
                   <SelectValue placeholder="Selecione um tema" />
                 </SelectTrigger>
                 <SelectContent>
@@ -61,16 +67,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="show_live_leaderboard">
-            Mostrar leaderboard em tempo real
-          </Label>
+          <Label htmlFor="show_live_leaderboard">Mostrar leaderboard em tempo real</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -79,16 +79,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="show_team_details">
-            Mostrar detalhes das equipas
-          </Label>
+          <Label htmlFor="show_team_details">Mostrar detalhes das equipas</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -97,16 +91,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="show_checkpoint_map">
-            Mostrar mapa dos checkpoints
-          </Label>
+          <Label htmlFor="show_checkpoint_map">Mostrar mapa dos checkpoints</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -115,16 +103,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="participant_view_enabled">
-            Ativar visualização para participantes
-          </Label>
+          <Label htmlFor="participant_view_enabled">Ativar visualização para participantes</Label>
         </div>
 
         <div className="space-y-2">
@@ -135,11 +117,11 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             defaultValue="focused"
             render={({ field }) => (
               <Select
-                value={field.value || 'focused'}
+                value={field.value || "focused"}
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-muted border-border">
+                <SelectTrigger className="border-border bg-muted">
                   <SelectValue placeholder="Selecione o modo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -149,9 +131,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
               </Select>
             )}
           />
-          <p className="text-xs text-muted-foreground">
-            Controla o que as equipas veem do trajeto
-          </p>
+          <p className="text-xs text-muted-foreground">Controla o que as equipas veem do trajeto</p>
         </div>
 
         <div className="space-y-2">
@@ -162,11 +142,11 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             defaultValue="hidden"
             render={({ field }) => (
               <Select
-                value={field.value || 'hidden'}
+                value={field.value || "hidden"}
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="bg-muted border-border">
+                <SelectTrigger className="border-border bg-muted">
                   <SelectValue placeholder="Selecione o modo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -188,16 +168,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="public_access_enabled">
-            Permitir acesso público (sem login)
-          </Label>
+          <Label htmlFor="public_access_enabled">Permitir acesso público (sem login)</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -206,11 +180,7 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
           <Label htmlFor="allow_photo_as_team_photo">
@@ -224,16 +194,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="guide_mode_enabled">
-            Ativar funcionalidade de modo guia
-          </Label>
+          <Label htmlFor="guide_mode_enabled">Ativar funcionalidade de modo guia</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -242,16 +206,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="guide_mode_active">
-            Modo guia ativo neste evento
-          </Label>
+          <Label htmlFor="guide_mode_active">Modo guia ativo neste evento</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -260,16 +218,10 @@ export default function DisplaySettings({ className = "", disabled = false }: Di
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
+              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
-          <Label htmlFor="badges_enabled">
-            Ativar crachás / conquistas
-          </Label>
+          <Label htmlFor="badges_enabled">Ativar crachás / conquistas</Label>
         </div>
       </CardContent>
     </div>

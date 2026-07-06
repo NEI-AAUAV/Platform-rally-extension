@@ -14,19 +14,26 @@ type TeamSelectorProps = Readonly<{
   selectedTeam: string;
   onTeamChange: (value: string) => void;
   className?: string;
-}>
+}>;
 
-export default function TeamSelector({ teams, selectedTeam, onTeamChange, className }: TeamSelectorProps) {
+export default function TeamSelector({
+  teams,
+  selectedTeam,
+  onTeamChange,
+  className,
+}: TeamSelectorProps) {
   return (
     <div className={cn("rally-surface rounded-2xl p-6", className)}>
       <div className="mb-4">
-        <h2 className="text-xl font-bold mb-1 text-foreground">Selecionar Equipa</h2>
-        <p className="text-sm text-muted-foreground">Escolha uma equipa para gerir os seus membros</p>
+        <h2 className="mb-1 text-xl font-bold text-foreground">Selecionar Equipa</h2>
+        <p className="text-sm text-muted-foreground">
+          Escolha uma equipa para gerir os seus membros
+        </p>
       </div>
       <div className="space-y-3">
         <Label htmlFor="team-select">Equipa</Label>
         <Select value={selectedTeam} onValueChange={onTeamChange}>
-          <SelectTrigger id="team-select" className="bg-muted border-border">
+          <SelectTrigger id="team-select" className="border-border bg-muted">
             <SelectValue placeholder="Selecionar equipa" />
           </SelectTrigger>
           <SelectContent>

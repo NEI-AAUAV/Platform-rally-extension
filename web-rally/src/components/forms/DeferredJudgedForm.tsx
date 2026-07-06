@@ -14,7 +14,12 @@ interface DeferredJudgedFormProps {
   readonly onCaptured?: () => void;
 }
 
-export default function DeferredJudgedForm({ activityId, team, existingResult, onCaptured }: DeferredJudgedFormProps) {
+export default function DeferredJudgedForm({
+  activityId,
+  team,
+  existingResult,
+  onCaptured,
+}: DeferredJudgedFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -23,8 +28,10 @@ export default function DeferredJudgedForm({ activityId, team, existingResult, o
   const toast = useAppToast();
   const { settings } = useRallySettings();
 
-  const mediaUrls = (existingResult as unknown as { media_urls?: string[] } | undefined)?.media_urls ?? [];
-  const judgmentStatus = (existingResult as unknown as { judgment_status?: string } | undefined)?.judgment_status;
+  const mediaUrls =
+    (existingResult as unknown as { media_urls?: string[] } | undefined)?.media_urls ?? [];
+  const judgmentStatus = (existingResult as unknown as { judgment_status?: string } | undefined)
+    ?.judgment_status;
   const resultId = (existingResult as unknown as { id?: number } | undefined)?.id;
   const canSetTeamPhoto = Boolean(settings?.allow_photo_as_team_photo) && Boolean(resultId);
 
@@ -91,51 +98,57 @@ export default function DeferredJudgedForm({ activityId, team, existingResult, o
     <form onSubmit={handleSubmit} className="space-y-4">
       {mediaUrls.length > 0 && (
         <div>
-          <p className="block text-sm font-medium mb-2 text-foreground">
-            Fotos já enviadas
-          </p>
+          <p className="mb-2 block text-sm font-medium text-foreground">Fotos já enviadas</p>
           <div className="grid grid-cols-3 gap-2">
             {mediaUrls.map((url) => (
               <div key={url} className="relative">
-                <img src={url} alt="Foto submetida" className="w-full h-24 object-cover rounded border border-border" />
+                <img
+                  src={url}
+                  alt="Foto submetida"
+                  className="h-24 w-full rounded border border-border object-cover"
+                />
                 {canSetTeamPhoto && (
                   <button
                     type="button"
                     onClick={() => handleSetTeamPhoto(url)}
                     disabled={settingTeamPhotoUrl === url}
-                    className="absolute bottom-1 right-1 bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80 transition-colors disabled:opacity-50"
+                    className="absolute bottom-1 right-1 rounded-full bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:opacity-50"
                     aria-label="Definir como foto da equipa"
                     title="Definir como foto da equipa"
                   >
-                    <Star className="w-3.5 h-3.5" />
+                    <Star className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             ))}
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Estado: {judgmentStatus === "judged" ? "Avaliado" : "Pendente de avaliação"}
           </p>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
+        <label className="mb-2 block text-sm font-medium text-foreground">
           {mediaUrls.length > 0 ? "Adicionar mais fotos" : "Fotos da equipa"}
         </label>
 
         {previewUrls.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="mb-3 grid grid-cols-3 gap-2">
             {previewUrls.map((url, index) => (
               <div key={url} className="relative">
-                <img src={url} alt={`Pré-visualização ${index + 1}`} className="w-full h-24 object-cover rounded border border-border" />
+                <img
+                  src={url}
+                  alt={`Pré-visualização ${index + 1}`}
+                  className="h-24 w-full rounded border border-border object-cover"
+                />
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition-colors"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
                   aria-label="Remover foto"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
@@ -164,12 +177,13 @@ export default function DeferredJudgedForm({ activityId, team, existingResult, o
           }}
           className="hidden"
         />
-        <p className="text-muted-foreground text-sm mt-2">
-          Esta atividade é avaliada posteriormente por um administrador a partir das fotos submetidas.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Esta atividade é avaliada posteriormente por um administrador a partir das fotos
+          submetidas.
         </p>
       </div>
 
-      <div className="flex gap-3 mt-6">
+      <div className="mt-6 flex gap-3">
         <BloodyButton
           type="submit"
           disabled={isUploading || files.length === 0}

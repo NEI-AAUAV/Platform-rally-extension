@@ -40,7 +40,8 @@ export default function RouteCheckpointItem({
   const [modalOpen, setModalOpen] = useState(false);
 
   const cover = photos[0];
-  const hasDiscovery = canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
+  const hasDiscovery =
+    canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
   const statusLabel = isCompleted ? "Concluído" : isCurrent ? "Em curso" : "Pendente";
 
   return (
@@ -49,7 +50,7 @@ export default function RouteCheckpointItem({
       <div className="flex flex-col items-center">
         <div
           className={cn(
-            "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full rally-display text-sm font-bold",
+            "rally-display relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
             isCompleted && "rally-bg-accent text-white",
             isCurrent && "rally-bg-accent text-white",
             isFuture && "bg-secondary text-muted-foreground",
@@ -83,7 +84,8 @@ export default function RouteCheckpointItem({
           }
           className={cn(
             "overflow-hidden rounded-2xl border transition-all",
-            isCompleted && "border-border bg-card cursor-pointer hover:shadow-md hover:border-muted-foreground/30",
+            isCompleted &&
+              "cursor-pointer border-border bg-card hover:border-muted-foreground/30 hover:shadow-md",
             isCurrent && "rally-border-accent rally-bg-accent-soft cursor-pointer hover:shadow-md",
             isFuture && "border-border bg-card opacity-70",
           )}
@@ -120,7 +122,7 @@ export default function RouteCheckpointItem({
                   {!(canReveal && cover) && (
                     <span
                       className={cn(
-                        "font-bold text-base",
+                        "text-base font-bold",
                         isFuture ? "text-muted-foreground" : "text-foreground",
                       )}
                     >

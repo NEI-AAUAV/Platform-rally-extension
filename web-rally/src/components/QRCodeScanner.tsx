@@ -14,16 +14,17 @@ type QRCodeScannerProps = Readonly<{
  * Component to scan QR codes using device camera.
  * Uses the jsqr library (via the useQRCodeScanner hook) for QR code detection from canvas.
  */
-export default function QRCodeScanner({ onScan, onClose, isOpen = true, className = "" }: QRCodeScannerProps) {
+export default function QRCodeScanner({
+  onScan,
+  onClose,
+  isOpen = true,
+  className = "",
+}: QRCodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const { isActive, startScanning, stopScanning } = useQRCodeScanner(
-    videoRef,
-    canvasRef,
-    onScan
-  );
+  const { isActive, startScanning, stopScanning } = useQRCodeScanner(videoRef, canvasRef, onScan);
 
   const stopCamera = useCallback(() => {
     stopScanning();
@@ -73,7 +74,9 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
       } catch (err) {
         if (err instanceof DOMException && err.name === "NotAllowedError") {
           setPermissionDenied(true);
-          setCameraError("Permissão de câmara negada. Por favor, ative a câmara nas configurações.");
+          setCameraError(
+            "Permissão de câmara negada. Por favor, ative a câmara nas configurações.",
+          );
         } else if (err instanceof DOMException && err.name === "NotFoundError") {
           setCameraError("Nenhuma câmara disponível no dispositivo.");
         } else {
@@ -100,78 +103,71 @@ export default function QRCodeScanner({ onScan, onClose, isOpen = true, classNam
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 ${className}`}>
-      <div className="relative w-full max-w-md bg-black rounded-lg overflow-hidden border border-border">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 ${className}`}
+    >
+      <div className="relative w-full max-w-md overflow-hidden rounded-lg border border-border bg-black">
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
+          className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 transition-colors hover:bg-black/70"
           aria-label="Close QR code scanner"
         >
-          <X className="w-5 h-5 text-foreground" />
+          <X className="h-5 w-5 text-foreground" />
         </button>
 
         {/* Video element */}
         {permissionDenied ? (
-          <div className="aspect-square flex flex-col items-center justify-center bg-muted gap-4">
-            <Camera className="w-12 h-12 text-red-500/50" />
-            <div className="text-center px-4">
-              <p className="text-foreground font-semibold mb-2">Permissão Negada</p>
-              <p className="text-muted-foreground text-sm">
+          <div className="flex aspect-square flex-col items-center justify-center gap-4 bg-muted">
+            <Camera className="h-12 w-12 text-red-500/50" />
+            <div className="px-4 text-center">
+              <p className="mb-2 font-semibold text-foreground">Permissão Negada</p>
+              <p className="text-sm text-muted-foreground">
                 {cameraError || "Por favor, ative o acesso à câmara para utilizar o scanner."}
               </p>
             </div>
           </div>
         ) : (
-          <div className="relative bg-black aspect-square">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              playsInline
-              muted
-            />
+          <div className="relative aspect-square bg-black">
+            <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Scanning overlay */}
             {isActive && (
               <>
-                <div className="absolute inset-0 border-4 border-primary/40 pointer-events-none rounded-lg" />
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-4 border-primary rounded-lg pointer-events-none animate-pulse" />
+                <div className="pointer-events-none absolute inset-0 rounded-lg border-4 border-primary/40" />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 transform animate-pulse rounded-lg border-4 border-primary" />
 
                 {/* Scanning corner guides */}
-                <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-primary" />
-                <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-primary" />
-                <div className="absolute bottom-8 left-8 w-8 h-8 border-b-2 border-l-2 border-primary" />
-                <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-primary" />
+                <div className="absolute left-8 top-8 h-8 w-8 border-l-2 border-t-2 border-primary" />
+                <div className="absolute right-8 top-8 h-8 w-8 border-r-2 border-t-2 border-primary" />
+                <div className="absolute bottom-8 left-8 h-8 w-8 border-b-2 border-l-2 border-primary" />
+                <div className="absolute bottom-8 right-8 h-8 w-8 border-b-2 border-r-2 border-primary" />
               </>
             )}
 
             {/* Loading indicator */}
             {!isActive && !permissionDenied && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             )}
           </div>
         )}
 
         {/* Instructions */}
-        <div className="bg-black/70 p-4 border-t border-border">
-          <p className="text-muted-foreground text-sm text-center">
+        <div className="border-t border-border bg-black/70 p-4">
+          <p className="text-center text-sm text-muted-foreground">
             Alinhe o código QR com o quadrado para escanear
           </p>
           {cameraError && !permissionDenied && (
-            <p className="text-red-400 text-xs text-center mt-2">{cameraError}</p>
+            <p className="mt-2 text-center text-xs text-red-400">{cameraError}</p>
           )}
         </div>
 
         {/* Close button footer */}
-        <div className="p-4 border-t border-border">
-          <Button
-            onClick={handleClose}
-            variant="outline"
-            className="w-full"
-          >
+        <div className="border-t border-border p-4">
+          <Button onClick={handleClose} variant="outline" className="w-full">
             Cancelar
           </Button>
         </div>

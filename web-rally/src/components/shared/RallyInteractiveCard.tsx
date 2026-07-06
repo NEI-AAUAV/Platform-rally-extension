@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Rally Interactive Card Component - For clickable/selectable cards
- * 
+ *
  * Features:
  * - Hover effects
  * - Active/selected states
@@ -38,7 +38,7 @@ const RallyInteractiveCard = forwardRef<
       disabled = false,
       as = "div",
     },
-    ref
+    ref,
   ) => {
     // Status-based styles
     const statusStyles = {
@@ -130,10 +130,9 @@ const RallyInteractiveCard = forwardRef<
         {children}
       </div>
     );
-  }
+  },
 );
 
 RallyInteractiveCard.displayName = "RallyInteractiveCard";
 
 export default RallyInteractiveCard;
-

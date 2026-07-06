@@ -1,18 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Palette, Upload, ImageIcon, Save } from 'lucide-react';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import {
-  SettingsService,
-  type RallySettingsResponse,
-  type RallySettingsUpdate,
-} from '@/client';
-import { useAppToast } from '@/hooks/use-toast';
-import { getErrorMessage } from '@/utils/errorHandling';
-import { LoadingState } from '@/components/shared';
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Palette, Upload, ImageIcon, Save } from "lucide-react";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { SettingsService, type RallySettingsResponse, type RallySettingsUpdate } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errorHandling";
+import { LoadingState } from "@/components/shared";
 
 type UploadFn = (file: File) => Promise<RallySettingsResponse>;
 
@@ -25,7 +21,14 @@ type ImageUploadFieldProps = Readonly<{
   onUploaded: () => void;
 }>;
 
-function ImageUploadField({ label, description, accept, currentUrl, upload, onUploaded }: ImageUploadFieldProps) {
+function ImageUploadField({
+  label,
+  description,
+  accept,
+  currentUrl,
+  upload,
+  onUploaded,
+}: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const toast = useAppToast();
   const [preview, setPreview] = useState<string | null>(null);
@@ -47,7 +50,7 @@ function ImageUploadField({ label, description, accept, currentUrl, upload, onUp
     if (!file) return;
     setPreview(URL.createObjectURL(file));
     mutate(file);
-    event.target.value = '';
+    event.target.value = "";
   };
 
   const shown = preview ?? currentUrl ?? null;
@@ -65,16 +68,29 @@ function ImageUploadField({ label, description, accept, currentUrl, upload, onUp
         <h4 className="font-semibold">{label}</h4>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleSelect} disabled={isPending} />
-      <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={() => inputRef.current?.click()}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={handleSelect}
+        disabled={isPending}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isPending}
+        onClick={() => inputRef.current?.click()}
+      >
         <Upload className="mr-2 h-4 w-4" />
-        {isPending ? 'A carregar...' : 'Carregar'}
+        {isPending ? "A carregar..." : "Carregar"}
       </Button>
     </div>
   );
 }
 
-const ADMIN_KEY = ['rallySettings-admin'] as const;
+const ADMIN_KEY = ["rallySettings-admin"] as const;
 
 /**
  * Identidade Visual — admin panel tab. Self-contained: fetches the full rally
@@ -92,25 +108,25 @@ export default function BrandingSettings() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const [eventName, setEventName] = useState('');
-  const [eventSubtitle, setEventSubtitle] = useState('');
-  const [accentColor, setAccentColor] = useState('');
+  const [eventName, setEventName] = useState("");
+  const [eventSubtitle, setEventSubtitle] = useState("");
+  const [accentColor, setAccentColor] = useState("");
 
   useEffect(() => {
     if (!settings) return;
-    setEventName(settings.event_name ?? '');
-    setEventSubtitle(settings.event_subtitle ?? '');
-    setAccentColor(settings.accent_color ?? '');
+    setEventName(settings.event_name ?? "");
+    setEventSubtitle(settings.event_subtitle ?? "");
+    setAccentColor(settings.accent_color ?? "");
   }, [settings]);
 
   const invalidateBranding = () => {
     queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
-    queryClient.invalidateQueries({ queryKey: ['rallySettings-public'] });
+    queryClient.invalidateQueries({ queryKey: ["rallySettings-public"] });
   };
 
   const { mutate: save, isPending: isSaving } = useMutation({
     mutationFn: async () => {
-      if (!settings) throw new Error('Settings not loaded');
+      if (!settings) throw new Error("Settings not loaded");
       // Echo the full config back with only the branding text fields changed,
       // so the single settings PUT never drops other values.
       const payload: RallySettingsUpdate = {
@@ -122,18 +138,18 @@ export default function BrandingSettings() {
       return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(payload);
     },
     onSuccess: () => {
-      toast.success('Identidade visual atualizada!');
+      toast.success("Identidade visual atualizada!");
       invalidateBranding();
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao guardar identidade visual'));
+      toast.error(getErrorMessage(error, "Erro ao guardar identidade visual"));
     },
   });
 
   if (isLoading) return <LoadingState message="A carregar identidade visual..." />;
 
   return (
-    <div className="rally-surface rounded-2xl mt-4">
+    <div className="rally-surface mt-4 rounded-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Palette className="h-5 w-5" />
@@ -184,18 +200,20 @@ export default function BrandingSettings() {
             <input
               type="color"
               aria-label="Selecionar cor de destaque"
-              value={/^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor : '#c81d25'}
+              value={/^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor : "#c81d25"}
               onChange={(e) => setAccentColor(e.target.value)}
               className="h-10 w-11 cursor-pointer rounded-lg border border-border bg-transparent"
             />
           </div>
-          <p className="text-xs text-muted-foreground">Define o destaque de toda a aplicação (botões, barras, realces).</p>
+          <p className="text-xs text-muted-foreground">
+            Define o destaque de toda a aplicação (botões, barras, realces).
+          </p>
         </div>
 
         <div className="flex justify-end">
           <Button type="button" onClick={() => save()} disabled={isSaving || !settings}>
             <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'A guardar...' : 'Guardar identidade'}
+            {isSaving ? "A guardar..." : "Guardar identidade"}
           </Button>
         </div>
 
@@ -208,7 +226,9 @@ export default function BrandingSettings() {
             description="Topo da aplicação · JPG/PNG/WebP/GIF · máx 5MB"
             accept="image/jpeg,image/png,image/webp,image/gif"
             currentUrl={settings?.banner_url}
-            upload={(file) => SettingsService.uploadRallyBannerApiRallyV1RallySettingsBannerPut({ image: file })}
+            upload={(file) =>
+              SettingsService.uploadRallyBannerApiRallyV1RallySettingsBannerPut({ image: file })
+            }
             onUploaded={invalidateBranding}
           />
           <ImageUploadField
@@ -216,7 +236,9 @@ export default function BrandingSettings() {
             description="JPG/PNG/WebP/GIF · máx 5MB"
             accept="image/jpeg,image/png,image/webp,image/gif"
             currentUrl={settings?.logo_url}
-            upload={(file) => SettingsService.uploadRallyLogoApiRallyV1RallySettingsLogoPut({ image: file })}
+            upload={(file) =>
+              SettingsService.uploadRallyLogoApiRallyV1RallySettingsLogoPut({ image: file })
+            }
             onUploaded={invalidateBranding}
           />
           <ImageUploadField
@@ -224,7 +246,9 @@ export default function BrandingSettings() {
             description="Separador do navegador · PNG/SVG/ICO · máx 5MB"
             accept="image/png,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.ico"
             currentUrl={settings?.favicon_url}
-            upload={(file) => SettingsService.uploadRallyFaviconApiRallyV1RallySettingsFaviconPut({ image: file })}
+            upload={(file) =>
+              SettingsService.uploadRallyFaviconApiRallyV1RallySettingsFaviconPut({ image: file })
+            }
             onUploaded={invalidateBranding}
           />
         </div>

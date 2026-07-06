@@ -39,7 +39,7 @@ export default function CheckpointListItem({
       onDrop={(e) => onDrop(e, checkpoint)}
       onDragEnd={onDragEnd}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
         }
       }}
@@ -47,17 +47,17 @@ export default function CheckpointListItem({
     >
       <div
         className={cn(
-          "border border-border bg-card/60 rounded-xl p-4 sm:p-6 transition-all hover:bg-accent",
+          "rounded-xl border border-border bg-card/60 p-4 transition-all hover:bg-accent sm:p-6",
           !showMedia && "cursor-move",
-          isDragging && "opacity-50 scale-95",
+          isDragging && "scale-95 opacity-50",
           showMedia && "rounded-b-none",
         )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-center text-muted-foreground">
-              <GripVertical className="w-4 h-4" />
-              <span className="text-xs font-mono">{checkpoint.order}</span>
+              <GripVertical className="h-4 w-4" />
+              <span className="font-mono text-xs">{checkpoint.order}</span>
             </div>
             <div>
               <div className="font-semibold">{checkpoint.name}</div>
@@ -77,20 +77,26 @@ export default function CheckpointListItem({
               aria-expanded={showMedia}
               aria-label="Fotos e curiosidades do sítio"
             >
-              <Images className="w-4 h-4" />
-              <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", showMedia && "rotate-180")} />
+              <Images className="h-4 w-4" />
+              <ChevronDown
+                className={cn("ml-1 h-3 w-3 transition-transform", showMedia && "rotate-180")}
+              />
             </BloodyButton>
             <BloodyButton variant="neutral" onClick={() => onEdit(checkpoint)}>
-              <Edit className="w-4 h-4" />
+              <Edit className="h-4 w-4" />
             </BloodyButton>
-            <BloodyButton variant="neutral" onClick={() => onDelete(checkpoint.id)} disabled={isDeleting}>
-              <Trash2 className="w-4 h-4" />
+            <BloodyButton
+              variant="neutral"
+              onClick={() => onDelete(checkpoint.id)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4" />
             </BloodyButton>
           </div>
         </div>
       </div>
       {showMedia && (
-        <div className="border border-t-0 border-border bg-card/40 rounded-b-xl p-4 sm:p-6">
+        <div className="rounded-b-xl border border-t-0 border-border bg-card/40 p-4 sm:p-6">
           <CheckpointMediaManager checkpointId={checkpoint.id} />
           <CheckpointGuideIndicationsManager checkpointId={checkpoint.id} />
         </div>

@@ -27,9 +27,7 @@ export function useBadgeShowcase(teamId: number | undefined) {
   return useQuery({
     queryKey: ["badges", "showcase", teamId],
     queryFn: () =>
-      BadgesService.teamBadgeShowcaseApiRallyV1TeamsTeamIdBadgeShowcaseGet(
-        teamId as number,
-      ),
+      BadgesService.teamBadgeShowcaseApiRallyV1TeamsTeamIdBadgeShowcaseGet(teamId as number),
     enabled: typeof teamId === "number" && !Number.isNaN(teamId),
   });
 }

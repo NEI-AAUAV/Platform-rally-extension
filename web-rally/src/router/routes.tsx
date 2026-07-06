@@ -1,9 +1,4 @@
-import {
-  createRootRoute,
-  createRoute,
-  lazyRouteComponent,
-  Navigate,
-} from "@tanstack/react-router";
+import { createRootRoute, createRoute, lazyRouteComponent, Navigate } from "@tanstack/react-router";
 import MainLayout from "@/pages/layout";
 
 const rootRoute = createRootRoute();

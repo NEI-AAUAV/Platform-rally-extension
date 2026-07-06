@@ -1,11 +1,11 @@
-import React from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, Trash2, Users, AlertCircle, X, QrCode } from 'lucide-react';
-import { getErrorMessage } from '@/utils/errorHandling';
+import React from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Edit, Trash2, Users, AlertCircle, X, QrCode } from "lucide-react";
+import { getErrorMessage } from "@/utils/errorHandling";
 import {
   Form,
   FormControl,
@@ -13,17 +13,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { BloodyButton } from '@/components/themes/bloody';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { EmptyState } from '@/components/shared';
-import { TeamService, type TeamCreate, type TeamUpdate, type DetailedTeam } from '@/client';
-import { useAppToast } from '@/hooks/use-toast';
-import QRCodeDisplay from '@/components/QRCodeDisplay';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { BloodyButton } from "@/components/themes/bloody";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { EmptyState } from "@/components/shared";
+import { TeamService, type TeamCreate, type TeamUpdate, type DetailedTeam } from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
+import QRCodeDisplay from "@/components/QRCodeDisplay";
 
 const teamFormSchema = z.object({
-  name: z.string().min(1, 'Nome da equipa é obrigatório'),
+  name: z.string().min(1, "Nome da equipa é obrigatório"),
 });
 
 type TeamForm = z.infer<typeof teamFormSchema>;
@@ -35,9 +35,7 @@ interface Team {
   num_members: number;
 }
 
-type ExtendedDetailedTeam = Omit<DetailedTeam, 'access_code'> & { access_code?: string };
-
-
+type ExtendedDetailedTeam = Omit<DetailedTeam, "access_code"> & { access_code?: string };
 
 export default function TeamManagement() {
   const navigate = useNavigate();
@@ -49,7 +47,7 @@ export default function TeamManagement() {
 
   // Teams queries and mutations
   const { data: teams } = useQuery({
-    queryKey: ['teams'],
+    queryKey: ["teams"],
     queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
     staleTime: 0, // Always consider data stale to force refetch
     refetchOnWindowFocus: true, // Refetch when window gains focus
@@ -58,7 +56,7 @@ export default function TeamManagement() {
 
   // Fetch team details for QR code display
   const { data: teamDetailsForQR, isLoading: isLoadingQRDetails } = useQuery({
-    queryKey: ['teamDetails', selectedTeamForQR?.id],
+    queryKey: ["teamDetails", selectedTeamForQR?.id],
     queryFn: () => {
       if (!selectedTeamForQR?.id) return null;
       return TeamService.getTeamByIdApiRallyV1TeamIdGet(selectedTeamForQR.id);
@@ -81,7 +79,7 @@ export default function TeamManagement() {
       // Store the newly created team to show QR code modal
       setNewlyCreatedTeam(data as DetailedTeam);
       // Invalidate and refetch teams data
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
       teamForm.reset();
       toast.success("Equipa criada com sucesso!");
     },
@@ -90,10 +88,7 @@ export default function TeamManagement() {
     },
   });
 
-  const {
-    mutate: updateTeam,
-    isPending: isUpdatingTeam,
-  } = useMutation({
+  const { mutate: updateTeam, isPending: isUpdatingTeam } = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: TeamForm }) => {
       const requestBody: TeamUpdate = {
         name: data.name,
@@ -101,7 +96,7 @@ export default function TeamManagement() {
       return TeamService.updateTeamApiRallyV1TeamIdPut(id, requestBody);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
       setEditingTeam(null);
       teamForm.reset();
       toast.success("Equipa atualizada com sucesso!");
@@ -111,15 +106,12 @@ export default function TeamManagement() {
     },
   });
 
-  const {
-    mutate: deleteTeam,
-    isPending: isDeletingTeam,
-  } = useMutation({
+  const { mutate: deleteTeam, isPending: isDeletingTeam } = useMutation({
     mutationFn: async (id: number) => {
       return TeamService.deleteTeamApiRallyV1TeamIdDelete(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
       toast.success("Equipa deletada com sucesso!");
     },
     onError: (error) => {
@@ -145,7 +137,7 @@ export default function TeamManagement() {
 
   const startEditTeam = (team: Team) => {
     setEditingTeam(team);
-    teamForm.setValue('name', team.name);
+    teamForm.setValue("name", team.name);
   };
 
   const cancelEdit = () => {
@@ -157,17 +149,15 @@ export default function TeamManagement() {
     <div className="space-y-6">
       {/* Create/Edit Team Form */}
       <div className="rally-surface rounded-2xl p-6">
-        <h3 className="text-lg font-semibold mb-4">
-          {editingTeam ? 'Editar Equipa' : 'Criar Nova Equipa'}
+        <h3 className="mb-4 text-lg font-semibold">
+          {editingTeam ? "Editar Equipa" : "Criar Nova Equipa"}
         </h3>
         <Form {...teamForm}>
           <form onSubmit={teamForm.handleSubmit(handleTeamSubmit)} className="space-y-4">
             {createTeamError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {createTeamError.message}
-                </AlertDescription>
+                <AlertDescription>{createTeamError.message}</AlertDescription>
               </Alert>
             )}
             <FormField
@@ -180,7 +170,7 @@ export default function TeamManagement() {
                     <Input
                       placeholder="Ex: Equipa Alpha"
                       {...field}
-                      className="bg-muted border-border"
+                      className="border-border bg-muted"
                     />
                   </FormControl>
                   <FormMessage />
@@ -189,7 +179,7 @@ export default function TeamManagement() {
             />
             <div className="flex gap-2">
               <BloodyButton type="submit" disabled={isCreatingTeam || isUpdatingTeam}>
-                {editingTeam ? 'Atualizar' : 'Criar'} Equipa
+                {editingTeam ? "Atualizar" : "Criar"} Equipa
               </BloodyButton>
               {editingTeam && (
                 <BloodyButton type="button" variant="neutral" onClick={cancelEdit}>
@@ -203,18 +193,18 @@ export default function TeamManagement() {
 
       {/* Teams List */}
       <div className="rally-surface rounded-2xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Equipas Existentes</h3>
+        <h3 className="mb-4 text-lg font-semibold">Equipas Existentes</h3>
         {teams?.length === 0 ? (
           <EmptyState
-            icon={<Users className="w-8 h-8 text-muted-foreground" />}
+            icon={<Users className="h-8 w-8 text-muted-foreground" />}
             title="Nenhuma equipa criada ainda"
             description="Crie a primeira equipa para começar"
           />
         ) : (
-          <ul className="space-y-3 list-none">
+          <ul className="list-none space-y-3">
             {teams?.map((team: Team) => (
               <li key={team.id}>
-                <div className="border border-border bg-card/60 rounded-xl p-4 sm:p-6 flex items-center justify-between">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6">
                   <div>
                     <div className="font-semibold">{team.name}</div>
                     <div className="text-sm text-muted-foreground">
@@ -222,17 +212,33 @@ export default function TeamManagement() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <BloodyButton variant="neutral" title="Ver QR code e código de acesso" onClick={() => setSelectedTeamForQR(team)}>
-                      <QrCode className="w-4 h-4" />
+                    <BloodyButton
+                      variant="neutral"
+                      title="Ver QR code e código de acesso"
+                      onClick={() => setSelectedTeamForQR(team)}
+                    >
+                      <QrCode className="h-4 w-4" />
                     </BloodyButton>
-                    <BloodyButton variant="neutral" title="Gerir membros da equipa" onClick={() => navigate({ to: "/team-members" })}>
-                      <Users className="w-4 h-4" />
+                    <BloodyButton
+                      variant="neutral"
+                      title="Gerir membros da equipa"
+                      onClick={() => navigate({ to: "/team-members" })}
+                    >
+                      <Users className="h-4 w-4" />
                     </BloodyButton>
                     <BloodyButton variant="neutral" onClick={() => startEditTeam(team)}>
-                      <Edit className="w-4 h-4" />
+                      <Edit className="h-4 w-4" />
                     </BloodyButton>
-                    <BloodyButton variant="neutral" onClick={() => { if (confirm('Tem certeza que deseja deletar esta equipa?')) { deleteTeam(team.id); } }} disabled={isDeletingTeam}>
-                      <Trash2 className="w-4 h-4" />
+                    <BloodyButton
+                      variant="neutral"
+                      onClick={() => {
+                        if (confirm("Tem certeza que deseja deletar esta equipa?")) {
+                          deleteTeam(team.id);
+                        }
+                      }}
+                      disabled={isDeletingTeam}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </BloodyButton>
                   </div>
                 </div>
@@ -244,24 +250,27 @@ export default function TeamManagement() {
 
       {/* QR Code Modal */}
       {(newlyCreatedTeam || (selectedTeamForQR && teamDetailsForQR)) && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="rally-surface rounded-2xl w-full max-w-md">
-            <div className="p-8 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="rally-surface w-full max-w-md rounded-2xl">
+            <div className="space-y-6 p-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">
-                    {newlyCreatedTeam ? 'Equipa Criada!' : 'Código QR da Equipa'}
+                    {newlyCreatedTeam ? "Equipa Criada!" : "Código QR da Equipa"}
                   </h2>
-                  <p className="text-muted-foreground text-sm mt-1">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {(newlyCreatedTeam || teamDetailsForQR)?.name}
                   </p>
                 </div>
                 <button
-                  onClick={() => { setNewlyCreatedTeam(null); setSelectedTeamForQR(null); }}
+                  onClick={() => {
+                    setNewlyCreatedTeam(null);
+                    setSelectedTeamForQR(null);
+                  }}
                   title="Fechar"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
@@ -275,17 +284,27 @@ export default function TeamManagement() {
                 <>
                   <div className="flex justify-center">
                     <QRCodeDisplay
-                      accessCode={((newlyCreatedTeam || teamDetailsForQR) as ExtendedDetailedTeam)?.access_code || ''}
+                      accessCode={
+                        ((newlyCreatedTeam || teamDetailsForQR) as ExtendedDetailedTeam)
+                          ?.access_code || ""
+                      }
                       size={250}
                     />
                   </div>
-                  <div className="space-y-3 bg-muted p-4 rounded-lg border border-border">
-                    <p className="text-muted-foreground text-xs">
-                      Partilhe este código QR ou código de acesso com a equipa para que possam fazer login e acompanhar o progresso.
+                  <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Partilhe este código QR ou código de acesso com a equipa para que possam fazer
+                      login e acompanhar o progresso.
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <BloodyButton onClick={() => { setNewlyCreatedTeam(null); setSelectedTeamForQR(null); }} className="flex-1">
+                    <BloodyButton
+                      onClick={() => {
+                        setNewlyCreatedTeam(null);
+                        setSelectedTeamForQR(null);
+                      }}
+                      className="flex-1"
+                    >
                       Concluir
                     </BloodyButton>
                   </div>
@@ -298,6 +317,3 @@ export default function TeamManagement() {
     </div>
   );
 }
-
-
-

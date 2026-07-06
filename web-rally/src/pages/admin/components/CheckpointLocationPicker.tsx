@@ -60,7 +60,7 @@ export default function CheckpointLocationPicker({
   );
 
   return (
-    <div className="rounded-xl overflow-hidden border border-border">
+    <div className="overflow-hidden rounded-xl border border-border">
       <MapContainer
         center={position ?? DEFAULT_CENTER}
         zoom={position ? SELECTED_ZOOM : DEFAULT_ZOOM}
@@ -88,7 +88,7 @@ export default function CheckpointLocationPicker({
         <ClickHandler onChange={onChange} />
         <RecenterOnChange position={position} />
       </MapContainer>
-      <p className="text-xs text-muted-foreground px-3 py-2 bg-muted">
+      <p className="bg-muted px-3 py-2 text-xs text-muted-foreground">
         Clica no mapa para definir coordenadas, ou arrasta o marcador.
       </p>
     </div>

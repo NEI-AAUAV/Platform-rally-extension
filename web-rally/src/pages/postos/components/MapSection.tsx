@@ -48,7 +48,7 @@ function layoutNodes(checkpoints: Checkpoint[]): { x: number; y: number; cp: Che
     const spanLng = maxLng - minLng || 1;
     return checkpoints.map((cp) => ({
       cp,
-      x: 40 + ((cp.longitude as number) - minLng) / spanLng * 320,
+      x: 40 + (((cp.longitude as number) - minLng) / spanLng) * 320,
       // invert lat so north is up
       y: 40 + (1 - ((cp.latitude as number) - minLat) / spanLat) * 260,
     }));
@@ -68,7 +68,9 @@ function layoutNodes(checkpoints: Checkpoint[]): { x: number; y: number; cp: Che
 
 function buildPath(nodes: { x: number; y: number }[]): string {
   if (nodes.length === 0) return "";
-  return nodes.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  return nodes
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+    .join(" ");
 }
 
 export default function MapSection({
@@ -150,10 +152,10 @@ export default function MapSection({
         {/* overlay card */}
         {overlay && (
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[1000] rounded-[13px] border border-border bg-card px-[14px] py-3 shadow-[0_12px_30px_-14px_rgba(0,0,0,0.4)]">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] rally-accent">
+            <div className="rally-accent text-[11px] font-bold uppercase tracking-[0.14em]">
               {selectedCheckpoint ? "Posto selecionado" : "Primeiro posto"}
             </div>
-            <div className="mt-0.5 font-bold text-[15px] text-foreground truncate">
+            <div className="mt-0.5 truncate text-[15px] font-bold text-foreground">
               {overlay.name}
             </div>
           </div>
@@ -165,7 +167,7 @@ export default function MapSection({
           href={mapUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 border-t border-border px-4 py-3 text-sm font-bold rally-accent hover:bg-muted/40 transition-colors"
+          className="rally-accent flex items-center justify-center gap-2 border-t border-border px-4 py-3 text-sm font-bold transition-colors hover:bg-muted/40"
         >
           <Navigation className="h-4 w-4" />
           Abrir no Google Maps

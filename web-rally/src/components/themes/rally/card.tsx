@@ -49,9 +49,7 @@ const RallyCard = forwardRef<HTMLDivElement | HTMLButtonElement, RallyCardProps>
       "2xl": "rounded-2xl",
     };
 
-    const hoverStyles = hover
-      ? "transition-colors hover:bg-accent"
-      : "";
+    const hoverStyles = hover ? "transition-colors hover:bg-accent" : "";
 
     const interactiveStyles = onClick ? "cursor-pointer text-left w-full" : "";
     const sharedClassName = cn(

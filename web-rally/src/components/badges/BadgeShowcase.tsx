@@ -37,19 +37,19 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <span className="text-xs font-bold uppercase tracking-[0.2em] rally-accent">
+          <span className="rally-accent text-xs font-bold uppercase tracking-[0.2em]">
             Conquistas
           </span>
           <h2 className="rally-display mt-1 text-[28px] font-bold leading-tight tracking-[-0.02em] text-foreground sm:text-[34px]">
             Badges
           </h2>
         </div>
-        <div className="rally-surface px-[18px] py-[12px] rounded-[14px] text-center shrink-0">
-          <div className="rally-display text-[26px] font-bold text-foreground leading-none">
+        <div className="rally-surface shrink-0 rounded-[14px] px-[18px] py-[12px] text-center">
+          <div className="rally-display text-[26px] font-bold leading-none text-foreground">
             {earnedCount}
-            <span className="text-[16px] text-muted-foreground ml-1">/{total}</span>
+            <span className="ml-1 text-[16px] text-muted-foreground">/{total}</span>
           </div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mt-1">
+          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Conquistadas
           </div>
         </div>
@@ -59,11 +59,11 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
       <div className="rounded-[16px] border border-border bg-card p-5">
         <div className="mb-2.5 flex items-center justify-between">
           <span className="text-sm font-bold text-foreground">Progresso de conquistas</span>
-          <span className="rally-display text-sm font-bold rally-accent">{pct}%</span>
+          <span className="rally-display rally-accent text-sm font-bold">{pct}%</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-muted">
           <motion.div
-            className="h-full rounded-full rally-bg-accent"
+            className="rally-bg-accent h-full rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -72,13 +72,16 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
       </div>
 
       {/* grid */}
-      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         {definitions.map((defn) => {
           const { label, description, color, glyph, iconUrl } = getBadgeDisplay(defn);
           const awardedRaw = earnedByCode.get(defn.code);
           const isEarned = awardedRaw != null;
           const awardedAt = awardedRaw
-            ? new Date(awardedRaw).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })
+            ? new Date(awardedRaw).toLocaleTimeString("pt-PT", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
             : null;
 
           return (
@@ -102,15 +105,20 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
                 ) : (
                   <div
                     className="grid shrink-0 place-items-center rounded-[18px] text-[28px] text-white"
-                    style={{ height: 60, width: 60, background: color, opacity: isEarned ? 1 : 0.4 }}
+                    style={{
+                      height: 60,
+                      width: 60,
+                      background: color,
+                      opacity: isEarned ? 1 : 0.4,
+                    }}
                     aria-hidden
                   >
                     {glyph}
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-[16px] text-foreground">{label}</div>
-                  <p className="text-[13px] text-muted-foreground mt-[5px] mb-[10px] leading-[1.45]">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[16px] font-bold text-foreground">{label}</div>
+                  <p className="mb-[10px] mt-[5px] text-[13px] leading-[1.45] text-muted-foreground">
                     {description}
                   </p>
                   <span className="rally-display text-[13px] font-bold">

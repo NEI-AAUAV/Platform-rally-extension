@@ -29,12 +29,7 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
     // Climbed the ranking (a smaller classification number is a better place).
     // Guard against the unranked sentinel (-1) so seeding into a real rank is
     // not announced as a climb.
-    if (
-      prevRank.current !== null &&
-      prevRank.current > 0 &&
-      rank > 0 &&
-      rank < prevRank.current
-    ) {
+    if (prevRank.current !== null && prevRank.current > 0 && rank > 0 && rank < prevRank.current) {
       toast.info(`Subiste para ${rank}º lugar!`);
     }
 

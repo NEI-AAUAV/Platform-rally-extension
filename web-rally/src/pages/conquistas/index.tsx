@@ -27,7 +27,7 @@ export default function Conquistas() {
   }
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="duration-500 animate-in fade-in">
       <BadgeShowcase teamId={teamData.team_id} />
     </div>
   );

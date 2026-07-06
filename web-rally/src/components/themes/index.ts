@@ -1,5 +1,5 @@
 // Theme system for Rally components
-export * from './themeRegistry';
+export * from "./themeRegistry";
 
 // Export theme context
-export { ThemeProvider, useTheme, useThemedComponents } from './ThemeContext';
+export { ThemeProvider, useTheme, useThemedComponents } from "./ThemeContext";

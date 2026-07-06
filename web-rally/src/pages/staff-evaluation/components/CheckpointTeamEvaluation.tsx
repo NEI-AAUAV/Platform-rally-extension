@@ -42,9 +42,7 @@ export default function CheckpointTeamEvaluation() {
       <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
         <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
         <h2 className="rally-display text-xl font-bold text-foreground">Posto não encontrado</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          O posto solicitado não foi encontrado.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">O posto solicitado não foi encontrado.</p>
       </div>
     );
   }
@@ -68,7 +66,7 @@ export default function CheckpointTeamEvaluation() {
   return (
     <div className="space-y-6">
       {/* Checkpoint banner */}
-      <div className="relative overflow-hidden rounded-2xl rally-bg-accent p-5 text-white">
+      <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-5 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:24px_24px]"
@@ -113,7 +111,7 @@ export default function CheckpointTeamEvaluation() {
 
           {teamActivitiesLoading ? (
             <div className="rally-surface rally-elevate flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
-              <Loader2 className="h-8 w-8 animate-spin rally-accent" />
+              <Loader2 className="rally-accent h-8 w-8 animate-spin" />
               <p className="text-sm text-muted-foreground">A carregar atividades...</p>
             </div>
           ) : (

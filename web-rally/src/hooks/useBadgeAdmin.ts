@@ -13,8 +13,7 @@ const DEFINITIONS_KEY = ["badge-definitions"] as const;
 export function useBadgeDefinitions() {
   return useQuery<BadgeDefinitionResponse[]>({
     queryKey: DEFINITIONS_KEY,
-    queryFn: () =>
-      BadgeAdminService.listBadgeDefinitionsApiRallyV1BadgeDefinitionsGet(),
+    queryFn: () => BadgeAdminService.listBadgeDefinitionsApiRallyV1BadgeDefinitionsGet(),
   });
 }
 

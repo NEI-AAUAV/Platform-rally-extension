@@ -47,9 +47,10 @@ async function tryLoadStaffActivities({
   onShowWarning,
 }: StaffActivitiesParams): Promise<TeamActivityWithStatus[] | null> {
   try {
-    const data = (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
-      selectedTeam.id,
-    )) as TeamActivitiesResponse;
+    const data =
+      (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
+        selectedTeam.id,
+      )) as TeamActivitiesResponse;
 
     const activities = Array.isArray(data.activities) ? data.activities : [];
     const summary = data.evaluation_summary ? toEvaluationSummary(data.evaluation_summary) : null;
@@ -97,14 +98,19 @@ async function loadGeneralActivities(
   checkpoint: DetailedCheckPoint,
   teamId: number,
 ): Promise<TeamActivityWithStatus[]> {
-  const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(undefined, 100, checkpoint.id);
+  const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(
+    undefined,
+    100,
+    checkpoint.id,
+  );
   const activities: ActivityResponse[] = (data.activities ?? []).filter(
     (activity) => activity.checkpoint_id === checkpoint.id,
   );
 
   let results: ActivityResultWithRelations[] = [];
   try {
-    results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+    results =
+      (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
   } catch {
     results = [];
   }
@@ -178,7 +184,8 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
           (activity) => activity.checkpoint_id === checkpoint.id,
         );
 
-        const results = (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+        const results =
+          (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
 
         return computeTeamEvaluationStatus(checkpointTeams, checkpointActivities, results);
       } catch {
@@ -194,7 +201,9 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
   });
 
   // Get team activities for evaluation (filtered by checkpoint)
-  const { data: teamActivities, isLoading: teamActivitiesLoading } = useQuery<TeamActivityWithStatus[]>({
+  const { data: teamActivities, isLoading: teamActivitiesLoading } = useQuery<
+    TeamActivityWithStatus[]
+  >({
     queryKey: ["teamActivities", selectedTeam?.id, checkpoint?.id],
     queryFn: async (): Promise<TeamActivityWithStatus[]> => {
       if (!selectedTeam || !checkpoint) {
@@ -272,19 +281,27 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       // status immediately instead of waiting for the next mount/focus event.
       const invalidations = [
         queryClient.invalidateQueries({ queryKey: ["teamActivities"], refetchType: "active" }),
-        queryClient.invalidateQueries({ queryKey: ["teamEvaluationStatus"], refetchType: "active" }),
+        queryClient.invalidateQueries({
+          queryKey: ["teamEvaluationStatus"],
+          refetchType: "active",
+        }),
         queryClient.invalidateQueries({ queryKey: ["checkpointTeams"], refetchType: "active" }),
         queryClient.invalidateQueries({ queryKey: ["allTeams"], refetchType: "active" }),
         queryClient.invalidateQueries({ queryKey: ["allEvaluations"], refetchType: "active" }),
       ];
 
       if (variables?.teamId != null) {
-        const numericKey = Number.isNaN(Number(variables.teamId)) ? undefined : Number(variables.teamId);
+        const numericKey = Number.isNaN(Number(variables.teamId))
+          ? undefined
+          : Number(variables.teamId);
         const stringKey = variables.teamId.toString();
 
         if (numericKey !== undefined) {
           invalidations.push(
-            queryClient.invalidateQueries({ queryKey: ["team", numericKey], refetchType: "active" }),
+            queryClient.invalidateQueries({
+              queryKey: ["team", numericKey],
+              refetchType: "active",
+            }),
           );
         }
         invalidations.push(

@@ -33,12 +33,10 @@ export function useGuideAccess(): GuideAccess {
   const { settings, isLoading: settingsLoading } = useRallySettings();
 
   const hasGuideRole =
-    scopes !== undefined &&
-    GUIDE_ROLE_SCOPES.some((scope) => scopes.includes(scope));
+    scopes !== undefined && GUIDE_ROLE_SCOPES.some((scope) => scopes.includes(scope));
 
   const showGuideFeature =
-    (settings?.guide_mode_enabled === true &&
-      settings?.guide_mode_active === true) ||
+    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
     settings?.event_type === "peddy_paper";
 
   return {

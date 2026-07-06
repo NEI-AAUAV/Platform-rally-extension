@@ -133,17 +133,15 @@ jobs:
         run: pnpm run type-check || pnpm exec tsc --noEmit
         # Removed continue-on-error: true - this is now a blocking check
       
-      - name: Check formatting with Prettier
+      - name: Check formatting with Prettier - BLOCKING
         working-directory: web-rally
-        run: pnpm exec prettier --check "src/**/*.{ts,tsx,js,jsx,json,css}" || true
-        continue-on-error: true
-      
+        run: pnpm run format:check
+
       - name: Summary
         if: always()
         run: |
           echo "✅ TypeScript quality checks completed"
-          echo "⚠️  Prettier formatting warnings don't fail the build"
-          echo "❌ ESLint and type checking failures will block the build"
+          echo "❌ ESLint, Prettier, and type checking failures will block the build"
 
   security-scan:
     name: Security Vulnerability Scan

@@ -35,7 +35,9 @@ function ParticipationCard({ entry }: { entry: ParticipationEntry }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="rally-display truncate text-lg font-bold text-foreground">{entry.event_name}</h3>
+            <h3 className="rally-display truncate text-lg font-bold text-foreground">
+              {entry.event_name}
+            </h3>
             {entry.is_captain && (
               <span className="rally-bg-accent-soft rally-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold">
                 <Crown className="h-3 w-3" /> Capitão
@@ -57,7 +59,9 @@ function ParticipationCard({ entry }: { entry: ParticipationEntry }) {
         <div className="mt-4 flex gap-3">
           {entry.team_classification != null && (
             <div className="rally-surface flex-1 rounded-xl px-4 py-3 text-center">
-              <div className="rally-accent text-2xl font-bold">{ordinal(entry.team_classification)}</div>
+              <div className="rally-accent text-2xl font-bold">
+                {ordinal(entry.team_classification)}
+              </div>
               <div className="text-xs text-muted-foreground">Classificação</div>
             </div>
           )}
@@ -115,7 +119,10 @@ export default function Profile() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="O meu perfil" description="Os teus rallys e classificações ao longo das edições." />
+      <PageHeader
+        title="O meu perfil"
+        description="Os teus rallys e classificações ao longo das edições."
+      />
 
       {/* Identity */}
       <div className="rally-surface rounded-2xl p-6">
@@ -128,12 +135,17 @@ export default function Profile() {
             </span>
           )}
           <div className="min-w-0">
-            <h2 className="rally-display truncate text-2xl font-bold text-foreground">{displayName}</h2>
+            <h2 className="rally-display truncate text-2xl font-bold text-foreground">
+              {displayName}
+            </h2>
             {userEmail && <p className="truncate text-sm text-muted-foreground">{userEmail}</p>}
             {userScopes.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {userScopes.map((s) => (
-                  <span key={s} className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span
+                    key={s}
+                    className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                  >
                     {s}
                   </span>
                 ))}

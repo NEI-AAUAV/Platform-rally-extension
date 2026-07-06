@@ -45,13 +45,10 @@ export async function refreshTeamToken(): Promise<string | undefined> {
   if (!teamToken) return undefined;
 
   try {
-    const response = await fetch(
-      `${config.BASE_URL}/api/rally/v1/team-auth/refresh`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${teamToken}` },
-      },
-    );
+    const response = await fetch(`${config.BASE_URL}/api/rally/v1/team-auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${teamToken}` },
+    });
     if (!response.ok) {
       throw new Error(`Team token refresh failed: ${response.status}`);
     }

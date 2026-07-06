@@ -31,7 +31,13 @@ const linkClass = (isActive: boolean, isSidebar = false) =>
       : "text-muted-foreground hover:text-foreground hover:bg-accent",
   );
 
-function NavGroup({ label, items }: { readonly label: string; readonly items: readonly NavLink[] }) {
+function NavGroup({
+  label,
+  items,
+}: {
+  readonly label: string;
+  readonly items: readonly NavLink[];
+}) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -66,7 +72,7 @@ function NavGroup({ label, items }: { readonly label: string; readonly items: re
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-1 px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-colors",
+          "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors",
           hasActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -75,7 +81,7 @@ function NavGroup({ label, items }: { readonly label: string; readonly items: re
       </button>
       {open && (
         <div className="absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2">
-          <ul className="rally-elevate min-w-[10rem] overflow-hidden rounded-xl border border-border bg-popover p-1.5 space-y-0.5">
+          <ul className="rally-elevate min-w-[10rem] space-y-0.5 overflow-hidden rounded-xl border border-border bg-popover p-1.5">
             {items.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -105,11 +111,19 @@ interface RoleFlags {
 }
 
 function deriveRoleFlags(scopes: readonly string[] | undefined): RoleFlags {
-  const isAdminOrManager = scopes !== undefined &&
-    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+  const isAdminOrManager =
+    scopes !== undefined &&
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin"));
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
-  return { isAdminOrManager, isStaff, isGuide, isPrivileged: isAdminOrManager || isStaff || isGuide };
+  return {
+    isAdminOrManager,
+    isStaff,
+    isGuide,
+    isPrivileged: isAdminOrManager || isStaff || isGuide,
+  };
 }
 
 function ViewToggle({
@@ -129,7 +143,11 @@ function ViewToggle({
         title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
         className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
       >
-        {viewMode === "staff" ? <ShieldCheck className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+        {viewMode === "staff" ? (
+          <ShieldCheck className="h-3.5 w-3.5" />
+        ) : (
+          <Users className="h-3.5 w-3.5" />
+        )}
         <span className="hidden sm:inline">{viewMode === "staff" ? "Staff" : "Equipa"}</span>
       </button>
     </li>
@@ -163,14 +181,19 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     setIsMobileMenuOpen(false);
   };
 
-  const showTeamView = isTeamAuthenticated && (!isPrivileged || (isDualRole && viewMode === "team"));
+  const showTeamView =
+    isTeamAuthenticated && (!isPrivileged || (isDualRole && viewMode === "team"));
   const showScoreMenu = settings?.show_score_mode !== "hidden";
   const terms = useEventTerms();
   const checkpointsLabel = capitalize(terms.checkpoints);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (mobileMenuRef.current && event.target instanceof Node && !mobileMenuRef.current.contains(event.target)) {
+      if (
+        mobileMenuRef.current &&
+        event.target instanceof Node &&
+        !mobileMenuRef.current.contains(event.target)
+      ) {
         setIsMobileMenuOpen(false);
       }
     }
@@ -190,11 +213,19 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },
     { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
-    { name: "Conquistas", href: "/conquistas", show: showTeamView && settings?.badges_enabled !== false },
+    {
+      name: "Conquistas",
+      href: "/conquistas",
+      show: showTeamView && settings?.badges_enabled !== false,
+    },
     { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
 
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
-    { name: checkpointsLabel, href: "/postos", show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true) },
+    {
+      name: checkpointsLabel,
+      href: "/postos",
+      show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true),
+    },
   ].filter((item) => item.show);
 
   const isLoggedOut = !isTeamAuthenticated && scopes === undefined;
@@ -202,9 +233,17 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   // Admin sees /admin (everything consolidated); staff sees evaluation + members; guides see guide page
   const management: NavLink[] = [
     { name: "Admin", href: "/admin", show: !showTeamView && isAdminOrManager },
-    { name: "Avaliação", href: "/staff-evaluation", show: !showTeamView && (isStaff || isAdminOrManager) },
+    {
+      name: "Avaliação",
+      href: "/staff-evaluation",
+      show: !showTeamView && (isStaff || isAdminOrManager),
+    },
     { name: "Membros", href: "/team-members", show: !showTeamView && isStaff && !isAdminOrManager },
-    { name: "Guia", href: "/guide", show: !showTeamView && showGuideFeature && (isGuide || isStaff || isAdminOrManager) },
+    {
+      name: "Guia",
+      href: "/guide",
+      show: !showTeamView && showGuideFeature && (isGuide || isStaff || isAdminOrManager),
+    },
   ].filter((item) => item.show);
 
   const renderLink = (item: NavLink, isSidebar = false) => {
@@ -265,7 +304,9 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">Menu</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">
+              Menu
+            </span>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               aria-label="Fechar menu"
@@ -318,7 +359,11 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
                 {management.map((item) => renderLink(item, true))}
               </>
             )}
-            <ViewToggle isDualRole={isDualRole} viewMode={viewMode} toggleViewMode={toggleViewMode} />
+            <ViewToggle
+              isDualRole={isDualRole}
+              viewMode={viewMode}
+              toggleViewMode={toggleViewMode}
+            />
           </ul>
         </div>
       </div>

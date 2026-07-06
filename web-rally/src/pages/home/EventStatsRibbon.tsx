@@ -63,8 +63,8 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
   return (
     <dl className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
       {cells.map(({ value, label }) => (
-        <div key={label} className="p-5 rounded-[18px] bg-card border border-border">
-          <dd className="rally-display text-[34px] font-bold tabular-nums text-foreground leading-none">
+        <div key={label} className="rounded-[18px] border border-border bg-card p-5">
+          <dd className="rally-display text-[34px] font-bold tabular-nums leading-none text-foreground">
             {value}
           </dd>
           <dt className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">

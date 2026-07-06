@@ -25,12 +25,7 @@ function initialsOf(name: string): string {
 }
 
 function reachedOf(team: ListingTeam): number {
-  return (
-    team.last_checkpoint_number ??
-    team.current_checkpoint_number ??
-    team.times?.length ??
-    0
-  );
+  return team.last_checkpoint_number ?? team.current_checkpoint_number ?? team.times?.length ?? 0;
 }
 
 const MEDAL_RING = ["ring-amber-400", "ring-zinc-400", "ring-amber-700"];
@@ -91,9 +86,11 @@ export function Podium({
                   loading="lazy"
                 />
               ) : champion ? (
-                <span className="grid h-full w-full place-items-center rally-display rally-accent text-[28px] font-bold sm:text-[34px]">★</span>
+                <span className="rally-display rally-accent grid h-full w-full place-items-center text-[28px] font-bold sm:text-[34px]">
+                  ★
+                </span>
               ) : (
-                <span className="grid h-full w-full place-items-center rally-display text-base font-bold text-foreground sm:text-lg">
+                <span className="rally-display grid h-full w-full place-items-center text-base font-bold text-foreground sm:text-lg">
                   {initialsOf(team.name)}
                 </span>
               )}
@@ -161,7 +158,7 @@ export function ScoreRows({
                 <span className="rally-display w-7 shrink-0 text-center text-xl font-bold tabular-nums text-muted-foreground">
                   {rank}
                 </span>
-                <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold overflow-hidden">
+                <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-bold">
                   {team.photo_url ? (
                     <img
                       src={team.photo_url}
@@ -174,9 +171,7 @@ export function ScoreRows({
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-foreground">
-                    {team.name}
-                  </span>
+                  <span className="block truncate font-semibold text-foreground">{team.name}</span>
                   {reached > 0 && (
                     <span className="block text-xs text-muted-foreground">
                       {reachedLabel(reached, checkpointsCount, terms)}

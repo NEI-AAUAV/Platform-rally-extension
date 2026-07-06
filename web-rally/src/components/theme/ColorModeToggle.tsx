@@ -120,7 +120,12 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
         />
 
         {/* Light rays */}
-        <g stroke="#ffeaa7" strokeWidth="0.5" opacity={isOn ? 0.4 : 0} style={{ transition: "opacity 0.3s ease" }}>
+        <g
+          stroke="#ffeaa7"
+          strokeWidth="0.5"
+          opacity={isOn ? 0.4 : 0}
+          style={{ transition: "opacity 0.3s ease" }}
+        >
           <line x1="6" y1="10" x2="4" y2="8" />
           <line x1="5" y1="16" x2="2" y2="16" />
           <line x1="6" y1="21" x2="4" y2="23" />

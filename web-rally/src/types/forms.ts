@@ -70,12 +70,11 @@ export interface TeamVsFormProps extends BaseActivityFormProps {
  */
 export function getTeamSize(team?: Team): number {
   if (!team) return 1;
-  if ('num_members' in team) {
+  if ("num_members" in team) {
     return team.num_members;
   }
-  if ('members' in team) {
+  if ("members" in team) {
     return team.members.length;
   }
   return 1;
 }
-

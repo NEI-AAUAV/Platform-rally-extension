@@ -41,7 +41,9 @@ export default function Scoreboard() {
   const { scopes } = useUserStore((state) => state);
   const isAdminOrManager =
     scopes !== undefined &&
-    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin"));
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isPrivileged = isAdminOrManager || isStaff;
 
@@ -62,7 +64,10 @@ export default function Scoreboard() {
             <>
               A pontuação está visível apenas para membros das equipas.
               <br />
-              <a href="/rally/team-login" className="rally-accent mt-2 inline-block font-semibold hover:underline">
+              <a
+                href="/rally/team-login"
+                className="rally-accent mt-2 inline-block font-semibold hover:underline"
+              >
                 Fazer login
               </a>
             </>
@@ -106,7 +111,7 @@ export default function Scoreboard() {
       {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <span className="text-xs font-bold uppercase tracking-[0.2em] rally-accent">
+          <span className="rally-accent text-xs font-bold uppercase tracking-[0.2em]">
             Pontuação ao vivo
           </span>
           <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
@@ -141,74 +146,75 @@ export default function Scoreboard() {
               <div className="rally-surface rally-elevate relative overflow-hidden p-6">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full rally-bg-accent-soft blur-3xl"
+                  className="rally-bg-accent-soft pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full blur-3xl"
                 />
                 <div className="relative z-10">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                     A tua equipa
                   </p>
-                  <p className="mt-3 font-bold text-foreground leading-snug">
+                  <p className="mt-3 font-bold leading-snug text-foreground">
                     Entra com a tua equipa para veres a tua posição e progresso ao vivo.
                   </p>
                   <Link
                     to="/team-login"
-                    className="mt-4 block w-full rounded-[12px] rally-bg-accent py-3 text-center font-bold text-sm text-white"
+                    className="rally-bg-accent mt-4 block w-full rounded-[12px] py-3 text-center text-sm font-bold text-white"
                   >
                     Entrar com a Equipa
                   </Link>
                 </div>
               </div>
             )}
-            {myTeam && (() => {
-              const myRank = myRankIndex + 1;
-              const thirdPlace = sortedTeams?.[2];
-              const gapToPodium =
-                myRank > 3 && thirdPlace ? thirdPlace.total - myTeam.total + 1 : null;
-              return (
-                <div className="rally-surface rally-elevate relative overflow-hidden p-6">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full rally-bg-accent-soft blur-3xl"
-                  />
-                  <div className="relative z-10">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                      A tua equipa
-                    </p>
-                    <div className="mt-3 flex items-baseline gap-2">
-                      <span className="rally-display text-4xl font-bold text-foreground">
-                        #{myRank}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        de {sortedTeams?.length}
-                      </span>
+            {myTeam &&
+              (() => {
+                const myRank = myRankIndex + 1;
+                const thirdPlace = sortedTeams?.[2];
+                const gapToPodium =
+                  myRank > 3 && thirdPlace ? thirdPlace.total - myTeam.total + 1 : null;
+                return (
+                  <div className="rally-surface rally-elevate relative overflow-hidden p-6">
+                    <div
+                      aria-hidden
+                      className="rally-bg-accent-soft pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full blur-3xl"
+                    />
+                    <div className="relative z-10">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        A tua equipa
+                      </p>
+                      <div className="mt-3 flex items-baseline gap-2">
+                        <span className="rally-display text-4xl font-bold text-foreground">
+                          #{myRank}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          de {sortedTeams?.length}
+                        </span>
+                      </div>
+                      <p className="mt-2 truncate font-bold text-foreground">{myTeam.name}</p>
+                      <p className="rally-display rally-accent mt-1 text-3xl font-bold tabular-nums">
+                        {myTeam.total}
+                        <span className="ml-1 text-sm font-medium text-muted-foreground">pts</span>
+                      </p>
+                      {gapToPodium !== null && (
+                        <p className="mt-4 border-t border-border pt-4 text-sm leading-relaxed text-muted-foreground">
+                          Faltam{" "}
+                          <strong className="font-bold text-foreground">{gapToPodium} pts</strong>{" "}
+                          para o pódio.
+                        </p>
+                      )}
+                      {myRank <= 3 && (
+                        <p className="rally-accent mt-4 border-t border-border pt-4 text-sm font-semibold">
+                          No pódio! Mantém a posição.
+                        </p>
+                      )}
+                      <Link
+                        to="/team-progress"
+                        className="rally-bg-accent mt-4 block w-full rounded-[12px] py-3 text-center text-sm font-bold text-white"
+                      >
+                        Ver progresso
+                      </Link>
                     </div>
-                    <p className="mt-2 truncate font-bold text-foreground">{myTeam.name}</p>
-                    <p className="rally-display rally-accent mt-1 text-3xl font-bold tabular-nums">
-                      {myTeam.total}
-                      <span className="ml-1 text-sm font-medium text-muted-foreground">pts</span>
-                    </p>
-                    {gapToPodium !== null && (
-                      <p className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground leading-relaxed">
-                        Faltam{" "}
-                        <strong className="font-bold text-foreground">{gapToPodium} pts</strong>{" "}
-                        para o pódio.
-                      </p>
-                    )}
-                    {myRank <= 3 && (
-                      <p className="mt-4 border-t border-border pt-4 text-sm font-semibold rally-accent">
-                        No pódio! Mantém a posição.
-                      </p>
-                    )}
-                    <Link
-                      to="/team-progress"
-                      className="mt-4 block w-full rounded-[12px] rally-bg-accent py-3 text-center font-bold text-sm text-white"
-                    >
-                      Ver progresso
-                    </Link>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </aside>
         </div>
       )}

@@ -30,12 +30,8 @@ export default function PageHeader({
           {eyebrow}
         </p>
       )}
-      <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">
-        {title}
-      </h1>
-      {description && (
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>
-      )}
+      <h1 className="rally-display mt-2 text-4xl font-bold text-foreground sm:text-5xl">{title}</h1>
+      {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
     </header>
   );
 }

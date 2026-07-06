@@ -1,4 +1,10 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Users, MapPin } from "lucide-react";
 
 import type { DetailedCheckPoint } from "@/client";
@@ -15,30 +21,36 @@ interface StaffAssignment {
 }
 
 type StaffAssignmentListProps = Readonly<{
-
   assignments: StaffAssignment[];
   checkpoints: Checkpoint[] | undefined;
   onUpdateAssignment: (userId: number, checkpointId: number) => void;
   className?: string;
-}>
+}>;
 
-export default function StaffAssignmentList({ assignments, checkpoints, onUpdateAssignment, className = "" }: StaffAssignmentListProps) {
-  
+export default function StaffAssignmentList({
+  assignments,
+  checkpoints,
+  onUpdateAssignment,
+  className = "",
+}: StaffAssignmentListProps) {
   if (assignments.length === 0) {
     return (
-      <div className={`text-center text-muted-foreground py-8 ${className}`}>
+      <div className={`py-8 text-center text-muted-foreground ${className}`}>
         Nenhuma atribuição de staff encontrada.
       </div>
     );
   }
-  
+
   return (
     <div className={`space-y-4 ${className}`}>
       {assignments.map((assignment: StaffAssignment) => (
-        <div key={assignment.id} className="border border-border bg-card/60 rounded-xl p-4 sm:p-6 flex items-center justify-between">
+        <div
+          key={assignment.id}
+          className="flex items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-              <Users className="w-5 h-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <Users className="h-5 w-5" />
             </div>
             <div>
               <div className="font-semibold">
@@ -52,7 +64,7 @@ export default function StaffAssignmentList({ assignments, checkpoints, onUpdate
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
+              <MapPin className="h-4 w-4" />
               <span className="text-sm">
                 Checkpoint: {assignment.checkpoint_name || "Não atribuído"}
               </span>

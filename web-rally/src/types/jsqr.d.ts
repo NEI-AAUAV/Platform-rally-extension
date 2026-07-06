@@ -1,4 +1,4 @@
-declare module 'jsqr' {
+declare module "jsqr" {
   interface Point {
     x: number;
     y: number;
@@ -25,7 +25,7 @@ declare module 'jsqr' {
     height: number,
     options?: {
       inversionAttempts?: "dontInvert" | "onlyInvert" | "attemptBoth" | "invertFirst";
-    }
+    },
   ): QRCode | null;
 
   export default jsQR;

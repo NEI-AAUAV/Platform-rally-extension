@@ -22,16 +22,15 @@ const addMemberSchema = z.object({
 type AddMemberForm = z.infer<typeof addMemberSchema>;
 
 type MemberFormProps = Readonly<{
-
   selectedTeam: string;
   userToken: string;
   onSuccess: () => void;
   className?: string;
-}>
+}>;
 
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
   const toast = useAppToast();
-  
+
   // Form setup
   const form = useForm<AddMemberForm>({
     resolver: zodResolver(addMemberSchema),
@@ -54,7 +53,10 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
         email: memberData.email || null,
         is_captain: memberData.is_captain,
       };
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(Number(selectedTeam), requestBody);
+      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(
+        Number(selectedTeam),
+        requestBody,
+      );
     },
     onSuccess: () => {
       onSuccess();
@@ -75,12 +77,10 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
     <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <UserPlus className="w-5 h-5" />
+          <UserPlus className="h-5 w-5" />
           Adicionar Membro
         </CardTitle>
-        <CardDescription>
-          Adicionar um novo membro à equipa selecionada
-        </CardDescription>
+        <CardDescription>Adicionar um novo membro à equipa selecionada</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={form.handleSubmit(handleAddMember)} className="space-y-4">
@@ -92,20 +92,16 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
               </AlertDescription>
             </Alert>
           )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                {...form.register("name")}
-                placeholder="Nome do membro"
-              />
+              <Input id="name" {...form.register("name")} placeholder="Nome do membro" />
               {form.formState.errors.name && (
-                <p className="text-red-400 text-sm">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
               )}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email (opcional)</Label>
               <Input
@@ -115,12 +111,12 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 placeholder="email@exemplo.com"
               />
               {form.formState.errors.email && (
-                <p className="text-red-400 text-sm">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.email.message}</p>
               )}
             </div>
           </div>
-          
-          <div className="border border-border bg-card/60 rounded-lg p-4 sm:p-6">
+
+          <div className="rounded-lg border border-border bg-card/60 p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="is_captain" className="text-base">
@@ -136,13 +132,9 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
               />
             </div>
           </div>
-          
+
           <div className="flex justify-center">
-            <Button
-              type="submit"
-              disabled={isAddingMember}
-              className="min-w-[200px]"
-            >
+            <Button type="submit" disabled={isAddingMember} className="min-w-[200px]">
               {isAddingMember ? "A Adicionar..." : "Adicionar Membro"}
             </Button>
           </div>
@@ -151,6 +143,3 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
     </div>
   );
 }
-
-
-

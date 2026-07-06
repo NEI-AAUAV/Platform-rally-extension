@@ -17,7 +17,6 @@ import {
   type TeamTokenData,
 } from "@/lib/auth/tokenStore";
 
-
 interface TeamLoginResponse {
   access_token: string;
   token_type: string;
@@ -54,7 +53,9 @@ export default function useTeamAuth() {
   const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
     queryKey: ["team", teamData?.team_id],
     queryFn: () =>
-      teamData ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id) : Promise.reject(new Error("No team data")),
+      teamData
+        ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id)
+        : Promise.reject(new Error("No team data")),
     enabled: isAuthenticated && !!teamData?.team_id,
     staleTime: 0,
   });
@@ -94,7 +95,7 @@ export default function useTeamAuth() {
       if (!teamData?.team_id) throw new Error("Team ID not found");
       return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(
         teamData.team_id,
-        memberData
+        memberData,
       );
     },
     onSuccess: () => {
@@ -108,7 +109,7 @@ export default function useTeamAuth() {
       if (!teamData?.team_id) throw new Error("Team ID not found");
       return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
         teamData.team_id,
-        memberId
+        memberId,
       );
     },
     onSuccess: () => {

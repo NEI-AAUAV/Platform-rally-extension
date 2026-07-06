@@ -25,7 +25,11 @@ function initialsOf(name: string): string {
  * event name and the two login options. Deliberately compact and fully visible
  * at any viewport — all labels/images come from {@link Branding}.
  */
-export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/rally/team-login" }: LandingGateProps) {
+export default function LandingGate({
+  branding,
+  onStaffLogin,
+  teamLoginHref = "/rally/team-login",
+}: LandingGateProps) {
   const { eventName, eventSubtitle, bannerSrc, logoSrc } = branding;
   const [bannerError, setBannerError] = useState(false);
   const showBanner = !bannerError;
@@ -58,7 +62,7 @@ export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/
                 <img
                   src={logoSrc}
                   alt={`${eventName} logo`}
-                  className="h-[72px] w-[72px] rounded-2xl object-contain ring-4 ring-border bg-muted"
+                  className="h-[72px] w-[72px] rounded-2xl bg-muted object-contain ring-4 ring-border"
                 />
               ) : (
                 <span className="rally-bg-accent rally-shadow-accent grid h-[72px] w-[72px] place-items-center rounded-2xl font-display text-2xl font-bold text-white ring-4 ring-border">
@@ -74,7 +78,7 @@ export default function LandingGate({ branding, onStaffLogin, teamLoginHref = "/
               <p className="mt-2 text-center text-sm text-muted-foreground">{eventSubtitle}</p>
             )}
 
-            <div className="mx-auto my-6 h-px w-16 rally-bg-accent opacity-70" />
+            <div className="rally-bg-accent mx-auto my-6 h-px w-16 opacity-70" />
 
             <div className="grid gap-3">
               <button

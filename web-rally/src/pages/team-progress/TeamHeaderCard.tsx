@@ -27,7 +27,7 @@ export default function TeamHeaderCard({
   const initials = initialsOf(team.name);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl rally-bg-accent p-6 text-white">
+    <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-6 text-white">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:28px_28px]"

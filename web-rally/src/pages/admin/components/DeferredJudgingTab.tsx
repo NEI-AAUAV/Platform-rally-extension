@@ -5,20 +5,34 @@ import { DeferredJudgingService, type DeferredResultResponse } from "@/client";
 
 export default function DeferredJudgingTab() {
   const qc = useQueryClient();
-  const [judging, setJudging] = useState<{ id: number; points: string; notes: string } | null>(null);
+  const [judging, setJudging] = useState<{ id: number; points: string; notes: string } | null>(
+    null,
+  );
 
   const { data: pending = [], isLoading } = useQuery<DeferredResultResponse[]>({
     queryKey: ["deferred-pending"],
-    queryFn: () => DeferredJudgingService.listPendingJudgmentsApiRallyV1ActivitiesDeferredPendingGet(),
+    queryFn: () =>
+      DeferredJudgingService.listPendingJudgmentsApiRallyV1ActivitiesDeferredPendingGet(),
     refetchInterval: 30_000,
   });
 
   const judgeMutation = useMutation({
-    mutationFn: ({ resultId, points, notes }: { resultId: number; points: number; notes?: string }) =>
-      DeferredJudgingService.judgeDeferredResultApiRallyV1ActivitiesResultsResultIdJudgePut(resultId, {
-        points,
-        notes,
-      }),
+    mutationFn: ({
+      resultId,
+      points,
+      notes,
+    }: {
+      resultId: number;
+      points: number;
+      notes?: string;
+    }) =>
+      DeferredJudgingService.judgeDeferredResultApiRallyV1ActivitiesResultsResultIdJudgePut(
+        resultId,
+        {
+          points,
+          notes,
+        },
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["deferred-pending"] });
       setJudging(null);
@@ -114,7 +128,7 @@ export default function DeferredJudgingTab() {
 
               {/* Judging form */}
               {isJudgingThis && (
-                <div className="border-t pt-3 space-y-3">
+                <div className="space-y-3 border-t pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <label className="space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">Pontos</span>
@@ -128,7 +142,9 @@ export default function DeferredJudgingTab() {
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground">Notas (opcional)</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Notas (opcional)
+                      </span>
                       <input
                         type="text"
                         className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"

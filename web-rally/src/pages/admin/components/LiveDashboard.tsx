@@ -28,8 +28,8 @@ function PhaseChip({ phase, state }: { phase: string; state: ReturnType<typeof u
   if (phase === "live") {
     return (
       <span className="rally-bg-accent inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-white">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-        A decorrer — termina em {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />A decorrer — termina em{" "}
+        {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
       </span>
     );
   }
@@ -37,7 +37,8 @@ function PhaseChip({ phase, state }: { phase: string; state: ReturnType<typeof u
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-600 dark:text-yellow-300">
         <Clock className="h-3.5 w-3.5" />
-        Começa em {state.days > 0 ? `${state.days}d ` : ""}{PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
+        Começa em {state.days > 0 ? `${state.days}d ` : ""}
+        {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
       </span>
     );
   }
@@ -62,7 +63,9 @@ function StatCard({
 }) {
   return (
     <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
-      <div className={`rounded-lg p-2 ${accent ? "rally-bg-accent text-white" : "bg-secondary text-muted-foreground"}`}>
+      <div
+        className={`rounded-lg p-2 ${accent ? "rally-bg-accent text-white" : "bg-secondary text-muted-foreground"}`}
+      >
         <Icon className="h-5 w-5" />
       </div>
       <div>
@@ -92,14 +95,14 @@ export default function LiveDashboard() {
 
   const { data: allEvals } = useQuery<{ evaluations?: unknown[] }>({
     queryKey: ["allEvaluations"],
-    queryFn: () => StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet() as Promise<{ evaluations?: unknown[] }>,
+    queryFn: () =>
+      StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet() as Promise<{
+        evaluations?: unknown[];
+      }>,
     refetchInterval: 15_000,
   });
 
-  const teamList = useMemo(
-    () => (Array.isArray(teams) ? (teams as ListingTeam[]) : []),
-    [teams],
-  );
+  const teamList = useMemo(() => (Array.isArray(teams) ? (teams as ListingTeam[]) : []), [teams]);
   const checkpointList = useMemo(
     () => (Array.isArray(checkpoints) ? checkpoints : []),
     [checkpoints],
@@ -110,9 +113,7 @@ export default function LiveDashboard() {
   const teamsNotStarted = teamList.length - teamsStarted;
   const checkpointsTotal = checkpointList.length;
 
-  const rankedTeams = [...teamList].sort(
-    (a, b) => a.classification - b.classification,
-  );
+  const rankedTeams = [...teamList].sort((a, b) => a.classification - b.classification);
 
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
@@ -219,7 +220,7 @@ export default function LiveDashboard() {
                 <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full rally-bg-accent-soft rally-accent text-xs font-bold">
+                <span className="rally-bg-accent-soft rally-accent grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold">
                   {initialsOf(team.name)}
                 </span>
                 <span className="flex-1 truncate text-sm font-semibold text-foreground">

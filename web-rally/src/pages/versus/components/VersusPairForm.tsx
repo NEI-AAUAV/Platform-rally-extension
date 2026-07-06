@@ -2,19 +2,29 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
-import { VersusService, type VersusPairCreate, type VersusPairResponse, type ListingTeam } from "@/client";
+import {
+  VersusService,
+  type VersusPairCreate,
+  type VersusPairResponse,
+  type ListingTeam,
+} from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type VersusPairFormProps = Readonly<{
-
   teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
-}>
+}>;
 
 export default function VersusPairForm({ teams, onSuccess, className = "" }: VersusPairFormProps) {
   const toast = useAppToast();
@@ -27,7 +37,10 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
     isPending: isCreatingPair,
     error: createError,
   } = useMutation({
-    mutationFn: async (pairData: { team_a_id: number; team_b_id: number }): Promise<VersusPairResponse> => {
+    mutationFn: async (pairData: {
+      team_a_id: number;
+      team_b_id: number;
+    }): Promise<VersusPairResponse> => {
       const requestBody: VersusPairCreate = {
         team_a_id: pairData.team_a_id,
         team_b_id: pairData.team_b_id,
@@ -49,7 +62,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
     if (!selectedTeamA || !selectedTeamB) {
       return;
     }
-    
+
     if (selectedTeamA === selectedTeamB) {
       return;
     }
@@ -67,7 +80,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
     <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Plus className="w-5 h-5" />
+          <Plus className="h-5 w-5" />
           Criar Novo Par Versus
         </CardTitle>
         <CardDescription>
@@ -78,15 +91,15 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
         {createError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {createError.message}
-            </AlertDescription>
+            <AlertDescription>{createError.message}</AlertDescription>
           </Alert>
         )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="team-a-select" className="text-sm font-medium">Equipa A</label>
+            <label htmlFor="team-a-select" className="text-sm font-medium">
+              Equipa A
+            </label>
             <Select value={selectedTeamA} onValueChange={setSelectedTeamA}>
               <SelectTrigger id="team-a-select">
                 <SelectValue placeholder="Selecionar equipa A" />
@@ -100,9 +113,11 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
-            <label htmlFor="team-b-select" className="text-sm font-medium">Equipa B</label>
+            <label htmlFor="team-b-select" className="text-sm font-medium">
+              Equipa B
+            </label>
             <Select value={selectedTeamB} onValueChange={setSelectedTeamB}>
               <SelectTrigger id="team-b-select">
                 <SelectValue placeholder="Selecionar equipa B" />
@@ -119,11 +134,13 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
             </Select>
           </div>
         </div>
-        
+
         <div className="flex justify-center">
           <Button
             onClick={handleCreatePair}
-            disabled={!selectedTeamA || !selectedTeamB || selectedTeamA === selectedTeamB || isCreatingPair}
+            disabled={
+              !selectedTeamA || !selectedTeamB || selectedTeamA === selectedTeamB || isCreatingPair
+            }
             className="min-w-[200px]"
           >
             {isCreatingPair ? "A Criar..." : "Criar Par Versus"}
@@ -133,11 +150,3 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
     </div>
   );
 }
-
-
-
-
-
-
-
-

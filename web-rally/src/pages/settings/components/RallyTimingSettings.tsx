@@ -1,12 +1,12 @@
-import { cn } from '@/lib/utils';
-import { Calendar } from 'lucide-react';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link } from '@tanstack/react-router';
-import { useFormContext } from 'react-hook-form';
+import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "@tanstack/react-router";
+import { useFormContext } from "react-hook-form";
 
 type RallyTimingSettingsProps = Readonly<{
   className?: string;
-}>
+}>;
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "Não definido";
@@ -28,7 +28,7 @@ export default function RallyTimingSettings({ className = "" }: RallyTimingSetti
     <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
+          <Calendar className="h-5 w-5" />
           Horários do Rally
         </CardTitle>
         <CardDescription>
@@ -46,10 +46,7 @@ export default function RallyTimingSettings({ className = "" }: RallyTimingSetti
             <p className="font-medium">{formatDateTime(endTime)}</p>
           </div>
         </div>
-        <Link
-          to="/admin"
-          className="text-sm text-primary underline underline-offset-2"
-        >
+        <Link to="/admin" className="text-sm text-primary underline underline-offset-2">
           Editar horários na gestão de eventos
         </Link>
       </CardContent>

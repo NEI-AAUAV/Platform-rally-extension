@@ -66,19 +66,19 @@ function getSubmitButtonLabel(isLoading: boolean, hasInitialData: boolean): stri
 
 /**
  * Form component for creating and editing activities
- * 
+ *
  * Provides a comprehensive form with:
  * - Activity name and description
  * - Activity type selection
  * - Checkpoint assignment
  * - Type-specific configuration fields
  * - Form validation with error messages
- * 
+ *
  * Supports both create and edit modes via initialData prop.
- * 
+ *
  * @param props - ActivityFormProps
  * @returns JSX form element
- * 
+ *
  * @example
  * ```tsx
  * <ActivityCreateForm
@@ -112,7 +112,9 @@ export default function ActivityForm({
   });
 
   const watchActivityType = form.watch("activity_type");
-  const [configData, setConfigData] = useState<Record<string, ConfigValue>>(initialData?.config ?? {});
+  const [configData, setConfigData] = useState<Record<string, ConfigValue>>(
+    initialData?.config ?? {},
+  );
 
   // Synchronize configData with initialData changes (e.g., when switching between create/edit)
   useEffect(() => {
@@ -126,20 +128,19 @@ export default function ActivityForm({
   };
 
   const updateConfig = (key: string, value: ConfigValue) => {
-    setConfigData(prev => ({ ...prev, [key]: value }));
+    setConfigData((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-xl font-semibold mb-2">
+        <h3 className="mb-2 text-xl font-semibold">
           {initialData ? "Editar Atividade" : "Criar Nova Atividade"}
         </h3>
         <p className="text-muted-foreground">
           {initialData
             ? "Modifique os detalhes da atividade"
-            : "Configure uma nova atividade para o Rally"
-          }
+            : "Configure uma nova atividade para o Rally"}
         </p>
       </div>
 
@@ -162,7 +163,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Ex: Cabo de Guerra"
                     {...field}
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -180,7 +181,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Descreva a atividade..."
                     {...field}
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -198,7 +199,7 @@ export default function ActivityForm({
                   <select
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
-                    className="w-full p-2 bg-muted border border-border rounded text-foreground"
+                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
                   >
                     {checkpoints.map((checkpoint) => (
                       <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
@@ -224,7 +225,7 @@ export default function ActivityForm({
                 <FormControl>
                   <select
                     {...field}
-                    className="w-full p-2 bg-muted border border-border rounded text-foreground"
+                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
                   >
                     {Object.entries(activityTypeLabels).map(([value, label]) => (
                       <option key={value} value={value} className="bg-gray-800">
@@ -246,11 +247,7 @@ export default function ActivityForm({
           />
 
           <div className="flex gap-4 pt-4">
-            <BloodyButton
-              type="submit"
-              disabled={isLoading}
-              className="flex-1"
-            >
+            <BloodyButton type="submit" disabled={isLoading} className="flex-1">
               {getSubmitButtonLabel(isLoading, !!initialData)}
             </BloodyButton>
             <BloodyButton

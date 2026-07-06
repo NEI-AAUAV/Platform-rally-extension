@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { CalendarRange, Check, Plus, Star, Pencil, X, Shuffle, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  CalendarRange,
+  Check,
+  Plus,
+  Star,
+  Pencil,
+  X,
+  Shuffle,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 import { EventsService } from "@/client";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -43,16 +53,24 @@ function toForm(ev: RallyEvent): FormState {
     name: ev.name,
     event_type: ev.event_type,
     description: ev.description ?? "",
-    start_time: ev.start_time ? utcISOStringToLocalDatetimeLocal(ev.start_time) ?? "" : "",
-    end_time: ev.end_time ? utcISOStringToLocalDatetimeLocal(ev.end_time) ?? "" : "",
+    start_time: ev.start_time ? (utcISOStringToLocalDatetimeLocal(ev.start_time) ?? "") : "",
+    end_time: ev.end_time ? (utcISOStringToLocalDatetimeLocal(ev.end_time) ?? "") : "",
   };
 }
 
 function formatRange(ev: RallyEvent): string | null {
   if (!ev.start_time) return null;
-  const start = new Date(ev.start_time).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+  const start = new Date(ev.start_time).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
   if (!ev.end_time) return start;
-  const end = new Date(ev.end_time).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+  const end = new Date(ev.end_time).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
   return `${start} – ${end}`;
 }
 
@@ -139,11 +157,20 @@ export default function EventsManagement() {
     if (editingId != null) {
       update.mutate(
         { id: editingId, body },
-        { onSuccess: () => { toast.success("Evento atualizado"); resetForm(); }, onError },
+        {
+          onSuccess: () => {
+            toast.success("Evento atualizado");
+            resetForm();
+          },
+          onError,
+        },
       );
     } else {
       create.mutate(body, {
-        onSuccess: () => { toast.success("Evento criado"); resetForm(); },
+        onSuccess: () => {
+          toast.success("Evento criado");
+          resetForm();
+        },
         onError,
       });
     }
@@ -167,10 +194,19 @@ export default function EventsManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="rally-display text-xl font-bold">Edições</h2>
-          <p className="text-sm text-muted-foreground">Cria, edita e troca a edição atual sem apagar dados.</p>
+          <p className="text-sm text-muted-foreground">
+            Cria, edita e troca a edição atual sem apagar dados.
+          </p>
         </div>
         {!showForm && (
-          <Button variant="default" onClick={() => { setForm(EMPTY_FORM); setEditingId(null); setShowForm(true); }}>
+          <Button
+            variant="default"
+            onClick={() => {
+              setForm(EMPTY_FORM);
+              setEditingId(null);
+              setShowForm(true);
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" /> Novo
           </Button>
         )}
@@ -182,33 +218,58 @@ export default function EventsManagement() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="ev-name">Nome</Label>
-                <Input id="ev-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Rally Tascas 2026" />
+                <Input
+                  id="ev-name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Rally Tascas 2026"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-type">Tipo</Label>
-                <Select value={form.event_type} onValueChange={(v) => setForm({ ...form, event_type: v as EventType })}>
+                <Select
+                  value={form.event_type}
+                  onValueChange={(v) => setForm({ ...form, event_type: v as EventType })}
+                >
                   <SelectTrigger id="ev-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((t) => (
-                      <SelectItem key={t} value={t}>{EVENT_TYPE_LABELS[t]}</SelectItem>
+                      <SelectItem key={t} value={t}>
+                        {EVENT_TYPE_LABELS[t]}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-start">Início</Label>
-                <Input id="ev-start" type="datetime-local" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                <Input
+                  id="ev-start"
+                  type="datetime-local"
+                  value={form.start_time}
+                  onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-end">Fim</Label>
-                <Input id="ev-end" type="datetime-local" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                <Input
+                  id="ev-end"
+                  type="datetime-local"
+                  value={form.end_time}
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ev-desc">Descrição</Label>
-              <Input id="ev-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Opcional" />
+              <Input
+                id="ev-desc"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Opcional"
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={resetForm}>
@@ -240,7 +301,9 @@ export default function EventsManagement() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="rally-display truncate text-lg font-bold text-foreground">{ev.name}</h3>
+                    <h3 className="rally-display truncate text-lg font-bold text-foreground">
+                      {ev.name}
+                    </h3>
                     {ev.is_current && (
                       <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white">
                         <Star className="h-3 w-3" /> Atual
@@ -251,14 +314,19 @@ export default function EventsManagement() {
                     {EVENT_TYPE_LABELS[ev.event_type]}
                     {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
                   </p>
-                  {ev.description && <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>}
+                  {ev.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {ev.event_type === "olympic" && (
-                    <RotationScheduleButton eventId={ev.id} />
-                  )}
+                  {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
                   {!ev.is_current && (
-                    <Button variant="outline" size="sm" onClick={() => handleSetCurrent(ev)} disabled={setCurrent.isPending}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetCurrent(ev)}
+                      disabled={setCurrent.isPending}
+                    >
                       <Star className="mr-1.5 h-3.5 w-3.5" /> Tornar atual
                     </Button>
                   )}

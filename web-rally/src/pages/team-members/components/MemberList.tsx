@@ -16,25 +16,26 @@ interface TeamMember {
 }
 
 type MemberListProps = Readonly<{
-
   teamMembers: TeamMember[] | undefined;
   selectedTeam: string;
   userToken: string;
   onSuccess: () => void;
   className?: string;
-}>
+}>;
 
-export default function MemberList({ teamMembers, selectedTeam, onSuccess, className = "" }: MemberListProps) {
+export default function MemberList({
+  teamMembers,
+  selectedTeam,
+  onSuccess,
+  className = "",
+}: MemberListProps) {
   const [linkingId, setLinkingId] = useState<number | null>(null);
   // Remove member mutation
-  const {
-    mutate: removeMember,
-    isPending: isRemovingMember,
-  } = useMutation({
+  const { mutate: removeMember, isPending: isRemovingMember } = useMutation({
     mutationFn: async (userId: number) => {
       return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
         Number.parseInt(selectedTeam),
-        userId
+        userId,
       );
     },
     onSuccess: () => {
@@ -51,47 +52,52 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
+          <Users className="h-5 w-5" />
           Membros da Equipa
         </CardTitle>
-        <CardDescription>
-          Lista de membros da equipa selecionada
-        </CardDescription>
+        <CardDescription>Lista de membros da equipa selecionada</CardDescription>
       </CardHeader>
       <CardContent>
         {teamMembers?.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <div className="py-8 text-center text-muted-foreground">
+            <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
             <p>Esta equipa não tem membros ainda.</p>
-            <p className="text-sm mt-2">Adicione o primeiro membro usando o formulário acima.</p>
+            <p className="mt-2 text-sm">Adicione o primeiro membro usando o formulário acima.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {teamMembers?.map((member) => (
-              <div key={member.id} className="border border-border bg-card/60 rounded-xl p-3 sm:p-4 transition-colors hover:bg-accent">
+              <div
+                key={member.id}
+                className="rounded-xl border border-border bg-card/60 p-3 transition-colors hover:bg-accent sm:p-4"
+              >
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="bg-blue-600/20 text-blue-300 border-blue-500">
+                  <Badge variant="outline" className="border-blue-500 bg-blue-600/20 text-blue-300">
                     ID: {member.id}
                   </Badge>
                   {member.is_captain && (
-                    <Badge variant="outline" className="bg-yellow-600/20 text-yellow-300 border-yellow-500">
+                    <Badge
+                      variant="outline"
+                      className="border-yellow-500 bg-yellow-600/20 text-yellow-300"
+                    >
                       Capitão
                     </Badge>
                   )}
                   <div>
                     <div className="font-medium">{member.name}</div>
                     {member.email && (
-                      <div className="text-sm text-muted-foreground">
-                        {member.email}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{member.email}</div>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   {member.is_linked ? (
-                    <Badge variant="outline" className="bg-emerald-600/20 text-emerald-300 border-emerald-500">
-                      <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500 bg-emerald-600/20 text-emerald-300"
+                    >
+                      <Link2 className="mr-1.5 h-3.5 w-3.5" />
                       Conta NEI associada
                     </Badge>
                   ) : (
@@ -99,9 +105,9 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                       variant="outline"
                       size="sm"
                       onClick={() => setLinkingId((id) => (id === member.id ? null : member.id))}
-                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-600/20"
+                      className="text-blue-400 hover:bg-blue-600/20 hover:text-blue-300"
                     >
-                      <Link2 className="w-4 h-4 mr-2" />
+                      <Link2 className="mr-2 h-4 w-4" />
                       {linkingId === member.id ? "Cancelar" : "Ligar conta NEI"}
                     </Button>
                   )}
@@ -110,9 +116,9 @@ export default function MemberList({ teamMembers, selectedTeam, onSuccess, class
                     size="sm"
                     onClick={() => handleRemoveMember(member.id)}
                     disabled={isRemovingMember}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-600/20"
+                    className="text-red-400 hover:bg-red-600/20 hover:text-red-300"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Remover
                   </Button>
                 </div>

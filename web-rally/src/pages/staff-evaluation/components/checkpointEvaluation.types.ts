@@ -1,8 +1,4 @@
-import type {
-  ActivityResponse,
-  ActivityResultResponse,
-  ListingTeam,
-} from "@/client";
+import type { ActivityResponse, ActivityResultResponse, ListingTeam } from "@/client";
 import type { ActivityResultData } from "@/types/forms";
 
 export type EvaluationSummary = {

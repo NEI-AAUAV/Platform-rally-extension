@@ -36,8 +36,7 @@ const variantClassification = (classification: number) => {
 
 /** Team score card on the design tokens; the leader is highlighted with the accent. */
 export function RallyScore({ className, team, ...props }: ScoreProps) {
-  const lastCheckpointTime =
-    team.last_checkpoint_time && new Date(team.last_checkpoint_time);
+  const lastCheckpointTime = team.last_checkpoint_time && new Date(team.last_checkpoint_time);
 
   const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
   const isLeader = team.classification === 1;
@@ -72,9 +71,7 @@ export function RallyScore({ className, team, ...props }: ScoreProps) {
               {team.last_checkpoint_score || 0}pts
             </div>
             {lastCheckpointTime && (
-              <div className="text-xs text-muted-foreground">
-                {formatTime(lastCheckpointTime)}
-              </div>
+              <div className="text-xs text-muted-foreground">{formatTime(lastCheckpointTime)}</div>
             )}
           </div>
         ) : (

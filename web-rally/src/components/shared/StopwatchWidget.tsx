@@ -96,11 +96,14 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
                   <tr key={l.n} className="border-b border-border/50 last:border-0">
                     <td className="px-3 py-1.5 font-semibold text-muted-foreground">{l.n}</td>
                     <td
-                      className={["px-3 py-1.5 font-mono font-semibold tabular-nums", splitClass].join(" ")}
+                      className={[
+                        "font-mono px-3 py-1.5 font-semibold tabular-nums",
+                        splitClass,
+                      ].join(" ")}
                     >
                       {formatStopwatchTime(l.split)}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
+                    <td className="font-mono px-3 py-1.5 text-right tabular-nums text-muted-foreground">
                       {formatStopwatchTime(l.elapsed)}
                     </td>
                   </tr>

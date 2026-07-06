@@ -30,7 +30,8 @@ export default function Postos() {
   const { scopes } = useUserStore((state) => state);
 
   // Check if user has admin/manager/staff privileges
-  const isPrivileged = scopes !== undefined &&
+  const isPrivileged =
+    scopes !== undefined &&
     (scopes.includes("admin") ||
       scopes.includes("manager-rally") ||
       scopes.includes("rally:admin") ||
@@ -54,17 +55,14 @@ export default function Postos() {
   }
 
   // Sort checkpoints by order property from database
-  const sortedCheckpoints: Checkpoint[] = (
+  const sortedCheckpoints: Checkpoint[] =
     checkpoints
       ?.slice()
-      .sort((a: DetailedCheckPoint, b: DetailedCheckPoint) => a.order - b.order)
-    || []
-  );
+      .sort((a: DetailedCheckPoint, b: DetailedCheckPoint) => a.order - b.order) || [];
 
   if (isLoading) {
     return <LoadingState message="A carregar postos..." />;
   }
-
 
   return (
     <div className="space-y-8">
@@ -100,4 +98,3 @@ export default function Postos() {
     </div>
   );
 }
-

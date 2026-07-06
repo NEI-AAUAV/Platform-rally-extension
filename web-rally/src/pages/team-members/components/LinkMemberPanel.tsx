@@ -3,10 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link2, Search } from "lucide-react";
-import {
-  TeamMemberLinkService,
-  type OidcUserSearchResult,
-} from "@/services/TeamMemberLinkService";
+import { TeamMemberLinkService, type OidcUserSearchResult } from "@/services/TeamMemberLinkService";
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === "object" && "body" in error) {
@@ -27,7 +24,11 @@ type LinkMemberPanelProps = Readonly<{
  * Inline search-and-link panel: an admin searches NEI accounts and links the
  * chosen one to a name-only placeholder member.
  */
-export default function LinkMemberPanel({ teamId, placeholderUserId, onLinked }: LinkMemberPanelProps) {
+export default function LinkMemberPanel({
+  teamId,
+  placeholderUserId,
+  onLinked,
+}: LinkMemberPanelProps) {
   const [term, setTerm] = useState("");
   const [submitted, setSubmitted] = useState<string | null>(null);
 
@@ -61,7 +62,7 @@ export default function LinkMemberPanel({ teamId, placeholderUserId, onLinked }:
           aria-label="Procurar conta NEI"
         />
         <Button type="submit" size="sm" disabled={term.trim().length < 2}>
-          <Search className="w-4 h-4" />
+          <Search className="h-4 w-4" />
         </Button>
       </form>
 
@@ -84,20 +85,16 @@ export default function LinkMemberPanel({ teamId, placeholderUserId, onLinked }:
               >
                 <span>
                   <span className="font-medium">{user.name}</span>
-                  {user.email && (
-                    <span className="text-muted-foreground"> · {user.email}</span>
-                  )}
+                  {user.email && <span className="text-muted-foreground"> · {user.email}</span>}
                 </span>
-                <Link2 className="w-4 h-4 text-muted-foreground" />
+                <Link2 className="h-4 w-4 text-muted-foreground" />
               </button>
             ))
           )}
         </div>
       )}
 
-      {link.isError && (
-        <p className="mt-2 text-sm text-destructive">{errorMessage(link.error)}</p>
-      )}
+      {link.isError && <p className="mt-2 text-sm text-destructive">{errorMessage(link.error)}</p>}
     </div>
   );
 }

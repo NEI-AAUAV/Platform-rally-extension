@@ -1,6 +1,6 @@
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 interface FeatureDisabledAlertProps {
   featureName: string;
@@ -8,14 +8,14 @@ interface FeatureDisabledAlertProps {
   className?: string;
 }
 
-export default function FeatureDisabledAlert({ 
-  featureName, 
+export default function FeatureDisabledAlert({
+  featureName,
   settingsPath = "/settings",
-  className = "" 
+  className = "",
 }: FeatureDisabledAlertProps) {
   return (
-    <div className={`mt-16 text-center space-y-4 ${className}`}>
-      <Alert className="max-w-md mx-auto">
+    <div className={`mt-16 space-y-4 text-center ${className}`}>
+      <Alert className="mx-auto max-w-md">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           O {featureName} não está ativado. Ative-o nas configurações para usar esta funcionalidade.

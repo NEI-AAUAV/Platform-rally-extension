@@ -35,8 +35,7 @@ const RallyInteractiveCard = forwardRef<
     },
     ref,
   ) => {
-    const accentSelected =
-      "rally-bg-accent-soft rally-border-accent";
+    const accentSelected = "rally-bg-accent-soft rally-border-accent";
     const statusStyles = {
       default: {
         base: "bg-card border-border",

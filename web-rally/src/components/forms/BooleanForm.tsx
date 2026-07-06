@@ -6,11 +6,16 @@ import { useAppToast } from "@/hooks/use-toast";
 import type { BaseActivityFormProps } from "@/types/forms";
 import { getTeamSize } from "@/types/forms";
 
-export default function BooleanForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
+export default function BooleanForm({
+  existingResult,
+  team,
+  onSubmit,
+  isSubmitting,
+}: BaseActivityFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
   const [attempts, setAttempts] = useState<number>(1);
   const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{[key: string]: number}>({});
+  const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
   const [notes, setNotes] = useState<string>("");
   const toast = useAppToast();
 
@@ -22,7 +27,7 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
   const extraShotsConfig = getExtraShotsConfig(settings);
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
-  
+
   // Use penalty values from API settings or fallback to defaults
   const penaltyValues = getPenaltyValues(settings);
 
@@ -40,13 +45,15 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(
+        `Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`,
+      );
       return;
     }
-    
+
     onSubmit({
       result_data: {
         success: isSuccessChecked,
@@ -61,91 +68,82 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Success
-        </label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Success</label>
         <div className="flex items-center space-x-3">
-          <div 
-            className={`flex items-center justify-center w-6 h-6 border-2 rounded cursor-pointer transition-all duration-200 hover:border-red-500 hover:bg-muted ${
-              isSuccessChecked 
-                ? 'bg-muted border-red-500' 
-                : 'bg-muted border-border'
+          <div
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted ${
+              isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
             onClick={() => setIsSuccessChecked(!isSuccessChecked)}
           >
-            <svg 
-              className={`w-4 h-4 text-red-500 transition-opacity duration-200 ${
-                isSuccessChecked ? 'opacity-100' : 'opacity-0'
+            <svg
+              className={`h-4 w-4 text-red-500 transition-opacity duration-200 ${
+                isSuccessChecked ? "opacity-100" : "opacity-0"
               }`}
-              fill="currentColor" 
+              fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path 
-                fillRule="evenodd" 
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                clipRule="evenodd" 
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
               />
             </svg>
           </div>
-          <span className="text-muted-foreground font-medium">Team succeeded in the activity</span>
+          <span className="font-medium text-muted-foreground">Team succeeded in the activity</span>
         </div>
       </div>
-      
+
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Attempts
-        </label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Attempts</label>
         <input
           type="number"
           min="1"
           value={attempts}
           onChange={(e) => setAttempts(parseInt(e.target.value, 10) || 1)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Number of attempts"
         />
-        <p className="text-muted-foreground text-sm mt-1">
-          How many attempts did the team make?
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">How many attempts did the team make?</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Extra Shots
-        </label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Extra Shots</label>
         <input
           type="number"
           min="0"
           max={maxExtraShots}
           value={extraShots}
           onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
-        <p className="text-muted-foreground text-sm mt-1">
-          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
+        <p className="mt-1 text-sm text-muted-foreground">
+          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
+          {maxExtraShotsPerMember} per team member)
         </p>
         {extraShots > maxExtraShots && (
-          <p className="text-red-400 text-sm mt-1">
+          <p className="mt-1 text-sm text-red-400">
             ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Penalties
-        </label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Penalties</label>
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
             <input
               type="number"
               min="0"
               value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              onChange={(e) =>
+                setPenalties({ ...penalties, vomit: parseInt(e.target.value, 10) || 0 })
+              }
+              className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               Vomit penalty ({penaltyValues.vomit} pts each)
             </span>
           </div>
@@ -154,34 +152,37 @@ export default function BooleanForm({ existingResult, team, onSubmit, isSubmitti
               type="number"
               min="0"
               value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              onChange={(e) =>
+                setPenalties({ ...penalties, not_drinking: parseInt(e.target.value, 10) || 0 })
+              }
+              className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
             </span>
           </div>
         </div>
-        <p className="text-muted-foreground text-sm mt-1">
-          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+        <p className="mt-1 text-sm text-muted-foreground">
+          Penalties reduce the final score. Total penalty:{" "}
+          {(penalties.vomit || 0) * penaltyValues.vomit +
+            (penalties.not_drinking || 0) * penaltyValues.not_drinking}{" "}
+          points
         </p>
       </div>
-      
+
       <div>
-        <label className="block text-sm font-medium mb-2 text-foreground">
-          Notes (Optional)
-        </label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Notes (Optional)</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />
       </div>
 
-      <div className="flex gap-3 mt-6">
+      <div className="mt-6 flex gap-3">
         <BloodyButton
           type="submit"
           disabled={isSubmitting}

@@ -1,7 +1,7 @@
-export { default as TimeBasedForm } from './TimeBasedForm';
-export { default as ScoreBasedForm } from './ScoreBasedForm';
-export { default as BooleanForm } from './BooleanForm';
-export { default as GeneralForm } from './GeneralForm';
-export { default as TeamVsForm } from './TeamVsForm';
-export { default as DeferredJudgedForm } from './DeferredJudgedForm';
-export { default as ActivityEvaluationForm } from './ActivityEvaluationForm';
+export { default as TimeBasedForm } from "./TimeBasedForm";
+export { default as ScoreBasedForm } from "./ScoreBasedForm";
+export { default as BooleanForm } from "./BooleanForm";
+export { default as GeneralForm } from "./GeneralForm";
+export { default as TeamVsForm } from "./TeamVsForm";
+export { default as DeferredJudgedForm } from "./DeferredJudgedForm";
+export { default as ActivityEvaluationForm } from "./ActivityEvaluationForm";

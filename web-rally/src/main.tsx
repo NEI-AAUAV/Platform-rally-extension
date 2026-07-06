@@ -3,12 +3,7 @@ import ReactDOM from "react-dom/client";
 import { AuthProvider } from "react-oidc-context";
 import Router from "@/router";
 import "@/styles/global.css";
-import {
-  MutationCache,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { notifyUnauthorized, refreshTeamToken } from "./services/client";
 import { ApiError } from "./client/core/ApiError";
 import { OpenAPI } from "./client/core/OpenAPI";
@@ -20,21 +15,21 @@ import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider } from "@/components/theme";
 
 // Configure OpenAPI BASE URL - use empty string to use relative paths
-OpenAPI.BASE = '';
-OpenAPI.VERSION = 'v1';
+OpenAPI.BASE = "";
+OpenAPI.VERSION = "v1";
 
 // Configure OpenAPI to use authentication token
 OpenAPI.HEADERS = async () => {
   // Check for staff token first
   const staffToken = useUserStore.getState().token;
   if (staffToken) {
-    return { 'Authorization': `Bearer ${staffToken}` } as Record<string, string>;
+    return { Authorization: `Bearer ${staffToken}` } as Record<string, string>;
   }
 
   // Fall back to team token if no staff token
   const teamToken = getTeamToken();
   if (teamToken) {
-    return { 'Authorization': `Bearer ${teamToken}` } as Record<string, string>;
+    return { Authorization: `Bearer ${teamToken}` } as Record<string, string>;
   }
 
   return {} as Record<string, string>;
@@ -75,18 +70,19 @@ const queryClient = new QueryClient({
 });
 
 // Register Service Worker for PWA functionality
-if ('serviceWorker' in navigator) {
-  globalThis.addEventListener('load', () => {
-    navigator.serviceWorker.register('/rally/sw.js')
+if ("serviceWorker" in navigator) {
+  globalThis.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/rally/sw.js")
       .then((registration) => {
         // Check for updates and force activation
-        registration.addEventListener('updatefound', () => {
+        registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
           if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
                 // New service worker is available, force activation
-                newWorker.postMessage({ action: 'skipWaiting' });
+                newWorker.postMessage({ action: "skipWaiting" });
                 globalThis.location.reload();
               }
             });
@@ -94,18 +90,19 @@ if ('serviceWorker' in navigator) {
         });
 
         // Add development utility to clear cache
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === "development") {
           (globalThis as unknown as Record<string, () => void>).clearRallyCache = () => {
-            navigator.serviceWorker.controller?.postMessage({ action: 'clearCache' });
+            navigator.serviceWorker.controller?.postMessage({ action: "clearCache" });
             // Also clear browser cache
-            if ('caches' in window) {
-              caches.keys().then((cacheNames) => {
-                return Promise.all(
-                  cacheNames.map((cacheName) => caches.delete(cacheName))
-                );
-              }).then(() => {
-                globalThis.location.reload();
-              });
+            if ("caches" in window) {
+              caches
+                .keys()
+                .then((cacheNames) => {
+                  return Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+                })
+                .then(() => {
+                  globalThis.location.reload();
+                });
             }
           };
         }

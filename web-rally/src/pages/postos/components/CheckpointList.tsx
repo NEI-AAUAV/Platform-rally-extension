@@ -1,6 +1,6 @@
-import { MapPin } from 'lucide-react';
-import CheckpointCard from './CheckpointCard';
-import { EmptyState } from '@/components/shared';
+import { MapPin } from "lucide-react";
+import CheckpointCard from "./CheckpointCard";
+import { EmptyState } from "@/components/shared";
 
 interface Checkpoint {
   id: number;
@@ -12,12 +12,11 @@ interface Checkpoint {
 }
 
 type CheckpointListProps = Readonly<{
-
   checkpoints: Checkpoint[];
   selectedCheckpoint: Checkpoint | null;
   onSelectCheckpoint: (checkpoint: Checkpoint) => void;
   showMap?: boolean;
-}>
+}>;
 
 export default function CheckpointList({
   checkpoints,
@@ -49,12 +48,3 @@ export default function CheckpointList({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

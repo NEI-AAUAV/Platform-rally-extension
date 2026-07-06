@@ -71,8 +71,7 @@ export function HomeHero({ branding, settings }: HomeHeroProps) {
         >
           {state.phase === "live" && (
             <span className="rally-bg-accent inline-flex items-center gap-2 rounded-full px-5 py-[7px] text-sm font-bold uppercase tracking-[0.06em] text-white">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              A decorrer agora
+              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />A decorrer agora
             </span>
           )}
           {state.phase === "pre" && (
@@ -104,7 +103,7 @@ export function HomeHero({ branding, settings }: HomeHeroProps) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE, delay: 0.18 }}
-            className="mt-4 text-[15px] leading-relaxed text-muted-foreground sm:text-base mx-auto max-w-[30ch]"
+            className="mx-auto mt-4 max-w-[30ch] text-[15px] leading-relaxed text-muted-foreground sm:text-base"
           >
             {eventSubtitle}
           </motion.p>
@@ -143,14 +142,14 @@ export function HomeHero({ branding, settings }: HomeHeroProps) {
         >
           <Link
             to="/team-login"
-            className="rally-bg-accent rally-press inline-flex items-center gap-2 rounded-[14px] px-7 py-3.5 font-bold text-[15px] text-white"
+            className="rally-bg-accent rally-press inline-flex items-center gap-2 rounded-[14px] px-7 py-3.5 text-[15px] font-bold text-white"
           >
             <Users className="h-4 w-4" />
             Entrar com a Equipa
           </Link>
           <Link
             to="/scoreboard"
-            className="rally-press inline-flex items-center gap-2 rounded-[14px] border border-border bg-card px-7 py-3.5 font-bold text-[15px] text-foreground hover:bg-muted/50 transition-colors"
+            className="rally-press inline-flex items-center gap-2 rounded-[14px] border border-border bg-card px-7 py-3.5 text-[15px] font-bold text-foreground transition-colors hover:bg-muted/50"
           >
             <Trophy className="h-4 w-4" />
             Ver Pontuação

@@ -50,7 +50,9 @@ export default function BrandHeader({ branding, className = "" }: BrandHeaderPro
           </span>
         )}
         <div className="min-w-0">
-          <h1 className="rally-display truncate text-2xl font-bold text-foreground sm:text-3xl">{eventName}</h1>
+          <h1 className="rally-display truncate text-2xl font-bold text-foreground sm:text-3xl">
+            {eventName}
+          </h1>
           {eventSubtitle && (
             <p className="truncate text-sm text-muted-foreground">{eventSubtitle}</p>
           )}

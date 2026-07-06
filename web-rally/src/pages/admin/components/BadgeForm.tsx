@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ImagePlus, Loader2 } from "lucide-react";
-import {
-  ActivitiesService,
-  CheckPointService,
-  type BadgeDefinitionResponse,
-} from "@/client";
+import { ActivitiesService, CheckPointService, type BadgeDefinitionResponse } from "@/client";
 import { useBadgeDefinitionMutations } from "@/hooks/useBadgeAdmin";
 import { apiErrorMessage } from "@/lib/apiError";
 import { TRIGGERS, triggerMeta } from "@/lib/badgeTriggers";
@@ -44,8 +40,7 @@ interface FormState {
 function initialState(editing: BadgeDefinitionResponse | null): FormState {
   const criteria = (editing?.criteria ?? {}) as Record<string, unknown>;
   // Only one numeric criteria key is ever present per trigger.
-  const numberValue =
-    criteria.count ?? criteria.min_score ?? criteria.max_seconds;
+  const numberValue = criteria.count ?? criteria.min_score ?? criteria.max_seconds;
   return {
     code: editing?.code ?? "",
     name: editing?.name ?? "",
@@ -112,11 +107,8 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
   // criterion must have that value filled in.
   const autoValid =
     !form.isAuto ||
-    (!!selectedTrigger &&
-      (!selectedTrigger.numberParam || form.criteriaNumber.trim() !== ""));
-  const canSubmit = Boolean(
-    form.name.trim() && (isEdit || form.code.trim()) && autoValid,
-  );
+    (!!selectedTrigger && (!selectedTrigger.numberParam || form.criteriaNumber.trim() !== ""));
+  const canSubmit = Boolean(form.name.trim() && (isEdit || form.code.trim()) && autoValid);
 
   const handleSubmit = async () => {
     const payload = {
@@ -221,11 +213,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
         <div className="flex items-center gap-3">
           {/* live preview tile */}
           {preview ? (
-            <img
-              src={preview}
-              alt=""
-              className="h-12 w-12 rounded-xl object-cover"
-            />
+            <img src={preview} alt="" className="h-12 w-12 rounded-xl object-cover" />
           ) : (
             <div
               className="grid h-12 w-12 place-items-center rounded-xl text-xl text-white"
@@ -283,9 +271,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
                 </SelectContent>
               </Select>
               {selectedTrigger && (
-                <span className="text-[11px] text-muted-foreground">
-                  {selectedTrigger.help}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{selectedTrigger.help}</span>
               )}
             </label>
 
@@ -352,9 +338,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
                   min={selectedTrigger.numberParam.min}
                   placeholder={selectedTrigger.numberParam.placeholder}
                   value={form.criteriaNumber}
-                  onChange={(e) =>
-                    setForm({ ...form, criteriaNumber: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, criteriaNumber: e.target.value })}
                 />
               </label>
             )}

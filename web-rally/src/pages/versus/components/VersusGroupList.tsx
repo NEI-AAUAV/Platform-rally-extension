@@ -3,30 +3,36 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
-import { TeamService, type ListingTeam, type VersusGroupListResponse, type TeamUpdate } from "@/client";
+import {
+  TeamService,
+  type ListingTeam,
+  type VersusGroupListResponse,
+  type TeamUpdate,
+} from "@/client";
 
 type TeamUpdateWithVersus = TeamUpdate & {
   versus_group_id?: number | null;
 };
 
 type VersusGroupListProps = Readonly<{
-
   versusGroups: VersusGroupListResponse | undefined;
   teams: ListingTeam[] | undefined;
   onSuccess: () => void;
   className?: string;
-}>
+}>;
 
-export default function VersusGroupList({ versusGroups, teams, onSuccess, className = "" }: VersusGroupListProps) {
+export default function VersusGroupList({
+  versusGroups,
+  teams,
+  onSuccess,
+  className = "",
+}: VersusGroupListProps) {
   // Remove versus pair mutation (by updating teams to remove versus_group_id)
-  const {
-    mutate: removeVersusPair,
-    isPending: isRemovingPair,
-  } = useMutation({
+  const { mutate: removeVersusPair, isPending: isRemovingPair } = useMutation({
     mutationFn: async (groupId: number) => {
       // Find teams in this group and remove their versus_group_id
       const teamsInGroup = teams?.filter((team) => team.versus_group_id === groupId) || [];
-      
+
       for (const team of teamsInGroup) {
         const updateData: TeamUpdateWithVersus = {
           name: team.name,
@@ -44,32 +50,30 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
     <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
+          <Users className="h-5 w-5" />
           Pares Versus Ativos
         </CardTitle>
-        <CardDescription>
-          Equipas atualmente emparelhadas para competição direta
-        </CardDescription>
+        <CardDescription>Equipas atualmente emparelhadas para competição direta</CardDescription>
       </CardHeader>
       <CardContent>
         {versusGroups?.groups.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Swords className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <div className="py-8 text-center text-muted-foreground">
+            <Swords className="mx-auto mb-4 h-12 w-12 opacity-50" />
             <p>Nenhum par versus criado ainda.</p>
-            <p className="text-sm mt-2">Crie o primeiro par usando o formulário acima.</p>
+            <p className="mt-2 text-sm">Crie o primeiro par usando o formulário acima.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {versusGroups?.groups.map((pair) => {
               const teamA = teams?.find((t) => t.id === pair.team_a_id);
               const teamB = teams?.find((t) => t.id === pair.team_b_id);
-              
+
               if (!teamA || !teamB) return null;
-              
+
               return (
                 <div
                   key={pair.group_id}
-                  className="border border-border bg-secondary rounded-lg p-3 sm:p-4 flex items-center justify-between"
+                  className="flex items-center justify-between rounded-lg border border-border bg-secondary p-3 sm:p-4"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -85,7 +89,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                       {teamA.total} - {teamB.total} pontos
                     </div>
                   </div>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -93,7 +97,7 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
                     disabled={isRemovingPair}
                     className="text-destructive hover:bg-destructive/10"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Remover
                   </Button>
                 </div>
@@ -105,11 +109,3 @@ export default function VersusGroupList({ versusGroups, teams, onSuccess, classN
     </div>
   );
 }
-
-
-
-
-
-
-
-

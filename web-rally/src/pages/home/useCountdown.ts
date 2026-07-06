@@ -27,10 +27,7 @@ function breakdown(ms: number) {
  * second only while there is something to count toward (pre/live), so an event
  * with no schedule, or one already over, does not spin a timer needlessly.
  */
-export function useCountdown(
-  startIso?: string | null,
-  endIso?: string | null,
-): CountdownState {
+export function useCountdown(startIso?: string | null, endIso?: string | null): CountdownState {
   const start = startIso ? Date.parse(startIso) : Number.NaN;
   const end = endIso ? Date.parse(endIso) : Number.NaN;
 

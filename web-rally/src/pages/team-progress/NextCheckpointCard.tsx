@@ -53,9 +53,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       // ApiError.message is a generic "Bad Request"; the useful text
       // ("Too far from checkpoint: …") lives in body.detail.
       const raw = getErrorMessage(err, "Erro ao registar check-in.");
-      const msg = raw.startsWith("Too far from checkpoint")
-        ? traduzirDistancia(raw)
-        : raw;
+      const msg = raw.startsWith("Too far from checkpoint") ? traduzirDistancia(raw) : raw;
       setGpsMsg(msg);
       setGpsState("error");
     },
@@ -87,7 +85,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!checkpoint.description;
 
   return (
-    <div className="rally-surface rally-elevate rounded-2xl p-6 space-y-4">
+    <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
       <div className="flex items-center gap-3">
         <div className="rally-bg-accent flex h-12 w-12 items-center justify-center rounded-xl shadow-[var(--rally-shadow-sm)]">
           <MapPin className="h-6 w-6 text-white" />
@@ -110,7 +108,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       )}
 
       {canCheckin && (
-        <div className="border-t border-border pt-4 space-y-2">
+        <div className="space-y-2 border-t border-border pt-4">
           <button
             type="button"
             disabled={gpsState === "locating" || arriveMutation.isPending || gpsState === "done"}
@@ -118,16 +116,15 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             className={[
               "rally-press flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold transition-all",
               gpsState === "done"
-                ? "bg-green-500/15 text-green-600 cursor-default"
+                ? "cursor-default bg-green-500/15 text-green-600"
                 : gpsState === "error"
-                ? "bg-red-500/10 text-red-500"
-                : "border border-border bg-card text-foreground hover:bg-accent/40",
+                  ? "bg-red-500/10 text-red-500"
+                  : "border border-border bg-card text-foreground hover:bg-accent/40",
             ].join(" ")}
           >
             {gpsState === "locating" || arriveMutation.isPending ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                A localizar…
+                <Loader2 className="h-5 w-5 animate-spin" />A localizar…
               </>
             ) : gpsState === "done" ? (
               <>
@@ -149,7 +146,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
           {gpsMsg && (
             <p
               className={[
-                "text-xs text-center",
+                "text-center text-xs",
                 gpsState === "done" ? "text-green-600" : "text-red-500",
               ].join(" ")}
             >
@@ -160,7 +157,10 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             <button
               type="button"
               className="w-full text-xs text-muted-foreground underline"
-              onClick={() => { setGpsState("idle"); setGpsMsg(""); }}
+              onClick={() => {
+                setGpsState("idle");
+                setGpsMsg("");
+              }}
             >
               Limpar erro
             </button>
@@ -171,7 +171,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       {/* Discover the place — revealed as the reward for reaching this stop */}
       {hasDiscovery && (
         <div className="border-t border-border pt-4">
-          <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide rally-accent">
+          <div className="rally-accent mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
             <Sparkles className="h-3.5 w-3.5" />
             {gpsState === "done" ? "Chegaste! Descobre o local" : "Sobre este local"}
           </div>

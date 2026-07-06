@@ -1,17 +1,7 @@
 import { useState } from "react";
-import {
-  Pencil,
-  Plus,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
-  Trophy,
-} from "lucide-react";
+import { Pencil, Plus, ToggleLeft, ToggleRight, Trash2, Trophy } from "lucide-react";
 import type { BadgeDefinitionResponse } from "@/client";
-import {
-  useBadgeDefinitions,
-  useBadgeDefinitionMutations,
-} from "@/hooks/useBadgeAdmin";
+import { useBadgeDefinitions, useBadgeDefinitionMutations } from "@/hooks/useBadgeAdmin";
 import { triggerMeta } from "@/lib/badgeTriggers";
 import { BADGE_FALLBACK } from "@/lib/badges";
 import BadgeForm from "./BadgeForm";
@@ -56,15 +46,10 @@ export default function BadgeAdminTab() {
       </div>
 
       {formMode.open && (
-        <BadgeForm
-          editing={formMode.editing}
-          onDone={() => setFormMode({ open: false })}
-        />
+        <BadgeForm editing={formMode.editing} onDone={() => setFormMode({ open: false })} />
       )}
 
-      {isLoading && (
-        <p className="py-8 text-center text-sm text-muted-foreground">A carregar…</p>
-      )}
+      {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">A carregar…</p>}
 
       {!isLoading && badges.length === 0 && !formMode.open && (
         <div className="rally-surface flex flex-col items-center gap-3 py-12 text-center">
@@ -80,11 +65,7 @@ export default function BadgeAdminTab() {
           return (
             <li key={badge.id} className="rally-surface flex items-start gap-3 p-3">
               {badge.icon_url ? (
-                <img
-                  src={badge.icon_url}
-                  alt=""
-                  className="h-10 w-10 rounded-lg object-cover"
-                />
+                <img src={badge.icon_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
               ) : (
                 <div
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-lg text-white"
@@ -98,18 +79,14 @@ export default function BadgeAdminTab() {
                 <p className="font-semibold leading-tight">{badge.name}</p>
                 <p className="font-mono text-xs text-muted-foreground">{badge.code}</p>
                 {badge.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {badge.description}
-                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{badge.description}</p>
                 )}
                 <span
                   className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    badge.is_auto
-                      ? "bg-primary/10 text-primary"
-                      : "bg-muted text-muted-foreground"
+                    badge.is_auto ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {badge.is_auto ? trigger?.label ?? "Automático" : "Manual"}
+                  {badge.is_auto ? (trigger?.label ?? "Automático") : "Manual"}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -147,8 +124,7 @@ export default function BadgeAdminTab() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Eliminar crachá?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        "{badge.name}" será removido do catálogo. Esta ação não pode
-                        ser desfeita.
+                        "{badge.name}" será removido do catálogo. Esta ação não pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

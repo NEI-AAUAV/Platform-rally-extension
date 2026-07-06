@@ -5,7 +5,7 @@ export enum ActivityType {
   BOOLEAN = "BooleanActivity",
   TEAM_VS = "TeamVsActivity",
   GENERAL = "GeneralActivity",
-  DEFERRED_JUDGED = "DeferredJudgedActivity"
+  DEFERRED_JUDGED = "DeferredJudgedActivity",
 }
 
 // Export classes for runtime access
@@ -94,21 +94,27 @@ export type ActivityConfig =
 
 // Type guard functions for runtime validation
 export function isTimeBasedConfig(config: ActivityConfig): config is TimeBasedConfig {
-  return 'max_time_seconds' in config || 'points_per_second' in config;
+  return "max_time_seconds" in config || "points_per_second" in config;
 }
 
 export function isScoreBasedConfig(config: ActivityConfig): config is ScoreBasedConfig {
-  return 'points_per_score' in config;
+  return "points_per_score" in config;
 }
 
 export function isBooleanConfig(config: ActivityConfig): config is BooleanConfig {
-  return 'success_points' in config || 'failure_points' in config;
+  return "success_points" in config || "failure_points" in config;
 }
 
 export function isTeamVsConfig(config: ActivityConfig): config is TeamVsConfig {
-  return 'win_points' in config || 'lose_points' in config || 'draw_points' in config || 'base_points' in config || 'completion_points' in config;
+  return (
+    "win_points" in config ||
+    "lose_points" in config ||
+    "draw_points" in config ||
+    "base_points" in config ||
+    "completion_points" in config
+  );
 }
 
 export function isGeneralConfig(config: ActivityConfig): config is GeneralConfig {
-  return 'default_points' in config;
+  return "default_points" in config;
 }

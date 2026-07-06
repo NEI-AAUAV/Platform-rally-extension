@@ -2,11 +2,9 @@ import { useEffect } from "react";
 import { hexToRgba, type Branding } from "@/lib/branding";
 
 function setLinkHrefAll(selector: string, href: string): void {
-  document
-    .querySelectorAll<HTMLLinkElement>(selector)
-    .forEach((el) => {
-      el.href = href;
-    });
+  document.querySelectorAll<HTMLLinkElement>(selector).forEach((el) => {
+    el.href = href;
+  });
 }
 
 /**

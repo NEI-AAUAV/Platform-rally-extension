@@ -37,7 +37,8 @@ export function useTeamDetails(id: string | undefined) {
     queryKey: ["allEvaluations"],
     queryFn: async () => {
       try {
-        const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
+        const response =
+          await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
         return (response.evaluations as EvaluationResult[]) || [];
       } catch {
         return [];

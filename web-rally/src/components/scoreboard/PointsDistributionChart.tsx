@@ -1,12 +1,4 @@
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { ListingTeam } from "@/client";
 
 interface PointsDistributionChartProps {

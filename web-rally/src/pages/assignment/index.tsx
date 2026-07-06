@@ -5,7 +5,13 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { LoadingState, PageHeader } from "@/components/shared";
 import { ClipboardList } from "lucide-react";
 import { StaffAssignmentList, AssignmentForm } from "./components";
-import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
+import {
+  CheckPointService,
+  UserService,
+  type CheckpointAssignmentUpdate,
+  type DetailedCheckPoint,
+  type RallyStaffAssignmentWithCheckpoint,
+} from "@/client";
 
 interface StaffAssignment {
   id: number;
@@ -32,7 +38,11 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
     },
   });
 
-  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
+  const {
+    data: staffAssignments,
+    error: assignmentsError,
+    refetch: refetchAssignments,
+  } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
     queryKey: ["staffAssignments"],
     queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
       return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet();
@@ -51,11 +61,14 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
       const requestBody: CheckpointAssignmentUpdate = {
         checkpoint_id: checkpointId === 0 ? null : checkpointId,
       };
-      return UserService.updateCheckpointAssignmentApiRallyV1UserUserIdCheckpointAssignmentPut(userId, requestBody);
+      return UserService.updateCheckpointAssignmentApiRallyV1UserUserIdCheckpointAssignmentPut(
+        userId,
+        requestBody,
+      );
     },
     onSuccess: () => {
       refetchAssignments(); // Refetch assignments to update UI
-    }
+    },
   });
 
   const handleUpdateAssignment = (userId: number, checkpointId: number) => {

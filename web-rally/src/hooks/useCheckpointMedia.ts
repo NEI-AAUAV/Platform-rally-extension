@@ -1,9 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  CheckpointMediaService,
-  MediaKind,
-  type CheckpointMediaResponse,
-} from "@/client";
+import { CheckpointMediaService, MediaKind, type CheckpointMediaResponse } from "@/client";
 
 export interface CheckpointMediaGrouped {
   photos: CheckpointMediaResponse[];
@@ -23,7 +19,9 @@ export function useCheckpointMedia(checkpointId: number, enabled = true): Checkp
   const { data = [], isLoading } = useQuery<CheckpointMediaResponse[]>({
     queryKey: ["checkpoint-media", checkpointId],
     queryFn: () =>
-      CheckpointMediaService.listCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaGet(checkpointId),
+      CheckpointMediaService.listCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaGet(
+        checkpointId,
+      ),
     enabled,
     staleTime: 60_000,
   });

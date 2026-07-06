@@ -14,12 +14,12 @@ import type { UserState } from "@/stores/useUserStore";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 export const checkpointFormSchema = z.object({
-  name: z.string().min(1, 'Nome do checkpoint é obrigatório'),
+  name: z.string().min(1, "Nome do checkpoint é obrigatório"),
   description: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
-  arrival_radius_m: z.number().min(0, 'O raio não pode ser negativo'),
-  order: z.number().min(1, 'Ordem deve ser maior que 0'),
+  arrival_radius_m: z.number().min(0, "O raio não pode ser negativo"),
+  order: z.number().min(1, "Ordem deve ser maior que 0"),
 });
 
 export type CheckpointForm = z.infer<typeof checkpointFormSchema>;
@@ -77,7 +77,10 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: updateCheckpoint, isPending: isUpdatingCheckpoint } = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CheckpointForm }) =>
-      CheckPointService.updateCheckpointApiRallyV1CheckpointIdPut(id, toRequestBody(data) as CheckPointUpdate),
+      CheckPointService.updateCheckpointApiRallyV1CheckpointIdPut(
+        id,
+        toRequestBody(data) as CheckPointUpdate,
+      ),
     onSuccess: () => {
       refetchCheckpoints();
       setEditingCheckpoint(null);
@@ -136,7 +139,7 @@ export function useCheckpointManagement(userStore: UserState) {
     if (!checkpoints || checkpoints.length === 0) {
       return 1;
     }
-    const maxOrder = Math.max(...checkpoints.map(cp => cp.order || 0));
+    const maxOrder = Math.max(...checkpoints.map((cp) => cp.order || 0));
     return maxOrder + 1;
   }, [checkpoints]);
 
@@ -177,8 +180,8 @@ export function useCheckpointManagement(userStore: UserState) {
     }
 
     const sortedCheckpoints = [...(checkpoints || [])].sort((a, b) => a.order - b.order);
-    const draggedIndex = sortedCheckpoints.findIndex(cp => cp.id === draggedCheckpoint.id);
-    const targetIndex = sortedCheckpoints.findIndex(cp => cp.id === targetCheckpoint.id);
+    const draggedIndex = sortedCheckpoints.findIndex((cp) => cp.id === draggedCheckpoint.id);
+    const targetIndex = sortedCheckpoints.findIndex((cp) => cp.id === targetCheckpoint.id);
 
     const reorderedCheckpoints = [...sortedCheckpoints];
     const [draggedItem] = reorderedCheckpoints.splice(draggedIndex, 1);

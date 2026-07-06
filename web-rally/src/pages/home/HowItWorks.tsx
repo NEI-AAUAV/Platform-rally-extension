@@ -20,21 +20,21 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <section aria-labelledby="how-heading">
-      <h2
-        id="how-heading"
-        className="rally-display text-xl font-bold text-foreground mb-4"
-      >
+      <h2 id="how-heading" className="rally-display mb-4 text-xl font-bold text-foreground">
         Como funciona
       </h2>
       <div className="flex flex-col gap-3">
         {STEPS.map((step) => (
-          <div key={step.n} className="flex gap-3.5 p-[18px] rounded-[16px] bg-card border border-border">
-            <span className="grid place-items-center h-[42px] w-[42px] rounded-[12px] rally-bg-accent-soft rally-accent rally-display font-bold text-lg flex-shrink-0">
+          <div
+            key={step.n}
+            className="flex gap-3.5 rounded-[16px] border border-border bg-card p-[18px]"
+          >
+            <span className="rally-bg-accent-soft rally-accent rally-display grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-[12px] text-lg font-bold">
               {step.n}
             </span>
             <div>
-              <div className="font-bold text-[15px] text-foreground">{step.title}</div>
-              <div className="text-sm text-muted-foreground mt-0.5 leading-[1.45]">{step.body}</div>
+              <div className="text-[15px] font-bold text-foreground">{step.title}</div>
+              <div className="mt-0.5 text-sm leading-[1.45] text-muted-foreground">{step.body}</div>
             </div>
           </div>
         ))}

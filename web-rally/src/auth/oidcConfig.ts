@@ -20,10 +20,6 @@ export const oidcConfig: AuthProviderProps = {
   userStore: new WebStorageStateStore({ store: globalThis.localStorage }),
   onSigninCallback: () => {
     // Strip the OIDC response params from the URL after a successful sign-in.
-    globalThis.history.replaceState(
-      {},
-      document.title,
-      globalThis.location.pathname,
-    );
+    globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
   },
 };

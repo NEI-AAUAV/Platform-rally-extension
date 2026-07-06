@@ -91,7 +91,10 @@ export default function RealMap({ checkpoints, selectedCheckpoint, onSelect }: R
     () =>
       checkpoints
         .filter((c) => c.latitude != null && c.longitude != null)
-        .map((c) => ({ cp: c, pos: [c.latitude as number, c.longitude as number] as [number, number] })),
+        .map((c) => ({
+          cp: c,
+          pos: [c.latitude as number, c.longitude as number] as [number, number],
+        })),
     [checkpoints],
   );
 

@@ -9,7 +9,7 @@ import { getTeamSize } from "@/types/forms";
 // Helper function to safely extract default_points from config
 function getDefaultPoints(config: GeneralFormProps["config"]): number {
   const defaultPoints = config.default_points;
-  if (typeof defaultPoints === 'number') {
+  if (typeof defaultPoints === "number") {
     return defaultPoints;
   }
   return RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints;
@@ -20,7 +20,13 @@ function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
   return hasExisting ? "Update Evaluation" : "Submit Evaluation";
 }
 
-export default function GeneralForm({ existingResult, team, config, onSubmit, isSubmitting }: Readonly<GeneralFormProps>) {
+export default function GeneralForm({
+  existingResult,
+  team,
+  config,
+  onSubmit,
+  isSubmitting,
+}: Readonly<GeneralFormProps>) {
   const [assignedPoints, setAssignedPoints] = useState<number>(getDefaultPoints(config));
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
@@ -60,7 +66,9 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
 
     // Validate extra shots limit
     if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
+      toast.error(
+        `Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`,
+      );
       return;
     }
 
@@ -83,7 +91,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <label htmlFor="general-points" className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="general-points" className="mb-2 block text-sm font-medium text-foreground">
           Assigned Points
         </label>
         <input
@@ -93,18 +101,21 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
           max={config.max_points || 100}
           value={assignedPoints}
           onChange={(e) => setAssignedPoints(Number(e.target.value))}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder={`Enter points (${config.min_points || 0}-${config.max_points || 100})`}
           required
         />
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="mt-1 text-sm text-muted-foreground">
           Range: {config.min_points || 0} - {config.max_points || 100} points
         </p>
       </div>
 
       {showExtraShots && (
         <div>
-          <label htmlFor="general-extra-shots" className="block text-sm font-medium mb-2 text-foreground">
+          <label
+            htmlFor="general-extra-shots"
+            className="mb-2 block text-sm font-medium text-foreground"
+          >
             Extra Shots
           </label>
           <input
@@ -114,14 +125,15 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
             max={maxExtraShots}
             value={extraShots}
             onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-            className="w-full p-3 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
             placeholder="Extra shots taken"
           />
-          <p className="text-muted-foreground text-sm mt-1">
-            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
+            {maxExtraShotsPerMember} per team member)
           </p>
           {extraShots > maxExtraShots && (
-            <p className="text-red-400 text-sm mt-1">
+            <p className="mt-1 text-sm text-red-400">
               ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
             </p>
           )}
@@ -130,9 +142,7 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
 
       {showPenalties && (
         <fieldset>
-          <legend className="block text-sm font-medium mb-2 text-foreground">
-            Penalties
-          </legend>
+          <legend className="mb-2 block text-sm font-medium text-foreground">Penalties</legend>
           <div className="space-y-2">
             {showVomitPenalty && (
               <div className="flex items-center space-x-3">
@@ -141,12 +151,14 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
                   type="number"
                   min="0"
                   value={penalties.vomit || 0}
-                  onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  onChange={(e) =>
+                    setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
+                  }
+                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="0"
                   aria-label="Vomit penalty count"
                 />
-                <label htmlFor="general-vomit" className="text-muted-foreground text-sm">
+                <label htmlFor="general-vomit" className="text-sm text-muted-foreground">
                   Vomit penalty ({penaltyValues.vomit} pts each)
                 </label>
               </div>
@@ -158,38 +170,46 @@ export default function GeneralForm({ existingResult, team, config, onSubmit, is
                   type="number"
                   min="0"
                   value={penalties.not_drinking || 0}
-                  onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-                  className="w-20 p-2 bg-muted border border-border rounded text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  onChange={(e) =>
+                    setPenalties({
+                      ...penalties,
+                      not_drinking: Number.parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="0"
                   aria-label="Not drinking penalty count"
                 />
-                <label htmlFor="general-not-drinking" className="text-muted-foreground text-sm">
+                <label htmlFor="general-not-drinking" className="text-sm text-muted-foreground">
                   Not drinking penalty ({penaltyValues.not_drinking} pts each)
                 </label>
               </div>
             )}
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
+          <p className="mt-1 text-sm text-muted-foreground">
+            Penalties reduce the final score. Total penalty:{" "}
+            {(penalties.vomit || 0) * penaltyValues.vomit +
+              (penalties.not_drinking || 0) * penaltyValues.not_drinking}{" "}
+            points
           </p>
         </fieldset>
       )}
 
       <div>
-        <label htmlFor="general-notes" className="block text-sm font-medium mb-2 text-foreground">
+        <label htmlFor="general-notes" className="mb-2 block text-sm font-medium text-foreground">
           Notes (Optional)
         </label>
         <textarea
           id="general-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-muted border border-border rounded text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Add any additional notes..."
           rows={3}
         />
       </div>
 
-      <div className="flex gap-3 mt-6">
+      <div className="mt-6 flex gap-3">
         <BloodyButton
           type="submit"
           disabled={isSubmitting}

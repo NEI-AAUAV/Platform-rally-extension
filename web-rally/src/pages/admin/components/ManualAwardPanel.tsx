@@ -109,9 +109,7 @@ export default function ManualAwardPanel({ definitions }: ManualAwardPanelProps)
       {/* revoke: awards the chosen team currently holds */}
       {numericTeamId && (teamBadges?.length ?? 0) > 0 && (
         <div className="space-y-2 border-t pt-3">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Crachás desta equipa
-          </p>
+          <p className="text-xs font-semibold text-muted-foreground">Crachás desta equipa</p>
           <ul className="space-y-1.5">
             {(teamBadges ?? []).map((b) => (
               <li
@@ -135,8 +133,8 @@ export default function ManualAwardPanel({ definitions }: ManualAwardPanelProps)
                     <AlertDialogHeader>
                       <AlertDialogTitle>Revogar crachá?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Remover "{defByCode.get(b.badge_type)?.name ?? b.badge_type}"
-                        desta equipa. Esta ação não pode ser desfeita.
+                        Remover "{defByCode.get(b.badge_type)?.name ?? b.badge_type}" desta equipa.
+                        Esta ação não pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

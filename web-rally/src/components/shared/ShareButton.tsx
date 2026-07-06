@@ -43,18 +43,8 @@ export function ShareButton({ title, url, label = "Partilhar" }: ShareButtonProp
   };
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={handleShare}
-      className="gap-1.5"
-    >
-      {copied ? (
-        <Check className="h-4 w-4" />
-      ) : (
-        <Share2 className="h-4 w-4" />
-      )}
+    <Button type="button" variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
+      {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
       {copied ? "Copiado" : label}
     </Button>
   );

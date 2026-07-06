@@ -9,7 +9,7 @@ interface ConfigSectionProps {
 
 function ConfigSection({ title, children }: ConfigSectionProps) {
   return (
-    <div className="space-y-4 p-4 bg-muted border border-border rounded-lg">
+    <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
       <h4 className="font-medium text-foreground">{title}</h4>
       {children}
     </div>
@@ -94,19 +94,33 @@ export function ActivityConfigFields({
       return (
         <ConfigSection title="Configurações de Atividade Equipa vs Equipa">
           <div className="space-y-4">
-            <div className="border-b border-border pb-4 mb-4">
-              <h5 className="text-sm font-medium text-muted-foreground mb-3">
+            <div className="mb-4 border-b border-border pb-4">
+              <h5 className="mb-3 text-sm font-medium text-muted-foreground">
                 Pontuação Tiered (Opcional)
               </h5>
               <div className="grid grid-cols-2 gap-4">
-                {field("config-tv-base-points", "Pontos Base (Participação)", "base_points", 0, "0", {
-                  helpText: "Pontos dados apenas por participar",
-                  testId: "input-base-points",
-                })}
-                {field("config-tv-completion-points", "Pontos por Completar", "completion_points", 0, "0", {
-                  helpText: "Bônus por completar o desafio",
-                  testId: "input-completion-points",
-                })}
+                {field(
+                  "config-tv-base-points",
+                  "Pontos Base (Participação)",
+                  "base_points",
+                  0,
+                  "0",
+                  {
+                    helpText: "Pontos dados apenas por participar",
+                    testId: "input-base-points",
+                  },
+                )}
+                {field(
+                  "config-tv-completion-points",
+                  "Pontos por Completar",
+                  "completion_points",
+                  0,
+                  "0",
+                  {
+                    helpText: "Bônus por completar o desafio",
+                    testId: "input-completion-points",
+                  },
+                )}
               </div>
             </div>
 

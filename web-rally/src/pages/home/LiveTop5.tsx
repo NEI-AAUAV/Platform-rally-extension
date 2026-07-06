@@ -34,19 +34,19 @@ export function LiveTop5() {
   if (!top || top.length === 0) return null;
 
   return (
-    <section aria-labelledby="top5-heading" className="p-[22px] rounded-[20px] bg-card border border-border">
-      <div className="flex items-center justify-between mb-4">
-        <h2
-          id="top5-heading"
-          className="rally-display text-xl font-bold text-foreground"
-        >
+    <section
+      aria-labelledby="top5-heading"
+      className="rounded-[20px] border border-border bg-card p-[22px]"
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <h2 id="top5-heading" className="rally-display text-xl font-bold text-foreground">
           Classificação ao vivo
         </h2>
         <Link
           to="/scoreboard"
-          className="inline-flex items-center gap-1.5 text-xs font-bold rally-accent"
+          className="rally-accent inline-flex items-center gap-1.5 text-xs font-bold"
         >
-          <span className="h-[7px] w-[7px] rounded-full bg-current animate-pulse" />
+          <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
           LIVE
         </Link>
       </div>
@@ -65,18 +65,18 @@ export function LiveTop5() {
               <Link
                 to="/teams/$id"
                 params={{ id: String(team.id) }}
-                className="flex items-center gap-3.5 px-[13px] py-[11px] rounded-[13px] bg-muted/30 border border-transparent hover:border-border transition-colors cursor-pointer"
+                className="flex cursor-pointer items-center gap-3.5 rounded-[13px] border border-transparent bg-muted/30 px-[13px] py-[11px] transition-colors hover:border-border"
               >
                 <span className="rally-display w-[22px] text-center text-[18px] font-bold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="grid place-items-center h-[38px] w-[38px] rounded-full rally-bg-accent-soft rally-accent font-bold text-[13px] shrink-0">
+                <span className="rally-bg-accent-soft rally-accent grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-[13px] font-bold">
                   {initialsOf(team.name)}
                 </span>
-                <span className="flex-1 min-w-0 font-semibold text-sm text-foreground truncate">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
                   {team.name}
                 </span>
-                <span className="rally-display font-bold text-[17px] tabular-nums text-foreground">
+                <span className="rally-display text-[17px] font-bold tabular-nums text-foreground">
                   {team.total}
                 </span>
               </Link>

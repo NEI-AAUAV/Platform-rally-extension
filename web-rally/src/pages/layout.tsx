@@ -32,16 +32,25 @@ function MainLayoutContent() {
   const isPublicAccessEnabled = settings?.public_access_enabled === true;
 
   // Paths that are accessible for teams or public even if main public access is disabled
-  const publicPaths = ['/team-login', '/team-progress', '/versus'];
+  const publicPaths = ["/team-login", "/team-progress", "/versus"];
   // Extract the path after /rally/ since the router basename is already /rally
-  const currentPath = globalThis.location.pathname.replace(/^\/rally/, '');
-  const isPublicPath = publicPaths.some(path => currentPath.startsWith(path));
+  const currentPath = globalThis.location.pathname.replace(/^\/rally/, "");
+  const isPublicPath = publicPaths.some((path) => currentPath.startsWith(path));
 
   // Redirect to main platform login if not authenticated and public access is disabled
   // AND we are not on a specifically allowed public/team path
-  if (!isAuthenticated && !isPublicAccessEnabled && !isPublicPath && !sessionLoading && !settingsLoading) {
+  if (
+    !isAuthenticated &&
+    !isPublicAccessEnabled &&
+    !isPublicPath &&
+    !sessionLoading &&
+    !settingsLoading
+  ) {
     return (
-      <div className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+      <div
+        className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased"
+        data-rally-theme={themeName}
+      >
         <div className="relative z-10">
           <LandingGate branding={branding} onStaffLogin={onStaffLogin} />
         </div>
@@ -52,17 +61,25 @@ function MainLayoutContent() {
   // Show loading while settings are being fetched
   if (settingsLoading) {
     return (
-      <div className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+      <div
+        className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased"
+        data-rally-theme={themeName}
+      >
         <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4">
           <span className="rally-border-accent h-10 w-10 animate-spin rounded-full border-2 border-border border-t-current" />
-          <p className="rally-display text-sm uppercase tracking-[0.18em] text-muted-foreground">A carregar</p>
+          <p className="rally-display text-sm uppercase tracking-[0.18em] text-muted-foreground">
+            A carregar
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rally-grain flex min-h-screen flex-col bg-background font-inter text-foreground antialiased" data-rally-theme={themeName}>
+    <div
+      className="rally-grain flex min-h-screen flex-col bg-background font-inter text-foreground antialiased"
+      data-rally-theme={themeName}
+    >
       {/* Ambient accent atmosphere — fixed, behind all content. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div className="rally-bg-accent-soft absolute -left-32 top-[-10%] h-80 w-80 rounded-full blur-3xl" />

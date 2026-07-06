@@ -9,12 +9,7 @@ type RallyBadgeProps = VariantProps<typeof rallyButtonVariants> &
 
 /** Accent-driven themed badge (replaces the bloody/nei skin badges). */
 export function RallyBadge({ className, variant, ...props }: RallyBadgeProps) {
-  return (
-    <Badge
-      className={cn(rallyButtonVariants({ variant }), className)}
-      {...props}
-    />
-  );
+  return <Badge className={cn(rallyButtonVariants({ variant }), className)} {...props} />;
 }
 
 export default RallyBadge;

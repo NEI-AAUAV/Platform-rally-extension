@@ -1,13 +1,5 @@
 import { useState } from "react";
-import {
-  Trophy,
-  MapPin,
-  Swords,
-  Award,
-  QrCode,
-  HelpCircle,
-  ChevronDown,
-} from "lucide-react";
+import { Trophy, MapPin, Swords, Award, QrCode, HelpCircle, ChevronDown } from "lucide-react";
 import type { ComponentType } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { PageHeader } from "@/components/shared";
@@ -44,9 +36,8 @@ export default function Rules() {
       body: (
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Cada equipa percorre os postos do rally. Em cada posto há uma ou mais
-            atividades avaliadas pelo staff, que somam pontos à classificação da
-            equipa.
+            Cada equipa percorre os postos do rally. Em cada posto há uma ou mais atividades
+            avaliadas pelo staff, que somam pontos à classificação da equipa.
           </p>
           <p>
             {settings?.checkpoint_order_matters
@@ -64,8 +55,8 @@ export default function Rules() {
       body: (
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>
-            A pontuação de cada equipa resulta das atividades concluídas em cada
-            posto. A classificação atualiza em tempo real
+            A pontuação de cada equipa resulta das atividades concluídas em cada posto. A
+            classificação atualiza em tempo real
             {settings?.show_live_leaderboard === false
               ? ", mas o leaderboard ao vivo pode estar oculto pelo organizador."
               : " no leaderboard."}
@@ -108,8 +99,8 @@ export default function Rules() {
       show: settings?.enable_versus === true,
       body: (
         <p className="text-sm text-muted-foreground">
-          Em determinados postos, equipas enfrentam-se diretamente. O resultado
-          do confronto influencia a pontuação de ambas as equipas.
+          Em determinados postos, equipas enfrentam-se diretamente. O resultado do confronto
+          influencia a pontuação de ambas as equipas.
         </p>
       ),
     },
@@ -120,8 +111,8 @@ export default function Rules() {
       show: true,
       body: (
         <p className="text-sm text-muted-foreground">
-          As equipas ganham distintivos por feitos especiais durante o rally
-          (vitórias em versus, rapidez, liderança). Aparecem no perfil da equipa.
+          As equipas ganham distintivos por feitos especiais durante o rally (vitórias em versus,
+          rapidez, liderança). Aparecem no perfil da equipa.
         </p>
       ),
     },
@@ -132,9 +123,8 @@ export default function Rules() {
       show: true,
       body: (
         <p className="text-sm text-muted-foreground">
-          Em alguns postos, a equipa faz check-in lendo o código QR apresentado
-          pelo staff — ou o staff lê o código da equipa. Confirma a chegada da
-          equipa ao posto.
+          Em alguns postos, a equipa faz check-in lendo o código QR apresentado pelo staff — ou o
+          staff lê o código da equipa. Confirma a chegada da equipa ao posto.
         </p>
       ),
     },
@@ -153,7 +143,7 @@ export default function Rules() {
         {sections.map(({ id, title, Icon, body }) => {
           const isOpen = open === id;
           return (
-            <div key={id} className="rally-surface rounded-2xl overflow-hidden">
+            <div key={id} className="rally-surface overflow-hidden rounded-2xl">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : id)}
@@ -177,11 +167,11 @@ export default function Rules() {
         })}
       </div>
 
-      <div className="rally-surface rounded-2xl p-6 flex items-start gap-3">
+      <div className="rally-surface flex items-start gap-3 rounded-2xl p-6">
         <HelpCircle className="rally-accent mt-0.5 h-5 w-5 shrink-0" />
         <p className="text-sm text-muted-foreground">
-          Dúvidas durante o evento? Fala com o staff no posto mais próximo ou com
-          a organização do NEI.
+          Dúvidas durante o evento? Fala com o staff no posto mais próximo ou com a organização do
+          NEI.
         </p>
       </div>
     </div>

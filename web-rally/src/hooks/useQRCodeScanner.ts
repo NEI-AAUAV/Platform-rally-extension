@@ -8,12 +8,11 @@ import jsQR from "jsqr";
 export function useQRCodeScanner(
   videoRef: React.RefObject<HTMLVideoElement>,
   canvasRef: React.RefObject<HTMLCanvasElement>,
-  onDetectCode: (code: string) => void
+  onDetectCode: (code: string) => void,
 ) {
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scanIntervalRef = useRef<number>();
-
 
   const scan = useCallback(() => {
     const video = videoRef.current;

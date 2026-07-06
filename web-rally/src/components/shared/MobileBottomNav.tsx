@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Trophy, MapPin, Users, Award, QrCode, X, ShieldCheck, ClipboardCheck, Compass, Settings } from "lucide-react";
+import {
+  Home,
+  Trophy,
+  MapPin,
+  Users,
+  Award,
+  QrCode,
+  X,
+  ShieldCheck,
+  ClipboardCheck,
+  Compass,
+  Settings,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/useUserStore";
@@ -32,7 +44,9 @@ export function MobileBottomNav() {
 
   const isAdminOrManager =
     scopes !== undefined &&
-    (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin"));
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff;
@@ -52,7 +66,12 @@ export function MobileBottomNav() {
         { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
         { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
-        { name: "Conquistas", href: "/conquistas", Icon: Award, show: settings?.badges_enabled !== false },
+        {
+          name: "Conquistas",
+          href: "/conquistas",
+          Icon: Award,
+          show: settings?.badges_enabled !== false,
+        },
         { name: "Equipa", href: "/team-info", Icon: Users, show: true },
         { name: "Definições", href: "/team-settings", Icon: Settings, show: true },
       ].filter((i) => i.show)
@@ -73,7 +92,12 @@ export function MobileBottomNav() {
           Icon: Users,
           show: isStaff && !isAdminOrManager,
         },
-        { name: "Guia", href: "/guide", Icon: Compass, show: showGuideFeature && (isGuide || isStaff || isAdminOrManager) },
+        {
+          name: "Guia",
+          href: "/guide",
+          Icon: Compass,
+          show: showGuideFeature && (isGuide || isStaff || isAdminOrManager),
+        },
         {
           name: "Equipa",
           href: isTeamAuthenticated ? "/team-progress" : "/team-login",
@@ -127,7 +151,7 @@ export function MobileBottomNav() {
         <dialog
           open
           aria-label="QR de equipa"
-          className="fixed inset-0 z-[60] m-0 flex h-full w-full max-h-none max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
+          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
           onClose={() => setQrOpen(false)}
           onCancel={() => setQrOpen(false)}
           onClick={(e) => {

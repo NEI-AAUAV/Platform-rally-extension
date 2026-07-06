@@ -4,35 +4,33 @@ import { MapPin, ArrowRight } from "lucide-react";
 import type { DetailedCheckPoint, ActivityResponse, ListingTeam } from "@/client";
 
 type AssignedCheckpointsProps = Readonly<{
-
   checkpoints: DetailedCheckPoint[];
   activities: ActivityResponse[];
   teams: ListingTeam[];
   onCheckpointClick: (checkpoint: DetailedCheckPoint) => void;
-}>
+}>;
 
-export default function AssignedCheckpoints({ 
-  checkpoints, 
-  activities, 
-  teams, 
-  onCheckpointClick 
+export default function AssignedCheckpoints({
+  checkpoints,
+  activities,
+  teams,
+  onCheckpointClick,
 }: AssignedCheckpointsProps) {
   const CARD = "rally-surface rounded-2xl";
-  const ITEM_BASE = "border border-border bg-secondary rounded-xl p-3 sm:p-4 cursor-pointer transition-colors hover:bg-accent w-full text-left";
+  const ITEM_BASE =
+    "border border-border bg-secondary rounded-xl p-3 sm:p-4 cursor-pointer transition-colors hover:bg-accent w-full text-left";
 
   if (!checkpoints || checkpoints.length === 0) {
     return (
       <div className={CARD}>
         <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <MapPin className="h-5 w-5" />
             Postos Atribuídos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            Nenhum posto encontrado.
-          </p>
+          <p className="py-4 text-center text-muted-foreground">Nenhum posto encontrado.</p>
         </CardContent>
       </div>
     );
@@ -41,8 +39,8 @@ export default function AssignedCheckpoints({
   return (
     <div className={CARD}>
       <CardHeader>
-        <CardTitle className="text-foreground flex items-center gap-2">
-          <MapPin className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-foreground">
+          <MapPin className="h-5 w-5" />
           Postos Atribuídos
         </CardTitle>
       </CardHeader>
@@ -61,18 +59,23 @@ export default function AssignedCheckpoints({
                 className={ITEM_BASE}
                 onClick={() => onCheckpointClick(checkpoint)}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-lg sm:text-base truncate">{checkpoint.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-lg font-semibold text-foreground sm:text-base">
+                      {checkpoint.name}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {checkpointActivities.length} atividades • {teamsAtCheckpoint.length} equipas
                     </p>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-2">
-                    <Badge variant="outline" className="text-foreground border-border text-xs sm:text-sm">
+                  <div className="flex items-center justify-between gap-2 sm:justify-end">
+                    <Badge
+                      variant="outline"
+                      className="border-border text-xs text-foreground sm:text-sm"
+                    >
                       Posto {checkpoint.order}
                     </Badge>
-                    <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                    <ArrowRight className="h-5 w-5 flex-shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
                   </div>
                 </div>
               </button>

@@ -6,7 +6,12 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
 import { LoadingState, FeatureDisabledAlert, PageHeader } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
-import { TeamService, VersusService, type ListingTeam, type VersusGroupListResponse } from "@/client";
+import {
+  TeamService,
+  VersusService,
+  type ListingTeam,
+  type VersusGroupListResponse,
+} from "@/client";
 
 interface VersusProps {
   readonly embedded?: boolean;
@@ -44,12 +49,7 @@ export default function Versus({ embedded = false }: VersusProps) {
   }
 
   if (!settings?.enable_versus) {
-    return (
-      <FeatureDisabledAlert
-        featureName="modo versus"
-        settingsPath="/settings"
-      />
-    );
+    return <FeatureDisabledAlert featureName="modo versus" settingsPath="/settings" />;
   }
 
   return (
@@ -72,5 +72,3 @@ export default function Versus({ embedded = false }: VersusProps) {
     </div>
   );
 }
-
-

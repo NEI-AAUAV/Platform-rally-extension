@@ -31,8 +31,8 @@ export default function CheckpointForm({
 }: CheckpointFormProps) {
   return (
     <div className="rally-surface rounded-2xl p-6">
-      <h3 className="text-lg font-semibold mb-4">
-        {isEditing ? 'Editar Checkpoint' : 'Criar Novo Checkpoint'}
+      <h3 className="mb-4 text-lg font-semibold">
+        {isEditing ? "Editar Checkpoint" : "Criar Novo Checkpoint"}
       </h3>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -43,7 +43,11 @@ export default function CheckpointForm({
               <FormItem>
                 <FormLabel>Nome do Checkpoint</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: Checkpoint Central" {...field} className={fieldClassName} />
+                  <Input
+                    placeholder="Ex: Checkpoint Central"
+                    {...field}
+                    className={fieldClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -56,7 +60,11 @@ export default function CheckpointForm({
               <FormItem>
                 <FormLabel>Descrição (Opcional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="Descrição do checkpoint..." {...field} className={fieldClassName} />
+                  <Input
+                    placeholder="Descrição do checkpoint..."
+                    {...field}
+                    className={fieldClassName}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -91,8 +99,12 @@ export default function CheckpointForm({
             />
           </div>
           <CheckpointLocationPicker
-            latitude={form.watch("latitude") ? Number.parseFloat(form.watch("latitude") as string) : null}
-            longitude={form.watch("longitude") ? Number.parseFloat(form.watch("longitude") as string) : null}
+            latitude={
+              form.watch("latitude") ? Number.parseFloat(form.watch("latitude") as string) : null
+            }
+            longitude={
+              form.watch("longitude") ? Number.parseFloat(form.watch("longitude") as string) : null
+            }
             onChange={(lat, lng) => {
               form.setValue("latitude", lat.toFixed(6), { shouldValidate: true });
               form.setValue("longitude", lng.toFixed(6), { shouldValidate: true });
@@ -115,7 +127,8 @@ export default function CheckpointForm({
                   />
                 </FormControl>
                 <p className="text-xs text-muted-foreground">
-                  Distância a que a equipa tem de estar para "adivinhar" o sítio via GPS. 0 desativa o check-in por localização.
+                  Distância a que a equipa tem de estar para "adivinhar" o sítio via GPS. 0 desativa
+                  o check-in por localização.
                 </p>
                 <FormMessage />
               </FormItem>
@@ -142,7 +155,7 @@ export default function CheckpointForm({
           />
           <div className="flex gap-2">
             <BloodyButton type="submit" disabled={isSubmitting}>
-              {isEditing ? 'Atualizar' : 'Criar'} Checkpoint
+              {isEditing ? "Atualizar" : "Criar"} Checkpoint
             </BloodyButton>
             {isEditing && (
               <BloodyButton type="button" variant="neutral" onClick={onCancel}>

@@ -1,11 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Lightbulb, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
-import {
-  CheckpointMediaService,
-  MediaKind,
-  type CheckpointMediaResponse,
-} from "@/client";
+import { CheckpointMediaService, MediaKind, type CheckpointMediaResponse } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-toast";
@@ -29,18 +25,23 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
   const { data: media = [], isLoading } = useQuery<CheckpointMediaResponse[]>({
     queryKey,
     queryFn: () =>
-      CheckpointMediaService.listCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaGet(checkpointId),
+      CheckpointMediaService.listCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaGet(
+        checkpointId,
+      ),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey });
 
   const uploadPhoto = useMutation({
     mutationFn: (image: Blob) =>
-      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(checkpointId, {
-        kind: MediaKind.PHOTO,
-        caption: photoCaption || null,
-        image,
-      }),
+      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(
+        checkpointId,
+        {
+          kind: MediaKind.PHOTO,
+          caption: photoCaption || null,
+          image,
+        },
+      ),
     onSuccess: () => {
       invalidate();
       setPhotoCaption("");
@@ -52,10 +53,13 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
 
   const addFunFact = useMutation({
     mutationFn: (caption: string) =>
-      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(checkpointId, {
-        kind: MediaKind.FUN_FACT,
-        caption,
-      }),
+      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(
+        checkpointId,
+        {
+          kind: MediaKind.FUN_FACT,
+          caption,
+        },
+      ),
     onSuccess: () => {
       invalidate();
       setFunFact("");
@@ -120,13 +124,17 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
                 {m.caption && (
-                  <p className="mt-1 line-clamp-1 w-24 text-[10px] text-muted-foreground">{m.caption}</p>
+                  <p className="mt-1 line-clamp-1 w-24 text-[10px] text-muted-foreground">
+                    {m.caption}
+                  </p>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Ainda sem fotos. Envie a primeira para a equipa adivinhar o sítio.</p>
+          <p className="text-xs text-muted-foreground">
+            Ainda sem fotos. Envie a primeira para a equipa adivinhar o sítio.
+          </p>
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -208,7 +216,11 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
             onClick={handleAddFunFact}
             disabled={addFunFact.isPending || !funFact.trim()}
           >
-            {addFunFact.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+            {addFunFact.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Lightbulb className="h-4 w-4" />
+            )}
             <span className="ml-1.5">Adicionar</span>
           </BloodyButton>
         </div>

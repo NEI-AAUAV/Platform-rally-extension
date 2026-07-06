@@ -47,7 +47,13 @@ export default function CheckpointDiscovery({
         </div>
       )}
       {description && (
-        <p className={compact ? "text-sm text-foreground/90" : "text-[15px] leading-relaxed text-foreground/90"}>
+        <p
+          className={
+            compact
+              ? "text-sm text-foreground/90"
+              : "text-[15px] leading-relaxed text-foreground/90"
+          }
+        >
           {description}
         </p>
       )}
@@ -94,7 +100,7 @@ export default function CheckpointDiscovery({
       {lightbox && (
         <dialog
           open
-          className="fixed inset-0 z-50 m-0 flex h-full w-full max-h-none max-w-none items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center bg-black/85 p-4"
           aria-label="Foto ampliada"
           onClose={() => setLightbox(null)}
           onCancel={() => setLightbox(null)}

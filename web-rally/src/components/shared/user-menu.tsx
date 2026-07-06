@@ -5,10 +5,16 @@ import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
 
 export function UserMenu() {
-  const { isAuthenticated, name, email, image, scopes, logout, sessionLoading } = useUserStore((state) => state);
+  const { isAuthenticated, name, email, image, scopes, logout, sessionLoading } = useUserStore(
+    (state) => state,
+  );
   const onStaffLogin = useStaffLogin();
 
-  const isAdmin = scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally") || scopes.includes("rally:admin"));
+  const isAdmin =
+    scopes !== undefined &&
+    (scopes.includes("admin") ||
+      scopes.includes("manager-rally") ||
+      scopes.includes("rally:admin"));
 
   if (sessionLoading) {
     return <div className="h-9 w-20 animate-pulse rounded-md border border-border bg-muted" />;
@@ -97,8 +103,7 @@ export function UserMenu() {
             to="/profile"
             className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
           >
-            <User className="h-4 w-4" />
-            O meu perfil
+            <User className="h-4 w-4" />O meu perfil
           </Link>
           <button
             onClick={logout}

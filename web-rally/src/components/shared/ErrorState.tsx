@@ -1,16 +1,16 @@
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ErrorStateProps {
   message: string;
   className?: string;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
 }
 
-export default function ErrorState({ 
-  message, 
-  className = "", 
-  variant = 'destructive' 
+export default function ErrorState({
+  message,
+  className = "",
+  variant = "destructive",
 }: ErrorStateProps) {
   return (
     <div className={`mt-8 ${className}`}>

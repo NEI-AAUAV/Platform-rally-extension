@@ -1,17 +1,26 @@
-import React from 'react';
-import { Plus, AlertCircle } from 'lucide-react';
-import { BloodyButton } from '@/components/themes/bloody';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import ActivityForm from '@/components/ActivityCreateForm';
-import ActivityList from '@/components/ActivityList';
-import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities';
-import type { Activity as ActivityType } from '@/types/activityTypes';
-import { ActivityType as CustomActivityType } from '@/types/activityTypes';
-import type { ActivityCreate as ClientActivityCreate, ActivityListResponse, ActivityResponse } from '@/client';
-import { ActivityType as ClientActivityType } from '@/client';
-import type { ActivityCreate as CustomActivityCreate } from '@/types/activityTypes';
-import { useAppToast } from '@/hooks/use-toast';
-import { getErrorMessage } from '@/utils/errorHandling';
+import React from "react";
+import { Plus, AlertCircle } from "lucide-react";
+import { BloodyButton } from "@/components/themes/bloody";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import ActivityForm from "@/components/ActivityCreateForm";
+import ActivityList from "@/components/ActivityList";
+import {
+  useActivities,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
+} from "@/hooks/useActivities";
+import type { Activity as ActivityType } from "@/types/activityTypes";
+import { ActivityType as CustomActivityType } from "@/types/activityTypes";
+import type {
+  ActivityCreate as ClientActivityCreate,
+  ActivityListResponse,
+  ActivityResponse,
+} from "@/client";
+import { ActivityType as ClientActivityType } from "@/client";
+import type { ActivityCreate as CustomActivityCreate } from "@/types/activityTypes";
+import { useAppToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errorHandling";
 
 interface Checkpoint {
   id: number;
@@ -21,9 +30,8 @@ interface Checkpoint {
 }
 
 type ActivityManagementProps = Readonly<{
-
   checkpoints: Checkpoint[];
-}>
+}>;
 
 export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
@@ -35,7 +43,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
   const {
     mutate: createActivity,
     isPending: isCreatingActivity,
-    error: createActivityError
+    error: createActivityError,
   } = useCreateActivity();
   const { mutate: updateActivity, isPending: isUpdatingActivity } = useUpdateActivity();
   const { mutate: deleteActivity } = useDeleteActivity();
@@ -67,7 +75,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         onError: (error) => {
           toast.error(getErrorMessage(error, "Erro ao atualizar atividade"));
         },
-      }
+      },
     );
   };
 
@@ -77,7 +85,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
   };
 
   const handleDeleteActivity = (id: number) => {
-    if (confirm('Tem certeza que deseja deletar esta atividade?')) {
+    if (confirm("Tem certeza que deseja deletar esta atividade?")) {
       deleteActivity(id, {
         onSuccess: () => {
           toast.success("Atividade deletada com sucesso!");
@@ -89,10 +97,8 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
     }
   };
 
-
   return (
     <div className="space-y-6">
-
       {showActivityForm ? (
         <ActivityForm
           checkpoints={checkpoints}
@@ -115,14 +121,18 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
           }}
           isLoading={isCreatingActivity || isUpdatingActivity}
           error={createActivityError?.message}
-          initialData={editingActivity ? {
-            name: editingActivity.name,
-            description: editingActivity.description ?? undefined,
-            activity_type: editingActivity.activity_type as unknown as CustomActivityType,
-            checkpoint_id: editingActivity.checkpoint_id,
-            config: editingActivity.config as Record<string, string | number | boolean>,
-            is_active: editingActivity.is_active,
-          } : undefined}
+          initialData={
+            editingActivity
+              ? {
+                  name: editingActivity.name,
+                  description: editingActivity.description ?? undefined,
+                  activity_type: editingActivity.activity_type as unknown as CustomActivityType,
+                  checkpoint_id: editingActivity.checkpoint_id,
+                  config: editingActivity.config as Record<string, string | number | boolean>,
+                  is_active: editingActivity.is_active,
+                }
+              : undefined
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -131,7 +141,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
               onClick={() => setShowActivityForm(true)}
               disabled={!checkpoints || checkpoints.length === 0}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               Nova Atividade
             </BloodyButton>
           </div>
@@ -145,18 +155,23 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
             </Alert>
           ) : (
             <ActivityList
-              activities={((activitiesData as ActivityListResponse | undefined)?.activities ?? []).map((activity: ActivityResponse): ActivityType => ({
-                id: activity.id,
-                name: activity.name,
-                description: activity.description ?? undefined,
-                activity_type: activity.activity_type as unknown as CustomActivityType,
-                checkpoint_id: activity.checkpoint_id ?? 0,
-                config: activity.config as Record<string, string | number | boolean>,
-                is_active: activity.is_active ?? true,
-                order: 'order' in activity && typeof activity.order === 'number' ? activity.order : 0,
-                created_at: activity.created_at,
-                updated_at: activity.updated_at,
-              }))}
+              activities={(
+                (activitiesData as ActivityListResponse | undefined)?.activities ?? []
+              ).map(
+                (activity: ActivityResponse): ActivityType => ({
+                  id: activity.id,
+                  name: activity.name,
+                  description: activity.description ?? undefined,
+                  activity_type: activity.activity_type as unknown as CustomActivityType,
+                  checkpoint_id: activity.checkpoint_id ?? 0,
+                  config: activity.config as Record<string, string | number | boolean>,
+                  is_active: activity.is_active ?? true,
+                  order:
+                    "order" in activity && typeof activity.order === "number" ? activity.order : 0,
+                  created_at: activity.created_at,
+                  updated_at: activity.updated_at,
+                }),
+              )}
               checkpoints={checkpoints}
               onEdit={handleEditActivity}
               onDelete={handleDeleteActivity}

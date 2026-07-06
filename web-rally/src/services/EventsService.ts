@@ -36,7 +36,10 @@ export class EventsService {
     });
   }
 
-  public static updateEvent(eventId: number, body: RallyEventUpdate): CancelablePromise<RallyEvent> {
+  public static updateEvent(
+    eventId: number,
+    body: RallyEventUpdate,
+  ): CancelablePromise<RallyEvent> {
     return __request(OpenAPI, {
       method: "PUT",
       url: "/api/rally/v1/events/{event_id}",

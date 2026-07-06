@@ -35,7 +35,9 @@ export default function Home() {
   const sectionRenderers: Record<HomeSectionKey, () => ReactNode> = {
     home_hero: () => <HomeHero branding={branding} settings={settings} />,
     rally_marquee: () => <RallyMarquee items={settings?.ticker_items} />,
-    event_stats: () => <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />,
+    event_stats: () => (
+      <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
+    ),
     live_top5: () => (scoreVisible ? <LiveTop5 /> : null),
     how_it_works: () => <HowItWorks />,
     postos_preview: () => <PostosPreview enabled={checkpointsPublic} />,

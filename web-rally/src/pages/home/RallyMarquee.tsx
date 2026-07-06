@@ -13,7 +13,7 @@ export function RallyMarquee({ items }: RallyMarqueeProps) {
   const doubled = [...list, ...list];
 
   return (
-    <div className="overflow-hidden rounded-[16px] border border-border rally-bg-accent py-[11px]">
+    <div className="rally-bg-accent overflow-hidden rounded-[16px] border border-border py-[11px]">
       <div className="rally-marquee">
         <div className="rally-marquee-track flex whitespace-nowrap">
           {doubled.map((item, i) => (

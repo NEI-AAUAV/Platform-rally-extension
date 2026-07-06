@@ -40,7 +40,7 @@ export default function TeamsById() {
   const renderTeamContent = () => {
     if (isLoading) {
       return (
-        <div className="rally-surface rounded-2xl p-6 mt-16 text-center">
+        <div className="rally-surface mt-16 rounded-2xl p-6 text-center">
           <div className="text-lg font-semibold">A carregar...</div>
         </div>
       );
@@ -48,14 +48,17 @@ export default function TeamsById() {
 
     if (isSuccess) {
       return (
-        <div className="rally-surface rounded-2xl p-6 mt-16 text-center">
+        <div className="rally-surface mt-16 rounded-2xl p-6 text-center">
           <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
-          <div className="text-muted-foreground mt-2 text-sm">
+          <div className="mt-2 text-sm text-muted-foreground">
             O organizador desativou a visualização de detalhes das equipas.
           </div>
           <div className="mt-4">
-            <Link to="/teams" className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted rounded-lg text-foreground font-medium transition-colors">
-              <ArrowBigLeft className="w-4 h-4" />
+            <Link
+              to="/teams"
+              className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <ArrowBigLeft className="h-4 w-4" />
               Voltar à lista de equipas
             </Link>
           </div>
@@ -162,26 +165,33 @@ export default function TeamsById() {
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="rally-bg-accent h-full transition-all duration-500"
-                  style={{ width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%` }}
+                  style={{
+                    width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%`,
+                  }}
                 />
               </div>
             </div>
 
             <div className="space-y-4">
               {(team?.last_checkpoint_number ?? team?.times?.length ?? 0) > 0 ? (
-                Array.from({ length: team.last_checkpoint_number ?? team.times.length }).map((_, index: number) => (
-                  <CheckpointTimelineItem
-                    key={checkpoints?.find((cp) => cp.order === index + 1)?.id ?? `checkpoint-${index}`}
-                    team={team}
-                    index={index}
-                    checkpoints={checkpoints}
-                    activityResults={activityResults}
-                    allEvaluations={allEvaluations}
-                    totalTeams={totalTeams}
-                    isExpanded={expandedCheckpoints.has(index)}
-                    onToggle={toggleCheckpoint}
-                  />
-                ))
+                Array.from({ length: team.last_checkpoint_number ?? team.times.length }).map(
+                  (_, index: number) => (
+                    <CheckpointTimelineItem
+                      key={
+                        checkpoints?.find((cp) => cp.order === index + 1)?.id ??
+                        `checkpoint-${index}`
+                      }
+                      team={team}
+                      index={index}
+                      checkpoints={checkpoints}
+                      activityResults={activityResults}
+                      allEvaluations={allEvaluations}
+                      totalTeams={totalTeams}
+                      isExpanded={expandedCheckpoints.has(index)}
+                      onToggle={toggleCheckpoint}
+                    />
+                  ),
+                )
               ) : (
                 <div className="rally-surface rounded-2xl p-6 text-center">
                   <p className="text-muted-foreground">Ainda sem postos visitados</p>

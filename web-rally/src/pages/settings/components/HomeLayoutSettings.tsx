@@ -54,7 +54,7 @@ function SortableRow({ id, disabled, children }: SortableRowProps) {
       <button
         type="button"
         className={cn(
-          "shrink-0 cursor-grab text-muted-foreground touch-none",
+          "shrink-0 cursor-grab touch-none text-muted-foreground",
           disabled && "cursor-not-allowed opacity-40",
         )}
         aria-label="Reordenar"
@@ -69,7 +69,10 @@ function SortableRow({ id, disabled, children }: SortableRowProps) {
   );
 }
 
-export default function HomeLayoutSettings({ className = "", disabled = false }: HomeLayoutSettingsProps) {
+export default function HomeLayoutSettings({
+  className = "",
+  disabled = false,
+}: HomeLayoutSettingsProps) {
   const { control } = useFormContext();
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -87,7 +90,7 @@ export default function HomeLayoutSettings({ className = "", disabled = false }:
     <div className={cn("rally-surface rounded-2xl", className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <LayoutTemplate className="w-5 h-5" />
+          <LayoutTemplate className="h-5 w-5" />
           Layout da Página Inicial
         </CardTitle>
         <CardDescription>
@@ -206,7 +209,7 @@ export default function HomeLayoutSettings({ className = "", disabled = false }:
             onClick={() => appendTicker({ value: "" })}
             disabled={disabled || tickerFields.length >= MAX_TICKER_ITEMS}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Adicionar item
           </Button>
           <p className="text-xs text-muted-foreground">

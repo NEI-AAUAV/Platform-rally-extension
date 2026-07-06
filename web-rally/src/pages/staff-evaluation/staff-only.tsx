@@ -44,7 +44,9 @@ export default function StaffEvaluationPage() {
   return (
     <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
       <Loader2 className="rally-accent mx-auto mb-4 h-10 w-10 animate-spin" />
-      <p className="text-sm text-muted-foreground">A redirecionar para a avaliação do teu posto...</p>
+      <p className="text-sm text-muted-foreground">
+        A redirecionar para a avaliação do teu posto...
+      </p>
     </div>
   );
 }

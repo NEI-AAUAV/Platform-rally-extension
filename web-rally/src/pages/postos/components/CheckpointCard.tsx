@@ -60,7 +60,7 @@ export default function CheckpointCard({
           {checkpoint.order}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-bold text-[16px] text-foreground">{checkpoint.name}</p>
+          <p className="truncate text-[16px] font-bold text-foreground">{checkpoint.name}</p>
           <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
             <Compass className="h-3.5 w-3.5" />
             Descobre este local

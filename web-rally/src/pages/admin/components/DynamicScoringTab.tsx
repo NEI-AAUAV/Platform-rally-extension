@@ -60,7 +60,7 @@ function RulesSection() {
         <h3 className="text-sm font-semibold">Regras</h3>
         <button
           type="button"
-          className="ml-auto rally-press flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+          className="rally-press ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
           onClick={() => setShowForm((v) => !v)}
         >
           <Plus className="h-3.5 w-3.5" /> Nova regra
@@ -129,7 +129,10 @@ function RulesSection() {
             <button
               type="button"
               className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-accent"
-              onClick={() => { setShowForm(false); setForm(EMPTY_RULE); }}
+              onClick={() => {
+                setShowForm(false);
+                setForm(EMPTY_RULE);
+              }}
             >
               Cancelar
             </button>
@@ -147,7 +150,8 @@ function RulesSection() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold leading-tight">{rule.name}</p>
               <p className="text-xs text-muted-foreground">
-                {rule.rule_type} · {rule.points > 0 ? "+" : ""}{rule.points} pts
+                {rule.rule_type} · {rule.points > 0 ? "+" : ""}
+                {rule.points} pts
                 {rule.description ? ` · ${rule.description}` : ""}
               </p>
             </div>
@@ -224,7 +228,7 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
         <h3 className="text-sm font-semibold">Prémios / Ajustes manuais</h3>
         <button
           type="button"
-          className="ml-auto rally-press flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+          className="rally-press ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
           onClick={() => setShowForm((v) => !v)}
         >
           <Plus className="h-3.5 w-3.5" /> Novo prémio
@@ -243,7 +247,9 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
               >
                 <option value="">Selecionar…</option>
                 {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
                 ))}
               </select>
             </label>
@@ -266,7 +272,9 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
               >
                 <option value="">Nenhuma</option>
                 {rules.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
                 ))}
               </select>
             </label>
@@ -297,7 +305,10 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
             <button
               type="button"
               className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-accent"
-              onClick={() => { setShowForm(false); setForm(EMPTY_AWARD); }}
+              onClick={() => {
+                setShowForm(false);
+                setForm(EMPTY_AWARD);
+              }}
             >
               Cancelar
             </button>
@@ -310,27 +321,30 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
       )}
 
       <ul className="space-y-2">
-        {awards.filter((a) => a.is_active).map((award) => (
-          <li key={award.id} className="rally-surface flex items-center gap-3 p-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold leading-tight">{teamName(award.team_id)}</p>
-              <p className="text-xs text-muted-foreground">
-                {award.points > 0 ? "+" : ""}{award.points} pts
-                {award.reason ? ` · ${award.reason}` : ""}
-              </p>
-            </div>
-            <button
-              type="button"
-              title="Revogar"
-              className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
-              onClick={() => {
-                if (confirm("Revogar este prémio?")) deleteMutation.mutate(award.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </li>
-        ))}
+        {awards
+          .filter((a) => a.is_active)
+          .map((award) => (
+            <li key={award.id} className="rally-surface flex items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold leading-tight">{teamName(award.team_id)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {award.points > 0 ? "+" : ""}
+                  {award.points} pts
+                  {award.reason ? ` · ${award.reason}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                title="Revogar"
+                className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                onClick={() => {
+                  if (confirm("Revogar este prémio?")) deleteMutation.mutate(award.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
       </ul>
     </section>
   );

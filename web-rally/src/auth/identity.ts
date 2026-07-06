@@ -25,7 +25,8 @@ export function profileToUser(user: User): TokenPayload {
   return {
     sub: profile.sub,
     email: profile.email,
-    name: (profile.name as string | undefined) ?? (profile.preferred_username as string | undefined),
+    name:
+      (profile.name as string | undefined) ?? (profile.preferred_username as string | undefined),
     image: profile.picture,
     scopes: mapGroupsToScopes(groups),
   };

@@ -2,7 +2,17 @@ import { useState } from "react";
 import React from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, CheckCircle, Clock, Star, Trophy, Filter, X, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Activity,
+  CheckCircle,
+  Clock,
+  Star,
+  Trophy,
+  Filter,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 interface Evaluation {
   id: number;
@@ -37,14 +47,13 @@ interface Evaluation {
 }
 
 type AllEvaluationsProps = Readonly<{
-
   evaluations: Evaluation[];
-}>
+}>;
 
 function getTeamVsResultLabel(result: string): string {
-  if (result === 'win') return '✓ Won';
-  if (result === 'lose') return '✗ Lost';
-  return '= Draw';
+  if (result === "win") return "✓ Won";
+  if (result === "lose") return "✗ Lost";
+  return "= Draw";
 }
 
 const activityTypeIcons = {
@@ -60,12 +69,13 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
     <>
       <Badge
         variant="outline"
-        className={`text-xs ${result === 'win'
-          ? 'border-green-500/50 text-green-400'
-          : result === 'lose'
-            ? 'border-red-500/50 text-red-400'
-            : 'border-yellow-500/50 text-yellow-400'
-          }`}
+        className={`text-xs ${
+          result === "win"
+            ? "border-green-500/50 text-green-400"
+            : result === "lose"
+              ? "border-red-500/50 text-red-400"
+              : "border-yellow-500/50 text-yellow-400"
+        }`}
       >
         {getTeamVsResultLabel(result)}
       </Badge>
@@ -85,7 +95,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());
 
   const toggleExpand = (evaluationId: number) => {
-    setExpandedEvaluations(prev => {
+    setExpandedEvaluations((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(evaluationId)) {
         newSet.delete(evaluationId);
@@ -97,13 +107,17 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   };
 
   // Get unique teams and checkpoints for filter options
-  const uniqueTeams = Array.from(new Set(evaluations.map(e => e.team.name))).sort();
-  const uniqueCheckpoints = Array.from(new Set(evaluations.map(e => e.activity.checkpoint_id))).sort();
+  const uniqueTeams = Array.from(new Set(evaluations.map((e) => e.team.name))).sort();
+  const uniqueCheckpoints = Array.from(
+    new Set(evaluations.map((e) => e.activity.checkpoint_id)),
+  ).sort();
 
   // Filter evaluations based on selected filters
-  const filteredEvaluations = evaluations.filter(evaluation => {
+  const filteredEvaluations = evaluations.filter((evaluation) => {
     const teamMatch = selectedTeam === "all" || evaluation.team.name === selectedTeam;
-    const checkpointMatch = selectedCheckpoint === "all" || evaluation.activity.checkpoint_id.toString() === selectedCheckpoint;
+    const checkpointMatch =
+      selectedCheckpoint === "all" ||
+      evaluation.activity.checkpoint_id.toString() === selectedCheckpoint;
     return teamMatch && checkpointMatch;
   });
 
@@ -112,15 +126,13 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
     return (
       <div className="rally-surface rounded-2xl">
         <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2">
-            <Activity className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Activity className="h-5 w-5" />
             Todas as Avaliações
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            Nenhuma avaliação encontrada.
-          </p>
+          <p className="py-4 text-center text-muted-foreground">Nenhuma avaliação encontrada.</p>
         </CardContent>
       </div>
     );
@@ -130,9 +142,9 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
     <div className="rally-surface rounded-2xl">
       <CardContent>
         {/* Filters */}
-        <div className="mt-4 mb-4 p-2">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-muted-foreground" />
+        <div className="mb-4 mt-4 p-2">
+          <div className="mb-3 flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">Filtros</span>
             {hasActiveFilters && (
               <button
@@ -140,40 +152,46 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                   setSelectedTeam("all");
                   setSelectedCheckpoint("all");
                 }}
-                className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
-                <X className="w-3 h-3" />
+                <X className="h-3 w-3" />
                 Limpar filtros
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {/* Team Filter */}
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Equipa</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Equipa</label>
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
-                <option value="all" className="bg-background">Todas as equipas</option>
-                {uniqueTeams.map(team => (
-                  <option key={team} value={team} className="bg-background">{team}</option>
+                <option value="all" className="bg-background">
+                  Todas as equipas
+                </option>
+                {uniqueTeams.map((team) => (
+                  <option key={team} value={team} className="bg-background">
+                    {team}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Checkpoint Filter */}
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Posto</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Posto</label>
               <select
                 value={selectedCheckpoint}
                 onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                className="w-full p-2 bg-muted border border-border rounded text-foreground text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               >
-                <option value="all" className="bg-background">Todos os postos</option>
-                {uniqueCheckpoints.map(checkpoint => (
+                <option value="all" className="bg-background">
+                  Todos os postos
+                </option>
+                {uniqueCheckpoints.map((checkpoint) => (
                   <option key={checkpoint} value={checkpoint.toString()} className="bg-background">
                     Checkpoint {checkpoint}
                   </option>
@@ -191,18 +209,21 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
         <div className="space-y-3">
           {filteredEvaluations.map((evaluation) => {
-            const IconComponent = activityTypeIcons[evaluation.activity.activity_type as keyof typeof activityTypeIcons] || Activity;
+            const IconComponent =
+              activityTypeIcons[
+                evaluation.activity.activity_type as keyof typeof activityTypeIcons
+              ] || Activity;
             const isExpanded = expandedEvaluations.has(evaluation.id);
 
             // Compute TeamVsActivity result badge if applicable
             let teamVsResult: React.ReactNode = null;
-            if (evaluation.activity.activity_type === 'TeamVsActivity' && evaluation.result_data) {
+            if (evaluation.activity.activity_type === "TeamVsActivity" && evaluation.result_data) {
               const resultValue = evaluation.result_data.result;
-              if (typeof resultValue === 'string' && resultValue) {
+              if (typeof resultValue === "string" && resultValue) {
                 const result: string = resultValue; // Type assertion after type guard
                 const opponentId =
-                  'opponent_team_id' in evaluation.result_data &&
-                    typeof evaluation.result_data.opponent_team_id === 'number'
+                  "opponent_team_id" in evaluation.result_data &&
+                  typeof evaluation.result_data.opponent_team_id === "number"
                     ? evaluation.result_data.opponent_team_id
                     : null;
                 teamVsResult = <TeamVsResultBadges result={result} opponentId={opponentId} />;
@@ -214,67 +235,97 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
               (evaluation.penalties && Object.keys(evaluation.penalties).length > 0);
 
             return (
-              <div key={evaluation.id} className="border border-border bg-secondary rounded-lg p-3 transition-colors hover:bg-accent">
+              <div
+                key={evaluation.id}
+                className="rounded-lg border border-border bg-secondary p-3 transition-colors hover:bg-accent"
+              >
                 <div className="flex flex-col gap-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer" onClick={() => hasDetails && toggleExpand(evaluation.id)}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div
+                      className="flex min-w-0 flex-1 cursor-pointer items-start gap-3"
+                      onClick={() => hasDetails && toggleExpand(evaluation.id)}
+                    >
                       <div className="flex items-center gap-2">
-                        <IconComponent className="w-5 h-5 text-foreground flex-shrink-0 mt-0.5" />
-                        {hasDetails && (
-                          isExpanded ?
-                            <ChevronUp className="w-4 h-4 text-muted-foreground" /> :
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        )}
+                        <IconComponent className="mt-0.5 h-5 w-5 flex-shrink-0 text-foreground" />
+                        {hasDetails &&
+                          (isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ))}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-foreground text-base sm:text-sm truncate">{evaluation.activity.name}</h4>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Team: {evaluation.team.name} • Checkpoint {evaluation.activity.checkpoint_id}
+                        <h4 className="truncate text-base font-semibold text-foreground sm:text-sm">
+                          {evaluation.activity.name}
+                        </h4>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Team: {evaluation.team.name} • Checkpoint{" "}
+                          {evaluation.activity.checkpoint_id}
                           {evaluation.activity.description && (
-                            <span className="block text-xs mt-1">{evaluation.activity.description}</span>
+                            <span className="mt-1 block text-xs">
+                              {evaluation.activity.description}
+                            </span>
                           )}
                         </p>
                         {(evaluation.team.num_members ?? 0) > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             Team Size: {evaluation.team.num_members} members
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Badge
                         variant="default"
-                        className="bg-green-500/20 text-green-400 text-xs sm:text-sm w-fit"
+                        className="w-fit bg-green-500/20 text-xs text-green-400 sm:text-sm"
                       >
-                        Pontuação: {evaluation.final_score?.toFixed(1) || '0'}
+                        Pontuação: {evaluation.final_score?.toFixed(1) || "0"}
                       </Badge>
                       <div className="flex flex-col gap-0.5">
-                        <Badge variant="outline" className="text-muted-foreground border-border text-[10px] w-fit">
+                        <Badge
+                          variant="outline"
+                          className="w-fit border-border text-[10px] text-muted-foreground"
+                        >
                           {new Date(evaluation.completed_at).toLocaleDateString()}
                         </Badge>
-                        <Badge variant="outline" className="text-muted-foreground border-border text-[10px] w-fit">
-                          {new Date(evaluation.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        <Badge
+                          variant="outline"
+                          className="w-fit border-border text-[10px] text-muted-foreground"
+                        >
+                          {new Date(evaluation.completed_at).toLocaleTimeString("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })}
                         </Badge>
                       </div>
                     </div>
                   </div>
 
                   {isExpanded && hasDetails && (
-                    <div className="mt-3 pt-3 border-t border-border space-y-2">
+                    <div className="mt-3 space-y-2 border-t border-border pt-3">
                       {/* Result Section */}
-                      {(evaluation.is_completed || evaluation.time_score || evaluation.points_score || evaluation.result_data?.result || (evaluation.activity.activity_type === 'BooleanActivity' && evaluation.boolean_score !== undefined)) && (
+                      {(evaluation.is_completed ||
+                        evaluation.time_score ||
+                        evaluation.points_score ||
+                        evaluation.result_data?.result ||
+                        (evaluation.activity.activity_type === "BooleanActivity" &&
+                          evaluation.boolean_score !== undefined)) && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-1">Resultado:</p>
+                          <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                            Resultado:
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.is_completed && (
                               <Badge
                                 variant="outline"
-                                className={`text-xs ${evaluation.final_score > 0
-                                  ? 'border-green-500/50 text-green-400 bg-green-500/10'
-                                  : 'border-yellow-500/50 text-yellow-400 bg-yellow-500/10'
-                                  }`}
+                                className={`text-xs ${
+                                  evaluation.final_score > 0
+                                    ? "border-green-500/50 bg-green-500/10 text-green-400"
+                                    : "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                                }`}
                               >
-                                {evaluation.final_score > 0 ? '✓ Completed' : '○ Attempted'}
+                                {evaluation.final_score > 0 ? "✓ Completed" : "○ Attempted"}
                               </Badge>
                             )}
 
@@ -288,40 +339,50 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                                 Points: {evaluation.points_score}
                               </Badge>
                             )}
-                            {evaluation.activity.activity_type === 'BooleanActivity' && evaluation.boolean_score !== undefined && (
-                              <Badge
-                                variant="outline"
-                                className={`text-xs ${evaluation.boolean_score
-                                  ? 'border-green-500/50 text-green-400'
-                                  : 'border-red-500/50 text-red-400'
+                            {evaluation.activity.activity_type === "BooleanActivity" &&
+                              evaluation.boolean_score !== undefined && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs ${
+                                    evaluation.boolean_score
+                                      ? "border-green-500/50 text-green-400"
+                                      : "border-red-500/50 text-red-400"
                                   }`}
-                              >
-                                {evaluation.boolean_score ? '✓ Success' : '✗ Failed'}
-                              </Badge>
-                            )}
+                                >
+                                  {evaluation.boolean_score ? "✓ Success" : "✗ Failed"}
+                                </Badge>
+                              )}
 
                             {/* TeamVsActivity Result */}
                             {teamVsResult}
 
                             {/* Notes */}
-                            {evaluation.result_data?.notes && typeof evaluation.result_data.notes === 'string' && evaluation.result_data.notes.trim() !== '' && (
-                              <Badge variant="outline" className="text-xs">
-                                Note: {evaluation.result_data.notes}
-                              </Badge>
-                            )}
+                            {evaluation.result_data?.notes &&
+                              typeof evaluation.result_data.notes === "string" &&
+                              evaluation.result_data.notes.trim() !== "" && (
+                                <Badge variant="outline" className="text-xs">
+                                  Note: {evaluation.result_data.notes}
+                                </Badge>
+                              )}
                           </div>
                         </div>
                       )}
 
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-blue-400 mb-1">Modifiers:</p>
+                          <p className="mb-1 text-xs font-semibold text-blue-400">Modifiers:</p>
                           <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">
+                            <Badge
+                              variant="outline"
+                              className="border-blue-500/30 text-xs text-blue-400"
+                            >
                               Extra Shots: +{evaluation.extra_shots}
                             </Badge>
                             {(evaluation.team.num_members ?? 0) > 0 && (
-                              <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">
+                              <Badge
+                                variant="outline"
+                                className="border-blue-500/30 text-xs text-blue-400"
+                              >
                                 Team Members: {evaluation.team.num_members}
                               </Badge>
                             )}
@@ -331,10 +392,14 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-red-400 mb-1">Penalties:</p>
+                          <p className="mb-1 text-xs font-semibold text-red-400">Penalties:</p>
                           <div className="flex flex-wrap gap-1">
                             {Object.entries(evaluation.penalties).map(([key, value]) => (
-                              <Badge key={key} variant="outline" className="text-xs border-red-500/30 text-red-400">
+                              <Badge
+                                key={key}
+                                variant="outline"
+                                className="border-red-500/30 text-xs text-red-400"
+                              >
                                 {key}: {value}
                               </Badge>
                             ))}

@@ -28,8 +28,7 @@ const config = {
   // identity provider via PKCE; the backend validates the resulting tokens.
   OIDC_AUTHORITY: import.meta.env.VITE_OIDC_AUTHORITY ?? "",
   OIDC_CLIENT_ID: import.meta.env.VITE_OIDC_CLIENT_ID ?? "",
-  OIDC_REDIRECT_URI:
-    import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${origin}/rally/auth/callback`,
+  OIDC_REDIRECT_URI: import.meta.env.VITE_OIDC_REDIRECT_URI ?? `${origin}/rally/auth/callback`,
   OIDC_POST_LOGOUT_REDIRECT_URI:
     import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI ?? `${origin}/rally/`,
   // authentik group names → rally scopes (mirror of the backend mapping).

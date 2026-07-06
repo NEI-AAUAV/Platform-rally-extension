@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Compass, HelpCircle, CheckCircle2, Trash2, Loader2, Plus } from "lucide-react";
-import {
-  CheckpointGuideIndicationsService,
-  type CheckpointGuideIndication,
-} from "@/client";
+import { CheckpointGuideIndicationsService, type CheckpointGuideIndication } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-toast";

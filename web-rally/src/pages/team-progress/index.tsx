@@ -54,7 +54,7 @@ export default function TeamProgress() {
   const showMap = settings?.show_checkpoint_map !== false;
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="duration-500 animate-in fade-in">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
         <div className="space-y-6 lg:sticky lg:top-24">
           <TeamHeaderCard
@@ -73,10 +73,7 @@ export default function TeamProgress() {
           />
 
           {showMap && checkpoints && checkpoints.length > 0 && (
-            <MapSection
-              checkpoints={checkpoints}
-              selectedCheckpoint={nextCheckpoint ?? null}
-            />
+            <MapSection checkpoints={checkpoints} selectedCheckpoint={nextCheckpoint ?? null} />
           )}
 
           {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}

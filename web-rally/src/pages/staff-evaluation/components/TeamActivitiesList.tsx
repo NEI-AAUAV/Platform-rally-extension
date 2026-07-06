@@ -26,7 +26,12 @@ function getActivityTypeIcon(activityType: string) {
   return activityTypeIcons[activityType as keyof typeof activityTypeIcons] || Activity;
 }
 
-export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating }: TeamActivitiesListProps) {
+export function TeamActivitiesList({
+  team,
+  activities,
+  onEvaluate,
+  isEvaluating,
+}: TeamActivitiesListProps) {
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
 
@@ -56,7 +61,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
         </Button>
 
         <div className="rally-surface rally-elevate rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4 flex items-center gap-3">
             <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 shrink-0 place-items-center rounded-lg">
               <Activity className="h-4 w-4" />
             </span>
@@ -82,7 +87,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3 mb-1">
+      <div className="mb-1 flex items-center gap-3">
         <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 shrink-0 place-items-center rounded-lg">
           <Activity className="h-4 w-4" />
         </span>
@@ -116,9 +121,7 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
               <span
                 className={cn(
                   "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
-                  isCompleted
-                    ? "rally-bg-accent-soft rally-accent"
-                    : "rally-bg-accent text-white",
+                  isCompleted ? "rally-bg-accent-soft rally-accent" : "rally-bg-accent text-white",
                 )}
               >
                 <IconComponent className="h-4 w-4" />

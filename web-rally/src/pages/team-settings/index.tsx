@@ -28,7 +28,7 @@ export default function TeamSettings() {
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center">
-      <div className="w-full max-w-[440px] animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-[440px] duration-500 animate-in fade-in zoom-in-95">
         <div className="rally-surface rally-elevate rounded-[22px] p-[30px]">
           <div className="space-y-6">
             <div className="flex flex-col items-center space-y-4 text-center">

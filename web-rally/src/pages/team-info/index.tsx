@@ -61,7 +61,7 @@ export default function TeamInfo() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 animate-in fade-in duration-500">
+    <div className="mx-auto max-w-2xl space-y-6 duration-500 animate-in fade-in">
       <header className="text-center">
         <p className="rally-accent inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.24em]">
           <Users className="h-3.5 w-3.5" /> A minha equipa

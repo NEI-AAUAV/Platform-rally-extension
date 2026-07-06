@@ -40,14 +40,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
       />
 
       <div className="rally-surface rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Checkpoints Existentes</h3>
           <p className="text-sm text-muted-foreground">
-            Arraste pelos ícones <GripVertical className="w-3 h-3 inline mx-1" /> para reordenar
+            Arraste pelos ícones <GripVertical className="mx-1 inline h-3 w-3" /> para reordenar
           </p>
         </div>
         {hasCheckpoints ? (
-          <ul className="space-y-3 list-none">
+          <ul className="list-none space-y-3">
             {sortedCheckpoints.map((checkpoint) => (
               <CheckpointListItem
                 key={checkpoint.id}
@@ -65,7 +65,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           </ul>
         ) : (
           <EmptyState
-            icon={<MapPin className="w-8 h-8 text-muted-foreground" />}
+            icon={<MapPin className="h-8 w-8 text-muted-foreground" />}
             title="Nenhum checkpoint criado ainda"
             description="Crie o primeiro checkpoint para começar"
           />

@@ -10,12 +10,12 @@ export const RALLY_DEFAULTS = {
     vomit: 5, // Fallback from RallySettings.penalty_per_puke
     not_drinking: 2, // Fallback from RallySettings.penalty_per_not_drinking
   },
-  
+
   // Extra shots configuration
   EXTRA_SHOTS: {
     perMember: 5, // Default extra shots per team member (increased from 1)
   },
-  
+
   // Form defaults
   FORM_DEFAULTS: {
     generalPoints: 50, // Default points for General activities

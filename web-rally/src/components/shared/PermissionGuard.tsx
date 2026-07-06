@@ -1,7 +1,7 @@
-import React from 'react';
-import { Navigate } from '@tanstack/react-router';
-import useUser from '@/hooks/useUser';
-import { LoadingState } from './';
+import React from "react";
+import { Navigate } from "@tanstack/react-router";
+import useUser from "@/hooks/useUser";
+import { LoadingState } from "./";
 
 interface PermissionGuardProps {
   children: React.ReactNode;
@@ -9,20 +9,18 @@ interface PermissionGuardProps {
   fallbackPath?: string;
 }
 
-export default function PermissionGuard({ 
-  children, 
-  requiredScopes = ["manager-rally", "admin", "rally:admin"], 
-  fallbackPath = "/scoreboard" 
+export default function PermissionGuard({
+  children,
+  requiredScopes = ["manager-rally", "admin", "rally:admin"],
+  fallbackPath = "/scoreboard",
 }: PermissionGuardProps) {
   const { isLoading, userStore } = useUser();
-  
+
   if (isLoading) {
     return <LoadingState message="Carregando..." />;
   }
 
-  const hasPermission = requiredScopes.some(scope => 
-    userStore.scopes?.includes(scope)
-  );
+  const hasPermission = requiredScopes.some((scope) => userStore.scopes?.includes(scope));
 
   if (!hasPermission) {
     return <Navigate to={fallbackPath} />;
@@ -30,9 +28,3 @@ export default function PermissionGuard({
 
   return <>{children}</>;
 }
-
-
-
-
-
-

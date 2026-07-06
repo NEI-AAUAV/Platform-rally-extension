@@ -7,14 +7,14 @@ export function formatTime(date: Date | string | null | undefined): string {
   if (!date) {
     return "--:--";
   }
-  
+
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  
+
   // Validate that dateObj is a valid Date
   if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) {
     return "--:--";
   }
-  
+
   const hours = String(dateObj.getHours()).padStart(2, "0");
   const minutes = String(dateObj.getMinutes()).padStart(2, "0");
   return `${hours}:${minutes}`;
