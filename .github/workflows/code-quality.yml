@@ -124,11 +124,10 @@ jobs:
         working-directory: web-rally
         run: pnpm run generate-client
       
-      - name: Run ESLint
+      - name: Run ESLint - BLOCKING
         working-directory: web-rally
-        run: pnpm run lint || true
-        continue-on-error: true
-      
+        run: pnpm run lint
+
       - name: Run TypeScript type checking - BLOCKING
         working-directory: web-rally
         run: pnpm run type-check || pnpm exec tsc --noEmit
@@ -143,8 +142,8 @@ jobs:
         if: always()
         run: |
           echo "✅ TypeScript quality checks completed"
-          echo "⚠️  Formatting and linting warnings don't fail the build"
-          echo "❌ Type checking failures will block the build"
+          echo "⚠️  Prettier formatting warnings don't fail the build"
+          echo "❌ ESLint and type checking failures will block the build"
 
   security-scan:
     name: Security Vulnerability Scan

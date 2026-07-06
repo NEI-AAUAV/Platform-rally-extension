@@ -96,8 +96,14 @@ export default function LiveDashboard() {
     refetchInterval: 15_000,
   });
 
-  const teamList = Array.isArray(teams) ? (teams as ListingTeam[]) : [];
-  const checkpointList = Array.isArray(checkpoints) ? checkpoints : [];
+  const teamList = useMemo(
+    () => (Array.isArray(teams) ? (teams as ListingTeam[]) : []),
+    [teams],
+  );
+  const checkpointList = useMemo(
+    () => (Array.isArray(checkpoints) ? checkpoints : []),
+    [checkpoints],
+  );
   const totalEvals = allEvals?.evaluations?.length ?? 0;
 
   const teamsStarted = teamList.filter((t) => (t.last_checkpoint_number ?? 0) > 0).length;
