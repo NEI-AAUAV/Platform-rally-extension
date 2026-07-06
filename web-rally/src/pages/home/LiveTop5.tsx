@@ -5,6 +5,7 @@ import { TeamService, type ListingTeam } from "@/client";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useCountdown } from "@/pages/home/useCountdown";
+import { FreshnessIndicator } from "@/components/shared";
 
 function initialsOf(name: string): string {
   return name
@@ -25,7 +26,7 @@ export function LiveTop5() {
   const { settings } = useRallySettings();
   const { phase } = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
   const isProvisional = phase === "live";
-  const { data: teams } = useQuery({
+  const { data: teams, dataUpdatedAt } = useQuery({
     queryKey: ["teams"],
     queryFn: TeamService.getTeamsApiRallyV1TeamGet,
   });
@@ -47,13 +48,16 @@ export function LiveTop5() {
         <h2 id="top5-heading" className="rally-display text-xl font-bold text-foreground">
           Classificação ao vivo
         </h2>
-        <Link
-          to="/scoreboard"
-          className="rally-accent inline-flex items-center gap-1.5 text-xs font-bold"
-        >
-          <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
-          LIVE
-        </Link>
+        <div className="flex items-center gap-3">
+          <FreshnessIndicator updatedAt={dataUpdatedAt} />
+          <Link
+            to="/scoreboard"
+            className="rally-accent inline-flex items-center gap-1.5 text-xs font-bold"
+          >
+            <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
+            LIVE
+          </Link>
+        </div>
       </div>
 
       <motion.ol layout className="flex flex-col gap-2">
