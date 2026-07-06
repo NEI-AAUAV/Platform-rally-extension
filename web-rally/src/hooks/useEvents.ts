@@ -19,9 +19,9 @@ export function useEvents(enabled = true) {
 export function useEventMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: EVENTS_KEY });
-    void qc.invalidateQueries({ queryKey: ["rallySettings"] });
-    void qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
+    qc.invalidateQueries({ queryKey: EVENTS_KEY });
+    qc.invalidateQueries({ queryKey: ["rallySettings"] });
+    qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
   };
 
   const create = useMutation({
