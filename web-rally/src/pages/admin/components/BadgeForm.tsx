@@ -254,7 +254,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
             checked={form.isAuto}
             onChange={(e) => setForm({ ...form, isAuto: e.target.checked })}
           />
-          Atribuição automática (programável)
+          <span>Atribuição automática (programável)</span>
         </label>
 
         {form.isAuto && (
