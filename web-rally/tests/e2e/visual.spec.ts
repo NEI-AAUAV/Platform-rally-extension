@@ -57,7 +57,7 @@ async function gotoLanding(page: Page, settings: object): Promise<void> {
     .catch(() => null);
   await page.waitForLoadState('networkidle');
   // Settle entry transitions before capturing.
-  await page.waitForTimeout(500);
+  await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 test.describe('Landing Gate visual regression', () => {
