@@ -41,11 +41,21 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             stmt = stmt.with_for_update()
         return (await db.scalars(stmt)).all()
 
-    async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
+    async def create(
+        self, db: AsyncSession, *, obj_in: CreateSchemaType, commit: bool = True
+    ) -> ModelType:
+        """Create and persist a new row.
+
+        Commits by default. Pass commit=False to only flush, so the caller
+        can batch this write with others into a single atomic transaction.
+        """
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(db_obj)
         return db_obj
 
@@ -60,15 +70,33 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         return db_obj
 
-    async def update(self, db: AsyncSession, *, id: int, obj_in: UpdateSchemaType) -> ModelType:
+    async def update(
+        self, db: AsyncSession, *, id: int, obj_in: UpdateSchemaType, commit: bool = True
+    ) -> ModelType:
+        """Update a row by id.
+
+        Commits by default. Pass commit=False to only flush, so the caller
+        can batch this write with others into a single atomic transaction.
+        """
         async with db.begin_nested():
             db_obj = await self.get(db, id=id, for_update=True)
             db_obj = self.update_unlocked(db_obj=db_obj, obj_in=obj_in)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: int) -> ModelType:
+    async def remove(self, db: AsyncSession, *, id: int, commit: bool = True) -> ModelType:
+        """Delete a row by id.
+
+        Commits by default. Pass commit=False to only flush, so the caller
+        can batch this write with others into a single atomic transaction.
+        """
         db_obj = await self.get(db, id=id)
         await db.delete(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return db_obj
