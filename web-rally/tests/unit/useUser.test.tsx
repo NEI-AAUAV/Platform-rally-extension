@@ -73,9 +73,13 @@ describe('useUser Hook', () => {
     expect(getMe).toHaveBeenCalledTimes(1)
   })
 
-  it('should identify rally admin correctly', () => {
+  it.each([
+    { name: 'rally admin correctly', scopes: ['manager-rally'], expected: true },
+    { name: 'non-admin correctly', scopes: ['rally-staff'], expected: false },
+    { name: 'admin scope correctly', scopes: ['admin'], expected: true },
+  ])('should identify $name', ({ scopes, expected }) => {
     Object.assign(mockUserStoreState, {
-      scopes: ['manager-rally'],
+      scopes,
       token: 'test-token',
       sessionLoading: false,
     })
@@ -84,35 +88,7 @@ describe('useUser Hook', () => {
       wrapper: createWrapper(),
     })
 
-    expect(result.current.isRallyAdmin).toBe(true)
-  })
-
-  it('should identify non-admin correctly', () => {
-    Object.assign(mockUserStoreState, {
-      scopes: ['rally-staff'],
-      token: 'test-token',
-      sessionLoading: false,
-    })
-
-    const { result } = renderHook(() => useUser(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(result.current.isRallyAdmin).toBe(false)
-  })
-
-  it('should identify admin scope correctly', () => {
-    Object.assign(mockUserStoreState, {
-      scopes: ['admin'],
-      token: 'test-token',
-      sessionLoading: false,
-    })
-
-    const { result } = renderHook(() => useUser(), {
-      wrapper: createWrapper(),
-    })
-
-    expect(result.current.isRallyAdmin).toBe(true)
+    expect(result.current.isRallyAdmin).toBe(expected)
   })
 
   it('should return loading state when session is loading', () => {
