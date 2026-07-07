@@ -16,7 +16,7 @@ type GpsState = "idle" | "locating" | "done" | "error";
 
 /** "Too far from checkpoint: 240m (max 50m)" → friendly PT message. */
 function traduzirDistancia(detail: string): string {
-  const regex = /(\d+)m\s*\(max\s*(\d+)m\)/;
+  const regex = /(\d+)m \(max (\d+)m\)/;
   const m = regex.exec(detail);
   if (m) {
     return `Ainda estás longe do posto: ${m[1]} m (tens de estar a menos de ${m[2]} m). Aproxima-te e tenta outra vez.`;
@@ -87,6 +87,45 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!checkpoint.description;
 
+  let buttonClasses = "border border-border bg-card text-foreground hover:bg-accent/40";
+  if (gpsState === "done") {
+    buttonClasses = "cursor-default bg-green-500/15 text-green-600";
+  } else if (gpsState === "error") {
+    buttonClasses = "bg-red-500/10 text-red-500";
+  }
+
+  const renderButtonContent = () => {
+    if (gpsState === "locating" || arriveMutation.isPending) {
+      return (
+        <>
+          <Loader2 className="h-5 w-5 animate-spin" />A localizar…
+        </>
+      );
+    }
+    if (gpsState === "done") {
+      return (
+        <>
+          <CheckCircle2 className="h-5 w-5" />
+          Check-in feito
+        </>
+      );
+    }
+    if (gpsState === "error") {
+      return (
+        <>
+          <AlertCircle className="h-5 w-5" />
+          Tentar novamente
+        </>
+      );
+    }
+    return (
+      <>
+        <LocateFixed className="h-5 w-5" />
+        Check-in GPS
+      </>
+    );
+  };
+
   return (
     <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
       <div className="flex items-center gap-3">
@@ -118,33 +157,10 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             onClick={handleCheckin}
             className={[
               "rally-press flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold transition-all",
-              gpsState === "done"
-                ? "cursor-default bg-green-500/15 text-green-600"
-                : gpsState === "error"
-                  ? "bg-red-500/10 text-red-500"
-                  : "border border-border bg-card text-foreground hover:bg-accent/40",
+              buttonClasses,
             ].join(" ")}
           >
-            {gpsState === "locating" || arriveMutation.isPending ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />A localizar…
-              </>
-            ) : gpsState === "done" ? (
-              <>
-                <CheckCircle2 className="h-5 w-5" />
-                Check-in feito
-              </>
-            ) : gpsState === "error" ? (
-              <>
-                <AlertCircle className="h-5 w-5" />
-                Tentar novamente
-              </>
-            ) : (
-              <>
-                <LocateFixed className="h-5 w-5" />
-                Check-in GPS
-              </>
-            )}
+            {renderButtonContent()}
           </button>
           {gpsMsg && (
             <p
