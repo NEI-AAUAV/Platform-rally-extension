@@ -1,5 +1,4 @@
-"""Unit tests for the reusable rate limiter (app.api.rate_limit)."""
-
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -87,6 +86,7 @@ async def test_login_limit_checks_ip_and_code_keys():
     seen: list[str] = []
 
     async def fake_enforce(key, limit, window):
+        await asyncio.sleep(0)
         seen.append(key)
 
     with patch.object(rl, "_enforce", side_effect=fake_enforce):
