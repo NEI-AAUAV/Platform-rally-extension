@@ -6,7 +6,7 @@ interface SkeletonProps {
  * Layout-stable loading placeholder. Pulses opacity (compositor-friendly)
  * and respects prefers-reduced-motion via `motion-reduce:animate-none`.
  */
-export default function Skeleton({ className = "" }: SkeletonProps) {
+export default function Skeleton({ className = "" }: Readonly<SkeletonProps>) {
   return (
     <div
       aria-hidden
