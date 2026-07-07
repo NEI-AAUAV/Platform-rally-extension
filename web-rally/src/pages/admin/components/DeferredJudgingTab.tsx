@@ -39,9 +39,9 @@ export default function DeferredJudgingTab() {
   });
 
   const submitJudge = (resultId: number) => {
-    if (!judging || judging.id !== resultId) return;
-    const points = parseFloat(judging.points);
-    if (isNaN(points)) return;
+    if (judging?.id !== resultId) return;
+    const points = Number.parseFloat(judging.points);
+    if (Number.isNaN(points)) return;
     judgeMutation.mutate({ resultId, points, notes: judging.notes || undefined });
   };
 
@@ -103,7 +103,7 @@ export default function DeferredJudgingTab() {
                 <div className="flex gap-2 overflow-x-auto">
                   {result.media_urls.map((url, i) => (
                     <a
-                      key={i}
+                      key={url}
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
