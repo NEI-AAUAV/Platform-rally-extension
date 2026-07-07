@@ -1,5 +1,4 @@
-"""Unit tests for the leaderboard worker."""
-
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -21,6 +20,7 @@ class _FakeScoringService:
         """Session is unused; ranking is stubbed below."""
 
     async def get_team_ranking(self) -> list[dict[str, Any]]:
+        await asyncio.sleep(0)
         return [
             {"rank": 1, "team_id": 9, "team_name": "Z", "total_score": 99.0, "activities_completed": 5},
         ]
