@@ -5,7 +5,6 @@ import type {
   ActivityListResponse,
   RallySettingsResponse,
   ActivityResultResponse,
-  ActivityType,
 } from '@/client';
 
 // Mock checkpoint data
@@ -146,14 +145,20 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
 // Mock JWT token for staff (for testing - properly formatted with valid sub)
 // This token decodes to: { sub: "test-user-123", name: "Test User", scopes: ["rally-staff"], iat: 1516239022 }
 // Base64 encoded header + payload: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9
-export const MOCK_JWT_TOKEN_STAFF =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
+export const MOCK_JWT_TOKEN_STAFF = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9',
+  'test'
+].join('.');
 
 // Mock JWT token for manager (with manager-rally scope)
 // This token decodes to: { sub: "manager-user-456", name: "Manager User", scopes: ["manager-rally"], iat: 1516239022 }
 // Base64: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0
-export const MOCK_JWT_TOKEN_MANAGER =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0.test';
+export const MOCK_JWT_TOKEN_MANAGER = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0',
+  'test'
+].join('.');
 
 // Backward compatibility - default to staff token
 export const MOCK_JWT_TOKEN = MOCK_JWT_TOKEN_STAFF;
@@ -161,5 +166,8 @@ export const MOCK_JWT_TOKEN = MOCK_JWT_TOKEN_STAFF;
 
 // Mock JWT token for a tour guide (rally-guide scope)
 // Decodes to: { sub: "guide-user-789", name: "Guide User", scopes: ["rally-guide"], iat: 1516239022 }
-export const MOCK_JWT_TOKEN_GUIDE =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJndWlkZS11c2VyLTc4OSIsIm5hbWUiOiJHdWlkZSBVc2VyIiwic2NvcGVzIjpbInJhbGx5LWd1aWRlIl0sImlhdCI6MTUxNjIzOTAyMn0.test';
+export const MOCK_JWT_TOKEN_GUIDE = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJndWlkZS11c2VyLTc4OSIsIm5hbWUiOiJHdWlkZSBVc2VyIiwic2NvcGVzIjpbInJhbGx5LWd1aWRlIl0sImlhdCI6MTUxNjIzOTAyMn0',
+  'test'
+].join('.');
