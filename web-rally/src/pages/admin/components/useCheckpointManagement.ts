@@ -161,17 +161,17 @@ export function useCheckpointManagement(userStore: UserState) {
     updateOrderForNewCheckpoint();
   };
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => {
+  const handleDragStart = (e: React.DragEvent<HTMLElement>, checkpoint: Checkpoint) => {
     setDraggedCheckpoint(checkpoint);
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetCheckpoint: Checkpoint) => {
+  const handleDrop = (e: React.DragEvent<HTMLElement>, targetCheckpoint: Checkpoint) => {
     e.preventDefault();
 
     if (!draggedCheckpoint || draggedCheckpoint.id === targetCheckpoint.id) {

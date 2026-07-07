@@ -10,9 +10,9 @@ type CheckpointListItemProps = Readonly<{
   checkpoint: Checkpoint;
   isDragging: boolean;
   isDeleting: boolean;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>, checkpoint: Checkpoint) => void;
+  onDragStart: (e: React.DragEvent<HTMLElement>, checkpoint: Checkpoint) => void;
+  onDragOver: (e: React.DragEvent<HTMLElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLElement>, checkpoint: Checkpoint) => void;
   onDragEnd: () => void;
   onEdit: (checkpoint: Checkpoint) => void;
   onDelete: (id: number) => void;

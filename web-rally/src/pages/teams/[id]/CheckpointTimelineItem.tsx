@@ -169,7 +169,7 @@ export function CheckpointTimelineItem({
       {/* Activity-level cards - only show when expanded */}
       {isExpanded && evaluationResults.length > 0 && (
         <div className="ml-2 mt-3 space-y-3 border-l-2 border-border pl-2">
-          {evaluationResults.map((result, resultIndex: number) => {
+          {evaluationResults.map((result) => {
             const activity = result.activity;
             const isTimeBased = activity?.activity_type === "TimeBasedActivity";
 

@@ -2,7 +2,7 @@ import { Navigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { resolveBranding } from "@/lib/branding";
-import { DEFAULT_HOME_LAYOUT, type HomeSectionKey } from "@/lib/homeLayout";
+import { DEFAULT_HOME_LAYOUT } from "@/lib/homeLayout";
 import { Reveal } from "@/components/home/Reveal";
 import HomeHero from "./HomeHero";
 import RallyMarquee from "./RallyMarquee";
