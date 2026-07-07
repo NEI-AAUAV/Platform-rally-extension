@@ -70,15 +70,18 @@ export default function BooleanForm({
       <div>
         <label htmlFor="success-checkbox" className="mb-2 block text-sm font-medium text-foreground">Success</label>
         <div className="flex items-center space-x-3">
-          <button
+          <input
             id="success-checkbox"
-            type="button"
-            role="checkbox"
-            aria-checked={isSuccessChecked}
-            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted ${
+            type="checkbox"
+            checked={isSuccessChecked}
+            onChange={(e) => setIsSuccessChecked(e.target.checked)}
+            className="peer sr-only"
+          />
+          <label
+            htmlFor="success-checkbox"
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted peer-focus-visible:ring-2 peer-focus-visible:ring-red-500 peer-focus-visible:ring-offset-2 ${
               isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
-            onClick={() => setIsSuccessChecked(!isSuccessChecked)}
           >
             <svg
               className={`h-4 w-4 text-red-500 transition-opacity duration-200 ${
@@ -93,8 +96,10 @@ export default function BooleanForm({
                 clipRule="evenodd"
               />
             </svg>
-          </button>
-          <span className="font-medium text-muted-foreground">Team succeeded in the activity</span>
+          </label>
+          <label htmlFor="success-checkbox" className="cursor-pointer font-medium text-muted-foreground">
+            Team succeeded in the activity
+          </label>
         </div>
       </div>
 
