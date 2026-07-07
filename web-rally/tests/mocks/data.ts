@@ -5,8 +5,8 @@ import type {
   ActivityListResponse,
   RallySettingsResponse,
   ActivityResultResponse,
+  ActivityType,
 } from '@/client';
-import { ActivityType } from '@/client';
 
 // Mock checkpoint data
 export const MOCK_CHECKPOINT: DetailedCheckPoint = {
@@ -39,7 +39,7 @@ export const MOCK_ACTIVITY: ActivityResponse = {
   id: 1,
   name: 'Test Activity',
   description: 'A test activity for evaluation',
-  activity_type: ActivityType.GENERAL_ACTIVITY,
+  activity_type: 'GeneralActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -52,7 +52,7 @@ export const MOCK_TIME_BASED_ACTIVITY: ActivityResponse = {
   id: 2,
   name: 'Time-Based Activity',
   description: 'Complete as fast as possible',
-  activity_type: ActivityType.TIME_BASED_ACTIVITY,
+  activity_type: 'TimeBasedActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -64,7 +64,7 @@ export const MOCK_SCORE_BASED_ACTIVITY: ActivityResponse = {
   id: 3,
   name: 'Score-Based Activity',
   description: 'Achieve maximum points',
-  activity_type: ActivityType.SCORE_BASED_ACTIVITY,
+  activity_type: 'ScoreBasedActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -76,7 +76,7 @@ export const MOCK_BOOLEAN_ACTIVITY: ActivityResponse = {
   id: 4,
   name: 'Boolean Activity',
   description: 'Pass or fail',
-  activity_type: ActivityType.BOOLEAN_ACTIVITY,
+  activity_type: 'BooleanActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -88,7 +88,7 @@ export const MOCK_TEAM_VS_ACTIVITY: ActivityResponse = {
   id: 5,
   name: 'Team vs Team Activity',
   description: 'Head-to-head competition',
-  activity_type: ActivityType.TEAM_VS_ACTIVITY,
+  activity_type: 'TeamVsActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
