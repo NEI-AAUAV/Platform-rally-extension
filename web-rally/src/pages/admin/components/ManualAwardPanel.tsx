@@ -28,7 +28,7 @@ interface ManualAwardPanelProps {
   definitions: BadgeDefinitionResponse[];
 }
 
-export default function ManualAwardPanel({ definitions }: ManualAwardPanelProps) {
+export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPanelProps>) {
   const [teamId, setTeamId] = useState<string>("");
   const [badgeCode, setBadgeCode] = useState<string>("");
   const { award, revoke } = useBadgeAwardMutations();
