@@ -111,13 +111,13 @@ interface RoleFlags {
 }
 
 function deriveRoleFlags(scopes: readonly string[] | undefined): RoleFlags {
-  const isAdminOrManager =
-    scopes !== undefined &&
-    (scopes.includes("admin") ||
-      scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin"));
-  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  const isGuide = scopes !== undefined && scopes.includes("rally-guide");
+  const isAdminOrManager = !!(
+    scopes?.includes("admin") ||
+    scopes?.includes("manager-rally") ||
+    scopes?.includes("rally:admin")
+  );
+  const isStaff = !!scopes?.includes("rally-staff");
+  const isGuide = !!scopes?.includes("rally-guide");
   return {
     isAdminOrManager,
     isStaff,
@@ -161,7 +161,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const onStaffLogin = useStaffLogin();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDialogElement>(null);
 
   const { isAdminOrManager, isStaff, isGuide, isPrivileged } = deriveRoleFlags(scopes);
   const { showGuideFeature } = useGuideAccess();
@@ -293,13 +293,13 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           />
         )}
 
-        <div
+        <dialog
           ref={mobileMenuRef}
-          role="dialog"
+          open
           aria-modal="true"
           aria-label="Menu"
           className={cn(
-            "rally-elevate fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col border-l border-border bg-popover transition-transform duration-300 ease-out",
+            "rally-elevate fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col border-l border-border bg-popover transition-transform duration-300 ease-out m-0 max-h-none h-full border-y-0 border-r-0 outline-none",
             isMobileMenuOpen ? "translate-x-0" : "translate-x-full",
           )}
         >
