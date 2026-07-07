@@ -25,7 +25,7 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
-function PhaseChip({ phase, state }: { phase: string; state: ReturnType<typeof useCountdown> }) {
+function PhaseChip({ phase, state }: Readonly<{ phase: string; state: ReturnType<typeof useCountdown> }>) {
   if (phase === "live") {
     return (
       <span className="rally-bg-accent inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-white">
@@ -56,12 +56,12 @@ function StatCard({
   value,
   label,
   accent,
-}: {
+}: Readonly<{
   icon: typeof Users;
   value: number | string;
   label: string;
   accent?: boolean;
-}) {
+}>) {
   return (
     <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
       <div
