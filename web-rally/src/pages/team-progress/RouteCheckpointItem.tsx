@@ -207,7 +207,13 @@ export default function RouteCheckpointItem({
   const cover = photos[0];
   const hasDiscovery =
     canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
-  const statusLabel = isCompleted ? "Concluído" : isCurrent ? "Em curso" : "Pendente";
+
+  let statusLabel = "Pendente";
+  if (isCompleted) {
+    statusLabel = "Concluído";
+  } else if (isCurrent) {
+    statusLabel = "Em curso";
+  }
 
   const CardElement = (canReveal ? "button" : "div") as React.ElementType;
   const cardProps = canReveal
