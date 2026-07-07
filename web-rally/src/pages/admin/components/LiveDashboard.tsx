@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
-import { TeamService, CheckPointService, StaffEvaluationService, type ListingTeam } from "@/client";
+import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
@@ -85,21 +85,27 @@ export default function LiveDashboard() {
 
   const { data: teams, dataUpdatedAt: teamsUpdatedAt } = useQuery({
     queryKey: ["teams"],
-    queryFn: TeamService.getTeamsApiRallyV1TeamGet,
+    queryFn: async () => {
+      const { data } = await getTeams();
+      return data;
+    },
     refetchInterval: 15_000,
   });
 
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    queryFn: async () => {
+      const { data } = await getCheckpoints();
+      return data;
+    },
   });
 
   const { data: allEvals } = useQuery<{ evaluations?: unknown[] }>({
     queryKey: ["allEvaluations"],
-    queryFn: () =>
-      StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet() as Promise<{
-        evaluations?: unknown[];
-      }>,
+    queryFn: async () => {
+      const { data } = await getAllEvaluations();
+      return data as unknown as { evaluations?: unknown[] };
+    },
     refetchInterval: 15_000,
   });
 

@@ -52,8 +52,10 @@ export default function GeneralForm({
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setAssignedPoints(existingResult.result_data.assigned_points || getDefaultPoints(config));
-      setNotes(existingResult.result_data.notes || "");
+      setAssignedPoints(
+        (existingResult.result_data.assigned_points as number) || getDefaultPoints(config),
+      );
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);

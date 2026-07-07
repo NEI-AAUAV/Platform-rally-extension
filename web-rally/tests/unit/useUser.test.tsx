@@ -6,14 +6,12 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useUser from '@/hooks/useUser'
-import { UserService } from '@/client'
+import { getMe } from '@/client'
 
 
-// Mock UserService
+// Mock the flat client function used by useUser
 vi.mock('@/client', () => ({
-  UserService: {
-    getMeApiRallyV1UserMeGet: vi.fn(),
-  }
+  getMe: vi.fn(),
 }))
 
 // Mock useUserStore
@@ -56,7 +54,7 @@ describe('useUser Hook', () => {
       email: 'test@example.com',
     }
 
-    vi.mocked(UserService.getMeApiRallyV1UserMeGet).mockResolvedValue(mockUser as never)
+    vi.mocked(getMe).mockResolvedValue({ data: mockUser } as never)
     Object.assign(mockUserStoreState, {
       scopes: ['rally-staff'],
       token: 'test-token',
@@ -72,7 +70,7 @@ describe('useUser Hook', () => {
     })
 
     expect(result.current.userData).toEqual(mockUser)
-    expect(UserService.getMeApiRallyV1UserMeGet).toHaveBeenCalledTimes(1)
+    expect(getMe).toHaveBeenCalledTimes(1)
   })
 
   it('should identify rally admin correctly', () => {

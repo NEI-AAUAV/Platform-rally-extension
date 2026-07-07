@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
-import { TeamMembersService, type TeamMemberAdd } from "@/client";
+import { addTeamMember, type TeamMemberAdd } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 
@@ -53,10 +53,10 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
         email: memberData.email || null,
         is_captain: memberData.is_captain,
       };
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(
-        Number(selectedTeam),
-        requestBody,
-      );
+      return await addTeamMember({
+        path: { team_id: Number(selectedTeam) },
+        body: requestBody,
+      });
     },
     onSuccess: () => {
       onSuccess();

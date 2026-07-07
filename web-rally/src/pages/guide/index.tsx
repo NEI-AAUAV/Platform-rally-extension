@@ -13,7 +13,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import {
-  GuideService,
+  listGuideCheckpoints,
   type GuideCheckpointResponse,
   type GuideMediaItem,
   type GuideIndicationItem,
@@ -177,7 +177,7 @@ export default function GuidePage() {
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({
     queryKey: ["guide-checkpoints"],
-    queryFn: () => GuideService.listGuideCheckpointsApiRallyV1GuideCheckpointsGet(),
+    queryFn: async () => (await listGuideCheckpoints()).data,
     enabled: isAllowed,
   });
 

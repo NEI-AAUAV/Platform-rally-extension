@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
-import { CheckPointService, type DetailedCheckPoint } from "@/client";
+import { getCheckpoints, type DetailedCheckPoint } from "@/client";
 
 const PREVIEW_LIMIT = 6;
 
@@ -18,7 +18,7 @@ interface PostosPreviewProps {
 export function PostosPreview({ enabled }: PostosPreviewProps) {
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    queryFn: async () => (await getCheckpoints()).data,
     retry: false,
     enabled,
   });

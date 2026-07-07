@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
-import { ActivitiesService } from "@/client";
+import { getActivities, createActivity, updateActivity, deleteActivity } from "@/client";
 import { type ActivityCreate, type ActivityUpdate } from "@/client";
 
 /**
@@ -20,7 +20,7 @@ export function useActivities() {
 
   return useQuery({
     queryKey: ["activities"],
-    queryFn: () => ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(),
+    queryFn: async () => (await getActivities()).data,
     enabled: isRallyAdmin && !!userStore.token,
   });
 }
@@ -45,8 +45,8 @@ export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (activity: ActivityCreate) =>
-      ActivitiesService.createActivityApiRallyV1ActivitiesPost(activity),
+    mutationFn: async (activity: ActivityCreate) =>
+      (await createActivity({ body: activity })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
@@ -72,8 +72,8 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, activity }: { id: number; activity: ActivityUpdate }) =>
-      ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut(id, activity),
+    mutationFn: async ({ id, activity }: { id: number; activity: ActivityUpdate }) =>
+      (await updateActivity({ path: { activity_id: id }, body: activity })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
@@ -96,8 +96,7 @@ export function useDeleteActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
-      ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete(id),
+    mutationFn: async (id: number) => (await deleteActivity({ path: { activity_id: id } })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
     },

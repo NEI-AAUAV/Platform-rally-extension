@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type RallySettingsResponse, SettingsService } from "@/client/index";
+import { type RallySettingsResponse, viewRallySettingsPublic } from "@/client/index";
 
 /**
  * Hook to fetch Rally settings from the public settings endpoint
@@ -23,8 +23,8 @@ export default function useRallySettings(options?: { retry?: boolean | number })
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["rallySettings-public"],
     queryFn: async (): Promise<RallySettingsResponse> => {
-      // Use the generated service method
-      return SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet();
+      const { data } = await viewRallySettingsPublic();
+      return data;
     },
     retry: options?.retry ?? 2, // Retry up to 2 times by default
     retryDelay: 1000, // Wait 1 second between retries

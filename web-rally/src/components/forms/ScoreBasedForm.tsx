@@ -42,8 +42,8 @@ export default function ScoreBasedForm({
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setAchievedPoints(existingResult.result_data.achieved_points || 0);
-      setNotes(existingResult.result_data.notes || "");
+      setAchievedPoints((existingResult.result_data.achieved_points as number) || 0);
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);

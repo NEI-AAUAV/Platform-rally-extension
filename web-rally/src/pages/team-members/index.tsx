@@ -7,8 +7,9 @@ import { Navigate } from "@tanstack/react-router";
 import { LoadingState, PageHeader } from "@/components/shared";
 import { TeamSelector, MemberForm, MemberList } from "./components";
 import {
-  TeamService,
-  TeamMembersService,
+  getTeams,
+  getTeamById,
+  getTeamMembers,
   type ListingTeam,
   type TeamMemberResponse,
 } from "@/client";
@@ -36,7 +37,7 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
     isLoading: teamsLoading,
   } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
-    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
+    queryFn: async () => (await getTeams()).data,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     staleTime: 0,
@@ -52,7 +53,8 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
     queryKey: ["teamMembers", selectedTeam],
     queryFn: async (): Promise<TeamMemberResponse[]> => {
       if (!selectedTeam) return [];
-      return TeamMembersService.getTeamMembersApiRallyV1TeamTeamIdMembersGet(Number(selectedTeam));
+      const { data } = await getTeamMembers({ path: { team_id: Number(selectedTeam) } });
+      return data;
     },
     enabled: !!selectedTeam && (isRallyAdmin || isStaff),
     refetchOnWindowFocus: true,
@@ -63,7 +65,7 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
   // Fetch team data for QR code (staff only)
   const { data: teamData } = useQuery({
     queryKey: ["team", selectedTeam],
-    queryFn: () => TeamService.getTeamByIdApiRallyV1TeamIdGet(Number(selectedTeam)),
+    queryFn: async () => (await getTeamById({ path: { id: Number(selectedTeam) } })).data,
     enabled: !!selectedTeam && isStaff,
   });
 

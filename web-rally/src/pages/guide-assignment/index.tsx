@@ -6,8 +6,9 @@ import { LoadingState, PageHeader } from "@/components/shared";
 import { Compass } from "lucide-react";
 import { StaffAssignmentList, AssignmentForm } from "@/pages/assignment/components";
 import {
-  CheckPointService,
-  UserService,
+  getCheckpoints,
+  getGuideAssignments,
+  updateGuideCheckpointAssignment,
   type CheckpointAssignmentUpdate,
   type DetailedCheckPoint,
   type RallyGuideAssignmentWithCheckpoint,
@@ -33,8 +34,8 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<DetailedCheckPoint[]> => {
-      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? data : [];
+      const { data: checkpoints } = await getCheckpoints();
+      return Array.isArray(checkpoints) ? checkpoints : [];
     },
   });
 
@@ -45,7 +46,8 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
   } = useQuery<RallyGuideAssignmentWithCheckpoint[]>({
     queryKey: ["guideAssignments"],
     queryFn: async (): Promise<RallyGuideAssignmentWithCheckpoint[]> => {
-      return UserService.getGuideAssignmentsApiRallyV1UserGuideAssignmentsGet();
+      const { data } = await getGuideAssignments();
+      return data ?? [];
     },
     enabled: isRallyAdmin,
   });
@@ -61,10 +63,11 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
       const requestBody: CheckpointAssignmentUpdate = {
         checkpoint_id: checkpointId === 0 ? null : checkpointId,
       };
-      return UserService.updateGuideCheckpointAssignmentApiRallyV1UserUserIdGuideCheckpointAssignmentPut(
-        userId,
-        requestBody,
-      );
+      const { data } = await updateGuideCheckpointAssignment({
+        path: { user_id: userId },
+        body: requestBody,
+      });
+      return data;
     },
     onSuccess: () => {
       refetchAssignments();

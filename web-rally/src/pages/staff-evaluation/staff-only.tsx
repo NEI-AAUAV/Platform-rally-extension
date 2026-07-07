@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, Loader2 } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useNavigate } from "@tanstack/react-router";
-import { StaffEvaluationService } from "@/client";
+import { getMyCheckpoint } from "@/client";
 
 export default function StaffEvaluationPage() {
   const userStore = useUserStore();
@@ -12,7 +12,8 @@ export default function StaffEvaluationPage() {
   const { data: myCheckpoint } = useQuery({
     queryKey: ["myCheckpoint"],
     queryFn: async () => {
-      return await StaffEvaluationService.getMyCheckpointApiRallyV1StaffMyCheckpointGet();
+      const { data } = await getMyCheckpoint();
+      return data;
     },
     enabled: !!userStore.token,
     staleTime: 0, // Always refetch: admin may reassign this staff member's checkpoint at any time

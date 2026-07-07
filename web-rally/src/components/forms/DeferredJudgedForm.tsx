@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Star, X } from "lucide-react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { useAppToast } from "@/hooks/use-toast";
-import { DeferredJudgingService } from "@/client";
+import { setTeamPhotoFromResult, captureDeferredResult } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
 import type { Team } from "@/types/forms";
 import type { ActivityResultResponse } from "@/client";
@@ -39,10 +39,10 @@ export default function DeferredJudgedForm({
     if (!resultId) return;
     setSettingTeamPhotoUrl(url);
     try {
-      await DeferredJudgingService.setTeamPhotoFromResultApiRallyV1ActivitiesResultsResultIdSetTeamPhotoPut(
-        resultId,
-        { image_url: url },
-      );
+      await setTeamPhotoFromResult({
+        path: { result_id: resultId },
+        body: { image_url: url },
+      });
       toast.success("Foto definida como foto da equipa.");
     } catch {
       toast.error("Falha ao definir foto da equipa. Tenta novamente.");
@@ -76,11 +76,11 @@ export default function DeferredJudgedForm({
 
     setIsUploading(true);
     try {
-      await DeferredJudgingService.captureDeferredResultApiRallyV1ActivitiesDeferredActivityIdCapturePost(
-        activityId,
-        team.id,
-        { images: files },
-      );
+      await captureDeferredResult({
+        path: { activity_id: activityId },
+        query: { team_id: team.id },
+        body: { images: files },
+      });
       toast.success("Fotos enviadas. Aguarda avaliação do administrador.");
       setFiles([]);
       onCaptured?.();

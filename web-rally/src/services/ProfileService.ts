@@ -1,6 +1,4 @@
-import type { CancelablePromise } from "@/client";
-import { OpenAPI } from "@/client/core/OpenAPI";
-import { request as __request } from "@/client/core/request";
+import { client } from "@/client/client.gen";
 import type { ClaimableTeam, ParticipationEntry, ProfileResponse } from "@/types/profile";
 
 /**
@@ -10,38 +8,36 @@ import type { ClaimableTeam, ParticipationEntry, ProfileResponse } from "@/types
  */
 export class ProfileService {
   /** Identity + participation history for the authenticated NEI user. */
-  public static getMyProfile(): CancelablePromise<ProfileResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async getMyProfile(): Promise<ProfileResponse> {
+    const { data } = await client.get<ProfileResponse>({
       url: "/api/rally/v1/profile/me",
     });
+    return data as ProfileResponse;
   }
 
   /** Past participations (newest first). */
-  public static getMyHistory(): CancelablePromise<Array<ParticipationEntry>> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async getMyHistory(): Promise<Array<ParticipationEntry>> {
+    const { data } = await client.get<Array<ParticipationEntry>>({
       url: "/api/rally/v1/profile/history",
     });
+    return data as Array<ParticipationEntry>;
   }
 
   /** Name-only members of a team (by access code) the caller can claim. */
-  public static getClaimable(accessCode: string): CancelablePromise<ClaimableTeam> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async getClaimable(accessCode: string): Promise<ClaimableTeam> {
+    const { data } = await client.get<ClaimableTeam>({
       url: "/api/rally/v1/profile/claimable",
       query: { access_code: accessCode },
-      errors: { 404: "Team not found", 422: "Validation Error" },
     });
+    return data as ClaimableTeam;
   }
 
   /** Claim a name-only team member as the caller's own participation. */
-  public static claimMembership(memberUserId: number): CancelablePromise<ParticipationEntry> {
-    return __request(OpenAPI, {
-      method: "POST",
+  public static async claimMembership(memberUserId: number): Promise<ParticipationEntry> {
+    const { data } = await client.post<ParticipationEntry>({
       url: "/api/rally/v1/profile/claim/{member_user_id}",
       path: { member_user_id: memberUserId },
-      errors: { 422: "Validation Error" },
     });
+    return data as ParticipationEntry;
   }
 }

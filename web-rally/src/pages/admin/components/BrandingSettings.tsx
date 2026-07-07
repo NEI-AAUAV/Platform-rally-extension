@@ -5,7 +5,15 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { SettingsService, type RallySettingsResponse, type RallySettingsUpdate } from "@/client";
+import {
+  viewRallySettings,
+  updateRallySettings,
+  uploadRallyBanner,
+  uploadRallyLogo,
+  uploadRallyFavicon,
+  type RallySettingsResponse,
+  type RallySettingsUpdate,
+} from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { LoadingState } from "@/components/shared";
@@ -104,7 +112,10 @@ export default function BrandingSettings() {
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ADMIN_KEY,
-    queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
+    queryFn: async () => {
+      const { data } = await viewRallySettings();
+      return data;
+    },
     staleTime: 5 * 60 * 1000,
   });
 
@@ -135,7 +146,7 @@ export default function BrandingSettings() {
         event_subtitle: eventSubtitle,
         accent_color: accentColor,
       };
-      return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(payload);
+      return (await updateRallySettings({ body: payload })).data;
     },
     onSuccess: () => {
       toast.success("Identidade visual atualizada!");
@@ -226,9 +237,10 @@ export default function BrandingSettings() {
             description="Topo da aplicação · JPG/PNG/WebP/GIF · máx 5MB"
             accept="image/jpeg,image/png,image/webp,image/gif"
             currentUrl={settings?.banner_url}
-            upload={(file) =>
-              SettingsService.uploadRallyBannerApiRallyV1RallySettingsBannerPut({ image: file })
-            }
+            upload={async (file) => {
+              const { data } = await uploadRallyBanner({ body: { image: file } });
+              return data as RallySettingsResponse;
+            }}
             onUploaded={invalidateBranding}
           />
           <ImageUploadField
@@ -236,9 +248,10 @@ export default function BrandingSettings() {
             description="JPG/PNG/WebP/GIF · máx 5MB"
             accept="image/jpeg,image/png,image/webp,image/gif"
             currentUrl={settings?.logo_url}
-            upload={(file) =>
-              SettingsService.uploadRallyLogoApiRallyV1RallySettingsLogoPut({ image: file })
-            }
+            upload={async (file) => {
+              const { data } = await uploadRallyLogo({ body: { image: file } });
+              return data as RallySettingsResponse;
+            }}
             onUploaded={invalidateBranding}
           />
           <ImageUploadField
@@ -246,9 +259,10 @@ export default function BrandingSettings() {
             description="Separador do navegador · PNG/SVG/ICO · máx 5MB"
             accept="image/png,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.ico"
             currentUrl={settings?.favicon_url}
-            upload={(file) =>
-              SettingsService.uploadRallyFaviconApiRallyV1RallySettingsFaviconPut({ image: file })
-            }
+            upload={async (file) => {
+              const { data } = await uploadRallyFavicon({ body: { image: file } });
+              return data as RallySettingsResponse;
+            }}
             onUploaded={invalidateBranding}
           />
         </div>

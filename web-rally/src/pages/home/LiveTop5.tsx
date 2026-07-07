@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { TeamService, type ListingTeam } from "@/client";
+import { getTeams, type ListingTeam } from "@/client";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useCountdown } from "@/pages/home/useCountdown";
@@ -28,7 +28,7 @@ export function LiveTop5() {
   const isProvisional = phase === "live";
   const { data: teams, dataUpdatedAt } = useQuery({
     queryKey: ["teams"],
-    queryFn: TeamService.getTeamsApiRallyV1TeamGet,
+    queryFn: async () => (await getTeams()).data,
   });
 
   const top = teams

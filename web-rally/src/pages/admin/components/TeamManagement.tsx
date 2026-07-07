@@ -18,7 +18,16 @@ import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/shared";
-import { TeamService, type TeamCreate, type TeamUpdate, type DetailedTeam } from "@/client";
+import {
+  getTeams,
+  getTeamById,
+  createTeam as apiCreateTeam,
+  updateTeam as apiUpdateTeam,
+  deleteTeam as apiDeleteTeam,
+  type TeamCreate,
+  type TeamUpdate,
+  type DetailedTeam,
+} from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 
@@ -48,7 +57,10 @@ export default function TeamManagement() {
   // Teams queries and mutations
   const { data: teams } = useQuery({
     queryKey: ["teams"],
-    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
+    queryFn: async () => {
+      const { data } = await getTeams();
+      return data;
+    },
     staleTime: 0, // Always consider data stale to force refetch
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
@@ -57,9 +69,10 @@ export default function TeamManagement() {
   // Fetch team details for QR code display
   const { data: teamDetailsForQR, isLoading: isLoadingQRDetails } = useQuery({
     queryKey: ["teamDetails", selectedTeamForQR?.id],
-    queryFn: () => {
+    queryFn: async () => {
       if (!selectedTeamForQR?.id) return null;
-      return TeamService.getTeamByIdApiRallyV1TeamIdGet(selectedTeamForQR.id);
+      const { data } = await getTeamById({ path: { id: selectedTeamForQR.id } });
+      return data;
     },
     enabled: !!selectedTeamForQR?.id,
   });
@@ -73,7 +86,8 @@ export default function TeamManagement() {
       const requestBody: TeamCreate = {
         name: teamData.name,
       };
-      return TeamService.createTeamApiRallyV1TeamPost(requestBody);
+      const { data } = await apiCreateTeam({ body: requestBody });
+      return data;
     },
     onSuccess: (data) => {
       // Store the newly created team to show QR code modal
@@ -93,7 +107,7 @@ export default function TeamManagement() {
       const requestBody: TeamUpdate = {
         name: data.name,
       };
-      return TeamService.updateTeamApiRallyV1TeamIdPut(id, requestBody);
+      return apiUpdateTeam({ path: { id }, body: requestBody });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
@@ -108,7 +122,7 @@ export default function TeamManagement() {
 
   const { mutate: deleteTeam, isPending: isDeletingTeam } = useMutation({
     mutationFn: async (id: number) => {
-      return TeamService.deleteTeamApiRallyV1TeamIdDelete(id);
+      return apiDeleteTeam({ path: { id } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });

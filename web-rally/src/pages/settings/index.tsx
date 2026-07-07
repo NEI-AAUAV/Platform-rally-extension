@@ -4,7 +4,12 @@ import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
-import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
+import {
+  viewRallySettings,
+  updateRallySettings,
+  type RallySettingsUpdate,
+  type RallySettingsResponse,
+} from "@/client";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
@@ -129,7 +134,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
     error: settingsError,
   } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
-    queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
+    queryFn: async () => (await viewRallySettings()).data,
     enabled: isRallyAdmin,
     retry: 2, // Retry up to 2 times
     retryDelay: 1000, // Wait 1 second between retries
@@ -220,7 +225,8 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
   // Update settings mutation
   const { mutate: updateSettings, isPending: isUpdating } = useMutation({
     mutationFn: async (settingsData: RallySettingsUpdate) => {
-      return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(settingsData);
+      const { data } = await updateRallySettings({ body: settingsData });
+      return data;
     },
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");

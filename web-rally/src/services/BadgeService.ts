@@ -1,6 +1,4 @@
-import type { CancelablePromise } from "@/client";
-import { OpenAPI } from "@/client/core/OpenAPI";
-import { request as __request } from "@/client/core/request";
+import { client } from "@/client/client.gen";
 import type { TeamBadge } from "@/types/badge";
 
 /**
@@ -10,20 +8,19 @@ import type { TeamBadge } from "@/types/badge";
  */
 export class BadgeService {
   /** All badges awarded across every team. */
-  public static listAllBadges(): CancelablePromise<Array<TeamBadge>> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async listAllBadges(): Promise<Array<TeamBadge>> {
+    const { data } = await client.get<Array<TeamBadge>>({
       url: "/api/rally/v1/badges",
     });
+    return data as Array<TeamBadge>;
   }
 
   /** Badges held by a single team. */
-  public static listTeamBadges(teamId: number): CancelablePromise<Array<TeamBadge>> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async listTeamBadges(teamId: number): Promise<Array<TeamBadge>> {
+    const { data } = await client.get<Array<TeamBadge>>({
       url: "/api/rally/v1/teams/{team_id}/badges",
       path: { team_id: teamId },
-      errors: { 422: "Validation Error" },
     });
+    return data as Array<TeamBadge>;
   }
 }

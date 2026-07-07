@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckPointService, type DetailedCheckPoint } from "@/client";
+import { getCheckpoints, type DetailedCheckPoint } from "@/client";
 import { useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -43,8 +43,8 @@ export default function Postos() {
   const { data: checkpoints, isLoading } = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => {
-      const response = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return response;
+      const { data } = await getCheckpoints();
+      return data;
     },
     enabled: !isTeamAuthenticated || canViewPostos,
   });

@@ -2,8 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Zap, Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight } from "lucide-react";
 import {
-  DynamicScoringService,
-  TeamService,
+  listDynamicRules,
+  createDynamicRule,
+  updateDynamicRule,
+  deleteDynamicRule,
+  listDynamicAwards,
+  createDynamicAward,
+  deleteDynamicAward,
+  getTeams,
   type DynamicRuleResponse,
   type DynamicAwardResponse,
   type ListingTeam,
@@ -22,18 +28,23 @@ function RulesSection() {
 
   const { data: rules = [] } = useQuery<DynamicRuleResponse[]>({
     queryKey: ["dynamic-rules"],
-    queryFn: () => DynamicScoringService.listDynamicRulesApiRallyV1DynamicRulesGet(),
+    queryFn: async () => {
+      const { data } = await listDynamicRules();
+      return data ?? [];
+    },
   });
 
   const createMutation = useMutation({
     mutationFn: () =>
-      DynamicScoringService.createDynamicRuleApiRallyV1DynamicRulesPost({
-        name: form.name.trim(),
-        rule_type: form.rule_type,
-        points: parseFloat(form.points),
-        description: form.description || undefined,
-        is_active: true,
-        is_automatic: false,
+      createDynamicRule({
+        body: {
+          name: form.name.trim(),
+          rule_type: form.rule_type,
+          points: parseFloat(form.points),
+          description: form.description || undefined,
+          is_active: true,
+          is_automatic: false,
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dynamic-rules"] });
@@ -44,13 +55,12 @@ function RulesSection() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
-      DynamicScoringService.updateDynamicRuleApiRallyV1DynamicRulesRuleIdPut(id, { is_active }),
+      updateDynamicRule({ path: { rule_id: id }, body: { is_active } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) =>
-      DynamicScoringService.deleteDynamicRuleApiRallyV1DynamicRulesRuleIdDelete(id),
+    mutationFn: (id: number) => deleteDynamicRule({ path: { rule_id: id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
   });
 
@@ -191,21 +201,29 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
 
   const { data: rules = [] } = useQuery<DynamicRuleResponse[]>({
     queryKey: ["dynamic-rules"],
-    queryFn: () => DynamicScoringService.listDynamicRulesApiRallyV1DynamicRulesGet(),
+    queryFn: async () => {
+      const { data } = await listDynamicRules();
+      return data ?? [];
+    },
   });
 
   const { data: awards = [] } = useQuery<DynamicAwardResponse[]>({
     queryKey: ["dynamic-awards"],
-    queryFn: () => DynamicScoringService.listDynamicAwardsApiRallyV1DynamicAwardsGet(),
+    queryFn: async () => {
+      const { data } = await listDynamicAwards();
+      return data ?? [];
+    },
   });
 
   const createMutation = useMutation({
     mutationFn: () =>
-      DynamicScoringService.createDynamicAwardApiRallyV1DynamicAwardsPost({
-        team_id: parseInt(form.team_id),
-        points: parseFloat(form.points),
-        reason: form.reason || undefined,
-        rule_id: form.rule_id ? parseInt(form.rule_id) : undefined,
+      createDynamicAward({
+        body: {
+          team_id: parseInt(form.team_id),
+          points: parseFloat(form.points),
+          reason: form.reason || undefined,
+          rule_id: form.rule_id ? parseInt(form.rule_id) : undefined,
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dynamic-awards"] });
@@ -215,8 +233,7 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) =>
-      DynamicScoringService.deleteDynamicAwardApiRallyV1DynamicAwardsAwardIdDelete(id),
+    mutationFn: (id: number) => deleteDynamicAward({ path: { award_id: id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-awards"] }),
   });
 
@@ -353,7 +370,10 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
 export default function DynamicScoringTab() {
   const { data: teams = [] } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
-    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
+    queryFn: async () => {
+      const { data } = await getTeams();
+      return data ?? [];
+    },
   });
 
   return (

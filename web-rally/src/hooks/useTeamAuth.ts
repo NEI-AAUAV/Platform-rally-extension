@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  TeamService,
-  TeamMembersService,
-  TeamAuthService,
-  ApiError,
+  getTeamById,
+  addTeamMember,
+  removeTeamMember,
+  teamLogin,
   type DetailedTeam,
 } from "@/client";
+import { ApiError } from "@/services/apiClient";
 import {
   getTeamToken,
   setTeamToken,
@@ -52,10 +53,13 @@ export default function useTeamAuth() {
   // Fetch team members data when authenticated
   const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
     queryKey: ["team", teamData?.team_id],
-    queryFn: () =>
-      teamData
-        ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id)
-        : Promise.reject(new Error("No team data")),
+    queryFn: async () => {
+      if (!teamData) {
+        return Promise.reject(new Error("No team data"));
+      }
+      const { data } = await getTeamById({ path: { id: teamData.team_id } });
+      return data;
+    },
     enabled: isAuthenticated && !!teamData?.team_id,
     staleTime: 0,
   });
@@ -64,9 +68,8 @@ export default function useTeamAuth() {
   const loginMutation = useMutation({
     mutationFn: async (accessCode: string): Promise<TeamLoginResponse> => {
       try {
-        return (await TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost({
-          access_code: accessCode,
-        })) as TeamLoginResponse;
+        const { data } = await teamLogin({ body: { access_code: accessCode } });
+        return data as TeamLoginResponse;
       } catch (error) {
         if (error instanceof ApiError) {
           const detail = (error.body as { detail?: string } | undefined)?.detail;
@@ -93,10 +96,10 @@ export default function useTeamAuth() {
   const { mutate: addMember, isPending: isAddingMember } = useMutation({
     mutationFn: async (memberData: { name: string; email?: string | null }) => {
       if (!teamData?.team_id) throw new Error("Team ID not found");
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(
-        teamData.team_id,
-        memberData,
-      );
+      return addTeamMember({
+        path: { team_id: teamData.team_id },
+        body: memberData,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team", teamData?.team_id] });
@@ -107,10 +110,9 @@ export default function useTeamAuth() {
   const { mutate: removeMember, isPending: isRemovingMember } = useMutation({
     mutationFn: async (memberId: number) => {
       if (!teamData?.team_id) throw new Error("Team ID not found");
-      return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
-        teamData.team_id,
-        memberId,
-      );
+      return removeTeamMember({
+        path: { team_id: teamData.team_id, user_id: memberId },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team", teamData?.team_id] });

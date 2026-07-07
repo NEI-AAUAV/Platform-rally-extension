@@ -1,6 +1,4 @@
-import type { CancelablePromise } from "@/client";
-import { OpenAPI } from "@/client/core/OpenAPI";
-import { request as __request } from "@/client/core/request";
+import { client } from "@/client/client.gen";
 import type { RallyEvent, RallyEventCreate, RallyEventUpdate } from "@/types/event";
 
 /**
@@ -11,52 +9,44 @@ import type { RallyEvent, RallyEventCreate, RallyEventUpdate } from "@/types/eve
  */
 export class EventsService {
   /** All events (editions). */
-  public static listEvents(): CancelablePromise<Array<RallyEvent>> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async listEvents(): Promise<Array<RallyEvent>> {
+    const { data } = await client.get<Array<RallyEvent>>({
       url: "/api/rally/v1/events",
     });
+    return data as Array<RallyEvent>;
   }
 
   /** The current (active) event. */
-  public static getCurrentEvent(): CancelablePromise<RallyEvent> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async getCurrentEvent(): Promise<RallyEvent> {
+    const { data } = await client.get<RallyEvent>({
       url: "/api/rally/v1/events/current",
     });
+    return data as RallyEvent;
   }
 
-  public static createEvent(body: RallyEventCreate): CancelablePromise<RallyEvent> {
-    return __request(OpenAPI, {
-      method: "POST",
+  public static async createEvent(body: RallyEventCreate): Promise<RallyEvent> {
+    const { data } = await client.post<RallyEvent>({
       url: "/api/rally/v1/events",
       body,
-      mediaType: "application/json",
-      errors: { 422: "Validation Error" },
     });
+    return data as RallyEvent;
   }
 
-  public static updateEvent(
-    eventId: number,
-    body: RallyEventUpdate,
-  ): CancelablePromise<RallyEvent> {
-    return __request(OpenAPI, {
-      method: "PUT",
+  public static async updateEvent(eventId: number, body: RallyEventUpdate): Promise<RallyEvent> {
+    const { data } = await client.put<RallyEvent>({
       url: "/api/rally/v1/events/{event_id}",
       path: { event_id: eventId },
       body,
-      mediaType: "application/json",
-      errors: { 422: "Validation Error" },
     });
+    return data as RallyEvent;
   }
 
   /** Make the given event the current edition. */
-  public static setCurrentEvent(eventId: number): CancelablePromise<RallyEvent> {
-    return __request(OpenAPI, {
-      method: "POST",
+  public static async setCurrentEvent(eventId: number): Promise<RallyEvent> {
+    const { data } = await client.post<RallyEvent>({
       url: "/api/rally/v1/events/{event_id}/set-current",
       path: { event_id: eventId },
-      errors: { 422: "Validation Error" },
     });
+    return data as RallyEvent;
   }
 }

@@ -4,7 +4,7 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
 import {
-  TeamService,
+  updateTeam,
   type ListingTeam,
   type VersusGroupListResponse,
   type TeamUpdate,
@@ -38,7 +38,7 @@ export default function VersusGroupList({
           name: team.name,
           versus_group_id: null,
         };
-        await TeamService.updateTeamApiRallyV1TeamIdPut(team.id, updateData);
+        await updateTeam({ path: { id: team.id }, body: updateData });
       }
     },
     onSuccess: () => {

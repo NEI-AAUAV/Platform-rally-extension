@@ -6,7 +6,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
-import { CheckPointService, TeamService, type ListingTeam } from "@/client";
+import { getCheckpoints, getTeams, type ListingTeam } from "@/client";
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import { useCountdown } from "@/pages/home/useCountdown";
@@ -33,11 +33,11 @@ export default function Scoreboard() {
     dataUpdatedAt: teamsUpdatedAt,
   } = useQuery({
     queryKey: ["teams"],
-    queryFn: TeamService.getTeamsApiRallyV1TeamGet,
+    queryFn: async () => (await getTeams()).data,
   });
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    queryFn: async () => (await getCheckpoints()).data,
     retry: false,
   });
   const checkpointsCount = Array.isArray(checkpoints) ? checkpoints.length : undefined;

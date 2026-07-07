@@ -12,7 +12,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertCircle } from "lucide-react";
 import {
-  VersusService,
+  createVersusPair as apiCreateVersusPair,
   type VersusPairCreate,
   type VersusPairResponse,
   type ListingTeam,
@@ -45,7 +45,8 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
         team_a_id: pairData.team_a_id,
         team_b_id: pairData.team_b_id,
       };
-      return VersusService.createVersusPairApiRallyV1VersusPairPost(requestBody);
+      const { data } = await apiCreateVersusPair({ body: requestBody });
+      return data as VersusPairResponse;
     },
     onSuccess: () => {
       onSuccess();

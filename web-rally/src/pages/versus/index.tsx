@@ -7,8 +7,8 @@ import { Navigate } from "@tanstack/react-router";
 import { LoadingState, FeatureDisabledAlert, PageHeader } from "@/components/shared";
 import { VersusPairForm, VersusGroupList } from "./components";
 import {
-  TeamService,
-  VersusService,
+  getTeams,
+  listVersusGroups,
   type ListingTeam,
   type VersusGroupListResponse,
 } from "@/client";
@@ -25,13 +25,16 @@ export default function Versus({ embedded = false }: VersusProps) {
   // Fetch teams
   const { data: teams, refetch: refetchTeams } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
-    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
+    queryFn: async () => (await getTeams()).data,
   });
 
   // Fetch versus groups
   const { data: versusGroups, refetch: refetchVersusGroups } = useQuery<VersusGroupListResponse>({
     queryKey: ["versusGroups"],
-    queryFn: () => VersusService.listVersusGroupsApiRallyV1VersusGroupsGet(),
+    queryFn: async () => {
+      const { data } = await listVersusGroups();
+      return data as VersusGroupListResponse;
+    },
     enabled: isRallyAdmin,
   });
 

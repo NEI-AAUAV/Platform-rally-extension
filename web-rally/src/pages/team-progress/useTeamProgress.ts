@@ -5,8 +5,9 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useRallySettings from "@/hooks/useRallySettings";
 import useRallyEventStream from "@/hooks/useRallyEventStream";
 import {
-  CheckPointService,
-  TeamService,
+  getCheckpoints,
+  getCheckpointsCount,
+  getTeamById,
   type DetailedTeam,
   type DetailedCheckPoint,
 } from "@/client";
@@ -45,18 +46,24 @@ export function useTeamProgress() {
     error: teamError,
   } = useQuery<DetailedTeam>({
     queryKey: ["team", teamData?.team_id],
-    queryFn: async () => TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData!.team_id),
+    queryFn: async () => {
+      const { data } = await getTeamById({ path: { id: teamData!.team_id } });
+      return data;
+    },
     enabled: !!teamData?.team_id,
     refetchInterval: REFRESH_INTERVAL_MS,
     refetchOnWindowFocus: true,
   });
 
-  // Fetch checkpoints — the generated client sends the current team token
-  // (OpenAPI.HEADERS) so the backend returns the correct slice for this team
-  // (completed + next), not just checkpoint 1.
+  // Fetch checkpoints — the client sends the current team token so the
+  // backend returns the correct slice for this team (completed + next), not
+  // just checkpoint 1.
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints", teamData?.team_id],
-    queryFn: async () => CheckPointService.getCheckpointsApiRallyV1CheckpointGet(),
+    queryFn: async () => {
+      const { data } = await getCheckpoints();
+      return data;
+    },
     enabled: !!teamData?.team_id,
     refetchInterval: REFRESH_INTERVAL_MS,
   });
@@ -66,7 +73,8 @@ export function useTeamProgress() {
     queryKey: ["checkpoints-count"],
     queryFn: async () => {
       try {
-        return await CheckPointService.getCheckpointsCountApiRallyV1CheckpointCountGet();
+        const { data } = await getCheckpointsCount();
+        return data;
       } catch {
         return null;
       }

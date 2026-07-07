@@ -5,35 +5,13 @@ import Router from "@/router";
 import "@/styles/global.css";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { notifyUnauthorized, refreshTeamToken } from "./services/client";
-import { ApiError } from "./client/core/ApiError";
-import { OpenAPI } from "./client/core/OpenAPI";
+import { ApiError } from "./services/apiClient";
+import "./services/apiClient";
 import { useUserStore } from "@/stores/useUserStore";
-import { getTeamToken } from "@/lib/auth/tokenStore";
 import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider } from "@/components/theme";
-
-// Configure OpenAPI BASE URL - use empty string to use relative paths
-OpenAPI.BASE = "";
-OpenAPI.VERSION = "v1";
-
-// Configure OpenAPI to use authentication token
-OpenAPI.HEADERS = async () => {
-  // Check for staff token first
-  const staffToken = useUserStore.getState().token;
-  if (staffToken) {
-    return { Authorization: `Bearer ${staffToken}` } as Record<string, string>;
-  }
-
-  // Fall back to team token if no staff token
-  const teamToken = getTeamToken();
-  if (teamToken) {
-    return { Authorization: `Bearer ${teamToken}` } as Record<string, string>;
-  }
-
-  return {} as Record<string, string>;
-};
 
 // Keep a returning team session alive on startup (staff sessions are owned by
 // react-oidc-context, which restores them automatically).

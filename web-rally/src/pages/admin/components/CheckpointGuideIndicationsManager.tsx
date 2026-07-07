@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Compass, HelpCircle, CheckCircle2, Trash2, Loader2, Plus } from "lucide-react";
-import { CheckpointGuideIndicationsService, type CheckpointGuideIndication } from "@/client";
+import {
+  listGuideIndications,
+  createGuideIndication,
+  deleteGuideIndication,
+  type CheckpointGuideIndication,
+} from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-toast";
@@ -24,26 +29,26 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
 
   const { data: indications = [] } = useQuery<CheckpointGuideIndication[]>({
     queryKey,
-    queryFn: () =>
-      CheckpointGuideIndicationsService.listGuideIndicationsApiRallyV1CheckpointCheckpointIdGuideIndicationsGet(
-        checkpointId,
-      ),
+    queryFn: async () => {
+      const { data } = await listGuideIndications({ path: { checkpoint_id: checkpointId } });
+      return data ?? [];
+    },
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey });
 
   const addIndication = useMutation({
     mutationFn: () =>
-      CheckpointGuideIndicationsService.createGuideIndicationApiRallyV1CheckpointCheckpointIdGuideIndicationsPost(
-        checkpointId,
-        {
+      createGuideIndication({
+        path: { checkpoint_id: checkpointId },
+        body: {
           hint: hint.trim(),
           question: question.trim() || null,
           expected_answer: expectedAnswer.trim() || null,
           // length collides with existing orders after deletes; max+1 does not
           order: indications.reduce((max, i) => Math.max(max, (i.order ?? 0) + 1), 0),
         },
-      ),
+      }),
     onSuccess: () => {
       invalidate();
       setHint("");
@@ -55,10 +60,7 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
   });
 
   const deleteIndication = useMutation({
-    mutationFn: (id: number) =>
-      CheckpointGuideIndicationsService.deleteGuideIndicationApiRallyV1CheckpointGuideIndicationsIndicationIdDelete(
-        id,
-      ),
+    mutationFn: (id: number) => deleteGuideIndication({ path: { indication_id: id } }),
     onSuccess: () => {
       invalidate();
       toast.success("Removido.");

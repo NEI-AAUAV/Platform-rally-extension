@@ -4,7 +4,7 @@ import { Camera, QrCode, Check } from "lucide-react";
 import QRCodeScanner from "@/components/QRCodeScanner";
 import { CheckinService, type StaffCheckinResponse } from "@/services/CheckinService";
 import { useAppToast } from "@/hooks/use-toast";
-import { ApiError } from "@/client";
+import { ApiError } from "@/services/apiClient";
 
 interface StaffCheckinScannerProps {
   /** Checkpoint the staff member is scanning teams into. */

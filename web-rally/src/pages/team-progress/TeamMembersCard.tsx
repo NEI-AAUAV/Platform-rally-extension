@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserCheck } from "lucide-react";
 import type { DetailedTeam } from "@/client";
-import { ProfileService } from "@/services/ProfileService";
+import { claimMembership } from "@/client";
 import { useUserStore } from "@/stores/useUserStore";
 import { useProfile } from "@/hooks/useProfile";
 import { useAppToast } from "@/hooks/use-toast";
@@ -38,7 +38,8 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   const canClaim = isAuthenticated && profile != null && profile.current_team_id == null;
 
   const claim = useMutation({
-    mutationFn: (memberId: number) => ProfileService.claimMembership(memberId),
+    mutationFn: (memberId: number) =>
+      claimMembership({ path: { member_user_id: memberId } }),
     onSuccess: () => {
       toast.success("Conta associada! O teu histórico foi atualizado.");
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });

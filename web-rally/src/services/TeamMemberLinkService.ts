@@ -1,6 +1,4 @@
-import type { CancelablePromise } from "@/client";
-import { OpenAPI } from "@/client/core/OpenAPI";
-import { request as __request } from "@/client/core/request";
+import { client } from "@/client/client.gen";
 
 /** A NEI (OIDC) account that can be linked to a placeholder member. */
 export interface OidcUserSearchResult {
@@ -25,23 +23,21 @@ export interface LinkedMemberResponse {
  */
 export class TeamMemberLinkService {
   /** Search NEI accounts by name or email (team managers only). */
-  public static searchOidcUsers(q: string): CancelablePromise<Array<OidcUserSearchResult>> {
-    return __request(OpenAPI, {
-      method: "GET",
+  public static async searchOidcUsers(q: string): Promise<Array<OidcUserSearchResult>> {
+    const { data } = await client.get<Array<OidcUserSearchResult>>({
       url: "/api/rally/v1/user/search",
       query: { q },
-      errors: { 422: "Validation Error" },
     });
+    return data as Array<OidcUserSearchResult>;
   }
 
   /** Link a placeholder member to a chosen NEI account (by Authentik subject). */
-  public static linkMember(
+  public static async linkMember(
     teamId: number,
     placeholderUserId: number,
     account: Pick<OidcUserSearchResult, "authentik_sub" | "name" | "email">,
-  ): CancelablePromise<LinkedMemberResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
+  ): Promise<LinkedMemberResponse> {
+    const { data } = await client.post<LinkedMemberResponse>({
       url: "/api/rally/v1/team/{team_id}/members/{user_id}/link",
       path: { team_id: teamId, user_id: placeholderUserId },
       body: {
@@ -49,9 +45,8 @@ export class TeamMemberLinkService {
         name: account.name,
         email: account.email ?? null,
       },
-      mediaType: "application/json",
-      errors: { 404: "Not found", 422: "Validation Error" },
     });
+    return data as LinkedMemberResponse;
   }
 
   /**
@@ -61,15 +56,14 @@ export class TeamMemberLinkService {
    * longer sent once the OIDC login completes), so `teamId` must be passed
    * explicitly — captured by the caller before the OIDC redirect.
    */
-  public static linkSelf(
+  public static async linkSelf(
     teamId: number,
     placeholderUserId: number,
-  ): CancelablePromise<LinkedMemberResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
+  ): Promise<LinkedMemberResponse> {
+    const { data } = await client.post<LinkedMemberResponse>({
       url: "/api/rally/v1/team/{team_id}/members/{user_id}/link-self",
       path: { team_id: teamId, user_id: placeholderUserId },
-      errors: { 401: "Unauthorized", 404: "Not found", 422: "Validation Error" },
     });
+    return data as LinkedMemberResponse;
   }
 }

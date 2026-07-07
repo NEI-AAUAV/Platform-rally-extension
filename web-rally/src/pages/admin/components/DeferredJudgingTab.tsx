@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gavel, Image, CheckCircle2, AlertCircle } from "lucide-react";
-import { DeferredJudgingService, type DeferredResultResponse } from "@/client";
+import { listPendingJudgments, judgeDeferredResult, type DeferredResultResponse } from "@/client";
 
 export default function DeferredJudgingTab() {
   const qc = useQueryClient();
@@ -11,8 +11,10 @@ export default function DeferredJudgingTab() {
 
   const { data: pending = [], isLoading } = useQuery<DeferredResultResponse[]>({
     queryKey: ["deferred-pending"],
-    queryFn: () =>
-      DeferredJudgingService.listPendingJudgmentsApiRallyV1ActivitiesDeferredPendingGet(),
+    queryFn: async () => {
+      const { data } = await listPendingJudgments();
+      return data ?? [];
+    },
     refetchInterval: 30_000,
   });
 
@@ -26,13 +28,10 @@ export default function DeferredJudgingTab() {
       points: number;
       notes?: string;
     }) =>
-      DeferredJudgingService.judgeDeferredResultApiRallyV1ActivitiesResultsResultIdJudgePut(
-        resultId,
-        {
-          points,
-          notes,
-        },
-      ),
+      judgeDeferredResult({
+        path: { result_id: resultId },
+        body: { points, notes },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["deferred-pending"] });
       setJudging(null);

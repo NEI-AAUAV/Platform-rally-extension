@@ -40,7 +40,7 @@ export default function TimeBasedForm({
       setCompletionTime(
         typeof v === "number" && !isNaN(v) ? String(v) : typeof v === "string" ? v : "",
       );
-      setNotes(existingResult.result_data.notes || "");
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);

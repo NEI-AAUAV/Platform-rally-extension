@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Lightbulb, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
-import { CheckpointMediaService, MediaKind, type CheckpointMediaResponse } from "@/client";
+import {
+  listCheckpointMedia,
+  createCheckpointMedia,
+  deleteCheckpointMedia,
+  type CheckpointMediaResponse,
+} from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-toast";
@@ -24,24 +29,24 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
 
   const { data: media = [], isLoading } = useQuery<CheckpointMediaResponse[]>({
     queryKey,
-    queryFn: () =>
-      CheckpointMediaService.listCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaGet(
-        checkpointId,
-      ),
+    queryFn: async () => {
+      const { data } = await listCheckpointMedia({ path: { checkpoint_id: checkpointId } });
+      return data ?? [];
+    },
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey });
 
   const uploadPhoto = useMutation({
     mutationFn: (image: Blob) =>
-      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(
-        checkpointId,
-        {
-          kind: MediaKind.PHOTO,
+      createCheckpointMedia({
+        path: { checkpoint_id: checkpointId },
+        body: {
+          kind: "photo",
           caption: photoCaption || null,
           image,
         },
-      ),
+      }),
     onSuccess: () => {
       invalidate();
       setPhotoCaption("");
@@ -53,13 +58,13 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
 
   const addFunFact = useMutation({
     mutationFn: (caption: string) =>
-      CheckpointMediaService.createCheckpointMediaApiRallyV1CheckpointCheckpointIdMediaPost(
-        checkpointId,
-        {
-          kind: MediaKind.FUN_FACT,
+      createCheckpointMedia({
+        path: { checkpoint_id: checkpointId },
+        body: {
+          kind: "fun_fact",
           caption,
         },
-      ),
+      }),
     onSuccess: () => {
       invalidate();
       setFunFact("");
@@ -69,8 +74,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
   });
 
   const deleteMedia = useMutation({
-    mutationFn: (mediaId: number) =>
-      CheckpointMediaService.deleteCheckpointMediaApiRallyV1CheckpointMediaMediaIdDelete(mediaId),
+    mutationFn: (mediaId: number) => deleteCheckpointMedia({ path: { media_id: mediaId } }),
     onSuccess: () => {
       invalidate();
       toast.success("Removido.");
@@ -88,8 +92,8 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
     if (trimmed) addFunFact.mutate(trimmed);
   };
 
-  const photos = media.filter((m) => m.kind === MediaKind.PHOTO);
-  const funFacts = media.filter((m) => m.kind === MediaKind.FUN_FACT);
+  const photos = media.filter((m) => m.kind === "photo");
+  const funFacts = media.filter((m) => m.kind === "fun_fact");
 
   return (
     <div className="space-y-5 border-t border-border pt-4">

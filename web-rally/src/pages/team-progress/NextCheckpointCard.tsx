@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MapPin, LocateFixed, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import type { DetailedCheckPoint } from "@/client";
-import { CheckpointArriveService } from "@/client";
+import { arriveAtCheckpoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import { getErrorMessage } from "@/utils/errorHandling";
@@ -30,11 +30,13 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const qc = useQueryClient();
 
   const arriveMutation = useMutation({
-    mutationFn: ({ lat, lng }: { lat: number; lng: number }) =>
-      CheckpointArriveService.arriveAtCheckpointApiRallyV1CheckpointCheckpointIdArrivePost(
-        checkpoint.id,
-        { latitude: lat, longitude: lng },
-      ),
+    mutationFn: async ({ lat, lng }: { lat: number; lng: number }) => {
+      const { data } = await arriveAtCheckpoint({
+        path: { checkpoint_id: checkpoint.id },
+        body: { latitude: lat, longitude: lng },
+      });
+      return data;
+    },
     onSuccess: (data) => {
       if (data.auto_completed) {
         setGpsMsg("Posto concluído! A avançar para o próximo…");

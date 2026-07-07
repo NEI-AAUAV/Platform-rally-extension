@@ -10,10 +10,10 @@ import { useNavigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import useRallyEventStream from "@/hooks/useRallyEventStream";
 import {
-  CheckPointService,
-  ActivitiesService,
-  TeamService,
-  StaffEvaluationService,
+  getCheckpoints,
+  getActivities,
+  getTeams,
+  getAllEvaluations,
   type DetailedCheckPoint,
   type ActivityListResponse,
   type ListingTeam,
@@ -38,7 +38,8 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const { data: allCheckpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["allCheckpoints"],
     queryFn: async () => {
-      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      const { data } = await getCheckpoints();
+      return data;
     },
     enabled: !!userStore.token,
   });
@@ -47,7 +48,8 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const { data: allActivities } = useQuery<ActivityListResponse>({
     queryKey: ["allActivities"],
     queryFn: async () => {
-      return ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+      const { data } = await getActivities();
+      return data;
     },
     enabled: !!userStore.token,
   });
@@ -56,7 +58,8 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const { data: allTeams } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],
     queryFn: async () => {
-      return TeamService.getTeamsApiRallyV1TeamGet();
+      const { data } = await getTeams();
+      return data;
     },
     enabled: !!userStore.token,
   });
@@ -70,8 +73,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async (): Promise<Evaluation[]> => {
-      const response =
-        await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
+      const { data: response } = await getAllEvaluations();
 
       if (!response || !response.evaluations) return [];
 

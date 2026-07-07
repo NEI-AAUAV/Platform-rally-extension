@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
-import { VersusService, TeamService } from "@/client";
+import { getTeamOpponent, getTeams } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import type { TeamVsFormProps } from "@/types/forms";
 import { getTeamSize } from "@/types/forms";
@@ -29,8 +29,7 @@ async function fetchPreselectedOpponent(
   teamId: number,
 ): Promise<{ id: number; name: string } | null> {
   try {
-    const opponent =
-      await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(teamId);
+    const { data: opponent } = await getTeamOpponent({ path: { team_id: teamId } });
     if (opponent?.opponent_id) {
       return { id: opponent.opponent_id, name: opponent.opponent_name || "" };
     }
@@ -83,7 +82,7 @@ export default function TeamVsForm({
       teamsFetchedRef.current = true;
       setIsLoadingTeams(true);
       try {
-        const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
+        const { data: teamsList } = await getTeams();
         const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== teamId);
         setTeams(filteredTeams);
 
@@ -132,11 +131,11 @@ export default function TeamVsForm({
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setResult(existingResult.result_data.result || "win");
+      setResult((existingResult.result_data.result as string) || "win");
       if (typeof existingResult.result_data.completed === "boolean") {
         setCompleted(existingResult.result_data.completed);
       }
-      const existingOpponentId = existingResult.result_data.opponent_team_id;
+      const existingOpponentId = existingResult.result_data.opponent_team_id as number | undefined;
       // Only set opponent if not already set to avoid infinite loops
       if (existingOpponentId && opponentTeamId === undefined) {
         setOpponentTeamId(existingOpponentId);
@@ -150,7 +149,7 @@ export default function TeamVsForm({
         // Don't mark as preselected when loading from existingResult - allow editing
         setIsOpponentPreselected(false);
       }
-      setNotes(existingResult.result_data.notes || "");
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);

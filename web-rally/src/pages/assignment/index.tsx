@@ -6,8 +6,9 @@ import { LoadingState, PageHeader } from "@/components/shared";
 import { ClipboardList } from "lucide-react";
 import { StaffAssignmentList, AssignmentForm } from "./components";
 import {
-  CheckPointService,
-  UserService,
+  getCheckpoints,
+  getStaffAssignments,
+  updateCheckpointAssignment,
   type CheckpointAssignmentUpdate,
   type DetailedCheckPoint,
   type RallyStaffAssignmentWithCheckpoint,
@@ -33,8 +34,8 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<DetailedCheckPoint[]> => {
-      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? data : [];
+      const { data: checkpoints } = await getCheckpoints();
+      return Array.isArray(checkpoints) ? checkpoints : [];
     },
   });
 
@@ -45,7 +46,8 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
   } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
     queryKey: ["staffAssignments"],
     queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
-      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet();
+      const { data } = await getStaffAssignments();
+      return data ?? [];
     },
     enabled: isRallyAdmin,
   });
@@ -61,10 +63,11 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
       const requestBody: CheckpointAssignmentUpdate = {
         checkpoint_id: checkpointId === 0 ? null : checkpointId,
       };
-      return UserService.updateCheckpointAssignmentApiRallyV1UserUserIdCheckpointAssignmentPut(
-        userId,
-        requestBody,
-      );
+      const { data } = await updateCheckpointAssignment({
+        path: { user_id: userId },
+        body: requestBody,
+      });
+      return data;
     },
     onSuccess: () => {
       refetchAssignments(); // Refetch assignments to update UI

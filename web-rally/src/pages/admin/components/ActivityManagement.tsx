@@ -17,7 +17,7 @@ import type {
   ActivityListResponse,
   ActivityResponse,
 } from "@/client";
-import { ActivityType as ClientActivityType } from "@/client";
+import type { ActivityType as ClientActivityType } from "@/client";
 import type { ActivityCreate as CustomActivityCreate } from "@/types/activityTypes";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";

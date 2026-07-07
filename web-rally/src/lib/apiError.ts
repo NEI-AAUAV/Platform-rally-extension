@@ -1,4 +1,4 @@
-import { ApiError } from "@/client";
+import { ApiError } from "@/services/apiClient";
 
 /** Best-effort human message from a thrown API error, honouring FastAPI detail. */
 export function apiErrorMessage(error: unknown, fallback = "Ocorreu um erro."): string {

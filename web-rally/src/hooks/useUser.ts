@@ -1,4 +1,4 @@
-import { UserService } from "@/client";
+import { getMe } from "@/client";
 import { useUserStore } from "@/stores/useUserStore";
 import { useQuery } from "@tanstack/react-query";
 
@@ -37,7 +37,7 @@ export default function useUser(options?: { fetchUserData?: boolean }) {
 
   const { data, isLoading, error, ...rest } = useQuery({
     queryKey: ["userMe"],
-    queryFn: UserService.getMeApiRallyV1UserMeGet,
+    queryFn: async () => (await getMe()).data,
     // Only fetch if explicitly requested
     enabled: shouldFetchUserData && !!token && !sessionLoading,
     retry: 2,

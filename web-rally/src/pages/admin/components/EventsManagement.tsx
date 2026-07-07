@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import { EventsService } from "@/client";
+import { generateRotationSchedule } from "@/client";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +79,7 @@ function RotationScheduleButton({ eventId }: { eventId: number }) {
   const [done, setDone] = useState(false);
 
   const generateMutation = useMutation({
-    mutationFn: () =>
-      EventsService.generateRotationScheduleApiRallyV1EventsEventIdRotationSchedulePost(eventId),
+    mutationFn: () => generateRotationSchedule({ path: { event_id: eventId } }),
     onSuccess: () => {
       setDone(true);
       toast.success("Escalonamento olímpico gerado");
@@ -115,7 +114,7 @@ function RotationScheduleButton({ eventId }: { eventId: number }) {
 
 /**
  * Admin events (editions) management: list editions, switch the current one,
- * create and edit. Consumes the hand-written EventsService. Soft-depth styling.
+ * create and edit. Soft-depth styling.
  */
 export default function EventsManagement() {
   const toast = useAppToast();

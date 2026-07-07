@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Award, Loader2, Trash2 } from "lucide-react";
-import { TeamService, type BadgeDefinitionResponse } from "@/client";
+import { getTeams, type BadgeDefinitionResponse } from "@/client";
 import { useBadgeAwardMutations } from "@/hooks/useBadgeAdmin";
 import { useTeamBadges } from "@/hooks/useBadges";
 import { apiErrorMessage } from "@/lib/apiError";
@@ -35,7 +35,10 @@ export default function ManualAwardPanel({ definitions }: ManualAwardPanelProps)
 
   const { data: teams } = useQuery({
     queryKey: ["teams", "all"],
-    queryFn: () => TeamService.getTeamsApiRallyV1TeamGet(),
+    queryFn: async () => {
+      const { data } = await getTeams();
+      return data;
+    },
   });
 
   const numericTeamId = teamId ? Number(teamId) : undefined;

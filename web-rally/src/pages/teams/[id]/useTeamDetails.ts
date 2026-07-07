@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  CheckPointService,
-  TeamService,
-  StaffEvaluationService,
+  getCheckpoints,
+  getCheckpointsCount,
+  getTeamById,
+  getTeamEvaluations,
+  getTeams,
+  getAllEvaluations,
   type DetailedTeam,
   type DetailedCheckPoint,
   type ListingTeam,
@@ -24,12 +27,18 @@ export function useTeamDetails(id: string | undefined) {
     isSuccess,
   } = useQuery<DetailedTeam>({
     queryKey: ["team", id],
-    queryFn: async () => TeamService.getTeamByIdApiRallyV1TeamIdGet(Number(id)),
+    queryFn: async () => {
+      const { data } = await getTeamById({ path: { id: Number(id) } });
+      return data as DetailedTeam;
+    },
   });
 
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
-    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    queryFn: async () => {
+      const { data } = await getCheckpoints();
+      return data ?? [];
+    },
   });
 
   // All evaluations across teams — used to detect ranking-pending activities.
@@ -37,9 +46,8 @@ export function useTeamDetails(id: string | undefined) {
     queryKey: ["allEvaluations"],
     queryFn: async () => {
       try {
-        const response =
-          await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
-        return (response.evaluations as EvaluationResult[]) || [];
+        const { data: evaluations } = await getAllEvaluations();
+        return (evaluations?.evaluations as EvaluationResult[]) || [];
       } catch {
         return [];
       }
@@ -53,10 +61,10 @@ export function useTeamDetails(id: string | undefined) {
     queryKey: ["teamEvaluations", id],
     queryFn: async () => {
       try {
-        const response = await TeamService.getTeamEvaluationsApiRallyV1TeamIdEvaluationsGet(
-          Number(id),
-        );
-        return response as { evaluations: EvaluationResult[] };
+        const { data } = await getTeamEvaluations({ path: { id: Number(id) } });
+        return data as unknown as {
+          evaluations: EvaluationResult[];
+        };
       } catch {
         return { evaluations: [] };
       }
@@ -72,8 +80,8 @@ export function useTeamDetails(id: string | undefined) {
     queryKey: ["allTeams"],
     queryFn: async () => {
       try {
-        const response = await TeamService.getTeamsApiRallyV1TeamGet();
-        return response || [];
+        const { data } = await getTeams();
+        return data || [];
       } catch {
         return [];
       }
@@ -84,7 +92,8 @@ export function useTeamDetails(id: string | undefined) {
     queryKey: ["checkpoints-count"],
     queryFn: async () => {
       try {
-        return await CheckPointService.getCheckpointsCountApiRallyV1CheckpointCountGet();
+        const { data } = await getCheckpointsCount();
+        return data ?? null;
       } catch {
         return null;
       }

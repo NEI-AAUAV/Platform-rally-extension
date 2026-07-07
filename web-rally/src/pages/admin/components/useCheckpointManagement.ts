@@ -4,7 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  CheckPointService,
+  getCheckpoints,
+  createCheckpoint as apiCreateCheckpoint,
+  updateCheckpoint as apiUpdateCheckpoint,
+  deleteCheckpoint as apiDeleteCheckpoint,
+  reorderCheckpoints as apiReorderCheckpoints,
   type CheckPointCreate,
   type CheckPointUpdate,
   type DetailedCheckPoint,
@@ -44,7 +48,7 @@ export function useCheckpointManagement(userStore: UserState) {
   const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async () => {
-      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      const { data } = await getCheckpoints();
       return data ?? [];
     },
     enabled: !!userStore.token,
@@ -64,7 +68,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: createCheckpoint, isPending: isCreatingCheckpoint } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) =>
-      CheckPointService.createCheckpointApiRallyV1CheckpointPost(toRequestBody(checkpointData)),
+      apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
     onSuccess: () => {
       refetchCheckpoints();
       checkpointForm.reset();
@@ -77,10 +81,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: updateCheckpoint, isPending: isUpdatingCheckpoint } = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CheckpointForm }) =>
-      CheckPointService.updateCheckpointApiRallyV1CheckpointIdPut(
-        id,
-        toRequestBody(data) as CheckPointUpdate,
-      ),
+      apiUpdateCheckpoint({ path: { id }, body: toRequestBody(data) as CheckPointUpdate }),
     onSuccess: () => {
       refetchCheckpoints();
       setEditingCheckpoint(null);
@@ -93,8 +94,7 @@ export function useCheckpointManagement(userStore: UserState) {
   });
 
   const { mutate: deleteCheckpoint, isPending: isDeletingCheckpoint } = useMutation({
-    mutationFn: async (id: number) =>
-      CheckPointService.deleteCheckpointApiRallyV1CheckpointIdDelete(id),
+    mutationFn: async (id: number) => apiDeleteCheckpoint({ path: { id } }),
     onSuccess: () => {
       refetchCheckpoints();
       toast.success("Checkpoint deletado com sucesso!");
@@ -106,7 +106,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: reorderCheckpoints } = useMutation({
     mutationFn: async (checkpointOrders: Record<number, number>) =>
-      CheckPointService.reorderCheckpointsApiRallyV1CheckpointReorderPut(checkpointOrders),
+      apiReorderCheckpoints({ body: checkpointOrders }),
     onSuccess: () => {
       refetchCheckpoints();
       toast.success("Ordem dos checkpoints atualizada com sucesso!");

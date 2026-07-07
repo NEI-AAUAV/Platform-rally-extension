@@ -31,7 +31,7 @@ import {
   BadgeAdminTab,
   DynamicScoringTab,
 } from "./components";
-import { CheckPointService } from "@/client";
+import { getCheckpoints } from "@/client";
 import RallySettings from "@/pages/settings";
 import Assignment from "@/pages/assignment";
 import GuideAssignment from "@/pages/guide-assignment";
@@ -76,8 +76,8 @@ export default function Admin() {
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<Checkpoint[]> => {
-      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? data : [];
+      const { data: checkpoints } = await getCheckpoints();
+      return Array.isArray(checkpoints) ? checkpoints : [];
     },
     enabled: isRallyAdmin,
   });

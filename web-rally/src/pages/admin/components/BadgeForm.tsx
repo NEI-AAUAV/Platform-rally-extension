@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ImagePlus, Loader2 } from "lucide-react";
-import { ActivitiesService, CheckPointService, type BadgeDefinitionResponse } from "@/client";
+import { getActivities, getCheckpoints, type BadgeDefinitionResponse } from "@/client";
 import { useBadgeDefinitionMutations } from "@/hooks/useBadgeAdmin";
 import { apiErrorMessage } from "@/lib/apiError";
 import { TRIGGERS, triggerMeta } from "@/lib/badgeTriggers";
@@ -73,12 +73,18 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
   const { data: activityList } = useQuery({
     queryKey: ["activities", "all"],
-    queryFn: () => ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(0, 200),
+    queryFn: async () => {
+      const { data } = await getActivities({ query: { skip: 0, limit: 200 } });
+      return data;
+    },
     enabled: form.isAuto && selectedTrigger?.param === "activity",
   });
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: () => CheckPointService.getCheckpointsApiRallyV1CheckpointGet(),
+    queryFn: async () => {
+      const { data } = await getCheckpoints();
+      return data;
+    },
     enabled: form.isAuto && selectedTrigger?.param === "checkpoint",
   });
 

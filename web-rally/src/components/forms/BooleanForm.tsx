@@ -33,9 +33,9 @@ export default function BooleanForm({
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setIsSuccessChecked(existingResult.result_data.success || false);
-      setAttempts(existingResult.result_data.attempts || 1);
-      setNotes(existingResult.result_data.notes || "");
+      setIsSuccessChecked((existingResult.result_data.success as boolean) || false);
+      setAttempts((existingResult.result_data.attempts as number) || 1);
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  CheckPointService,
-  TeamService,
+  getCheckpoints,
+  getTeams,
   type ListingTeam,
   type DetailedCheckPoint,
 } from "@/client";
@@ -32,13 +32,13 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
 
   const { data: teams } = useQuery({
     queryKey: ["teams"],
-    queryFn: TeamService.getTeamsApiRallyV1TeamGet,
+    queryFn: async () => await getTeams(),
     retry: false,
   });
 
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: CheckPointService.getCheckpointsApiRallyV1CheckpointGet,
+    queryFn: async () => await getCheckpoints(),
     retry: false,
     enabled: checkpointsPublic,
   });

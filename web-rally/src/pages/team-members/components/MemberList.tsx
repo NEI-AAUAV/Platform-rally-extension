@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Trash2, Link2 } from "lucide-react";
-import { TeamMembersService } from "@/client";
+import { removeTeamMember } from "@/client";
 import LinkMemberPanel from "./LinkMemberPanel";
 
 interface TeamMember {
@@ -33,10 +33,9 @@ export default function MemberList({
   // Remove member mutation
   const { mutate: removeMember, isPending: isRemovingMember } = useMutation({
     mutationFn: async (userId: number) => {
-      return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
-        Number.parseInt(selectedTeam),
-        userId,
-      );
+      return await removeTeamMember({
+        path: { team_id: Number.parseInt(selectedTeam), user_id: userId },
+      });
     },
     onSuccess: () => {
       onSuccess();

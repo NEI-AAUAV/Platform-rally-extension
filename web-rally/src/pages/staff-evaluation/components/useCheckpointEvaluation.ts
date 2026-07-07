@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckPointService,
-  TeamService,
-  ActivitiesService,
-  StaffEvaluationService,
-  ApiError,
+  getCheckpoints,
+  getTeams,
+  getActivities,
+  getAllActivityResults,
+  getTeamActivitiesForEvaluation,
+  evaluateTeamActivity,
   type ActivityResultEvaluation,
   type ActivityResponse,
   type ActivityResultResponse,
   type DetailedCheckPoint,
   type ListingTeam,
 } from "@/client";
+import { ApiError } from "@/services/apiClient";
 import type { ActivityResultData } from "@/types/forms";
 import { useUserStore } from "@/stores/useUserStore";
 import useUser from "@/hooks/useUser";
@@ -47,10 +49,10 @@ async function tryLoadStaffActivities({
   onShowWarning,
 }: StaffActivitiesParams): Promise<TeamActivityWithStatus[] | null> {
   try {
-    const data =
-      (await StaffEvaluationService.getTeamActivitiesForEvaluationApiRallyV1StaffTeamsTeamIdActivitiesGet(
-        selectedTeam.id,
-      )) as TeamActivitiesResponse;
+    const { data: rawData } = await getTeamActivitiesForEvaluation({
+      path: { team_id: selectedTeam.id },
+    });
+    const data = rawData as unknown as TeamActivitiesResponse;
 
     const activities = Array.isArray(data.activities) ? data.activities : [];
     const summary = data.evaluation_summary ? toEvaluationSummary(data.evaluation_summary) : null;
@@ -98,19 +100,15 @@ async function loadGeneralActivities(
   checkpoint: DetailedCheckPoint,
   teamId: number,
 ): Promise<TeamActivityWithStatus[]> {
-  const data = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(
-    undefined,
-    100,
-    checkpoint.id,
-  );
+  const { data } = await getActivities({ query: { limit: 100, checkpoint_id: checkpoint.id } });
   const activities: ActivityResponse[] = (data.activities ?? []).filter(
     (activity) => activity.checkpoint_id === checkpoint.id,
   );
 
   let results: ActivityResultWithRelations[] = [];
   try {
-    results =
-      (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+    const { data: resultsData } = await getAllActivityResults();
+    results = resultsData as unknown as ActivityResultWithRelations[];
   } catch {
     results = [];
   }
@@ -146,7 +144,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
   const { data: checkpoint } = useQuery<DetailedCheckPoint>({
     queryKey: ["checkpoint", checkpointId],
     queryFn: async () => {
-      const checkpoints = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      const { data: checkpoints } = await getCheckpoints();
       const parsedId = Number(checkpointId ?? "0");
       const checkpointMatch = checkpoints.find((cp) => cp.id === parsedId);
 
@@ -163,7 +161,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
   const { data: checkpointTeams } = useQuery<ListingTeam[]>({
     queryKey: ["checkpointTeams", checkpointId],
     queryFn: async () => {
-      const allTeams = await TeamService.getTeamsApiRallyV1TeamGet();
+      const { data: allTeams } = await getTeams();
       // Show all teams, no filtering
       return allTeams;
     },
@@ -179,13 +177,13 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       }
 
       try {
-        const activitiesData = await ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+        const { data: activitiesData } = await getActivities();
         const checkpointActivities: ActivityResponse[] = (activitiesData.activities ?? []).filter(
           (activity) => activity.checkpoint_id === checkpoint.id,
         );
 
-        const results =
-          (await ActivitiesService.getAllActivityResultsApiRallyV1ActivitiesResultsGet()) as ActivityResultWithRelations[];
+        const { data: resultsData } = await getAllActivityResults();
+        const results = resultsData as unknown as ActivityResultWithRelations[];
 
         return computeTeamEvaluationStatus(checkpointTeams, checkpointActivities, results);
       } catch {
@@ -258,20 +256,20 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       };
 
       try {
-        return await StaffEvaluationService.evaluateTeamActivityApiRallyV1StaffTeamsTeamIdActivitiesActivityIdEvaluatePost(
-          teamId,
-          activityId,
-          payload,
-        );
+        const { data } = await evaluateTeamActivity({
+          path: { team_id: teamId, activity_id: activityId },
+          body: payload,
+        });
+        return data;
       } catch (error) {
         // Surface validation detail and rethrow it in the same shape callers
         // already handle ({ detail }).
         if (error instanceof ApiError) {
           if (error.status === 422) {
-            console.error("Validation error:", error.body?.detail);
+            console.error("Validation error:", (error.body as { detail?: unknown })?.detail);
             console.error("Request payload:", resultData);
           }
-          throw error.body ?? { detail: error.statusText };
+          throw error.body ?? { detail: error.message };
         }
         throw error;
       }

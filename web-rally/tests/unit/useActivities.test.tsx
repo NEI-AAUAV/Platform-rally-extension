@@ -6,19 +6,18 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
-import { ActivitiesService, ActivityType } from '@/client'
+import { getActivities, createActivity, updateActivity, deleteActivity } from '@/client'
+import type { ActivityType } from '@/client'
 
-// Mock ActivitiesService
+// Mock the flat client functions used by useActivities
 vi.mock('@/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/client')>()
   return {
     ...actual,
-    ActivitiesService: {
-      getActivitiesApiRallyV1ActivitiesGet: vi.fn(),
-      createActivityApiRallyV1ActivitiesPost: vi.fn(),
-      updateActivityApiRallyV1ActivitiesActivityIdPut: vi.fn(),
-      deleteActivityApiRallyV1ActivitiesActivityIdDelete: vi.fn(),
-    }
+    getActivities: vi.fn(),
+    createActivity: vi.fn(),
+    updateActivity: vi.fn(),
+    deleteActivity: vi.fn(),
   }
 })
 
@@ -85,7 +84,7 @@ describe('useActivities Hook', () => {
       { id: 2, name: 'Activity 2', activity_type: 'TimeBasedActivity' },
     ]
 
-    vi.mocked(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).mockResolvedValue(mockActivities as never)
+    vi.mocked(getActivities).mockResolvedValue({ data: mockActivities } as never)
 
     const { result } = renderHook(() => useActivities(), {
       wrapper: createWrapper(),
@@ -96,7 +95,7 @@ describe('useActivities Hook', () => {
     })
 
     expect(result.current.data).toEqual(mockActivities)
-    expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).toHaveBeenCalledTimes(1)
+    expect(getActivities).toHaveBeenCalledTimes(1)
   })
 
   it('should not fetch activities when user is not manager', async () => {
@@ -117,7 +116,7 @@ describe('useActivities Hook', () => {
       expect(result.current.isFetching).toBe(false)
     }, { timeout: 2000 })
 
-    expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).not.toHaveBeenCalled()
+    expect(getActivities).not.toHaveBeenCalled()
   })
 
   it('should not fetch activities when token is missing', async () => {
@@ -137,7 +136,7 @@ describe('useActivities Hook', () => {
       expect(result.current.isFetching).toBe(false)
     }, { timeout: 2000 })
 
-    expect(ActivitiesService.getActivitiesApiRallyV1ActivitiesGet).not.toHaveBeenCalled()
+    expect(getActivities).not.toHaveBeenCalled()
   })
 })
 
@@ -149,13 +148,13 @@ describe('useCreateActivity Hook', () => {
   it('should create activity and invalidate queries', async () => {
     const mockActivity = {
       name: 'New Activity',
-      activity_type: ActivityType.GENERAL_ACTIVITY,
+      activity_type: 'GeneralActivity' as ActivityType,
       checkpoint_id: 1,
     }
 
     const mockCreatedActivity = { id: 1, ...mockActivity }
 
-    vi.mocked(ActivitiesService.createActivityApiRallyV1ActivitiesPost).mockResolvedValue(mockCreatedActivity as never)
+    vi.mocked(createActivity).mockResolvedValue({ data: mockCreatedActivity } as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -179,7 +178,7 @@ describe('useCreateActivity Hook', () => {
 
     await result.current.mutateAsync(mockActivity)
 
-    expect(ActivitiesService.createActivityApiRallyV1ActivitiesPost).toHaveBeenCalledWith(mockActivity)
+    expect(createActivity).toHaveBeenCalledWith({ body: mockActivity })
 
     // Wait for invalidation to complete
     await waitFor(() => {
@@ -202,7 +201,7 @@ describe('useUpdateActivity Hook', () => {
 
     const mockUpdatedActivity = { id: 1, name: 'Updated Activity' }
 
-    vi.mocked(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).mockResolvedValue(mockUpdatedActivity as never)
+    vi.mocked(updateActivity).mockResolvedValue({ data: mockUpdatedActivity } as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -226,7 +225,10 @@ describe('useUpdateActivity Hook', () => {
 
     await result.current.mutateAsync(mockUpdate)
 
-    expect(ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut).toHaveBeenCalledWith(1, mockUpdate.activity)
+    expect(updateActivity).toHaveBeenCalledWith({
+      path: { activity_id: 1 },
+      body: mockUpdate.activity,
+    })
 
     // Wait for invalidation to complete
     await waitFor(() => {
@@ -242,7 +244,7 @@ describe('useDeleteActivity Hook', () => {
   })
 
   it('should delete activity and invalidate queries', async () => {
-    vi.mocked(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).mockResolvedValue(undefined as never)
+    vi.mocked(deleteActivity).mockResolvedValue({ data: undefined } as never)
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -266,7 +268,7 @@ describe('useDeleteActivity Hook', () => {
 
     await result.current.mutateAsync(1)
 
-    expect(ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete).toHaveBeenCalledWith(1)
+    expect(deleteActivity).toHaveBeenCalledWith({ path: { activity_id: 1 } })
 
     // Wait for invalidation to complete
     await waitFor(() => {

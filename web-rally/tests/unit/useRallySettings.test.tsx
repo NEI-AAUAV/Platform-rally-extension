@@ -6,14 +6,12 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useRallySettings from '@/hooks/useRallySettings'
-import { SettingsService } from '@/client'
+import { viewRallySettingsPublic } from '@/client'
 import type { RallySettingsResponse } from '@/client'
 
-// Mock SettingsService
+// Mock the flat client function used by useRallySettings
 vi.mock('@/client', () => ({
-  SettingsService: {
-    viewRallySettingsPublicApiRallyV1RallySettingsPublicGet: vi.fn()
-  }
+  viewRallySettingsPublic: vi.fn()
 }))
 
 // Mock console.error to avoid noise in tests
@@ -71,7 +69,7 @@ describe('useRallySettings Hook', () => {
   it('should fetch rally settings successfully', async () => {
     const mockSettings = createMockSettings()
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings)
+    vi.mocked(viewRallySettingsPublic).mockResolvedValueOnce({ data: mockSettings } as never)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -82,11 +80,11 @@ describe('useRallySettings Hook', () => {
 
     expect(result.current.settings).toEqual(mockSettings)
     expect(result.current.error).toBeNull()
-    expect(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).toHaveBeenCalledTimes(1)
+    expect(viewRallySettingsPublic).toHaveBeenCalledTimes(1)
   })
 
   it('should handle fetch error gracefully', async () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockRejectedValueOnce(new Error('Network error'))
+    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Network error'))
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -100,7 +98,7 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should handle non-ok response', async () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockRejectedValueOnce(new Error('Internal Server Error'))
+    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Internal Server Error'))
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -114,7 +112,7 @@ describe('useRallySettings Hook', () => {
   })
 
   it('should return loading state initially', () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockImplementation(
+    vi.mocked(viewRallySettingsPublic).mockImplementation(
       () => new Promise<RallySettingsResponse>(() => undefined) as never,
     ) // Never resolves
 
@@ -129,7 +127,7 @@ describe('useRallySettings Hook', () => {
   it('should provide refetch function', async () => {
     const mockSettings = createMockSettings()
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValue(mockSettings)
+    vi.mocked(viewRallySettingsPublic).mockResolvedValue({ data: mockSettings } as never)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -143,11 +141,11 @@ describe('useRallySettings Hook', () => {
 
     // Test refetch
     await result.current.refetch()
-    expect(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).toHaveBeenCalledTimes(2) // Initial call + refetch
+    expect(viewRallySettingsPublic).toHaveBeenCalledTimes(2) // Initial call + refetch
   })
 
   it('should handle malformed JSON response', async () => {
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockRejectedValueOnce(new Error('Invalid JSON'))
+    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Invalid JSON'))
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -163,7 +161,7 @@ describe('useRallySettings Hook', () => {
   it('should use correct query key', async () => {
     const mockSettings = createMockSettings()
 
-    vi.mocked(SettingsService.viewRallySettingsPublicApiRallyV1RallySettingsPublicGet).mockResolvedValueOnce(mockSettings)
+    vi.mocked(viewRallySettingsPublic).mockResolvedValueOnce({ data: mockSettings } as never)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })

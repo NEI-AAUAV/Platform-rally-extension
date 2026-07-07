@@ -6,7 +6,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useTeamAuth from '@/hooks/useTeamAuth'
-import { TeamAuthService } from '@/client'
+import { teamLogin } from '@/client'
 
 const TEAM_TOKEN_KEY = 'rally_team_token'
 const TEAM_DATA_KEY = 'rally_team_data'
@@ -27,16 +27,10 @@ const { MockApiError } = vi.hoisted(() => {
 })
 
 vi.mock('@/client', () => ({
-  TeamService: {
-    getTeamByIdApiRallyV1TeamIdGet: vi.fn().mockResolvedValue(null),
-  },
-  TeamMembersService: {
-    addTeamMemberApiRallyV1TeamTeamIdMembersPost: vi.fn().mockResolvedValue({}),
-    removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete: vi.fn().mockResolvedValue({}),
-  },
-  TeamAuthService: {
-    teamLoginApiRallyV1TeamAuthLoginPost: vi.fn(),
-  },
+  getTeamById: vi.fn().mockResolvedValue({ data: null }),
+  addTeamMember: vi.fn().mockResolvedValue({ data: {} }),
+  removeTeamMember: vi.fn().mockResolvedValue({ data: {} }),
+  teamLogin: vi.fn(),
   ApiError: MockApiError,
 }))
 
@@ -105,9 +99,7 @@ describe('useTeamAuth', () => {
         team_name: 'Test Team',
       }
 
-      vi.mocked(
-        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
-      ).mockResolvedValueOnce(mockResponse)
+      vi.mocked(teamLogin).mockResolvedValueOnce({ data: mockResponse } as never)
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -125,9 +117,9 @@ describe('useTeamAuth', () => {
     })
 
     it('should throw on invalid access code', async () => {
-      vi.mocked(
-        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
-      ).mockRejectedValueOnce(new MockApiError(400, { detail: 'Invalid access code' }))
+      vi.mocked(teamLogin).mockRejectedValueOnce(
+        new MockApiError(400, { detail: 'Invalid access code' }),
+      )
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -141,9 +133,7 @@ describe('useTeamAuth', () => {
     })
 
     it('should throw generic error when no detail in response', async () => {
-      vi.mocked(
-        TeamAuthService.teamLoginApiRallyV1TeamAuthLoginPost,
-      ).mockRejectedValueOnce(new MockApiError(400, {}))
+      vi.mocked(teamLogin).mockRejectedValueOnce(new MockApiError(400, {}))
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 

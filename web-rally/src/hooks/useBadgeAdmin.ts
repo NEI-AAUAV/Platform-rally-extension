@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BadgeAdminService,
+  listBadgeDefinitions,
+  createBadgeDefinition,
+  updateBadgeDefinition,
+  deleteBadgeDefinition,
+  uploadBadgeIcon,
+  manualAwardBadge,
+  revokeBadge,
   type BadgeDefinitionCreate,
   type BadgeDefinitionResponse,
   type BadgeDefinitionUpdate,
@@ -13,7 +19,7 @@ const DEFINITIONS_KEY = ["badge-definitions"] as const;
 export function useBadgeDefinitions() {
   return useQuery<BadgeDefinitionResponse[]>({
     queryKey: DEFINITIONS_KEY,
-    queryFn: () => BadgeAdminService.listBadgeDefinitionsApiRallyV1BadgeDefinitionsGet(),
+    queryFn: async () => (await listBadgeDefinitions()).data,
   });
 }
 
@@ -23,28 +29,25 @@ export function useBadgeDefinitionMutations() {
   const invalidate = () => qc.invalidateQueries({ queryKey: DEFINITIONS_KEY });
 
   const create = useMutation({
-    mutationFn: (data: BadgeDefinitionCreate) =>
-      BadgeAdminService.createBadgeDefinitionApiRallyV1BadgeDefinitionsPost(data),
+    mutationFn: async (data: BadgeDefinitionCreate) =>
+      (await createBadgeDefinition({ body: data })).data,
     onSuccess: invalidate,
   });
 
   const update = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: BadgeDefinitionUpdate }) =>
-      BadgeAdminService.updateBadgeDefinitionApiRallyV1BadgeDefinitionsIdPut(id, data),
+    mutationFn: async ({ id, data }: { id: number; data: BadgeDefinitionUpdate }) =>
+      (await updateBadgeDefinition({ path: { id }, body: data })).data,
     onSuccess: invalidate,
   });
 
   const remove = useMutation({
-    mutationFn: (id: number) =>
-      BadgeAdminService.deleteBadgeDefinitionApiRallyV1BadgeDefinitionsIdDelete(id),
+    mutationFn: async (id: number) => (await deleteBadgeDefinition({ path: { id } })).data,
     onSuccess: invalidate,
   });
 
   const uploadIcon = useMutation({
-    mutationFn: ({ id, image }: { id: number; image: Blob }) =>
-      BadgeAdminService.uploadBadgeIconApiRallyV1BadgeDefinitionsIdIconPost(id, {
-        image,
-      }),
+    mutationFn: async ({ id, image }: { id: number; image: Blob }) =>
+      (await uploadBadgeIcon({ path: { id }, body: { image } })).data,
     onSuccess: invalidate,
   });
 
@@ -57,14 +60,14 @@ export function useBadgeAwardMutations() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["badges"] });
 
   const award = useMutation({
-    mutationFn: (data: ManualBadgeAwardCreate) =>
-      BadgeAdminService.manualAwardBadgeApiRallyV1BadgesAwardPost(data),
+    mutationFn: async (data: ManualBadgeAwardCreate) =>
+      (await manualAwardBadge({ body: data })).data,
     onSuccess: invalidate,
   });
 
   const revoke = useMutation({
-    mutationFn: (badgeId: number) =>
-      BadgeAdminService.revokeBadgeApiRallyV1BadgesBadgeIdDelete(badgeId),
+    mutationFn: async (badgeId: number) =>
+      (await revokeBadge({ path: { badge_id: badgeId } })).data,
     onSuccess: invalidate,
   });
 

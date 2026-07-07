@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BadgesService } from "@/client";
+import { teamBadgeShowcase } from "@/client";
 import { BadgeService } from "@/services/BadgeService";
 
 /** All badges awarded across every team (public read). */
@@ -26,8 +26,7 @@ export function useTeamBadges(teamId: number | undefined) {
 export function useBadgeShowcase(teamId: number | undefined) {
   return useQuery({
     queryKey: ["badges", "showcase", teamId],
-    queryFn: () =>
-      BadgesService.teamBadgeShowcaseApiRallyV1TeamsTeamIdBadgeShowcaseGet(teamId as number),
+    queryFn: async () => (await teamBadgeShowcase({ path: { team_id: teamId as number } })).data,
     enabled: typeof teamId === "number" && !Number.isNaN(teamId),
   });
 }

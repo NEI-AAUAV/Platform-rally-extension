@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request, status
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
@@ -53,10 +54,21 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             close_pools()
 
 
+def _generate_unique_id(route: APIRoute) -> str:
+    """Use the route function name as the operationId.
+
+    Each router tag has unique function names (verified at review time), so
+    this collapses noisy path-derived IDs (getTeamByIdApiRallyV1TeamIdGet)
+    into clean ones (getTeamById) for the generated TS client.
+    """
+    return route.name
+
+
 app = FastAPI(
     title="Rally Tascas API",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
+    generate_unique_id_function=_generate_unique_id,
 )
 
 
