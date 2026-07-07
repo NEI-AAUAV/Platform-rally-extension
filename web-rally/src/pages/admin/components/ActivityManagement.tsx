@@ -10,15 +10,17 @@ import {
   useUpdateActivity,
   useDeleteActivity,
 } from "@/hooks/useActivities";
-import type { Activity as ActivityType } from "@/types/activityTypes";
-import { ActivityType as CustomActivityType } from "@/types/activityTypes";
+import {
+  ActivityType as CustomActivityType,
+  type Activity as ActivityType,
+  type ActivityCreate as CustomActivityCreate,
+} from "@/types/activityTypes";
 import type {
   ActivityCreate as ClientActivityCreate,
   ActivityListResponse,
   ActivityResponse,
+  ActivityType as ClientActivityType,
 } from "@/client";
-import type { ActivityType as ClientActivityType } from "@/client";
-import type { ActivityCreate as CustomActivityCreate } from "@/types/activityTypes";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 
