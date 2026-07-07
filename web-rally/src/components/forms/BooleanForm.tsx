@@ -83,6 +83,7 @@ export default function BooleanForm({
               isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
           >
+            <span className="sr-only">Success</span>
             <svg
               className={`h-4 w-4 text-red-500 transition-opacity duration-200 ${
                 isSuccessChecked ? "opacity-100" : "opacity-0"
