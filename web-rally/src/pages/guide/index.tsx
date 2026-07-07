@@ -21,7 +21,7 @@ import {
 import { LoadingState } from "@/components/shared";
 import useGuideAccess from "@/hooks/useGuideAccess";
 
-function MediaGallery({ media }: { media: GuideMediaItem[] }) {
+function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>) {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   const photos = media.filter((m) => m.kind === "photo" && m.url);
@@ -99,7 +99,7 @@ function MediaGallery({ media }: { media: GuideMediaItem[] }) {
   );
 }
 
-function IndicationList({ indications }: { indications: GuideIndicationItem[] }) {
+function IndicationList({ indications }: Readonly<{ indications: readonly GuideIndicationItem[] }>) {
   if (indications.length === 0) return null;
 
   return (
@@ -133,7 +133,7 @@ function IndicationList({ indications }: { indications: GuideIndicationItem[] })
   );
 }
 
-function CheckpointCard({ cp }: { cp: GuideCheckpointResponse }) {
+function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
   const [open, setOpen] = useState(false);
 
   return (
