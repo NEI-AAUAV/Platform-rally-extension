@@ -4,6 +4,7 @@ These exercise the health check and pool lifecycle against an in-memory fake
 Redis, so they need no running Redis server.
 """
 
+import asyncio
 import fakeredis.aioredis
 import pytest
 
@@ -38,7 +39,7 @@ async def test_check_redis_health_failure(monkeypatch: pytest.MonkeyPatch) -> No
             raise sync_redis.RedisError("boom")
 
         async def aclose(self) -> None:
-            return None
+            await asyncio.sleep(0)
 
     monkeypatch.setattr(redis_module, "get_async_redis_client", lambda: _Broken())
 
