@@ -33,6 +33,8 @@ export default function CheckpointListItem({
 
   return (
     <div
+      role="listitem"
+      tabIndex={0}
       draggable={!showMedia}
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
