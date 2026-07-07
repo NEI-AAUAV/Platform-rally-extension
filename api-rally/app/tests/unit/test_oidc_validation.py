@@ -4,6 +4,7 @@ Covers algorithm pinning (alg-confusion defence) and JWKS caching. Uses a
 locally generated RSA keypair so no real provider is contacted.
 """
 
+import anyio
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
 
@@ -36,13 +37,14 @@ def _wired_validator(jwks_calls: list[int] | None = None):
     v._jwks_uri = "https://issuer.example/jwks"
     v._issuer = _ISSUER
 
-    async def fake_get(uri, timeout=10.0):
+    async def fake_get(uri, *args, **kwargs):
         if jwks_calls is not None:
             jwks_calls.append(1)
         resp = AsyncMock()
         resp.raise_for_status = lambda: None
         resp.json = lambda: _jwks
-        return resp
+        async with anyio.fail_after(10.0):
+            return resp
 
     client = AsyncMock()
     client.get = fake_get
