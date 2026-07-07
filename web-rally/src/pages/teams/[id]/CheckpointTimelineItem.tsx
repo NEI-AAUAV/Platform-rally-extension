@@ -4,7 +4,7 @@ import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
 
-interface CheckpointTimelineItemProps {
+type CheckpointTimelineItemProps = Readonly<{
   team: DetailedTeam;
   index: number;
   checkpoints: DetailedCheckPoint[] | undefined;
@@ -13,7 +13,7 @@ interface CheckpointTimelineItemProps {
   totalTeams: number;
   isExpanded: boolean;
   onToggle: (index: number) => void;
-}
+}>;
 
 export function CheckpointTimelineItem({
   team,
@@ -92,12 +92,21 @@ export function CheckpointTimelineItem({
     return completedCount < totalTeams;
   });
 
+  const hasEvaluationsToggle = evaluationResults.length > 0;
+  const ClickableElement = (hasEvaluationsToggle ? "button" : "div") as React.ElementType;
+  const clickableProps = hasEvaluationsToggle
+    ? {
+        type: "button" as const,
+        onClick: () => onToggle(index),
+      }
+    : {};
+
   return (
     <div>
       {/* Checkpoint summary - always visible and clickable */}
-      <div
-        className={`rally-surface rounded-2xl p-6 transition-colors hover:bg-accent ${isCurrentCheckpoint ? "rally-elevate" : ""} ${evaluationResults.length > 0 ? "cursor-pointer" : ""}`}
-        onClick={() => evaluationResults.length > 0 && onToggle(index)}
+      <ClickableElement
+        className={`w-full text-left block font-normal rally-surface rounded-2xl p-6 transition-colors hover:bg-accent ${isCurrentCheckpoint ? "rally-elevate" : ""} ${hasEvaluationsToggle ? "cursor-pointer" : ""}`}
+        {...clickableProps}
       >
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -144,7 +153,7 @@ export function CheckpointTimelineItem({
             )}
           </div>
         </div>
-      </div>
+      </ClickableElement>
 
       {/* Discover the place: description + photos + fun facts */}
       {checkpoint && (
@@ -173,7 +182,7 @@ export function CheckpointTimelineItem({
 
             return (
               <div
-                key={resultIndex}
+                key={result.activity?.id}
                 className="rounded-xl border border-border bg-card/60 p-4 sm:p-6"
               >
                 <div className="flex items-start justify-between">
