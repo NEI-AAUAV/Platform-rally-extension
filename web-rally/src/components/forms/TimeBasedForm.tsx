@@ -37,9 +37,13 @@ export default function TimeBasedForm({
   useEffect(() => {
     if (existingResult?.result_data) {
       const v = existingResult.result_data.completion_time_seconds;
-      setCompletionTime(
-        typeof v === "number" && !isNaN(v) ? String(v) : typeof v === "string" ? v : "",
-      );
+      let timeValue = "";
+      if (typeof v === "number" && !Number.isNaN(v)) {
+        timeValue = String(v);
+      } else if (typeof v === "string") {
+        timeValue = v;
+      }
+      setCompletionTime(timeValue);
       setNotes((existingResult.result_data.notes as string) || "");
     }
     if (existingResult) {
@@ -62,7 +66,7 @@ export default function TimeBasedForm({
     // Normalize and validate time (allow comma or dot)
     const normalized = (completionTime || "").replace(",", ".").trim();
     const parsed = normalized === "" ? NaN : parseFloat(normalized);
-    if (isNaN(parsed) || parsed < 0) {
+    if (Number.isNaN(parsed) || parsed < 0) {
       toast.error("Please enter a valid non-negative time in seconds.");
       return;
     }
@@ -128,7 +132,7 @@ export default function TimeBasedForm({
           min="0"
           max={maxExtraShots}
           value={extraShots}
-          onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
+          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
@@ -153,7 +157,7 @@ export default function TimeBasedForm({
               min="0"
               value={penalties.vomit || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, vomit: parseInt(e.target.value, 10) || 0 })
+                setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
@@ -169,7 +173,7 @@ export default function TimeBasedForm({
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, not_drinking: parseInt(e.target.value, 10) || 0 })
+                setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
