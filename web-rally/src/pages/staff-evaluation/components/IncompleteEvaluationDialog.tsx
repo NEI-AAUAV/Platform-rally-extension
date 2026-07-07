@@ -8,7 +8,7 @@ interface IncompleteEvaluationDialogProps {
   onClose: () => void;
 }
 
-export function IncompleteEvaluationDialog({ summary, onClose }: IncompleteEvaluationDialogProps) {
+export function IncompleteEvaluationDialog({ summary, onClose }: Readonly<IncompleteEvaluationDialogProps>) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <Card className="w-full max-w-2xl">
