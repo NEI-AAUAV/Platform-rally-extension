@@ -95,6 +95,49 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
   const photos = media.filter((m) => m.kind === "photo");
   const funFacts = media.filter((m) => m.kind === "fun_fact");
 
+  let photosContent;
+  if (isLoading) {
+    photosContent = (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
+      </div>
+    );
+  } else if (photos.length > 0) {
+    photosContent = (
+      <div className="flex flex-wrap gap-3">
+        {photos.map((m) => (
+          <div key={m.id} className="group relative">
+            <img
+              src={m.image_url ?? ""}
+              alt={m.caption ?? "Foto do sítio"}
+              className="h-24 w-24 rounded-lg object-cover ring-1 ring-border"
+            />
+            <button
+              type="button"
+              onClick={() => deleteMedia.mutate(m.id)}
+              disabled={deleteMedia.isPending}
+              className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition group-hover:opacity-100"
+              aria-label="Remover foto"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            {m.caption && (
+              <p className="mt-1 line-clamp-1 w-24 text-[10px] text-muted-foreground">
+                {m.caption}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  } else {
+    photosContent = (
+      <p className="text-xs text-muted-foreground">
+        Ainda sem fotos. Envie a primeira para a equipa adivinhar o sítio.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-5 border-t border-border pt-4">
       {/* Photos */}
@@ -105,41 +148,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
           <span className="text-xs font-normal text-muted-foreground">({photos.length})</span>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
-          </div>
-        ) : photos.length > 0 ? (
-          <div className="flex flex-wrap gap-3">
-            {photos.map((m) => (
-              <div key={m.id} className="group relative">
-                <img
-                  src={m.image_url ?? ""}
-                  alt={m.caption ?? "Foto do sítio"}
-                  className="h-24 w-24 rounded-lg object-cover ring-1 ring-border"
-                />
-                <button
-                  type="button"
-                  onClick={() => deleteMedia.mutate(m.id)}
-                  disabled={deleteMedia.isPending}
-                  className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition group-hover:opacity-100"
-                  aria-label="Remover foto"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-                {m.caption && (
-                  <p className="mt-1 line-clamp-1 w-24 text-[10px] text-muted-foreground">
-                    {m.caption}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Ainda sem fotos. Envie a primeira para a equipa adivinhar o sítio.
-          </p>
-        )}
+        {photosContent}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Input
