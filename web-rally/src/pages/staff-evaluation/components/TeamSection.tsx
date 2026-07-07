@@ -22,7 +22,7 @@ interface TeamSectionProps {
   onSelect: (team: ListingTeam) => void;
 }
 
-export function TeamSection({ title, variant, teams, showScore, onSelect }: TeamSectionProps) {
+export function TeamSection({ title, variant, teams, showScore, onSelect }: Readonly<TeamSectionProps>) {
   if (teams.length === 0) return null;
 
   return (
