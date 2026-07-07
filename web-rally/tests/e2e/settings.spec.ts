@@ -69,8 +69,8 @@ test.describe('Settings', () => {
       // User endpoint might already be cached or not called
     });
     
-    // Wait a bit for React to process the user data and enable the settings query
-    await page.waitForTimeout(500);
+    // Wait for settings query to load
+    await page.waitForResponse('**/api/rally/v1/rally/settings**', { timeout: 10000 }).catch(() => {});
     
     // Don't wait for settings content here - let each test wait for what it needs
     // This avoids timeout issues if the settings API is slow or fails
@@ -99,7 +99,7 @@ test.describe('Settings', () => {
     
     if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await editButton.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('input[type="number"], input[type="text"]').first()).toBeVisible({ timeout: 5000 });
       
       // Verify form fields are editable
       const inputs = page.locator('input[type="number"], input[type="text"]');
@@ -160,7 +160,6 @@ test.describe('Settings', () => {
     const saveButton = page.getByRole('button', { name: /Salvar|Save/i }).first();
     if (await saveButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await saveButton.click();
-      await page.waitForTimeout(1000);
       
       // Should show error message
       await expect(page.locator('body')).toContainText(/erro|error|falha|failed/i, { timeout: 3000 });
@@ -175,7 +174,7 @@ test.describe('Settings', () => {
     const editButton = page.getByRole('button', { name: /Editar Configurações|Edit Settings/i });
     if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await editButton.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('input[type="number"]:not([disabled])').first()).toBeVisible({ timeout: 5000 });
     }
     
     // Look for number inputs and try invalid values
@@ -190,7 +189,6 @@ test.describe('Settings', () => {
       const saveButton = page.getByRole('button', { name: /Salvar|Save/i }).first();
       if (await saveButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await saveButton.click();
-        await page.waitForTimeout(500);
         
         // Should show validation error
         await expect(page.locator('body')).toContainText(/inválido|invalid|deve|must/i, { timeout: 2000 }).catch(() => {
