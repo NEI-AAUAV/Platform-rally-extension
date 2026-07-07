@@ -154,14 +154,14 @@ export function MobileBottomNav() {
           className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
           onClose={() => setQrOpen(false)}
           onCancel={() => setQrOpen(false)}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setQrOpen(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setQrOpen(false);
-          }}
         >
-          <div className="w-full max-w-md">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full bg-transparent cursor-default"
+            onClick={() => setQrOpen(false)}
+            aria-label="Fechar modal"
+          />
+          <div className="relative z-10 w-full max-w-md">
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
