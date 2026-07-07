@@ -74,7 +74,7 @@ function formatRange(ev: RallyEvent): string | null {
   return `${start} – ${end}`;
 }
 
-function RotationScheduleButton({ eventId }: { eventId: number }) {
+function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   const toast = useAppToast();
   const [done, setDone] = useState(false);
 
@@ -188,6 +188,69 @@ export default function EventsManagement() {
   const list = events ?? [];
   const isSaving = create.isPending || update.isPending;
 
+  let eventsContent;
+  if (isError) {
+    eventsContent = (
+      <div className="rally-surface rounded-2xl p-6 text-center">
+        <p className="text-sm text-muted-foreground">Não foi possível carregar as edições.</p>
+      </div>
+    );
+  } else if (list.length === 0) {
+    eventsContent = (
+      <EmptyState
+        icon={<CalendarRange className="h-8 w-8 text-muted-foreground" />}
+        title="Sem edições"
+        description="Cria a primeira edição do rally."
+      />
+    );
+  } else {
+    eventsContent = (
+      <div className="grid gap-3">
+        {list.map((ev) => (
+          <div key={ev.id} className="rally-surface rounded-2xl p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="rally-display truncate text-lg font-bold text-foreground">
+                    {ev.name}
+                  </h3>
+                  {ev.is_current && (
+                    <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white">
+                      <Star className="h-3 w-3" /> Atual
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  {EVENT_TYPE_LABELS[ev.event_type]}
+                  {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
+                </p>
+                {ev.description && (
+                  <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
+                {!ev.is_current && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSetCurrent(ev)}
+                    disabled={setCurrent.isPending}
+                  >
+                    <Star className="mr-1.5 h-3.5 w-3.5" /> Tornar atual
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => startEdit(ev)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -221,7 +284,8 @@ export default function EventsManagement() {
                   id="ev-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Rally Tascas 2026"
+                  placeholder="Ex: Rally 2024"
+                  required
                 />
               </div>
               <div className="space-y-1.5">
@@ -283,61 +347,7 @@ export default function EventsManagement() {
         </div>
       )}
 
-      {isError ? (
-        <div className="rally-surface rounded-2xl p-6 text-center">
-          <p className="text-sm text-muted-foreground">Não foi possível carregar as edições.</p>
-        </div>
-      ) : list.length === 0 ? (
-        <EmptyState
-          icon={<CalendarRange className="h-8 w-8 text-muted-foreground" />}
-          title="Sem edições"
-          description="Cria a primeira edição do rally."
-        />
-      ) : (
-        <div className="grid gap-3">
-          {list.map((ev) => (
-            <div key={ev.id} className="rally-surface rounded-2xl p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="rally-display truncate text-lg font-bold text-foreground">
-                      {ev.name}
-                    </h3>
-                    {ev.is_current && (
-                      <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white">
-                        <Star className="h-3 w-3" /> Atual
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                    {EVENT_TYPE_LABELS[ev.event_type]}
-                    {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
-                  </p>
-                  {ev.description && (
-                    <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
-                  {!ev.is_current && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSetCurrent(ev)}
-                      disabled={setCurrent.isPending}
-                    >
-                      <Star className="mr-1.5 h-3.5 w-3.5" /> Tornar atual
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => startEdit(ev)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {eventsContent}
     </div>
   );
 }
