@@ -32,7 +32,7 @@ print_error() {
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
-if [ ! -f "api-rally/pyproject.toml" ]; then
+if [[ ! -f "api-rally/pyproject.toml" ]]; then
     print_error "Could not find api-rally/pyproject.toml. Run this script from the rally repo root."
     exit 1
 fi
@@ -40,12 +40,12 @@ fi
 # Install dependencies if needed
 echo "📦 Installing dependencies..."
 
-if [ ! -d "api-rally/.venv" ]; then
+if [[ ! -d "api-rally/.venv" ]]; then
     print_warning "Installing API dependencies..."
     (cd api-rally && poetry install --no-interaction)
 fi
 
-if [ ! -d "web-rally/node_modules" ]; then
+if [[ ! -d "web-rally/node_modules" ]]; then
     print_warning "Installing frontend dependencies..."
     (cd web-rally && pnpm install --frozen-lockfile)
 fi
@@ -79,12 +79,12 @@ echo ""
 echo "📊 Coverage Summary"
 echo "=================="
 
-if [ -f "api-rally/coverage.xml" ]; then
+if [[ -f "api-rally/coverage.xml" ]]; then
     echo "API Coverage:"
     grep -o 'line-rate="[^"]*"' api-rally/coverage.xml | head -1
 fi
 
-if [ -f "web-rally/coverage/lcov.info" ]; then
+if [[ -f "web-rally/coverage/lcov.info" ]]; then
     echo "Frontend Coverage:"
     grep -o "LF:[0-9]*" web-rally/coverage/lcov.info | head -1
 fi
