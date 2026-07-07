@@ -30,6 +30,13 @@ export default function ActivityTypeInfo() {
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
         onClick={() => setIsOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            setIsOpen(false);
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div
           className="max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-gray-900 p-6 text-foreground"
