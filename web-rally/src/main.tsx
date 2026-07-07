@@ -6,7 +6,6 @@ import "@/styles/global.css";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { notifyUnauthorized, refreshTeamToken } from "./services/client";
 import { ApiError } from "./services/apiClient";
-import "./services/apiClient";
 import { useUserStore } from "@/stores/useUserStore";
 import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
@@ -47,6 +46,25 @@ const queryClient = new QueryClient({
   },
 });
 
+async function clearBrowserCache(): Promise<void> {
+  if (!("caches" in window)) return;
+  const cacheNames = await caches.keys();
+  await Promise.all(cacheNames.map((name) => caches.delete(name)));
+  globalThis.location.reload();
+}
+
+function handleServiceWorkerUpdate(registration: ServiceWorkerRegistration) {
+  const newWorker = registration.installing;
+  if (!newWorker) return;
+  newWorker.addEventListener("statechange", () => {
+    if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+      // New service worker is available, force activation
+      newWorker.postMessage({ action: "skipWaiting" });
+      globalThis.location.reload();
+    }
+  });
+}
+
 // Register Service Worker for PWA functionality
 if ("serviceWorker" in navigator) {
   globalThis.addEventListener("load", () => {
@@ -54,34 +72,13 @@ if ("serviceWorker" in navigator) {
       .register("/rally/sw.js")
       .then((registration) => {
         // Check for updates and force activation
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                // New service worker is available, force activation
-                newWorker.postMessage({ action: "skipWaiting" });
-                globalThis.location.reload();
-              }
-            });
-          }
-        });
+        registration.addEventListener("updatefound", () => handleServiceWorkerUpdate(registration));
 
         // Add development utility to clear cache
         if (process.env.NODE_ENV === "development") {
           (globalThis as unknown as Record<string, () => void>).clearRallyCache = () => {
             navigator.serviceWorker.controller?.postMessage({ action: "clearCache" });
-            // Also clear browser cache
-            if ("caches" in window) {
-              caches
-                .keys()
-                .then((cacheNames) => {
-                  return Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-                })
-                .then(() => {
-                  globalThis.location.reload();
-                });
-            }
+            void clearBrowserCache();
           };
         }
       })
