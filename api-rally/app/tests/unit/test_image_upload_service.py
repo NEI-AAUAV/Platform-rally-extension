@@ -1,4 +1,5 @@
 """Unit tests for the shared image upload/validation service."""
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -23,6 +24,7 @@ class _FakeUpload:
         self.content_type = content_type
 
     async def read(self, size: int = -1) -> bytes:
+        await asyncio.sleep(0)
         if size is None or size < 0:
             chunk, self._pos = self._data[self._pos:], len(self._data)
             return chunk
