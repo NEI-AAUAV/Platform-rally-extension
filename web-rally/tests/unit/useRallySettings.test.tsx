@@ -83,22 +83,12 @@ describe('useRallySettings Hook', () => {
     expect(viewRallySettingsPublic).toHaveBeenCalledTimes(1)
   })
 
-  it('should handle fetch error gracefully', async () => {
-    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Network error'))
-
-    const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(result.current.settings).toBeUndefined()
-    expect(result.current.error).toBeTruthy()
-  })
-
-  it('should handle non-ok response', async () => {
-    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Internal Server Error'))
+  it.each([
+    { name: 'fetch error', error: new Error('Network error') },
+    { name: 'non-ok response', error: new Error('Internal Server Error') },
+    { name: 'malformed JSON response', error: new Error('Invalid JSON') },
+  ])('should handle $name gracefully', async ({ error }) => {
+    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(error)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
@@ -144,19 +134,7 @@ describe('useRallySettings Hook', () => {
     expect(viewRallySettingsPublic).toHaveBeenCalledTimes(2) // Initial call + refetch
   })
 
-  it('should handle malformed JSON response', async () => {
-    vi.mocked(viewRallySettingsPublic).mockRejectedValueOnce(new Error('Invalid JSON'))
 
-    const wrapper = createWrapper()
-    const { result } = renderHook(() => useRallySettings({ retry: false }), { wrapper })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(result.current.settings).toBeUndefined()
-    expect(result.current.error).toBeTruthy()
-  })
 
   it('should use correct query key', async () => {
     const mockSettings = createMockSettings()
