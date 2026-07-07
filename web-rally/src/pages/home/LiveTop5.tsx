@@ -55,7 +55,7 @@ export function LiveTop5() {
             className="rally-accent inline-flex items-center gap-1.5 text-xs font-bold"
           >
             <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
-            LIVE
+            <span>LIVE</span>
           </Link>
         </div>
       </div>
