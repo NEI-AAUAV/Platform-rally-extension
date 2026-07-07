@@ -20,6 +20,24 @@ function NoticeCard({ title, body }: { readonly title: string; readonly body: Re
   );
 }
 
+function getAccessStatus(
+  settings: any,
+  isPrivileged: boolean,
+  isAuthenticated: boolean,
+  hasTeamData: boolean,
+) {
+  if (settings?.show_score_mode === "hidden" && !isPrivileged) {
+    return "hidden";
+  }
+  if (settings?.show_score_mode === "individual" && !isPrivileged && (!isAuthenticated || !hasTeamData)) {
+    return "restricted";
+  }
+  if (settings?.show_live_leaderboard === false && !isPrivileged && settings?.show_score_mode !== "individual") {
+    return "disabled";
+  }
+  return "allowed";
+}
+
 export default function Scoreboard() {
   const { settings } = useRallySettings();
   const terms = useEventTerms();
@@ -57,39 +75,33 @@ export default function Scoreboard() {
 
   const { isAuthenticated, teamData } = useTeamAuth();
 
-  // Fully hidden and not privileged → route away.
-  if (settings?.show_score_mode === "hidden" && !isPrivileged) {
+  const accessStatus = getAccessStatus(settings, isPrivileged, isAuthenticated, !!teamData);
+
+  if (accessStatus === "hidden") {
     return <Navigate to="/postos" replace />;
   }
 
-  // Individual mode: only team members can see their own score.
-  if (settings?.show_score_mode === "individual" && !isPrivileged) {
-    if (!isAuthenticated || !teamData) {
-      return (
-        <NoticeCard
-          title="Pontuação restrita"
-          body={
-            <>
-              A pontuação está visível apenas para membros das equipas.
-              <br />
-              <a
-                href="/rally/team-login"
-                className="rally-accent mt-2 inline-block font-semibold hover:underline"
-              >
-                Fazer login
-              </a>
-            </>
-          }
-        />
-      );
-    }
+  if (accessStatus === "restricted") {
+    return (
+      <NoticeCard
+        title="Pontuação restrita"
+        body={
+          <>
+            A pontuação está visível apenas para membros das equipas.
+            <br />
+            <a
+              href="/rally/team-login"
+              className="rally-accent mt-2 inline-block font-semibold hover:underline"
+            >
+              Fazer login
+            </a>
+          </>
+        }
+      />
+    );
   }
 
-  if (
-    settings?.show_live_leaderboard === false &&
-    !isPrivileged &&
-    settings?.show_score_mode !== "individual"
-  ) {
+  if (accessStatus === "disabled") {
     return (
       <NoticeCard
         title="Leaderboard indisponível"
@@ -99,10 +111,10 @@ export default function Scoreboard() {
   }
 
   // Restrict to own team in individual mode.
-  let displayTeams = sortedTeams;
-  if (settings?.show_score_mode === "individual" && !isPrivileged && isAuthenticated && teamData) {
-    displayTeams = sortedTeams?.filter((t) => t.id === teamData.team_id);
-  }
+  const isIndividualMode = settings?.show_score_mode === "individual" && !isPrivileged;
+  const displayTeams = isIndividualMode && teamData
+    ? sortedTeams?.filter((t) => t.id === teamData.team_id)
+    : sortedTeams;
 
   const list = displayTeams ?? [];
   const isFullBoard = list.length > 1;
