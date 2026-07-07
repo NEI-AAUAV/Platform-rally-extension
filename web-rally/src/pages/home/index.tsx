@@ -1,5 +1,4 @@
 import { Navigate } from "@tanstack/react-router";
-import type { ReactNode } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { resolveBranding } from "@/lib/branding";
@@ -32,18 +31,6 @@ export default function Home() {
   const scoreVisible = settings?.show_score_mode !== "hidden";
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
-  const sectionRenderers: Record<HomeSectionKey, () => ReactNode> = {
-    home_hero: () => <HomeHero branding={branding} settings={settings} />,
-    rally_marquee: () => <RallyMarquee items={settings?.ticker_items} />,
-    event_stats: () => (
-      <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
-    ),
-    live_top5: () => (scoreVisible ? <LiveTop5 /> : null),
-    how_it_works: () => <HowItWorks />,
-    postos_preview: () => <PostosPreview enabled={checkpointsPublic} />,
-    home_bottom_banner: () => <HomeBottomBanner />,
-  };
-
   const layout = settings?.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT;
 
   return (
@@ -51,7 +38,30 @@ export default function Home() {
       {layout
         .filter((section) => section.visible)
         .map((section) => {
-          const content = sectionRenderers[section.key as HomeSectionKey]?.();
+          let content = null;
+          switch (section.key) {
+            case "home_hero":
+              content = <HomeHero branding={branding} settings={settings} />;
+              break;
+            case "rally_marquee":
+              content = <RallyMarquee items={settings?.ticker_items} />;
+              break;
+            case "event_stats":
+              content = <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />;
+              break;
+            case "live_top5":
+              content = scoreVisible ? <LiveTop5 /> : null;
+              break;
+            case "how_it_works":
+              content = <HowItWorks />;
+              break;
+            case "postos_preview":
+              content = <PostosPreview enabled={checkpointsPublic} />;
+              break;
+            case "home_bottom_banner":
+              content = <HomeBottomBanner />;
+              break;
+          }
           if (!content) return null;
           return <Reveal key={section.key}>{content}</Reveal>;
         })}
