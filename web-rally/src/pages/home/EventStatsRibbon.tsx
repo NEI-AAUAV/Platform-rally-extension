@@ -4,8 +4,8 @@ import {
   getTeams,
   type ListingTeam,
   type DetailedCheckPoint,
+  type RallySettingsResponse,
 } from "@/client";
-import type { RallySettingsResponse } from "@/client";
 import { getEventTerms, capitalize } from "@/lib/eventTerms";
 import { useCountdown } from "./useCountdown";
 
