@@ -1,5 +1,6 @@
 """Unit tests for the scoring worker and the off-path recompute gate."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -25,9 +26,11 @@ class _SpyScoringService:
         """Session is unused; recompute calls are recorded on the class."""
 
     async def _recalculate_all_results_for_activity(self, activity_id: int) -> None:
+        await asyncio.sleep(0)
         _SpyScoringService.calls.append(("recalc", activity_id))
 
     async def update_team_scores(self, team_id: int) -> None:
+        await asyncio.sleep(0)
         _SpyScoringService.calls.append(("team", team_id))
 
 
