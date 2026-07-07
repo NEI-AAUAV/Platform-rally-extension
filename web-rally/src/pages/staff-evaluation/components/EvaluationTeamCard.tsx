@@ -48,19 +48,15 @@ export function EvaluationTeamCard({
   variant,
   showScore,
   onSelect,
-}: EvaluationTeamCardProps) {
+}: Readonly<EvaluationTeamCardProps>) {
   const cfg = VARIANTS[variant];
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onSelect(team)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onSelect(team);
-      }}
       className={cn(
-        "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors hover:brightness-95",
+        "flex w-full cursor-pointer items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:brightness-95 bg-transparent border-none outline-none font-inherit",
         cfg.cardClass,
       )}
     >
@@ -83,6 +79,6 @@ export function EvaluationTeamCard({
       >
         {cfg.label}
       </span>
-    </div>
+    </button>
   );
 }
