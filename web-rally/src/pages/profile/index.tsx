@@ -25,7 +25,7 @@ function eventTypeLabel(t: string): string {
   return EVENT_TYPE_LABELS[t as EventType] ?? "Evento";
 }
 
-function ParticipationCard({ entry }: { entry: ParticipationEntry }) {
+function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
   const date = new Date(entry.joined_at).toLocaleDateString("pt-PT", {
     year: "numeric",
     month: "short",
@@ -117,6 +117,29 @@ export default function Profile() {
   const userScopes = profile?.scopes ?? scopes ?? [];
   const participations = profile?.participations ?? [];
 
+  let historyContent;
+  if (isLoading) {
+    historyContent = <LoadingState message="A carregar histórico..." />;
+  } else if (isError) {
+    historyContent = (
+      <div className="rally-surface rounded-2xl p-6 text-center">
+        <p className="text-sm text-muted-foreground">Não foi possível carregar o histórico.</p>
+      </div>
+    );
+  } else if (participations.length === 0) {
+    historyContent = (
+      <div className="rally-surface rounded-2xl p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Ainda não há participações registadas. Junta-te a uma equipa para começar.
+        </p>
+      </div>
+    );
+  } else {
+    historyContent = participations.map((entry) => (
+      <ParticipationCard key={`${entry.event_id}-${entry.team_id ?? "x"}`} entry={entry} />
+    ));
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
@@ -165,23 +188,7 @@ export default function Profile() {
           <h2 className="text-lg font-semibold text-foreground">Participações</h2>
         </div>
 
-        {isLoading ? (
-          <LoadingState message="A carregar histórico..." />
-        ) : isError ? (
-          <div className="rally-surface rounded-2xl p-6 text-center">
-            <p className="text-sm text-muted-foreground">Não foi possível carregar o histórico.</p>
-          </div>
-        ) : participations.length === 0 ? (
-          <div className="rally-surface rounded-2xl p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Ainda não há participações registadas. Junta-te a uma equipa para começar.
-            </p>
-          </div>
-        ) : (
-          participations.map((entry) => (
-            <ParticipationCard key={`${entry.event_id}-${entry.team_id ?? "x"}`} entry={entry} />
-          ))
-        )}
+        {historyContent}
       </div>
     </div>
   );
