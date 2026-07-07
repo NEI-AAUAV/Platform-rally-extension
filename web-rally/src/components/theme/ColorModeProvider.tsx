@@ -12,16 +12,16 @@ interface ColorModeProviderProps {
 }
 
 export function ColorModeProvider({ children }: ColorModeProviderProps) {
-  const [mode, setModeState] = useState<ColorMode>(readStoredMode);
+  const [colorMode, setColorMode] = useState<ColorMode>(readStoredMode);
 
   useEffect(() => {
-    applyColorMode(mode);
-    globalThis.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
-  }, [mode]);
+    applyColorMode(colorMode);
+    globalThis.localStorage.setItem(COLOR_MODE_STORAGE_KEY, colorMode);
+  }, [colorMode]);
 
-  const setMode = useCallback((next: ColorMode) => setModeState(next), []);
+  const setMode = useCallback((next: ColorMode) => setColorMode(next), []);
   const toggle = useCallback((e?: { clientX: number; clientY: number }) => {
-    const flip = () => setModeState((prev) => (prev === "dark" ? "light" : "dark"));
+    const flip = () => setColorMode((prev) => (prev === "dark" ? "light" : "dark"));
 
     if (document.startViewTransition && e) {
       document.documentElement.style.setProperty("--reveal-x", `${e.clientX}px`);
@@ -32,7 +32,7 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
     }
   }, []);
 
-  const value = useMemo(() => ({ mode, setMode, toggle }), [mode, setMode, toggle]);
+  const value = useMemo(() => ({ mode: colorMode, setMode, toggle }), [colorMode, setMode, toggle]);
 
   return <ColorModeContext.Provider value={value}>{children}</ColorModeContext.Provider>;
 }
