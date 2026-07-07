@@ -68,9 +68,13 @@ export default function BooleanForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Success</label>
+        <label htmlFor="success-checkbox" className="mb-2 block text-sm font-medium text-foreground">Success</label>
         <div className="flex items-center space-x-3">
-          <div
+          <button
+            id="success-checkbox"
+            type="button"
+            role="checkbox"
+            aria-checked={isSuccessChecked}
             className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted ${
               isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
@@ -89,18 +93,19 @@ export default function BooleanForm({
                 clipRule="evenodd"
               />
             </svg>
-          </div>
+          </button>
           <span className="font-medium text-muted-foreground">Team succeeded in the activity</span>
         </div>
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Attempts</label>
+        <label htmlFor="attempts-input" className="mb-2 block text-sm font-medium text-foreground">Attempts</label>
         <input
+          id="attempts-input"
           type="number"
           min="1"
           value={attempts}
-          onChange={(e) => setAttempts(parseInt(e.target.value, 10) || 1)}
+          onChange={(e) => setAttempts(Number.parseInt(e.target.value, 10) || 1)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Number of attempts"
         />
@@ -108,13 +113,14 @@ export default function BooleanForm({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Extra Shots</label>
+        <label htmlFor="extra-shots-input" className="mb-2 block text-sm font-medium text-foreground">Extra Shots</label>
         <input
+          id="extra-shots-input"
           type="number"
           min="0"
           max={maxExtraShots}
           value={extraShots}
-          onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
+          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Extra shots taken"
         />
@@ -129,38 +135,40 @@ export default function BooleanForm({
         )}
       </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Penalties</label>
+      <fieldset>
+        <legend className="mb-2 block text-sm font-medium text-foreground">Penalties</legend>
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
             <input
+              id="vomit-input"
               type="number"
               min="0"
               value={penalties.vomit || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, vomit: parseInt(e.target.value, 10) || 0 })
+                setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-sm text-muted-foreground">
+            <label htmlFor="vomit-input" className="text-sm text-muted-foreground">
               Vomit penalty ({penaltyValues.vomit} pts each)
-            </span>
+            </label>
           </div>
           <div className="flex items-center space-x-3">
             <input
+              id="not-drinking-input"
               type="number"
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, not_drinking: parseInt(e.target.value, 10) || 0 })
+                setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
             />
-            <span className="text-sm text-muted-foreground">
+            <label htmlFor="not-drinking-input" className="text-sm text-muted-foreground">
               Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </span>
+            </label>
           </div>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -169,11 +177,12 @@ export default function BooleanForm({
             (penalties.not_drinking || 0) * penaltyValues.not_drinking}{" "}
           points
         </p>
-      </div>
+      </fieldset>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Notes (Optional)</label>
+        <label htmlFor="notes-input" className="mb-2 block text-sm font-medium text-foreground">Notes (Optional)</label>
         <textarea
+          id="notes-input"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
