@@ -40,7 +40,7 @@ function RulesSection() {
         body: {
           name: form.name.trim(),
           rule_type: form.rule_type,
-          points: parseFloat(form.points),
+          points: Number.parseFloat(form.points),
           description: form.description || undefined,
           is_active: true,
           is_automatic: false,
@@ -194,7 +194,7 @@ function RulesSection() {
   );
 }
 
-function AwardsSection({ teams }: { teams: ListingTeam[] }) {
+function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AwardForm>(EMPTY_AWARD);
@@ -219,10 +219,10 @@ function AwardsSection({ teams }: { teams: ListingTeam[] }) {
     mutationFn: () =>
       createDynamicAward({
         body: {
-          team_id: parseInt(form.team_id),
-          points: parseFloat(form.points),
+          team_id: Number.parseInt(form.team_id),
+          points: Number.parseFloat(form.points),
           reason: form.reason || undefined,
-          rule_id: form.rule_id ? parseInt(form.rule_id) : undefined,
+          rule_id: form.rule_id ? Number.parseInt(form.rule_id) : undefined,
         },
       }),
     onSuccess: () => {
