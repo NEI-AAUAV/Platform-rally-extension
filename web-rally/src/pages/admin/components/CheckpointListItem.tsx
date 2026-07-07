@@ -32,19 +32,12 @@ export default function CheckpointListItem({
   const [showMedia, setShowMedia] = useState(false);
 
   return (
-    <div
-      role="listitem"
-      tabIndex={0}
+    <li
       draggable={!showMedia}
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, checkpoint)}
       onDragEnd={onDragEnd}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-        }
-      }}
       aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
     >
       <div
@@ -103,6 +96,6 @@ export default function CheckpointListItem({
           <CheckpointGuideIndicationsManager checkpointId={checkpoint.id} />
         </div>
       )}
-    </div>
+    </li>
   );
 }
