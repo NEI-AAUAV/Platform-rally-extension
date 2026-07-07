@@ -46,6 +46,31 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+function renderTeamAvatar(team: ListingTeam, champion: boolean) {
+  if (team.photo_url) {
+    return (
+      <img
+        src={team.photo_url}
+        alt={team.name}
+        className="h-full w-full object-cover"
+        loading="lazy"
+      />
+    );
+  }
+  if (champion) {
+    return (
+      <span className="rally-display rally-accent grid h-full w-full place-items-center text-[28px] font-bold sm:text-[34px]">
+        ★
+      </span>
+    );
+  }
+  return (
+    <span className="rally-display grid h-full w-full place-items-center text-base font-bold text-foreground sm:text-lg">
+      {initialsOf(team.name)}
+    </span>
+  );
+}
+
 function reachedOf(team: ListingTeam): number {
   return team.last_checkpoint_number ?? team.current_checkpoint_number ?? team.times?.length ?? 0;
 }
@@ -102,22 +127,7 @@ export function Podium({
                 champion ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14 sm:h-16 sm:w-16",
               ].join(" ")}
             >
-              {team.photo_url ? (
-                <img
-                  src={team.photo_url}
-                  alt={team.name}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              ) : champion ? (
-                <span className="rally-display rally-accent grid h-full w-full place-items-center text-[28px] font-bold sm:text-[34px]">
-                  ★
-                </span>
-              ) : (
-                <span className="rally-display grid h-full w-full place-items-center text-base font-bold text-foreground sm:text-lg">
-                  {initialsOf(team.name)}
-                </span>
-              )}
+              {renderTeamAvatar(team, champion)}
             </div>
             <p
               className={[
