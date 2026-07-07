@@ -12,10 +12,10 @@ import {
   getTeamMembers,
   type ListingTeam,
   type TeamMemberResponse,
+  type DetailedTeam,
 } from "@/client";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import { QrCode } from "lucide-react";
-import type { DetailedTeam } from "@/client";
 
 type ExtendedDetailedTeam = Omit<DetailedTeam, "access_code"> & { access_code?: string };
 
