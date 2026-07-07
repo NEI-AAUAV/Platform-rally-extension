@@ -15,7 +15,7 @@ if (typeof globalThis.URL === 'undefined') {
 // runner. Install a deterministic in-memory Storage so storage-backed hooks and
 // stores behave consistently across tests.
 class MemoryStorage implements Storage {
-  private store = new Map<string, string>()
+  private readonly store = new Map<string, string>()
   get length() {
     return this.store.size
   }
