@@ -37,41 +37,35 @@ export default function CheckpointCard({
           : "border-border bg-card hover:border-muted-foreground/30",
       ].join(" ")}
     >
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelect(checkpoint)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelect(checkpoint);
-          }
-        }}
-        aria-pressed={isSelected}
-        aria-label={`Selecionar posto ${checkpoint.name}`}
-        className="flex w-full cursor-pointer items-center gap-4 p-[16px_18px] text-left"
-      >
-        <span
-          className={[
-            "rally-display grid h-[44px] w-[44px] shrink-0 place-items-center rounded-[13px] text-[20px] font-bold",
-            isSelected ? "rally-bg-accent text-white" : "bg-muted/60 text-muted-foreground",
-          ].join(" ")}
+      <div className="flex w-full items-center justify-between gap-4 p-[16px_18px]">
+        <button
+          type="button"
+          onClick={() => onSelect(checkpoint)}
+          aria-pressed={isSelected}
+          aria-label={`Selecionar posto ${checkpoint.name}`}
+          className="flex min-w-0 flex-1 items-center gap-4 text-left border-none bg-transparent outline-none p-0 cursor-pointer"
         >
-          {checkpoint.order}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-bold text-foreground">{checkpoint.name}</p>
-          <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-            <Compass className="h-3.5 w-3.5" />
-            Descobre este local
-          </p>
-        </div>
+          <span
+            className={[
+              "rally-display grid h-[44px] w-[44px] shrink-0 place-items-center rounded-[13px] text-[20px] font-bold",
+              isSelected ? "rally-bg-accent text-white" : "bg-muted/60 text-muted-foreground",
+            ].join(" ")}
+          >
+            {checkpoint.order}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[16px] font-bold text-foreground">{checkpoint.name}</p>
+            <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              <Compass className="h-3.5 w-3.5" />
+              Descobre este local
+            </p>
+          </div>
+        </button>
         {showMap && hasCoords && (
           <a
             href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted/40"
           >
             <Navigation className="h-3.5 w-3.5" />
