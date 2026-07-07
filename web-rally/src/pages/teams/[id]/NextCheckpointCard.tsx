@@ -1,12 +1,12 @@
 import { Target, MapPin, Navigation } from "lucide-react";
 import type { DetailedTeam, DetailedCheckPoint, RallySettingsResponse } from "@/client";
 
-interface NextCheckpointCardProps {
+type NextCheckpointCardProps = Readonly<{
   team: DetailedTeam;
   checkpoints: DetailedCheckPoint[] | undefined;
   totalCount: number;
   settings: RallySettingsResponse | undefined;
-}
+}>;
 
 export function NextCheckpointCard({
   team,
