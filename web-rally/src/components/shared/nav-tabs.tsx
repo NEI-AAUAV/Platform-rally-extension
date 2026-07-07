@@ -365,7 +365,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               toggleViewMode={toggleViewMode}
             />
           </ul>
-        </div>
+        </dialog>
       </div>
     </div>
   );

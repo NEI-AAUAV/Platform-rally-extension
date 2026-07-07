@@ -27,21 +27,14 @@ export default function ActivityTypeInfo() {
         <Info className="h-4 w-4" />
       </button>
 
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-        onClick={() => setIsOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            setIsOpen(false);
-          }
-        }}
-        role="button"
-        tabIndex={0}
-      >
-        <div
-          className="max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-gray-900 p-6 text-foreground"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Fechar"
+          className="fixed inset-0 bg-black/70 cursor-default"
+          onClick={() => setIsOpen(false)}
+        />
+        <div className="relative z-10 max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-gray-900 p-6 text-foreground">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-xl font-semibold">Tipos de Atividades - Sistema de Pontuação</h3>
             <button
