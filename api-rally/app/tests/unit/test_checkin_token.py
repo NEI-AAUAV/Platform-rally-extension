@@ -51,14 +51,16 @@ def test_tampered_payload_is_rejected() -> None:
 def test_expired_token_is_rejected() -> None:
     token = checkin_token.generate_checkin_token(42)
     # Verify 200s in the future; TTL is 90s.
+    future_time = int(time.time()) + 200
     with pytest.raises(CheckinTokenError, match="expired"):
-        verify_checkin_token(token, now=int(time.time()) + 200)
+        verify_checkin_token(token, now=future_time)
 
 
 def test_future_token_is_rejected() -> None:
     token = checkin_token.generate_checkin_token(42)
+    past_time = int(time.time()) - 60
     with pytest.raises(CheckinTokenError, match="not yet valid"):
-        verify_checkin_token(token, now=int(time.time()) - 60)
+        verify_checkin_token(token, now=past_time)
 
 
 @pytest.mark.parametrize("bad", ["", "no-dot", "not!base64.deadbeef", "a.b.c.d"])
