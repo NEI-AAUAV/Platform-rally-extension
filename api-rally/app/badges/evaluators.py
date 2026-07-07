@@ -60,7 +60,7 @@ async def _handle_win_activity(
     """
     if not result.is_completed:
         return []
-    activity = result.activity
+    activity = result.activity or await db.get(Activity, result.activity_id)
     if activity is None:
         return []
 
