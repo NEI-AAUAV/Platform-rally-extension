@@ -441,25 +441,23 @@ async def test_evaluate_result_runs_configured_rule(
     assert [a.badge_code for a in awards] == ["duel"]
 
 
-async def test_evaluate_result_ignores_non_auto_and_inactive() -> None:
+async def test_evaluate_result_ignores_non_auto_and_inactive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # _load_auto_definitions already filters is_active/is_auto in SQL; verify the
     # engine simply runs whatever it returns and returns [] when it returns none.
-    async def _none(_db: object) -> list[object]:
-        return []
-
-    original = evaluators._load_auto_definitions
-    evaluators._load_auto_definitions = _none  # type: ignore[assignment]
-    try:
-        assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
-    finally:
-        evaluators._load_auto_definitions = original  # type: ignore[assignment]
+    monkeypatch.setattr(
+        evaluators,
+        "_load_auto_definitions",
+        AsyncMock(return_value=[]),
+    )
+    assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
 
 
 async def test_evaluate_result_isolates_failing_rule(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def boom(db: object, result: object, defn: object) -> list[object]:
-        raise RuntimeError("rule exploded")
+    boom = AsyncMock(side_effect=RuntimeError("rule exploded"))
 
     monkeypatch.setattr(
         evaluators,
