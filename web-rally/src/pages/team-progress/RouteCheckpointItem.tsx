@@ -154,9 +154,7 @@ function CheckpointCardBody({
           ) : (
             <>
               {description && (
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                  {description}
-                </p>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{description}</p>
               )}
               {hasDiscovery && (
                 <p className="rally-accent mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
@@ -236,7 +234,7 @@ export default function RouteCheckpointItem({
       <div className="flex-1 pb-5">
         <CardElement
           className={cn(
-            "w-full text-left block overflow-hidden rounded-2xl border transition-all font-normal",
+            "block w-full overflow-hidden rounded-2xl border text-left font-normal transition-all",
             isCompleted &&
               "cursor-pointer border-border bg-card hover:border-muted-foreground/30 hover:shadow-md",
             isCurrent && "rally-border-accent rally-bg-accent-soft cursor-pointer hover:shadow-md",

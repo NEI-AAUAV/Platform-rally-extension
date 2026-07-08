@@ -73,10 +73,7 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
   const badgeClass = TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-400";
   return (
     <>
-      <Badge
-        variant="outline"
-        className={`text-xs ${badgeClass}`}
-      >
+      <Badge variant="outline" className={`text-xs ${badgeClass}`}>
         {getTeamVsResultLabel(result)}
       </Badge>
       {opponentId !== null && (
@@ -107,7 +104,9 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   };
 
   // Get unique teams and checkpoints for filter options
-  const uniqueTeams = Array.from(new Set(evaluations.map((e) => e.team.name))).sort((a, b) => a.localeCompare(b));
+  const uniqueTeams = Array.from(new Set(evaluations.map((e) => e.team.name))).sort((a, b) =>
+    a.localeCompare(b),
+  );
   const uniqueCheckpoints = Array.from(
     new Set(evaluations.map((e) => e.activity.checkpoint_id)),
   ).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
@@ -163,7 +162,9 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {/* Team Filter */}
             <div>
-              <label htmlFor="filter-team" className="mb-1 block text-xs text-muted-foreground">Equipa</label>
+              <label htmlFor="filter-team" className="mb-1 block text-xs text-muted-foreground">
+                Equipa
+              </label>
               <select
                 id="filter-team"
                 value={selectedTeam}
@@ -183,7 +184,12 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
             {/* Checkpoint Filter */}
             <div>
-              <label htmlFor="filter-checkpoint" className="mb-1 block text-xs text-muted-foreground">Posto</label>
+              <label
+                htmlFor="filter-checkpoint"
+                className="mb-1 block text-xs text-muted-foreground"
+              >
+                Posto
+              </label>
               <select
                 id="filter-checkpoint"
                 value={selectedCheckpoint}
@@ -248,7 +254,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                       disabled={!hasDetails}
                       onClick={() => toggleExpand(evaluation.id)}
                       aria-expanded={hasDetails ? isExpanded : undefined}
-                      className="flex min-w-0 flex-1 items-start gap-3 text-left bg-transparent border-none p-0 w-full cursor-pointer disabled:cursor-default"
+                      className="flex w-full min-w-0 flex-1 cursor-pointer items-start gap-3 border-none bg-transparent p-0 text-left disabled:cursor-default"
                     >
                       <div className="flex items-center gap-2">
                         <IconComponent className="mt-0.5 h-5 w-5 flex-shrink-0 text-foreground" />

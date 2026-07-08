@@ -18,7 +18,8 @@ const byOrder = (a: CheckpointMediaResponse, b: CheckpointMediaResponse) =>
 export function useCheckpointMedia(checkpointId: number, enabled = true): CheckpointMediaGrouped {
   const { data = [], isLoading } = useQuery<CheckpointMediaResponse[]>({
     queryKey: ["checkpoint-media", checkpointId],
-    queryFn: async () => (await listCheckpointMedia({ path: { checkpoint_id: checkpointId } })).data,
+    queryFn: async () =>
+      (await listCheckpointMedia({ path: { checkpoint_id: checkpointId } })).data,
     enabled,
     staleTime: 60_000,
   });

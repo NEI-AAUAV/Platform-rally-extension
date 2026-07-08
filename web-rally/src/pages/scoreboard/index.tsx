@@ -29,10 +29,18 @@ function getAccessStatus(
   if (settings?.show_score_mode === "hidden" && !isPrivileged) {
     return "hidden";
   }
-  if (settings?.show_score_mode === "individual" && !isPrivileged && (!isAuthenticated || !hasTeamData)) {
+  if (
+    settings?.show_score_mode === "individual" &&
+    !isPrivileged &&
+    (!isAuthenticated || !hasTeamData)
+  ) {
     return "restricted";
   }
-  if (settings?.show_live_leaderboard === false && !isPrivileged && settings?.show_score_mode !== "individual") {
+  if (
+    settings?.show_live_leaderboard === false &&
+    !isPrivileged &&
+    settings?.show_score_mode !== "individual"
+  ) {
     return "disabled";
   }
   return "allowed";
@@ -112,9 +120,10 @@ export default function Scoreboard() {
 
   // Restrict to own team in individual mode.
   const isIndividualMode = settings?.show_score_mode === "individual" && !isPrivileged;
-  const displayTeams = isIndividualMode && teamData
-    ? sortedTeams?.filter((t) => t.id === teamData.team_id)
-    : sortedTeams;
+  const displayTeams =
+    isIndividualMode && teamData
+      ? sortedTeams?.filter((t) => t.id === teamData.team_id)
+      : sortedTeams;
 
   const list = displayTeams ?? [];
   const isFullBoard = list.length > 1;

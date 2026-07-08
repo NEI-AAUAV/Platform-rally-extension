@@ -56,7 +56,7 @@ export function EvaluationTeamCard({
       type="button"
       onClick={() => onSelect(team)}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:brightness-95 bg-transparent border-none outline-none font-inherit",
+        "font-inherit flex w-full cursor-pointer items-center gap-4 rounded-xl border border-none bg-transparent p-4 text-left outline-none transition-colors hover:brightness-95",
         cfg.cardClass,
       )}
     >

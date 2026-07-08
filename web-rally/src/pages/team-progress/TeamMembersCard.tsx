@@ -38,8 +38,7 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   const canClaim = isAuthenticated && profile != null && profile.current_team_id == null;
 
   const claim = useMutation({
-    mutationFn: (memberId: number) =>
-      claimMembership({ path: { member_user_id: memberId } }),
+    mutationFn: (memberId: number) => claimMembership({ path: { member_user_id: memberId } }),
     onSuccess: () => {
       toast.success("Conta associada! O teu histórico foi atualizado.");
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });

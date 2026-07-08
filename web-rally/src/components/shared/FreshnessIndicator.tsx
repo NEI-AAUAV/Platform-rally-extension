@@ -17,7 +17,10 @@ function relativeLabel(secondsAgo: number): string {
  * Small "atualizado há 12s" indicator for realtime views, with a pulsing dot.
  * Renders nothing until the first successful fetch.
  */
-export default function FreshnessIndicator({ updatedAt, className = "" }: Readonly<FreshnessIndicatorProps>) {
+export default function FreshnessIndicator({
+  updatedAt,
+  className = "",
+}: Readonly<FreshnessIndicatorProps>) {
   const secondsAgo = useDataFreshness(updatedAt);
 
   if (secondsAgo === null) return null;

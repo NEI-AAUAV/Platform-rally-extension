@@ -105,7 +105,7 @@ export function CheckpointTimelineItem({
     <div>
       {/* Checkpoint summary - always visible and clickable */}
       <ClickableElement
-        className={`w-full text-left block font-normal rally-surface rounded-2xl p-6 transition-colors hover:bg-accent ${isCurrentCheckpoint ? "rally-elevate" : ""} ${hasEvaluationsToggle ? "cursor-pointer" : ""}`}
+        className={`rally-surface block w-full rounded-2xl p-6 text-left font-normal transition-colors hover:bg-accent ${isCurrentCheckpoint ? "rally-elevate" : ""} ${hasEvaluationsToggle ? "cursor-pointer" : ""}`}
         {...clickableProps}
       >
         <div className="flex items-center justify-between">
@@ -195,8 +195,8 @@ export function CheckpointTimelineItem({
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                         <ProvisionalBadge />
                         <span>
-                          {completedCount} de {totalTeams} equipas terminaram (a pontuação
-                          recalcula à medida que mais equipas terminam)
+                          {completedCount} de {totalTeams} equipas terminaram (a pontuação recalcula
+                          à medida que mais equipas terminam)
                         </span>
                       </div>
                     )}

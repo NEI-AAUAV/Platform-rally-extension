@@ -173,7 +173,10 @@ export default function TimeBasedForm({
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })
+                setPenalties({
+                  ...penalties,
+                  not_drinking: Number.parseInt(e.target.value, 10) || 0,
+                })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"

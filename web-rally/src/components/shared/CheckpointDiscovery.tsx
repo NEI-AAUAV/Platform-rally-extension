@@ -107,7 +107,7 @@ export default function CheckpointDiscovery({
         >
           <button
             type="button"
-            className="absolute inset-0 h-full w-full bg-transparent cursor-default"
+            className="absolute inset-0 h-full w-full cursor-default bg-transparent"
             onClick={() => setLightbox(null)}
             aria-label="Fechar ampliação"
           />
@@ -115,7 +115,7 @@ export default function CheckpointDiscovery({
             <button
               type="button"
               onClick={() => setLightbox(null)}
-              className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-primary z-20"
+              className="absolute right-4 top-4 z-20 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Fechar"
             >
               ✕
@@ -123,7 +123,7 @@ export default function CheckpointDiscovery({
             <img
               src={lightbox}
               alt="Ampliada"
-              className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl relative z-10"
+              className="relative z-10 max-h-[90vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl"
             />
           </div>
         </dialog>

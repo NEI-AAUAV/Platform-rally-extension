@@ -31,7 +31,7 @@ export default function ActivityTypeInfo() {
         <button
           type="button"
           aria-label="Fechar"
-          className="fixed inset-0 bg-black/70 cursor-default"
+          className="fixed inset-0 cursor-default bg-black/70"
           onClick={() => setIsOpen(false)}
         />
         <div className="relative z-10 max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-gray-900 p-6 text-foreground">

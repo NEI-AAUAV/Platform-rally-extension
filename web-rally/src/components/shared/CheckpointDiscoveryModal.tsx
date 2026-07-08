@@ -59,7 +59,7 @@ export default function CheckpointDiscoveryModal({
     >
       <button
         type="button"
-        className="absolute inset-0 h-full w-full bg-transparent cursor-default"
+        className="absolute inset-0 h-full w-full cursor-default bg-transparent"
         onClick={onClose}
         aria-label="Fechar modal"
       />

@@ -45,8 +45,7 @@ export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (activity: ActivityCreate) =>
-      (await createActivity({ body: activity })).data,
+    mutationFn: async (activity: ActivityCreate) => (await createActivity({ body: activity })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
     },

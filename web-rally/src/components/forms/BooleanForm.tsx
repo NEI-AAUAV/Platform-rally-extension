@@ -68,7 +68,12 @@ export default function BooleanForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="success-checkbox" className="mb-2 block text-sm font-medium text-foreground">Success</label>
+        <label
+          htmlFor="success-checkbox"
+          className="mb-2 block text-sm font-medium text-foreground"
+        >
+          Success
+        </label>
         <div className="flex items-center space-x-3">
           <input
             id="success-checkbox"
@@ -98,14 +103,19 @@ export default function BooleanForm({
               />
             </svg>
           </label>
-          <label htmlFor="success-checkbox" className="cursor-pointer font-medium text-muted-foreground">
+          <label
+            htmlFor="success-checkbox"
+            className="cursor-pointer font-medium text-muted-foreground"
+          >
             Team succeeded in the activity
           </label>
         </div>
       </div>
 
       <div>
-        <label htmlFor="attempts-input" className="mb-2 block text-sm font-medium text-foreground">Attempts</label>
+        <label htmlFor="attempts-input" className="mb-2 block text-sm font-medium text-foreground">
+          Attempts
+        </label>
         <input
           id="attempts-input"
           type="number"
@@ -119,7 +129,12 @@ export default function BooleanForm({
       </div>
 
       <div>
-        <label htmlFor="extra-shots-input" className="mb-2 block text-sm font-medium text-foreground">Extra Shots</label>
+        <label
+          htmlFor="extra-shots-input"
+          className="mb-2 block text-sm font-medium text-foreground"
+        >
+          Extra Shots
+        </label>
         <input
           id="extra-shots-input"
           type="number"
@@ -167,7 +182,10 @@ export default function BooleanForm({
               min="0"
               value={penalties.not_drinking || 0}
               onChange={(e) =>
-                setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })
+                setPenalties({
+                  ...penalties,
+                  not_drinking: Number.parseInt(e.target.value, 10) || 0,
+                })
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
@@ -186,7 +204,9 @@ export default function BooleanForm({
       </fieldset>
 
       <div>
-        <label htmlFor="notes-input" className="mb-2 block text-sm font-medium text-foreground">Notes (Optional)</label>
+        <label htmlFor="notes-input" className="mb-2 block text-sm font-medium text-foreground">
+          Notes (Optional)
+        </label>
         <textarea
           id="notes-input"
           value={notes}

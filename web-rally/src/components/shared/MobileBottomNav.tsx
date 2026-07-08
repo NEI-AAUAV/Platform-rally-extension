@@ -157,7 +157,7 @@ export function MobileBottomNav() {
         >
           <button
             type="button"
-            className="absolute inset-0 h-full w-full bg-transparent cursor-default"
+            className="absolute inset-0 h-full w-full cursor-default bg-transparent"
             onClick={() => setQrOpen(false)}
             aria-label="Fechar modal"
           />

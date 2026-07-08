@@ -25,7 +25,10 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
-function PhaseChip({ phase, state }: Readonly<{ phase: string; state: ReturnType<typeof useCountdown> }>) {
+function PhaseChip({
+  phase,
+  state,
+}: Readonly<{ phase: string; state: ReturnType<typeof useCountdown> }>) {
   if (phase === "live") {
     return (
       <span className="rally-bg-accent inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-white">

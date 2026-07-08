@@ -299,7 +299,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           aria-modal="true"
           aria-label="Menu"
           className={cn(
-            "rally-elevate fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col border-l border-border bg-popover transition-transform duration-300 ease-out m-0 max-h-none h-full border-y-0 border-r-0 outline-none",
+            "rally-elevate fixed inset-y-0 right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
             isMobileMenuOpen ? "translate-x-0" : "translate-x-full",
           )}
         >

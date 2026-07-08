@@ -99,7 +99,9 @@ function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>)
   );
 }
 
-function IndicationList({ indications }: Readonly<{ indications: readonly GuideIndicationItem[] }>) {
+function IndicationList({
+  indications,
+}: Readonly<{ indications: readonly GuideIndicationItem[] }>) {
   if (indications.length === 0) return null;
 
   return (

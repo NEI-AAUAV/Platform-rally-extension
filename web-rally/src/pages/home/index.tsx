@@ -47,7 +47,9 @@ export default function Home() {
               content = <RallyMarquee items={settings?.ticker_items} />;
               break;
             case "event_stats":
-              content = <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />;
+              content = (
+                <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
+              );
               break;
             case "live_top5":
               content = scoreVisible ? <LiveTop5 /> : null;

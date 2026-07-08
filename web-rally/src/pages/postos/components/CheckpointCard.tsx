@@ -43,7 +43,7 @@ export default function CheckpointCard({
           onClick={() => onSelect(checkpoint)}
           aria-pressed={isSelected}
           aria-label={`Selecionar posto ${checkpoint.name}`}
-          className="flex min-w-0 flex-1 items-center gap-4 text-left border-none bg-transparent outline-none p-0 cursor-pointer"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 border-none bg-transparent p-0 text-left outline-none"
         >
           <span
             className={[
