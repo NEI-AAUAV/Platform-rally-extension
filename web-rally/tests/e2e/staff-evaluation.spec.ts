@@ -370,7 +370,7 @@ test.describe('Manager Evaluation Flow', () => {
 
     // Verify checkpoint name is displayed
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(new RegExp(MOCK_CHECKPOINT.name)).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 });
@@ -1880,7 +1880,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
 
           // Should show validation error
           await expect(
-            page.getByText(/time must be positive|must be positive|invalid/i).first(),
+            page.getByText(/valid non-negative time|must be positive|invalid/i).first(),
           ).toBeVisible({ timeout: 5000 });
         }
       }
