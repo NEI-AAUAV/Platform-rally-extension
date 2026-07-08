@@ -532,7 +532,7 @@ class ScoringService:
             .group_by(ActivityResult.team_id)
         )
         rows = (await self.db.execute(count_stmt)).all()
-        return dict(rows)
+        return {row[0]: row[1] for row in rows}
 
     async def _get_activity_ranking(self, activity_id: int) -> list[dict[str, Any]]:
         """Rank teams by final_score for one activity ("1224" competition ranking)."""

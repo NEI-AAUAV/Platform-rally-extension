@@ -145,7 +145,9 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         await self.update_classification_unlocked(db)
         await db.commit()
 
-    async def create(self, db: AsyncSession, *, obj_in: TeamCreate) -> Team:
+    async def create(
+        self, db: AsyncSession, *, obj_in: TeamCreate, commit: bool = True
+    ) -> Team:
         settings = await rally_settings.get_or_create(db)
         event_id = await current_event_id(db)
         # Count teams in the current event only, so max_teams is per-edition.
@@ -189,7 +191,9 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         await db.refresh(team)
         return team
 
-    async def update(self, db: AsyncSession, *, id: int, obj_in: TeamUpdate) -> Team:
+    async def update(
+        self, db: AsyncSession, *, id: int, obj_in: TeamUpdate, commit: bool = True
+    ) -> Team:
         async with db.begin_nested():
             team = await self.get(db=db, id=id, for_update=True)
             update_data = obj_in.model_dump(exclude_unset=True)

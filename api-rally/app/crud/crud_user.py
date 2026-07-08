@@ -16,7 +16,9 @@ _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
+    async def create(
+        self, db: AsyncSession, *, obj_in: UserCreate, commit: bool = True
+    ) -> User:
         """
         Override default create to keep consistent error handling.
         """
@@ -143,9 +145,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
             raise
 
-    async def update(self, db: AsyncSession, *, id: int, obj_in: UserUpdate) -> User:
+    async def update(
+        self, db: AsyncSession, *, id: int, obj_in: UserUpdate, commit: bool = True
+    ) -> User:
         try:
-            return await super().update(db, id=id, obj_in=obj_in)
+            return await super().update(db, id=id, obj_in=obj_in, commit=commit)
         except IntegrityError as e:
             await db.rollback()
 

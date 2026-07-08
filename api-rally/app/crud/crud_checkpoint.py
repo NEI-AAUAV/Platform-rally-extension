@@ -17,7 +17,9 @@ def _event_filter(event_id: int) -> "ColumnElement[bool]":
 
 
 class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
-    async def create(self, db: AsyncSession, *, obj_in: CheckPointCreate) -> CheckPoint:
+    async def create(
+        self, db: AsyncSession, *, obj_in: CheckPointCreate, commit: bool = True
+    ) -> CheckPoint:
         """Create a checkpoint stamped with the current event id."""
         event_id = await current_event_id(db)
         db_obj = CheckPoint(**obj_in.model_dump(), event_id=event_id)

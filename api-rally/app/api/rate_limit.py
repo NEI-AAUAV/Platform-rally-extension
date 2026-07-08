@@ -66,7 +66,7 @@ async def _enforce(key: str, limit: int, window_seconds: int) -> None:
 
 def rate_limit(
     prefix: str, limit: int, window_seconds: int
-) -> Callable[[Request], Coroutine[Any, Any, None]]:
+) -> Callable[[Request, SettingsDep], Coroutine[Any, Any, None]]:
     """Build a FastAPI dependency enforcing ``limit`` per ``window_seconds``.
 
     Keyed by the resolved client IP under ``rally:ratelimit:{prefix}:{ip}``.

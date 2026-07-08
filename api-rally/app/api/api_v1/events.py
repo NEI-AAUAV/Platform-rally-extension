@@ -26,7 +26,9 @@ from app.utils.round_robin import generate_schedule
 router = APIRouter()
 
 EVENT_NOT_FOUND = "Event not found"
-EVENT_NOT_FOUND_RESPONSES = {404: {"description": EVENT_NOT_FOUND}}
+EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {
+    404: {"description": EVENT_NOT_FOUND}
+}
 
 
 @router.get("/events", tags=["Events"])

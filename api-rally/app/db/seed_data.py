@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 import anyio
 from sqlalchemy import select
@@ -13,8 +14,10 @@ from app.models.checkpoint import CheckPoint
 logger = logging.getLogger(__name__)
 
 
-async def _read_json(path: Path) -> list[dict]:
-    return json.loads(await anyio.Path(path).read_text())
+async def _read_json(path: Path) -> list[dict[str, Any]]:
+    return cast(
+        "list[dict[str, Any]]", json.loads(await anyio.Path(path).read_text())
+    )
 
 
 async def _seed_checkpoints(db: AsyncSession, data_dir: Path, event: "RallyEvent") -> None:
@@ -39,7 +42,7 @@ async def _seed_checkpoints(db: AsyncSession, data_dir: Path, event: "RallyEvent
 
 
 async def _upsert_activity(
-    db: AsyncSession, act_data: dict, event: "RallyEvent"
+    db: AsyncSession, act_data: dict[str, Any], event: "RallyEvent"
 ) -> None:
     cp_id = act_data.get("checkpoint_id")
     checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.order == cp_id))
