@@ -1876,9 +1876,8 @@ test.describe('Staff Evaluation - Form Validation', () => {
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Should show validation error
+          // Should show validation error (toast is transient; assert immediately)
           await expect(
             page.getByText(/valid non-negative time|must be positive|invalid/i).first(),
           ).toBeVisible({ timeout: 5000 });

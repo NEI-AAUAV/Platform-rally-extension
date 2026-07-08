@@ -111,7 +111,6 @@ export default function TimeBasedForm({
           id="timebased-completion-time"
           type="text"
           inputMode="decimal"
-          pattern="[0-9]*[.,]?[0-9]*"
           value={completionTime}
           onChange={(e) => setCompletionTime(e.target.value)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
