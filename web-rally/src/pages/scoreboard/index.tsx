@@ -6,7 +6,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
-import { getCheckpoints, getTeams, type ListingTeam } from "@/client";
+import { getCheckpoints, getTeams, type ListingTeam, type RallySettingsResponse } from "@/client";
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import { useCountdown } from "@/pages/home/useCountdown";
@@ -21,7 +21,7 @@ function NoticeCard({ title, body }: { readonly title: string; readonly body: Re
 }
 
 function getAccessStatus(
-  settings: any,
+  settings: RallySettingsResponse | undefined,
   isPrivileged: boolean,
   isAuthenticated: boolean,
   hasTeamData: boolean,
