@@ -6,15 +6,11 @@ import type { ListingTeam } from '@/client';
 
 
 // Use vi.hoisted() so these are initialized before vi.mock factories run
-const { mockUseRallySettings, mockToast, mockVersusService, mockTeamService } = vi.hoisted(() => ({
+const { mockUseRallySettings, mockToast, mockGetTeamOpponent, mockGetTeams } = vi.hoisted(() => ({
   mockUseRallySettings: vi.fn(),
   mockToast: { error: vi.fn(), success: vi.fn() },
-  mockVersusService: {
-    getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet: vi.fn(),
-  },
-  mockTeamService: {
-    getTeamsApiRallyV1TeamGet: vi.fn(),
-  },
+  mockGetTeamOpponent: vi.fn(),
+  mockGetTeams: vi.fn(),
 }));
 
 // Mock dependencies
@@ -31,8 +27,8 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 vi.mock('@/client', () => ({
-  VersusService: mockVersusService,
-  TeamService: mockTeamService,
+  getTeamOpponent: mockGetTeamOpponent,
+  getTeams: mockGetTeams,
 }));
 
 describe('TeamVsForm', () => {
@@ -49,11 +45,13 @@ describe('TeamVsForm', () => {
         },
       },
     });
-    mockVersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet.mockResolvedValue({});
-    mockTeamService.getTeamsApiRallyV1TeamGet.mockResolvedValue([
-      { id: 2, name: 'Team B' },
-      { id: 3, name: 'Team C' },
-    ]);
+    mockGetTeamOpponent.mockResolvedValue({ data: {} });
+    mockGetTeams.mockResolvedValue({
+      data: [
+        { id: 2, name: 'Team B' },
+        { id: 3, name: 'Team C' },
+      ],
+    });
   });
 
   it('renders correctly with tiered scoring', async () => {
@@ -175,7 +173,7 @@ describe('TeamVsForm', () => {
 
     // Wait for teams to load
     await waitFor(() => {
-      expect(mockTeamService.getTeamsApiRallyV1TeamGet).toHaveBeenCalled();
+      expect(mockGetTeams).toHaveBeenCalled();
     });
 
     // Select opponent
@@ -199,9 +197,8 @@ describe('TeamVsForm', () => {
   });
 
   it('pre-selects opponent if API returns one', async () => {
-    mockVersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet.mockResolvedValue({
-      opponent_id: 3,
-      opponent_name: 'Team C'
+    mockGetTeamOpponent.mockResolvedValue({
+      data: { opponent_id: 3, opponent_name: 'Team C' },
     });
 
     render(
