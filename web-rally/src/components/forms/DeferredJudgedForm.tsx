@@ -6,7 +6,7 @@ import { setTeamPhotoFromResult, captureDeferredResult } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
 import type { Team } from "@/types/forms";
 import type { ActivityResultResponse } from "@/client";
-import { isSafeImageUrl } from "@/lib/url";
+import { isSafeImageUrl, toSafeImageUrl } from "@/lib/url";
 
 interface DeferredJudgedFormProps {
   readonly activityId: number;
@@ -104,7 +104,7 @@ export default function DeferredJudgedForm({
             {mediaUrls.filter(isSafeImageUrl).map((url) => (
               <div key={url} className="relative">
                 <img
-                  src={url}
+                  src={toSafeImageUrl(url) ?? undefined}
                   alt="Foto submetida"
                   className="h-24 w-full rounded border border-border object-cover"
                 />
@@ -139,7 +139,7 @@ export default function DeferredJudgedForm({
             {previewUrls.filter(isSafeImageUrl).map((url, index) => (
               <div key={url} className="relative">
                 <img
-                  src={url}
+                  src={toSafeImageUrl(url) ?? undefined}
                   alt={`Pré-visualização ${index + 1}`}
                   className="h-24 w-full rounded border border-border object-cover"
                 />
