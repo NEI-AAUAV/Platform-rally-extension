@@ -6,6 +6,7 @@ import { useBadgeDefinitionMutations } from "@/hooks/useBadgeAdmin";
 import { apiErrorMessage } from "@/lib/apiError";
 import { TRIGGERS, triggerMeta } from "@/lib/badgeTriggers";
 import { BADGE_FALLBACK } from "@/lib/badges";
+import { isSafeImageUrl } from "@/lib/url";
 import {
   Select,
   SelectContent,
@@ -218,7 +219,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
         </label>
         <div className="flex items-center gap-3">
           {/* live preview tile */}
-          {preview ? (
+          {isSafeImageUrl(preview) ? (
             <img src={preview} alt="" className="h-12 w-12 rounded-xl object-cover" />
           ) : (
             <div
