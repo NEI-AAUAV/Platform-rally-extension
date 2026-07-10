@@ -122,3 +122,88 @@ async def pg_session() -> AsyncIterator[AsyncSession]:
         async with engine.begin() as conn:
             await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
         await engine.dispose()
+
+
+@pytest.fixture
+def pg_client(pg_session: AsyncSession) -> TestClient:
+    """TestClient whose get_db yields the pg_session fixture's session.
+
+    Lets API-layer tests hit real routes against a real Postgres schema
+    instead of mocking the CRUD layer. Auth is untouched here — combine with
+    `as_admin`/`as_user` to bypass the OIDC dependency for a given role.
+    """
+    async def override_get_db():
+        yield pg_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides[get_db] = override_get_db  # restore SQLite override for other tests
+
+
+def _fake_detailed_user(**overrides):
+    from app.schemas.user import DetailedUser
+
+    base = dict(id=1, name="Test Admin", disabled=False, scopes=["admin"])
+    base.update(overrides)
+    return DetailedUser(**base)
+
+
+def _fake_auth_data(**overrides):
+    from app.api.auth import AuthData
+
+    base = dict(oidc_sub="test-admin-sub", name="Test Admin", scopes=["admin"])
+    base.update(overrides)
+    return AuthData(**base)
+
+
+@pytest.fixture
+def as_admin():
+    """Override auth dependencies so requests act as an admin user.
+
+    Bypasses OIDC/JWKS entirely (no token needed) — mirrors the `mock_auth`
+    fixture's approach of patching auth checks rather than faking tokens.
+    """
+    from app.api import deps
+    from app.api.auth import api_nei_auth
+
+    user = _fake_detailed_user(scopes=["admin"])
+    auth_data = _fake_auth_data(scopes=["admin"])
+    app.dependency_overrides[api_nei_auth] = lambda: auth_data
+    app.dependency_overrides[deps.get_admin] = lambda: user
+    app.dependency_overrides[deps.get_admin_or_staff] = lambda: user
+    app.dependency_overrides[deps.get_guide] = lambda: user
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+    try:
+        yield user
+    finally:
+        for dep in (
+            api_nei_auth,
+            deps.get_admin,
+            deps.get_admin_or_staff,
+            deps.get_guide,
+            deps.get_participant,
+            deps.get_current_user_optional,
+        ):
+            app.dependency_overrides.pop(dep, None)
+
+
+@pytest.fixture
+def as_user():
+    """Override auth dependencies so requests act as a plain participant."""
+    from app.api import deps
+    from app.api.auth import api_nei_auth
+
+    user = _fake_detailed_user(id=2, name="Test User", scopes=[])
+    auth_data = _fake_auth_data(oidc_sub="test-user-sub", name="Test User", scopes=[])
+    app.dependency_overrides[api_nei_auth] = lambda: auth_data
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+    try:
+        yield user
+    finally:
+        for dep in (api_nei_auth, deps.get_participant, deps.get_current_user_optional):
+            app.dependency_overrides.pop(dep, None)

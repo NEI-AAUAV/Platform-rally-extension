@@ -1,29 +1,15 @@
-"""Unit tests for the multi-event (edition) foundation.
+"""Tests for the multi-event (edition) foundation, against real Postgres.
 
 Covers the RallyEvent CRUD invariants (single current event, lazy bootstrap,
-slugging) and the per-event settings resolver. The suite is mock-based — the
-ORM uses Postgres-only column types, so these exercise control flow against an
-AsyncMock session rather than a real schema.
+slugging) and the per-event settings resolver, exercising real SQL instead of
+an AsyncMock session.
 """
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
-
 import pytest
 
-from app.crud.crud_activity import CRUDRallyEvent, _slugify
+from app.crud.crud_activity import rally_event, _slugify
 from app.models.activity import EventType
+from app.schemas.activity import RallyEventCreate, RallyEventUpdate
 
-
-def _mock_db() -> AsyncMock:
-    """AsyncMock session whose sync .add is a plain Mock (no await warning)."""
-    db = AsyncMock()
-    db.add = Mock()
-    return db
-
-
-# ---------------------------------------------------------------------------
-# _slugify
-# ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
     "value,expected",
@@ -39,90 +25,77 @@ def test_slugify(value: str, expected: str) -> None:
     assert _slugify(value) == expected
 
 
-# ---------------------------------------------------------------------------
-# set_current
-# ---------------------------------------------------------------------------
-
-async def test_set_current_missing_event_returns_none() -> None:
-    crud = CRUDRallyEvent()
-    db = _mock_db()
-    db.get.return_value = None
-
-    result = await crud.set_current(db, event_id=42)
+async def test_set_current_missing_event_returns_none(pg_session) -> None:
+    result = await rally_event.set_current(pg_session, event_id=42)
 
     assert result is None
-    db.commit.assert_not_called()
 
 
-async def test_set_current_demotes_others_and_promotes_target() -> None:
-    crud = CRUDRallyEvent()
-    target = SimpleNamespace(id=2, is_current=False)
-    previous = SimpleNamespace(id=1, is_current=True)
+async def test_set_current_demotes_others_and_promotes_target(pg_session) -> None:
+    previous = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Previous", is_current=True)
+    )
+    target = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Target", is_current=False)
+    )
 
-    db = _mock_db()
-    db.get.return_value = target
-    # _demote_all iterates the currently-current events.
-    db.scalars.return_value = SimpleNamespace(all=lambda: [previous])
+    result = await rally_event.set_current(pg_session, event_id=target.id)
 
-    result = await crud.set_current(db, event_id=2)
+    assert result.id == target.id
+    assert result.is_current is True
 
-    assert result is target
-    assert target.is_current is True
-    assert previous.is_current is False
-    db.commit.assert_awaited()
-
-
-# ---------------------------------------------------------------------------
-# ensure_current
-# ---------------------------------------------------------------------------
-
-async def test_ensure_current_returns_existing_without_creating() -> None:
-    crud = CRUDRallyEvent()
-    existing = SimpleNamespace(id=7, is_current=True)
-
-    db = _mock_db()
-    # get_current() -> first() of the is_current query.
-    db.scalars.return_value = SimpleNamespace(first=lambda: existing)
-
-    result = await crud.ensure_current(db)
-
-    assert result is existing
-    db.add.assert_not_called()
-    db.commit.assert_not_called()
+    refreshed_previous = await rally_event.get(pg_session, id=previous.id)
+    assert refreshed_previous.is_current is False
 
 
-async def test_ensure_current_adopts_existing_non_current() -> None:
-    crud = CRUDRallyEvent()
-    orphan = SimpleNamespace(id=3, is_current=False)
+async def test_ensure_current_returns_existing_without_creating(pg_session) -> None:
+    existing = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Existing", is_current=True)
+    )
 
-    db = _mock_db()
-    # 1st scalars(): get_current -> None; 2nd scalars(): first existing event.
-    db.scalars.side_effect = [
-        SimpleNamespace(first=lambda: None),
-        SimpleNamespace(first=lambda: orphan),
-    ]
+    result = await rally_event.ensure_current(pg_session)
 
-    result = await crud.ensure_current(db)
-
-    assert result is orphan
-    assert orphan.is_current is True
-    db.commit.assert_awaited()
+    assert result.id == existing.id
+    all_events = await rally_event.get_multi(pg_session)
+    assert len(all_events) == 1
 
 
-async def test_ensure_current_creates_default_when_empty() -> None:
-    crud = CRUDRallyEvent()
-    db = _mock_db()
-    # get_current -> None; adopt query -> None; unique-slug check -> None.
-    db.scalars.side_effect = [
-        SimpleNamespace(first=lambda: None),
-        SimpleNamespace(first=lambda: None),
-    ]
-    db.scalar.return_value = None  # _unique_slug: slug is free
+async def test_ensure_current_adopts_existing_non_current(pg_session) -> None:
+    orphan = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Orphan", is_current=False)
+    )
 
-    result = await crud.ensure_current(db)
+    result = await rally_event.ensure_current(pg_session)
+
+    assert result.id == orphan.id
+    assert result.is_current is True
+
+
+async def test_ensure_current_creates_default_when_empty(pg_session) -> None:
+    result = await rally_event.ensure_current(pg_session)
 
     assert result.is_current is True
     assert result.event_type == EventType.RALLY_TASCAS.value
     assert result.slug == "rally-tascas"
-    db.add.assert_called_once()
-    db.commit.assert_awaited()
+
+
+async def test_create_duplicate_slug_gets_suffixed(pg_session) -> None:
+    first = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Rally Tascas"))
+    second = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Rally Tascas"))
+
+    assert first.slug == "rally-tascas"
+    assert second.slug == "rally-tascas-2"
+
+
+async def test_update_promoting_to_current_demotes_others(pg_session) -> None:
+    previous = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Previous", is_current=True)
+    )
+    target = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Target", is_current=False)
+    )
+
+    await rally_event.update(pg_session, db_obj=target, obj_in=RallyEventUpdate(is_current=True))
+
+    refreshed_previous = await rally_event.get(pg_session, id=previous.id)
+    assert refreshed_previous.is_current is False

@@ -1,279 +1,160 @@
-"""
-Critical Checkpoint API tests
-"""
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db
+"""Checkpoint API tests against a real Postgres schema (pg_client + as_admin/as_user)."""
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.schemas.checkpoint import CheckPointCreate
 
 
-@pytest.fixture
-def mock_db():
-    """Mock async database session"""
-    return AsyncMock()
+async def _make_event(pg_session, **overrides):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True, **overrides)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-@pytest.fixture
-def client_with_mocked_db(mock_db):
-    """Test client with mocked database"""
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+async def _make_checkpoint(pg_session, order: int = 1):
+    return await crud_checkpoint.create(
+        pg_session,
+        obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order),
+    )
 
 
-@pytest.fixture
-def mock_checkpoint_data():
-    """Mock checkpoint data"""
-    return {
-        "id": 1,
-        "name": "Test Checkpoint",
-        "description": "Test checkpoint description",
-        "latitude": 40.7128,
-        "longitude": -74.0060,
-        "order": 1,
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc)
-    }
+class TestCheckpointListing:
+    async def test_get_checkpoints_as_admin_returns_all(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 2
+        assert [cp["order"] for cp in body] == [1, 2]
+
+    async def test_get_checkpoints_empty(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_get_checkpoints_count(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/count")
+
+        assert response.status_code == 200
+        assert response.json() == 1
 
 
-@pytest.fixture
-def mock_team_data():
-    """Mock team data"""
-    return {
-        "id": 1,
-        "name": "Test Team",
-        "times": [datetime.now(timezone.utc)],
-        "checkpoints": [],
-        "is_active": True
-    }
+class TestCheckpointCRUDApi:
+    async def test_create_checkpoint_as_admin(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
 
+        response = pg_client.post(
+            "/api/rally/v1/checkpoint/",
+            json={
+                "name": "New Checkpoint",
+                "description": "New checkpoint description",
+                "latitude": 40.7589,
+                "longitude": -73.9851,
+                "order": 1,
+            },
+        )
 
-class TestCheckpointAPI:
-    """Test Checkpoint API endpoints"""
-    
-    def test_get_checkpoints_success(self, client_with_mocked_db, mock_db, mock_checkpoint_data):
-        """Test getting all checkpoints"""
-        # Mock the database scalars().all() call that the API actually uses
-        mock_scalars = Mock()
-        mock_scalars.all.return_value = [mock_checkpoint_data]
-        mock_db.scalars.return_value = mock_scalars
-        
-        response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
-        
-        # This endpoint requires authentication, so expect 401, 200, or 404 (route not found)
-        assert response.status_code in [200, 401, 404]
-    
-    def test_get_checkpoints_empty(self, client_with_mocked_db, mock_db):
-        """Test getting checkpoints when none exist"""
-        # Mock the database scalars().all() call that the API actually uses
-        mock_scalars = Mock()
-        mock_scalars.all.return_value = []
-        mock_db.scalars.return_value = mock_scalars
-        
-        response = client_with_mocked_db.get("/api/rally/v1/checkpoint/")
-        
-        # This endpoint requires authentication, so expect 401, 200, or 404 (route not found)
-        assert response.status_code in [200, 401, 404]
-    
-    def test_get_next_checkpoint_success(self, client_with_mocked_db, mock_db, mock_checkpoint_data):
-        """Test getting next checkpoint for user"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get_next') as mock_get_next:
-            mock_get_next.return_value = mock_checkpoint_data
-            
-            response = client_with_mocked_db.get("/api/rally/v1/checkpoint/next")
-            
-            # This endpoint requires authentication, so expect 401, 200, 404 (route not found), or 405 (method not allowed)
-            assert response.status_code in [200, 401, 404, 405]
-    
-    def test_get_checkpoint_teams_admin_access(self, client_with_mocked_db, mock_db, mock_team_data):
-        """Test getting teams for a checkpoint (admin access)"""
-        # This test is skipped because get_checkpoint_teams method doesn't exist in CRUDCheckPoint
-        # The actual implementation would need to be added to the CRUD class
-        pass
-    
-    def test_create_checkpoint_admin_access(self, client_with_mocked_db, mock_db, mock_checkpoint_data):
-        """Test creating a checkpoint (admin access)"""
-        checkpoint_data = {
-            "name": "New Checkpoint",
-            "description": "New checkpoint description",
-            "latitude": 40.7589,
-            "longitude": -73.9851,
-            "order": 2
-        }
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.create') as mock_create:
-            mock_create.return_value = mock_checkpoint_data
-            
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/checkpoint/",
-                json=checkpoint_data
-            )
-            
-            # This endpoint requires admin authentication, so expect 401 or 200
-            assert response.status_code in [200, 401]
-    
-    def test_update_checkpoint_admin_access(self, client_with_mocked_db, mock_db, mock_checkpoint_data):
-        """Test updating a checkpoint (admin access)"""
-        update_data = {
-            "name": "Updated Checkpoint",
-            "description": "Updated description"
-        }
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
-             patch('app.crud.crud_checkpoint.checkpoint.update') as mock_update:
-            
-            mock_get.return_value = mock_checkpoint_data
-            mock_update.return_value = {**mock_checkpoint_data, **update_data}
-            
-            response = client_with_mocked_db.put(
-                "/api/rally/v1/checkpoint/1",
-                json=update_data
-            )
-            
-            # This endpoint requires admin authentication, so expect 401 or 200
-            assert response.status_code in [200, 401]
-    
-    def test_delete_checkpoint_admin_access(self, client_with_mocked_db, mock_db):
-        """Test deleting a checkpoint (admin access)"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
-             patch('app.crud.crud_checkpoint.checkpoint.remove') as mock_remove:
-            
-            mock_get.return_value = {"id": 1}
-            mock_remove.return_value = True
-            
-            response = client_with_mocked_db.delete("/api/rally/v1/checkpoint/1")
-            
-            # This endpoint requires admin authentication, so expect 401 or 200
-            assert response.status_code in [200, 401]
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["name"] == "New Checkpoint"
+        assert body["order"] == 1
 
+    async def test_create_checkpoint_duplicate_order_rejected(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
 
-class TestCheckpointCRUD:
-    """Test Checkpoint CRUD operations"""
-    
-    async def test_create_checkpoint_success(self, mock_db):
-        """Test successful checkpoint creation"""
-        with patch('app.crud.crud_checkpoint.checkpoint.create') as mock_create:
-            checkpoint_data = {
-                "name": "Test Checkpoint",
-                "description": "Test description",
-                "latitude": 40.7128,
-                "longitude": -74.0060,
-                "order": 1
-            }
-            mock_create.return_value = {**checkpoint_data, "id": 1}
+        response = pg_client.post(
+            "/api/rally/v1/checkpoint/",
+            json={"name": "Dup", "order": 1},
+        )
 
-            result = await mock_create(mock_db, obj_in=checkpoint_data)
+        assert response.status_code == 400
 
-            assert result["id"] == 1
-            assert result["name"] == "Test Checkpoint"
-            mock_create.assert_called_once_with(mock_db, obj_in=checkpoint_data)
+    async def test_create_checkpoint_requires_admin(self, pg_session, pg_client, as_user):
+        await _make_event(pg_session)
 
-    async def test_get_checkpoint_success(self, mock_db):
-        """Test successful checkpoint retrieval"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get:
-            mock_checkpoint = {"id": 1, "name": "Test Checkpoint"}
-            mock_get.return_value = mock_checkpoint
+        response = pg_client.post(
+            "/api/rally/v1/checkpoint/",
+            json={"name": "New Checkpoint", "order": 1},
+        )
 
-            result = await mock_get(mock_db, id=1)
+        assert response.status_code == 403
 
-            assert result["id"] == 1
-            assert result["name"] == "Test Checkpoint"
-            mock_get.assert_called_once_with(mock_db, id=1)
+    async def test_update_checkpoint_as_admin(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
 
-    async def test_get_checkpoint_not_found(self, mock_db):
-        """Test checkpoint not found"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get:
-            mock_get.side_effect = Exception("Checkpoint Not Found")
+        response = pg_client.put(
+            f"/api/rally/v1/checkpoint/{cp.id}",
+            json={"name": "Updated Checkpoint", "description": "Updated description"},
+        )
 
-            with pytest.raises(Exception):
-                await mock_get(mock_db, id=999)
+        assert response.status_code == 200, response.text
+        assert response.json()["name"] == "Updated Checkpoint"
 
-    async def test_update_checkpoint_success(self, mock_db):
-        """Test successful checkpoint update"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
-             patch('app.crud.crud_checkpoint.checkpoint.update') as mock_update:
+    async def test_update_checkpoint_requires_admin(self, pg_session, pg_client, as_user):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
 
-            original_checkpoint = {"id": 1, "name": "Original"}
-            updated_checkpoint = {"id": 1, "name": "Updated"}
+        response = pg_client.put(
+            f"/api/rally/v1/checkpoint/{cp.id}", json={"name": "Nope"}
+        )
 
-            mock_get.return_value = original_checkpoint
-            mock_update.return_value = updated_checkpoint
+        assert response.status_code == 403
 
-            result = await mock_update(mock_db, db_obj=original_checkpoint, obj_in={"name": "Updated"})
+    async def test_delete_checkpoint_as_admin(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
 
-            assert result["name"] == "Updated"
-            mock_update.assert_called_once()
+        response = pg_client.delete(f"/api/rally/v1/checkpoint/{cp.id}")
 
-    async def test_delete_checkpoint_success(self, mock_db):
-        """Test successful checkpoint deletion"""
-        with patch('app.crud.crud_checkpoint.checkpoint.get') as mock_get, \
-             patch('app.crud.crud_checkpoint.checkpoint.remove') as mock_remove:
+        assert response.status_code == 200
+        assert (await crud_checkpoint.get_multi(pg_session)) == []
 
-            mock_checkpoint = {"id": 1, "name": "Test Checkpoint"}
-            mock_get.return_value = mock_checkpoint
-            mock_remove.return_value = True
+    async def test_delete_checkpoint_requires_admin(self, pg_session, pg_client, as_user):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
 
-            result = await mock_remove(mock_db, id=1)
+        response = pg_client.delete(f"/api/rally/v1/checkpoint/{cp.id}")
 
-            assert result is True
-            mock_remove.assert_called_once_with(mock_db, id=1)
+        assert response.status_code == 403
 
 
 class TestCheckpointBusinessLogic:
-    """Test Checkpoint business logic"""
-    
+    """Pure validation logic — no DB, kept as-is."""
+
     def test_checkpoint_order_validation(self):
-        """Test checkpoint order validation logic"""
         checkpoints = [
             {"id": 1, "order": 1, "name": "First"},
             {"id": 2, "order": 2, "name": "Second"},
-            {"id": 3, "order": 3, "name": "Third"}
+            {"id": 3, "order": 3, "name": "Third"},
         ]
-        
-        # Test valid order
+
         orders = [cp["order"] for cp in checkpoints]
         assert orders == sorted(orders)
-        assert len(set(orders)) == len(orders)  # No duplicates
-    
+        assert len(set(orders)) == len(orders)
+
     def test_checkpoint_coordinate_validation(self):
-        """Test checkpoint coordinate validation"""
         valid_coordinates = [
-            {"latitude": 40.7128, "longitude": -74.0060},  # New York
-            {"latitude": 51.5074, "longitude": -0.1278},   # London
-            {"latitude": 35.6762, "longitude": 139.6503}   # Tokyo
+            {"latitude": 40.7128, "longitude": -74.0060},
+            {"latitude": 51.5074, "longitude": -0.1278},
+            {"latitude": 35.6762, "longitude": 139.6503},
         ]
-        
+
         for coord in valid_coordinates:
             assert -90 <= coord["latitude"] <= 90
             assert -180 <= coord["longitude"] <= 180
-    
-    def test_checkpoint_active_status(self):
-        """Test checkpoint active status logic"""
-        active_checkpoint = {"id": 1, "is_active": True, "name": "Active CP"}
-        inactive_checkpoint = {"id": 2, "is_active": False, "name": "Inactive CP"}
-        
-        # Test active checkpoint
-        assert active_checkpoint["is_active"] is True
-        
-        # Test inactive checkpoint
-        assert inactive_checkpoint["is_active"] is False
-    
-    def test_checkpoint_team_association(self):
-        """Test checkpoint-team association logic"""
-        checkpoint = {"id": 1, "name": "Test Checkpoint"}
-        team = {"id": 1, "name": "Test Team", "checkpoints": [checkpoint]}
-        
-        # Test team has checkpoint
-        assert checkpoint in team["checkpoints"]
-        
-        # Test checkpoint belongs to team
-        assert team["id"] == 1
-        assert checkpoint["id"] == 1

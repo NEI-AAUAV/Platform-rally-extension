@@ -1,89 +1,84 @@
-"""Unit tests for CRUDBase's commit=/flush-only behaviour."""
-from unittest.mock import AsyncMock, MagicMock
+"""Tests for CRUDBase's commit=/flush-only behaviour against real Postgres.
 
+Uses the Team model (already in app.models) instead of a fake stand-in, so
+create/update/remove exercise real SQL — the counterpart to the old
+MagicMock-session version, which only verified commit/flush call counts.
+"""
 import pytest
 
 from app.crud.base import CRUDBase
-
-
-class _Model:
-    """Minimal stand-in for a SQLAlchemy model."""
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+from app.models.team import Team
+from app.schemas.team import TeamUpdate
 
 
 class _CreateSchema:
     def model_dump(self, exclude_unset=False):
-        return {"name": "x"}
-
-
-class _UpdateSchema:
-    def model_dump(self, exclude_unset=False):
-        return {"name": "y"}
+        return {"name": "Test Team", "access_code": "AAAA-1111"}
 
 
 @pytest.fixture
 def crud():
-    return CRUDBase(_Model)
-
-
-@pytest.fixture
-def db():
-    session = MagicMock()
-    session.commit = AsyncMock()
-    session.flush = AsyncMock()
-    session.refresh = AsyncMock()
-    session.delete = AsyncMock()
-    session.get = AsyncMock(return_value=_Model(id=1))
-    session.begin_nested = MagicMock()
-    session.begin_nested.return_value.__aenter__ = AsyncMock(return_value=None)
-    session.begin_nested.return_value.__aexit__ = AsyncMock(return_value=None)
-    return session
+    return CRUDBase(Team)
 
 
 class TestCreate:
-    @pytest.mark.asyncio
-    async def test_commits_by_default(self, crud, db):
-        await crud.create(db, obj_in=_CreateSchema())
-        db.commit.assert_awaited_once()
-        db.flush.assert_not_awaited()
-        db.refresh.assert_awaited_once()
+    async def test_commits_by_default(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
 
-    @pytest.mark.asyncio
-    async def test_commit_false_only_flushes(self, crud, db):
-        await crud.create(db, obj_in=_CreateSchema(), commit=False)
-        db.commit.assert_not_awaited()
-        db.flush.assert_awaited_once()
-        db.refresh.assert_awaited_once()
+        assert team.id is not None
+        # Committed: visible from a fresh query in the same session.
+        again = await crud.get(pg_session, id=team.id)
+        assert again.id == team.id
+
+    async def test_commit_false_only_flushes(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=False)
+
+        assert team.id is not None  # flushed, so it has a PK
+        await pg_session.rollback()
+
+        with pytest.raises(Exception):
+            await crud.get(pg_session, id=team.id)
 
 
 class TestUpdate:
-    @pytest.mark.asyncio
-    async def test_commits_by_default(self, crud, db, monkeypatch):
-        monkeypatch.setattr(crud, "update_unlocked", lambda *, db_obj, obj_in: db_obj)
-        await crud.update(db, id=1, obj_in=_UpdateSchema())
-        db.commit.assert_awaited_once()
-        db.flush.assert_not_awaited()
+    async def test_commits_by_default(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
 
-    @pytest.mark.asyncio
-    async def test_commit_false_only_flushes(self, crud, db, monkeypatch):
-        monkeypatch.setattr(crud, "update_unlocked", lambda *, db_obj, obj_in: db_obj)
-        await crud.update(db, id=1, obj_in=_UpdateSchema(), commit=False)
-        db.commit.assert_not_awaited()
-        db.flush.assert_awaited_once()
+        updated = await crud.update(
+            pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed")
+        )
+        assert updated.name == "Renamed"
+
+        again = await crud.get(pg_session, id=team.id)
+        assert again.name == "Renamed"
+
+    async def test_commit_false_only_flushes(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
+
+        await crud.update(
+            pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=False
+        )
+        await pg_session.rollback()
+
+        again = await crud.get(pg_session, id=team.id)
+        assert again.name == "Test Team"
 
 
 class TestRemove:
-    @pytest.mark.asyncio
-    async def test_commits_by_default(self, crud, db):
-        await crud.remove(db, id=1)
-        db.commit.assert_awaited_once()
-        db.flush.assert_not_awaited()
+    async def test_commits_by_default(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
 
-    @pytest.mark.asyncio
-    async def test_commit_false_only_flushes(self, crud, db):
-        await crud.remove(db, id=1, commit=False)
-        db.commit.assert_not_awaited()
-        db.flush.assert_awaited_once()
+        await crud.remove(pg_session, id=team.id)
+
+        with pytest.raises(Exception):
+            await crud.get(pg_session, id=team.id)
+
+    async def test_commit_false_only_flushes(self, pg_session, crud):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
+
+        await crud.remove(pg_session, id=team.id, commit=False)
+        await pg_session.rollback()
+
+        # Removal was never committed — row still there.
+        again = await crud.get(pg_session, id=team.id)
+        assert again.id == team.id
