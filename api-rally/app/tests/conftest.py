@@ -1,15 +1,37 @@
+from collections.abc import AsyncIterator
+
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    create_async_engine,
+    async_sessionmaker,
+)
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 # Rally is an OIDC resource server: it validates authentik-issued tokens via
 # JWKS discovery and no longer reads a local signing key, so there is nothing to
 # mock at import time.
+from app.core.config import settings as app_settings
 from app.models.base import Base
 from app.main import app
 from app.api.deps import get_db
+
+# Import every model so Base.metadata is complete before create_all in pg_session.
+from app.models import (  # noqa: F401
+    User,
+    Team,
+    CheckPoint,
+    RallyStaffAssignment,
+    Activity,
+    ActivityResult,
+    RallyEvent,
+    RallySettings,
+    TeamBadge,
+    EventParticipation,
+)
 
 # Test database setup — async SQLite (aiosqlite). A single shared file lets the
 # get_db override and the db fixtures see each other's committed data.
@@ -61,3 +83,42 @@ def mock_auth():
     with patch('app.api.api_v1.team_members.require_team_management_permission'):
         with patch('app.api.api_v1.rally_settings.validate_settings_update_access'):
             yield
+
+
+_PG_SCHEMA = app_settings.SCHEMA_NAME
+
+
+def _async_test_pg_url() -> str:
+    """Test Postgres URI with the asyncpg driver."""
+    return str(app_settings.TEST_POSTGRES_URI).replace(
+        "postgresql://", "postgresql+asyncpg://", 1
+    )
+
+
+@pytest_asyncio.fixture
+async def pg_session() -> AsyncIterator[AsyncSession]:
+    """A session against a freshly-created rally schema on the test Postgres.
+
+    Real-schema fixture (exercises actual column types, constraints, SQL) —
+    the counterpart to the SQLite-stub `db`/`db_session` fixtures above, which
+    only provide a session object for mock-based tests. Skips when Postgres is
+    unreachable so the mock-based suite still runs in isolation locally.
+    """
+    engine = create_async_engine(_async_test_pg_url())
+    try:
+        async with engine.begin() as conn:
+            await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
+            await conn.exec_driver_sql(f'CREATE SCHEMA "{_PG_SCHEMA}"')
+            await conn.run_sync(Base.metadata.create_all)
+    except (SQLAlchemyError, OSError) as exc:
+        await engine.dispose()
+        pytest.skip(f"Postgres not available for integration tests: {exc}")
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with maker() as session:
+            yield session
+    finally:
+        async with engine.begin() as conn:
+            await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
+        await engine.dispose()
