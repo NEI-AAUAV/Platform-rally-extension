@@ -43,7 +43,13 @@ async def test_record_updates_existing_idempotent(pg_session):
     crud = CRUDParticipation()
 
     first = await crud.record(pg_session, authentik_sub="sub-1", event_id=event.id, team=team)
-    updated_team = await crud_team.update(pg_session, db_obj=team, obj_in={"total": 99})
+    # `total` isn't exposed via TeamUpdate (it's computed by the scoring
+    # flow); mutate it directly to simulate a score change between snapshots.
+    team.total = 99
+    pg_session.add(team)
+    await pg_session.commit()
+    await pg_session.refresh(team)
+    updated_team = team
 
     second = await crud.record(
         pg_session, authentik_sub="sub-1", event_id=event.id, team=updated_team

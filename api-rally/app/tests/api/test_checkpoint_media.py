@@ -1,62 +1,53 @@
-"""Tests for checkpoint media endpoints (A1)."""
+"""Tests for checkpoint media endpoints (A1), against real Postgres.
+
+`validate_and_store` (R2/S3 upload) stays mocked — it's external I/O, out of
+scope for this migration; everything else (DB, ABAC, routing) is real.
+"""
 import io
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db, get_participant
-from app.api.auth import api_nei_auth
-from app.api.abac_deps import require_checkpoint_management_permission
-from app.schemas.user import DetailedUser
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_checkpoint_media import checkpoint_media as crud_media
+from app.models.activity import RallyEvent
 from app.models.checkpoint_media import MediaKind
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.checkpoint_media import CheckpointMediaCreate
 
 
 def _png_bytes() -> bytes:
     return b"\x89PNG\r\n\x1a\n" + b"0" * 16
 
 
-def _admin_user() -> DetailedUser:
-    return DetailedUser(id=1, name="Admin", disabled=False, team_id=None, is_captain=False, scopes=["admin"])
+async def _make_event(pg_session):
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-def _staff_user() -> DetailedUser:
-    return DetailedUser(id=2, name="Staff", disabled=False, team_id=None, is_captain=False, scopes=["rally-staff"])
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+    )
 
 
-def _make_client(user: DetailedUser, allow_mgmt: bool = True) -> TestClient:
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_participant] = lambda: user
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=user.scopes)
-    if allow_mgmt:
-        app.dependency_overrides[require_checkpoint_management_permission] = lambda: None
-    return TestClient(app)
+async def test_list_media_public(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
+    )
+    await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.fun_fact, caption="Fun fact", order=1),
+    )
 
+    resp = pg_client.get(f"/api/rally/v1/checkpoint/{checkpoint.id}/media")
 
-def _media_obj(id=1, checkpoint_id=10, kind=MediaKind.photo, image_url=None, caption=None, order=0):
-    m = Mock()
-    m.id = id
-    m.checkpoint_id = checkpoint_id
-    m.kind = kind
-    m.image_url = image_url
-    m.caption = caption
-    m.order = order
-    return m
-
-
-@pytest.fixture(autouse=True)
-def clear_overrides():
-    yield
-    app.dependency_overrides.clear()
-
-
-def test_list_media_public():
-    media = [_media_obj(id=1, kind=MediaKind.photo), _media_obj(id=2, kind=MediaKind.fun_fact, caption="Fun fact")]
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_media.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.get_by_checkpoint", new=AsyncMock(return_value=media)):
-        resp = client.get("/api/rally/v1/checkpoint/10/media")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 2
@@ -64,66 +55,94 @@ def test_list_media_public():
     assert data[1]["kind"] == "fun_fact"
 
 
-def test_list_media_404_if_checkpoint_missing():
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_media.crud.checkpoint.get", new=AsyncMock(return_value=None)):
-        resp = client.get("/api/rally/v1/checkpoint/999/media")
+async def test_list_media_404_if_checkpoint_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.get("/api/rally/v1/checkpoint/999999/media")
+
     assert resp.status_code == 404
 
 
-def test_create_media_fun_fact_no_image():
-    created = _media_obj(id=5, kind=MediaKind.fun_fact, caption="Interesting fact", order=0)
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_media.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.create", new=AsyncMock(return_value=created)):
-        resp = client.post(
-            "/api/rally/v1/checkpoint/10/media",
-            data={"kind": "fun_fact", "caption": "Interesting fact", "order": "0"},
-        )
-    assert resp.status_code == 201
+async def test_create_media_fun_fact_no_image(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "fun_fact", "caption": "Interesting fact", "order": "0"},
+    )
+
+    assert resp.status_code == 201, resp.text
     assert resp.json()["kind"] == "fun_fact"
     assert resp.json()["caption"] == "Interesting fact"
 
 
-def test_create_media_photo_with_image():
-    created = _media_obj(id=6, kind=MediaKind.photo, image_url="https://r2/cp10/photo.png")
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_media.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.api.api_v1.checkpoint_media.validate_and_store", new=AsyncMock(return_value="https://r2/cp10/photo.png")), \
-         patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.create", new=AsyncMock(return_value=created)):
-        resp = client.post(
-            "/api/rally/v1/checkpoint/10/media",
+async def test_create_media_photo_with_image(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    with patch(
+        "app.api.api_v1.checkpoint_media.validate_and_store",
+        new=AsyncMock(return_value="https://r2/cp/photo.png"),
+    ):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
             data={"kind": "photo", "order": "0"},
             files={"image": ("photo.png", io.BytesIO(_png_bytes()), "image/png")},
         )
-    assert resp.status_code == 201
-    assert resp.json()["image_url"] == "https://r2/cp10/photo.png"
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["image_url"] == "https://r2/cp/photo.png"
 
 
-def test_delete_media_admin():
-    db_obj = _media_obj(id=3, image_url="https://r2/old.png")
-    client = _make_client(_admin_user())
-    with patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.get", new=AsyncMock(return_value=db_obj)), \
-         patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.delete", new=AsyncMock(return_value=None)):
-        resp = client.delete("/api/rally/v1/checkpoint/media/3")
+async def test_delete_media_admin(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
+    )
+
+    resp = pg_client.delete(f"/api/rally/v1/checkpoint/media/{media.id}")
+
     assert resp.status_code == 204
+    assert await crud_media.get(pg_session, id=media.id) is None
 
 
-def test_delete_media_403_without_permission():
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_participant] = lambda: _staff_user()
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=["rally-staff"])
-    # require_checkpoint_management_permission NOT overridden → raises 403
-    resp = TestClient(app).delete("/api/rally/v1/checkpoint/media/3")
+async def test_delete_media_403_without_permission(pg_session, pg_client, as_user):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
+    )
+
+    resp = pg_client.delete(f"/api/rally/v1/checkpoint/media/{media.id}")
+
     assert resp.status_code == 403
 
 
-def test_reorder_media():
-    reordered = [_media_obj(id=2, order=0), _media_obj(id=1, order=1)]
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_media.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.crud.crud_checkpoint_media.CRUDCheckpointMedia.reorder", new=AsyncMock(return_value=reordered)):
-        resp = client.post("/api/rally/v1/checkpoint/10/media/reorder", json=[2, 1])
-    assert resp.status_code == 200
+async def test_reorder_media(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    first = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
+    )
+    second = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=1),
+    )
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media/reorder",
+        json=[second.id, first.id],
+    )
+
+    assert resp.status_code == 200, resp.text
     ids = [item["id"] for item in resp.json()]
-    assert ids == [2, 1]
+    assert ids == [second.id, first.id]

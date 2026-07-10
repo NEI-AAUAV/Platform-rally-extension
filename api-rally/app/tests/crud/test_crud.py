@@ -11,14 +11,38 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
 from app.models.checkpoint import CheckPoint
+from app.schemas.rally_settings import RallySettingsUpdate
 from app.schemas.user import UserCreate
-from app.schemas.team import TeamCreate, TeamScoresUpdate
+from app.schemas.team import TeamCreate, TeamScoresUpdate, TeamUpdate
+
+
+def _settings_update(current, **overrides) -> RallySettingsUpdate:
+    """RallySettingsUpdate requires every field (full-object PUT semantics);
+    build it from the current row's values with the given overrides applied."""
+    from app.schemas.rally_settings import RallySettingsResponse
+
+    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
+    data.update(overrides)
+    return RallySettingsUpdate(**data)
 
 
 async def _make_event(pg_session, **overrides):
     from app.models.activity import RallyEvent
 
     event = RallyEvent(name="Test Event", is_current=True, **overrides)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
+
+
+async def _set_event_timing(pg_session, event, *, start_time, end_time):
+    """rally_settings.get_or_create() re-syncs timing from the event's own
+    start_time/end_time on every call (see crud_rally_settings._sync_timing_
+    from_event), overwriting any direct edit to RallySettings.rally_*_time —
+    so timing must be set on the event itself, not the settings row."""
+    event.start_time = start_time
+    event.end_time = end_time
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)
@@ -55,7 +79,7 @@ class TestRallySettingsCRUD:
         current = await rally_settings.get_or_create(pg_session)
 
         updated = await rally_settings.update(
-            pg_session, db_obj=current, obj_in={"max_members_per_team": 6}
+            pg_session, id=current.id, obj_in=_settings_update(current, max_members_per_team=6)
         )
 
         assert updated.max_members_per_team == 6
@@ -107,10 +131,10 @@ class TestTeamCRUD:
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
         updated = await crud_team.update(
-            pg_session, db_obj=created, obj_in={"total": 150}
+            pg_session, id=created.id, obj_in=TeamUpdate(name="Renamed Team")
         )
 
-        assert updated.total == 150
+        assert updated.name == "Renamed Team"
 
     async def test_delete_team(self, pg_session):
         await _make_event(pg_session)
@@ -127,15 +151,10 @@ class TestTeamCheckpointLogic:
     async def _setup_active_rally(self, pg_session):
         event = await _make_event(pg_session)
         now = datetime.now(timezone.utc)
-        settings = await rally_settings.get_or_create(pg_session)
-        settings = await rally_settings.update(
-            pg_session,
-            db_obj=settings,
-            obj_in={
-                "rally_start_time": now - timedelta(hours=1),
-                "rally_end_time": now + timedelta(hours=1),
-            },
+        await _set_event_timing(
+            pg_session, event, start_time=now - timedelta(hours=1), end_time=now + timedelta(hours=1)
         )
+        settings = await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
         return event, settings, team, checkpoint
@@ -157,15 +176,10 @@ class TestTeamCheckpointLogic:
     async def test_add_checkpoint_before_rally_start_raises(self, pg_session):
         event = await _make_event(pg_session)
         now = datetime.now(timezone.utc)
-        settings = await rally_settings.get_or_create(pg_session)
-        await rally_settings.update(
-            pg_session,
-            db_obj=settings,
-            obj_in={
-                "rally_start_time": now + timedelta(hours=1),
-                "rally_end_time": now + timedelta(hours=2),
-            },
+        await _set_event_timing(
+            pg_session, event, start_time=now + timedelta(hours=1), end_time=now + timedelta(hours=2)
         )
+        await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
         checkpoint_data = TeamScoresUpdate(

@@ -1,55 +1,45 @@
-"""Tests for checkpoint guide indication endpoints."""
-from unittest.mock import AsyncMock, Mock, patch
-
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db, get_participant
-from app.api.auth import api_nei_auth
-from app.api.abac_deps import require_checkpoint_management_permission
-from app.schemas.user import DetailedUser
+"""Tests for checkpoint guide indication endpoints, against real Postgres."""
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_checkpoint_guide_indication import (
+    checkpoint_guide_indication as crud_indication,
+)
+from app.models.activity import RallyEvent
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.checkpoint_guide_indication import CheckpointGuideIndicationCreate
 
 
-def _admin_user() -> DetailedUser:
-    return DetailedUser(id=1, name="Admin", disabled=False, team_id=None, is_captain=False, scopes=["admin"])
+async def _make_event(pg_session):
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-def _make_client(user: DetailedUser, allow_mgmt: bool = True) -> TestClient:
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_participant] = lambda: user
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=user.scopes)
-    if allow_mgmt:
-        app.dependency_overrides[require_checkpoint_management_permission] = lambda: None
-    return TestClient(app)
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+    )
 
 
-def _indication_obj(id=1, checkpoint_id=10, hint="Say hi", question=None, expected_answer=None, order=0):
-    m = Mock()
-    m.id = id
-    m.checkpoint_id = checkpoint_id
-    m.hint = hint
-    m.question = question
-    m.expected_answer = expected_answer
-    m.order = order
-    return m
+async def test_list_indications(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(hint="Give this hint", order=0),
+    )
+    await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(
+            hint="Ask this", question="Capital?", expected_answer="Lisbon", order=1
+        ),
+    )
 
+    resp = pg_client.get(f"/api/rally/v1/checkpoint/{checkpoint.id}/guide-indications")
 
-@pytest.fixture(autouse=True)
-def clear_overrides():
-    yield
-    app.dependency_overrides.clear()
-
-
-def test_list_indications():
-    items = [
-        _indication_obj(id=1, hint="Give this hint"),
-        _indication_obj(id=2, hint="Ask this", question="Capital?", expected_answer="Lisbon", order=1),
-    ]
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_guide_indication.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.crud.crud_checkpoint_guide_indication.CRUDCheckpointGuideIndication.get_by_checkpoint", new=AsyncMock(return_value=items)):
-        resp = client.get("/api/rally/v1/checkpoint/10/guide-indications")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 2
@@ -57,66 +47,86 @@ def test_list_indications():
     assert data[1]["expected_answer"] == "Lisbon"
 
 
-def test_list_indications_requires_authentication():
-    # No auth override: an anonymous caller must never see indications
-    # (they include expected answers).
-    app.dependency_overrides[get_db] = lambda: Mock()
-    resp = TestClient(app).get("/api/rally/v1/checkpoint/10/guide-indications")
+async def test_list_indications_requires_authentication(pg_session, pg_client):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.get(f"/api/rally/v1/checkpoint/{checkpoint.id}/guide-indications")
+
     assert resp.status_code in (401, 403)
 
 
-def test_list_indications_403_for_participant():
-    # Authenticated but without guide/staff/admin scope → forbidden.
-    participant = DetailedUser(
-        id=2, name="Player", disabled=False, team_id=1, is_captain=False, scopes=[]
-    )
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_participant] = lambda: participant
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=[])
-    resp = TestClient(app).get("/api/rally/v1/checkpoint/10/guide-indications")
+async def test_list_indications_403_for_participant(pg_session, pg_client, as_user):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.get(f"/api/rally/v1/checkpoint/{checkpoint.id}/guide-indications")
+
     assert resp.status_code == 403
 
 
-def test_list_indications_404_if_checkpoint_missing():
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_guide_indication.crud.checkpoint.get", new=AsyncMock(return_value=None)):
-        resp = client.get("/api/rally/v1/checkpoint/999/guide-indications")
+async def test_list_indications_404_if_checkpoint_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.get("/api/rally/v1/checkpoint/999999/guide-indications")
+
     assert resp.status_code == 404
 
 
-def test_create_indication():
-    created = _indication_obj(id=5, hint="Tell them about the statue", question="Who?", expected_answer="Camoes")
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_guide_indication.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))), \
-         patch("app.crud.crud_checkpoint_guide_indication.CRUDCheckpointGuideIndication.create", new=AsyncMock(return_value=created)):
-        resp = client.post(
-            "/api/rally/v1/checkpoint/10/guide-indications",
-            json={"hint": "Tell them about the statue", "question": "Who?", "expected_answer": "Camoes", "order": 0},
-        )
-    assert resp.status_code == 201
+async def test_create_indication(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/guide-indications",
+        json={
+            "hint": "Tell them about the statue",
+            "question": "Who?",
+            "expected_answer": "Camoes",
+            "order": 0,
+        },
+    )
+
+    assert resp.status_code == 201, resp.text
     assert resp.json()["hint"] == "Tell them about the statue"
 
 
-def test_create_indication_requires_hint():
-    client = _make_client(_admin_user())
-    with patch("app.api.api_v1.checkpoint_guide_indication.crud.checkpoint.get", new=AsyncMock(return_value=Mock(id=10))):
-        resp = client.post("/api/rally/v1/checkpoint/10/guide-indications", json={"question": "x"})
+async def test_create_indication_requires_hint(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/guide-indications",
+        json={"question": "x"},
+    )
+
     assert resp.status_code == 422
 
 
-def test_delete_indication_admin():
-    db_obj = _indication_obj(id=3)
-    client = _make_client(_admin_user())
-    with patch("app.crud.crud_checkpoint_guide_indication.CRUDCheckpointGuideIndication.get", new=AsyncMock(return_value=db_obj)), \
-         patch("app.crud.crud_checkpoint_guide_indication.CRUDCheckpointGuideIndication.delete", new=AsyncMock(return_value=None)):
-        resp = client.delete("/api/rally/v1/checkpoint/guide-indications/3")
+async def test_delete_indication_admin(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    indication = await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(hint="Hint", order=0),
+    )
+
+    resp = pg_client.delete(f"/api/rally/v1/checkpoint/guide-indications/{indication.id}")
+
     assert resp.status_code == 204
+    assert await crud_indication.get(pg_session, id=indication.id) is None
 
 
-def test_delete_indication_403_without_permission():
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_participant] = lambda: _admin_user()
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=["rally-guide"])
-    # require_checkpoint_management_permission NOT overridden → raises 403
-    resp = TestClient(app).delete("/api/rally/v1/checkpoint/guide-indications/3")
+async def test_delete_indication_403_without_permission(pg_session, pg_client, as_user):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    indication = await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(hint="Hint", order=0),
+    )
+
+    resp = pg_client.delete(f"/api/rally/v1/checkpoint/guide-indications/{indication.id}")
+
     assert resp.status_code == 403

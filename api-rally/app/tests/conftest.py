@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
 )
+from sqlalchemy.pool import NullPool
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
@@ -96,15 +97,23 @@ def _async_test_pg_url() -> str:
 
 
 @pytest_asyncio.fixture
-async def pg_session() -> AsyncIterator[AsyncSession]:
-    """A session against a freshly-created rally schema on the test Postgres.
+async def _pg_engine():
+    """Engine bound to a freshly-created rally schema on the test Postgres.
 
-    Real-schema fixture (exercises actual column types, constraints, SQL) —
-    the counterpart to the SQLite-stub `db`/`db_session` fixtures above, which
-    only provide a session object for mock-based tests. Skips when Postgres is
-    unreachable so the mock-based suite still runs in isolation locally.
+    Shared by `pg_session` and `pg_client` so both talk to the same schema —
+    `pg_session` opens one long-lived session for direct CRUD calls from the
+    test body; `pg_client` opens a fresh session per HTTP request (TestClient
+    drives its own event loop, so reusing one AsyncSession/asyncpg connection
+    across both raises "attached to a different loop" / "another operation is
+    in progress"). Skips when Postgres is unreachable so the mock-based suite
+    still runs in isolation locally.
     """
-    engine = create_async_engine(_async_test_pg_url())
+    # NullPool: no pooled connections to carry between event loops. TestClient
+    # drives the app on its own loop (via httpx/anyio), separate from the
+    # pytest-asyncio loop this fixture and `pg_session` run on — a pooled
+    # asyncpg connection reused across those loops raises "attached to a
+    # different loop" / "another operation is in progress".
+    engine = create_async_engine(_async_test_pg_url(), poolclass=NullPool)
     try:
         async with engine.begin() as conn:
             await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
@@ -114,33 +123,51 @@ async def pg_session() -> AsyncIterator[AsyncSession]:
         await engine.dispose()
         pytest.skip(f"Postgres not available for integration tests: {exc}")
 
-    maker = async_sessionmaker(engine, expire_on_commit=False)
     try:
-        async with maker() as session:
-            yield session
+        yield engine
     finally:
         async with engine.begin() as conn:
             await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
         await engine.dispose()
 
 
-@pytest.fixture
-def pg_client(pg_session: AsyncSession) -> TestClient:
-    """TestClient whose get_db yields the pg_session fixture's session.
+@pytest_asyncio.fixture
+async def pg_session(_pg_engine) -> AsyncIterator[AsyncSession]:
+    """A single session against the shared test-Postgres schema.
 
-    Lets API-layer tests hit real routes against a real Postgres schema
-    instead of mocking the CRUD layer. Auth is untouched here — combine with
-    `as_admin`/`as_user` to bypass the OIDC dependency for a given role.
+    Real-schema fixture (exercises actual column types, constraints, SQL) —
+    the counterpart to the SQLite-stub `db`/`db_session` fixtures above, which
+    only provide a session object for mock-based tests. For use directly from
+    the test body (seeding data, asserting post-request state) — not shared
+    with `pg_client`, which opens its own sessions per request.
     """
+    maker = async_sessionmaker(_pg_engine, expire_on_commit=False)
+    async with maker() as session:
+        yield session
+
+
+@pytest.fixture
+def pg_client(_pg_engine) -> TestClient:
+    """TestClient whose get_db opens a fresh session per request on the same
+    Postgres schema as `pg_session`.
+
+    A request driven through TestClient runs on its own event loop, so it
+    cannot share `pg_session`'s AsyncSession/asyncpg connection directly.
+    Instead it gets a new session from the same engine per call — the same
+    pattern `app/tests/integration/test_api_e2e_postgres.py::e2e_client` uses.
+    Combine with `as_admin`/`as_user`/`as_team` to bypass OIDC for a role.
+    """
+    maker = async_sessionmaker(_pg_engine, expire_on_commit=False)
+
     async def override_get_db():
-        yield pg_session
+        async with maker() as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
     try:
         yield TestClient(app)
     finally:
-        app.dependency_overrides.pop(get_db, None)
-        app.dependency_overrides[get_db] = override_get_db  # restore SQLite override for other tests
+        app.dependency_overrides[get_db] = override_get_db  # restore the module-level SQLite override
 
 
 def _fake_detailed_user(**overrides):
@@ -207,3 +234,29 @@ def as_user():
     finally:
         for dep in (api_nei_auth, deps.get_participant, deps.get_current_user_optional):
             app.dependency_overrides.pop(dep, None)
+
+
+def as_team(team_id: int, team_name: str = "Test Team"):
+    """Override the team-token dependencies so requests act as a given team.
+
+    Not a fixture itself (needs the team id, only known after creating one) —
+    call from within a test: `with as_team(team.id): ...` isn't needed since
+    dependency_overrides is process-global; use it as a context manager.
+    """
+    from contextlib import contextmanager
+
+    from app.api import deps
+    from app.schemas.team_auth import TeamTokenData
+
+    @contextmanager
+    def _override():
+        token = TeamTokenData(team_id=team_id, team_name=team_name)
+        app.dependency_overrides[deps.get_current_team] = lambda: token
+        app.dependency_overrides[deps.get_current_team_optional] = lambda: token
+        try:
+            yield token
+        finally:
+            app.dependency_overrides.pop(deps.get_current_team, None)
+            app.dependency_overrides.pop(deps.get_current_team_optional, None)
+
+    return _override()
