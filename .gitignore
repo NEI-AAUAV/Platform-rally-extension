@@ -28,7 +28,7 @@ web-rally/.vite/
 web-rally/.eslintcache
 
 # Generated files (OpenAPI client)
-web-rally/openapi.json
+# openapi.json is committed intentionally — it's the visible API contract, diffed in CI
 web-rally/src/client/
 
 # Logs
