@@ -53,6 +53,7 @@ class TeamBadge(Base):
             "checkpoint_id",
             name="uq_team_badge_scope",
         ),
+        {"schema": settings.SCHEMA_NAME},
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

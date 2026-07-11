@@ -8,8 +8,9 @@ from .checkpoint_guide_indication import CheckpointGuideIndication
 from .activity import Activity, ActivityResult, RallyEvent, EventType
 from .rally_settings import RallySettings
 from .badge import BadgeType, TeamBadge
+from .badge_definition import BadgeDefinition
 from .participation import EventParticipation
 
 from .base import Base
 
-__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "RallyGuideAssignment", "CheckpointMedia", "MediaKind", "CheckpointGuideIndication", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "EventParticipation"]
+__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "RallyGuideAssignment", "CheckpointMedia", "MediaKind", "CheckpointGuideIndication", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "BadgeDefinition", "EventParticipation"]
