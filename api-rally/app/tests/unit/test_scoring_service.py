@@ -1,0 +1,552 @@
+"""DB-backed tests for ScoringService orchestration.
+
+These cover the service methods that own scoring side effects (penalties,
+extra shots, result create/update/remove, team-total recompute, rankings and
+statistics). They complement the pure-math property tests in
+test_scoring_properties.py, which never touch the database.
+
+They run on the real-Postgres `pg_session` fixture (the ORM uses PG-only
+column types, so the schema cannot be created on SQLite); with
+RECOMPUTE_OFF_PATH off (the default), _defer_recompute is False, so the
+synchronous scoring path is exercised end to end. The fixture auto-skips when
+Postgres is unreachable.
+"""
+import pytest
+
+from app.models.activity import Activity, ActivityResult
+from app.models.checkpoint import CheckPoint
+from app.models.team import Team
+from app.models.dynamic_scoring import DynamicAward
+from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
+from app.schemas.activity_types import ActivityType
+from app.schemas.team import TeamCreate
+from app.crud.crud_team import team as crud_team
+from app.services.scoring_service import ScoringService
+
+
+# --------------------------------------------------------------------------- #
+# seeding helpers
+# --------------------------------------------------------------------------- #
+async def _make_team(db, name: str = "Team A") -> Team:
+    # crud_team.create generates the required access_code and defaults.
+    return await crud_team.create(db, obj_in=TeamCreate(name=name))
+
+
+_checkpoint_order = 0
+
+
+async def _make_activity(
+    db,
+    *,
+    activity_type: str = ActivityType.GENERAL.value,
+    config: dict | None = None,
+) -> Activity:
+    # update_team_scores only counts results whose activity has a checkpoint
+    # (scores are bucketed by checkpoint order), so every activity gets one.
+    global _checkpoint_order
+    _checkpoint_order += 1
+    checkpoint = CheckPoint(name=f"CP{_checkpoint_order}", order=_checkpoint_order)
+    db.add(checkpoint)
+    await db.flush()
+
+    activity = Activity(
+        name="Act",
+        activity_type=activity_type,
+        config=config or {"min_points": 0, "max_points": 100},
+        checkpoint_id=checkpoint.id,
+    )
+    db.add(activity)
+    await db.commit()
+    await db.refresh(activity)
+    return activity
+
+
+async def _make_result(
+    db,
+    *,
+    team: Team,
+    activity: Activity,
+    result_data: dict,
+    final_score: float,
+    time_score: float | None = None,
+) -> ActivityResult:
+    result = ActivityResult(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data=result_data,
+        final_score=final_score,
+        time_score=time_score,
+        is_completed=True,
+    )
+    db.add(result)
+    await db.commit()
+    await db.refresh(result)
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# team totals
+# --------------------------------------------------------------------------- #
+async def test_calculate_team_total_sums_completed_results(pg_session):
+    team = await _make_team(pg_session)
+    # one result per (activity, team): the pair is uniquely constrained, so two
+    # scored results need two activities.
+    activity_a = await _make_activity(pg_session)
+    activity_b = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity_a,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    await _make_result(
+        pg_session, team=team, activity=activity_b,
+        result_data={"assigned_points": 30}, final_score=30,
+    )
+
+    svc = ScoringService(pg_session)
+    total = await svc.calculate_team_total_score(team.id)
+
+    assert total == 70.0
+
+
+async def test_calculate_team_total_ignores_incomplete(pg_session):
+    team = await _make_team(pg_session)
+    activity_done = await _make_activity(pg_session)
+    activity_pending = await _make_activity(pg_session)
+    completed = await _make_result(
+        pg_session, team=team, activity=activity_done,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    # an incomplete row with a score must not count
+    pending = ActivityResult(
+        activity_id=activity_pending.id, team_id=team.id,
+        result_data={"assigned_points": 99}, final_score=99, is_completed=False,
+    )
+    pg_session.add(pending)
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    assert await svc.calculate_team_total_score(team.id) == 40.0
+    assert completed.final_score == 40
+
+
+async def test_update_team_scores_rounds_and_includes_awards(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50.4,
+    )
+    pg_session.add(DynamicAward(team_id=team.id, points=10, is_active=True))
+    # an inactive award must be excluded
+    pg_session.add(DynamicAward(team_id=team.id, points=99, is_active=False))
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    changed = await svc.update_team_scores(team.id)
+
+    await pg_session.refresh(team)
+    assert changed is True
+    assert team.total == 60  # round(50.4 + 10)
+
+
+async def test_update_team_scores_missing_team_returns_false(pg_session):
+    svc = ScoringService(pg_session)
+    assert await svc.update_team_scores(999999) is False
+
+
+# --------------------------------------------------------------------------- #
+# extra shots
+# --------------------------------------------------------------------------- #
+async def test_apply_extra_shots_bonus_increases_score(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    ok = await svc.apply_extra_shots_bonus(team.id, activity.id, extra_shots=2)
+
+    assert ok is True
+    stmt_result = (await pg_session.scalars(
+        _select_result(activity.id, team.id)
+    )).first()
+    # 50 base + 2 shots * bonus_per_extra_shot(1) = 52
+    assert stmt_result.extra_shots == 2
+    assert stmt_result.final_score == 52
+
+
+async def test_apply_extra_shots_over_limit_rejected(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    # team has 0 members -> team_size 1, max_extra_shots_per_member 5 -> max 5
+    ok = await svc.apply_extra_shots_bonus(team.id, activity.id, extra_shots=20)
+
+    assert ok is False
+
+
+async def test_apply_extra_shots_missing_team(pg_session):
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    assert await svc.apply_extra_shots_bonus(999999, activity.id, 1) is False
+
+
+async def test_apply_extra_shots_missing_result(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    assert await svc.apply_extra_shots_bonus(team.id, activity.id, 1) is False
+
+
+# --------------------------------------------------------------------------- #
+# penalties
+# --------------------------------------------------------------------------- #
+async def test_apply_penalty_reduces_score(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    ok = await svc.apply_penalty(team.id, activity.id, "custom", 10)
+
+    assert ok is True
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.penalties["custom"] == 10
+    assert result.final_score == 40  # 50 - 10
+
+
+async def test_apply_penalty_missing_result(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    assert await svc.apply_penalty(team.id, activity.id, "custom", 5) is False
+
+
+async def test_apply_vomit_penalty_uses_settings_default(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    ok = await svc.apply_vomit_penalty(team.id, activity.id)
+
+    assert ok is True
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    # get_or_create seeds penalty_per_puke = -10 -> abs 10
+    assert result.penalties["vomit"] == 10
+    assert result.final_score == 40  # 50 - 10
+
+
+async def test_apply_drink_penalty_scales_with_participants(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 50}, final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    ok = await svc.apply_drink_penalty(team.id, activity.id, participants_not_drinking=3)
+
+    assert ok is True
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    # penalty_per_not_drinking default -2 -> abs 2 * 3 = 6
+    assert result.penalties["not_drinking"] == 6
+    assert result.final_score == 44
+
+
+# --------------------------------------------------------------------------- #
+# result orchestration
+# --------------------------------------------------------------------------- #
+async def test_create_result_scores_and_persists(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+
+    svc = ScoringService(pg_session)
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 70},
+            is_completed=True,
+        )
+    )
+
+    assert created.id is not None
+    assert created.final_score == 70
+    await pg_session.refresh(team)
+    assert team.total == 70
+
+
+async def test_create_result_unknown_activity_raises(pg_session):
+    team = await _make_team(pg_session)
+    svc = ScoringService(pg_session)
+    with pytest.raises(ValueError):
+        await svc.create_result(
+            ActivityResultCreate(
+                activity_id=999999,
+                team_id=team.id,
+                result_data={"assigned_points": 10},
+                is_completed=True,
+            )
+        )
+
+
+async def test_create_result_invalid_data_raises(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    with pytest.raises(ValueError):
+        # GeneralActivity.validate_result requires assigned_points
+        await svc.create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"wrong": 1},
+                is_completed=True,
+            )
+        )
+
+
+async def test_update_result_rescores_on_data_change(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+
+    svc = ScoringService(pg_session)
+    updated = await svc.update_result(
+        result, ActivityResultUpdate(result_data={"assigned_points": 90})
+    )
+
+    assert updated.final_score == 90
+    await pg_session.refresh(team)
+    assert team.total == 90
+
+
+async def test_remove_result_deletes_and_updates_team(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    await ScoringService(pg_session).update_team_scores(team.id)
+
+    svc = ScoringService(pg_session)
+    removed = await svc.remove_result(result.id)
+
+    assert removed is not None
+    await pg_session.refresh(team)
+    assert team.total == 0
+    assert (await pg_session.get(ActivityResult, result.id)) is None
+
+
+async def test_remove_result_missing_returns_none(pg_session):
+    svc = ScoringService(pg_session)
+    assert await svc.remove_result(999999) is None
+
+
+# --------------------------------------------------------------------------- #
+# rankings & statistics
+# --------------------------------------------------------------------------- #
+async def test_get_team_ranking_orders_by_score(pg_session):
+    activity = await _make_activity(pg_session)
+    strong = await _make_team(pg_session, "Strong")
+    weak = await _make_team(pg_session, "Weak")
+    await _make_result(
+        pg_session, team=strong, activity=activity,
+        result_data={"assigned_points": 90}, final_score=90,
+    )
+    await _make_result(
+        pg_session, team=weak, activity=activity,
+        result_data={"assigned_points": 20}, final_score=20,
+    )
+
+    svc = ScoringService(pg_session)
+    ranking = await svc.get_team_ranking(activity_id=activity.id)
+
+    assert len(ranking) == 2
+    assert ranking[0]["team_id"] == strong.id
+    assert ranking[1]["team_id"] == weak.id
+
+
+async def test_get_activity_statistics_reports_participation(pg_session):
+    activity = await _make_activity(pg_session)
+    team = await _make_team(pg_session)
+    await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 60}, final_score=60,
+    )
+
+    svc = ScoringService(pg_session)
+    stats = await svc.get_activity_statistics(activity.id)
+
+    assert stats["total_participants"] == 1
+    assert stats["average_score"] == 60
+
+
+async def test_get_global_ranking_orders_and_ranks(pg_session):
+    activity = await _make_activity(pg_session)
+    strong = await _make_team(pg_session, "Strong")
+    weak = await _make_team(pg_session, "Weak")
+    await _make_result(
+        pg_session, team=strong, activity=activity,
+        result_data={"assigned_points": 80}, final_score=80,
+    )
+    await _make_result(
+        pg_session, team=weak, activity=activity,
+        result_data={"assigned_points": 20}, final_score=20,
+    )
+
+    svc = ScoringService(pg_session)
+    # activity_id omitted -> global ranking
+    ranking = await svc.get_team_ranking()
+
+    top = next(r for r in ranking if r["team_id"] == strong.id)
+    bottom = next(r for r in ranking if r["team_id"] == weak.id)
+    assert top["rank"] == 1
+    assert top["total_score"] == 80
+    assert bottom["rank"] > top["rank"]
+
+
+async def test_get_activity_statistics_empty(pg_session):
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    stats = await svc.get_activity_statistics(activity.id)
+    assert stats["total_participants"] == 0
+    assert stats["average_score"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# time-based ranking (triggers activity-wide rescore)
+# --------------------------------------------------------------------------- #
+async def test_create_time_based_result_reranks_activity(pg_session):
+    activity = await _make_activity(
+        pg_session,
+        activity_type=ActivityType.TIME_BASED.value,
+        config={"max_points": 100, "min_points": 10},
+    )
+    fast = await _make_team(pg_session, "Fast")
+    slow = await _make_team(pg_session, "Slow")
+
+    svc = ScoringService(pg_session)
+    await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id, team_id=slow.id,
+            result_data={"completion_time_seconds": 90}, is_completed=True,
+        )
+    )
+    await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id, team_id=fast.id,
+            result_data={"completion_time_seconds": 30}, is_completed=True,
+        )
+    )
+
+    fast_res = (await pg_session.scalars(_select_result(activity.id, fast.id))).first()
+    slow_res = (await pg_session.scalars(_select_result(activity.id, slow.id))).first()
+    # faster time must score at least as high as the slower one
+    assert fast_res.final_score >= slow_res.final_score
+    assert fast_res.final_score == 100  # fastest gets max
+
+
+# --------------------------------------------------------------------------- #
+# team vs team
+# --------------------------------------------------------------------------- #
+async def _make_team_vs_activity(db):
+    return await _make_activity(
+        db,
+        activity_type=ActivityType.TEAM_VS.value,
+        config={"win_points": 100, "draw_points": 50, "lose_points": 0},
+    )
+
+
+async def test_validate_team_vs_match_ok(pg_session):
+    activity = await _make_team_vs_activity(pg_session)
+    t1 = await _make_team(pg_session, "T1")
+    t2 = await _make_team(pg_session, "T2")
+    svc = ScoringService(pg_session)
+    assert await svc.validate_team_vs_match(t1.id, t2.id, activity.id) is True
+
+
+async def test_validate_team_vs_match_missing_team(pg_session):
+    activity = await _make_team_vs_activity(pg_session)
+    t1 = await _make_team(pg_session, "T1")
+    svc = ScoringService(pg_session)
+    assert await svc.validate_team_vs_match(t1.id, 999999, activity.id) is False
+
+
+async def test_create_team_vs_result_win_lose(pg_session):
+    activity = await _make_team_vs_activity(pg_session)
+    winner = await _make_team(pg_session, "Winner")
+    loser = await _make_team(pg_session, "Loser")
+
+    svc = ScoringService(pg_session)
+    r1, r2 = await svc.create_team_vs_result(
+        winner.id, loser.id, activity.id, winner_id=winner.id, match_data={},
+    )
+
+    by_team = {r.team_id: r for r in (r1, r2)}
+    assert by_team[winner.id].result_data["result"] == "win"
+    assert by_team[loser.id].result_data["result"] == "lose"
+    assert by_team[winner.id].final_score == 100
+    assert by_team[loser.id].final_score == 0
+
+    await pg_session.refresh(winner)
+    assert winner.total == 100
+
+
+async def test_create_team_vs_result_draw(pg_session):
+    activity = await _make_team_vs_activity(pg_session)
+    t1 = await _make_team(pg_session, "T1")
+    t2 = await _make_team(pg_session, "T2")
+
+    svc = ScoringService(pg_session)
+    r1, r2 = await svc.create_team_vs_result(
+        t1.id, t2.id, activity.id, winner_id=0, match_data={},
+    )
+
+    assert r1.result_data["result"] == "draw"
+    assert r2.result_data["result"] == "draw"
+    assert r1.final_score == 50
+    assert r2.final_score == 50
+
+
+async def test_create_team_vs_result_rejects_completed_rematch(pg_session):
+    activity = await _make_team_vs_activity(pg_session)
+    t1 = await _make_team(pg_session, "T1")
+    t2 = await _make_team(pg_session, "T2")
+
+    svc = ScoringService(pg_session)
+    await svc.create_team_vs_result(t1.id, t2.id, activity.id, winner_id=t1.id, match_data={})
+
+    from app.core.exceptions import RallyValidationError
+    with pytest.raises(RallyValidationError):
+        await svc.create_team_vs_result(t1.id, t2.id, activity.id, winner_id=t2.id, match_data={})
+
+
+# --------------------------------------------------------------------------- #
+# helper: local select to keep test bodies short
+# --------------------------------------------------------------------------- #
+def _select_result(activity_id: int, team_id: int):
+    from sqlalchemy import select
+    return select(ActivityResult).where(
+        ActivityResult.activity_id == activity_id,
+        ActivityResult.team_id == team_id,
+    )
