@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export interface SwitchProps {
+  id?: string;
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
@@ -9,10 +10,11 @@ export interface SwitchProps {
 }
 
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
-  ({ className, checked, onCheckedChange, disabled, ...props }, ref) => {
+  ({ className, id, checked, onCheckedChange, disabled, ...props }, ref) => {
     return (
       <label className={cn("relative inline-flex cursor-pointer items-center", className)}>
         <input
+          id={id}
           type="checkbox"
           ref={ref}
           checked={checked}

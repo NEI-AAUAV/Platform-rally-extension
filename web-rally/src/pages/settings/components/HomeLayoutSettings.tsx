@@ -179,6 +179,7 @@ export default function HomeLayoutSettings({
                       control={control}
                       render={({ field: textField }) => (
                         <Input
+                          aria-label={`Item ${index + 1} da faixa de destaques`}
                           value={textField.value ?? ""}
                           onChange={(e) => textField.onChange(e.target.value)}
                           disabled={disabled}
