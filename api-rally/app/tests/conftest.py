@@ -32,6 +32,8 @@ from app.models import (  # noqa: F401
     RallySettings,
     TeamBadge,
     BadgeDefinition,
+    DynamicRule,
+    DynamicAward,
     EventParticipation,
 )
 

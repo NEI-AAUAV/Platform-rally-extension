@@ -1,194 +1,152 @@
-"""
-API tests for Activities endpoints
-"""
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db
-from app.schemas.activity import ActivityType
+"""API tests for Activities endpoints, against real Postgres."""
+from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.schemas.activity import ActivityCreate, ActivityType
+from app.schemas.checkpoint import CheckPointCreate
 
 
-@pytest.fixture
-def mock_db():
-    """Mock database session"""
-    return Mock()
+async def _make_event(pg_session):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-@pytest.fixture
-def client_with_mocked_db(mock_db):
-    """Test client with mocked database"""
-    def override_get_db():
-        return mock_db
-    
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+    )
 
 
-@pytest.fixture
-def mock_activity():
-    """Mock activity data"""
-    return {
-        "id": 1,
-        "name": "Test Activity",
-        "description": "Test Description",
-        "activity_type": "GeneralActivity",
-        "checkpoint_id": 1,
-        "config": {"max_points": 100, "min_points": 0},
-        "is_active": True
-    }
-
-
-@pytest.fixture
-def mock_current_user():
-    """Mock current user with admin permissions"""
-    user = Mock()
-    user.id = 1
-    user.name = "Admin User"
-    user.scopes = ["admin"]
-    return user
-
-
-@pytest.fixture
-def mock_auth_data():
-    """Mock auth data with admin scopes"""
-    auth = Mock()
-    auth.scopes = ["admin", "manager-rally"]
-    return auth
+async def _make_activity(pg_session, checkpoint_id, name="Test Activity"):
+    return await crud_activity.create(
+        pg_session,
+        obj_in=ActivityCreate(
+            name=name,
+            description="Test Description",
+            activity_type=ActivityType.GENERAL,
+            checkpoint_id=checkpoint_id,
+            config={"max_points": 100, "min_points": 0},
+            is_active=True,
+        ),
+    )
 
 
 class TestActivitiesAPI:
-    """Test Activities API endpoints"""
-    
-    def test_create_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test creating an activity successfully"""
-        with patch('app.api.api_v1.activities.activity.create') as mock_create:
-            mock_create.return_value = mock_activity
-            
-            activity_data = {
+    async def test_create_activity_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/",
+            json={
                 "name": "Test Activity",
                 "description": "Test Description",
                 "activity_type": "GeneralActivity",
-                "checkpoint_id": 1,
+                "checkpoint_id": checkpoint.id,
                 "config": {"max_points": 100, "min_points": 0},
-                "is_active": True
-            }
-            
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/activities/",
-                json=activity_data
-            )
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 201, 401]
-    
-    def test_get_activities_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test getting activities list successfully"""
-        with patch('app.api.api_v1.activities.activity.get_multi') as mock_get:
-            mock_get.return_value = [mock_activity]
-            
-            response = client_with_mocked_db.get("/api/rally/v1/activities/")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401]
-    
-    def test_get_activities_by_checkpoint(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test getting activities filtered by checkpoint"""
-        with patch('app.api.api_v1.activities.activity.get_by_checkpoint') as mock_get:
-            mock_get.return_value = [mock_activity]
-            
-            response = client_with_mocked_db.get("/api/rally/v1/activities/?checkpoint_id=1")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401]
-    
-    def test_get_activity_by_id_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test getting a specific activity by ID"""
-        with patch('app.api.api_v1.activities.activity.get') as mock_get:
-            mock_get.return_value = mock_activity
-            
-            response = client_with_mocked_db.get("/api/rally/v1/activities/1")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401, 404]
-    
-    def test_update_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test updating an activity successfully"""
-        with patch('app.api.api_v1.activities.activity.get') as mock_get, \
-             patch('app.api.api_v1.activities.activity.update') as mock_update:
-            mock_get.return_value = mock_activity
-            
-            updated_activity = mock_activity.copy()
-            updated_activity["name"] = "Updated Activity"
-            mock_update.return_value = updated_activity
-            
-            update_data = {
-                "name": "Updated Activity"
-            }
-            
-            response = client_with_mocked_db.put(
-                "/api/rally/v1/activities/1",
-                json=update_data
-            )
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401, 404]
-    
-    def test_delete_activity_success(self, client_with_mocked_db, mock_db, mock_activity, mock_current_user, mock_auth_data):
-        """Test deleting an activity successfully"""
-        with patch('app.api.api_v1.activities.activity.get') as mock_get, \
-             patch('app.api.api_v1.activities.activity.remove') as mock_delete:
-            mock_get.return_value = mock_activity
-            mock_delete.return_value = mock_activity
-            
-            response = client_with_mocked_db.delete("/api/rally/v1/activities/1")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 204, 401, 404]
-    
-    @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_all_activity_results(self, client_with_mocked_db, mock_db, mock_current_user, mock_auth_data):
-        """Test getting all activity results"""
-        # This test requires complex query chain mocking
-        pass
+                "is_active": True,
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["name"] == "Test Activity"
+
+    async def test_get_activities_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.get("/api/rally/v1/activities/")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["activities"][0]["name"] == "Test Activity"
+
+    async def test_get_activities_by_checkpoint(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        await _make_activity(pg_session, cp1.id, name="A1")
+        await _make_activity(pg_session, cp2.id, name="A2")
+
+        resp = pg_client.get(f"/api/rally/v1/activities/?checkpoint_id={cp1.id}")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["activities"][0]["name"] == "A1"
+
+    async def test_get_activity_by_id_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.get(f"/api/rally/v1/activities/{act.id}")
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == act.id
+
+    async def test_get_activity_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/activities/999999")
+
+        assert resp.status_code == 404
+
+    async def test_update_activity_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.put(
+            f"/api/rally/v1/activities/{act.id}", json={"name": "Updated Activity"}
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["name"] == "Updated Activity"
+
+    async def test_delete_activity_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.delete(f"/api/rally/v1/activities/{act.id}")
+
+        assert resp.status_code == 200
+
+    async def test_get_all_activity_results_empty(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/activities/results")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
 
 
 class TestActivitiesBusinessLogic:
-    """Test activities business logic"""
-    
     def test_activity_config_merge(self):
-        """Test activity configuration merging"""
         from app.models.activity_factory import ActivityFactory
-        
-        # Test default config retrieval
+
         default_config = ActivityFactory.get_default_config("GeneralActivity")
         assert default_config is not None
         assert "max_points" in default_config or "min_points" in default_config
-    
-    def test_activity_type_validation(self):
-        """Test activity type validation"""
-        from app.models.activity_factory import ActivityFactory
-        
-        # Test valid activity types
-        valid_types = ["GeneralActivity", "TimeBasedActivity", "ScoreBasedActivity", 
-                      "BooleanActivity", "TeamVsActivity"]
-        
-        for activity_type in valid_types:
-            try:
-                config = ActivityFactory.get_default_config(activity_type)
-                assert config is not None
-            except (ValueError, AttributeError):
-                # ActivityFactory may not exist or may raise different exceptions
-                pass
-        
-        # Test invalid activity type
-        try:
-            ActivityFactory.get_default_config("InvalidActivityType")
-            # If it doesn't raise ValueError, that's also ok for this test
-        except (ValueError, AttributeError):
-            pass
 
+    def test_activity_type_validation(self):
+        from app.models.activity_factory import ActivityFactory
+
+        valid_types = [
+            "GeneralActivity",
+            "TimeBasedActivity",
+            "ScoreBasedActivity",
+            "BooleanActivity",
+            "TeamVsActivity",
+        ]
+
+        for activity_type in valid_types:
+            config = ActivityFactory.get_default_config(activity_type)
+            assert config is not None
