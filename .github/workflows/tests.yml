@@ -9,11 +9,13 @@ on:
     paths:
       - 'api-rally/**'
       - 'web-rally/**'
+      - '.github/workflows/tests.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'api-rally/**'
       - 'web-rally/**'
+      - '.github/workflows/tests.yml'
   workflow_dispatch:
     inputs:
       test_type:
