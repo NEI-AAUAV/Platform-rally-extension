@@ -277,12 +277,24 @@ jobs:
         name: frontend-test-results
         path: web-rally/coverage/
 
+    - name: Create test database
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+      env:
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: postgres_test
+
     - name: Run integration tests
       run: |
         chmod +x run-tests.sh
         ./run-tests.sh
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
+        TEAM_JWT_SECRET_KEY: test_secret
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
