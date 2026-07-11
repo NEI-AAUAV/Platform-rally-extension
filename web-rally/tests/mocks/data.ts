@@ -169,6 +169,8 @@ export const MOCK_JWT_TOKEN = MOCK_JWT_TOKEN_STAFF;
 
 // Mock JWT token for a tour guide (rally-guide scope)
 // Decodes to: { sub: "guide-user-789", name: "Guide User", scopes: ["rally-guide"], iat: 1516239022 }
+// NOSONAR - not a secret: a fabricated test JWT with the literal signature
+// "test" and a public example payload; used only by the frontend test suite.
 export const MOCK_JWT_TOKEN_GUIDE = [
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
   'eyJzdWIiOiJndWlkZS11c2VyLTc4OSIsIm5hbWUiOiJHdWlkZSBVc2VyIiwic2NvcGVzIjpbInJhbGx5LWd1aWRlIl0sImlhdCI6MTUxNjIzOTAyMn0',

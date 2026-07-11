@@ -1,5 +1,9 @@
 name: Docker Build Validation
 
+# Validation only builds images (push: false); read access is sufficient.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]

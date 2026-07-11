@@ -1,5 +1,9 @@
 name: Deploy into NEI VM
 
+# Least-privilege default; jobs that pull images set packages: read themselves.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

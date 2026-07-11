@@ -11,6 +11,7 @@ Run standalone: `python fake_oidc_provider.py` (binds 0.0.0.0:9009).
 Mint a token for other scripts: `from fake_oidc_provider import mint_token`.
 """
 
+import os
 import time
 import uuid
 from typing import Any
@@ -20,7 +21,10 @@ from authlib.jose import JsonWebKey, jwt
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-ISSUER = "http://fake-oidc:9009"
+# Internal-only issuer: this fake provider is reached over the smoke stack's
+# private docker network by hostname, where TLS adds nothing. Not internet
+# facing and never used outside the smoke suite.
+ISSUER = "http://fake-oidc:9009"  # NOSONAR - internal docker-network issuer
 CLIENT_ID = "rally-smoke-client"
 APPLICATION_SLUG = "rally"
 
@@ -93,4 +97,8 @@ def mint(body: MintRequest) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9009)
+    # Binds all interfaces by default so it is reachable from sibling smoke
+    # containers; override with FAKE_OIDC_HOST for a narrower bind locally.
+    # This process only ever runs inside the ephemeral smoke stack.
+    host = os.getenv("FAKE_OIDC_HOST", "0.0.0.0")  # NOSONAR - smoke-only container service
+    uvicorn.run(app, host=host, port=9009)

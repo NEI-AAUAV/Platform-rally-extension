@@ -1,5 +1,9 @@
 name: Code Quality
 
+# Least-privilege default token; jobs opt into more only if needed.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
