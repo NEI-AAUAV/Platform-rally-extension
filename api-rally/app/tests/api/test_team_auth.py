@@ -1,115 +1,66 @@
-"""
-Tests for Team Auth API endpoints (team login / token management)
-"""
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
+"""Tests for Team Auth API endpoints (team login / token management), against
+real Postgres for the HTTP-layer tests. Token-helper unit tests need no DB."""
 from datetime import datetime, timezone, timedelta
+
+import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 from jose import jwt
 
-from app.main import app
-from app.api.deps import get_db
 from app.core.config import settings
+from app.crud.crud_team import team as crud_team
+from app.schemas.team import TeamCreate
+
+
+async def _make_team(pg_session, name="Test Team"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# Unit tests for token helpers (no HTTP layer, no DB)
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def mock_db():
-    """Mock database session"""
-    return Mock()
-
-
-@pytest.fixture
-def client_with_mocked_db(mock_db):
-    """Test client with mocked database"""
-    def override_get_db():
-        return mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def mock_team():
-    """Mock team with access_code"""
-    team = Mock()
-    team.id = 1
-    team.name = "Test Team"
-    team.access_code = "ABCD-1234"
-    team.is_active = True
-    team.times = []
-    team.total = 0
-    return team
-
-
-# ---------------------------------------------------------------------------
-# Unit tests for token helpers (no HTTP layer)
-# ---------------------------------------------------------------------------
 
 class TestCreateTeamAccessToken:
-    """Unit tests for create_team_access_token"""
-
     def test_creates_valid_jwt(self):
-        """Token should be decodable and carry the team claims"""
         from app.api.api_v1.team_auth import create_team_access_token
 
         token = create_team_access_token(team_id=1, team_name="Test Team")
 
         assert settings.TEAM_JWT_SECRET_KEY is not None
         payload = jwt.decode(
-            token,
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithms=[settings.TEAM_JWT_ALGORITHM],
+            token, settings.TEAM_JWT_SECRET_KEY, algorithms=[settings.TEAM_JWT_ALGORITHM]
         )
         assert payload["team_id"] == 1
         assert payload["team_name"] == "Test Team"
         assert payload["type"] == "team_access"
 
     def test_token_includes_expiry(self):
-        """Token should include an 'exp' claim"""
         from app.api.api_v1.team_auth import create_team_access_token
 
         token = create_team_access_token(team_id=1, team_name="Test Team")
 
-        assert settings.TEAM_JWT_SECRET_KEY is not None
         payload = jwt.decode(
-            token,
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithms=[settings.TEAM_JWT_ALGORITHM],
+            token, settings.TEAM_JWT_SECRET_KEY, algorithms=[settings.TEAM_JWT_ALGORITHM]
         )
         assert "exp" in payload
 
     def test_expiry_matches_settings(self):
-        """Token should expire TEAM_TOKEN_EXPIRE_HOURS from now"""
         from app.api.api_v1.team_auth import create_team_access_token
 
         before = datetime.now(timezone.utc)
         token = create_team_access_token(team_id=1, team_name="Test Team")
         after = datetime.now(timezone.utc)
 
-        assert settings.TEAM_JWT_SECRET_KEY is not None
         payload = jwt.decode(
-            token,
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithms=[settings.TEAM_JWT_ALGORITHM],
+            token, settings.TEAM_JWT_SECRET_KEY, algorithms=[settings.TEAM_JWT_ALGORITHM]
         )
         expire_delta = timedelta(hours=settings.TEAM_TOKEN_EXPIRE_HOURS)
-        # JWT exp is truncated to whole seconds, so allow 1s slack on the lower bound.
         exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         assert before + expire_delta - timedelta(seconds=1) <= exp <= after + expire_delta + timedelta(seconds=5)
 
 
 class TestVerifyTeamToken:
-    """Unit tests for verify_team_token"""
-
     def test_returns_team_data_for_valid_token(self):
-        """Should decode a valid token and return its TeamTokenData"""
         from app.api.api_v1.team_auth import create_team_access_token, verify_team_token
 
         token = create_team_access_token(team_id=42, team_name="Answer")
@@ -119,10 +70,8 @@ class TestVerifyTeamToken:
         assert data.team_name == "Answer"
 
     def test_raises_for_expired_token(self):
-        """Should raise 401 for an expired token"""
         from app.api.api_v1.team_auth import verify_team_token
 
-        assert settings.TEAM_JWT_SECRET_KEY is not None
         expired_token = jwt.encode(
             {
                 "team_id": 1,
@@ -138,7 +87,6 @@ class TestVerifyTeamToken:
         assert exc.value.status_code == 401
 
     def test_raises_for_invalid_token(self):
-        """Should raise 401 for a tampered / invalid token"""
         from app.api.api_v1.team_auth import verify_team_token
 
         with pytest.raises(HTTPException) as exc:
@@ -146,7 +94,6 @@ class TestVerifyTeamToken:
         assert exc.value.status_code == 401
 
     def test_raises_for_wrong_secret(self):
-        """Should raise 401 when token was signed with a different secret"""
         from app.api.api_v1.team_auth import verify_team_token
 
         bad_token = jwt.encode(
@@ -165,121 +112,92 @@ class TestVerifyTeamToken:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests (HTTP layer)
+# Integration tests (HTTP layer, real Postgres)
 # ---------------------------------------------------------------------------
 
+
 class TestTeamAuthAPI:
-    """Integration tests for team auth endpoints"""
+    async def test_login_success(self, pg_session, pg_client):
+        team = await _make_team(pg_session)
 
-    def test_login_success(self, client_with_mocked_db, mock_db, mock_team):
-        """POST /team-auth/login with valid access_code should return a token"""
-        with patch("app.api.api_v1.team_auth.crud_team") as mock_crud:
-            mock_crud.get_by_access_code = AsyncMock(return_value=mock_team)
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
 
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/team-auth/login",
-                json={"access_code": "ABCD-1234"},
-            )
-
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         data = response.json()
         assert "access_token" in data
         assert data["token_type"] == "bearer"
-        assert data["team_id"] == mock_team.id
-        assert data["team_name"] == mock_team.name
+        assert data["team_id"] == team.id
+        assert data["team_name"] == team.name
 
-    def test_login_invalid_code(self, client_with_mocked_db, mock_db):
-        """POST /team-auth/login with invalid access_code should return 401"""
-        with patch("app.api.api_v1.team_auth.crud_team") as mock_crud:
-            mock_crud.get_by_access_code = AsyncMock(return_value=None)
+    async def test_login_invalid_code(self, pg_session, pg_client):
+        await _make_team(pg_session)
 
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/team-auth/login",
-                json={"access_code": "WRNG-CODE"},
-            )
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": "WRNG-CODE"}
+        )
 
         assert response.status_code == 401
 
-    def test_login_missing_body(self, client_with_mocked_db):
-        """POST /team-auth/login without body should return 422"""
-        response = client_with_mocked_db.post("/api/rally/v1/team-auth/login", json={})
+    async def test_login_missing_body(self, pg_client):
+        response = pg_client.post("/api/rally/v1/team-auth/login", json={})
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
         "bad_code",
         ["short", "abcd-1234", "ABCD1234", "ABCD-12345", "A" * 100, "ABCD-123!"],
     )
-    def test_login_rejects_malformed_access_code(self, client_with_mocked_db, bad_code):
-        """Access codes outside XXXX-XXXX are rejected before the DB lookup."""
-        response = client_with_mocked_db.post(
-            "/api/rally/v1/team-auth/login",
-            json={"access_code": bad_code},
+    async def test_login_rejects_malformed_access_code(self, pg_client, bad_code):
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": bad_code}
         )
         assert response.status_code == 422
 
-    def test_refresh_with_valid_token(self, client_with_mocked_db, mock_db, mock_team):
-        """POST /team-auth/refresh with a valid Bearer token should return a new token"""
+    async def test_refresh_with_valid_token(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
-        token = create_team_access_token(team_id=mock_team.id, team_name=mock_team.name)
+        token = create_team_access_token(team_id=1, team_name="Test Team")
 
-        response = client_with_mocked_db.post(
-            "/api/rally/v1/team-auth/refresh",
-            headers={"Authorization": f"Bearer {token}"},
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
         )
 
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert data["team_id"] == mock_team.id
-        assert data["team_name"] == mock_team.name
+        assert data["team_id"] == 1
+        assert data["team_name"] == "Test Team"
 
-    def test_refresh_with_invalid_token(self, client_with_mocked_db):
-        """POST /team-auth/refresh with an invalid token should return 401"""
-        response = client_with_mocked_db.post(
+    async def test_refresh_with_invalid_token(self, pg_client):
+        response = pg_client.post(
             "/api/rally/v1/team-auth/refresh",
             headers={"Authorization": "Bearer invalid.token.here"},
         )
         assert response.status_code in [401, 404]
 
-    def test_refresh_without_token(self, client_with_mocked_db):
-        """POST /team-auth/refresh without Authorization header should return 401/403"""
-        response = client_with_mocked_db.post("/api/rally/v1/team-auth/refresh")
+    async def test_refresh_without_token(self, pg_client):
+        response = pg_client.post("/api/rally/v1/team-auth/refresh")
         assert response.status_code in [401, 403, 404, 422]
 
 
 class TestTokenLifecycleHardening:
-    """Session-lifetime and token-integrity guarantees."""
-
-    def _client(self, mock_db):
-        app.dependency_overrides[get_db] = lambda: mock_db
-        return TestClient(app)
-
-    def teardown_method(self):
-        app.dependency_overrides.clear()
-
-    def test_refresh_carries_original_login_time(self, mock_db):
-        """orig_iat must survive a refresh so the absolute lifetime holds."""
+    async def test_refresh_carries_original_login_time(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         orig = int((datetime.now(timezone.utc) - timedelta(hours=2)).timestamp())
         token = create_team_access_token(team_id=1, team_name="T", orig_iat=orig)
 
-        response = self._client(mock_db).post(
-            "/api/rally/v1/team-auth/refresh",
-            headers={"Authorization": f"Bearer {token}"},
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         payload = jwt.decode(
-            response.json()["access_token"],
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithms=["HS256"],
+            response.json()["access_token"], settings.TEAM_JWT_SECRET_KEY, algorithms=["HS256"]
         )
         assert payload["orig_iat"] == orig
 
-    def test_refresh_rejected_beyond_absolute_lifetime(self, mock_db):
-        """A token chain older than TEAM_TOKEN_MAX_LIFETIME_HOURS cannot be
-        extended — the team must log in again."""
+    async def test_refresh_rejected_beyond_absolute_lifetime(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         too_old = int(
@@ -290,21 +208,18 @@ class TestTokenLifecycleHardening:
         )
         token = create_team_access_token(team_id=1, team_name="T", orig_iat=too_old)
 
-        response = self._client(mock_db).post(
-            "/api/rally/v1/team-auth/refresh",
-            headers={"Authorization": f"Bearer {token}"},
+        response = pg_client.post(
+            "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 401
         assert "log in again" in response.json()["detail"].lower()
 
-    def test_verify_accepts_valid_and_rejects_expired(self, mock_db):
+    async def test_verify_accepts_valid_and_rejects_expired(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
-        client = self._client(mock_db)
         valid = create_team_access_token(team_id=7, team_name="Sete")
-        ok = client.get(
-            "/api/rally/v1/team-auth/verify",
-            headers={"Authorization": f"Bearer {valid}"},
+        ok = pg_client.get(
+            "/api/rally/v1/team-auth/verify", headers={"Authorization": f"Bearer {valid}"}
         )
         assert ok.status_code == 200
         assert ok.json()["team_id"] == 7
@@ -319,14 +234,12 @@ class TestTokenLifecycleHardening:
             settings.TEAM_JWT_SECRET_KEY,
             algorithm="HS256",
         )
-        bad = client.get(
-            "/api/rally/v1/team-auth/verify",
-            headers={"Authorization": f"Bearer {expired}"},
+        bad = pg_client.get(
+            "/api/rally/v1/team-auth/verify", headers={"Authorization": f"Bearer {expired}"}
         )
         assert bad.status_code == 401
 
-    def test_verify_rejects_token_signed_with_other_algorithm_key(self, mock_db):
-        """A token signed with a different secret must never verify."""
+    async def test_verify_rejects_token_signed_with_other_algorithm_key(self, pg_client):
         forged = jwt.encode(
             {
                 "team_id": 1,
@@ -337,8 +250,7 @@ class TestTokenLifecycleHardening:
             "attacker-secret",
             algorithm="HS256",
         )
-        response = self._client(mock_db).get(
-            "/api/rally/v1/team-auth/verify",
-            headers={"Authorization": f"Bearer {forged}"},
+        response = pg_client.get(
+            "/api/rally/v1/team-auth/verify", headers={"Authorization": f"Bearer {forged}"}
         )
         assert response.status_code == 401

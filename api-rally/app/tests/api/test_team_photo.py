@@ -1,65 +1,87 @@
-"""Tests for the team photo upload endpoint (PUT /team/{id}/photo)."""
+"""Tests for the team photo upload endpoint (PUT /team/{id}/photo), against
+real Postgres. `validate_and_store` (R2/S3 upload) stays mocked — external I/O.
+"""
 import io
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db, get_participant
-from app.api.auth import api_nei_auth
-from app.schemas.user import DetailedUser
+from app.crud.crud_team import team as crud_team
+from app.schemas.team import TeamCreate
 
 
 def _png_upload() -> dict:
     return {"image": ("team.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 16), "image/png")}
 
 
-@pytest.fixture
-def captain_user() -> DetailedUser:
-    return DetailedUser(id=5, name="Cap", disabled=False, team_id=1, is_captain=True, scopes=[])
+async def _make_event(pg_session):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-@pytest.fixture
-def outsider_user() -> DetailedUser:
-    return DetailedUser(id=6, name="Out", disabled=False, team_id=2, is_captain=False, scopes=[])
+async def _make_team(pg_session, name="T"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
 
 
-@pytest.fixture
-def client_for(captain_user):
-    """Build a TestClient with auth/db overridden to a given user."""
-    def _make(user: DetailedUser) -> TestClient:
-        app.dependency_overrides[get_db] = lambda: Mock()
-        app.dependency_overrides[get_participant] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=user.scopes)
-        return TestClient(app)
+def _captain_override(app, team_id: int):
+    from app.api import deps
+    from app.api.auth import api_nei_auth, AuthData
+    from app.schemas.user import DetailedUser
 
-    yield _make
-    app.dependency_overrides.clear()
+    user = DetailedUser(id=5, name="Cap", disabled=False, team_id=team_id, is_captain=True, scopes=[])
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[api_nei_auth] = lambda: AuthData(oidc_sub="cap", name="Cap", scopes=[])
 
 
-def test_captain_can_upload_team_photo(client_for, captain_user):
-    team = Mock(id=1, name="T", total=0, classification=-1, versus_group_id=None,
-                photo_url="", times=[], score_per_checkpoint=[], members=[])
-    with patch("app.api.api_v1.team.validate_and_store", new=AsyncMock(return_value="https://r2/x.png")), \
-         patch("app.api.api_v1.team.storage_client.delete_image"), \
-         patch("app.crud.crud_team.team.get", new=AsyncMock(return_value=team)), \
-         patch("app.crud.crud_team.team.set_photo_url", new=AsyncMock(return_value=team)), \
-         patch("app.api.api_v1.team._detailed_team", new=AsyncMock(return_value={
-             "id": 1, "name": "T", "total": 0, "classification": -1,
-             "versus_group_id": None, "photo_url": "https://r2/x.png",
-             "access_code": "AAAA-BBBB", "times": [], "score_per_checkpoint": [],
-             "members": [],
-         })):
-        client = client_for(captain_user)
-        resp = client.put("/api/rally/v1/team/1/photo", files=_png_upload())
+def _outsider_override(app):
+    from app.api import deps
+    from app.api.auth import api_nei_auth, AuthData
+    from app.schemas.user import DetailedUser
+
+    user = DetailedUser(id=6, name="Out", disabled=False, team_id=2, is_captain=False, scopes=[])
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[api_nei_auth] = lambda: AuthData(oidc_sub="out", name="Out", scopes=[])
+
+
+def _clear_overrides(app):
+    from app.api import deps
+    from app.api.auth import api_nei_auth
+
+    app.dependency_overrides.pop(deps.get_participant, None)
+    app.dependency_overrides.pop(api_nei_auth, None)
+
+
+async def test_captain_can_upload_team_photo(pg_session, pg_client):
+    from app.main import app
+
+    await _make_event(pg_session)
+    team = await _make_team(pg_session)
+    _captain_override(app, team.id)
+    try:
+        with patch(
+            "app.api.api_v1.team.validate_and_store",
+            new=AsyncMock(return_value="https://r2/x.png"),
+        ), patch("app.api.api_v1.team.storage_client.delete_image"):
+            resp = pg_client.put(f"/api/rally/v1/team/{team.id}/photo", files=_png_upload())
+    finally:
+        _clear_overrides(app)
+
     assert resp.status_code == 200, resp.text
     assert resp.json()["photo_url"] == "https://r2/x.png"
 
 
-def test_outsider_cannot_upload_team_photo(client_for, outsider_user):
-    # Outsider: not captain of team 1, and check_permission denies UPDATE_TEAM.
-    with patch("app.api.api_v1.team.check_permission", return_value=False):
-        client = client_for(outsider_user)
-        resp = client.put("/api/rally/v1/team/1/photo", files=_png_upload())
+async def test_outsider_cannot_upload_team_photo(pg_session, pg_client):
+    from app.main import app
+
+    await _make_event(pg_session)
+    team = await _make_team(pg_session)
+    _outsider_override(app)
+    try:
+        resp = pg_client.put(f"/api/rally/v1/team/{team.id}/photo", files=_png_upload())
+    finally:
+        _clear_overrides(app)
+
     assert resp.status_code == 403
