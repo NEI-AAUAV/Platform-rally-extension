@@ -180,6 +180,10 @@ jobs:
       working-directory: web-rally
       run: pnpm install --frozen-lockfile
 
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
+
     - name: Run frontend tests
       working-directory: web-rally
       run: |
