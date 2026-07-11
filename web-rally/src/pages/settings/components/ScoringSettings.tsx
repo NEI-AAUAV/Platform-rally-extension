@@ -99,7 +99,12 @@ export default function ScoringSettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="checkpoint_order_matters"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="checkpoint_order_matters">
@@ -113,7 +118,12 @@ export default function ScoringSettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="enable_staff_scoring"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="enable_staff_scoring">Permitir pontuação manual pelos staff</Label>

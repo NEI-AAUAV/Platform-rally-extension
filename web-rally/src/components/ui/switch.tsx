@@ -7,6 +7,7 @@ export interface SwitchProps {
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
+  "aria-label"?: string;
 }
 
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(

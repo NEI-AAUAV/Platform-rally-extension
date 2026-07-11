@@ -132,6 +132,7 @@ export default function HomeLayoutSettings({
                             {HOME_SECTION_LABELS[section.key] ?? section.key}
                           </span>
                           <Switch
+                            aria-label={`Mostrar secção ${HOME_SECTION_LABELS[section.key] ?? section.key}`}
                             checked={section.visible}
                             onCheckedChange={(checked) => {
                               const next = [...sections];
