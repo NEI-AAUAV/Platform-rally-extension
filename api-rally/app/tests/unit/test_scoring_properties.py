@@ -10,6 +10,7 @@ tests tend to miss.
 """
 from typing import Any
 
+import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
@@ -61,7 +62,7 @@ def test_relative_ranking_score_within_bounds(times: list[float]) -> None:
 def test_fastest_time_gets_max_points(times: list[float]) -> None:
     activity = _make_time_activity()
     fastest = min(times)
-    assert activity.calculate_relative_ranking_score(times, fastest) == 100.0
+    assert activity.calculate_relative_ranking_score(times, fastest) == pytest.approx(100.0)
 
 
 @given(times=st.lists(finite_times, min_size=2, max_size=20, unique=True))
@@ -69,7 +70,7 @@ def test_fastest_time_gets_max_points(times: list[float]) -> None:
 def test_slowest_time_gets_min_points(times: list[float]) -> None:
     activity = _make_time_activity()
     slowest = max(times)
-    assert activity.calculate_relative_ranking_score(times, slowest) == 10.0
+    assert activity.calculate_relative_ranking_score(times, slowest) == pytest.approx(10.0)
 
 
 @given(
@@ -91,7 +92,7 @@ def test_tied_times_get_identical_score(time: float, other_times: list[float]) -
 @settings(max_examples=50)
 def test_lone_competitor_gets_max_points(time: float) -> None:
     activity = _make_time_activity()
-    assert activity.calculate_relative_ranking_score([time], time) == 100.0
+    assert activity.calculate_relative_ranking_score([time], time) == pytest.approx(100.0)
 
 
 # ---------------------------------------------------------------------------

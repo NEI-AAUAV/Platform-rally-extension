@@ -105,7 +105,7 @@ async def test_calculate_team_total_sums_completed_results(pg_session):
     svc = ScoringService(pg_session)
     total = await svc.calculate_team_total_score(team.id)
 
-    assert total == 70.0
+    assert total == pytest.approx(70.0)
 
 
 async def test_calculate_team_total_ignores_incomplete(pg_session):
@@ -125,8 +125,8 @@ async def test_calculate_team_total_ignores_incomplete(pg_session):
     await pg_session.commit()
 
     svc = ScoringService(pg_session)
-    assert await svc.calculate_team_total_score(team.id) == 40.0
-    assert completed.final_score == 40
+    assert await svc.calculate_team_total_score(team.id) == pytest.approx(40.0)
+    assert completed.final_score == pytest.approx(40)
 
 
 async def test_update_team_scores_rounds_and_includes_awards(pg_session):
@@ -146,7 +146,7 @@ async def test_update_team_scores_rounds_and_includes_awards(pg_session):
 
     await pg_session.refresh(team)
     assert changed is True
-    assert team.total == 60  # round(50.4 + 10)
+    assert team.total == pytest.approx(60)  # round(50.4 + 10)
 
 
 async def test_update_team_scores_missing_team_returns_false(pg_session):
@@ -174,7 +174,7 @@ async def test_apply_extra_shots_bonus_increases_score(pg_session):
     )).first()
     # 50 base + 2 shots * bonus_per_extra_shot(1) = 52
     assert stmt_result.extra_shots == 2
-    assert stmt_result.final_score == 52
+    assert stmt_result.final_score == pytest.approx(52)
 
 
 async def test_apply_extra_shots_over_limit_rejected(pg_session):
@@ -222,7 +222,7 @@ async def test_apply_penalty_reduces_score(pg_session):
     assert ok is True
     result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
     assert result.penalties["custom"] == 10
-    assert result.final_score == 40  # 50 - 10
+    assert result.final_score == pytest.approx(40)  # 50 - 10
 
 
 async def test_apply_penalty_missing_result(pg_session):
@@ -247,7 +247,7 @@ async def test_apply_vomit_penalty_uses_settings_default(pg_session):
     result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
     # get_or_create seeds penalty_per_puke = -10 -> abs 10
     assert result.penalties["vomit"] == 10
-    assert result.final_score == 40  # 50 - 10
+    assert result.final_score == pytest.approx(40)  # 50 - 10
 
 
 async def test_apply_drink_penalty_scales_with_participants(pg_session):
@@ -265,7 +265,7 @@ async def test_apply_drink_penalty_scales_with_participants(pg_session):
     result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
     # penalty_per_not_drinking default -2 -> abs 2 * 3 = 6
     assert result.penalties["not_drinking"] == 6
-    assert result.final_score == 44
+    assert result.final_score == pytest.approx(44)
 
 
 # --------------------------------------------------------------------------- #
@@ -286,9 +286,9 @@ async def test_create_result_scores_and_persists(pg_session):
     )
 
     assert created.id is not None
-    assert created.final_score == 70
+    assert created.final_score == pytest.approx(70)
     await pg_session.refresh(team)
-    assert team.total == 70
+    assert team.total == pytest.approx(70)
 
 
 async def test_create_result_unknown_activity_raises(pg_session):
@@ -334,9 +334,9 @@ async def test_update_result_rescores_on_data_change(pg_session):
         result, ActivityResultUpdate(result_data={"assigned_points": 90})
     )
 
-    assert updated.final_score == 90
+    assert updated.final_score == pytest.approx(90)
     await pg_session.refresh(team)
-    assert team.total == 90
+    assert team.total == pytest.approx(90)
 
 
 async def test_remove_result_deletes_and_updates_team(pg_session):
@@ -353,7 +353,7 @@ async def test_remove_result_deletes_and_updates_team(pg_session):
 
     assert removed is not None
     await pg_session.refresh(team)
-    assert team.total == 0
+    assert team.total == pytest.approx(0)
     assert (await pg_session.get(ActivityResult, result.id)) is None
 
 
@@ -398,7 +398,7 @@ async def test_get_activity_statistics_reports_participation(pg_session):
     stats = await svc.get_activity_statistics(activity.id)
 
     assert stats["total_participants"] == 1
-    assert stats["average_score"] == 60
+    assert stats["average_score"] == pytest.approx(60)
 
 
 async def test_get_global_ranking_orders_and_ranks(pg_session):
@@ -421,7 +421,7 @@ async def test_get_global_ranking_orders_and_ranks(pg_session):
     top = next(r for r in ranking if r["team_id"] == strong.id)
     bottom = next(r for r in ranking if r["team_id"] == weak.id)
     assert top["rank"] == 1
-    assert top["total_score"] == 80
+    assert top["total_score"] == pytest.approx(80)
     assert bottom["rank"] > top["rank"]
 
 
@@ -430,7 +430,7 @@ async def test_get_activity_statistics_empty(pg_session):
     svc = ScoringService(pg_session)
     stats = await svc.get_activity_statistics(activity.id)
     assert stats["total_participants"] == 0
-    assert stats["average_score"] == 0
+    assert stats["average_score"] == pytest.approx(0)
 
 
 # --------------------------------------------------------------------------- #
@@ -463,7 +463,7 @@ async def test_create_time_based_result_reranks_activity(pg_session):
     slow_res = (await pg_session.scalars(_select_result(activity.id, slow.id))).first()
     # faster time must score at least as high as the slower one
     assert fast_res.final_score >= slow_res.final_score
-    assert fast_res.final_score == 100  # fastest gets max
+    assert fast_res.final_score == pytest.approx(100)  # fastest gets max
 
 
 # --------------------------------------------------------------------------- #
@@ -505,11 +505,11 @@ async def test_create_team_vs_result_win_lose(pg_session):
     by_team = {r.team_id: r for r in (r1, r2)}
     assert by_team[winner.id].result_data["result"] == "win"
     assert by_team[loser.id].result_data["result"] == "lose"
-    assert by_team[winner.id].final_score == 100
-    assert by_team[loser.id].final_score == 0
+    assert by_team[winner.id].final_score == pytest.approx(100)
+    assert by_team[loser.id].final_score == pytest.approx(0)
 
     await pg_session.refresh(winner)
-    assert winner.total == 100
+    assert winner.total == pytest.approx(100)
 
 
 async def test_create_team_vs_result_draw(pg_session):
@@ -524,8 +524,8 @@ async def test_create_team_vs_result_draw(pg_session):
 
     assert r1.result_data["result"] == "draw"
     assert r2.result_data["result"] == "draw"
-    assert r1.final_score == 50
-    assert r2.final_score == 50
+    assert r1.final_score == pytest.approx(50)
+    assert r2.final_score == pytest.approx(50)
 
 
 async def test_create_team_vs_result_rejects_completed_rematch(pg_session):

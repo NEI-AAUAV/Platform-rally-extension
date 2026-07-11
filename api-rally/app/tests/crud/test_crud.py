@@ -246,7 +246,7 @@ class TestRallyDurationLogic:
             datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc),
         ]
 
-        duration = (times[1] - times[0]).total_seconds() if len(times) >= 2 else 0
+        duration = (times[1] - times[0]).total_seconds()
 
         assert duration == 1800
 

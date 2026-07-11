@@ -1,4 +1,5 @@
 """Tests for dynamic scoring endpoints (D4), against real Postgres."""
+import pytest
 from sqlalchemy import select
 
 from app.crud.crud_team import team as crud_team
@@ -63,7 +64,7 @@ async def test_update_rule(pg_session, pg_client, as_admin):
     resp = pg_client.put(f"/api/rally/v1/dynamic-rules/{created['id']}", json={"points": 75.0})
 
     assert resp.status_code == 200
-    assert resp.json()["points"] == 75.0
+    assert resp.json()["points"] == pytest.approx(75.0)
 
 
 async def test_update_rule_not_found(pg_session, pg_client, as_admin):
@@ -123,7 +124,7 @@ async def test_create_award(pg_session, pg_client, as_admin):
     )
 
     assert resp.status_code == 201, resp.text
-    assert resp.json()["points"] == 25.0
+    assert resp.json()["points"] == pytest.approx(25.0)
 
     refreshed = await _reread_team(pg_session, team.id)
     assert refreshed.total == 25
