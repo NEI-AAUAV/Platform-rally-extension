@@ -34,6 +34,12 @@ vi.mock('@/client', () => ({
   ApiError: MockApiError,
 }))
 
+// useTeamAuth imports ApiError from @/services/apiClient, so the instanceof
+// check in the hook must see the same class the tests throw.
+vi.mock('@/services/apiClient', () => ({
+  ApiError: MockApiError,
+}))
+
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
