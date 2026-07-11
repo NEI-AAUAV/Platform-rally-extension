@@ -1,37 +1,86 @@
-"""API tests for the team self-check-in endpoint (mock-based)."""
+"""API tests for the team self-check-in endpoint, against real Postgres.
 
+`verify_checkin_token`/`_claim_nonce` stay mocked — QR crypto and Redis nonce
+tracking are out of scope; everything else (DB, ABAC, routing, add_checkpoint)
+runs for real.
+"""
 from collections.abc import Iterator
 from contextlib import contextmanager
-from types import SimpleNamespace
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.api.api_v1 import checkin as checkin_api
 from app.api.deps import get_current_team
 from app.core.config import get_settings
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_team import team as crud_team
 from app.main import app
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+from app.schemas.team import TeamCreate
 from app.schemas.team_auth import TeamTokenData
 from app.services.checkin_token import CheckinClaims, CheckinTokenError
 
 CHECK_IN_URL = "/api/rally/v1/checkpoint/check-in"
 
 
-@pytest.fixture
-def as_team() -> Iterator[None]:
-    """Override team auth so requests act as team 1."""
-    app.dependency_overrides[get_current_team] = lambda: TeamTokenData(
-        team_id=1, team_name="Alpha"
+async def _make_event(pg_session):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
+
+
+def _settings_update(current, **overrides) -> RallySettingsUpdate:
+    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
+    data.update(overrides)
+    return RallySettingsUpdate(**data)
+
+
+async def _activate_rally(pg_session):
+    settings = await rally_settings.get_or_create(pg_session)
+    now = datetime.now(timezone.utc)
+    return await rally_settings.update(
+        pg_session,
+        id=settings.id,
+        obj_in=_settings_update(
+            settings,
+            rally_start_time=now - timedelta(hours=1),
+            rally_end_time=now + timedelta(hours=1),
+        ),
     )
-    yield
+
+
+async def _make_team(pg_session, name="Alpha"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+
+
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+    )
+
+
+@pytest.fixture
+def as_checkin_team():
+    def _make(team_id: int, team_name: str = "Alpha"):
+        app.dependency_overrides[get_current_team] = lambda: TeamTokenData(
+            team_id=team_id, team_name=team_name
+        )
+
+    yield _make
     app.dependency_overrides.pop(get_current_team, None)
 
 
 @contextmanager
 def _override_settings(**overrides: Any) -> Iterator[None]:
-    """Override the get_settings dependency for the duration of the block."""
     base = get_settings()
     patched = base.model_copy(update=overrides)
     app.dependency_overrides[get_settings] = lambda: patched
@@ -41,109 +90,88 @@ def _override_settings(**overrides: Any) -> Iterator[None]:
         app.dependency_overrides.pop(get_settings, None)
 
 
-@pytest.fixture
-def enabled() -> Iterator[None]:
-    with _override_settings(SELF_CHECKIN_ENABLED=True):
-        yield
-
-
-def _wire(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    checkpoint_order: int = 1,
-    team_times: list[Any] | None = None,
-    nonce_fresh: bool = True,
-) -> dict[str, AsyncMock]:
+def _wire_token(monkeypatch: pytest.MonkeyPatch, checkpoint_id: int, *, nonce_fresh=True):
     monkeypatch.setattr(
         checkin_api,
         "verify_checkin_token",
-        MagicMock(
-            return_value=CheckinClaims(checkpoint_id=5, issued_at=0, nonce="n1")
-        ),
+        MagicMock(return_value=CheckinClaims(checkpoint_id=checkpoint_id, issued_at=0, nonce="n1")),
     )
-    monkeypatch.setattr(
-        checkin_api, "_claim_nonce", AsyncMock(return_value=nonce_fresh)
-    )
-    monkeypatch.setattr(
-        "app.crud.crud_checkpoint.checkpoint.get",
-        AsyncMock(return_value=SimpleNamespace(id=5, order=checkpoint_order, event_id=None)),
-    )
-    monkeypatch.setattr(
-        "app.crud.crud_team.team.get",
-        AsyncMock(return_value=SimpleNamespace(times=team_times or [], event_id=None)),
-    )
-    advance = AsyncMock()
-    monkeypatch.setattr(checkin_api, "checkin_team_to_checkpoint", advance)
-    publish = AsyncMock()
-    monkeypatch.setattr(checkin_api, "publish_event", publish)
-    return {"advance": advance, "publish": publish}
+    monkeypatch.setattr(checkin_api, "_claim_nonce", AsyncMock(return_value=nonce_fresh))
 
 
-def test_check_in_success(
-    client: TestClient,
-    as_team: None,
-    enabled: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _wire(monkeypatch)
+async def test_check_in_success(pg_session, pg_client, as_checkin_team, monkeypatch):
+    await _make_event(pg_session)
+    await _activate_rally(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    team = await _make_team(pg_session)
+    as_checkin_team(team.id, team.name)
+    _wire_token(monkeypatch, checkpoint.id)
 
-    resp = client.post(CHECK_IN_URL, json={"token": "whatever"})
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "whatever"})
 
-    assert resp.status_code == 200
-    assert resp.json() == {"team_id": 1, "checkpoint_id": 5, "checkpoint_order": 1}
-    mocks["advance"].assert_awaited_once()
-    mocks["publish"].assert_awaited_once()
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"team_id": team.id, "checkpoint_id": checkpoint.id, "checkpoint_order": 1}
 
 
-def test_check_in_disabled_returns_404(
-    client: TestClient, as_team: None
-) -> None:
+async def test_check_in_disabled_returns_404(pg_session, pg_client, as_checkin_team):
+    await _make_event(pg_session)
+    team = await _make_team(pg_session)
+    as_checkin_team(team.id, team.name)
+
     with _override_settings(SELF_CHECKIN_ENABLED=False):
-        resp = client.post(CHECK_IN_URL, json={"token": "x"})
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "x"})
+
     assert resp.status_code == 404
 
 
-def test_check_in_bad_token_returns_400(
-    client: TestClient,
-    as_team: None,
-    enabled: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_check_in_bad_token_returns_400(pg_session, pg_client, as_checkin_team, monkeypatch):
+    await _make_event(pg_session)
+    team = await _make_team(pg_session)
+    as_checkin_team(team.id, team.name)
     monkeypatch.setattr(
-        checkin_api,
-        "verify_checkin_token",
-        MagicMock(side_effect=CheckinTokenError("expired")),
+        checkin_api, "verify_checkin_token", MagicMock(side_effect=CheckinTokenError("expired"))
     )
-    resp = client.post(CHECK_IN_URL, json={"token": "stale"})
+
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "stale"})
+
     assert resp.status_code == 400
 
 
-def test_check_in_out_of_order_returns_409(
-    client: TestClient,
-    as_team: None,
-    enabled: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # Scanned checkpoint order 3 but team has visited none (expects order 1).
-    mocks = _wire(monkeypatch, checkpoint_order=3, team_times=[])
-    resp = client.post(CHECK_IN_URL, json={"token": "skip"})
+async def test_check_in_out_of_order_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
+    await _make_event(pg_session)
+    await _activate_rally(pg_session)
+    await _make_checkpoint(pg_session, order=1)
+    checkpoint_3 = await _make_checkpoint(pg_session, order=3)
+    team = await _make_team(pg_session)
+    as_checkin_team(team.id, team.name)
+    _wire_token(monkeypatch, checkpoint_3.id)
+
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "skip"})
+
     assert resp.status_code == 409
-    mocks["advance"].assert_not_awaited()
 
 
-def test_check_in_replayed_token_returns_409(
-    client: TestClient,
-    as_team: None,
-    enabled: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mocks = _wire(monkeypatch, nonce_fresh=False)
-    resp = client.post(CHECK_IN_URL, json={"token": "reused"})
+async def test_check_in_replayed_token_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
+    await _make_event(pg_session)
+    await _activate_rally(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    team = await _make_team(pg_session)
+    as_checkin_team(team.id, team.name)
+    _wire_token(monkeypatch, checkpoint.id, nonce_fresh=False)
+
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "reused"})
+
     assert resp.status_code == 409
-    mocks["advance"].assert_not_awaited()
 
 
-def test_check_in_requires_team_auth(client: TestClient, enabled: None) -> None:
-    # No team override installed -> missing bearer -> 401.
-    resp = client.post(CHECK_IN_URL, json={"token": "x"})
+async def test_check_in_requires_team_auth(pg_session, pg_client):
+    await _make_event(pg_session)
+
+    with _override_settings(SELF_CHECKIN_ENABLED=True):
+        resp = pg_client.post(CHECK_IN_URL, json={"token": "x"})
+
     assert resp.status_code == 401

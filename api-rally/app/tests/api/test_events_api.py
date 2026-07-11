@@ -1,73 +1,42 @@
-"""API tests for the event (edition) endpoints.
-
-Mock-based, matching the suite's style: the db dependency is overridden and
-crud.rally_event is patched, so these exercise routing + response shaping
-without a real schema.
-"""
-from datetime import datetime, timezone
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
-
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db
+"""API tests for the event (edition) endpoints, against real Postgres."""
+from app.crud.crud_activity import rally_event
 from app.models.activity import EventType
+from app.schemas.activity import RallyEventCreate
 
 
-def _event(**over) -> SimpleNamespace:
-    """A stand-in RallyEvent with every field RallyEventResponse needs."""
-    base = {
-        "id": 1,
-        "name": "Rally Tascas",
-        "slug": "rally-tascas",
-        "description": "",
-        "event_type": EventType.RALLY_TASCAS.value,
-        "config": {},
-        "is_active": True,
-        "is_current": True,
-        "start_time": None,
-        "end_time": None,
-        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-        "updated_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-    }
-    base.update(over)
-    return SimpleNamespace(**base)
+async def test_list_events(pg_session, pg_client):
+    await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Rally A"))
+    await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Peddy B", event_type=EventType.PEDDY_PAPER)
+    )
 
+    resp = pg_client.get("/api/rally/v1/events")
 
-@pytest.fixture
-def client():
-    app.dependency_overrides[get_db] = lambda: AsyncMock()
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-
-
-def test_list_events(client: TestClient) -> None:
-    events = [_event(id=1, name="Rally A"), _event(id=2, name="Peddy B", event_type=EventType.PEDDY_PAPER.value)]
-    with patch("app.crud.rally_event.get_multi", new=AsyncMock(return_value=events)):
-        resp = client.get("/api/rally/v1/events")
     assert resp.status_code == 200
     body = resp.json()
-    assert [e["name"] for e in body] == ["Rally A", "Peddy B"]
-    assert body[1]["event_type"] == "peddy_paper"
+    assert [e["name"] for e in body] == ["Peddy B", "Rally A"]  # newest first
+    assert body[0]["event_type"] == "peddy_paper"
 
 
-def test_get_current_event(client: TestClient) -> None:
-    with patch("app.crud.rally_event.ensure_current", new=AsyncMock(return_value=_event(name="Now"))):
-        resp = client.get("/api/rally/v1/events/current")
+async def test_get_current_event(pg_session, pg_client):
+    await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Now", is_current=True))
+
+    resp = pg_client.get("/api/rally/v1/events/current")
+
     assert resp.status_code == 200
     assert resp.json()["name"] == "Now"
 
 
-def test_get_event_found(client: TestClient) -> None:
-    with patch("app.crud.rally_event.get", new=AsyncMock(return_value=_event(id=5, name="Five"))):
-        resp = client.get("/api/rally/v1/events/5")
+async def test_get_event_found(pg_session, pg_client):
+    created = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Five"))
+
+    resp = pg_client.get(f"/api/rally/v1/events/{created.id}")
+
     assert resp.status_code == 200
-    assert resp.json()["id"] == 5
+    assert resp.json()["id"] == created.id
 
 
-def test_get_event_not_found(client: TestClient) -> None:
-    with patch("app.crud.rally_event.get", new=AsyncMock(return_value=None)):
-        resp = client.get("/api/rally/v1/events/999")
+async def test_get_event_not_found(pg_client):
+    resp = pg_client.get("/api/rally/v1/events/999999")
+
     assert resp.status_code == 404
