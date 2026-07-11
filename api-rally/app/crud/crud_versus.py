@@ -31,8 +31,18 @@ class CRUDVersus:
         if team_a_id == team_b_id:
             raise RallyValidationError("A team cannot be paired with itself")
 
-        team_a = await db.get(Team, team_a_id)
-        team_b = await db.get(Team, team_b_id)
+        # Lock both team rows before checking versus_group_id so two
+        # concurrent pair requests sharing a team can't both observe it as
+        # unpaired and cross-pair it. Locked in id order to avoid deadlocking
+        # against another pair request that targets the same two teams in
+        # reverse.
+        locked_ids = sorted((team_a_id, team_b_id))
+        result = await db.execute(
+            select(Team).where(Team.id.in_(locked_ids)).order_by(Team.id).with_for_update()
+        )
+        teams_by_id = {t.id: t for t in result.scalars().all()}
+        team_a = teams_by_id.get(team_a_id)
+        team_b = teams_by_id.get(team_b_id)
 
         if not team_a or not team_b:
             raise RallyNotFoundError("One or both teams not found")

@@ -138,6 +138,9 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   show_live_leaderboard: true,
   show_team_details: true,
   show_checkpoint_map: true,
+  participant_view_enabled: true,
+  show_route_mode: 'all',
+  show_score_mode: 'all',
   rally_theme: 'nei',
   public_access_enabled: true,
 };

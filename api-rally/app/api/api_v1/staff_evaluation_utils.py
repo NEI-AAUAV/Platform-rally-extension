@@ -9,6 +9,7 @@ This module contains helper functions for:
 """
 from typing import Optional, Dict, Any, Tuple, List, Sequence
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -169,6 +170,48 @@ async def create_activity_result(
     return await ScoringService(db).create_result(result_create)
 
 
+async def create_or_update_activity_result(
+    db: AsyncSession,
+    team_id: int,
+    activity_id: int,
+    result_in: ActivityResultEvaluation,
+    *,
+    set_extra_shots_on_update: bool = True,
+) -> ActivityResult:
+    """Create the team's result for this activity, or update it if one already exists.
+
+    A unique constraint on (activity_id, team_id) backs this: two concurrent
+    requests can both pass the pre-check in `check_existing_result`/caller and
+    race to insert, but only one INSERT wins — the loser hits IntegrityError,
+    rolls back, and falls through to an update against the winner's row
+    instead of leaving a duplicate.
+
+    ``set_extra_shots_on_update=False`` leaves the existing row's extra_shots
+    untouched on the update path (used when mirroring a versus result onto
+    the opponent, whose extra_shots is independent of the reporting team's).
+    """
+
+    def _update_payload() -> ActivityResultUpdate:
+        return ActivityResultUpdate(
+            result_data=result_in.result_data,
+            extra_shots=result_in.extra_shots if set_extra_shots_on_update else None,
+            penalties=result_in.penalties,
+        )
+
+    existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
+    if existing_result:
+        return await ScoringService(db).update_result(existing_result, _update_payload())
+
+    try:
+        return await create_activity_result(db, team_id, activity_id, result_in)
+    except IntegrityError:
+        await db.rollback()
+        existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
+        if existing_result is None:
+            raise
+        return await ScoringService(db).update_result(existing_result, _update_payload())
+
+
 # Inverse outcome for the opponent's mirrored TeamVsActivity result.
 _OPPOSITE_TEAM_VS_RESULT = {"win": "lose", "lose": "win", "draw": "draw"}
 
@@ -196,21 +239,13 @@ async def mirror_team_vs_result(
         "result": _OPPOSITE_TEAM_VS_RESULT[own_result],
     }
 
-    existing_opponent_result = await activity_result.get_by_activity_and_team(
-        db, activity_obj.id, opponent_team_id
+    await create_or_update_activity_result(
+        db,
+        opponent_team_id,
+        activity_obj.id,
+        ActivityResultEvaluation(result_data=opponent_result_data),
+        set_extra_shots_on_update=False,
     )
-    if existing_opponent_result:
-        await ScoringService(db).update_result(
-            existing_opponent_result,
-            ActivityResultUpdate(result_data=opponent_result_data, extra_shots=None),
-        )
-    else:
-        await create_activity_result(
-            db,
-            opponent_team_id,
-            activity_obj.id,
-            ActivityResultEvaluation(result_data=opponent_result_data),
-        )
 
 
 # =============================================================================

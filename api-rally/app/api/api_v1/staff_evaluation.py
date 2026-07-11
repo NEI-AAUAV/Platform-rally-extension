@@ -31,7 +31,7 @@ from app.api.api_v1.staff_evaluation_utils import (
     check_existing_result,
     check_and_advance_team,
     build_team_for_staff,
-    create_activity_result,
+    create_or_update_activity_result,
     mirror_team_vs_result,
     NO_CHECKPOINT_ASSIGNED,
     TEAM_NOT_FOUND,
@@ -223,21 +223,11 @@ async def evaluate_team_activity(
         logger.error(f"Access validation failed: {e.status_code} - {e.detail}")
         raise
 
-    # Create or update the result if it already exists
-    existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
-    if existing_result:
-        logger.info(f"Updating existing result {existing_result.id} for team {team_id}, activity {activity_id}")
-        update_in = ActivityResultUpdate(
-            result_data=result_in.result_data,
-            extra_shots=result_in.extra_shots,
-            penalties=result_in.penalties,
-        )
-        db_result = await ScoringService(db).update_result(existing_result, update_in)
-        logger.info(f"Successfully updated result {db_result.id}")
-    else:
-        logger.info(f"Creating new result for team {team_id}, activity {activity_id}")
-        db_result = await create_activity_result(db, team_id, activity_id, result_in)
-        logger.info(f"Successfully created result {db_result.id}")
+    # Create or update the result if it already exists. Handles the race
+    # where two concurrent requests both see no existing result and try to
+    # insert — the loser falls back to an update instead of duplicating.
+    db_result = await create_or_update_activity_result(db, team_id, activity_id, result_in)
+    logger.info(f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}")
 
     # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
     try:

@@ -1,7 +1,7 @@
 """
 Activity models for Rally extension
 """
-from sqlalchemy import Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
+from sqlalchemy import Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from datetime import datetime, timezone
@@ -57,7 +57,11 @@ class Activity(Base):
 class ActivityResult(Base):
     """Activity result model - stores team performance for each activity"""
     __tablename__ = "activity_results"  # type: ignore[assignment]
-    
+    __table_args__ = (
+        UniqueConstraint("activity_id", "team_id", name="uq_activity_results_activity_id_team_id"),
+        {"schema": settings.SCHEMA_NAME},
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     activity_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.activities.id"), nullable=False)
     team_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{settings.SCHEMA_NAME}.teams.id"), nullable=False)

@@ -1,8 +1,9 @@
-.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web lock
+.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down lock
 
 DEV_COMPOSE     := docker compose --project-name nei-rally-dev -f compose.yml --env-file .env
 PROD_COMPOSE    := docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml --env-file .env.prod
 STAGING_COMPOSE := docker compose --project-name nei-rally-staging -f deploy/docker-compose.staging.yaml --env-file .env.staging
+SMOKE_COMPOSE   := docker compose --project-name nei-rally-smoke -f api-rally/docker-compose.smoke.yml
 
 help:
 	@echo "Available commands:"
@@ -39,6 +40,7 @@ help:
 	@echo "  make test         - Run backend + web tests"
 	@echo "  make test-backend - Run api-rally pytest suite"
 	@echo "  make test-web     - Run web-rally vitest suite"
+	@echo "  make test-smoke   - Run e2e smoke suite against a real api-rally+Postgres stack"
 	@echo ""
 	@echo "Misc:"
 	@echo "  make lock         - Regenerate api-rally poetry.lock"
@@ -140,6 +142,15 @@ test-backend:
 
 test-web:
 	cd web-rally && pnpm test
+
+test-smoke:
+	$(SMOKE_COMPOSE) up --build --abort-on-container-exit --exit-code-from smoke; \
+	status=$$?; \
+	$(SMOKE_COMPOSE) down -v --remove-orphans; \
+	exit $$status
+
+test-smoke-down:
+	$(SMOKE_COMPOSE) down -v --remove-orphans
 
 ## --- Misc
 

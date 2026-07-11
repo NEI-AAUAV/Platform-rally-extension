@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rally_smoke
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  fake-oidc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /api_rally
+    user: root
+    volumes:
+      - ./scripts:/api_rally/scripts:ro
+    command: ["poetry", "run", "python", "scripts/smoke/fake_oidc_provider.py"]
+    ports:
+      - "9009:9009"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9009/jwks')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: root
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fake-oidc:
+        condition: service_healthy
+    environment:
+      POSTGRES_SERVER: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rally_smoke
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      OIDC_PROVIDER_URL: http://fake-oidc:9009
+      OIDC_CLIENT_ID: rally-smoke-client
+      OIDC_APPLICATION_SLUG: rally
+      TEAM_JWT_SECRET_KEY: smoke-only-secret-not-for-prod
+      EVENTS_ENABLED: "true"
+      EVENTS_FAIL_SILENTLY: "false"
+      SELF_CHECKIN_ENABLED: "true"
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  smoke:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /api_rally
+    user: root
+    volumes:
+      - ./scripts:/api_rally/scripts:ro
+    command: ["poetry", "run", "python", "scripts/smoke/run_smoke.py"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      SMOKE_API_BASE_URL: http://api:8003
+      OIDC_PROVIDER_URL: http://fake-oidc:9009
