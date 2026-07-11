@@ -144,6 +144,11 @@ _STAFF_ACTIONS: dict[Action, Rule] = {
     Action.UPDATE_ACTIVITY_RESULT: _staff_own_checkpoint,
     Action.VIEW_ACTIVITY: _allow,
     Action.VIEW_VERSUS_GROUP: _allow,
+    # B4 walk-up registration: staff may pass the ABAC gate for CREATE_TEAM
+    # (adding a team member) unconditionally here — the actual
+    # allow_staff_registration on/off decision is made by add_team_member
+    # itself after this check, per-event, since ABAC context has no DB access.
+    Action.CREATE_TEAM: _allow,
 }
 
 
