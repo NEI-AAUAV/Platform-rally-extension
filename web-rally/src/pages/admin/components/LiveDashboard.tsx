@@ -232,7 +232,7 @@ export default function LiveDashboard() {
                 <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="rally-bg-accent-soft text-foreground grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold">
+                <span className="rally-bg-accent-soft grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold text-foreground">
                   {initialsOf(team.name)}
                 </span>
                 <span className="flex-1 truncate text-sm font-semibold text-foreground">

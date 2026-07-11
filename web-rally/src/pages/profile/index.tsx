@@ -39,7 +39,7 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
               {entry.event_name}
             </h3>
             {entry.is_captain && (
-              <span className="rally-bg-accent-soft text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+              <span className="rally-bg-accent-soft inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground">
                 <Crown className="h-3 w-3" /> Capitão
               </span>
             )}

@@ -57,7 +57,7 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch id="enable_versus" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
             )}
           />
           <Label htmlFor="enable_versus">Ativar modo versus (competição entre equipas)</Label>

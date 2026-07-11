@@ -60,7 +60,7 @@ export function EvaluationTeamCard({
         cfg.cardClass,
       )}
     >
-      <span className="rally-bg-accent-soft text-foreground rally-display grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold">
+      <span className="rally-bg-accent-soft rally-display grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-foreground">
         {initialsOf(team.name)}
       </span>
       <div className="min-w-0 flex-1">

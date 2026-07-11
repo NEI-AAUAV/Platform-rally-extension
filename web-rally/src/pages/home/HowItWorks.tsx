@@ -29,7 +29,7 @@ export function HowItWorks() {
             key={step.n}
             className="flex gap-3.5 rounded-[16px] border border-border bg-card p-[18px]"
           >
-            <span className="rally-bg-accent-soft text-foreground rally-display grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-[12px] text-lg font-bold">
+            <span className="rally-bg-accent-soft rally-display grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-[12px] text-lg font-bold text-foreground">
               {step.n}
             </span>
             <div>

@@ -67,7 +67,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch id="show_live_leaderboard" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="show_live_leaderboard"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="show_live_leaderboard">Mostrar leaderboard em tempo real</Label>
@@ -79,7 +84,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch id="show_team_details" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="show_team_details"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="show_team_details">Mostrar detalhes das equipas</Label>
@@ -91,7 +101,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch id="show_checkpoint_map" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="show_checkpoint_map"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="show_checkpoint_map">Mostrar mapa dos checkpoints</Label>
@@ -103,7 +118,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch id="participant_view_enabled" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="participant_view_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="participant_view_enabled">Ativar visualização para participantes</Label>
@@ -168,7 +188,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch id="public_access_enabled" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="public_access_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="public_access_enabled">Permitir acesso público (sem login)</Label>
@@ -180,7 +205,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch id="allow_photo_as_team_photo" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="allow_photo_as_team_photo"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="allow_photo_as_team_photo">
@@ -194,7 +224,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch id="guide_mode_enabled" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="guide_mode_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="guide_mode_enabled">Ativar funcionalidade de modo guia</Label>
@@ -206,7 +241,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Switch id="guide_mode_active" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="guide_mode_active"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="guide_mode_active">Modo guia ativo neste evento</Label>
@@ -218,7 +258,12 @@ export default function DisplaySettings({
             control={control}
             defaultValue={true}
             render={({ field }) => (
-              <Switch id="badges_enabled" checked={field.value} onCheckedChange={field.onChange} disabled={disabled} />
+              <Switch
+                id="badges_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
             )}
           />
           <Label htmlFor="badges_enabled">Ativar crachás / conquistas</Label>

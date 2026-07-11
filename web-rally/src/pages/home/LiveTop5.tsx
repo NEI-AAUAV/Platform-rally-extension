@@ -79,7 +79,7 @@ export function LiveTop5() {
                 <span className="rally-display w-[22px] text-center text-[18px] font-bold tabular-nums text-muted-foreground">
                   {index + 1}
                 </span>
-                <span className="rally-bg-accent-soft text-foreground grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-[13px] font-bold">
+                <span className="rally-bg-accent-soft grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-[13px] font-bold text-foreground">
                   {initialsOf(team.name)}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">

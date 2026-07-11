@@ -60,7 +60,7 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
         {team.members?.map((member) => {
           const content = (
             <>
-              <span className="rally-bg-accent-soft text-foreground grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold">
+              <span className="rally-bg-accent-soft grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-foreground">
                 {initialsOf(member.name)}
               </span>
               {member.name}
