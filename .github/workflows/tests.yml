@@ -283,6 +283,11 @@ jobs:
         ./run-tests.sh
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: postgres_test
+        TEAM_JWT_SECRET_KEY: test_secret
 
     - name: Upload integration test results
       uses: actions/upload-artifact@v7
