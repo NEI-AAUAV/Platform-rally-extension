@@ -1,8 +1,10 @@
 """Tests for badge catalogue admin endpoints (A3), against real Postgres."""
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_team import team as crud_team
 from app.schemas.badge_definition import BadgeDefinitionCreate, BadgeDefinitionUpdate
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+from app.schemas.team import TeamCreate
 
 
 async def _make_event(pg_session):
@@ -37,6 +39,10 @@ async def _make_definition(pg_session, code="test_badge", active=True):
             pg_session, db_obj=defn, obj_in=BadgeDefinitionUpdate(is_active=False)
         )
     return defn
+
+
+async def _make_team(pg_session):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
 
 
 class TestKillSwitch:
@@ -183,37 +189,50 @@ class TestManualAwardRevoke:
     async def test_manual_award_badge(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _make_definition(pg_session)
+        team = await _make_team(pg_session)
 
         resp = pg_client.post(
             "/api/rally/v1/badges/award",
-            json={"team_id": 1, "badge_code": "test_badge"},
+            json={"team_id": team.id, "badge_code": "test_badge"},
         )
 
         assert resp.status_code == 201, resp.text
-        assert resp.json()["team_id"] == 1
+        assert resp.json()["team_id"] == team.id
         assert resp.json()["badge_type"] == "test_badge"
+
+    async def test_manual_award_badge_missing_team_is_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        await _make_definition(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/badges/award", json={"team_id": 999999, "badge_code": "test_badge"}
+        )
+
+        assert resp.status_code == 404
 
     async def test_manual_award_badge_duplicate_is_conflict(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _make_definition(pg_session)
+        team = await _make_team(pg_session)
 
         first = pg_client.post(
-            "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "test_badge"}
+            "/api/rally/v1/badges/award", json={"team_id": team.id, "badge_code": "test_badge"}
         )
         assert first.status_code == 201
 
         second = pg_client.post(
-            "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "test_badge"}
+            "/api/rally/v1/badges/award", json={"team_id": team.id, "badge_code": "test_badge"}
         )
         assert second.status_code == 409
 
     async def test_manual_award_badge_inactive(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _make_definition(pg_session, code="test_badge", active=False)
+        team = await _make_team(pg_session)
 
         resp = pg_client.post(
             "/api/rally/v1/badges/award",
-            json={"team_id": 1, "badge_code": "test_badge"},
+            json={"team_id": team.id, "badge_code": "test_badge"},
         )
 
         assert resp.status_code == 400
@@ -221,8 +240,9 @@ class TestManualAwardRevoke:
     async def test_revoke_badge(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _make_definition(pg_session)
+        team = await _make_team(pg_session)
         award = pg_client.post(
-            "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "test_badge"}
+            "/api/rally/v1/badges/award", json={"team_id": team.id, "badge_code": "test_badge"}
         )
         badge_id = award.json()["id"]
 

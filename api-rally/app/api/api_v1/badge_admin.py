@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.crud._deps import foreign_key_error_regex
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
 from app.models.badge import BadgeType, TeamBadge
@@ -25,6 +26,7 @@ from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_
 router = APIRouter()
 
 BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
+_team_foreign_error_regex = foreign_key_error_regex("team_id")
 
 
 async def require_badges_enabled(db: Annotated[AsyncSession, Depends(deps.get_db)]) -> None:
@@ -163,8 +165,10 @@ async def manual_award_badge(
     db.add(badge)
     try:
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         await db.rollback()
+        if e.orig is not None and _team_foreign_error_regex.search(str(e.orig)):
+            raise HTTPException(status_code=404, detail="Team not found")
         raise HTTPException(status_code=409, detail="Team already holds this badge")
     await db.refresh(badge)
     return TeamBadgeRead.model_validate(badge)
