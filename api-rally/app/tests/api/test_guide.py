@@ -1,137 +1,103 @@
-"""Tests for the guide checkpoints endpoint."""
-from unittest.mock import AsyncMock, Mock, patch
-
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db, get_guide
-from app.api.auth import api_nei_auth
-from app.schemas.user import DetailedUser
+"""Tests for the guide checkpoints endpoint, against real Postgres."""
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_checkpoint_guide_indication import (
+    checkpoint_guide_indication as crud_indication,
+)
+from app.crud.crud_checkpoint_media import checkpoint_media as crud_media
+from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import EventType
 from app.models.checkpoint_media import MediaKind
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.checkpoint_guide_indication import CheckpointGuideIndicationCreate
+from app.schemas.checkpoint_media import CheckpointMediaCreate
+from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 
 
-def _guide_user() -> DetailedUser:
-    return DetailedUser(id=2, name="Guide", disabled=False, team_id=None, is_captain=False, scopes=["rally-guide"])
+async def _make_event(pg_session, event_type=EventType.GENERIC.value):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True, event_type=event_type)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-def _make_client(user: DetailedUser) -> TestClient:
-    app.dependency_overrides[get_db] = lambda: Mock()
-    app.dependency_overrides[get_guide] = lambda: user
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=user.scopes)
-    return TestClient(app)
+def _settings_update(current, **overrides) -> RallySettingsUpdate:
+    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
+    data.update(overrides)
+    return RallySettingsUpdate(**data)
 
 
-def _media(id=1, kind=MediaKind.photo, image_url=None, caption=None, order=0):
-    m = Mock()
-    m.id = id
-    m.kind = kind
-    m.image_url = image_url
-    m.caption = caption
-    m.order = order
-    return m
+async def _set_guide_mode(pg_session, *, enabled: bool, active: bool):
+    settings = await rally_settings.get_or_create(pg_session)
+    return await rally_settings.update(
+        pg_session,
+        id=settings.id,
+        obj_in=_settings_update(settings, guide_mode_enabled=enabled, guide_mode_active=active),
+    )
 
 
-def _indication(id=1, hint="Hint", question=None, expected_answer=None, order=0):
-    i = Mock()
-    i.id = id
-    i.hint = hint
-    i.question = question
-    i.expected_answer = expected_answer
-    i.order = order
-    return i
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Posto {order}", order=order)
+    )
 
 
-def _checkpoint(id=10, name="Posto 1", order=1, media=None, indications=None):
-    cp = Mock()
-    cp.id = id
-    cp.name = name
-    cp.order = order
-    cp.description = "desc"
-    cp.latitude = 1.0
-    cp.longitude = 2.0
-    cp.media = media or []
-    cp.guide_indications = indications or []
-    return cp
+async def test_guide_checkpoints_403_when_mode_off_and_not_peddy_paper(pg_session, pg_client, as_admin):
+    await _make_event(pg_session, event_type=EventType.GENERIC.value)
+    await _set_guide_mode(pg_session, enabled=False, active=False)
 
+    resp = pg_client.get("/api/rally/v1/guide/checkpoints")
 
-def _settings(enabled=True, active=True):
-    s = Mock()
-    s.guide_mode_enabled = enabled
-    s.guide_mode_active = active
-    return s
-
-
-def _event(event_type=EventType.GENERIC.value):
-    e = Mock()
-    e.id = 1
-    e.event_type = event_type
-    return e
-
-
-@pytest.fixture(autouse=True)
-def clear_overrides():
-    yield
-    app.dependency_overrides.clear()
-
-
-def test_guide_checkpoints_403_when_mode_off_and_not_peddy_paper():
-    client = _make_client(_guide_user())
-    with patch("app.api.api_v1.guide.rally_event.get_current", new=AsyncMock(return_value=_event())), \
-         patch("app.api.api_v1.guide.rally_settings.get_or_create", new=AsyncMock(return_value=_settings(enabled=False, active=False))):
-        resp = client.get("/api/rally/v1/guide/checkpoints")
     assert resp.status_code == 403
 
 
-def test_guide_checkpoints_maps_media_and_indications():
-    cp = _checkpoint(
-        media=[
-            _media(id=1, kind=MediaKind.photo, image_url="https://r2/p.png", order=0),
-            _media(id=2, kind=MediaKind.fun_fact, caption="Fun", order=1),
-        ],
-        indications=[_indication(id=1, hint="Give this hint", question="Q?", expected_answer="A")],
+async def test_guide_checkpoints_maps_media_and_indications(pg_session, pg_client, as_admin):
+    await _make_event(pg_session, event_type=EventType.GENERIC.value)
+    await _set_guide_mode(pg_session, enabled=True, active=True)
+    checkpoint = await _make_checkpoint(pg_session)
+    photo_row = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
     )
-    scalars = Mock()
-    scalars.all = Mock(return_value=[cp])
-    db = Mock()
-    db.scalars = AsyncMock(return_value=scalars)
+    photo_row.image_url = "https://r2/p.png"
+    pg_session.add(photo_row)
+    await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.fun_fact, caption="Fun", order=1),
+    )
+    await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(
+            hint="Give this hint", question="Q?", expected_answer="A", order=0
+        ),
+    )
+    await pg_session.commit()
 
-    app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[get_guide] = lambda: _guide_user()
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=["rally-guide"])
+    resp = pg_client.get("/api/rally/v1/guide/checkpoints")
 
-    with patch("app.api.api_v1.guide.rally_event.get_current", new=AsyncMock(return_value=_event())), \
-         patch("app.api.api_v1.guide.rally_settings.get_or_create", new=AsyncMock(return_value=_settings())):
-        resp = TestClient(app).get("/api/rally/v1/guide/checkpoints")
-
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     data = resp.json()
     assert len(data) == 1
     cp_data = data[0]
-    # Bug-fix regression: photo maps image_url -> url, order -> display_order
-    photo = next(m for m in cp_data["media"] if m["kind"] == "photo")
-    assert photo["url"] == "https://r2/p.png"
-    assert photo["display_order"] == 0
+    photo_item = next(m for m in cp_data["media"] if m["kind"] == "photo")
+    assert photo_item["url"] == "https://r2/p.png"
+    assert photo_item["display_order"] == 0
     fun = next(m for m in cp_data["media"] if m["kind"] == "fun_fact")
     assert fun["url"] is None
-    # Structured indications surfaced
     assert cp_data["indications"][0]["hint"] == "Give this hint"
     assert cp_data["indications"][0]["question"] == "Q?"
 
 
-def test_guide_checkpoints_allowed_for_peddy_paper_even_if_mode_off():
-    scalars = Mock()
-    scalars.all = Mock(return_value=[])
-    db = Mock()
-    db.scalars = AsyncMock(return_value=scalars)
+async def test_guide_checkpoints_allowed_for_peddy_paper_even_if_mode_off(pg_session, pg_client, as_admin):
+    await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+    await _set_guide_mode(pg_session, enabled=False, active=False)
 
-    app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[get_guide] = lambda: _guide_user()
-    app.dependency_overrides[api_nei_auth] = lambda: Mock(scopes=["rally-guide"])
+    resp = pg_client.get("/api/rally/v1/guide/checkpoints")
 
-    with patch("app.api.api_v1.guide.rally_event.get_current", new=AsyncMock(return_value=_event(EventType.PEDDY_PAPER.value))), \
-         patch("app.api.api_v1.guide.rally_settings.get_or_create", new=AsyncMock(return_value=_settings(enabled=False, active=False))):
-        resp = TestClient(app).get("/api/rally/v1/guide/checkpoints")
     assert resp.status_code == 200
     assert resp.json() == []

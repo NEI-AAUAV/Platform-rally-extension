@@ -110,10 +110,16 @@ class RallyDurationCalculator:
     def get_team_rally_duration(self, team_start_time: datetime) -> Dict[str, Any]:
         """Calculate rally duration for a specific team."""
         current_time = datetime.now(timezone.utc)
-        
+
         if not self.settings.rally_start_time:
             return {"error": "No rally start time configured"}
-        
+
+        # team_start_time comes from Team.times, a TIMESTAMP WITHOUT TIME ZONE
+        # column, so it arrives naive; current_time/settings timestamps are
+        # tz-aware. Normalize before subtracting or this raises TypeError.
+        if team_start_time.tzinfo is None:
+            team_start_time = team_start_time.replace(tzinfo=timezone.utc)
+
         # Calculate team's rally duration
         team_duration = current_time - team_start_time
         

@@ -1,158 +1,97 @@
-"""
-API tests for Versus endpoints
-"""
-import pytest
-from unittest.mock import Mock, patch
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.deps import get_db
+"""API tests for Versus endpoints, against real Postgres."""
+from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_team import team as crud_team
+from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+from app.schemas.team import TeamCreate
 
 
-@pytest.fixture
-def mock_db():
-    """Mock database session"""
-    return Mock()
+async def _make_event(pg_session):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    settings = await rally_settings.get_or_create(pg_session)
+    data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+    data.update(enable_versus=True)
+    await rally_settings.update(pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data))
+    return event
 
 
-@pytest.fixture
-def client_with_mocked_db(mock_db):
-    """Test client with mocked database"""
-    def override_get_db():
-        return mock_db
-    
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def mock_participant_user():
-    """Mock participant user"""
-    user = Mock()
-    user.id = 1
-    user.name = "Participant User"
-    user.team_id = 1
-    return user
-
-
-@pytest.fixture
-def mock_auth_data():
-    """Mock auth data with participant scopes"""
-    auth = Mock()
-    auth.scopes = ["rally:participant"]
-    return auth
-
-
-@pytest.fixture
-def mock_versus_group():
-    """Mock versus group data"""
-    group_id = 1
-    team_a = Mock()
-    team_a.id = 1
-    team_a.name = "Team A"
-    team_a.versus_group_id = group_id
-    
-    team_b = Mock()
-    team_b.id = 2
-    team_b.name = "Team B"
-    team_b.versus_group_id = group_id
-    
-    return {
-        "group_id": group_id,
-        "team_a": team_a,
-        "team_b": team_b
-    }
+async def _make_team(pg_session, name):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
 
 
 class TestVersusAPI:
-    """Test Versus API endpoints"""
-    
-    def test_create_versus_pair_success(self, client_with_mocked_db, mock_db, mock_participant_user, mock_auth_data, mock_versus_group):
-        """Test creating a versus pair successfully"""
-        with patch('app.api.api_v1.versus.get_participant') as mock_get_user, \
-             patch('app.api.api_v1.versus.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.versus.versus.create_versus_pair') as mock_create:
-            
-            mock_get_user.return_value = mock_participant_user
-            mock_auth.return_value = mock_auth_data
-            mock_create.return_value = mock_versus_group["group_id"]
-            
-            pair_data = {
-                "team_a_id": 1,
-                "team_b_id": 2
-            }
-            
-            response = client_with_mocked_db.post(
-                "/api/rally/v1/versus/pair",
-                json=pair_data
-            )
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 201, 401]
-    
-    def test_get_team_opponent_success(self, client_with_mocked_db, mock_db, mock_participant_user, mock_auth_data, mock_versus_group):
-        """Test getting a team's opponent successfully"""
-        mock_opponent = Mock()
-        mock_opponent.id = 2
-        mock_opponent.name = "Team B"
-        
-        with patch('app.api.api_v1.versus.get_participant') as mock_get_user, \
-             patch('app.api.api_v1.versus.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.versus.versus.get_opponent') as mock_get:
-            
-            mock_get_user.return_value = mock_participant_user
-            mock_auth.return_value = mock_auth_data
-            mock_get.return_value = mock_opponent
-            
-            response = client_with_mocked_db.get("/api/rally/v1/versus/team/1/opponent")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401]
-    
-    def test_get_team_opponent_no_opponent(self, client_with_mocked_db, mock_db, mock_participant_user, mock_auth_data):
-        """Test getting opponent when team has no opponent"""
-        with patch('app.api.api_v1.versus.get_participant') as mock_get_user, \
-             patch('app.api.api_v1.versus.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.versus.versus.get_opponent') as mock_get:
-            
-            mock_get_user.return_value = mock_participant_user
-            mock_auth.return_value = mock_auth_data
-            mock_get.return_value = None  # No opponent
-            
-            response = client_with_mocked_db.get("/api/rally/v1/versus/team/1/opponent")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401]
-    
-    @pytest.mark.skip(reason="Complex query mocking required")
-    def test_list_versus_groups_success(self, client_with_mocked_db, mock_db, mock_participant_user, mock_auth_data, mock_versus_group):
-        """Test listing all versus groups successfully"""
-        pass
+    async def test_create_versus_pair_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+
+        resp = pg_client.post(
+            "/api/rally/v1/versus/pair",
+            json={"team_a_id": team_a.id, "team_b_id": team_b.id},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["team_a_id"] == team_a.id
+        assert body["team_b_id"] == team_b.id
+        assert body["group_id"] is not None
+
+    async def test_get_team_opponent_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        pg_client.post(
+            "/api/rally/v1/versus/pair",
+            json={"team_a_id": team_a.id, "team_b_id": team_b.id},
+        )
+
+        resp = pg_client.get(f"/api/rally/v1/versus/team/{team_a.id}/opponent")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["opponent_id"] == team_b.id
+        assert body["opponent_name"] == "Team B"
+
+    async def test_get_team_opponent_no_opponent(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Lonely Team")
+
+        resp = pg_client.get(f"/api/rally/v1/versus/team/{team.id}/opponent")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["opponent_id"] is None
+        assert body["opponent_name"] is None
+
+    async def test_list_versus_groups_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        pg_client.post(
+            "/api/rally/v1/versus/pair",
+            json={"team_a_id": team_a.id, "team_b_id": team_b.id},
+        )
+
+        resp = pg_client.get("/api/rally/v1/versus/groups")
+
+        assert resp.status_code == 200
+        groups = resp.json()["groups"]
+        assert len(groups) == 1
+        assert {groups[0]["team_a_id"], groups[0]["team_b_id"]} == {team_a.id, team_b.id}
 
 
 class TestVersusBusinessLogic:
-    """Test versus business logic"""
-    
+    """Pure validation logic — no DB, kept as-is."""
+
     def test_versus_pair_creation_validation(self):
-        """Test that versus pairs require two different teams"""
         team_a_id = 1
         team_b_id = 2
-        
-        # Valid pair: different teams
         assert team_a_id != team_b_id
-        
-        # Invalid pair: same team
+
         team_a_id = 1
         team_b_id = 1
-        assert team_a_id == team_b_id  # This should be rejected
-    
-    def test_versus_group_id_consistency(self, mock_versus_group):
-        """Test that teams in the same versus group have the same versus_group_id"""
-        team_a = mock_versus_group["team_a"]
-        team_b = mock_versus_group["team_b"]
-        
-        assert team_a.versus_group_id == team_b.versus_group_id
-        assert team_a.id != team_b.id
-
+        assert team_a_id == team_b_id  # rejected by the endpoint

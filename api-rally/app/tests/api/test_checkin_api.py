@@ -20,7 +20,6 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
 from app.main import app
 from app.schemas.checkpoint import CheckPointCreate
-from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 from app.schemas.team_auth import TeamTokenData
 from app.services.checkin_token import CheckinClaims, CheckinTokenError
@@ -38,24 +37,19 @@ async def _make_event(pg_session):
     return event
 
 
-def _settings_update(current, **overrides) -> RallySettingsUpdate:
-    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
-    data.update(overrides)
-    return RallySettingsUpdate(**data)
-
-
-async def _activate_rally(pg_session):
-    settings = await rally_settings.get_or_create(pg_session)
+async def _activate_rally(pg_session, event):
+    """rally_settings.rally_start_time/end_time are read-only in practice:
+    `CRUDRallySettings.get_or_create` always overwrites them from the current
+    event's start_time/end_time (`_sync_timing_from_event`), so writing the
+    settings row directly is silently reverted on the next read. Set the
+    event's timing instead — that's the actual source of truth.
+    """
     now = datetime.now(timezone.utc)
-    return await rally_settings.update(
-        pg_session,
-        id=settings.id,
-        obj_in=_settings_update(
-            settings,
-            rally_start_time=now - timedelta(hours=1),
-            rally_end_time=now + timedelta(hours=1),
-        ),
-    )
+    event.start_time = now - timedelta(hours=1)
+    event.end_time = now + timedelta(hours=1)
+    pg_session.add(event)
+    await pg_session.commit()
+    return await rally_settings.get_or_create(pg_session)
 
 
 async def _make_team(pg_session, name="Alpha"):
@@ -100,8 +94,8 @@ def _wire_token(monkeypatch: pytest.MonkeyPatch, checkpoint_id: int, *, nonce_fr
 
 
 async def test_check_in_success(pg_session, pg_client, as_checkin_team, monkeypatch):
-    await _make_event(pg_session)
-    await _activate_rally(pg_session)
+    event = await _make_event(pg_session)
+    await _activate_rally(pg_session, event)
     checkpoint = await _make_checkpoint(pg_session, order=1)
     team = await _make_team(pg_session)
     as_checkin_team(team.id, team.name)
@@ -140,8 +134,8 @@ async def test_check_in_bad_token_returns_400(pg_session, pg_client, as_checkin_
 
 
 async def test_check_in_out_of_order_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
-    await _make_event(pg_session)
-    await _activate_rally(pg_session)
+    event = await _make_event(pg_session)
+    await _activate_rally(pg_session, event)
     await _make_checkpoint(pg_session, order=1)
     checkpoint_3 = await _make_checkpoint(pg_session, order=3)
     team = await _make_team(pg_session)
@@ -155,8 +149,8 @@ async def test_check_in_out_of_order_returns_409(pg_session, pg_client, as_check
 
 
 async def test_check_in_replayed_token_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
-    await _make_event(pg_session)
-    await _activate_rally(pg_session)
+    event = await _make_event(pg_session)
+    await _activate_rally(pg_session, event)
     checkpoint = await _make_checkpoint(pg_session, order=1)
     team = await _make_team(pg_session)
     as_checkin_team(team.id, team.name)

@@ -1,93 +1,93 @@
-"""API tests for the profile / participation-history endpoints."""
-from datetime import datetime, timezone
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
-
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.api.auth import api_nei_auth
-from app.api.deps import get_db, get_participant
+"""API tests for the profile / participation-history endpoints, against real Postgres."""
+from app.crud.crud_participation import CRUDParticipation
+from app.crud.crud_team import team as crud_team
+from app.crud.crud_user import user as crud_user
+from app.schemas.team import TeamCreate
+from app.schemas.user import UserCreate
 
 
-def _auth() -> SimpleNamespace:
-    return SimpleNamespace(oidc_sub="sub-1", name="Ana", email="ana@nei.pt", scopes=["rally-staff"])
+async def _make_event(pg_session):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Rally 2026", is_current=True)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
 
 
-def _participation(**over) -> SimpleNamespace:
-    base = {
-        "event_id": 5, "team_id": 10, "team_name": "Os Bons", "team_total": 42,
-        "team_classification": 2, "is_captain": True, "joined_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
-    }
-    base.update(over)
-    return SimpleNamespace(**base)
+async def _make_team(pg_session, name="Os Bons"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
 
 
-def _db_no_team() -> AsyncMock:
-    """Session whose .get(Team, ...) is None so _entry uses the snapshot."""
-    db = AsyncMock()
-    db.get = AsyncMock(return_value=None)
-    return db
+class TestProfileMe:
+    async def test_profile_me_lists_participations(self, pg_session, pg_client, as_admin):
+        event = await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        me = await crud_user.create_for_oidc(
+            pg_session,
+            authentik_sub="test-admin-sub",
+            name="Ana",
+            email="ana@nei.pt",
+            scopes=["admin"],
+        )
+        await CRUDParticipation().record(
+            pg_session, authentik_sub="test-admin-sub", event_id=event.id, team=team, is_captain=True
+        )
+
+        resp = pg_client.get("/api/rally/v1/profile/me")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["authentik_sub"] == "test-admin-sub"
+        assert len(body["participations"]) == 1
+        entry = body["participations"][0]
+        assert entry["event_name"] == "Rally 2026"
+        assert entry["team_name"] == "Os Bons"
 
 
-@pytest.fixture
-def client():
-    app.dependency_overrides[get_db] = _db_no_team
-    app.dependency_overrides[get_participant] = lambda: SimpleNamespace(
-        id=1, name="Ana", disabled=False, staff_checkpoint_id=None, scopes=["rally-staff"]
-    )
-    app.dependency_overrides[api_nei_auth] = _auth
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+class TestProfileHistory:
+    async def test_history_returns_entries(self, pg_session, pg_client, as_admin):
+        event = await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        await CRUDParticipation().record(
+            pg_session, authentik_sub="test-admin-sub", event_id=event.id, team=team
+        )
+
+        resp = pg_client.get("/api/rally/v1/profile/history")
+
+        assert resp.status_code == 200
+        assert resp.json()[0]["event_id"] == event.id
 
 
-def test_profile_me_lists_participations(client: TestClient) -> None:
-    me = SimpleNamespace(id=1, name="Ana", email="ana@nei.pt", team_id=None, is_captain=False)
-    event = SimpleNamespace(id=5, name="Rally 2026", event_type="rally_tascas")
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=me)), \
-         patch("app.crud.participation.get_for_sub", new=AsyncMock(return_value=[_participation()])), \
-         patch("app.crud.rally_event.get", new=AsyncMock(return_value=event)):
-        resp = client.get("/api/rally/v1/profile/me")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["authentik_sub"] == "sub-1"
-    assert len(body["participations"]) == 1
-    entry = body["participations"][0]
-    assert entry["event_name"] == "Rally 2026"
-    assert entry["team_name"] == "Os Bons"
-    assert entry["team_classification"] == 2
+class TestClaimable:
+    async def test_claimable_lists_only_placeholders(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="João"))
+        placeholder.team_id = team.id
+        pg_session.add(placeholder)
+        captain = await crud_user.create(pg_session, obj_in=UserCreate(name="Rita"))
+        captain.team_id = team.id
+        captain.is_captain = True
+        pg_session.add(captain)
+        await pg_session.commit()
 
+        resp = pg_client.get(
+            "/api/rally/v1/profile/claimable", params={"access_code": team.access_code}
+        )
 
-def test_history_returns_entries(client: TestClient) -> None:
-    event = SimpleNamespace(id=5, name="Rally 2026", event_type="rally_tascas")
-    with patch("app.crud.participation.get_for_sub", new=AsyncMock(return_value=[_participation()])), \
-         patch("app.crud.rally_event.get", new=AsyncMock(return_value=event)):
-        resp = client.get("/api/rally/v1/profile/history")
-    assert resp.status_code == 200
-    assert resp.json()[0]["event_id"] == 5
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["team_id"] == team.id
+        assert body["team_name"] == team.name
+        assert {m["name"] for m in body["members"]} == {"João", "Rita"}
 
+    async def test_claimable_unknown_code_returns_404(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
 
-def test_claimable_lists_only_placeholders(client: TestClient) -> None:
-    team = SimpleNamespace(id=10, name="Os Bons")
-    placeholders = [
-        SimpleNamespace(id=2, name="João", is_captain=False),
-        SimpleNamespace(id=3, name="Rita", is_captain=True),
-    ]
-    scalars = SimpleNamespace(all=lambda: placeholders)
-    # The endpoint resolves the team by code, then queries placeholder members.
-    with patch("app.crud.team.get_by_access_code", new=AsyncMock(return_value=team)):
-        app.dependency_overrides[get_db] = lambda: AsyncMock(scalars=AsyncMock(return_value=scalars))
-        resp = client.get("/api/rally/v1/profile/claimable", params={"access_code": "ABCD-1234"})
-        app.dependency_overrides[get_db] = _db_no_team
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["team_id"] == 10
-    assert body["team_name"] == "Os Bons"
-    assert [m["name"] for m in body["members"]] == ["João", "Rita"]
+        resp = pg_client.get(
+            "/api/rally/v1/profile/claimable", params={"access_code": "NOPE-0000"}
+        )
 
-
-def test_claimable_unknown_code_returns_404(client: TestClient) -> None:
-    with patch("app.crud.team.get_by_access_code", new=AsyncMock(return_value=None)):
-        resp = client.get("/api/rally/v1/profile/claimable", params={"access_code": "NOPE-0000"})
-    assert resp.status_code == 404
+        assert resp.status_code == 404

@@ -207,6 +207,7 @@ def as_admin():
     app.dependency_overrides[deps.get_guide] = lambda: user
     app.dependency_overrides[deps.get_participant] = lambda: user
     app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+    app.dependency_overrides[deps.get_current_user] = lambda: user
     try:
         yield user
     finally:
@@ -217,6 +218,7 @@ def as_admin():
             deps.get_guide,
             deps.get_participant,
             deps.get_current_user_optional,
+            deps.get_current_user,
         ):
             app.dependency_overrides.pop(dep, None)
 
