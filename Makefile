@@ -1,4 +1,4 @@
-.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down lock
+.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps demo web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down lock
 
 DEV_COMPOSE     := docker compose --project-name nei-rally-dev -f compose.yml --env-file .env
 PROD_COMPOSE    := docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml --env-file .env.prod
@@ -18,6 +18,7 @@ help:
 	@echo "  make dev-restart  - Restart services"
 	@echo "  make dev-clean    - Stop services and remove volumes"
 	@echo "  make dev-ps       - List running services"
+	@echo "  make demo         - Seed fake teams/results/badges into the dev DB"
 	@echo ""
 	@echo "Web:"
 	@echo "  make web-dev      - Start web dev server (HMR)"
@@ -73,6 +74,12 @@ dev-clean:
 
 dev-ps:
 	$(DEV_COMPOSE) ps
+
+demo:
+	@echo "Seeding demo data (fake teams, results, badges) into the dev database..."
+	$(DEV_COMPOSE) up -d --remove-orphans db_pg api_rally
+	$(DEV_COMPOSE) exec -e DEMO_SEED_ALLOW=1 api_rally python -m app.db.demo_seed
+	@echo "Done. Log in as staff/admin to see the seeded evaluations and audit trail."
 
 ## --- Web
 

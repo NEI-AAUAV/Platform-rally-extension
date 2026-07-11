@@ -339,6 +339,98 @@ async def test_update_result_rescores_on_data_change(pg_session):
     assert team.total == pytest.approx(90)
 
 
+async def test_update_result_records_history_with_editor(pg_session):
+    from app.models.evaluation_history import EvaluationHistory, EvaluationAction
+    from app.services.scoring_service import EvaluationEditor
+    from sqlalchemy import select
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+
+    svc = ScoringService(pg_session)
+    await svc.update_result(
+        result,
+        ActivityResultUpdate(result_data={"assigned_points": 90}),
+        editor=EvaluationEditor(id="user-1", name="Alice"),
+    )
+
+    rows = (
+        await pg_session.scalars(
+            select(EvaluationHistory).where(EvaluationHistory.result_id == result.id)
+        )
+    ).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.action == EvaluationAction.UPDATED.value
+    assert row.editor_id == "user-1"
+    assert row.editor_name == "Alice"
+    # final_score moved 40 -> 90; the diff records both ends.
+    assert row.changes["final_score"] == {"before": 40.0, "after": 90.0}
+    assert row.changes["result_data"]["before"] == {"assigned_points": 40}
+    assert row.changes["result_data"]["after"] == {"assigned_points": 90}
+
+
+async def test_update_result_no_change_writes_no_history(pg_session):
+    from app.models.evaluation_history import EvaluationHistory
+    from app.services.scoring_service import EvaluationEditor
+    from sqlalchemy import select
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    # Seed the type-specific score so re-applying the same data is a true no-op;
+    # otherwise the first rescore legitimately fills points_score (None -> 40).
+    result.points_score = 40
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    # Same value in -> rescore is a no-op -> nothing changed -> no audit row.
+    await svc.update_result(
+        result,
+        ActivityResultUpdate(result_data={"assigned_points": 40}),
+        editor=EvaluationEditor(id="user-1", name="Alice"),
+    )
+
+    rows = (
+        await pg_session.scalars(
+            select(EvaluationHistory).where(EvaluationHistory.result_id == result.id)
+        )
+    ).all()
+    assert rows == []
+
+
+async def test_update_result_without_editor_skips_history(pg_session):
+    """Back-compat: callers that pass no editor still work and log no trail."""
+    from app.models.evaluation_history import EvaluationHistory
+    from sqlalchemy import select
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session, team=team, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+
+    svc = ScoringService(pg_session)
+    await svc.update_result(
+        result, ActivityResultUpdate(result_data={"assigned_points": 90})
+    )
+
+    rows = (
+        await pg_session.scalars(
+            select(EvaluationHistory).where(EvaluationHistory.result_id == result.id)
+        )
+    ).all()
+    assert rows == []
+
+
 async def test_remove_result_deletes_and_updates_team(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)

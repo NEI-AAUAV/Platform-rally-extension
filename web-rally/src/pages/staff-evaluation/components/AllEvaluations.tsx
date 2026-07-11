@@ -12,7 +12,9 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  History,
 } from "lucide-react";
+import { EvaluationHistory } from "./EvaluationHistory";
 
 interface Evaluation {
   id: number;
@@ -90,9 +92,22 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("all");
   const [expandedEvaluations, setExpandedEvaluations] = useState<Set<number>>(new Set());
+  const [expandedHistory, setExpandedHistory] = useState<Set<number>>(new Set());
 
   const toggleExpand = (evaluationId: number) => {
     setExpandedEvaluations((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(evaluationId)) {
+        newSet.delete(evaluationId);
+      } else {
+        newSet.add(evaluationId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleHistory = (evaluationId: number) => {
+    setExpandedHistory((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(evaluationId)) {
         newSet.delete(evaluationId);
@@ -222,6 +237,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                 evaluation.activity.activity_type as keyof typeof activityTypeIcons
               ] || Activity;
             const isExpanded = expandedEvaluations.has(evaluation.id);
+            const isHistoryOpen = expandedHistory.has(evaluation.id);
 
             // Compute TeamVsActivity result badge if applicable
             let teamVsResult: React.ReactNode = null;
@@ -419,6 +435,24 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                       )}
                     </div>
                   )}
+
+                  {/* Audit trail: edits and team contests for this result. */}
+                  <div className="border-t border-border pt-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleHistory(evaluation.id)}
+                      aria-expanded={isHistoryOpen}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <History className="h-3.5 w-3.5" />
+                      {isHistoryOpen ? "Ocultar histórico" : "Ver histórico"}
+                    </button>
+                    {isHistoryOpen && (
+                      <div className="mt-2">
+                        <EvaluationHistory resultId={evaluation.id} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

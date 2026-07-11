@@ -16,6 +16,7 @@ from app.crud.crud_team import team
 from app.crud.crud_checkpoint import checkpoint
 from app.services.scoring_service import ScoringService
 from app.schemas.activity import ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
+from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.models.activity import ActivityResult
 from app.models.team import Team
@@ -308,8 +309,10 @@ async def update_team_activity_evaluation(
     if not db_result or db_result.activity_id != activity_id or db_result.team_id != team_id:
         raise RallyNotFoundError("Activity result not found")
 
-    # Update the result
-    db_result = await ScoringService(db).update_result(db_result, result_in)
+    # Update the result, tagging the audit trail with who made the change.
+    from app.services.scoring_service import EvaluationEditor
+    editor = EvaluationEditor(id=str(current_user.id), name=current_user.name)
+    db_result = await ScoringService(db).update_result(db_result, result_in, editor=editor)
 
     # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
     try:
@@ -319,6 +322,39 @@ async def update_team_activity_evaluation(
         logger.error(f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}", exc_info=True)
 
     return ActivityResultResponse.model_validate(db_result)
+
+
+@router.get("/evaluations/{result_id}/history")
+async def get_evaluation_history(
+    *,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    result_id: int,
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+    auth: Annotated[AuthData, Depends(api_nei_auth)]
+) -> List[EvaluationHistoryEntry]:
+    """Audit trail for a single result: every edit and contest, newest first.
+
+    Manager/admin only — staff can score but the trail (who overrode whom) is a
+    dispute-resolution tool for organizers.
+    """
+    if not validate_rally_permissions(auth):
+        raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
+    if not is_admin_or_manager(auth):
+        raise RallyForbiddenError("Only managers can view evaluation history")
+
+    db_result = await activity_result.get(db, id=result_id)
+    if not db_result:
+        raise RallyNotFoundError("Activity result not found")
+
+    from sqlalchemy import select
+    from app.models.evaluation_history import EvaluationHistory
+    stmt = (
+        select(EvaluationHistory)
+        .where(EvaluationHistory.result_id == result_id)
+        .order_by(EvaluationHistory.created_at.desc())
+    )
+    rows = (await db.scalars(stmt)).all()
+    return [EvaluationHistoryEntry.model_validate(row) for row in rows]
 
 
 @router.get("/all-evaluations")

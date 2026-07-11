@@ -35,6 +35,7 @@ from app.models import (  # noqa: F401
     DynamicRule,
     DynamicAward,
     EventParticipation,
+    EvaluationHistory,
 )
 
 # Test database setup — async SQLite (aiosqlite). A single shared file lets the

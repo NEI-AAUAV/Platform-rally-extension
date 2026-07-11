@@ -1,15 +1,18 @@
 """
 Scoring system service for Rally activities
 """
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Optional
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import copy
 import logging
 from datetime import datetime, timezone
 
 from app.core.config import get_settings
 from app.models.activity import ActivityResult, Activity
+from app.models.evaluation_history import EvaluationHistory, EvaluationAction
 from app.models.dynamic_scoring import DynamicAward
 from app.models.team import Team
 from app.models.rally_settings import RallySettings
@@ -29,6 +32,51 @@ from app.events import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class EvaluationEditor:
+    """Who is editing a result, for the audit trail.
+
+    ``id``/``name`` are copied verbatim into the history row so the trail stays
+    readable even if the underlying user or team is later renamed or removed.
+    """
+
+    id: str
+    name: str
+
+
+# Scoring fields whose before/after we record when a result is edited. Kept
+# explicit (not "every column") so timestamps and unrelated bookkeeping never
+# show up as spurious diffs.
+_AUDITED_FIELDS = (
+    "final_score",
+    "points_score",
+    "time_score",
+    "boolean_score",
+    "team_vs_result",
+    "extra_shots",
+    "result_data",
+    "penalties",
+)
+
+
+def _snapshot_result(result: ActivityResult) -> dict[str, Any]:
+    """Deep-copy the audited fields of a result for later diffing."""
+    return {
+        field: copy.deepcopy(getattr(result, field)) for field in _AUDITED_FIELDS
+    }
+
+
+def _diff_snapshots(
+    before: dict[str, Any], after: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Field-level {field: {"before", "after"}} for values that changed."""
+    return {
+        field: {"before": before[field], "after": after[field]}
+        for field in _AUDITED_FIELDS
+        if before.get(field) != after.get(field)
+    }
 
 
 class ScoringService:
@@ -421,8 +469,21 @@ class ScoringService:
 
         return db_obj
 
-    async def update_result(self, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
-        """Apply an update to a result, rescoring when result_data changed."""
+    async def update_result(
+        self,
+        db_obj: ActivityResult,
+        obj_in: ActivityResultUpdate,
+        *,
+        editor: Optional[EvaluationEditor] = None,
+    ) -> ActivityResult:
+        """Apply an update to a result, rescoring when result_data changed.
+
+        When ``editor`` is given, an ``EvaluationHistory`` row is appended with
+        the field-level diff — the audit trail for who changed a score. No row
+        is written when nothing actually changed.
+        """
+        before = _snapshot_result(db_obj) if editor is not None else None
+
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
         if 'result_data' in update_data:
@@ -444,6 +505,10 @@ class ScoringService:
                 await self._recalculate_all_results_for_activity(activity.id)
 
         await activity_result_crud.persist(self.db, db_obj)
+
+        if before is not None and editor is not None:
+            await self._record_history(db_obj, before, editor)
+
         if not self._defer_recompute:
             await self.update_team_scores(db_obj.team_id)
         await self._publish_result_change(
@@ -453,6 +518,27 @@ class ScoringService:
             activity_id=db_obj.activity_id,
         )
         return db_obj
+
+    async def _record_history(
+        self,
+        db_obj: ActivityResult,
+        before: dict[str, Any],
+        editor: EvaluationEditor,
+    ) -> None:
+        """Append an UPDATED audit row when audited fields actually changed."""
+        changes = _diff_snapshots(before, _snapshot_result(db_obj))
+        if not changes:
+            return
+        self.db.add(
+            EvaluationHistory(
+                result_id=db_obj.id,
+                action=EvaluationAction.UPDATED.value,
+                editor_id=editor.id,
+                editor_name=editor.name,
+                changes=changes,
+            )
+        )
+        await self.db.commit()
 
     async def remove_result(self, result_id: int) -> ActivityResult | None:
         """Delete a result and refresh the owning team's scores."""

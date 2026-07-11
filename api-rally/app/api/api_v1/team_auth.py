@@ -12,6 +12,7 @@ from app.api.rate_limit import check_login_rate_limit, rate_limit
 from app.core.config import SettingsDep, settings
 from app.crud.crud_team import team as crud_team
 from app.schemas.team_auth import TeamLoginRequest, TeamLoginResponse, TeamTokenData
+from app.schemas.evaluation_history import ContestRequest, EvaluationHistoryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +166,44 @@ def refresh_team_token(
         team_id=payload["team_id"],
         team_name=payload["team_name"]
     )
+
+
+@router.post(
+    "/evaluations/{result_id}/contest",
+    dependencies=[Depends(_write_rate_limit)],
+)
+async def contest_evaluation(
+    *,
+    result_id: int,
+    contest_in: ContestRequest,
+    db: Annotated[AsyncSession, Depends(deps.get_db)],
+    current_team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+) -> EvaluationHistoryEntry:
+    """Let a team dispute one of *its own* results.
+
+    Appends a CONTESTED row to the audit trail with the team's reason. Does not
+    change the score — it flags the result for an organizer to review. A team
+    may only contest results belonging to itself.
+    """
+    from app.crud.crud_activity import activity_result as activity_result_crud
+    from app.models.evaluation_history import EvaluationHistory, EvaluationAction
+
+    db_result = await activity_result_crud.get(db, id=result_id)
+    if not db_result:
+        raise HTTPException(status_code=404, detail="Activity result not found")
+    if db_result.team_id != current_team.team_id:
+        # Don't leak existence of other teams' results — same 404.
+        raise HTTPException(status_code=404, detail="Activity result not found")
+
+    entry = EvaluationHistory(
+        result_id=result_id,
+        action=EvaluationAction.CONTESTED.value,
+        editor_id=str(current_team.team_id),
+        editor_name=current_team.team_name,
+        changes={},
+        note=contest_in.reason,
+    )
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return EvaluationHistoryEntry.model_validate(entry)
