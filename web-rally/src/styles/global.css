@@ -105,12 +105,17 @@
     --rally-accent-fallback: #dc2625;
     --rally-accent-soft-fallback: rgba(220, 38, 37, 0.15);
     --rally-glow-fallback: rgba(255, 0, 0, 0.12);
+    /* Lightened variant of the fallback, pre-verified >= 4.5:1 against the
+       dark card background — see ensureContrastByLightening in branding.ts
+       for the runtime equivalent used with custom accent_color values. */
+    --rally-accent-contrast-dark-fallback: #e45554;
   }
   [data-rally-theme="nei"],
   [data-rally-theme="default"] {
     --rally-accent-fallback: #008542;
     --rally-accent-soft-fallback: rgba(0, 133, 66, 0.16);
     --rally-glow-fallback: rgba(0, 133, 66, 0.14);
+    --rally-accent-contrast-dark-fallback: #009a4c;
   }
 }
 
@@ -118,6 +123,13 @@
   /* --- Brand accent helpers --- */
   .rally-accent {
     color: var(--rally-accent, var(--rally-accent-fallback));
+  }
+  /* Dark theme: raw accent text can fail WCAG AA against the dark card
+     background (e.g. default NEI green is ~3.9:1). Use the lightened,
+     contrast-verified variant instead — computed at runtime for custom
+     accent colors by useDocumentBranding, with a pre-verified fallback. */
+  .dark .rally-accent {
+    color: var(--rally-accent-contrast, var(--rally-accent-contrast-dark-fallback));
   }
   .rally-bg-accent {
     background-color: var(--rally-accent, var(--rally-accent-fallback));

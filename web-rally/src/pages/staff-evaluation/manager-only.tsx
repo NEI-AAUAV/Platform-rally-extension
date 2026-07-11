@@ -175,7 +175,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
         {/* Teams Overview */}
         <div className="rally-surface rounded-2xl p-5">
           <div className="mb-4 flex items-center gap-3">
-            <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 place-items-center rounded-lg">
+            <span className="rally-bg-accent-soft text-foreground grid h-9 w-9 place-items-center rounded-lg">
               <Users className="h-4 w-4" />
             </span>
             <div>

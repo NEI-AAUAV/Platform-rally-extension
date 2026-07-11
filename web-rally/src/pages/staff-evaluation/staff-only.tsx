@@ -31,7 +31,7 @@ export default function StaffEvaluationPage() {
   if (!myCheckpoint) {
     return (
       <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
-        <span className="rally-bg-accent-soft rally-accent mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl">
+        <span className="rally-bg-accent-soft text-foreground mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl">
           <Activity className="h-6 w-6" />
         </span>
         <h2 className="rally-display text-xl font-bold text-foreground">Sem posto atribuído</h2>

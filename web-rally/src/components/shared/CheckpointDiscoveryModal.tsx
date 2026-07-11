@@ -72,7 +72,7 @@ export default function CheckpointDiscoveryModal({
               <h2 className="rally-display truncate text-lg font-bold text-foreground">{name}</h2>
             </div>
             {statusLabel && (
-              <span className="rally-bg-accent-soft rally-accent mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+              <span className="rally-bg-accent-soft text-foreground mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                 {statusLabel}
               </span>
             )}

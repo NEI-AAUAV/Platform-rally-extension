@@ -96,8 +96,12 @@ test.describe('Accessibility', () => {
     );
 
     await seedOidcSession(context, MANAGER_GROUPS);
-    await page.goto('/rally/settings', { waitUntil: 'networkidle' });
-    await page.waitForResponse('**/api/nei/v1/user/me**').catch(() => {});
+    await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
+    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 10000 }).catch(() => {});
+    await page.waitForResponse('**/api/rally/v1/rally/settings**', { timeout: 10000 }).catch(() => {});
+    await expect(
+      page.getByRole('heading', { name: 'Configurações', exact: true }),
+    ).toBeVisible({ timeout: 20000 });
     await expectNoSeriousViolations(page);
   });
 

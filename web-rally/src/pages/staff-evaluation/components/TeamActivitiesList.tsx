@@ -62,7 +62,7 @@ export function TeamActivitiesList({
 
         <div className="rally-surface rally-elevate rounded-2xl p-5">
           <div className="mb-4 flex items-center gap-3">
-            <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+            <span className="rally-bg-accent-soft text-foreground grid h-9 w-9 shrink-0 place-items-center rounded-lg">
               <Activity className="h-4 w-4" />
             </span>
             <div>
@@ -88,7 +88,7 @@ export function TeamActivitiesList({
   return (
     <div className="space-y-3">
       <div className="mb-1 flex items-center gap-3">
-        <span className="rally-bg-accent-soft rally-accent grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+        <span className="rally-bg-accent-soft text-foreground grid h-9 w-9 shrink-0 place-items-center rounded-lg">
           <Activity className="h-4 w-4" />
         </span>
         <div>
@@ -121,7 +121,7 @@ export function TeamActivitiesList({
               <span
                 className={cn(
                   "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
-                  isCompleted ? "rally-bg-accent-soft rally-accent" : "rally-bg-accent text-white",
+                  isCompleted ? "rally-bg-accent-soft text-foreground" : "rally-bg-accent text-white",
                 )}
               >
                 <IconComponent className="h-4 w-4" />
@@ -141,7 +141,7 @@ export function TeamActivitiesList({
                   className={cn(
                     "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
                     isCompleted
-                      ? "rally-bg-accent-soft rally-accent"
+                      ? "rally-bg-accent-soft text-foreground"
                       : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
                   )}
                 >

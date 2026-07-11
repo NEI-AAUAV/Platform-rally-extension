@@ -51,7 +51,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
       <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((cp) => (
           <li key={cp.id} className="rally-surface flex items-start gap-3 p-4">
-            <span className="rally-bg-accent-soft rally-accent grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold">
+            <span className="rally-bg-accent-soft text-foreground grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold">
               {cp.order}
             </span>
             <div className="min-w-0">

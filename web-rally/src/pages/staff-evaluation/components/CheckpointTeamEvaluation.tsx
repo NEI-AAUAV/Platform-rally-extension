@@ -133,7 +133,7 @@ export default function CheckpointTeamEvaluation() {
               Equipas para avaliar
             </h2>
             {checkpointTeams && checkpointTeams.length > 0 && (
-              <span className="rally-bg-accent-soft rally-accent rounded-full px-3 py-1 text-sm font-bold">
+              <span className="rally-bg-accent-soft text-foreground rounded-full px-3 py-1 text-sm font-bold">
                 {checkpointTeams.length}
               </span>
             )}

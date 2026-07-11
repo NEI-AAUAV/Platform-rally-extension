@@ -137,7 +137,7 @@ function CheckpointCardBody({
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                isCompleted && "rally-bg-accent-soft rally-accent",
+                isCompleted && "rally-bg-accent-soft text-foreground",
                 isCurrent && "rally-bg-accent text-white",
                 isFuture && "bg-secondary text-muted-foreground",
               )}

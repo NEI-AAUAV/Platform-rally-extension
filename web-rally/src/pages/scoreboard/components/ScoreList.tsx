@@ -199,7 +199,7 @@ export function ScoreRows({
                 <span className="rally-display w-7 shrink-0 text-center text-xl font-bold tabular-nums text-muted-foreground">
                   {rank}
                 </span>
-                <span className="rally-bg-accent-soft rally-accent grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-bold">
+                <span className="rally-bg-accent-soft text-foreground grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-bold">
                   {team.photo_url ? (
                     <img
                       src={team.photo_url}
