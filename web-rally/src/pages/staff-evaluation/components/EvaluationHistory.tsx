@@ -30,9 +30,7 @@ function ChangeRow({ field, diff }: { field: string; diff: unknown }) {
       : { before: undefined, after: undefined };
   return (
     <div className="flex flex-wrap items-center gap-1 text-xs">
-      <span className="font-medium text-muted-foreground">
-        {FIELD_LABELS[field] ?? field}:
-      </span>
+      <span className="font-medium text-muted-foreground">{FIELD_LABELS[field] ?? field}:</span>
       <span className="text-red-400 line-through">{formatValue(before)}</span>
       <span className="text-muted-foreground">→</span>
       <span className="text-green-400">{formatValue(after)}</span>
@@ -92,16 +90,13 @@ export default function EvaluationHistory({ resultId }: EvaluationHistoryProps) 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        A carregar histórico…
+        <Loader2 className="h-4 w-4 animate-spin" />A carregar histórico…
       </div>
     );
   }
 
   if (isError) {
-    return (
-      <p className="py-3 text-xs text-red-400">Não foi possível carregar o histórico.</p>
-    );
+    return <p className="py-3 text-xs text-red-400">Não foi possível carregar o histórico.</p>;
   }
 
   const entries = data ?? [];

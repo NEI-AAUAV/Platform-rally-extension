@@ -34,7 +34,13 @@ def main() -> None:
         version=getattr(app, "version", "0.0.0"),
         routes=app.routes,
     )
-    OUT_PATH.write_text(json.dumps(schema))
+    # Pretty-print with a trailing newline so the committed contract stays
+    # human-diffable in CI (its stated purpose) and regenerating produces a
+    # minimal, meaningful diff instead of a whole-file rewrite. Key order is
+    # left as FastAPI emits it (route/definition order) — deterministic across
+    # runs and stable under review, unlike alphabetical sorting which would
+    # scatter each schema's fields.
+    OUT_PATH.write_text(json.dumps(schema, indent=2) + "\n")
     print(f"Wrote schema to {OUT_PATH}")
 
 

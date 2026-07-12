@@ -158,7 +158,9 @@ async def _seed_audit_trail_demo(db: AsyncSession, rng: random.Random) -> None:
     new_data = _result_data_for(activity, rng)
     await ScoringService(db).update_result(
         result,
-        ActivityResultUpdate(result_data=new_data),
+        # extra_shots/penalties left unset; passed explicitly because mypy has no
+        # pydantic plugin here and treats Field(None) defaults as required.
+        ActivityResultUpdate(result_data=new_data, extra_shots=None, penalties=None),
         editor=EvaluationEditor(id="demo-staff", name="Staff Demo"),
     )
 
