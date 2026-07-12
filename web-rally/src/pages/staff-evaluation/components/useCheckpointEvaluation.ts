@@ -267,7 +267,12 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
 
   // Evaluate activity mutation
   const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
-    mutationFn: async ({ teamId, activityId, resultData, idempotencyKey }): Promise<ActivityResultResponse> => {
+    mutationFn: async ({
+      teamId,
+      activityId,
+      resultData,
+      idempotencyKey,
+    }): Promise<ActivityResultResponse> => {
       // Payload structure matching the ActivityResultEvaluation schema.
       const payload: ActivityResultEvaluation = {
         result_data: resultData?.result_data ?? {},

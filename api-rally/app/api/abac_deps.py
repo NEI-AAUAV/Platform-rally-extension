@@ -16,7 +16,7 @@ from app.api.deps import get_db, get_current_user
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission,
-    get_accessible_checkpoints, check_permission, ALL_CHECKPOINTS
+    get_accessible_checkpoints, check_permission, ALL_CHECKPOINTS, _AllCheckpoints
 )
 from app.api.deps import is_admin
 
@@ -250,8 +250,9 @@ def validate_checkpoint_access(
     """
     accessible_checkpoints = get_accessible_checkpoints(user, auth)
 
-    # Admins and managers can access any checkpoint
-    if accessible_checkpoints is ALL_CHECKPOINTS:
+    # Admins and managers can access any checkpoint. isinstance (not `is`) so
+    # mypy narrows accessible_checkpoints to list[int] for the membership test below.
+    if isinstance(accessible_checkpoints, _AllCheckpoints):
         if requested_checkpoint_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

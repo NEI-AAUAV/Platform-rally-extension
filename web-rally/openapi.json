@@ -2716,7 +2716,7 @@
           "Staff Evaluation"
         ],
         "summary": "Evaluate Team Activity",
-        "description": "Evaluate a team's performance in an activity",
+        "description": "Evaluate a team's performance in an activity.\n\nAccepts an optional ``Idempotency-Key`` header. When present, a retry of the\nsame logical submit (same key + payload) replays the stored response instead\nof re-scoring; a reused key with a different payload is rejected with 409.\nSubmits without a key behave exactly as before.",
         "operationId": "evaluate_team_activity",
         "security": [
           {
@@ -2740,6 +2740,22 @@
             "schema": {
               "type": "integer",
               "title": "Activity Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -3217,7 +3233,7 @@
           "Scoreboard"
         ],
         "summary": "Get Live Scoreboard",
-        "description": "Return the cached global ranking, recomputing on a cache miss.",
+        "description": "Return the cached global ranking, recomputing on a cache miss.\n\nWhen the realtime subsystem is disabled there is no cache to read and no\nworker keeping it warm, but the ranking is still a plain DB computation \u2014\nserve it directly from Postgres instead of failing the public view.",
         "operationId": "get_live_scoreboard",
         "responses": {
           "200": {

@@ -54,8 +54,7 @@ registerRoute(
 
 // Static assets (icons, images, fonts).
 registerRoute(
-  ({ request }) =>
-    ["image", "font", "style"].includes(request.destination),
+  ({ request }) => ["image", "font", "style"].includes(request.destination),
   new CacheFirst({
     cacheName: "rally-static",
     plugins: [new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 })],

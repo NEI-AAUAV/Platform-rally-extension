@@ -57,9 +57,7 @@ export default function RotationScheduleView({ rounds }: Readonly<RotationSchedu
   }, [checkpoints]);
 
   if (rounds.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">Escalonamento vazio.</p>
-    );
+    return <p className="text-xs text-muted-foreground">Escalonamento vazio.</p>;
   }
 
   return (
