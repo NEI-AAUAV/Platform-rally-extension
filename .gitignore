@@ -7,6 +7,8 @@ Thumbs.db
 # Env
 .env
 .env.*
+# ...but keep the committed template
+!.env.example
 
 # Python (api-rally)
 __pycache__/

@@ -107,4 +107,12 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    # When invoked programmatically (e.g. from ``init_db`` at startup), the
+    # caller attaches an already-open synchronous connection so migrations run
+    # on the same transaction instead of spinning up a second engine / event
+    # loop. Reuse it and let the caller own the commit.
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        _do_run_migrations(connection)
+    else:
+        asyncio.run(run_migrations_online())
