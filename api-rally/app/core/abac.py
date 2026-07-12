@@ -5,7 +5,7 @@ This module implements ABAC policies for Rally checkpoint management,
 ensuring staff can only add scores to teams at their assigned checkpoint.
 """
 
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Any, Union
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -251,25 +251,41 @@ def require_permission(
         )
 
 
-def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> list[int]:
+class _AllCheckpoints:
+    """Sentinel meaning "every checkpoint" (admins/managers).
+
+    A distinct type instead of an empty list so that "all checkpoints" is
+    never confused with "no accessible checkpoints" — a staff member with no
+    assignment returns an empty list, which must NOT be treated as all-access.
     """
-    Get list of checkpoint IDs that the user can access
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return "ALL_CHECKPOINTS"
+
+
+ALL_CHECKPOINTS = _AllCheckpoints()
+
+AccessibleCheckpoints = Union[_AllCheckpoints, list[int]]
+
+
+def get_accessible_checkpoints(
+    user: DetailedUser, auth: AuthData
+) -> AccessibleCheckpoints:
+    """
+    Get the checkpoints a user can access.
 
     Returns:
-        List of checkpoint IDs the user can access
+        ALL_CHECKPOINTS for admins/managers, or an explicit list of checkpoint
+        IDs for staff (empty when the staff member has no assignment).
     """
-    accessible = []
+    # Admins and rally managers can access every checkpoint.
+    if "admin" in auth.scopes or "manager-rally" in auth.scopes:
+        return ALL_CHECKPOINTS
 
-    # Admins can access all checkpoints
-    if "admin" in auth.scopes:
-        return []  # Empty list means all checkpoints
-
-    # Rally managers can access all checkpoints
-    if "manager-rally" in auth.scopes:
-        return []  # Empty list means all checkpoints
-
-    # Staff can only access their assigned checkpoint
+    # Staff can only access their assigned checkpoint.
     if "rally-staff" in auth.scopes and user.staff_checkpoint_id:
-        accessible.append(user.staff_checkpoint_id)
+        return [user.staff_checkpoint_id]
 
-    return accessible
+    return []

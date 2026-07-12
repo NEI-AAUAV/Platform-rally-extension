@@ -12,7 +12,8 @@ from .badge_definition import BadgeDefinition
 from .dynamic_scoring import DynamicRule, DynamicAward
 from .participation import EventParticipation
 from .evaluation_history import EvaluationHistory, EvaluationAction
+from .idempotency_key import IdempotencyKey
 
 from .base import Base
 
-__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "RallyGuideAssignment", "CheckpointMedia", "MediaKind", "CheckpointGuideIndication", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "BadgeDefinition", "DynamicRule", "DynamicAward", "EventParticipation", "EvaluationHistory", "EvaluationAction"]
+__all__ = ["Base", "User", "Team", "CheckPoint", "RallyStaffAssignment", "RallyGuideAssignment", "CheckpointMedia", "MediaKind", "CheckpointGuideIndication", "Activity", "ActivityResult", "RallyEvent", "EventType", "RallySettings", "BadgeType", "TeamBadge", "BadgeDefinition", "DynamicRule", "DynamicAward", "EventParticipation", "EvaluationHistory", "EvaluationAction", "IdempotencyKey"]

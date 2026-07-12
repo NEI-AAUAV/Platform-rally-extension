@@ -14,6 +14,7 @@ import {
   type ListingTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
+import { enqueue } from "@/offline/evalQueue";
 import type { ActivityResultData } from "@/types/forms";
 import { useUserStore } from "@/stores/useUserStore";
 import useUser from "@/hooks/useUser";
@@ -28,6 +29,25 @@ import {
   type TeamEvaluationStatusMap,
   type EvaluatePayload,
 } from "./checkpointEvaluation.types";
+
+/** Thrown when a submit is buffered offline instead of reaching the server. */
+class OfflineQueuedError extends Error {
+  constructor() {
+    super("offline-queued");
+    this.name = "OfflineQueuedError";
+  }
+}
+
+/**
+ * True when the failure is a lost connection (no server response), not a server
+ * error. An `ApiError` means the server answered — don't queue those. A bare
+ * `TypeError` ("Failed to fetch") or `navigator.onLine === false` means offline.
+ */
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof ApiError) return false;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  return error instanceof TypeError;
+}
 
 interface StaffActivitiesParams {
   selectedTeam: ListingTeam;
@@ -247,7 +267,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
 
   // Evaluate activity mutation
   const evaluateActivityMutation = useMutation<ActivityResultResponse, unknown, EvaluatePayload>({
-    mutationFn: async ({ teamId, activityId, resultData }): Promise<ActivityResultResponse> => {
+    mutationFn: async ({ teamId, activityId, resultData, idempotencyKey }): Promise<ActivityResultResponse> => {
       // Payload structure matching the ActivityResultEvaluation schema.
       const payload: ActivityResultEvaluation = {
         result_data: resultData?.result_data ?? {},
@@ -259,9 +279,18 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         const { data } = await evaluateTeamActivity({
           path: { team_id: teamId, activity_id: activityId },
           body: payload,
+          headers: { "Idempotency-Key": idempotencyKey },
         });
         return data;
       } catch (error) {
+        // A network/offline failure (no server response) is retryable: queue it
+        // for background replay with the SAME idempotency key, then surface a
+        // "pending sync" state rather than a hard error.
+        if (isNetworkError(error)) {
+          await enqueue({ idempotencyKey, teamId, activityId, resultData });
+          throw new OfflineQueuedError();
+        }
+
         // Surface validation detail and rethrow it in the same shape callers
         // already handle ({ detail }).
         if (error instanceof ApiError) {
@@ -312,6 +341,10 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       toast.success("Atividade avaliada com sucesso!");
     },
     onError: (error) => {
+      if (error instanceof OfflineQueuedError) {
+        toast.success("Sem ligação — avaliação guardada e será sincronizada.");
+        return;
+      }
       toast.error(getErrorMessage(error, "Erro ao avaliar atividade"));
     },
   });
@@ -322,15 +355,20 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
     activityId: number,
     resultData: ActivityResultData,
   ) => {
+    // Generate the idempotency key once per logical submit (here, not inside
+    // mutationFn) so an offline-queue retry reuses the exact same key.
+    const idempotencyKey = crypto.randomUUID();
     try {
       await evaluateActivityMutation.mutateAsync({
         teamId,
         activityId,
         resultData,
+        idempotencyKey,
       });
     } catch {
-      // Error toast already shown via mutation's onError; swallow here so
-      // callers awaiting this (e.g. to close the form) don't need a try/catch.
+      // Error toast (or offline-queued notice) already shown via the mutation's
+      // onError; swallow here so callers awaiting this (e.g. to close the form)
+      // don't need a try/catch.
     }
   };
 

@@ -5,7 +5,14 @@ import pytest
 from fastapi import HTTPException
 from unittest.mock import Mock, AsyncMock, patch
 
-from app.core.abac import ABACEngine, Action, Resource, Context
+from app.core.abac import (
+    ABACEngine,
+    Action,
+    Resource,
+    Context,
+    get_accessible_checkpoints,
+    ALL_CHECKPOINTS,
+)
 from app.api.abac_deps import require_permission, get_staff_with_checkpoint_access
 from app.schemas.user import DetailedUser
 
@@ -262,3 +269,41 @@ class TestABACIntegration:
         context = _context(Action.UPDATE_TEAM, Resource.TEAM, ["rally:participant"], user=user)
 
         assert engine.evaluate(context) is False
+
+
+class TestAccessibleCheckpoints:
+    """get_accessible_checkpoints must distinguish all-access from no-access."""
+
+    def test_admin_gets_all_checkpoints_sentinel(self):
+        result = get_accessible_checkpoints(
+            Mock(staff_checkpoint_id=None), Mock(scopes=["admin"])
+        )
+        assert result is ALL_CHECKPOINTS
+
+    def test_manager_gets_all_checkpoints_sentinel(self):
+        result = get_accessible_checkpoints(
+            Mock(staff_checkpoint_id=None), Mock(scopes=["manager-rally"])
+        )
+        assert result is ALL_CHECKPOINTS
+
+    def test_staff_gets_only_assigned_checkpoint(self):
+        result = get_accessible_checkpoints(
+            Mock(staff_checkpoint_id=7), Mock(scopes=["rally-staff"])
+        )
+        assert result == [7]
+
+    def test_staff_without_assignment_is_not_all_access(self):
+        """Regression: unassigned staff must return an empty list, never the
+        ALL_CHECKPOINTS sentinel — otherwise they gain admin-wide access."""
+        result = get_accessible_checkpoints(
+            Mock(staff_checkpoint_id=None), Mock(scopes=["rally-staff"])
+        )
+        assert result is not ALL_CHECKPOINTS
+        assert result == []
+
+    def test_unknown_scope_is_not_all_access(self):
+        result = get_accessible_checkpoints(
+            Mock(staff_checkpoint_id=None), Mock(scopes=["rally:participant"])
+        )
+        assert result is not ALL_CHECKPOINTS
+        assert result == []

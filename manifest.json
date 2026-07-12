@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "scopes": [
     { "name": "manager-rally", "description": "Edit data related to rally tascas" },
-    { "name": "rally-staff", "description": "Staff member for rally checkpoints" }
+    { "name": "rally-staff", "description": "Staff member for rally checkpoints" },
+    { "name": "rally-guide", "description": "Guide for rally checkpoints" }
   ],
   "nav": [
     { 

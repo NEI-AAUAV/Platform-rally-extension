@@ -11,6 +11,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider } from "@/components/theme";
+import { registerSW } from "virtual:pwa-register";
 
 // Keep a returning team session alive on startup (staff sessions are owned by
 // react-oidc-context, which restores them automatically).
@@ -46,47 +47,10 @@ const queryClient = new QueryClient({
   },
 });
 
-async function clearBrowserCache(): Promise<void> {
-  if (!("caches" in window)) return;
-  const cacheNames = await caches.keys();
-  await Promise.all(cacheNames.map((name) => caches.delete(name)));
-  globalThis.location.reload();
-}
-
-function handleServiceWorkerUpdate(registration: ServiceWorkerRegistration) {
-  const newWorker = registration.installing;
-  if (!newWorker) return;
-  newWorker.addEventListener("statechange", () => {
-    if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-      // New service worker is available, force activation
-      newWorker.postMessage({ action: "skipWaiting" });
-      globalThis.location.reload();
-    }
-  });
-}
-
-// Register Service Worker for PWA functionality
-if ("serviceWorker" in navigator) {
-  globalThis.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/rally/sw.js")
-      .then((registration) => {
-        // Check for updates and force activation
-        registration.addEventListener("updatefound", () => handleServiceWorkerUpdate(registration));
-
-        // Add development utility to clear cache
-        if (process.env.NODE_ENV === "development") {
-          (globalThis as unknown as Record<string, () => void>).clearRallyCache = () => {
-            navigator.serviceWorker.controller?.postMessage({ action: "clearCache" });
-            void clearBrowserCache();
-          };
-        }
-      })
-      .catch(() => {
-        // Service worker registration failed - app will still work without PWA features
-      });
-  });
-}
+// Register the Workbox service worker (generated from src/sw.ts by
+// vite-plugin-pwa). autoUpdate reloads to activate a new SW automatically,
+// preserving the old force-update behavior.
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

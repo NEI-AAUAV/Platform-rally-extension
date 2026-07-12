@@ -2,7 +2,7 @@
 API endpoints for staff evaluation system
 """
 from typing import Annotated, List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -37,6 +37,13 @@ from app.api.api_v1.staff_evaluation_utils import (
     NO_CHECKPOINT_ASSIGNED,
     TEAM_NOT_FOUND,
 )
+from app.api.api_v1.idempotency import (
+    compute_fingerprint,
+    reserve_idempotency_key,
+    store_idempotent_response,
+)
+
+_EVALUATE_ENDPOINT = "evaluate_team_activity"
 
 router = APIRouter()
 
@@ -201,9 +208,16 @@ async def evaluate_team_activity(
     result_in: ActivityResultEvaluation,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+    idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
 ) -> ActivityResultResponse:
-    """Evaluate a team's performance in an activity"""
+    """Evaluate a team's performance in an activity.
+
+    Accepts an optional ``Idempotency-Key`` header. When present, a retry of the
+    same logical submit (same key + payload) replays the stored response instead
+    of re-scoring; a reused key with a different payload is rejected with 409.
+    Submits without a key behave exactly as before.
+    """
     logger.info(f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}")
 
     # Check if user has rally permissions
@@ -223,6 +237,30 @@ async def evaluate_team_activity(
     except HTTPException as e:
         logger.error(f"Access validation failed: {e.status_code} - {e.detail}")
         raise
+
+    # Idempotency gate: replay a prior identical submit, or reserve this key so a
+    # retry (e.g. from the client offline queue) can't double-apply scoring.
+    reservation = None
+    if idempotency_key:
+        fingerprint = compute_fingerprint(
+            {
+                "team_id": team_id,
+                "activity_id": activity_id,
+                "body": result_in.model_dump(),
+            }
+        )
+        reservation = await reserve_idempotency_key(
+            db,
+            endpoint=_EVALUATE_ENDPOINT,
+            key=idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if reservation.replay is not None:
+            logger.info(
+                f"Replaying idempotent evaluation for key={idempotency_key}, "
+                f"team={team_id}, activity={activity_id}"
+            )
+            return ActivityResultResponse.model_validate(reservation.replay)
 
     # Create or update the result if it already exists. Handles the race
     # where two concurrent requests both see no existing result and try to
@@ -245,7 +283,15 @@ async def evaluate_team_activity(
         logger.error(f"Failed to check/advance team: {str(e)}", exc_info=True)
         # Don't fail the evaluation if advancement fails - advancement is a side effect
 
-    return ActivityResultResponse.model_validate(db_result)
+    response = ActivityResultResponse.model_validate(db_result)
+
+    # Persist the response against the reserved key so retries replay it.
+    if reservation is not None:
+        await store_idempotent_response(
+            db, reservation, response_body=response.model_dump(mode="json")
+        )
+
+    return response
 
 
 async def _load_activity_and_team_for_update(

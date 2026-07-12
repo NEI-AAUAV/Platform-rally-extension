@@ -154,6 +154,86 @@ async def test_update_team_scores_missing_team_returns_false(pg_session):
     assert await svc.update_team_scores(999999) is False
 
 
+async def _make_activity_on_checkpoint(db, checkpoint: CheckPoint) -> Activity:
+    activity = Activity(
+        name="Act",
+        activity_type=ActivityType.GENERAL.value,
+        config={"min_points": 0, "max_points": 100},
+        checkpoint_id=checkpoint.id,
+    )
+    db.add(activity)
+    await db.commit()
+    await db.refresh(activity)
+    return activity
+
+
+async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
+    """Two checkpoints that transiently share an `order` must keep distinct
+    scores — the per-checkpoint slots are keyed by the stable checkpoint id,
+    not by order, so a mid-event reorder can't collapse them into one bucket."""
+    from datetime import datetime
+
+    team = await _make_team(pg_session)
+    # Two checkpoints deliberately given the SAME order (the state a reorder
+    # passes through). Keying by order would collapse both scores into one slot.
+    cp_a = CheckPoint(name="A", order=1)
+    cp_b = CheckPoint(name="B", order=1)
+    pg_session.add_all([cp_a, cp_b])
+    await pg_session.flush()
+    act_a = await _make_activity_on_checkpoint(pg_session, cp_a)
+    act_b = await _make_activity_on_checkpoint(pg_session, cp_b)
+
+    await _make_result(
+        pg_session, team=team, activity=act_a,
+        result_data={"assigned_points": 30}, final_score=30,
+    )
+    await _make_result(
+        pg_session, team=team, activity=act_b,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    # Two visits recorded -> two per-checkpoint slots.
+    team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
+    await pg_session.commit()
+
+    await ScoringService(pg_session).update_team_scores(team.id)
+    await pg_session.refresh(team)
+
+    # Both scores survive as separate slots (30 + 40), not collapsed to one.
+    assert sorted(team.score_per_checkpoint) == [30, 40]
+    assert team.total == pytest.approx(70)
+
+
+async def test_score_per_checkpoint_ordered_by_current_order(pg_session):
+    """Scores lay out by the checkpoints' current order; `[-1]` stays the
+    last-visited checkpoint's score."""
+    from datetime import datetime
+
+    team = await _make_team(pg_session)
+    cp1 = CheckPoint(name="C1", order=1)
+    cp2 = CheckPoint(name="C2", order=2)
+    pg_session.add_all([cp1, cp2])
+    await pg_session.flush()
+    act1 = await _make_activity_on_checkpoint(pg_session, cp1)
+    act2 = await _make_activity_on_checkpoint(pg_session, cp2)
+
+    await _make_result(
+        pg_session, team=team, activity=act1,
+        result_data={"assigned_points": 15}, final_score=15,
+    )
+    await _make_result(
+        pg_session, team=team, activity=act2,
+        result_data={"assigned_points": 25}, final_score=25,
+    )
+    team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
+    await pg_session.commit()
+
+    await ScoringService(pg_session).update_team_scores(team.id)
+    await pg_session.refresh(team)
+
+    assert team.score_per_checkpoint == [15, 25]
+    assert team.score_per_checkpoint[-1] == 25
+
+
 # --------------------------------------------------------------------------- #
 # extra shots
 # --------------------------------------------------------------------------- #

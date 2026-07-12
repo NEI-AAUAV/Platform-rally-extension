@@ -63,6 +63,7 @@ services:
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      OIDC_GUIDE_GROUP: ${OIDC_GUIDE_GROUP:-rally-guide}
       # authentik management API (optional) — enables live staff-group lookup
       # without requiring a prior login for the account to appear.
       AUTHENTIK_API_URL: ${AUTHENTIK_API_URL:-}
@@ -114,6 +115,7 @@ services:
       VITE_OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       VITE_OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       VITE_OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      VITE_OIDC_GUIDE_GROUP: ${OIDC_GUIDE_GROUP:-rally-guide}
       # Realtime scoreboard (mirror of backend EVENTS_ENABLED).
       VITE_EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
     volumes:

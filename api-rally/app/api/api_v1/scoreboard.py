@@ -30,12 +30,14 @@ async def get_live_scoreboard(
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: SettingsDep,
 ) -> list[dict[str, Any]]:
-    """Return the cached global ranking, recomputing on a cache miss."""
+    """Return the cached global ranking, recomputing on a cache miss.
+
+    When the realtime subsystem is disabled there is no cache to read and no
+    worker keeping it warm, but the ranking is still a plain DB computation —
+    serve it directly from Postgres instead of failing the public view.
+    """
     if not settings.EVENTS_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Realtime scoreboard is disabled",
-        )
+        return await ScoringService(db).get_team_ranking()
 
     client = get_async_redis_client()
     try:

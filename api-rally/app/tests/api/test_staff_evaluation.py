@@ -111,6 +111,96 @@ class TestConcurrentEvaluation:
         assert len(rows) == 1
 
 
+class TestEvaluationIdempotency:
+    """`Idempotency-Key` header behavior on the evaluate endpoint."""
+
+    async def _seed(self, pg_session):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        url = (
+            f"/api/rally/v1/staff/teams/{team_obj.id}"
+            f"/activities/{activity_obj.id}/evaluate"
+        )
+        return team_obj, activity_obj, url
+
+    async def test_same_key_replays_without_reapplying(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+        headers = {"Idempotency-Key": "abc-123"}
+
+        first = pg_client.post(url, json=payload, headers=headers)
+        assert first.status_code == 200, first.text
+        second = pg_client.post(url, json=payload, headers=headers)
+        assert second.status_code == 200, second.text
+
+        # Same response replayed…
+        assert first.json()["final_score"] == second.json()["final_score"]
+
+        # …and still exactly one result row (no double-apply).
+        from sqlalchemy import select
+        from app.models.activity import ActivityResult
+
+        rows = (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_obj.id,
+                    ActivityResult.team_id == team_obj.id,
+                )
+            )
+        ).all()
+        assert len(rows) == 1
+
+        # Exactly one idempotency row was recorded.
+        from app.models.idempotency_key import IdempotencyKey
+
+        keys = (
+            await pg_session.scalars(
+                select(IdempotencyKey).where(
+                    IdempotencyKey.idempotency_key == "abc-123"
+                )
+            )
+        ).all()
+        assert len(keys) == 1
+
+    async def test_same_key_different_payload_conflicts(
+        self, pg_session, pg_client, as_admin
+    ):
+        _team, _activity, url = await self._seed(pg_session)
+        headers = {"Idempotency-Key": "dup-key"}
+
+        first = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}},
+            headers=headers,
+        )
+        assert first.status_code == 200, first.text
+
+        conflict = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 90}, "extra_shots": 0, "penalties": {}},
+            headers=headers,
+        )
+        assert conflict.status_code == 409, conflict.text
+
+    async def test_no_key_behaves_normally(self, pg_session, pg_client, as_admin):
+        _team, _activity, url = await self._seed(pg_session)
+        resp = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}},
+        )
+        assert resp.status_code == 200, resp.text
+
+        from sqlalchemy import select
+        from app.models.idempotency_key import IdempotencyKey
+
+        keys = (await pg_session.scalars(select(IdempotencyKey))).all()
+        assert keys == []
+
+
 async def _seed_result(pg_session, pg_client, as_admin):
     """Create a scored result via the API so it exists to edit/contest."""
     await _make_event(pg_session)

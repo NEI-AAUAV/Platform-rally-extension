@@ -196,27 +196,36 @@ class ScoringService:
 
     async def _checkpoint_scores_for_team(
         self, team_id: int
-    ) -> tuple[dict[int, float], float]:
-        """Sum completed results by checkpoint order, plus the raw total."""
+    ) -> tuple[dict[int, float], dict[int, int], float]:
+        """Sum completed results per checkpoint, plus the raw total.
+
+        Scores are keyed by the stable ``checkpoint.id`` (not the mutable
+        ``checkpoint.order``): two checkpoints that transiently share an
+        ``order`` mid-reorder must not collapse their scores into one slot.
+        The returned ``id -> order`` map lets the caller lay the scores out in
+        the checkpoints' current visit order.
+        """
         stmt = select(ActivityResult).options(
             joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
         ).where(ActivityResult.team_id == team_id)
         results = (await self.db.scalars(stmt)).all()
 
         checkpoint_scores: dict[int, float] = {}
+        checkpoint_order_by_id: dict[int, int] = {}
         total_score = 0.0
         for result in results:
             if not (result.is_completed and result.final_score is not None):
                 continue
             if not (result.activity and result.activity.checkpoint):
                 continue
-            checkpoint_order = result.activity.checkpoint.order
-            checkpoint_scores[checkpoint_order] = (
-                checkpoint_scores.get(checkpoint_order, 0.0) + result.final_score
+            checkpoint = result.activity.checkpoint
+            checkpoint_scores[checkpoint.id] = (
+                checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
             )
+            checkpoint_order_by_id[checkpoint.id] = checkpoint.order
             total_score += result.final_score
 
-        return checkpoint_scores, total_score
+        return checkpoint_scores, checkpoint_order_by_id, total_score
 
     async def _active_award_points(self, team_id: int) -> float:
         """Sum points from active dynamic awards for this team (D4)."""
@@ -248,18 +257,30 @@ class ScoringService:
         if not team:
             return False
 
-        checkpoint_scores, total_score = await self._checkpoint_scores_for_team(team_id)
+        checkpoint_scores, checkpoint_order_by_id, total_score = (
+            await self._checkpoint_scores_for_team(team_id)
+        )
         total_score += await self._active_award_points(team_id)
 
         # Update team scores (round, don't truncate: float sums like 99.999…
         # must not silently drop a point)
         team.total = round(total_score)
 
-        # Map scores by checkpoint order (1, 2, 3, ...) not by checkpoint ID;
-        # the times array represents checkpoint visit order
-        team.score_per_checkpoint = [
-            int(checkpoint_scores.get(i + 1, 0.0)) for i in range(len(team.times))
-        ]
+        # score_per_checkpoint is positional and parallel to team.times (visit
+        # order == checkpoint order). Lay the per-checkpoint scores out by the
+        # checkpoints' *current* order, sized to the number of visits, so the
+        # last slot stays the last-visited checkpoint's score for `[-1]`
+        # consumers. Keying the aggregation by id (above) keeps this correct
+        # even if orders shift during a reorder.
+        scores_by_order = sorted(
+            (checkpoint_order_by_id[cid], score)
+            for cid, score in checkpoint_scores.items()
+        )
+        ordered_scores = [int(score) for _order, score in scores_by_order]
+        num_visits = len(team.times)
+        team.score_per_checkpoint = (
+            ordered_scores[:num_visits] + [0] * (num_visits - len(ordered_scores))
+        )[:num_visits]
 
         if should_commit:
             await self._commit_and_publish_team_score(team_id, total_score)

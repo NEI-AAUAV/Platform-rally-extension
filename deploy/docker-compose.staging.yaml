@@ -52,6 +52,7 @@ services:
       - OIDC_ADMIN_GROUP=${OIDC_ADMIN_GROUP}
       - OIDC_MANAGER_GROUP=${OIDC_MANAGER_GROUP}
       - OIDC_STAFF_GROUP=${OIDC_STAFF_GROUP}
+      - OIDC_GUIDE_GROUP=${OIDC_GUIDE_GROUP}
       # Team auth (rally-minted HS256 tokens)
       - TEAM_JWT_SECRET_KEY=${TEAM_JWT_SECRET_KEY}
       # CORS

@@ -35,6 +35,12 @@ export type EvaluatePayload = {
   teamId: number;
   activityId: number;
   resultData: ActivityResultData;
+  /**
+   * Stable per-submit idempotency key. Generated once at the user-action layer
+   * and reused across offline-queue retries so the backend recognizes a replay
+   * instead of re-applying the score.
+   */
+  idempotencyKey: string;
 };
 
 export const toEvaluationSummary = (

@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { generateRotationSchedule } from "@/client";
+import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,41 +75,52 @@ function formatRange(ev: RallyEvent): string | null {
   return `${start} – ${end}`;
 }
 
+type ScheduleRounds = ReadonlyArray<ReadonlyArray<Record<string, unknown>>>;
+
 function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   const toast = useAppToast();
-  const [done, setDone] = useState(false);
+  const [rounds, setRounds] = useState<ScheduleRounds | null>(null);
 
   const generateMutation = useMutation({
-    mutationFn: () => generateRotationSchedule({ path: { event_id: eventId } }),
-    onSuccess: () => {
-      setDone(true);
+    mutationFn: async () => {
+      const { data } = await generateRotationSchedule({ path: { event_id: eventId } });
+      return data;
+    },
+    onSuccess: (data) => {
+      setRounds(data?.rounds ?? []);
       toast.success("Escalonamento olímpico gerado");
     },
     onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar escalonamento")),
   });
 
-  if (done) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">
-        <CheckCircle2 className="h-3.5 w-3.5" /> Escalonamento gerado
-      </span>
-    );
-  }
-
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={generateMutation.isPending}
-      onClick={() => generateMutation.mutate()}
-    >
-      {generateMutation.isError ? (
-        <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-red-500" />
-      ) : (
-        <Shuffle className="mr-1.5 h-3.5 w-3.5" />
-      )}
-      {generateMutation.isPending ? "A gerar…" : "Gerar escalonamento"}
-    </Button>
+    <div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={generateMutation.isPending}
+          onClick={() => generateMutation.mutate()}
+        >
+          {generateMutation.isError ? (
+            <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-red-500" />
+          ) : (
+            <Shuffle className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          {generateMutation.isPending
+            ? "A gerar…"
+            : rounds
+              ? "Regenerar escalonamento"
+              : "Gerar escalonamento"}
+        </Button>
+        {rounds && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">
+            <CheckCircle2 className="h-3.5 w-3.5" /> {rounds.length} rondas
+          </span>
+        )}
+      </div>
+      {rounds && <RotationScheduleView rounds={rounds} />}
+    </div>
   );
 }
 

@@ -31,10 +31,26 @@ def _override_settings(**overrides: Any) -> Iterator[None]:
         app.dependency_overrides.pop(get_settings, None)
 
 
-def test_live_returns_503_when_disabled(client: TestClient) -> None:
+def test_live_computes_from_db_when_disabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the realtime subsystem off, /scoreboard/live serves a DB compute
+    (no Redis), not a 503."""
+    ranking = [
+        {"rank": 1, "team_id": 7, "team_name": "Lynxes", "total_score": 42.0, "activities_completed": 3},
+    ]
+
+    async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
+        return ranking
+
+    monkeypatch.setattr(
+        "app.api.api_v1.scoreboard.ScoringService.get_team_ranking", _fake_ranking
+    )
+
     with _override_settings(EVENTS_ENABLED=False):
         resp = client.get(f"{BASE}/scoreboard/live")
-    assert resp.status_code == 503
+    assert resp.status_code == 200
+    assert resp.json() == ranking
 
 
 def test_stream_returns_503_when_disabled(client: TestClient) -> None:
