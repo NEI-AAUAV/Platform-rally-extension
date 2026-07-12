@@ -158,9 +158,11 @@ async def _seed_audit_trail_demo(db: AsyncSession, rng: random.Random) -> None:
     new_data = _result_data_for(activity, rng)
     await ScoringService(db).update_result(
         result,
-        # extra_shots/penalties left unset; passed explicitly because mypy has no
-        # pydantic plugin here and treats Field(None) defaults as required.
-        ActivityResultUpdate(result_data=new_data, extra_shots=None, penalties=None),
+        # Only result_data is set: apply_update uses exclude_unset, so passing
+        # extra_shots=None here would write NULL into the NOT NULL column.
+        # mypy lacks the pydantic plugin and wrongly treats Field(None) as
+        # required, so silence just that false positive.
+        ActivityResultUpdate(result_data=new_data),  # type: ignore[call-arg]
         editor=EvaluationEditor(id="demo-staff", name="Staff Demo"),
     )
 
