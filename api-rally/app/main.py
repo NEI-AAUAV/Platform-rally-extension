@@ -1,3 +1,5 @@
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -10,10 +12,12 @@ from fastapi.exceptions import RequestValidationError
 from loguru import logger
 
 from app.db.init_db import init_db
+from app.db.session import check_db_health
 from app.api.api import api_v1_router
 from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
+from app.core.observability import init_sentry
 from app.core.redis import check_redis_health, close_pools
 from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker, ScoringWorker
 
@@ -29,6 +33,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     enabled) the background workers. Shutdown: stop workers and close Redis.
     """
     init_logging()
+    init_sentry()  # no-op unless SENTRY_DSN is configured
     await init_db()
 
     if settings.EVENTS_ENABLED:
@@ -110,6 +115,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Registered last so it wraps every other middleware: the request ID and timing
+# cover the whole chain, including security_headers below.
+@app.middleware("http")
+async def request_id_and_timing(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """Attach a request ID and per-request timing; log one line per request.
+
+    Reuses an inbound ``X-Request-ID`` (set by an upstream proxy) so a trace is
+    correlated end to end, otherwise mints a UUID. Records wall time around the
+    handler and exposes it as ``X-Process-Time-ms``.
+    """
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time-ms"] = f"{elapsed_ms:.1f}"
+    logger.info(
+        "{method} {path} {status} {dur:.1f}ms rid={rid}",
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        dur=elapsed_ms,
+        rid=request_id,
+    )
+    return response
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
     """Attach baseline security response headers.
@@ -135,17 +167,53 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["health"])
 async def health_check() -> dict[str, str]:
-    """Health check endpoint for monitoring and load balancers"""
-    health = {
+    """Liveness probe: 200 whenever the process can serve requests.
+
+    This is the Docker healthcheck target (and gates ``depends_on``), so it must
+    NOT fail on a dependency outage — a down Redis/DB would otherwise tear down
+    the whole stack. Dependency status lives in ``/health/ready`` instead.
+    """
+    return {
         "status": "healthy",
         "service": "rally-api",
         "version": "1.0.0",
     }
-    # Report on Redis whenever the realtime subsystem is enabled (the default).
-    # When explicitly disabled the check is skipped so it never fails.
+
+
+@app.get("/health/ready", tags=["health"])
+async def readiness_check() -> ORJSONResponse:
+    """Readiness probe: aggregates DB, Redis and worker liveness.
+
+    Returns 503 when any checked dependency is unhealthy so a silently-stale
+    leaderboard (dead worker) or a database/Redis outage surfaces to ops. Not
+    wired to the container healthcheck — see ``health_check``.
+    """
+    ready = True
+    body: dict[str, object] = {}
+
+    db_up = await check_db_health()
+    body["db"] = "up" if db_up else "down"
+    ready = ready and db_up
+
+    workers: list[dict[str, object]] = []
     if settings.EVENTS_ENABLED:
-        health["redis"] = "up" if await check_redis_health() else "down"
-    return health
+        redis_up = await check_redis_health()
+        body["redis"] = "up" if redis_up else "down"
+        ready = ready and redis_up
+
+        for worker in _workers:
+            alive = worker.is_alive
+            workers.append(
+                {"name": worker.name, "alive": alive, "last_beat": worker.last_beat}
+            )
+            ready = ready and alive
+    body["workers"] = workers
+
+    body["status"] = "ready" if ready else "not_ready"
+    return ORJSONResponse(
+        status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=body,
+    )
 
 
 if __name__ == "__main__":

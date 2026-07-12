@@ -11,7 +11,12 @@ import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider } from "@/components/theme";
+import { initSentry } from "@/lib/sentry";
 import { registerSW } from "virtual:pwa-register";
+
+// Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
+// early exceptions are captured.
+initSentry();
 
 // Keep a returning team session alive on startup (staff sessions are owned by
 // react-oidc-context, which restores them automatically).

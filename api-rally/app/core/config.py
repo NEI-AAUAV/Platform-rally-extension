@@ -21,7 +21,15 @@ def _split_comma_list(v: Any) -> list[str] | Any:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(case_sensitive=True)
 
+    ENV: str = os.getenv("ENV", "development")
     PRODUCTION: bool = os.getenv("ENV") == "production"
+
+    # Error tracking (Sentry / GlitchTip — same SDK, self-host just swaps the
+    # DSN). Optional: when unset, error tracking is a no-op and nothing is sent.
+    SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN") or None
+    SENTRY_TRACES_SAMPLE_RATE: float = float(
+        os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")
+    )
 
     API_V1_STR: str = "/api/rally/v1"
     STATIC_STR: str = "/static/rally"

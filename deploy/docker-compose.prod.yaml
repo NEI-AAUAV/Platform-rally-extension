@@ -7,10 +7,19 @@
 # Driven by .github/workflows/deploy.yml (self-hosted runner). All values come
 # from repository Variables/Secrets — never commit real credentials.
 
+# Cap container log growth on the VM: without this the json-file driver grows
+# unbounded and can fill the disk. 3×10MB per service is plenty for `logs.yml`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   web_rally:
     image: ghcr.io/nei-aauav/rally/web:${IMAGE_TAG:-latest}
     restart: always
+    logging: *default-logging
     depends_on:
       api_rally:
         condition: service_healthy
@@ -23,6 +32,7 @@ services:
   api_rally:
     image: ghcr.io/nei-aauav/rally/api:${IMAGE_TAG:-latest}
     restart: always
+    logging: *default-logging
     networks:
       default: {}
       rally_network:
@@ -41,6 +51,9 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - EVENTS_ENABLED=${EVENTS_ENABLED:-true}
       - EVENTS_FAIL_SILENTLY=${EVENTS_FAIL_SILENTLY:-true}
+      # Error tracking (Sentry / GlitchTip). Unset = disabled (no-op).
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
       # OIDC resource-server validation (authentik)
       - OIDC_PROVIDER_URL=${OIDC_PROVIDER_URL}
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
@@ -74,6 +87,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
+    logging: *default-logging
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -84,6 +98,7 @@ services:
   postgres:
     image: postgres:18-alpine
     restart: always
+    logging: *default-logging
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

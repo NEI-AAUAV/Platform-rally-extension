@@ -11,8 +11,10 @@ event loops.
 import asyncio
 import json
 import logging
+import random
 import signal
 import threading
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
@@ -22,6 +24,16 @@ from app.core.config import settings
 from app.core.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
+
+# Reconnect backoff after a Redis error: exponential from BASE up to MAX, with
+# jitter to avoid a thundering herd of workers reconnecting in lockstep.
+RETRY_BACKOFF_BASE_SECONDS = 1.0
+RETRY_BACKOFF_MAX_SECONDS = 30.0
+
+# A worker counts as "alive" only if its last heartbeat is within this window.
+# The pub/sub loop beats at least once per second (get_message timeout=1.0), so
+# this leaves generous slack before a healthy worker looks stale.
+LIVENESS_WINDOW_SECONDS = 30.0
 
 
 class BaseWorker(ABC):
@@ -35,10 +47,32 @@ class BaseWorker(ABC):
         self._thread: Optional[threading.Thread] = None
         self._pubsub: Optional[redis.client.PubSub] = None
         self._stop_event = threading.Event()
+        # monotonic timestamp of the last successful pub/sub heartbeat; 0.0
+        # means "never beaten". Read by `is_alive` for /health/ready.
+        self._last_beat: float = 0.0
 
     @property
     def name(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def last_beat(self) -> float:
+        """Monotonic timestamp of the last heartbeat (0.0 if never)."""
+        return self._last_beat
+
+    @property
+    def is_alive(self) -> bool:
+        """True when the worker beat within the liveness window.
+
+        A dead or wedged worker stops beating; readiness reads this so a
+        silently-stale leaderboard surfaces instead of passing health checks.
+        """
+        if self._last_beat == 0.0:
+            return False
+        return (time.monotonic() - self._last_beat) < LIVENESS_WINDOW_SECONDS
+
+    def _beat(self) -> None:
+        self._last_beat = time.monotonic()
 
     @abstractmethod
     async def handle_event(self, channel: str, data: dict[str, Any]) -> None:
@@ -58,7 +92,37 @@ class BaseWorker(ABC):
             logger.exception("[%s] Error handling %s", self.name, channel)
 
     def _run_loop(self) -> None:
+        """Supervise the pub/sub session, reconnecting on Redis errors.
+
+        A Redis outage must not kill the worker permanently: on ``RedisError``
+        we log, back off (exponential + jitter, interruptible by stop), and
+        resubscribe. The loop only exits when ``_stop_event`` is set.
+        """
         logger.info("[%s] Worker loop starting", self.name)
+        attempt = 0
+        while not self._stop_event.is_set():
+            try:
+                self._consume()
+                # Clean exit from _consume means the stop event was set.
+                break
+            except redis.RedisError:
+                attempt += 1
+                delay = min(
+                    RETRY_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)),
+                    RETRY_BACKOFF_MAX_SECONDS,
+                )
+                delay += random.uniform(0, delay * 0.1)  # jitter
+                logger.exception(
+                    "[%s] Redis error (attempt %d), reconnecting in %.1fs",
+                    self.name, attempt, delay,
+                )
+                # Interruptible sleep: a stop during backoff exits immediately.
+                if self._stop_event.wait(timeout=delay):
+                    break
+        logger.info("[%s] Worker loop ended", self.name)
+
+    def _consume(self) -> None:
+        """Subscribe and consume until stopped. Raises RedisError on failure."""
         # redis does not type pubsub() under strict mypy.
         pubsub = get_redis_client().pubsub()  # type: ignore[no-untyped-call]
         self._pubsub = pubsub
@@ -71,15 +135,14 @@ class BaseWorker(ABC):
                 "[%s] Subscribed channels=%s patterns=%s",
                 self.name, self.channels, self.patterns,
             )
+            self._beat()  # subscribed successfully — mark alive
             while not self._stop_event.is_set():
                 message = pubsub.get_message(timeout=1.0)
+                self._beat()
                 if message:
                     self._dispatch(message)
-        except redis.RedisError:
-            logger.exception("[%s] Redis error", self.name)
         finally:
             pubsub.close()
-            logger.info("[%s] Worker loop ended", self.name)
 
     def start(self, background: bool = True) -> None:
         if self._running:
@@ -107,6 +170,7 @@ class BaseWorker(ABC):
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=timeout)
         self._running = False
+        self._last_beat = 0.0  # a stopped worker is not alive
         logger.info("[%s] Stopped", self.name)
 
     def _signal_handler(self, signum: int, _frame: Any) -> None:
