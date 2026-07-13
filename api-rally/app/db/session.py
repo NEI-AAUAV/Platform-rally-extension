@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,7 +16,7 @@ def _async_url(uri: str) -> str:
     return uri.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
-def _engine_kwargs() -> dict:
+def _engine_kwargs() -> dict[str, Any]:
     """Build engine pool kwargs.
 
     Behind a transaction-pooling proxy (pgbouncer), SQLAlchemy's own pool
