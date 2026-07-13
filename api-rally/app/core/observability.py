@@ -21,7 +21,7 @@ def _scrub_sensitive(event: dict[str, Any], _hint: dict[str, Any]) -> Optional[d
     """before_send hook: drop credential-bearing request headers."""
     headers = event.get("request", {}).get("headers")
     if isinstance(headers, dict):
-        for key in list(headers):
+        for key in headers:
             if key.lower() in _SENSITIVE_HEADERS:
                 headers[key] = "[scrubbed]"
     return event
