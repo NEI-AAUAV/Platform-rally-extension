@@ -126,12 +126,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         teams = list(await self.get_multi(db=db, for_update=True))
         scoring_service = ScoringService(db)
 
-        # Update scores for all teams based on activity results
-        # Use nested transaction to avoid breaking row locks
-        for team in teams:
-            async with db.begin_nested():
-                await scoring_service.update_team_scores(team.id, should_commit=False)
-            await db.refresh(team)  # Refresh to get updated scores from database
+        # Recompute every team's scores in bulk (2 queries total) rather than
+        # per-team in a loop (which was 3 queries + a refresh each). Teams are
+        # already row-locked via for_update above; the batch mutates them in
+        # the same session, so no nested transaction or refresh is needed.
+        await scoring_service.update_all_team_scores(teams)
 
         # Sort teams by total score (descending), then by name (ascending)
         teams.sort(key=lambda t: (-t.total, t.name))

@@ -11,6 +11,10 @@ ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
+# Default cap for list queries when the caller passes no explicit limit, so a
+# growing table can never return an unbounded result set by accident.
+DEFAULT_MAX_LIMIT = 500
+
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]):
@@ -36,7 +40,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         limit: Optional[int] = None,
         for_update: bool = False,
     ) -> Sequence[ModelType]:
-        stmt = select(self.model).limit(limit).offset(skip)
+        effective_limit = DEFAULT_MAX_LIMIT if limit is None else limit
+        stmt = select(self.model).limit(effective_limit).offset(skip)
         if for_update:
             stmt = stmt.with_for_update()
         return (await db.scalars(stmt)).all()

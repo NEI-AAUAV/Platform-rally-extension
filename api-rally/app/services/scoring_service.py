@@ -272,6 +272,25 @@ class ScoringService:
         # last slot stays the last-visited checkpoint's score for `[-1]`
         # consumers. Keying the aggregation by id (above) keeps this correct
         # even if orders shift during a reorder.
+        self._apply_checkpoint_layout(team, checkpoint_scores, checkpoint_order_by_id)
+
+        if should_commit:
+            await self._commit_and_publish_team_score(team_id, total_score)
+
+        return True
+
+    def _apply_checkpoint_layout(
+        self,
+        team: Team,
+        checkpoint_scores: dict[int, float],
+        checkpoint_order_by_id: dict[int, int],
+    ) -> None:
+        """Lay per-checkpoint scores onto ``team.score_per_checkpoint``.
+
+        Extracted from ``update_team_scores`` so the batch path shares the exact
+        same positional layout (visit order == checkpoint order, sized to
+        ``team.times``).
+        """
         scores_by_order = sorted(
             (checkpoint_order_by_id[cid], score)
             for cid, score in checkpoint_scores.items()
@@ -282,10 +301,69 @@ class ScoringService:
             ordered_scores[:num_visits] + [0] * (num_visits - len(ordered_scores))
         )[:num_visits]
 
-        if should_commit:
-            await self._commit_and_publish_team_score(team_id, total_score)
+    async def update_all_team_scores(self, teams: list[Team]) -> None:
+        """Recompute total + per-checkpoint scores for many teams in bulk.
 
-        return True
+        Avoids the N+1 the per-team ``update_team_scores`` incurs when called in
+        a loop: instead of 2 queries per team (results + awards) it issues 2
+        queries total, filtering by ``team_id IN (...)`` and grouping in Python.
+        Mutates each team in place (same session identity); the caller commits.
+        """
+        if not teams:
+            return
+
+        team_ids = [team.id for team in teams]
+
+        results_stmt = (
+            select(ActivityResult)
+            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
+            .where(ActivityResult.team_id.in_(team_ids))
+        )
+        results = (await self.db.scalars(results_stmt)).all()
+
+        awards_stmt = select(DynamicAward).where(
+            DynamicAward.team_id.in_(team_ids),
+            DynamicAward.is_active.is_(True),
+        )
+        awards = (await self.db.scalars(awards_stmt)).all()
+
+        # team_id -> (checkpoint_scores, checkpoint_order_by_id, raw_total)
+        per_team: dict[int, tuple[dict[int, float], dict[int, int], float]] = {
+            tid: ({}, {}, 0.0) for tid in team_ids
+        }
+        for result in results:
+            if not (result.is_completed and result.final_score is not None):
+                continue
+            if not (result.activity and result.activity.checkpoint):
+                continue
+            bucket = per_team.get(result.team_id)
+            if bucket is None:
+                continue
+            checkpoint_scores, checkpoint_order_by_id, _ = bucket
+            checkpoint = result.activity.checkpoint
+            checkpoint_scores[checkpoint.id] = (
+                checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
+            )
+            checkpoint_order_by_id[checkpoint.id] = checkpoint.order
+            per_team[result.team_id] = (
+                checkpoint_scores,
+                checkpoint_order_by_id,
+                bucket[2] + result.final_score,
+            )
+
+        award_points_by_team: dict[int, float] = {}
+        for award in awards:
+            award_points_by_team[award.team_id] = (
+                award_points_by_team.get(award.team_id, 0.0) + float(award.points)
+            )
+
+        for team in teams:
+            checkpoint_scores, checkpoint_order_by_id, raw_total = per_team[team.id]
+            total_score = raw_total + award_points_by_team.get(team.id, 0.0)
+            team.total = round(total_score)
+            self._apply_checkpoint_layout(
+                team, checkpoint_scores, checkpoint_order_by_id
+            )
 
     async def _publish_result_change(
         self,
