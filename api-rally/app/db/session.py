@@ -3,6 +3,7 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
@@ -14,9 +15,27 @@ def _async_url(uri: str) -> str:
     return uri.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
+def _engine_kwargs() -> dict:
+    """Build engine pool kwargs.
+
+    Behind a transaction-pooling proxy (pgbouncer), SQLAlchemy's own pool
+    conflicts with server-side pooling, so fall back to NullPool. Otherwise
+    size the pool and enable pre-ping / recycle to survive stale connections.
+    """
+    if settings.DB_DISABLE_POOL:
+        return {"poolclass": NullPool}
+    return {
+        "pool_size": settings.DB_POOL_SIZE,
+        "max_overflow": settings.DB_MAX_OVERFLOW,
+        "pool_pre_ping": True,
+        "pool_recycle": settings.DB_POOL_RECYCLE_SECONDS,
+    }
+
+
 engine = create_async_engine(
     _async_url(str(settings.POSTGRES_URI)),
     echo=not settings.PRODUCTION,  # Only echo SQL in development
+    **_engine_kwargs(),
 )
 SessionLocal = async_sessionmaker(
     bind=engine,

@@ -117,6 +117,16 @@ class Settings(BaseSettings):
         f":5432/{POSTGRES_DB}_test"
     )
 
+    # Database connection pool tuning. Overridable via env for prod sizing.
+    # pool_pre_ping guards against stale connections (server restart, idle
+    # timeout, failover); pool_recycle proactively drops long-lived conns.
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+    DB_POOL_RECYCLE_SECONDS: int = int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800"))
+    # When behind a transaction-pooling proxy (pgbouncer), server-side pooling
+    # conflicts with SQLAlchemy's pool. Set true to use NullPool instead.
+    DB_DISABLE_POOL: bool = os.getenv("DB_DISABLE_POOL", "").lower() in {"1", "true", "yes"}
+
     # OIDC authentication
     # Rally is a pure OIDC resource server: it validates access tokens minted
     # by the provider via JWKS discovery. It does NOT mint its own tokens.
