@@ -65,7 +65,7 @@ async def test_export_requires_admin(pg_session, pg_client, as_user):
     assert resp.status_code == 403
 
 
-async def test_export_event_not_found(pg_client, as_admin):
+def test_export_event_not_found(pg_client, as_admin):
     resp = pg_client.get("/api/rally/v1/events/999999/export")
     assert resp.status_code == 404
 
