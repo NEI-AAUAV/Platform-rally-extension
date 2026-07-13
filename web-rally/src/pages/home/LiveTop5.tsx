@@ -31,7 +31,7 @@ export function LiveTop5() {
     queryFn: async () => (await getTeams()).data,
   });
 
-  const top = teams
+  const top = Array.isArray(teams)
     ? [...teams]
         .sort((a: ListingTeam, b: ListingTeam) => a.classification - b.classification)
         .slice(0, 5)

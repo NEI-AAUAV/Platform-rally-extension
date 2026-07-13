@@ -8,10 +8,13 @@ RUN apt-get update && \
     apt-get -y install --no-install-recommends libpq-dev=17.10-0+deb13u1 gcc=4:14.2.0-1 && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir --upgrade --only-binary :all: pip==24.3.1 && \
-    pip install --no-cache-dir --only-binary :all: poetry==1.8.5 && \
-    useradd --create-home appuser
+    pip install --no-cache-dir --only-binary :all: poetry==2.4.1 && \
+    useradd --create-home appuser && \
+    chown appuser:appuser /api_rally
 
-COPY poetry.lock pyproject.toml ./
+USER appuser
+
+COPY --chown=appuser:appuser poetry.lock pyproject.toml ./
 
 # NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
 RUN poetry install --no-root --no-cache
@@ -22,10 +25,7 @@ COPY --chown=appuser:appuser alembic.ini pytest.ini ./
 COPY --chown=appuser:appuser static ./static
 
 # NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
-RUN poetry install --no-cache && \
-    chown -R appuser:appuser /api_rally
-
-USER appuser
+RUN poetry install --no-cache
 
 EXPOSE 8003
 CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app"]

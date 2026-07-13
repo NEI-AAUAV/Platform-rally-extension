@@ -208,7 +208,7 @@ export default function TeamManagement() {
       {/* Teams List */}
       <div className="rally-surface rounded-2xl p-6">
         <h3 className="mb-4 text-lg font-semibold">Equipas Existentes</h3>
-        {teams?.length === 0 ? (
+        {!Array.isArray(teams) || teams.length === 0 ? (
           <EmptyState
             icon={<Users className="h-8 w-8 text-muted-foreground" />}
             title="Nenhuma equipa criada ainda"
@@ -216,7 +216,7 @@ export default function TeamManagement() {
           />
         ) : (
           <ul className="list-none space-y-3">
-            {teams?.map((team: Team) => (
+            {teams.map((team: Team) => (
               <li key={team.id}>
                 <div className="flex items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6">
                   <div>
