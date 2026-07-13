@@ -49,7 +49,7 @@ export function useCheckpointManagement(userStore: UserState) {
     queryKey: ["checkpoints"],
     queryFn: async () => {
       const { data } = await getCheckpoints();
-      return data ?? [];
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!userStore.token,
   });

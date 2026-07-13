@@ -10,8 +10,10 @@ import {
   Shuffle,
   CheckCircle2,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { generateRotationSchedule } from "@/client";
+import { downloadEventResults } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,29 @@ function formatRange(ev: RallyEvent): string | null {
 }
 
 type ScheduleRounds = ReadonlyArray<ReadonlyArray<Record<string, unknown>>>;
+
+function ExportResultsButton({
+  event,
+}: Readonly<{ event: RallyEvent }>) {
+  const toast = useAppToast();
+  const exportMutation = useMutation({
+    mutationFn: () => downloadEventResults(event.id, event.name),
+    onSuccess: () => toast.success("Resultados exportados"),
+    onError: (err) => toast.error(getErrorMessage(err, "Erro ao exportar resultados")),
+  });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={exportMutation.isPending}
+      onClick={() => exportMutation.mutate()}
+    >
+      <Download className="mr-1.5 h-3.5 w-3.5" />
+      {exportMutation.isPending ? "A exportar…" : "Exportar resultados"}
+    </Button>
+  );
+}
 
 function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   const toast = useAppToast();
@@ -241,6 +266,7 @@ export default function EventsManagement() {
                 )}
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <ExportResultsButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
                 {!ev.is_current && (
                   <Button
