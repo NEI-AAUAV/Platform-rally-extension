@@ -32,7 +32,7 @@ def init_sentry() -> None:
     if not settings.SENTRY_DSN:
         return
     try:
-        import sentry_sdk  # type: ignore[import-not-found]
+        import sentry_sdk
     except ImportError:
         logger.warning("SENTRY_DSN set but sentry-sdk is not installed; skipping")
         return
@@ -42,6 +42,8 @@ def init_sentry() -> None:
         environment=settings.ENV,
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
         send_default_pii=False,
-        before_send=_scrub_sensitive,
+        # Sentry types before_send as (Event, Hint) -> Event | None; Event is a
+        # TypedDict, so our dict-based scrubber is runtime-correct here.
+        before_send=_scrub_sensitive,  # type: ignore[arg-type]
     )
     logger.info("Sentry initialised for environment=%s", settings.ENV)

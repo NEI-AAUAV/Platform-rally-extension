@@ -5526,7 +5526,7 @@
           "health"
         ],
         "summary": "Health Check",
-        "description": "Health check endpoint for monitoring and load balancers",
+        "description": "Liveness probe: 200 whenever the process can serve requests.\n\nThis is the Docker healthcheck target (and gates ``depends_on``), so it must\nNOT fail on a dependency outage \u2014 a down Redis/DB would otherwise tear down\nthe whole stack. Dependency status lives in ``/health/ready`` instead.",
         "operationId": "health_check",
         "responses": {
           "200": {
@@ -5540,6 +5540,26 @@
                   "type": "object",
                   "title": "Response Health Check"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness probe: aggregates DB, Redis and worker liveness.\n\nReturns 503 when any checked dependency is unhealthy so a silently-stale\nleaderboard (dead worker) or a database/Redis outage surfaces to ops. Not\nwired to the container healthcheck \u2014 see ``health_check``.",
+        "operationId": "readiness_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }

@@ -67,7 +67,9 @@ class BaseWorker(ABC):
         A dead or wedged worker stops beating; readiness reads this so a
         silently-stale leaderboard surfaces instead of passing health checks.
         """
-        if self._last_beat == 0.0:
+        # 0.0 is the "never beat" sentinel; treat any falsy value as not-yet-alive
+        # (avoids a float equality check).
+        if not self._last_beat:
             return False
         return (time.monotonic() - self._last_beat) < LIVENESS_WINDOW_SECONDS
 
