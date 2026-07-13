@@ -40,7 +40,10 @@ def test_live_computes_from_db_when_disabled(
         {"rank": 1, "team_id": 7, "team_name": "Lynxes", "total_score": 42.0, "activities_completed": 3},
     ]
 
+    import asyncio
+
     async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
+        await asyncio.sleep(0)
         return ranking
 
     monkeypatch.setattr(
