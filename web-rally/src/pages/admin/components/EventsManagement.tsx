@@ -79,9 +79,7 @@ function formatRange(ev: RallyEvent): string | null {
 
 type ScheduleRounds = ReadonlyArray<ReadonlyArray<Record<string, unknown>>>;
 
-function ExportResultsButton({
-  event,
-}: Readonly<{ event: RallyEvent }>) {
+function ExportResultsButton({ event }: Readonly<{ event: RallyEvent }>) {
   const toast = useAppToast();
   const exportMutation = useMutation({
     mutationFn: () => downloadEventResults(event.id, event.name),

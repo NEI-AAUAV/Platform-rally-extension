@@ -65,7 +65,7 @@ module = "sqlalchemy.schema"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*", "authlib.*"]
+module = ["boto3.*", "botocore.*", "authlib.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

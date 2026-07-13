@@ -9,26 +9,21 @@ import { useUserStore } from "@/stores/useUserStore";
  * route) and stream the response into a browser download, mirroring the raw
  * fetch used for team-token refresh.
  */
-export async function downloadEventResults(
-  eventId: number,
-  eventName: string,
-): Promise<void> {
+export async function downloadEventResults(eventId: number, eventName: string): Promise<void> {
   const token = useUserStore.getState().token;
   if (!token) {
     throw new Error("Sessão de administrador necessária");
   }
 
-  const response = await fetch(
-    `${config.BASE_URL}/api/rally/v1/events/${eventId}/export`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  const response = await fetch(`${config.BASE_URL}/api/rally/v1/events/${eventId}/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new Error(`Falha ao exportar resultados (${response.status})`);
   }
 
   const blob = await response.blob();
-  const safeName =
-    eventName.replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "") || "evento";
+  const safeName = eventName.replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "") || "evento";
   triggerDownload(blob, `${safeName}_resultados.xlsx`);
 }
 

@@ -5520,6 +5520,56 @@
         ]
       }
     },
+    "/api/rally/v1/events/{event_id}/export": {
+      "get": {
+        "tags": [
+          "Export",
+          "Events"
+        ],
+        "summary": "Export Event Results",
+        "description": "Return an .xlsx workbook of the event's results (admin/manager only).",
+        "operationId": "export_event_results",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
