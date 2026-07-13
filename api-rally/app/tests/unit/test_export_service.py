@@ -44,15 +44,19 @@ def _result(
 
 
 def _service(teams, checkpoints, results) -> ExportService:
+    import asyncio
     svc = ExportService.__new__(ExportService)
 
     async def _t(_event_id):
+        await asyncio.sleep(0)
         return teams
 
     async def _c(_event_id):
+        await asyncio.sleep(0)
         return checkpoints
 
     async def _r(_event_id):
+        await asyncio.sleep(0)
         return results
 
     svc._teams = _t  # type: ignore[method-assign]
