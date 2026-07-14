@@ -36,7 +36,7 @@ async def test_get_event_found(pg_session, pg_client):
     assert resp.json()["id"] == created.id
 
 
-async def test_get_event_not_found(pg_client):
+def test_get_event_not_found(pg_client):
     resp = pg_client.get("/api/rally/v1/events/999999")
 
     assert resp.status_code == 404

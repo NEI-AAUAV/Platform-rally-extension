@@ -46,7 +46,7 @@ async def _make_team(pg_session):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
 
 
-async def _arrive(pg_client, checkpoint, lat, lon):
+def _arrive(pg_client, checkpoint, lat, lon):
     return pg_client.post(
         f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
         json={"latitude": lat, "longitude": lon},
@@ -118,7 +118,7 @@ class TestCheckpointVisibility:
         team = await _make_team(pg_session)
 
         with as_team(team.id, "TeamA"):
-            arrive = await _arrive(pg_client, cp1, 41.000045, -8.0)
+            arrive = _arrive(pg_client, cp1, 41.000045, -8.0)
             assert arrive.status_code == 200, arrive.text
             assert arrive.json()["auto_completed"] is True
 
