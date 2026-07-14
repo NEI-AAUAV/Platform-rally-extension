@@ -171,6 +171,7 @@ def refresh_team_token(
 @router.post(
     "/evaluations/{result_id}/contest",
     dependencies=[Depends(_write_rate_limit)],
+    responses={404: {"description": "Activity result not found"}},
 )
 async def contest_evaluation(
     *,
