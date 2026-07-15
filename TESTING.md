@@ -11,6 +11,35 @@ The most straightforward way to run all backend and frontend tests is to use the
 ./run-tests.sh
 ```
 
+`run-tests.sh` is self-contained: it exports a default `TEAM_JWT_SECRET_KEY`
+(config fails fast without one) and, by default, boots a throwaway Postgres via
+`api-rally/docker-compose.test.yml` so the real-schema / scoring integration
+tests actually run instead of silently skipping.
+
+### Test environment / Postgres modes
+
+Backend config requires `TEAM_JWT_SECRET_KEY`, and over half the backend suite
+(scoring, integration, e2e) needs a real Postgres — those tests **skip** when
+the DB is unreachable. Control the DB with `RALLY_TEST_PG`:
+
+| `RALLY_TEST_PG` | Behaviour |
+|-----------------|-----------|
+| `managed` (default) | Boot + tear down a throwaway Postgres via compose; passes `--require-pg`. |
+| `external` | Reuse the Postgres on `$POSTGRES_SERVER` (e.g. the dev `db_pg`, published on `localhost:5432` via `compose.override.yml`); passes `--require-pg`. |
+| `off` | Run without Postgres; DB-backed tests skip. |
+
+Running `pytest` directly:
+
+```bash
+# From api-rally/ — secret is mandatory; POSTGRES_DB=rally derives rally_test.
+TEAM_JWT_SECRET_KEY=test_secret POSTGRES_DB=rally \
+  poetry run pytest app/tests/ -v
+
+# Fail (not skip) if Postgres is missing — what CI uses:
+TEAM_JWT_SECRET_KEY=test_secret POSTGRES_DB=rally \
+  poetry run pytest app/tests/ -v --require-pg
+```
+
 ## Backend Testing (`api-rally`)
 
 The API is tested with `pytest`.

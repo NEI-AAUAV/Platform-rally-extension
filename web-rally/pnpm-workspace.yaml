@@ -1,0 +1,5 @@
+# pnpm 10 reads dependency overrides from here, not from the "pnpm.overrides"
+# key in package.json (which pnpm 10 ignores with a warning).
+packages: []
+overrides:
+  glob: '>=10.5.0'

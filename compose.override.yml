@@ -1,4 +1,11 @@
 services:
+  # Publish the dev Postgres on the host (dev-only) so local test runs can
+  # reuse it instead of spinning a throwaway container:
+  #   RALLY_TEST_PG=external POSTGRES_SERVER=localhost ./run-tests.sh
+  db_pg:
+    ports:
+      - "5432:5432"
+
   web_nei:
     environment:
       ENABLE_RALLY: 'True'
