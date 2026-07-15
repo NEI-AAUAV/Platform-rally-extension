@@ -148,7 +148,7 @@ class TestTeamAuthAPI:
         "bad_code",
         ["short", "abcd-1234", "ABCD1234", "ABCD-12345", "A" * 100, "ABCD-123!"],
     )
-    async def test_login_rejects_malformed_access_code(self, pg_client, bad_code):
+    def test_login_rejects_malformed_access_code(self, pg_client, bad_code):
         response = pg_client.post(
             "/api/rally/v1/team-auth/login", json={"access_code": bad_code}
         )
@@ -239,7 +239,7 @@ class TestTokenLifecycleHardening:
         )
         assert bad.status_code == 401
 
-    async def test_verify_rejects_token_signed_with_other_algorithm_key(self, pg_client):
+    def test_verify_rejects_token_signed_with_other_algorithm_key(self, pg_client):
         forged = jwt.encode(
             {
                 "team_id": 1,
