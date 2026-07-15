@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { BloodyButton } from "@/components/themes/bloody";
-import { RALLY_DEFAULTS, getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
-import useRallySettings from "@/hooks/useRallySettings";
+import { RALLY_DEFAULTS } from "@/config/rallyDefaults";
+import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
+import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
+import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import NotesField from "@/components/forms/shared/NotesField";
+import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { GeneralFormProps } from "@/types/forms";
-import { getTeamSize } from "@/types/forms";
 
 // Helper function to safely extract default_points from config
 function getDefaultPoints(config: GeneralFormProps["config"]): number {
@@ -15,11 +17,6 @@ function getDefaultPoints(config: GeneralFormProps["config"]): number {
   return RALLY_DEFAULTS.FORM_DEFAULTS.generalPoints;
 }
 
-function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
-  if (isSubmitting) return "Saving...";
-  return hasExisting ? "Update Evaluation" : "Submit Evaluation";
-}
-
 export default function GeneralForm({
   existingResult,
   team,
@@ -28,27 +25,23 @@ export default function GeneralForm({
   isSubmitting,
 }: Readonly<GeneralFormProps>) {
   const [assignedPoints, setAssignedPoints] = useState<number>(getDefaultPoints(config));
-  const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
   const [notes, setNotes] = useState<string>("");
   const toast = useAppToast();
 
-  // Get Rally settings for dynamic penalty values
-  const { settings } = useRallySettings();
-
-  // Calculate max extra shots based on team size
-  const teamSize = getTeamSize(team);
-  const extraShotsConfig = getExtraShotsConfig(settings);
-  const maxExtraShotsPerMember = extraShotsConfig.perMember;
-  const maxExtraShots = teamSize * maxExtraShotsPerMember;
-
-  // Use penalty values from API settings or fallback to defaults
-  const penaltyValues = getPenaltyValues(settings);
-
-  const showExtraShots = maxExtraShots > 0;
-  const showVomitPenalty = penaltyValues.vomit > 0;
-  const showNotDrinkingPenalty = penaltyValues.not_drinking > 0;
-  const showPenalties = showVomitPenalty || showNotDrinkingPenalty;
+  const {
+    extraShots,
+    setExtraShots,
+    penalties,
+    setPenalties,
+    maxExtraShots,
+    maxExtraShotsPerMember,
+    showExtraShots,
+    penaltyValues,
+    showVomitPenalty,
+    showNotDrinkingPenalty,
+    showPenalties,
+    validateExtraShots,
+  } = useExtraShotsAndPenalties(team, existingResult);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -57,24 +50,13 @@ export default function GeneralForm({
       );
       setNotes((existingResult.result_data.notes as string) || "");
     }
-    if (existingResult) {
-      setExtraShots(existingResult.extra_shots || 0);
-      setPenalties(existingResult.penalties || {});
-    }
   }, [existingResult, config]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate extra shots limit
-    if (extraShots > maxExtraShots) {
-      toast.error(
-        `Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`,
-      );
-      return;
-    }
+    if (!validateExtraShots()) return;
 
-    // Validate non-negative points
     if (assignedPoints < 0) {
       toast.error("Points must be positive.");
       return;
@@ -113,115 +95,32 @@ export default function GeneralForm({
       </div>
 
       {showExtraShots && (
-        <div>
-          <label
-            htmlFor="general-extra-shots"
-            className="mb-2 block text-sm font-medium text-foreground"
-          >
-            Extra Shots
-          </label>
-          <input
-            id="general-extra-shots"
-            type="number"
-            min="0"
-            max={maxExtraShots}
-            value={extraShots}
-            onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-            placeholder="Extra shots taken"
-          />
-          <p className="mt-1 text-sm text-muted-foreground">
-            Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
-            {maxExtraShotsPerMember} per team member)
-          </p>
-          {extraShots > maxExtraShots && (
-            <p className="mt-1 text-sm text-red-400">
-              ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
-            </p>
-          )}
-        </div>
+        <ExtraShotsField
+          idPrefix="general"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
+        />
       )}
 
       {showPenalties && (
-        <fieldset>
-          <legend className="mb-2 block text-sm font-medium text-foreground">Penalties</legend>
-          <div className="space-y-2">
-            {showVomitPenalty && (
-              <div className="flex items-center space-x-3">
-                <input
-                  id="general-vomit"
-                  type="number"
-                  min="0"
-                  value={penalties.vomit || 0}
-                  onChange={(e) =>
-                    setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
-                  }
-                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                  placeholder="0"
-                  aria-label="Vomit penalty count"
-                />
-                <label htmlFor="general-vomit" className="text-sm text-muted-foreground">
-                  Vomit penalty ({penaltyValues.vomit} pts each)
-                </label>
-              </div>
-            )}
-            {showNotDrinkingPenalty && (
-              <div className="flex items-center space-x-3">
-                <input
-                  id="general-not-drinking"
-                  type="number"
-                  min="0"
-                  value={penalties.not_drinking || 0}
-                  onChange={(e) =>
-                    setPenalties({
-                      ...penalties,
-                      not_drinking: Number.parseInt(e.target.value, 10) || 0,
-                    })
-                  }
-                  className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                  placeholder="0"
-                  aria-label="Not drinking penalty count"
-                />
-                <label htmlFor="general-not-drinking" className="text-sm text-muted-foreground">
-                  Not drinking penalty ({penaltyValues.not_drinking} pts each)
-                </label>
-              </div>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Penalties reduce the final score. Total penalty:{" "}
-            {(penalties.vomit || 0) * penaltyValues.vomit +
-              (penalties.not_drinking || 0) * penaltyValues.not_drinking}{" "}
-            points
-          </p>
-        </fieldset>
+        <PenaltiesFieldset
+          idPrefix="general"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
+        />
       )}
 
-      <div>
-        <label htmlFor="general-notes" className="mb-2 block text-sm font-medium text-foreground">
-          Notes (Optional)
-        </label>
-        <textarea
-          id="general-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Add any additional notes..."
-          rows={3}
-        />
-      </div>
+      <NotesField idPrefix="general" notes={notes} onChange={setNotes} />
 
-      <div className="mt-6 flex gap-3">
-        <BloodyButton
-          type="submit"
-          disabled={isSubmitting}
-          variant="primary"
-          blood={true}
-          className="flex-1 px-6 py-3"
-        >
-          {getSubmitLabel(isSubmitting, !!existingResult)}
-        </BloodyButton>
-      </div>
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label={getSubmitLabel(isSubmitting, !!existingResult)}
+      />
     </form>
   );
 }
