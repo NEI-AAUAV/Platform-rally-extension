@@ -10,11 +10,7 @@ type StaffTeamRosterProps = Readonly<{
   teamData: DetailedTeam | undefined;
 }>;
 
-export default function StaffTeamRoster({
-  teamName,
-  teamMembers,
-  teamData,
-}: StaffTeamRosterProps) {
+export default function StaffTeamRoster({ teamName, teamMembers, teamData }: StaffTeamRosterProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <div className="rally-surface rounded-2xl p-6">
