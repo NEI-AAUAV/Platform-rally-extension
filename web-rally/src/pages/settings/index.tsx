@@ -113,6 +113,48 @@ const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => 
   return "bloody";
 };
 
+function buildFormValues(
+  settings: RallySettingsResponse,
+  extendedSettings: ExtendedRallySettingsResponse | undefined,
+): RallySettingsForm {
+  return {
+    max_teams: settings.max_teams,
+    max_members_per_team: settings.max_members_per_team,
+    enable_versus: settings.enable_versus,
+    rally_start_time: settings.rally_start_time
+      ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
+      : null,
+    rally_end_time: settings.rally_end_time
+      ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time)
+      : null,
+    penalty_per_puke: settings.penalty_per_puke,
+    penalty_per_not_drinking: settings.penalty_per_not_drinking,
+    bonus_per_extra_shot: settings.bonus_per_extra_shot,
+    max_extra_shots_per_member: settings.max_extra_shots_per_member,
+    checkpoint_order_matters: settings.checkpoint_order_matters,
+    enable_staff_scoring: settings.enable_staff_scoring,
+    show_live_leaderboard: settings.show_live_leaderboard,
+    show_team_details: settings.show_team_details,
+    show_checkpoint_map: settings.show_checkpoint_map,
+    participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
+    show_route_mode: extendedSettings?.show_route_mode ?? "focused",
+    show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
+    rally_theme: normalizeTheme(settings.rally_theme),
+    public_access_enabled: settings.public_access_enabled,
+    allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
+    guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
+    guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+    badges_enabled: extendedSettings?.badges_enabled ?? true,
+    home_layout: (settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT).map(
+      (section) => ({ key: section.key, visible: section.visible ?? true }),
+    ),
+    ticker_items_list: (settings.ticker_items?.length
+      ? settings.ticker_items
+      : DEFAULT_TICKER_ITEMS
+    ).map((value) => ({ value })),
+  };
+}
+
 import { getErrorMessage } from "@/utils/errorHandling";
 
 interface RallySettingsProps {
@@ -180,42 +222,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
   // Update form when settings are loaded
   useEffect(() => {
     if (settings) {
-      const mappedTheme = normalizeTheme(settings.rally_theme);
-
-      form.reset({
-        max_teams: settings.max_teams,
-        max_members_per_team: settings.max_members_per_team,
-        enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
-          : null,
-        rally_end_time: settings.rally_end_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time)
-          : null,
-        penalty_per_puke: settings.penalty_per_puke,
-        penalty_per_not_drinking: settings.penalty_per_not_drinking,
-        bonus_per_extra_shot: settings.bonus_per_extra_shot,
-        max_extra_shots_per_member: settings.max_extra_shots_per_member,
-        checkpoint_order_matters: settings.checkpoint_order_matters,
-        enable_staff_scoring: settings.enable_staff_scoring,
-        show_live_leaderboard: settings.show_live_leaderboard,
-        show_team_details: settings.show_team_details,
-        show_checkpoint_map: settings.show_checkpoint_map,
-        participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
-        show_route_mode: extendedSettings?.show_route_mode ?? "focused",
-        show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
-        rally_theme: mappedTheme,
-        public_access_enabled: settings.public_access_enabled,
-        allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
-        guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
-        guide_mode_active: extendedSettings?.guide_mode_active ?? false,
-        badges_enabled: extendedSettings?.badges_enabled ?? true,
-        home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
-        ticker_items_list: (settings.ticker_items?.length
-          ? settings.ticker_items
-          : DEFAULT_TICKER_ITEMS
-        ).map((value) => ({ value })),
-      });
+      form.reset(buildFormValues(settings, extendedSettings));
     }
     // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
     // Including 'form' would cause this effect to run repeatedly since reset() is called inside the effect.
@@ -273,42 +280,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
 
   const handleCancel = () => {
     if (settings) {
-      const mappedTheme = normalizeTheme(settings.rally_theme);
-
-      form.reset({
-        max_teams: settings.max_teams,
-        max_members_per_team: settings.max_members_per_team,
-        enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
-          : null,
-        rally_end_time: settings.rally_end_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time)
-          : null,
-        penalty_per_puke: settings.penalty_per_puke,
-        penalty_per_not_drinking: settings.penalty_per_not_drinking,
-        bonus_per_extra_shot: settings.bonus_per_extra_shot,
-        max_extra_shots_per_member: settings.max_extra_shots_per_member,
-        checkpoint_order_matters: settings.checkpoint_order_matters,
-        enable_staff_scoring: settings.enable_staff_scoring,
-        show_live_leaderboard: settings.show_live_leaderboard,
-        show_team_details: settings.show_team_details,
-        show_checkpoint_map: settings.show_checkpoint_map,
-        participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
-        show_route_mode: extendedSettings?.show_route_mode ?? "focused",
-        show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
-        rally_theme: mappedTheme,
-        public_access_enabled: settings.public_access_enabled,
-        allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
-        guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
-        guide_mode_active: extendedSettings?.guide_mode_active ?? false,
-        badges_enabled: extendedSettings?.badges_enabled ?? true,
-        home_layout: settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT,
-        ticker_items_list: (settings.ticker_items?.length
-          ? settings.ticker_items
-          : DEFAULT_TICKER_ITEMS
-        ).map((value) => ({ value })),
-      });
+      form.reset(buildFormValues(settings, extendedSettings));
     }
     setIsEditing(false);
   };

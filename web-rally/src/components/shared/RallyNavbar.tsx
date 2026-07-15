@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Branding } from "@/lib/branding";
@@ -8,6 +8,7 @@ import { UserMenu } from "./user-menu";
 import { ColorModeToggle } from "@/components/theme";
 import { useUserStore } from "@/stores/useUserStore";
 import { useEvents, useEventMutations } from "@/hooks/useEvents";
+import useClickOutside from "@/hooks/useClickOutside";
 
 interface RallyNavbarProps {
   readonly branding: Branding;
@@ -30,21 +31,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
   const { data: events } = useEvents();
   const { setCurrent } = useEventMutations();
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const currentEventId = (events ?? []).find((ev) => ev.is_current)?.id ?? "";
 

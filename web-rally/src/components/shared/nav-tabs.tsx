@@ -2,7 +2,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Menu, X, ShieldCheck, Users, ChevronDown, UserPlus, LogIn } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
@@ -10,6 +10,7 @@ import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
+import useClickOutside from "@/hooks/useClickOutside";
 
 type NavTabsProps = ComponentProps<"ul">;
 
@@ -42,21 +43,7 @@ function NavGroup({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const hasActive = items.some((i) => i.href === location.pathname);
 
@@ -187,28 +174,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const terms = useEventTerms();
   const checkpointsLabel = capitalize(terms.checkpoints);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        mobileMenuRef.current &&
-        event.target instanceof Node &&
-        !mobileMenuRef.current.contains(event.target)
-      ) {
-        setIsMobileMenuOpen(false);
-      }
-    }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setIsMobileMenuOpen(false);
-    }
-    if (isMobileMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscape);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isMobileMenuOpen]);
+  useClickOutside(mobileMenuRef, isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },

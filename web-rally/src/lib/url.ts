@@ -1,10 +1,10 @@
-const SAFE_URL_SCHEMES = ["http:", "https:", "blob:", "data:"];
+const SAFE_URL_SCHEMES = new Set(["http:", "https:", "blob:", "data:"]);
 
 export function isSafeImageUrl(url: string | null | undefined): url is string {
   if (!url) return false;
   try {
     const parsed = new URL(url, window.location.origin);
-    return SAFE_URL_SCHEMES.includes(parsed.protocol);
+    return SAFE_URL_SCHEMES.has(parsed.protocol);
   } catch {
     return false;
   }
@@ -19,7 +19,7 @@ export function toSafeImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url, window.location.origin);
-    return SAFE_URL_SCHEMES.includes(parsed.protocol) ? parsed.href : null;
+    return SAFE_URL_SCHEMES.has(parsed.protocol) ? parsed.href : null;
   } catch {
     return null;
   }
