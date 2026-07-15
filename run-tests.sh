@@ -37,6 +37,59 @@ if [[ ! -f "api-rally/pyproject.toml" ]]; then
     exit 1
 fi
 
+# --- Test environment ---------------------------------------------------------
+# Tests need a TEAM_JWT_SECRET_KEY (config fails fast without one) and a real
+# Postgres for the integration/scoring suite. Provide sane defaults so a fresh
+# checkout runs green with one command; callers may override via env.
+export TEAM_JWT_SECRET_KEY="${TEAM_JWT_SECRET_KEY:-test_secret}"
+export POSTGRES_SERVER="${POSTGRES_SERVER:-localhost}"
+export POSTGRES_USER="${POSTGRES_USER:-postgres}"
+export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+export POSTGRES_DB="${POSTGRES_DB:-rally}"  # config derives ${POSTGRES_DB}_test
+
+# When RALLY_TEST_PG=managed (default), boot a throwaway Postgres via the test
+# compose file and require it (no silent skips). Set RALLY_TEST_PG=external to
+# reuse a Postgres you already have on $POSTGRES_SERVER, or =off to allow skips.
+RALLY_TEST_PG="${RALLY_TEST_PG:-managed}"
+TEST_COMPOSE="api-rally/docker-compose.test.yml"
+PYTEST_PG_FLAG=""
+COMPOSE_STARTED=""
+
+compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    else
+        docker-compose "$@"
+    fi
+}
+
+teardown_pg() {
+    if [[ -n "$COMPOSE_STARTED" ]]; then
+        echo "🧹 Stopping test Postgres..."
+        compose_cmd -f "$TEST_COMPOSE" down -v >/dev/null 2>&1 || true
+    fi
+}
+trap teardown_pg EXIT
+
+if [[ "$RALLY_TEST_PG" == "managed" ]]; then
+    echo "🐘 Starting test Postgres (compose)..."
+    compose_cmd -f "$TEST_COMPOSE" up -d --wait postgres
+    COMPOSE_STARTED=1
+    PYTEST_PG_FLAG="--require-pg"
+    # Create the derived ${POSTGRES_DB}_test database inside the compose container.
+    compose_cmd -f "$TEST_COMPOSE" exec -T postgres \
+        psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        -c "CREATE DATABASE ${POSTGRES_DB}_test;" >/dev/null 2>&1 || true
+elif [[ "$RALLY_TEST_PG" == "external" ]]; then
+    PYTEST_PG_FLAG="--require-pg"
+    # Ensure the derived ${POSTGRES_DB}_test database exists on the external PG.
+    if command -v psql >/dev/null 2>&1; then
+        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_SERVER" -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" -c "CREATE DATABASE ${POSTGRES_DB}_test;" >/dev/null 2>&1 \
+            || true
+    fi
+fi
+
 # Install dependencies if needed
 echo "📦 Installing dependencies..."
 
@@ -56,7 +109,7 @@ print_status "Dependencies installed"
 echo ""
 echo "🐍 Running API Tests"
 echo "==================="
-if (cd api-rally && poetry run pytest app/tests/ -v --cov=app --cov-report=term-missing --cov-report=xml); then
+if (cd api-rally && poetry run pytest app/tests/ -v $PYTEST_PG_FLAG --cov=app --cov-report=term-missing --cov-report=xml); then
     print_status "API tests passed"
 else
     print_error "API tests failed"

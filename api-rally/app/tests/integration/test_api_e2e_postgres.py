@@ -94,7 +94,7 @@ async def _drop_schema() -> None:
 
 
 @pytest.fixture(scope="module")
-def e2e_client() -> Iterator[TestClient]:
+def e2e_client(request) -> Iterator[TestClient]:
     """TestClient whose get_db yields sessions on a fresh Postgres schema.
 
     Module-scoped: the app's lifespan and its globals bind to the first
@@ -105,7 +105,9 @@ def e2e_client() -> Iterator[TestClient]:
     try:
         asyncio.run(_create_schema_and_seed())
     except (SQLAlchemyError, OSError) as exc:
-        pytest.skip(f"Postgres not available for integration tests: {exc}")
+        from app.tests.conftest import require_or_skip_pg
+
+        require_or_skip_pg(request, exc)
 
     engine = create_async_engine(_async_test_url(), poolclass=NullPool)
     maker = async_sessionmaker(engine, expire_on_commit=False)

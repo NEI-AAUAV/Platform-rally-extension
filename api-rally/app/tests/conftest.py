@@ -12,6 +12,9 @@ from sqlalchemy.pool import NullPool
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
+import tempfile as _tempfile
+
+
 # Rally is an OIDC resource server: it validates authentik-issued tokens via
 # JWKS discovery and no longer reads a local signing key, so there is nothing to
 # mock at import time.
@@ -40,7 +43,10 @@ from app.models import (  # noqa: F401
 
 # Test database setup — async SQLite (aiosqlite). A single shared file lets the
 # get_db override and the db fixtures see each other's committed data.
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+
+# Keep the throwaway sqlite file out of the repo tree (was ./test.db).
+_SQLITE_PATH = _tempfile.gettempdir() + "/rally_test.db"
+SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{_SQLITE_PATH}"
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False)
 
@@ -90,6 +96,24 @@ def mock_auth():
             yield
 
 
+# NOTE: --require-pg is registered in the rootdir conftest (api-rally/conftest.py)
+# so it is recognised regardless of which test path is passed to pytest.
+
+
+def require_or_skip_pg(request, exc: Exception) -> None:
+    """Skip a Postgres-backed test when the DB is unreachable — unless the run
+    was invoked with --require-pg, in which case fail loudly instead of hiding
+    half the suite behind silent skips. Shared by every real-schema fixture so
+    the policy is enforced in exactly one place.
+    """
+    if request.config.getoption("--require-pg"):
+        pytest.fail(
+            f"Postgres required (--require-pg) but unavailable: {exc}",
+            pytrace=False,
+        )
+    pytest.skip(f"Postgres not available for integration tests: {exc}")
+
+
 _PG_SCHEMA = app_settings.SCHEMA_NAME
 
 
@@ -101,7 +125,7 @@ def _async_test_pg_url() -> str:
 
 
 @pytest_asyncio.fixture
-async def _pg_engine():
+async def _pg_engine(request):
     """Engine bound to a freshly-created rally schema on the test Postgres.
 
     Shared by `pg_session` and `pg_client` so both talk to the same schema —
@@ -125,7 +149,7 @@ async def _pg_engine():
             await conn.run_sync(Base.metadata.create_all)
     except (SQLAlchemyError, OSError) as exc:
         await engine.dispose()
-        pytest.skip(f"Postgres not available for integration tests: {exc}")
+        require_or_skip_pg(request, exc)
 
     try:
         yield engine
@@ -177,7 +201,7 @@ def pg_client(_pg_engine) -> TestClient:
 def _fake_detailed_user(**overrides):
     from app.schemas.user import DetailedUser
 
-    base = dict(id=1, name="Test Admin", disabled=False, scopes=["admin"])
+    base = {"id": 1, "name": "Test Admin", "disabled": False, "scopes": ["admin"]}
     base.update(overrides)
     return DetailedUser(**base)
 
@@ -185,7 +209,7 @@ def _fake_detailed_user(**overrides):
 def _fake_auth_data(**overrides):
     from app.api.auth import AuthData
 
-    base = dict(oidc_sub="test-admin-sub", name="Test Admin", scopes=["admin"])
+    base = {"oidc_sub": "test-admin-sub", "name": "Test Admin", "scopes": ["admin"]}
     base.update(overrides)
     return AuthData(**base)
 

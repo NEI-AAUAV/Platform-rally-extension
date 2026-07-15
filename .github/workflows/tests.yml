@@ -46,7 +46,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_DB: rally
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -87,26 +87,26 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y postgresql-client
-        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d rally -c "CREATE DATABASE rally_test;" || echo "Database might already exist"
       env:
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
         
     - name: Run API tests
       working-directory: api-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          poetry run pytest app/tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+          poetry run pytest app/tests/ -v --require-pg --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
         else
-          poetry run pytest app/tests/ -v --junitxml=test-results.xml
+          poetry run pytest app/tests/ -v --require-pg --junitxml=test-results.xml
         fi
       env:
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
         TEAM_JWT_SECRET_KEY: test_secret
 
     - name: Enforce scoring/badges coverage floor
@@ -215,7 +215,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_DB: rally
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -283,23 +283,24 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y postgresql-client
-        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d rally -c "CREATE DATABASE rally_test;" || echo "Database might already exist"
       env:
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
 
     - name: Run integration tests
       run: |
         chmod +x run-tests.sh
         ./run-tests.sh
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
+        RALLY_TEST_PG: external
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rally
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
         TEAM_JWT_SECRET_KEY: test_secret
 
     - name: Upload integration test results
