@@ -48,8 +48,10 @@ class TestCreate:
         team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=False)
 
         assert team.id is not None  # flushed, so it has a PK within this session
+        from app.exception import NotFoundException
+
         async with other_session_maker() as other:
-            with pytest.raises(Exception):
+            with pytest.raises(NotFoundException):
                 await crud.get(other, id=team.id)
 
 
@@ -84,8 +86,10 @@ class TestRemove:
 
         await crud.remove(pg_session, id=team.id)
 
+        from app.exception import NotFoundException
+
         async with other_session_maker() as other:
-            with pytest.raises(Exception):
+            with pytest.raises(NotFoundException):
                 await crud.get(other, id=team.id)
 
     async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):
