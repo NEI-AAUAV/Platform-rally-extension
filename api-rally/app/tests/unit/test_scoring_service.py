@@ -374,31 +374,29 @@ async def test_create_result_scores_and_persists(pg_session):
 async def test_create_result_unknown_activity_raises(pg_session):
     team = await _make_team(pg_session)
     svc = ScoringService(pg_session)
+    obj_in = ActivityResultCreate(
+        activity_id=999999,
+        team_id=team.id,
+        result_data={"assigned_points": 10},
+        is_completed=True,
+    )
     with pytest.raises(ValueError):
-        await svc.create_result(
-            ActivityResultCreate(
-                activity_id=999999,
-                team_id=team.id,
-                result_data={"assigned_points": 10},
-                is_completed=True,
-            )
-        )
+        await svc.create_result(obj_in)
 
 
 async def test_create_result_invalid_data_raises(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     svc = ScoringService(pg_session)
+    obj_in = ActivityResultCreate(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data={"wrong": 1},
+        is_completed=True,
+    )
     with pytest.raises(ValueError):
         # GeneralActivity.validate_result requires assigned_points
-        await svc.create_result(
-            ActivityResultCreate(
-                activity_id=activity.id,
-                team_id=team.id,
-                result_data={"wrong": 1},
-                is_completed=True,
-            )
-        )
+        await svc.create_result(obj_in)
 
 
 async def test_update_result_rescores_on_data_change(pg_session):
