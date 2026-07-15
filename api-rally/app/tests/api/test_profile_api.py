@@ -24,7 +24,7 @@ class TestProfileMe:
     async def test_profile_me_lists_participations(self, pg_session, pg_client, as_admin):
         event = await _make_event(pg_session)
         team = await _make_team(pg_session)
-        me = await crud_user.create_for_oidc(
+        await crud_user.create_for_oidc(
             pg_session,
             authentik_sub="test-admin-sub",
             name="Ana",

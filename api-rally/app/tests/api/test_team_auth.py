@@ -140,7 +140,7 @@ class TestTeamAuthAPI:
 
         assert response.status_code == 401
 
-    async def test_login_missing_body(self, pg_client):
+    def test_login_missing_body(self, pg_client):
         response = pg_client.post("/api/rally/v1/team-auth/login", json={})
         assert response.status_code == 422
 
@@ -154,7 +154,7 @@ class TestTeamAuthAPI:
         )
         assert response.status_code == 422
 
-    async def test_refresh_with_valid_token(self, pg_client):
+    def test_refresh_with_valid_token(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         token = create_team_access_token(team_id=1, team_name="Test Team")
@@ -169,20 +169,20 @@ class TestTeamAuthAPI:
         assert data["team_id"] == 1
         assert data["team_name"] == "Test Team"
 
-    async def test_refresh_with_invalid_token(self, pg_client):
+    def test_refresh_with_invalid_token(self, pg_client):
         response = pg_client.post(
             "/api/rally/v1/team-auth/refresh",
             headers={"Authorization": "Bearer invalid.token.here"},
         )
         assert response.status_code in [401, 404]
 
-    async def test_refresh_without_token(self, pg_client):
+    def test_refresh_without_token(self, pg_client):
         response = pg_client.post("/api/rally/v1/team-auth/refresh")
         assert response.status_code in [401, 403, 404, 422]
 
 
 class TestTokenLifecycleHardening:
-    async def test_refresh_carries_original_login_time(self, pg_client):
+    def test_refresh_carries_original_login_time(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         orig = int((datetime.now(timezone.utc) - timedelta(hours=2)).timestamp())
@@ -197,7 +197,7 @@ class TestTokenLifecycleHardening:
         )
         assert payload["orig_iat"] == orig
 
-    async def test_refresh_rejected_beyond_absolute_lifetime(self, pg_client):
+    def test_refresh_rejected_beyond_absolute_lifetime(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         too_old = int(
@@ -214,7 +214,7 @@ class TestTokenLifecycleHardening:
         assert response.status_code == 401
         assert "log in again" in response.json()["detail"].lower()
 
-    async def test_verify_accepts_valid_and_rejects_expired(self, pg_client):
+    def test_verify_accepts_valid_and_rejects_expired(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
         valid = create_team_access_token(team_id=7, team_name="Sete")
