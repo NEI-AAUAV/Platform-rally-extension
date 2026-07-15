@@ -194,7 +194,7 @@ class TestStaffRegistrationGate:
         await _set_settings(pg_session, allow_staff_registration=False)
         team = await _make_team(pg_session)
 
-        app = self._staff_override()
+        self._staff_override()
         try:
             resp = pg_client.post(
                 f"/api/rally/v1/team/{team.id}/members",
