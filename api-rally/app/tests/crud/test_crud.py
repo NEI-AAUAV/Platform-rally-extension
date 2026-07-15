@@ -120,11 +120,14 @@ class TestTeamCRUD:
         assert result[0].name == "Test Team"
 
     async def test_create_team_duplicate_name_in_event_raises(self, pg_session):
+        from app.core.exceptions import RallyValidationError
+
         await _make_event(pg_session)
         await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
-        with pytest.raises(Exception):
-            await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
+        obj_in = TeamCreate(name="Test Team")
+        with pytest.raises(RallyValidationError):
+            await crud_team.create(pg_session, obj_in=obj_in)
 
     async def test_update_team(self, pg_session):
         await _make_event(pg_session)
@@ -137,13 +140,15 @@ class TestTeamCRUD:
         assert updated.name == "Renamed Team"
 
     async def test_delete_team(self, pg_session):
+        from app.exception import NotFoundException
+
         await _make_event(pg_session)
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
         removed = await crud_team.remove(pg_session, id=created.id)
 
         assert removed.id == created.id
-        with pytest.raises(Exception):
+        with pytest.raises(NotFoundException):
             await crud_team.get(pg_session, id=created.id)
 
 
@@ -174,6 +179,8 @@ class TestTeamCheckpointLogic:
         assert result.question_scores[0] is True
 
     async def test_add_checkpoint_before_rally_start_raises(self, pg_session):
+        from app.exception import APIException
+
         event = await _make_event(pg_session)
         now = datetime.now(timezone.utc)
         await _set_event_timing(
@@ -186,7 +193,7 @@ class TestTeamCheckpointLogic:
             checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(APIException):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
             )
