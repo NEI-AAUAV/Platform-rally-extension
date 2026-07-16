@@ -51,6 +51,9 @@ hypothesis = "^6.140.0"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+[tool.coverage.run]
+concurrency = ["greenlet", "thread"]
+
 [tool.mypy]
 exclude = ["app/tests"]
 strict = true
