@@ -133,7 +133,7 @@ class TestStartStop:
         worker.stop(timeout=1.0)
 
         assert worker._running is False
-        assert worker._last_beat == 0.0
+        assert worker._last_beat == pytest.approx(0.0)
 
     def test_signal_handler_calls_stop(self) -> None:
         worker = _RecordingWorker()

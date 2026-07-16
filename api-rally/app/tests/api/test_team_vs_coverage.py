@@ -113,7 +113,7 @@ class TestTeamVsActivity:
     def test_get_score_breakdown_unknown_result_defaults_outcome_to_zero(self):
         activity = TeamVsActivity(config={"base_points": 10})
         breakdown = activity.get_score_breakdown({"result": "unknown"})
-        assert breakdown["outcome_points"] == 0.0
+        assert breakdown["outcome_points"] == pytest.approx(0.0)
 
 
 class TestTeamVsValidateResult:

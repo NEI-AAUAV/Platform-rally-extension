@@ -130,14 +130,14 @@ class TestCalculateProgressPercentage:
     def test_zero_total_duration_returns_zero(self):
         calc = RallyDurationCalculator(db=None, settings=_settings())
         pct = calc._calculate_progress_percentage(timedelta(seconds=0), timedelta(seconds=0))
-        assert pct == 0.0
+        assert pct == pytest.approx(0.0)
 
     def test_caps_at_100(self):
         calc = RallyDurationCalculator(db=None, settings=_settings())
         pct = calc._calculate_progress_percentage(
             timedelta(hours=10), timedelta(hours=1)
         )
-        assert pct == 100.0
+        assert pct == pytest.approx(100.0)
 
 
 class TestConvenienceFunctions:
