@@ -122,18 +122,14 @@ async def test_get_or_create_mirror_no_op_when_scope_present(pg_session):
 
 
 async def test_create_raises_not_found_for_invalid_team(pg_session):
+    obj_in = UserCreate(name="Jack Orphan", team_id=999999)
     with pytest.raises(RallyNotFoundError):
-        await crud_user.create(
-            pg_session, obj_in=UserCreate(name="Jack Orphan", team_id=999999)
-        )
+        await crud_user.create(pg_session, obj_in=obj_in)
 
 
 async def test_update_raises_not_found_for_invalid_team(pg_session):
     created = await crud_user.create(pg_session, obj_in=UserCreate(name="Kim Update"))
+    obj_in = UserUpdate(team_id=999999)
 
     with pytest.raises(RallyNotFoundError):
-        await crud_user.update(
-            pg_session,
-            id=created.id,
-            obj_in=UserUpdate(team_id=999999),
-        )
+        await crud_user.update(pg_session, id=created.id, obj_in=obj_in)
