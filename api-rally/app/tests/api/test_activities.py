@@ -1,8 +1,10 @@
 """API tests for Activities endpoints, against real Postgres."""
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_team import team as crud_team
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.team import TeamCreate
 
 
 async def _make_event(pg_session):
@@ -33,6 +35,23 @@ async def _make_activity(pg_session, checkpoint_id, name="Test Activity"):
             is_active=True,
         ),
     )
+
+
+async def _make_team(pg_session, name="Team A"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+
+
+async def _make_result(pg_client, team_id, activity_id, assigned_points=50):
+    resp = pg_client.post(
+        "/api/rally/v1/activities/results/",
+        json={
+            "activity_id": activity_id,
+            "team_id": team_id,
+            "result_data": {"assigned_points": assigned_points},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
 
 
 class TestActivitiesAPI:
@@ -126,6 +145,288 @@ class TestActivitiesAPI:
 
         assert resp.status_code == 200
         assert resp.json() == []
+
+    async def test_update_activity_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.put(
+            "/api/rally/v1/activities/999999", json={"name": "Nope"}
+        )
+
+        assert resp.status_code == 404
+
+    async def test_delete_activity_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.delete("/api/rally/v1/activities/999999")
+
+        assert resp.status_code == 404
+
+    async def test_get_all_activity_results_lists_results(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.get("/api/rally/v1/activities/results")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body) == 1
+        assert body[0]["team_id"] == team.id
+
+
+class TestActivityResultsCRUD:
+    async def test_create_activity_result_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+
+        result = await _make_result(pg_client, team.id, act.id)
+
+        assert result["team_id"] == team.id
+        assert result["activity_id"] == act.id
+
+    async def test_create_activity_result_duplicate_rejected(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/results/",
+            json={
+                "activity_id": act.id,
+                "team_id": team.id,
+                "result_data": {"assigned_points": 90},
+            },
+        )
+
+        assert resp.status_code == 400
+        assert "already exists" in resp.json()["detail"]
+
+    async def test_get_activity_result_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.get(f"/api/rally/v1/activities/results/{result['id']}")
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == result["id"]
+
+    async def test_get_activity_result_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/activities/results/999999")
+
+        assert resp.status_code == 404
+
+    async def test_update_activity_result_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.put(
+            f"/api/rally/v1/activities/results/{result['id']}",
+            json={"result_data": {"assigned_points": 75}},
+        )
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_update_activity_result_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.put(
+            "/api/rally/v1/activities/results/999999",
+            json={"result_data": {"assigned_points": 75}},
+        )
+
+        assert resp.status_code == 404
+
+
+class TestExtraShotsAndPenalty:
+    async def test_apply_extra_shots_result_not_found(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/results/999999/extra-shots?extra_shots=2"
+        )
+
+        assert resp.status_code == 404
+
+    async def test_apply_extra_shots_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/results/{result['id']}/extra-shots?extra_shots=1"
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert "successfully" in resp.json()["message"]
+
+    async def test_apply_penalty_result_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/results/999999/penalty"
+            "?penalty_type=vomit&penalty_value=1"
+        )
+
+        assert resp.status_code == 404
+
+    async def test_apply_penalty_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/results/{result['id']}/penalty"
+            "?penalty_type=vomit&penalty_value=1"
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert "successfully" in resp.json()["message"]
+
+    async def test_apply_extra_shots_over_limit_rejected(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        # Default max_extra_shots_per_member is 1 and this team has no
+        # members recorded, so team_size falls back to 1 -> max_shots=1.
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/results/{result['id']}/extra-shots"
+            "?extra_shots=999"
+        )
+
+        assert resp.status_code == 400
+        assert "Invalid extra shots" in resp.json()["detail"]
+
+    async def test_apply_penalty_invalid_type_rejected_by_validation(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/results/1/penalty"
+            "?penalty_type=invalid&penalty_value=1"
+        )
+
+        assert resp.status_code == 422
+
+
+class TestActivityRankingAndStatistics:
+    async def test_get_activity_ranking_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/activities/999999/ranking")
+
+        assert resp.status_code == 404
+
+    async def test_get_activity_ranking_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.get(f"/api/rally/v1/activities/{act.id}/ranking")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["activity_id"] == act.id
+        assert body["activity_name"] == act.name
+
+    async def test_get_global_ranking(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.get("/api/rally/v1/activities/ranking/global")
+
+        assert resp.status_code == 200, resp.text
+        assert "rankings" in resp.json()
+        assert "last_updated" in resp.json()
+
+    async def test_get_activity_statistics_not_found(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/activities/999999/statistics")
+
+        assert resp.status_code == 404
+
+    async def test_get_activity_statistics_success(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        await _make_result(pg_client, team.id, act.id)
+
+        resp = pg_client.get(f"/api/rally/v1/activities/{act.id}/statistics")
+
+        assert resp.status_code == 200, resp.text
+
+
+class TestTeamVsResult:
+    async def test_create_team_vs_result_success(self, pg_session, pg_client, as_admin):
+        from app.schemas.activity import ActivityType as _ActivityType
+
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Versus",
+                activity_type=_ActivityType.TEAM_VS,
+                checkpoint_id=checkpoint.id,
+                config={},
+            ),
+        )
+        team1 = await _make_team(pg_session, "Team1")
+        team2 = await _make_team(pg_session, "Team2")
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/team-vs/{act.id}",
+            params={
+                "team1_id": team1.id,
+                "team2_id": team2.id,
+                "winner_id": team1.id,
+            },
+            json={"note": "close match"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert "successfully" in resp.json()["message"]
 
 
 class TestActivitiesBusinessLogic:

@@ -168,6 +168,39 @@ class TestUpdate:
         assert resp.status_code == 404
 
 
+class TestUploadIcon:
+    async def test_upload_icon_success(self, pg_session, pg_client, as_admin, monkeypatch):
+        import io
+        from unittest.mock import AsyncMock
+
+        monkeypatch.setattr(
+            "app.api.api_v1.badge_admin.validate_and_store",
+            AsyncMock(return_value="https://r2/badge-icon.png"),
+        )
+        await _make_event(pg_session)
+        defn = await _make_definition(pg_session)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/badge-definitions/{defn.id}/icon",
+            files={"image": ("icon.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 8), "image/png")},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["icon_url"] == "https://r2/badge-icon.png"
+
+    async def test_upload_icon_not_found(self, pg_session, pg_client, as_admin):
+        import io
+
+        await _make_event(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/badge-definitions/999999/icon",
+            files={"image": ("icon.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 8), "image/png")},
+        )
+
+        assert resp.status_code == 404
+
+
 class TestDelete:
     async def test_delete_badge_definition(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
@@ -256,3 +289,13 @@ class TestManualAwardRevoke:
         resp = pg_client.delete("/api/rally/v1/badges/999999")
 
         assert resp.status_code == 404
+
+    # Note: the `IntegrityError` -> 409 fallback in `manual_award_badge`
+    # (racing concurrent awards both passing the pre-check, then colliding on
+    # `uq_team_badge_scope`) was attempted here via a ThreadPoolExecutor, but
+    # proved flaky/unreliable to trigger deterministically through
+    # TestClient's connection setup (both requests often fully serialize
+    # through the pre-check before either commits) — dropped rather than kept
+    # as a flaky test. The duplicate-detection behavior itself is still
+    # covered by `test_manual_award_badge_duplicate_is_conflict` (via the
+    # pre-check path).

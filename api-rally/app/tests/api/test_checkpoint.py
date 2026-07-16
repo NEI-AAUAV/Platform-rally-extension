@@ -50,6 +50,185 @@ class TestCheckpointListing:
         assert response.status_code == 200
         assert response.json() == 1
 
+    async def test_get_checkpoints_count_unauthenticated_public_disabled(
+        self, pg_session, pg_client
+    ):
+        from app.crud.crud_rally_settings import rally_settings
+        from app.schemas.rally_settings import (
+            RallySettingsResponse,
+            RallySettingsUpdate,
+        )
+
+        await _make_event(pg_session)
+        # Explicitly force public_access_enabled off — don't rely on the
+        # column default, since `get_or_create`'s event-bootstrap path may
+        # already have materialized a settings row before this call.
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(
+            exclude={"id"}
+        )
+        data["public_access_enabled"] = False
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data)
+        )
+
+        response = pg_client.get("/api/rally/v1/checkpoint/count")
+
+        assert response.status_code == 401
+
+    async def test_get_checkpoints_count_unauthenticated_public_enabled(
+        self, pg_session, pg_client
+    ):
+        from app.crud.crud_rally_settings import rally_settings
+        from app.schemas.rally_settings import (
+            RallySettingsResponse,
+            RallySettingsUpdate,
+        )
+
+        await _make_event(pg_session)
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(
+            exclude={"id"}
+        )
+        data["public_access_enabled"] = True
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data)
+        )
+        await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/count")
+
+        assert response.status_code == 200
+        assert response.json() == 1
+
+    async def test_get_checkpoint_map_hidden_returns_403(self, pg_session, pg_client):
+        from app.crud.crud_rally_settings import rally_settings
+        from app.schemas.rally_settings import (
+            RallySettingsResponse,
+            RallySettingsUpdate,
+        )
+
+        await _make_event(pg_session)
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(
+            exclude={"id"}
+        )
+        data["public_access_enabled"] = False
+        data["show_checkpoint_map"] = False
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data)
+        )
+
+        response = pg_client.get("/api/rally/v1/checkpoint/")
+
+        assert response.status_code == 403
+
+
+class TestNextCheckpoint:
+    async def test_get_next_checkpoint_unauthenticated_401(self, pg_session, pg_client):
+        await _make_event(pg_session)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/me")
+
+        assert response.status_code == 401
+
+    async def test_get_next_checkpoint_for_team_token(self, pg_session, pg_client):
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+        from app.tests.conftest import as_team
+
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NextTeam"))
+
+        with as_team(team.id, "NextTeam"):
+            response = pg_client.get("/api/rally/v1/checkpoint/me")
+
+        assert response.status_code == 200, response.text
+        assert response.json()["order"] == 1
+
+    async def test_get_next_checkpoint_none_left_404(self, pg_session, pg_client):
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+        from app.tests.conftest import as_team
+
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="DoneTeam"))
+        # Team already checked into the only checkpoint -> no next one.
+        import datetime as dt
+
+        team.times = [dt.datetime(2026, 1, 1)]
+        pg_session.add(team)
+        await pg_session.commit()
+
+        with as_team(team.id, "DoneTeam"):
+            response = pg_client.get("/api/rally/v1/checkpoint/me")
+
+        assert response.status_code == 404
+
+
+class TestCheckpointTeamsEndpoint:
+    # Note: the `is_admin(...) and select_in.checkpoint_id is None` branch
+    # (unfiltered "all teams" listing) is unreachable through the API: an
+    # admin who omits checkpoint_id is already rejected with 400 by
+    # `validate_checkpoint_access` before this endpoint's body can check
+    # `select_in.checkpoint_id is None` itself, so a checkpoint_id is always
+    # required and resolved by the time this branch would run.
+
+    async def test_get_checkpoint_teams_missing_id_admin_400(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/teams")
+
+        assert response.status_code == 400
+
+    async def test_get_checkpoint_teams_by_checkpoint_id(
+        self, pg_session, pg_client, as_admin
+    ):
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        await crud_team.create(pg_session, obj_in=TeamCreate(name="T1"))
+
+        response = pg_client.get(
+            f"/api/rally/v1/checkpoint/teams?checkpoint_id={cp.id}"
+        )
+
+        assert response.status_code == 200, response.text
+
+
+class TestReorderCheckpoints:
+    async def test_reorder_checkpoints_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+
+        response = pg_client.put(
+            "/api/rally/v1/checkpoint/reorder",
+            json={str(cp1.id): 2, str(cp2.id): 1},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["message"] == "Checkpoints reordered successfully"
+
+    async def test_reorder_checkpoints_requires_admin(
+        self, pg_session, pg_client, as_user
+    ):
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.put(
+            "/api/rally/v1/checkpoint/reorder", json={str(cp1.id): 1}
+        )
+
+        assert response.status_code == 403
+
 
 class TestCheckpointCRUDApi:
     async def test_create_checkpoint_as_admin(self, pg_session, pg_client, as_admin):
@@ -132,6 +311,26 @@ class TestCheckpointCRUDApi:
         response = pg_client.delete(f"/api/rally/v1/checkpoint/{cp.id}")
 
         assert response.status_code == 403
+
+    async def test_delete_checkpoint_not_found_rejected(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+
+        response = pg_client.delete("/api/rally/v1/checkpoint/999999")
+
+        # crud.checkpoint.remove raises NotFoundException for a missing id;
+        # the endpoint's broad except wraps it into a 400 RallyValidationError.
+        assert response.status_code == 400
+
+    async def test_update_checkpoint_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        response = pg_client.put(
+            "/api/rally/v1/checkpoint/999999", json={"name": "Nope"}
+        )
+
+        assert response.status_code == 404
 
 
 class TestCheckpointBusinessLogic:

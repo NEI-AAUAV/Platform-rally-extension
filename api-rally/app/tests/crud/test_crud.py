@@ -3,6 +3,7 @@
 Exercises actual SQL, constraints, and ARRAY columns instead of mocking the
 CRUD layer — see app/tests/conftest.py::pg_session.
 """
+import math
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -151,6 +152,111 @@ class TestTeamCRUD:
         with pytest.raises(NotFoundException):
             await crud_team.get(pg_session, id=created.id)
 
+    async def test_create_team_over_limit_raises(self, pg_session):
+        from app.core.exceptions import RallyValidationError
+
+        await _make_event(pg_session)
+        settings = await rally_settings.get_or_create(pg_session)
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=_settings_update(settings, max_teams=1)
+        )
+        await crud_team.create(pg_session, obj_in=TeamCreate(name="First"))
+
+        with pytest.raises(RallyValidationError):
+            await crud_team.create(pg_session, obj_in=TeamCreate(name="Second"))
+
+    async def test_update_team_locked_array_size_mismatch_raises(self, pg_session):
+        from app.exception import APIException
+
+        await _make_event(pg_session)
+        created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
+
+        with pytest.raises(APIException):
+            await crud_team.update(
+                pg_session,
+                id=created.id,
+                obj_in=TeamUpdate(times=[datetime.now(timezone.utc)], question_scores=[]),
+            )
+
+    async def test_get_by_checkpoint_finds_teams_at_order(self, pg_session):
+        event = await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
+        now = datetime.now(timezone.utc)
+        await _set_event_timing(
+            pg_session, event, start_time=now - timedelta(hours=1), end_time=now + timedelta(hours=1)
+        )
+        await rally_settings.get_or_create(pg_session)
+        checkpoint_data = TeamScoresUpdate(
+            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
+        )
+        await crud_team.add_checkpoint(
+            pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
+        )
+
+        result = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=checkpoint.id)
+
+        assert len(result) == 1
+        assert result[0].id == team.id
+
+    async def test_get_by_checkpoint_unknown_checkpoint_returns_empty(self, pg_session):
+        await _make_event(pg_session)
+
+        result = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=999999)
+
+        assert result == []
+
+    def test_calculate_min_time_scores(self):
+        from app.models.team import Team
+
+        teams = [
+            Team(name="A", time_scores=[10, 20]),
+            Team(name="B", time_scores=[5, 0]),
+        ]
+
+        result = crud_team.calculate_min_time_scores(teams)
+
+        assert result[0] == 5
+        # Team B's index-1 score is 0 (treated as inf, i.e. "no score yet"),
+        # so team A's 20 is the only real value and wins the min.
+        assert result[1] == 20
+
+    def test_calculate_checkpoint_score(self):
+        from app.models.team import Team
+
+        team = Team(
+            name="A",
+            time_scores=[100],
+            question_scores=[True],
+            pukes=[1],
+            skips=[2],
+        )
+
+        score = crud_team.calculate_checkpoint_score(
+            0, team=team, min_time_scores=[50], penalty_per_puke=-20
+        )
+
+        # time: int(50/100*10)=5, question: 8, pukes: 1*-20=-20, skips: 2*-8=-16
+        assert score == 5 + 8 - 20 - 16
+
+    def test_calculate_checkpoint_score_negative_skips_bonus(self):
+        from app.models.team import Team
+
+        team = Team(
+            name="A",
+            time_scores=[0],
+            question_scores=[False],
+            pukes=[0],
+            skips=[-1],
+        )
+
+        score = crud_team.calculate_checkpoint_score(
+            0, team=team, min_time_scores=[0], penalty_per_puke=-20
+        )
+
+        # skips < 0 -> bonus: abs(-1) * 4 = 4
+        assert score == 4
+
 
 class TestTeamCheckpointLogic:
     async def _setup_active_rally(self, pg_session):
@@ -196,6 +302,83 @@ class TestTeamCheckpointLogic:
         with pytest.raises(APIException):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
+            )
+
+    async def test_add_checkpoint_after_rally_end_raises(self, pg_session):
+        from app.exception import APIException
+
+        event = await _make_event(pg_session)
+        now = datetime.now(timezone.utc)
+        await _set_event_timing(
+            pg_session, event, start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1)
+        )
+        await rally_settings.get_or_create(pg_session)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
+        checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
+        checkpoint_data = TeamScoresUpdate(
+            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
+        )
+
+        with pytest.raises(APIException):
+            await crud_team.add_checkpoint(
+                pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
+            )
+
+    async def test_add_checkpoint_unknown_checkpoint_raises(self, pg_session):
+        from app.exception import APIException
+
+        _, _, team, _ = await self._setup_active_rally(pg_session)
+        checkpoint_data = TeamScoresUpdate(
+            checkpoint_id=999999, question_score=1, time_score=20, pukes=0, skips=0
+        )
+
+        with pytest.raises(APIException):
+            await crud_team.add_checkpoint(
+                pg_session, id=team.id, checkpoint_id=999999, obj_in=checkpoint_data
+            )
+
+    async def test_add_checkpoint_out_of_order_when_order_matters_raises(self, pg_session):
+        from app.exception import APIException
+
+        event, settings, team, _cp1 = await self._setup_active_rally(pg_session)
+        await rally_settings.update(
+            pg_session,
+            id=settings.id,
+            obj_in=_settings_update(settings, checkpoint_order_matters=True),
+        )
+        cp2 = await _make_checkpoint(pg_session, event_id=event.id, order=2)
+        checkpoint_data = TeamScoresUpdate(
+            checkpoint_id=cp2.id, question_score=1, time_score=20, pukes=0, skips=0
+        )
+
+        with pytest.raises(APIException):
+            await crud_team.add_checkpoint(
+                pg_session, id=team.id, checkpoint_id=cp2.id, obj_in=checkpoint_data
+            )
+
+    async def test_add_checkpoint_already_visited_when_order_does_not_matter_raises(
+        self, pg_session
+    ):
+        from app.exception import APIException
+
+        event, settings, team, cp1 = await self._setup_active_rally(pg_session)
+        await rally_settings.update(
+            pg_session,
+            id=settings.id,
+            obj_in=_settings_update(settings, checkpoint_order_matters=False),
+        )
+        checkpoint_data = TeamScoresUpdate(
+            checkpoint_id=cp1.id, question_score=1, time_score=20, pukes=0, skips=0
+        )
+        await crud_team.add_checkpoint(
+            pg_session, id=team.id, checkpoint_id=cp1.id, obj_in=checkpoint_data
+        )
+
+        # Team has already visited cp1 (order 1); re-adding it should be
+        # rejected even though order doesn't matter for this rally.
+        with pytest.raises(APIException):
+            await crud_team.add_checkpoint(
+                pg_session, id=team.id, checkpoint_id=cp1.id, obj_in=checkpoint_data
             )
 
 

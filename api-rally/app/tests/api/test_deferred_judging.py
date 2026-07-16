@@ -90,6 +90,31 @@ async def test_capture_missing_team_id(pg_session, pg_client, as_admin):
     assert resp.status_code == 400
 
 
+async def test_capture_with_images_uploads_and_stores_urls(
+    pg_session, pg_client, as_admin, monkeypatch
+):
+    import io
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(
+        "app.api.api_v1.deferred_judging.validate_and_store",
+        AsyncMock(return_value="https://r2/photo.png"),
+    )
+
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(pg_session, checkpoint.id)
+    team = await _make_team(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}",
+        files={"images": ("photo.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 8), "image/png")},
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["media_urls"] == ["https://r2/photo.png"]
+
+
 async def test_capture_existing_result_appends(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session)
@@ -183,3 +208,107 @@ async def test_list_pending_empty(pg_session, pg_client, as_admin):
 
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ---------- set-team-photo ----------
+
+
+async def _enable_photo_as_team_photo(pg_session):
+    from app.crud.crud_rally_settings import rally_settings
+    from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+
+    settings = await rally_settings.get_or_create(pg_session)
+    data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+    data["allow_photo_as_team_photo"] = True
+    return await rally_settings.update(
+        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data)
+    )
+
+
+class TestSetTeamPhotoFromResult:
+    async def test_set_team_photo_disabled_by_default_403(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        captured = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}"
+        ).json()
+
+        resp = pg_client.put(
+            f"/api/rally/v1/activities/results/{captured['id']}/set-team-photo",
+            json={"image_url": "https://r2/x.png"},
+        )
+
+        assert resp.status_code == 403
+
+    async def test_set_team_photo_result_not_found(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        await _enable_photo_as_team_photo(pg_session)
+
+        resp = pg_client.put(
+            "/api/rally/v1/activities/results/999999/set-team-photo",
+            json={"image_url": "https://r2/x.png"},
+        )
+
+        assert resp.status_code == 404
+
+    async def test_set_team_photo_url_not_in_media_urls(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        await _enable_photo_as_team_photo(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        captured = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}"
+        ).json()
+
+        resp = pg_client.put(
+            f"/api/rally/v1/activities/results/{captured['id']}/set-team-photo",
+            json={"image_url": "https://r2/not-mine.png"},
+        )
+
+        assert resp.status_code == 400
+
+    async def test_set_team_photo_success(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        import io
+        from unittest.mock import AsyncMock
+
+        monkeypatch.setattr(
+            "app.api.api_v1.deferred_judging.validate_and_store",
+            AsyncMock(return_value="https://r2/photo.png"),
+        )
+
+        await _make_event(pg_session)
+        await _enable_photo_as_team_photo(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        captured = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}",
+            files={
+                "images": (
+                    "photo.png",
+                    io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 8),
+                    "image/png",
+                )
+            },
+        ).json()
+
+        resp = pg_client.put(
+            f"/api/rally/v1/activities/results/{captured['id']}/set-team-photo",
+            json={"image_url": "https://r2/photo.png"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["team_id"] == team.id
+        assert body["photo_url"] == "https://r2/photo.png"
