@@ -146,6 +146,7 @@ async def test_get_current_user_raises_500_when_race_loser_finds_nothing():
     as a 500 rather than silently returning a null user."""
     db = AsyncMock()
     get_by_sub = AsyncMock(side_effect=[None, None])
+    auth_data = _auth()
     with patch("app.crud.user.get_by_authentik_sub", new=get_by_sub), \
          patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)), \
          patch(
@@ -153,7 +154,7 @@ async def test_get_current_user_raises_500_when_race_loser_finds_nothing():
              new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
          ):
         with pytest.raises(HTTPException) as exc:
-            await deps.get_current_user(_auth(), db)
+            await deps.get_current_user(auth_data, db)
     assert exc.value.status_code == 500
 
 
