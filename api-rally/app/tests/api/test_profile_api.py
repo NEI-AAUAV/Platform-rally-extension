@@ -1,4 +1,6 @@
 """API tests for the profile / participation-history endpoints, against real Postgres."""
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud.crud_participation import CRUDParticipation
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
