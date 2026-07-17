@@ -394,7 +394,6 @@ class TestCheckpointProgressCalculation:
         cp1 = await _make_checkpoint(pg_session, order=1)
         cp2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
-        a1 = await _make_activity(pg_session, cp1.id)
         a2 = await _make_activity(pg_session, cp2.id)
         from app.models.activity import ActivityResult
 
@@ -534,9 +533,10 @@ class TestCreateOrUpdateActivityResult:
 
         monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
 
+        eval_obj = ActivityResultEvaluation(result_data={"assigned_points": 5})
         with pytest.raises(IntegrityError):
             await create_or_update_activity_result(
-                pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 5})
+                pg_session, team.id, activity.id, eval_obj
             )
 
 
