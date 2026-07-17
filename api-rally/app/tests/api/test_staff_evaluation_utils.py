@@ -26,6 +26,7 @@ from app.api.api_v1.staff_evaluation_utils import (
     validate_admin_access,
     validate_staff_checkpoint_access,
 )
+from app.exception import APIException
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.exception import NotFoundException
 from app.crud.crud_activity import activity as crud_activity
@@ -600,7 +601,7 @@ class TestCheckinAndAdvanceExceptionPaths:
         cp = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
 
-        with pytest.raises(Exception):
+        with pytest.raises(APIException):
             await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
 
     async def test_advance_team_to_next_checkpoint_propagates_exception(self, pg_session):
@@ -622,5 +623,5 @@ class TestCheckinAndAdvanceExceptionPaths:
         pg_session.add(event)
         await pg_session.commit()
 
-        with pytest.raises(Exception):
+        with pytest.raises(APIException):
             await advance_team_to_next_checkpoint(pg_session, team.id)
