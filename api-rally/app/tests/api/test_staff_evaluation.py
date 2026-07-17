@@ -630,7 +630,7 @@ class TestAllEvaluationsAPI:
             )
         assert resp.status_code == 403
 
-    def test_all_evaluations_staff_restricted_to_own_checkpoint(
+    async def test_all_evaluations_staff_restricted_to_own_checkpoint(
         self, pg_session, pg_client, as_admin
     ):
         _team, _activity, _result_id = await _seed_result(
