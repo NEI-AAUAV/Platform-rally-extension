@@ -59,6 +59,7 @@ async def test_claim_nonce_fails_open_when_redis_unavailable(
             raise ConnectionError("redis down")
 
         async def aclose(self):
+            # Mock close operation; no actual connection resources need to be cleaned up.
             pass
 
     monkeypatch.setattr(checkin_api, "get_async_redis_client", lambda: _BrokenClient())
