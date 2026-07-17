@@ -43,7 +43,7 @@ async def _make_team(pg_session, name="Team A"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
 
 
-async def _make_result(pg_client, team_id, activity_id, assigned_points=50):
+def _make_result(pg_client, team_id, activity_id, assigned_points=50):
     resp = pg_client.post(
         "/api/rally/v1/activities/results/",
         json={
@@ -171,7 +171,7 @@ class TestActivitiesAPI:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        await _make_result(pg_client, team.id, act.id)
+        _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.get("/api/rally/v1/activities/results")
 
@@ -188,7 +188,7 @@ class TestActivityResultsCRUD:
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
 
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         assert result["team_id"] == team.id
         assert result["activity_id"] == act.id
@@ -200,7 +200,7 @@ class TestActivityResultsCRUD:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        await _make_result(pg_client, team.id, act.id)
+        _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.post(
             "/api/rally/v1/activities/results/",
@@ -219,7 +219,7 @@ class TestActivityResultsCRUD:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.get(f"/api/rally/v1/activities/results/{result['id']}")
 
@@ -238,7 +238,7 @@ class TestActivityResultsCRUD:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.put(
             f"/api/rally/v1/activities/results/{result['id']}",
@@ -275,7 +275,7 @@ class TestExtraShotsAndPenalty:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.post(
             f"/api/rally/v1/activities/results/{result['id']}/extra-shots?extra_shots=1"
@@ -299,7 +299,7 @@ class TestExtraShotsAndPenalty:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.post(
             f"/api/rally/v1/activities/results/{result['id']}/penalty"
@@ -318,7 +318,7 @@ class TestExtraShotsAndPenalty:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         with patch(
             "app.api.api_v1.activities.ScoringService.apply_penalty",
@@ -339,7 +339,7 @@ class TestExtraShotsAndPenalty:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        result = await _make_result(pg_client, team.id, act.id)
+        result = _make_result(pg_client, team.id, act.id)
 
         # Default max_extra_shots_per_member is 1 and this team has no
         # members recorded, so team_size falls back to 1 -> max_shots=1.
@@ -377,7 +377,7 @@ class TestActivityRankingAndStatistics:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        await _make_result(pg_client, team.id, act.id)
+        _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.get(f"/api/rally/v1/activities/{act.id}/ranking")
 
@@ -391,7 +391,7 @@ class TestActivityRankingAndStatistics:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        await _make_result(pg_client, team.id, act.id)
+        _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.get("/api/rally/v1/activities/ranking/global")
 
@@ -415,7 +415,7 @@ class TestActivityRankingAndStatistics:
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
         team = await _make_team(pg_session)
-        await _make_result(pg_client, team.id, act.id)
+        _make_result(pg_client, team.id, act.id)
 
         resp = pg_client.get(f"/api/rally/v1/activities/{act.id}/statistics")
 
