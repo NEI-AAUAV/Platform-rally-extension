@@ -438,11 +438,13 @@ class TestValidateCheckpointAccess:
             assert exc.value.status_code == 400
 
     def test_all_checkpoints_returns_requested_id(self):
+        user = Mock(staff_checkpoint_id=None)
+        auth = Mock(scopes=["admin"])
         with patch(
             "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
         ):
             result = validate_checkpoint_access(
-                user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["admin"]),
+                user=user, auth=auth,
                 requested_checkpoint_id=42,
             )
             assert result == 42
@@ -459,9 +461,11 @@ class TestValidateCheckpointAccess:
             assert exc.value.status_code == 400
 
     def test_staff_without_request_uses_assigned_checkpoint(self):
+        user = Mock(staff_checkpoint_id=7)
+        auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             result = validate_checkpoint_access(
-                user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                user=user, auth=auth,
                 requested_checkpoint_id=None,
             )
             assert result == 7
@@ -478,9 +482,11 @@ class TestValidateCheckpointAccess:
             assert exc.value.status_code == 403
 
     def test_staff_requesting_accessible_checkpoint_allowed(self):
+        user = Mock(staff_checkpoint_id=7)
+        auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             result = validate_checkpoint_access(
-                user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                user=user, auth=auth,
                 requested_checkpoint_id=7,
             )
             assert result == 7
