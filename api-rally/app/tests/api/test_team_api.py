@@ -155,7 +155,7 @@ class TestGetTeamById:
         from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
-        cp1 = await crud_checkpoint.create(
+        await crud_checkpoint.create(
             pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1)
         )
         team = await _make_team(pg_session, "Finisher")
