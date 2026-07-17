@@ -120,7 +120,7 @@ class TestClaimable:
 
 
 class TestClaimMembership:
-    async def test_claim_membership_not_found(self, pg_session, pg_client, as_admin):
+    def test_claim_membership_not_found(self, pg_session, pg_client, as_admin):
         resp = pg_client.post("/api/rally/v1/profile/claim/999999")
 
         assert resp.status_code == 404
