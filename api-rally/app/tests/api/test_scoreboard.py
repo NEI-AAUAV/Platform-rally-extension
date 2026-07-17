@@ -152,7 +152,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
             await asyncio.sleep(0)
             return None
 
-        async def get_message(
+        def get_message(
             self, ignore_subscribe_messages: bool, timeout: float
         ) -> dict[str, Any] | None:
             if not self._sent:
