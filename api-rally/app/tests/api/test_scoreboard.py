@@ -214,6 +214,10 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
     fake-message path never reach)."""
 
     class _FakePubsub:
+        def __init__(self) -> None:
+            self.closed = False
+            self.calls = 0
+
         async def subscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
             return None
@@ -222,10 +226,12 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
             self, ignore_subscribe_messages: bool
         ) -> dict[str, Any] | None:
             await asyncio.sleep(0)
+            self.calls += 1
             return None
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeClient:
