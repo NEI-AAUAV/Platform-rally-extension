@@ -1,5 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ComponentProps } from 'react';
+import type ActivityCreateForm from '@/components/ActivityCreateForm';
+import type ActivityList from '@/components/ActivityList';
+import type { ActivityType } from '@/types/activityTypes';
 import ActivityManagement from '@/pages/admin/components/ActivityManagement';
 
 const {
@@ -30,10 +34,10 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 vi.mock('@/components/ActivityCreateForm', () => ({
-  default: ({ onSubmit, onCancel, initialData }: any) => (
+  default: ({ onSubmit, onCancel, initialData }: ComponentProps<typeof ActivityCreateForm>) => (
     <div data-testid="activity-form">
       <span>{initialData ? 'editing' : 'creating'}</span>
-      <button onClick={() => onSubmit({ name: 'New Activity', activity_type: 'GeneralActivity', checkpoint_id: 1, config: {}, is_active: true })}>
+      <button onClick={() => onSubmit({ name: 'New Activity', activity_type: 'GeneralActivity' as ActivityType, checkpoint_id: 1, config: {}, is_active: true })}>
         submit-form
       </button>
       <button onClick={onCancel}>cancel-form</button>
@@ -42,9 +46,9 @@ vi.mock('@/components/ActivityCreateForm', () => ({
 }));
 
 vi.mock('@/components/ActivityList', () => ({
-  default: ({ activities, onEdit, onDelete }: any) => (
+  default: ({ activities, onEdit, onDelete }: ComponentProps<typeof ActivityList>) => (
     <div data-testid="activity-list">
-      {activities.map((a: any) => (
+      {activities.map((a) => (
         <div key={a.id}>
           <span>{a.name}</span>
           <button onClick={() => onEdit(a)}>edit-{a.id}</button>

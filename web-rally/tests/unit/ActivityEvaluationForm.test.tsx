@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
+import type { ComponentProps } from 'react';
 import ActivityEvaluationForm from '@/components/forms/ActivityEvaluationForm';
 import type { Team } from '@/types/forms';
 
@@ -23,6 +24,8 @@ vi.mock('@/components/forms/DeferredJudgedForm', () => ({
 }));
 
 describe('ActivityEvaluationForm', () => {
+  type ActivityProps = ComponentProps<typeof ActivityEvaluationForm>['activity'];
+
   const mockTeam = { id: 1, name: 'Team A' } as unknown as Team;
   const mockOnSubmit = vi.fn();
   const baseActivity = {
@@ -31,12 +34,12 @@ describe('ActivityEvaluationForm', () => {
     evaluation_status: 'pending' as const,
     description: 'Do the thing',
     config: {},
-  };
+  } as unknown as ActivityProps;
 
   it('renders activity details', () => {
     render(
       <ActivityEvaluationForm
-        activity={baseActivity as any}
+        activity={baseActivity}
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
@@ -51,7 +54,7 @@ describe('ActivityEvaluationForm', () => {
   it('does not render description when absent', () => {
     render(
       <ActivityEvaluationForm
-        activity={{ ...baseActivity, description: undefined } as any}
+        activity={{ ...baseActivity, description: undefined } as unknown as ActivityProps}
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
@@ -70,7 +73,7 @@ describe('ActivityEvaluationForm', () => {
   ])('renders correct form for %s', (activityType, testId) => {
     render(
       <ActivityEvaluationForm
-        activity={{ ...baseActivity, activity_type: activityType } as any}
+        activity={{ ...baseActivity, activity_type: activityType } as unknown as ActivityProps}
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
@@ -82,7 +85,7 @@ describe('ActivityEvaluationForm', () => {
   it('renders fallback for unknown activity type', () => {
     render(
       <ActivityEvaluationForm
-        activity={{ ...baseActivity, activity_type: 'SomeWeirdType' } as any}
+        activity={{ ...baseActivity, activity_type: 'SomeWeirdType' } as unknown as ActivityProps}
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
