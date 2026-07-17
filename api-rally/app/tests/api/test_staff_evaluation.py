@@ -104,7 +104,7 @@ class TestMyCheckpointAPI:
 
         assert resp.status_code == 404
 
-    async def test_get_my_checkpoint_not_found(self, pg_session, pg_client, as_admin):
+    def test_get_my_checkpoint_not_found(self, pg_session, pg_client, as_admin):
         as_admin.staff_checkpoint_id = 999999
 
         resp = pg_client.get("/api/rally/v1/staff/my-checkpoint")
@@ -612,7 +612,7 @@ class TestAllEvaluationsAPI:
     # Note: as above, the in-body `validate_rally_permissions` re-check for
     # all-evaluations is unreachable through the API for the same reason.
 
-    async def test_all_evaluations_staff_without_checkpoint_forbidden(
+    def test_all_evaluations_staff_without_checkpoint_forbidden(
         self, pg_session, pg_client, as_admin
     ):
         # The `get_staff_with_checkpoint_access` dependency itself rejects
