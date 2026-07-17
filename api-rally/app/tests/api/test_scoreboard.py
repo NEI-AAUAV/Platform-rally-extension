@@ -7,10 +7,12 @@ from typing import Any
 import fakeredis.aioredis
 import pytest
 from fastapi.testclient import TestClient
+import asyncio
 
 from app.core.config import get_settings
 from app.main import app
 from app.services import leaderboard_cache
+from app.api.api_v1 import scoreboard as scoreboard_module
 
 BASE = "/api/rally/v1"
 
@@ -122,12 +124,10 @@ def test_stream_rally_events_returns_streaming_response_when_enabled(
     """When realtime events are enabled, `stream_rally_events` returns a
     StreamingResponse wrapping `_pmessage_event_stream` (covers the
     happy-path return, without depending on ASGI transport timing)."""
-    import asyncio
-
-    from app.api.api_v1 import scoreboard as scoreboard_module
 
     class _FakeRequest:
         async def is_disconnected(self) -> bool:
+            await asyncio.sleep(0)
             return True
 
     async def _run() -> None:
@@ -155,6 +155,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
             self._sent = False
 
         async def subscribe(self, *_channels: str) -> None:
+            await asyncio.sleep(0)
             return None
 
         async def get_message(
@@ -166,6 +167,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
             return None
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeClient:
@@ -173,6 +175,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
             return _FakePubsub()
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeRequest:
@@ -180,6 +183,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
             self._calls = 0
 
         async def is_disconnected(self) -> bool:
+            await asyncio.sleep(0)
             self._calls += 1
             return self._calls > 2
 
@@ -217,6 +221,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
 
     class _FakePubsub:
         async def subscribe(self, *_channels: str) -> None:
+            await asyncio.sleep(0)
             return None
 
         async def get_message(
@@ -225,6 +230,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
             return None
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeClient:
@@ -232,6 +238,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
             return _FakePubsub()
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeRequest:
@@ -239,6 +246,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
             self._calls = 0
 
         async def is_disconnected(self) -> bool:
+            await asyncio.sleep(0)
             self._calls += 1
             # Stay connected for the first check (so a ping is emitted), then
             # report disconnected to end the generator.
@@ -273,6 +281,7 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
 
     class _FakePubsub:
         async def psubscribe(self, *_channels: str) -> None:
+            await asyncio.sleep(0)
             return None
 
         async def get_message(
@@ -281,6 +290,7 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
             return None
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeClient:
@@ -288,6 +298,7 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
             return _FakePubsub()
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeRequest:
@@ -295,6 +306,7 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
             self._calls = 0
 
         async def is_disconnected(self) -> bool:
+            await asyncio.sleep(0)
             self._calls += 1
             return self._calls > 1
 
@@ -327,6 +339,7 @@ def test_pmessage_event_stream_forwards_activity_events(
             self._sent = False
 
         async def psubscribe(self, *_channels: str) -> None:
+            await asyncio.sleep(0)
             return None
 
         async def get_message(
@@ -342,6 +355,7 @@ def test_pmessage_event_stream_forwards_activity_events(
             return None
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeClient:
@@ -349,6 +363,7 @@ def test_pmessage_event_stream_forwards_activity_events(
             return _FakePubsub()
 
         async def aclose(self) -> None:
+            await asyncio.sleep(0)
             return None
 
     class _FakeRequest:
@@ -356,6 +371,7 @@ def test_pmessage_event_stream_forwards_activity_events(
             self._calls = 0
 
         async def is_disconnected(self) -> bool:
+            await asyncio.sleep(0)
             self._calls += 1
             return self._calls > 2
 
