@@ -362,11 +362,15 @@ class TestRequireCheckpointScorePermission:
         # Team hasn't visited any checkpoint yet -> expected_order == 1, but we
         # request scoring at checkpoint order 2.
 
+        checkpoint_id = cp2.id
+        team_id = team.id
+        auth = Mock(scopes=["rally-staff"])
+
         with pytest.raises(HTTPException) as exc:
             await require_checkpoint_score_permission(
-                checkpoint_id=cp2.id,
-                team_id=team.id,
-                auth=Mock(scopes=["rally-staff"]),
+                checkpoint_id=checkpoint_id,
+                team_id=team_id,
+                auth=auth,
                 curr_user=mock_staff_user,
                 db=pg_session,
             )
