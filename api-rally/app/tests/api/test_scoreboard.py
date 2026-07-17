@@ -235,11 +235,15 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
             return None
 
     class _FakeClient:
+        def __init__(self) -> None:
+            self.closed = False
+
         def pubsub(self) -> _FakePubsub:
             return _FakePubsub()
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeRequest:
@@ -278,6 +282,10 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
     """Same as above for `_pmessage_event_stream`'s ping/break branches."""
 
     class _FakePubsub:
+        def __init__(self) -> None:
+            self.closed = False
+            self.calls = 0
+
         async def psubscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
             return None
@@ -286,18 +294,24 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
             self, ignore_subscribe_messages: bool
         ) -> dict[str, Any] | None:
             await asyncio.sleep(0)
+            self.calls += 1
             return None
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeClient:
+        def __init__(self) -> None:
+            self.closed = False
+
         def pubsub(self) -> _FakePubsub:
             return _FakePubsub()
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeRequest:
@@ -333,6 +347,7 @@ def test_pmessage_event_stream_forwards_activity_events(
     class _FakePubsub:
         def __init__(self) -> None:
             self._sent = False
+            self.closed = False
 
         async def psubscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
@@ -353,14 +368,19 @@ def test_pmessage_event_stream_forwards_activity_events(
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeClient:
+        def __init__(self) -> None:
+            self.closed = False
+
         def pubsub(self) -> _FakePubsub:
             return _FakePubsub()
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeRequest:
