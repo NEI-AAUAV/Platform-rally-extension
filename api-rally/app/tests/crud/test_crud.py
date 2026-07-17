@@ -162,8 +162,9 @@ class TestTeamCRUD:
         )
         await crud_team.create(pg_session, obj_in=TeamCreate(name="First"))
 
+        team_in = TeamCreate(name="Second")
         with pytest.raises(RallyValidationError):
-            await crud_team.create(pg_session, obj_in=TeamCreate(name="Second"))
+            await crud_team.create(pg_session, obj_in=team_in)
 
     async def test_update_team_locked_array_size_mismatch_raises(self, pg_session):
         from app.exception import APIException
@@ -171,11 +172,12 @@ class TestTeamCRUD:
         await _make_event(pg_session)
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
+        team_update = TeamUpdate(times=[datetime.now(timezone.utc)], question_scores=[])
         with pytest.raises(APIException):
             await crud_team.update(
                 pg_session,
                 id=created.id,
-                obj_in=TeamUpdate(times=[datetime.now(timezone.utc)], question_scores=[]),
+                obj_in=team_update,
             )
 
     async def test_get_by_checkpoint_finds_teams_at_order(self, pg_session):
