@@ -60,7 +60,7 @@ def test_get_event_not_found(pg_client):
     assert resp.status_code == 404
 
 
-async def test_create_event(pg_client):
+def test_create_event(pg_client):
     _override_admin()
     try:
         resp = pg_client.post(
@@ -88,7 +88,7 @@ async def test_update_event(pg_session, pg_client):
     assert resp.json()["name"] == "Renamed"
 
 
-async def test_update_event_not_found(pg_client):
+def test_update_event_not_found(pg_client):
     _override_admin()
     try:
         resp = pg_client.put(
@@ -113,7 +113,7 @@ async def test_set_current_event(pg_session, pg_client):
     assert resp.json()["is_current"] is True
 
 
-async def test_set_current_event_not_found(pg_client):
+def test_set_current_event_not_found(pg_client):
     _override_admin()
     try:
         resp = pg_client.post("/api/rally/v1/events/999999/set-current")
@@ -123,7 +123,7 @@ async def test_set_current_event_not_found(pg_client):
     assert resp.status_code == 404
 
 
-async def test_rotation_schedule_event_not_found(pg_client):
+def test_rotation_schedule_event_not_found(pg_client):
     _override_admin()
     try:
         resp = pg_client.post("/api/rally/v1/events/999999/rotation-schedule")
