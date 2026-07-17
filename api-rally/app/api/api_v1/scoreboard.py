@@ -6,6 +6,7 @@ ranking fresh and signals refreshes on a Redis channel; the SSE stream forwards
 those signals so the SPA can refetch without polling.
 """
 
+import asyncio
 from typing import Annotated, Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -70,9 +71,11 @@ async def stream_scoreboard(request: Request, settings: SettingsDep) -> Streamin
             while True:
                 if await request.is_disconnected():
                     break
-                message = await pubsub.get_message(
-                    ignore_subscribe_messages=True, timeout=_HEARTBEAT_SECONDS
-                )
+                try:
+                    async with asyncio.timeout(_HEARTBEAT_SECONDS):
+                        message = await pubsub.get_message(ignore_subscribe_messages=True)
+                except TimeoutError:
+                    message = None
                 if message and message.get("type") == "message":
                     yield "event: refresh\ndata: 1\n\n"
                 else:
@@ -104,9 +107,11 @@ async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
         while True:
             if await request.is_disconnected():
                 break
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=_HEARTBEAT_SECONDS
-            )
+            try:
+                async with asyncio.timeout(_HEARTBEAT_SECONDS):
+                    message = await pubsub.get_message(ignore_subscribe_messages=True)
+            except TimeoutError:
+                message = None
             if message and message.get("type") == "pmessage":
                 channel = _decode(message["channel"])
                 data = _decode(message["data"])
