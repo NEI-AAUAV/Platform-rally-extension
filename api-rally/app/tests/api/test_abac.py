@@ -13,7 +13,17 @@ from app.core.abac import (
     get_accessible_checkpoints,
     ALL_CHECKPOINTS,
 )
-from app.api.abac_deps import require_permission, get_staff_with_checkpoint_access
+from app.api.abac_deps import (
+    require_permission,
+    get_staff_with_checkpoint_access,
+    require_checkpoint_score_permission,
+    require_checkpoint_view_permission,
+    require_view_team_members_permission,
+    validate_checkpoint_access,
+    validate_settings_update_access,
+    validate_settings_view_access,
+)
+from app.core.abac import _AllCheckpoints
 from app.schemas.user import DetailedUser
 
 
@@ -307,3 +317,184 @@ class TestAccessibleCheckpoints:
         )
         assert result is not ALL_CHECKPOINTS
         assert result == []
+
+
+class TestRequireCheckpointScorePermission:
+    """`require_checkpoint_score_permission`, against real Postgres for the
+    team/checkpoint order lookups (crud.team.get / crud.checkpoint.get raise
+    NotFoundException rather than return None, so the function's own `if not
+    team`/`if not checkpoint` guards are unreachable dead code -- not tested)."""
+
+    async def _make_checkpoint(self, pg_session, order=1):
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.schemas.checkpoint import CheckPointCreate
+
+        return await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name=f"CP{order}", order=order)
+        )
+
+    async def _make_team(self, pg_session):
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+
+        return await crud_team.create(pg_session, obj_in=TeamCreate(name="Team"))
+
+    async def test_admin_bypasses_order_check(self, pg_session, mock_user):
+        """Admins skip the staff-only order validation entirely."""
+        cp = await self._make_checkpoint(pg_session, order=5)
+        team = await self._make_team(pg_session)
+
+        with patch("app.core.abac.abac_engine") as mock_engine:
+            mock_engine.evaluate.return_value = True
+            # Should not raise despite team not being at checkpoint order 5.
+            await require_checkpoint_score_permission(
+                checkpoint_id=cp.id,
+                team_id=team.id,
+                auth=Mock(scopes=["admin"]),
+                curr_user=mock_user,
+                db=pg_session,
+            )
+
+    async def test_staff_rejected_when_checkpoint_order_mismatched(self, pg_session, mock_staff_user):
+        await self._make_checkpoint(pg_session, order=1)
+        cp2 = await self._make_checkpoint(pg_session, order=2)
+        team = await self._make_team(pg_session)
+        # Team hasn't visited any checkpoint yet -> expected_order == 1, but we
+        # request scoring at checkpoint order 2.
+
+        with pytest.raises(HTTPException) as exc:
+            await require_checkpoint_score_permission(
+                checkpoint_id=cp2.id,
+                team_id=team.id,
+                auth=Mock(scopes=["rally-staff"]),
+                curr_user=mock_staff_user,
+                db=pg_session,
+            )
+        assert exc.value.status_code == 400
+
+    async def test_staff_allowed_when_checkpoint_order_matches(self, pg_session, mock_staff_user):
+        cp1 = await self._make_checkpoint(pg_session, order=1)
+        team = await self._make_team(pg_session)
+
+        with patch("app.core.abac.abac_engine") as mock_engine:
+            mock_engine.evaluate.return_value = True
+            await require_checkpoint_score_permission(
+                checkpoint_id=cp1.id,
+                team_id=team.id,
+                auth=Mock(scopes=["rally-staff"]),
+                curr_user=mock_staff_user,
+                db=pg_session,
+            )
+            mock_engine.evaluate.assert_called_once()
+
+
+class TestRequireCheckpointViewPermission:
+    def test_defaults_to_staff_assigned_checkpoint_when_none_given(self, mock_staff_user):
+        with patch("app.core.abac.abac_engine") as mock_engine:
+            mock_engine.evaluate.return_value = True
+            require_checkpoint_view_permission(
+                checkpoint_id=None,
+                auth=Mock(scopes=["rally-staff"]),
+                curr_user=mock_staff_user,
+            )
+            # staff_checkpoint_id (1) should have been substituted as context.
+            (context,), _ = mock_engine.evaluate.call_args
+            assert context.checkpoint_id == 1
+
+
+class TestRequireViewTeamMembersPermission:
+    def test_admin_bypasses_permission_check(self, mock_user):
+        with patch("app.core.abac.abac_engine") as mock_engine:
+            require_view_team_members_permission(
+                auth=Mock(scopes=["admin"]), curr_user=mock_user
+            )
+            mock_engine.evaluate.assert_not_called()
+
+    def test_non_admin_goes_through_permission_check(self, mock_user):
+        with patch("app.core.abac.abac_engine") as mock_engine:
+            mock_engine.evaluate.return_value = True
+            require_view_team_members_permission(
+                auth=Mock(scopes=["rally:participant"]), curr_user=mock_user
+            )
+            mock_engine.evaluate.assert_called_once()
+
+
+class TestValidateCheckpointAccess:
+    def test_all_checkpoints_requires_explicit_id(self):
+        with patch(
+            "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
+        ):
+            with pytest.raises(HTTPException) as exc:
+                validate_checkpoint_access(
+                    user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["admin"]),
+                    requested_checkpoint_id=None,
+                )
+            assert exc.value.status_code == 400
+
+    def test_all_checkpoints_returns_requested_id(self):
+        with patch(
+            "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
+        ):
+            result = validate_checkpoint_access(
+                user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["admin"]),
+                requested_checkpoint_id=42,
+            )
+            assert result == 42
+
+    def test_staff_without_request_or_assignment_raises(self):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[]):
+            with pytest.raises(HTTPException) as exc:
+                validate_checkpoint_access(
+                    user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["rally-staff"]),
+                    requested_checkpoint_id=None,
+                )
+            assert exc.value.status_code == 400
+
+    def test_staff_without_request_uses_assigned_checkpoint(self):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
+            result = validate_checkpoint_access(
+                user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                requested_checkpoint_id=None,
+            )
+            assert result == 7
+
+    def test_staff_requesting_inaccessible_checkpoint_denied(self):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
+            with pytest.raises(HTTPException) as exc:
+                validate_checkpoint_access(
+                    user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                    requested_checkpoint_id=999,
+                )
+            assert exc.value.status_code == 403
+
+    def test_staff_requesting_accessible_checkpoint_allowed(self):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
+            result = validate_checkpoint_access(
+                user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                requested_checkpoint_id=7,
+            )
+            assert result == 7
+
+
+class TestValidateSettingsUpdateAccess:
+    def test_allowed(self, mock_user, mock_auth_data):
+        with patch("app.api.abac_deps.check_permission", return_value=True):
+            assert validate_settings_update_access(mock_user, mock_auth_data) is True
+
+    def test_denied_raises_403(self, mock_user, mock_auth_data):
+        with patch("app.api.abac_deps.check_permission", return_value=False):
+            with pytest.raises(HTTPException) as exc:
+                validate_settings_update_access(mock_user, mock_auth_data)
+            assert exc.value.status_code == 403
+
+
+class TestValidateSettingsViewAccess:
+    def test_allowed(self, mock_user, mock_auth_data):
+        with patch("app.api.abac_deps.check_permission", return_value=True):
+            assert validate_settings_view_access(mock_user, mock_auth_data) is True
+
+    def test_denied_raises_403(self, mock_user, mock_auth_data):
+        with patch("app.api.abac_deps.check_permission", return_value=False):
+            with pytest.raises(HTTPException) as exc:
+                validate_settings_view_access(mock_user, mock_auth_data)
+            assert exc.value.status_code == 403

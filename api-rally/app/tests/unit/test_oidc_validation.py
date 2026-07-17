@@ -89,3 +89,91 @@ async def test_jwks_cached_across_validations():
             await v.validate_token(_sign("RS256", sub="a"), settings)
             await v.validate_token(_sign("RS256", sub="b"), settings)
     assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_wrong_issuer_rejected():
+    with _wired_validator() as v:
+        v._issuer = "https://different-issuer.example"
+        with pytest.raises(HTTPException) as exc:
+            await v.validate_token(_sign("RS256", sub="u1"), settings)
+    assert exc.value.status_code == 401
+    assert "issuer" in exc.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_audience_list_missing_client_id_rejected():
+    token = _sign("RS256", sub="u1", aud=["other-client"])
+    with _wired_validator() as v:
+        with pytest.raises(HTTPException) as exc:
+            await v.validate_token(token, settings)
+    assert exc.value.status_code == 401
+    assert "audience" in exc.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_audience_list_with_client_id_accepted():
+    token = _sign("RS256", sub="u1", aud=["other-client", _CLIENT_ID])
+    with _wired_validator() as v:
+        claims = await v.validate_token(token, settings)
+    assert claims["sub"] == "u1"
+
+
+@pytest.mark.asyncio
+async def test_scalar_audience_mismatch_rejected():
+    token = _sign("RS256", sub="u1", aud="someone-else")
+    with _wired_validator() as v:
+        with pytest.raises(HTTPException) as exc:
+            await v.validate_token(token, settings)
+    assert exc.value.status_code == 401
+    assert "audience" in exc.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_unexpected_error_wrapped_as_401():
+    """A non-Jose, non-HTTPException failure mid-validation still surfaces as
+    a 401 rather than leaking a raw exception."""
+    with _wired_validator() as v:
+        with patch("app.api.oidc._jwt.decode", side_effect=RuntimeError("boom")):
+            with pytest.raises(HTTPException) as exc:
+                await v.validate_token(_sign("RS256", sub="u1"), settings)
+    assert exc.value.status_code == 401
+    assert "validation failed" in exc.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_get_oidc_config_success_populates_cache():
+    v = OIDCJWTValidator()
+    discovery = {
+        "jwks_uri": "https://issuer.example/jwks",
+        "issuer": "https://host.docker.internal/app",
+    }
+    resp = AsyncMock()
+    resp.raise_for_status = lambda: None
+    resp.json = lambda: discovery
+
+    client = AsyncMock()
+    client.get = AsyncMock(return_value=resp)
+    client.__aenter__.return_value = client
+    with patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"), \
+         patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"), \
+         patch("app.api.oidc.httpx.AsyncClient", return_value=client):
+        result = await v._get_oidc_config(settings)
+
+    assert result["jwks_uri"] == discovery["jwks_uri"]
+    # host.docker.internal normalised to localhost for the hot comparison path.
+    assert v._issuer == "https://localhost/app"
+
+
+@pytest.mark.asyncio
+async def test_get_oidc_config_failure_raises_503():
+    v = OIDCJWTValidator()
+    client = AsyncMock()
+    client.get = AsyncMock(side_effect=RuntimeError("network down"))
+    client.__aenter__.return_value = client
+    with patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"), \
+         patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"), \
+         patch("app.api.oidc.httpx.AsyncClient", return_value=client):
+        with pytest.raises(HTTPException) as exc:
+            await v._get_oidc_config(settings)
+    assert exc.value.status_code == 503

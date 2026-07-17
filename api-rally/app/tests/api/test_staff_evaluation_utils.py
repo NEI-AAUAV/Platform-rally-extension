@@ -16,8 +16,13 @@ from app.api.api_v1.staff_evaluation_utils import (
     checkin_team_to_checkpoint,
     checkpoint_has_activities,
     compute_checkpoint_progress,
+    create_or_update_activity_result,
+    determine_current_order,
     ensure_team_checkpoint_and_advance,
     is_checkpoint_completed,
+    mirror_team_vs_result,
+    serialize_activity,
+    serialize_team,
     validate_admin_access,
     validate_staff_checkpoint_access,
 )
@@ -26,7 +31,7 @@ from app.exception import NotFoundException
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
-from app.schemas.activity import ActivityCreate, ActivityType
+from app.schemas.activity import ActivityCreate, ActivityResultEvaluation, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 
@@ -110,6 +115,19 @@ class TestValidateStaffCheckpointAccess:
             await validate_staff_checkpoint_access(pg_session, user, team_id=team.id, activity_id=activity.id)
 
         assert "assigned checkpoint" in exc.value.message
+
+    async def test_activity_not_found_raises(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        user = _staff_user(cp.id)
+
+        with pytest.raises(RallyNotFoundError) as exc:
+            await validate_staff_checkpoint_access(
+                pg_session, user, team_id=team.id, activity_id=999999
+            )
+
+        assert "Activity not found" in exc.value.message
 
     async def test_staff_can_evaluate_regardless_of_team_progress(self, pg_session):
         """Staff can evaluate any team at their checkpoint, even ones not yet checked in."""
@@ -258,6 +276,24 @@ class TestCheckpointProgression:
         refreshed = await crud_team.get(pg_session, id=team.id)
         assert len(refreshed.times) == 1
 
+    async def test_check_and_advance_team_idempotent_when_already_past(self, pg_session):
+        """Team already checked into checkpoint 2 (past checkpoint 1's order):
+        re-evaluating a checkpoint-1 activity must not advance it again."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp1.id)
+
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+        await advance_team_to_next_checkpoint(pg_session, team.id)
+
+        await check_and_advance_team(pg_session, team.id, activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 2  # unchanged, still just cp1 + cp2
+
     async def test_check_and_advance_team_no_scored_results(self, pg_session):
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)
@@ -341,3 +377,198 @@ class TestCheckpointProgressCalculation:
         assert result["num_members"] == 0
         assert result["last_checkpoint_number"] == 1
         assert result["evaluated_at_current_checkpoint"] is True
+
+    async def test_is_checkpoint_completed_no_activities(self, pg_session):
+        """Checkpoint exists but has zero activities: not `all([])` (vacuously
+        True) — an explicit early-return False so an empty checkpoint never
+        counts as completed."""
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+
+        assert await is_checkpoint_completed(pg_session, cp.id, set()) is False
+
+    async def test_compute_checkpoint_progress_stops_at_first_incomplete(self, pg_session):
+        """Completed checkpoint 2 must not count if checkpoint 1 is incomplete
+        (teams must complete in order) -- loop breaks instead of continuing."""
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        a1 = await _make_activity(pg_session, cp1.id)
+        a2 = await _make_activity(pg_session, cp2.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add(
+            ActivityResult(team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True)
+        )
+        await pg_session.commit()
+
+        last, current, completed = await compute_checkpoint_progress(pg_session, team)
+
+        assert last == 0
+        assert current == 1
+        assert completed == []
+
+
+class TestDetermineCurrentOrder:
+    def test_no_checkpoints_returns_last_completed(self):
+        assert determine_current_order([], 0) == 0
+
+    def test_all_checkpoints_completed_stays_at_max(self):
+        class _CP:
+            def __init__(self, order):
+                self.order = order
+
+        checkpoints = [_CP(1), _CP(2)]
+        assert determine_current_order(checkpoints, 2) == 2
+
+
+class TestSerializers:
+    def test_serialize_activity_none_when_missing(self):
+        class _Result:
+            activity = None
+
+        assert serialize_activity(_Result()) is None
+
+    def test_serialize_team_none_when_missing(self):
+        class _Result:
+            team = None
+
+        assert serialize_team(_Result()) is None
+
+    def test_serialize_activity_present(self):
+        class _Activity:
+            id = 1
+            name = "A"
+            activity_type = "GeneralActivity"
+            checkpoint_id = 2
+            description = "desc"
+            config = {}
+            is_active = True
+
+        class _Result:
+            activity = _Activity()
+
+        serialized = serialize_activity(_Result())
+        assert serialized["id"] == 1
+        assert serialized["name"] == "A"
+
+    def test_serialize_team_present(self):
+        class _Team:
+            id = 1
+            name = "T"
+            total = 5
+            members = [object(), object()]
+
+        class _Result:
+            team = _Team()
+
+        serialized = serialize_team(_Result())
+        assert serialized["num_members"] == 2
+
+
+class TestCreateOrUpdateActivityResult:
+    async def test_updates_existing_result(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        first = await create_or_update_activity_result(
+            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 10})
+        )
+        assert first.result_data == {"assigned_points": 10}
+
+        updated = await create_or_update_activity_result(
+            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 20})
+        )
+
+        assert updated.id == first.id
+        assert updated.result_data == {"assigned_points": 20}
+
+
+class TestMirrorTeamVsResult:
+    async def test_no_op_for_non_versus_activity(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        activity = await _make_activity(pg_session, cp.id)  # GENERAL, not TeamVsActivity
+
+        # Should simply return without raising or doing anything.
+        await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "win"})
+
+    async def test_no_op_when_missing_opponent_or_result(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
+
+        await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={})
+        await mirror_team_vs_result(
+            pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "invalid"}
+        )
+
+    async def test_mirrors_opposite_result_to_opponent(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, name="A")
+        team_b = await _make_team(pg_session, name="B")
+        activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
+
+        await mirror_team_vs_result(
+            pg_session,
+            activity,
+            team_id=team_a.id,
+            result_data={"opponent_team_id": team_b.id, "result": "win"},
+        )
+
+        from app.crud.crud_activity import activity_result as crud_activity_result
+
+        opponent_result = await crud_activity_result.get_by_activity_and_team(
+            pg_session, activity.id, team_b.id
+        )
+        assert opponent_result is not None
+        assert opponent_result.result_data["result"] == "lose"
+        assert opponent_result.result_data["opponent_team_id"] == team_a.id
+
+
+class TestCheckinAndAdvanceExceptionPaths:
+    async def test_checkin_team_to_checkpoint_propagates_exception(self, pg_session):
+        """Rally window set entirely in the future: `_validate_rally_timing`
+        raises, exercising the `except Exception: log + raise` path."""
+        from datetime import datetime, timedelta, timezone
+
+        event = await _make_event(pg_session)
+        now = datetime.now(timezone.utc)
+        event.start_time = now + timedelta(hours=1)
+        event.end_time = now + timedelta(hours=2)
+        pg_session.add(event)
+        await pg_session.commit()
+
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+
+        with pytest.raises(Exception):
+            await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
+
+    async def test_advance_team_to_next_checkpoint_propagates_exception(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+
+        # Deactivate the rally window so the next add_checkpoint call fails
+        # timing validation, exercising the except/raise path.
+        from app.crud.crud_rally_settings import rally_settings
+        from datetime import datetime, timezone, timedelta
+
+        settings_obj = await rally_settings.get_or_create(pg_session)
+        event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
+        event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
+        pg_session.add(event)
+        await pg_session.commit()
+
+        with pytest.raises(Exception):
+            await advance_team_to_next_checkpoint(pg_session, team.id)

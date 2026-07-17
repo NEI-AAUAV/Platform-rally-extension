@@ -21,6 +21,7 @@ from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.schemas.activity_types import ActivityType
 from app.schemas.team import TeamCreate
 from app.crud.crud_team import team as crud_team
+from app.core.exceptions import RallyError
 from app.services.scoring_service import ScoringService
 
 
@@ -152,6 +153,147 @@ async def test_update_team_scores_rounds_and_includes_awards(pg_session):
 async def test_update_team_scores_missing_team_returns_false(pg_session):
     svc = ScoringService(pg_session)
     assert await svc.update_team_scores(999999) is False
+
+
+async def test_get_settings_creates_default_row_when_none_exists(pg_session):
+    """Fresh DB with no RallySettings row: `_get_settings` must create and
+    persist a default one instead of raising."""
+    from app.models.rally_settings import RallySettings
+    from sqlalchemy import select as sa_select
+
+    existing = (await pg_session.scalars(sa_select(RallySettings))).first()
+    assert existing is None  # sanity check: nothing seeded yet
+
+    svc = ScoringService(pg_session)
+    settings = await svc._get_settings()
+
+    assert settings is not None
+    assert settings.id is not None
+
+    # Second call reuses the cached instance rather than creating another row.
+    settings_again = await svc._get_settings()
+    assert settings_again is settings
+
+
+async def test_update_all_team_scores_noop_on_empty_list(pg_session):
+    svc = ScoringService(pg_session)
+    await svc.update_all_team_scores([])  # must not raise
+
+
+async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session):
+    """`_checkpoint_scores_for_team` (the single-team path) must skip
+    incomplete results and results for checkpoint-less (global) activities,
+    same as its bulk counterpart."""
+    team = await _make_team(pg_session)
+    cp = CheckPoint(name="CP", order=1)
+    pg_session.add(cp)
+    await pg_session.flush()
+    checkpointed_activity = await _make_activity_on_checkpoint(pg_session, cp)
+    another_checkpointed_activity = await _make_activity_on_checkpoint(pg_session, cp)
+    global_activity = Activity(
+        name="Global", activity_type=ActivityType.GENERAL.value,
+        config={"min_points": 0, "max_points": 100}, checkpoint_id=None,
+    )
+    pg_session.add(global_activity)
+    await pg_session.commit()
+    await pg_session.refresh(global_activity)
+
+    # Completed result on a checkpoint -- counted.
+    await _make_result(
+        pg_session, team=team, activity=checkpointed_activity,
+        result_data={"assigned_points": 25}, final_score=25,
+    )
+    # Incomplete result (different activity to avoid the unique constraint) --
+    # skipped (final_score present but is_completed False).
+    incomplete = ActivityResult(
+        team_id=team.id, activity_id=another_checkpointed_activity.id, result_data={},
+        final_score=99, is_completed=False,
+    )
+    pg_session.add(incomplete)
+    # Completed result on a global (checkpoint-less) activity -- skipped too.
+    await _make_result(
+        pg_session, team=team, activity=global_activity,
+        result_data={"assigned_points": 99}, final_score=99,
+    )
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    checkpoint_scores, order_by_id, total = await svc._checkpoint_scores_for_team(team.id)
+
+    assert total == pytest.approx(25)
+    assert list(checkpoint_scores.values()) == [25]
+
+
+async def test_update_team_scores_wraps_commit_failure_in_rally_error(pg_session, monkeypatch):
+    """If the final commit fails (e.g. a DB outage mid-write), the raw
+    exception must be wrapped in a RallyError -- callers key error handling
+    off that type, not raw SQLAlchemy exceptions."""
+    team = await _make_team(pg_session)
+
+    async def _boom():
+        raise RuntimeError("connection lost")
+
+    monkeypatch.setattr(pg_session, "commit", _boom)
+
+    svc = ScoringService(pg_session)
+    with pytest.raises(RallyError, match="Failed to update team scores"):
+        await svc.update_team_scores(team.id)
+
+
+async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session):
+    """Bulk path must match the per-team `update_team_scores` result: totals
+    include completed results plus any active dynamic awards, and skip
+    incomplete/global (checkpoint-less) results."""
+    cp = CheckPoint(name="CP", order=1)
+    pg_session.add(cp)
+    await pg_session.flush()
+    activity = await _make_activity_on_checkpoint(pg_session, cp)
+
+    team_a = await _make_team(pg_session, "A")
+    team_b = await _make_team(pg_session, "B")
+    team_c = await _make_team(pg_session, "C")  # excluded from the bulk call
+
+    another_activity = await _make_activity_on_checkpoint(pg_session, cp)
+    global_activity = Activity(
+        name="Global", activity_type=ActivityType.GENERAL.value,
+        config={"min_points": 0, "max_points": 100}, checkpoint_id=None,
+    )
+    pg_session.add(global_activity)
+    await pg_session.commit()
+    await pg_session.refresh(global_activity)
+
+    await _make_result(
+        pg_session, team=team_a, activity=activity,
+        result_data={"assigned_points": 40}, final_score=40,
+    )
+    await _make_result(
+        pg_session, team=team_b, activity=activity,
+        result_data={"assigned_points": 20}, final_score=20,
+    )
+    # Incomplete result -- must be skipped by the bulk aggregation too.
+    pg_session.add(ActivityResult(
+        team_id=team_a.id, activity_id=another_activity.id, result_data={},
+        final_score=99, is_completed=False,
+    ))
+    # Completed result on a global (checkpoint-less) activity -- skipped too.
+    await _make_result(
+        pg_session, team=team_a, activity=global_activity,
+        result_data={"assigned_points": 99}, final_score=99,
+    )
+    # A completed result for a team NOT included in the `teams` argument --
+    # the per-team bucket lookup must skip it instead of KeyError-ing.
+    await _make_result(
+        pg_session, team=team_c, activity=activity,
+        result_data={"assigned_points": 15}, final_score=15,
+    )
+    pg_session.add(DynamicAward(team_id=team_a.id, points=10, is_active=True, reason="bonus"))
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    await svc.update_all_team_scores([team_a, team_b])
+
+    assert team_a.total == pytest.approx(50)
+    assert team_b.total == pytest.approx(20)
 
 
 async def _make_activity_on_checkpoint(db, checkpoint: CheckPoint) -> Activity:
@@ -636,6 +778,58 @@ async def test_create_time_based_result_reranks_activity(pg_session):
     assert fast_res.final_score == pytest.approx(100)  # fastest gets max
 
 
+async def test_recalculate_result_score_noop_when_activity_missing(pg_session):
+    """`_recalculate_result_score` is a no-op guard against a dangling
+    activity_id (defensive; the FK forbids this in practice, but the method
+    itself must tolerate a transient/detached result missing its activity)."""
+    svc = ScoringService(pg_session)
+    orphan_result = ActivityResult(
+        activity_id=999999, team_id=1, result_data={}, final_score=None,
+    )
+
+    await svc._recalculate_result_score(orphan_result)
+
+    assert orphan_result.final_score is None
+
+
+async def test_update_time_based_result_reranks_activity(pg_session):
+    """Editing a time-based result's `result_data` must trigger the
+    activity-wide rescore (rank shifts affect every other team's score too),
+    not just a rescore of the edited row."""
+    activity = await _make_activity(
+        pg_session,
+        activity_type=ActivityType.TIME_BASED.value,
+        config={"max_points": 100, "min_points": 10},
+    )
+    fast = await _make_team(pg_session, "Fast")
+    slow = await _make_team(pg_session, "Slow")
+
+    svc = ScoringService(pg_session)
+    await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id, team_id=slow.id,
+            result_data={"completion_time_seconds": 90}, is_completed=True,
+        )
+    )
+    fast_created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id, team_id=fast.id,
+            result_data={"completion_time_seconds": 60}, is_completed=True,
+        )
+    )
+
+    # Now update the "fast" team to be even faster -- this must rescore the
+    # whole activity so the "slow" team's relative score updates too.
+    await svc.update_result(
+        fast_created, ActivityResultUpdate(result_data={"completion_time_seconds": 10})
+    )
+
+    slow_res = (await pg_session.scalars(_select_result(activity.id, slow.id))).first()
+    fast_res = (await pg_session.scalars(_select_result(activity.id, fast.id))).first()
+    assert fast_res.final_score == pytest.approx(100)
+    assert slow_res.final_score is not None
+
+
 # --------------------------------------------------------------------------- #
 # team vs team
 # --------------------------------------------------------------------------- #
@@ -709,6 +903,36 @@ async def test_create_team_vs_result_rejects_completed_rematch(pg_session):
     from app.core.exceptions import RallyValidationError
     with pytest.raises(RallyValidationError):
         await svc.create_team_vs_result(t1.id, t2.id, activity.id, winner_id=t2.id, match_data={})
+
+
+async def test_validate_team_vs_match_rejects_when_only_team2_completed(pg_session):
+    """team1 has no result yet, team2's result is already completed: the
+    second `if result2 and result2.is_completed` guard must reject it too,
+    not just the symmetric team1 check."""
+    activity = await _make_team_vs_activity(pg_session)
+    t1 = await _make_team(pg_session, "T1")
+    t2 = await _make_team(pg_session, "T2")
+    await _make_result(
+        pg_session, team=t2, activity=activity, result_data={"result": "win"}, final_score=100
+    )
+
+    svc = ScoringService(pg_session)
+
+    assert await svc.validate_team_vs_match(t1.id, t2.id, activity.id) is False
+
+
+async def test_create_team_vs_result_rolls_back_on_unexpected_error(pg_session):
+    """A nonexistent activity_id passes `validate_team_vs_match` (which only
+    checks the teams and any *existing* results for that id) but blows up
+    inside `create_result` with a plain ValueError -- exercising the generic
+    `except Exception: rollback + re-raise` path, not the RallyValidationError
+    one."""
+    t1 = await _make_team(pg_session, "T1")
+    t2 = await _make_team(pg_session, "T2")
+    svc = ScoringService(pg_session)
+
+    with pytest.raises(ValueError):
+        await svc.create_team_vs_result(t1.id, t2.id, 999999, winner_id=t1.id, match_data={})
 
 
 # --------------------------------------------------------------------------- #
