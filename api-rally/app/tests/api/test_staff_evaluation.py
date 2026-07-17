@@ -655,7 +655,7 @@ class TestAllEvaluationsAPI:
     async def test_all_evaluations_filter_by_team_id(
         self, pg_session, pg_client, as_admin
     ):
-        team_obj, activity_obj, result_id = await _seed_result(
+        team_obj, activity_obj, _ = await _seed_result(
             pg_session, pg_client, as_admin
         )
 
@@ -672,7 +672,7 @@ class TestAllEvaluationsAPI:
     async def test_all_evaluations_filter_by_checkpoint_id(
         self, pg_session, pg_client, as_admin
     ):
-        team_obj, activity_obj, result_id = await _seed_result(
+        team_obj, _, _ = await _seed_result(
             pg_session, pg_client, as_admin
         )
         checkpoint_id = as_admin.staff_checkpoint_id
