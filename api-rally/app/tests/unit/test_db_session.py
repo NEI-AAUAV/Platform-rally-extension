@@ -7,6 +7,7 @@ can't cross event loops — reusing the real engine here breaks when this test
 runs alongside many other async tests each getting their own loop. A fake
 session/connection exercises the exact same code path deterministically.
 """
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -44,12 +45,15 @@ def test_engine_kwargs_uses_sized_pool_when_enabled(monkeypatch: pytest.MonkeyPa
 async def test_check_db_health_returns_true_when_query_succeeds() -> None:
     class _WorkingSession:
         async def __aenter__(self):
+            await asyncio.sleep(0)
             return self
 
         async def __aexit__(self, *exc_info):
+            await asyncio.sleep(0)
             return False
 
         async def execute(self, *args, **kwargs):
+            await asyncio.sleep(0)
             return None
 
     with patch.object(session_module, "SessionLocal", return_value=_WorkingSession()):
@@ -61,12 +65,15 @@ async def test_check_db_health_returns_true_when_query_succeeds() -> None:
 async def test_check_db_health_returns_false_on_sqlalchemy_error() -> None:
     class _BrokenSession:
         async def __aenter__(self):
+            await asyncio.sleep(0)
             return self
 
         async def __aexit__(self, *exc_info):
+            await asyncio.sleep(0)
             return False
 
         async def execute(self, *args, **kwargs):
+            await asyncio.sleep(0)
             raise SQLAlchemyError("connection refused")
 
     with patch.object(session_module, "SessionLocal", return_value=_BrokenSession()):
