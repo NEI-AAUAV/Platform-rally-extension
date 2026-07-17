@@ -147,6 +147,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
     class _FakePubsub:
         def __init__(self) -> None:
             self._sent = False
+            self.closed = False
 
         async def subscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
@@ -163,6 +164,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 
         async def aclose(self) -> None:
             await asyncio.sleep(0)
+            self.closed = True
             return None
 
     class _FakeClient:
