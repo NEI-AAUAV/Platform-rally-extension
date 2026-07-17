@@ -125,6 +125,12 @@ class TestFormatDuration:
         calc = RallyDurationCalculator(db=None, settings=_settings())
         assert calc._format_duration(timedelta(seconds=0)) == "0s"
 
+    def test_returns_none_for_none_duration(self):
+        """Defensive guard: no real caller passes None (type hint says
+        timedelta), but the function still handles it explicitly."""
+        calc = RallyDurationCalculator(db=None, settings=_settings())
+        assert calc._format_duration(None) is None
+
 
 class TestCalculateProgressPercentage:
     def test_zero_total_duration_returns_zero(self):

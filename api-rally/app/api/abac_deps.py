@@ -117,6 +117,9 @@ async def require_checkpoint_score_permission(
     if deps.is_staff(auth.scopes) and not deps.is_admin(auth.scopes):
         from app import crud
         
+        # CRUDBase.get() raises NotFoundException rather than returning None,
+        # so both `if not ...` guards below are unreachable in practice;
+        # kept as defensive guards.
         # Get team to check their progress
         team = await crud.team.get(db=db, id=team_id)
         if not team:

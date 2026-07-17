@@ -171,6 +171,51 @@ class TestGetTeamById:
         assert body["current_checkpoint_number"] == 1
 
 
+    async def test_get_team_by_id_checkpoint_progress_stops_at_incomplete_activity(
+        self, pg_session, pg_client, as_admin
+    ):
+        """A checkpoint with two active activities where only one is
+        completed must stop progress there (the `else: break` branch), not
+        be counted as done."""
+        from app.crud.crud_activity import activity as crud_activity
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.schemas.activity import ActivityCreate, ActivityType
+        from app.schemas.checkpoint import CheckPointCreate
+
+        await _make_event(pg_session)
+        cp1 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
+        )
+        team = await _make_team(pg_session, "PartiallyDone")
+        activity1 = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Act1", activity_type=ActivityType.GENERAL, checkpoint_id=cp1.id, config={}
+            ),
+        )
+        await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Act2", activity_type=ActivityType.GENERAL, checkpoint_id=cp1.id, config={}
+            ),
+        )
+
+        as_admin.staff_checkpoint_id = cp1.id
+        eval_url = (
+            f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
+        )
+        resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 10}})
+        assert resp.status_code == 200, resp.text
+
+        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        # Only one of cp1's two activities is scored -> not fully complete.
+        assert body["last_checkpoint_number"] == 0
+        assert body["current_checkpoint_number"] == 1
+
+
 class TestAddCheckpoint:
     async def test_add_checkpoint_success_as_admin(self, pg_session, pg_client, as_admin):
         from app.crud.crud_checkpoint import checkpoint as crud_checkpoint

@@ -153,6 +153,35 @@ async def test_judge_result(pg_session, pg_client, as_admin):
     assert body["is_completed"] is True
 
 
+async def test_judge_result_succeeds_even_if_score_recalc_fails(
+    pg_session, pg_client, as_admin, monkeypatch
+):
+    """Score recalculation failure after judging must not fail the request —
+    the judgment itself already committed successfully."""
+    from unittest.mock import AsyncMock
+
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(pg_session, checkpoint.id)
+    team = await _make_team(pg_session)
+    captured = pg_client.post(
+        f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}"
+    ).json()
+
+    monkeypatch.setattr(
+        "app.api.api_v1.deferred_judging.ScoringService.update_team_scores",
+        AsyncMock(side_effect=RuntimeError("boom")),
+    )
+
+    resp = pg_client.put(
+        f"/api/rally/v1/activities/results/{captured['id']}/judge",
+        json={"points": 60},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["judgment_status"] == "judged"
+
+
 async def test_judge_result_not_found(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
 

@@ -36,6 +36,23 @@ def test_channel_for_resolves_from_raw_value() -> None:
     assert _channel_for(event) == Channels.TEAM_SCORE_UPDATED
 
 
+def test_channel_for_raises_when_event_type_unmapped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every real EventType is mapped (see test_every_event_type_has_a_channel
+    above); this drives the defensive `channel is None` branch directly by
+    temporarily emptying the mapping, simulating a hypothetical future
+    EventType added without updating EVENT_TYPE_TO_CHANNEL."""
+    from app.events import publisher as publisher_module
+
+    monkeypatch.setattr(publisher_module, "EVENT_TYPE_TO_CHANNEL", {})
+
+    event = TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=5))
+
+    from app.events.exceptions import EventPublishError
+
+    with pytest.raises(EventPublishError):
+        _channel_for(event)
+
+
 async def test_publish_noop_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.events.publisher.settings.EVENTS_ENABLED", False)
     called = False

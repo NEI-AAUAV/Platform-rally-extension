@@ -487,6 +487,58 @@ class TestCreateOrUpdateActivityResult:
         assert updated.id == first.id
         assert updated.result_data == {"assigned_points": 20}
 
+    async def test_integrity_error_race_recovers_via_existing_result(self, pg_session, monkeypatch):
+        """Two concurrent evaluations for the same team+activity: the loser's
+        INSERT hits a unique-constraint IntegrityError; it should roll back
+        and fall through to updating the winner's row instead of failing."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        # Seed a "winner" result as if a concurrent request created it first.
+        winner = await create_or_update_activity_result(
+            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 1})
+        )
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
+        from sqlalchemy.exc import IntegrityError
+
+        async def _raise_integrity_error(*args, **kwargs):
+            raise IntegrityError("dup", None, RuntimeError("duplicate key"))
+
+        monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
+
+        result = await create_or_update_activity_result(
+            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 99})
+        )
+        assert result.id == winner.id
+        assert result.result_data == {"assigned_points": 99}
+
+    async def test_integrity_error_without_existing_result_reraises(self, pg_session, monkeypatch):
+        """If the IntegrityError wasn't actually a concurrent-insert race (no
+        existing row is found after rollback), the original error must
+        propagate rather than being silently swallowed."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
+        from sqlalchemy.exc import IntegrityError
+
+        async def _raise_integrity_error(*args, **kwargs):
+            raise IntegrityError("dup", None, RuntimeError("some unrelated constraint"))
+
+        monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
+
+        with pytest.raises(IntegrityError):
+            await create_or_update_activity_result(
+                pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 5})
+            )
+
 
 class TestMirrorTeamVsResult:
     async def test_no_op_for_non_versus_activity(self, pg_session):

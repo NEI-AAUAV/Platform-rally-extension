@@ -107,3 +107,35 @@ async def test_list_group_members_empty_when_not_configured(monkeypatch):
     monkeypatch.setattr(settings, "AUTHENTIK_API_URL", "")
     monkeypatch.setattr(settings, "AUTHENTIK_API_TOKEN", "")
     assert await authentik_client.list_group_members("rally-guide") == []
+
+
+async def test_list_group_members_skips_entries_without_uuid(monkeypatch):
+    _configured(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {"uuid": None, "name": "NoUuid", "username": "nouuid"},
+                    {"uuid": "g-2", "name": "", "username": "carla", "email": None},
+                ]
+            },
+        )
+
+    with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)):
+        members = await authentik_client.list_group_members("rally-guide")
+
+    assert [m.authentik_sub for m in members] == ["g-2"]
+    assert members[0].name == "carla"  # falls back to username
+    assert members[0].email is None
+
+
+async def test_list_group_members_degrades_to_empty_on_http_error(monkeypatch):
+    _configured(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="boom")
+
+    with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)):
+        assert await authentik_client.list_group_members("rally-guide") == []

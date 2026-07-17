@@ -78,6 +78,35 @@ async def test_seed_activities_missing_file_is_noop(pg_session, tmp_path):
     assert await _count(pg_session, Activity) == before
 
 
+async def test_seed_activities_creates_activities_from_file(pg_session, tmp_path):
+    event = await rally_event.ensure_current(pg_session)
+    checkpoint = CheckPoint(
+        name="CP Seed Activities", order=104, arrival_radius_m=50, event_id=event.id
+    )
+    pg_session.add(checkpoint)
+    await pg_session.commit()
+
+    _write_json(
+        tmp_path / "activities.json",
+        [
+            {
+                "name": "Seeded Activity A",
+                "checkpoint_id": checkpoint.order,
+                "activity_type": "boolean",
+            }
+        ],
+    )
+
+    await _seed_activities(pg_session, tmp_path, event)
+
+    activity = await pg_session.scalar(
+        select(Activity).where(Activity.name == "Seeded Activity A")
+    )
+    assert activity is not None
+    assert activity.checkpoint_id == checkpoint.id
+    assert activity.event_id == event.id
+
+
 async def test_upsert_activity_skips_when_checkpoint_missing(pg_session):
     event = await rally_event.ensure_current(pg_session)
     before = await _count(pg_session, Activity)

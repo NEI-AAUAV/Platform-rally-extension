@@ -643,6 +643,21 @@ async def test_evaluate_result_isolates_failing_rule(
     assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
 
 
+async def test_evaluate_result_skips_trigger_with_no_registered_handler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid BadgeTrigger enum value with no entry in _TRIGGER_HANDLERS
+    (hypothetical: a trigger added without wiring its handler) must be
+    skipped rather than raising a KeyError."""
+    monkeypatch.setattr(
+        evaluators,
+        "_load_auto_definitions",
+        AsyncMock(return_value=[_defn(trigger=BadgeTrigger.WIN_ACTIVITY)]),
+    )
+    monkeypatch.setattr(evaluators, "_TRIGGER_HANDLERS", {})
+    assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
+
+
 async def test_evaluate_result_skips_unknown_trigger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -152,6 +152,8 @@ async def _seed_audit_trail_demo(db: AsyncSession, rng: random.Random) -> None:
         return
     from app.schemas.activity import ActivityResultUpdate
 
+    # activity_id is a NOT NULL FK, so this is effectively unreachable outside
+    # of a concurrent delete race; kept as a defensive guard.
     activity = await db.get(Activity, result.activity_id)
     if activity is None:
         return

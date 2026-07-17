@@ -150,6 +150,24 @@ async def test_unpaired_team_has_empty_versus():
 
 
 @pytest.mark.asyncio
+async def test_result_for_unknown_team_is_skipped():
+    """A result whose team_id isn't in the current team list (e.g. the team
+    was deleted after scoring) must be skipped rather than raising a
+    KeyError or polluting another team's totals."""
+    teams = [_team(1, "A")]
+    cps = [_cp(10, 1)]
+    results = [
+        _result(1, 10, final_score=6.0),
+        _result(999, 10, final_score=100.0),  # orphaned team_id, not in `teams`
+    ]
+    wb = await _build(teams, cps, results)
+
+    rows = _rows(wb["Overall"])
+    assert len(rows) == 2  # header + team A only
+    assert rows[1] == ("A", None, 6, 6)
+
+
+@pytest.mark.asyncio
 async def test_malformed_penalty_value_defaults_to_zero():
     teams = [_team(1, "A")]
     cps = [_cp(10, 1)]

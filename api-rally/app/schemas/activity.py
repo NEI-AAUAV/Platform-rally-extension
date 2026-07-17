@@ -27,12 +27,18 @@ class ActivityBase(BaseModel):
     @classmethod
     def validate_activity_type(cls, v: Any) -> Any:
         """Validate that activity type is supported by the factory"""
+        # The field is typed as ActivityType, so pydantic's own enum coercion
+        # already rejects any value that isn't one of its members before this
+        # validator ever runs — v is always an ActivityType instance here, and
+        # ActivityFactory.get_available_types() mirrors the same enum's
+        # values, so the `else`/`raise` below are unreachable in practice;
+        # kept as a defensive guard in case the field type ever loosens.
         if isinstance(v, ActivityType):
             # Convert enum to string for factory validation
             activity_type_str = v.value
         else:
             activity_type_str = str(v)
-            
+
         available_types = ActivityFactory.get_available_types()
         if activity_type_str not in available_types:
             raise ValueError(f"Invalid activity type. Available types: {available_types}")

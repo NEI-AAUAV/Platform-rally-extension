@@ -147,6 +147,39 @@ class TestClaimMembership:
 
         assert resp.status_code == 400
 
+    async def test_claim_membership_team_not_found(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """The placeholder's team lookup misses (e.g. a race with a concurrent
+        delete) -> 404, not an unhandled error. `Team.team_id`'s FK constraint
+        prevents constructing this via plain data setup, so `AsyncSession.get`
+        is patched (class-wide, since `pg_client` opens its own session per
+        request) to return None specifically for the Team lookup."""
+        from unittest.mock import AsyncMock
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        from app.models.team import Team
+
+        team = await _make_team(pg_session)
+        placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="Orphaned"))
+        placeholder.team_id = team.id
+        pg_session.add(placeholder)
+        await pg_session.commit()
+
+        real_get = AsyncSession.get
+
+        async def _fake_get(self, model, ident, *args, **kwargs):
+            if model is Team:
+                return None
+            return await real_get(self, model, ident, *args, **kwargs)
+
+        monkeypatch.setattr(AsyncSession, "get", _fake_get)
+
+        resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder.id}")
+
+        assert resp.status_code == 404
+
     async def test_claim_membership_success_creates_caller_row(self, pg_session, pg_client, as_admin):
         """First-login case: caller has no `user` row yet, so claiming a
         placeholder must create one for them (create_for_oidc path)."""

@@ -468,3 +468,22 @@ class TestStaffCheckIn:
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["status"] == "checked_in"
+
+    async def test_staff_check_in_admin_no_checkpoint_assigned_403(
+        self, pg_session, pg_client, as_admin
+    ):
+        """An admin with no staff_checkpoint_id and no explicit checkpoint_id in
+        the body has nothing to resolve `checkpoint_id` to (line 182-183):
+        `get_staff_with_checkpoint_access` only 403s staff without a checkpoint,
+        not admins, so this path is reached only through the admin branch.
+        """
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+
+        with _override_settings(SELF_CHECKIN_ENABLED=True):
+            resp = pg_client.post(
+                self.STAFF_CHECKIN_URL,
+                json={"team_code": team.access_code},
+            )
+
+        assert resp.status_code == 403

@@ -2,8 +2,12 @@
 `/me`), against real Postgres. `authentik_client.list_group_members` stays
 mocked — external I/O, out of scope.
 """
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.api.authentik_client import AuthentikUser
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_user import user as crud_user
 from app.schemas.checkpoint import CheckPointCreate
@@ -135,6 +139,50 @@ class TestStaffAssignments:
         assert body["id"] == 0
         assert body["checkpoint_id"] is None
 
+    async def test_get_staff_assignments_mirrors_group_members(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """A group member returned by Authentik that isn't yet mirrored
+        locally gets created on the fly (covers the mirror-on-read loop)."""
+        monkeypatch.setattr(
+            "app.api.api_v1.user.authentik_client.list_group_members",
+            AsyncMock(
+                return_value=[
+                    AuthentikUser(
+                        authentik_sub="sub-new-staff",
+                        name="New Staffer",
+                        username="newstaffer",
+                        email="newstaffer@example.com",
+                    )
+                ]
+            ),
+        )
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/user/staff-assignments")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert any(u["user_name"] == "New Staffer" for u in body)
+
+    async def test_update_checkpoint_assignment_db_error_returns_400(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        staff = await _make_staff_user(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+
+        with patch(
+            "app.api.api_v1.user.crud.rally_staff_assignment.create_or_update",
+            new=AsyncMock(side_effect=SQLAlchemyError("db down")),
+        ):
+            resp = pg_client.put(
+                f"/api/rally/v1/user/{staff.id}/checkpoint-assignment",
+                json={"checkpoint_id": checkpoint.id},
+            )
+
+        assert resp.status_code == 400, resp.text
+
 
 class TestGuideAssignments:
     async def test_get_guide_assignments_empty(
@@ -205,3 +253,45 @@ class TestGuideAssignments:
         body = resp.json()
         assert body["id"] == 0
         assert body["checkpoint_id"] is None
+
+    async def test_get_guide_assignments_mirrors_group_members(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "app.api.api_v1.user.authentik_client.list_group_members",
+            AsyncMock(
+                return_value=[
+                    AuthentikUser(
+                        authentik_sub="sub-new-guide",
+                        name="New Guide",
+                        username="newguide",
+                        email="newguide@example.com",
+                    )
+                ]
+            ),
+        )
+        await _make_event(pg_session)
+
+        resp = pg_client.get("/api/rally/v1/user/guide-assignments")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert any(u["user_name"] == "New Guide" for u in body)
+
+    async def test_update_guide_checkpoint_assignment_db_error_returns_400(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        guide = await _make_guide_user(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+
+        with patch(
+            "app.api.api_v1.user.crud.rally_guide_assignment.create_or_update",
+            new=AsyncMock(side_effect=SQLAlchemyError("db down")),
+        ):
+            resp = pg_client.put(
+                f"/api/rally/v1/user/{guide.id}/guide-checkpoint-assignment",
+                json={"checkpoint_id": checkpoint.id},
+            )
+
+        assert resp.status_code == 400, resp.text

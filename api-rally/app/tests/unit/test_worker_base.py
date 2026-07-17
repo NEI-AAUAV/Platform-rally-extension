@@ -135,6 +135,14 @@ class TestStartStop:
         assert worker._running is False
         assert worker._last_beat == pytest.approx(0.0)
 
+    def test_last_beat_property_reflects_internal_state(self) -> None:
+        worker = _RecordingWorker()
+        assert worker.last_beat == pytest.approx(0.0)
+
+        now = time.monotonic()
+        worker._last_beat = now
+        assert worker.last_beat == pytest.approx(now)
+
     def test_signal_handler_calls_stop(self) -> None:
         worker = _RecordingWorker()
         with patch.object(worker, "stop") as mock_stop:

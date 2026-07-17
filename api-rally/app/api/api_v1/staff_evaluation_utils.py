@@ -97,6 +97,8 @@ async def validate_staff_checkpoint_access(
         raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
     # Verify team exists
+    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # this branch is unreachable in practice; kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         logger.error(f"Team {team_id} not found")
@@ -133,6 +135,8 @@ async def validate_staff_checkpoint_access(
 
 async def validate_admin_access(db: AsyncSession, team_id: int, activity_id: int) -> Tuple[Team, Activity]:
     """Validate admin access and return team and activity objects"""
+    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # this branch is unreachable in practice; kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
@@ -267,6 +271,8 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     if current_checkpoint_id is None:
         return
 
+    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # these two guards are unreachable in practice; kept as defensive checks.
     from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
     checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
     if not checkpoint_obj:
@@ -319,6 +325,8 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
 
 async def ensure_team_checkpoint_and_advance(db: AsyncSession, team_id: int, current_checkpoint_id: int) -> None:
     """Ensure team is checked into current checkpoint and advance to next"""
+    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # these two guards are unreachable in practice; kept as defensive checks.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         return

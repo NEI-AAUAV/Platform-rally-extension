@@ -112,3 +112,53 @@ async def test_deletion_event_is_ignored(monkeypatch: pytest.MonkeyPatch) -> Non
     )
     # Badges are permanent: a deletion never loads or awards anything.
     load.assert_not_called()
+
+
+async def test_missing_result_id_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A created/updated event with no `result_id` in its payload is a no-op —
+    nothing to look up or evaluate."""
+    _patch_session(monkeypatch)
+    load = AsyncMock()
+    monkeypatch.setattr(BadgesWorker, "_load_result", load)
+
+    await BadgesWorker().handle_event(
+        "rally.activity_result.created",
+        {"event_type": "activity_result.created", "payload": {}},
+    )
+
+    load.assert_not_called()
+
+
+async def test_result_vanished_before_handling_is_ignored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The result committed then got deleted before the worker processed the
+    event: `_load_result` returning None is a no-op, not an error."""
+    _patch_session(monkeypatch)
+    monkeypatch.setattr(BadgesWorker, "_load_result", AsyncMock(return_value=None))
+    evaluate = AsyncMock()
+    monkeypatch.setattr(worker_badges, "evaluate_result", evaluate)
+
+    await BadgesWorker().handle_event("rally.activity_result.created", _created_event())
+
+    evaluate.assert_not_called()
+
+
+async def test_load_result_queries_by_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the real `_load_result` query building (not mocked out)."""
+    from unittest.mock import MagicMock
+
+    fake_result = SimpleNamespace(id=5)
+
+    class _FakeScalars:
+        def first(self):
+            return fake_result
+
+    session = AsyncMock()
+    session.scalars = AsyncMock(return_value=_FakeScalars())
+
+    worker = BadgesWorker()
+    loaded = await worker._load_result(session, 5)
+
+    assert loaded is fake_result
+    session.scalars.assert_called_once()

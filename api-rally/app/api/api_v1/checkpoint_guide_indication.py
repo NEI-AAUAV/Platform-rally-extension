@@ -18,6 +18,9 @@ router = APIRouter()
 
 
 async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
+    # CRUDBase.get() raises NotFoundException (mapped to a 404 response by the
+    # global exception handler) rather than returning None, so this branch is
+    # unreachable in practice; kept as a defensive guard.
     cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Checkpoint not found")

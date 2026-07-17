@@ -187,6 +187,10 @@ async def staff_check_in(
     if team_obj is None:
         raise RallyNotFoundError("Equipa não encontrada para este código")
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself when the row is
+    # missing rather than returning None, so this branch is unreachable in
+    # practice (defensive dead code kept for API/type-contract clarity — see
+    # equivalent notes below on the `check_in` handler for the same pattern).
     checkpoint = await checkpoint_crud.get(db, id=checkpoint_id)
     if checkpoint is None:
         raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
@@ -245,6 +249,10 @@ async def check_in(
             detail="This QR was already used by your team",
         )
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself instead of
+    # returning None when the row is missing, so the `is None` branches below
+    # are unreachable dead code in practice; kept as defensive documentation
+    # of the contract in case `.get()`'s behavior ever changes.
     checkpoint = await checkpoint_crud.get(db, id=claims.checkpoint_id)
     if checkpoint is None:
         raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)

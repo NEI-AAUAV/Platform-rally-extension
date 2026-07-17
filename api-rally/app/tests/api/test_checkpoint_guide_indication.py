@@ -130,3 +130,63 @@ async def test_delete_indication_403_without_permission(pg_session, pg_client, a
     resp = pg_client.delete(f"/api/rally/v1/checkpoint/guide-indications/{indication.id}")
 
     assert resp.status_code == 403
+
+
+async def test_update_indication_admin(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    indication = await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(hint="Old hint", order=0),
+    )
+
+    resp = pg_client.put(
+        f"/api/rally/v1/checkpoint/guide-indications/{indication.id}",
+        json={"hint": "New hint"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["hint"] == "New hint"
+
+
+async def test_update_indication_all_fields(pg_session, pg_client, as_admin):
+    """Covers the question/expected_answer/order partial-update branches
+    that `test_update_indication_admin` (hint-only) doesn't reach."""
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    indication = await crud_indication.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointGuideIndicationCreate(hint="Old", order=0),
+    )
+
+    resp = pg_client.put(
+        f"/api/rally/v1/checkpoint/guide-indications/{indication.id}",
+        json={"question": "New question?", "expected_answer": "New answer", "order": 5},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["question"] == "New question?"
+    assert body["expected_answer"] == "New answer"
+    assert body["order"] == 5
+
+
+async def test_update_indication_404_when_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.put(
+        "/api/rally/v1/checkpoint/guide-indications/999999",
+        json={"hint": "New hint"},
+    )
+
+    assert resp.status_code == 404
+
+
+async def test_delete_indication_404_when_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.delete("/api/rally/v1/checkpoint/guide-indications/999999")
+
+    assert resp.status_code == 404

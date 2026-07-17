@@ -77,6 +77,9 @@ class TestGroupToScopeMapping:
     def test_unknown_group_ignored(self, settings):
         assert map_groups_to_scopes(["some-other-group"], settings) == []
 
+    def test_guide_group_maps_to_guide_scope(self, settings):
+        assert map_groups_to_scopes(["rally-guide"], settings) == [ScopeEnum.RALLY_GUIDE.value]
+
     def test_build_auth_data_from_claims(self, settings):
         claims = {
             "sub": "uuid-1",

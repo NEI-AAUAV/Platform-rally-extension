@@ -146,3 +146,63 @@ async def test_reorder_media(pg_session, pg_client, as_admin):
     assert resp.status_code == 200, resp.text
     ids = [item["id"] for item in resp.json()]
     assert ids == [second.id, first.id]
+
+
+async def test_update_media_caption_no_image(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, caption="Old", order=0),
+    )
+
+    resp = pg_client.put(
+        f"/api/rally/v1/checkpoint/media/{media.id}",
+        data={"caption": "New caption"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["caption"] == "New caption"
+
+
+async def test_update_media_with_new_image(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.photo, order=0),
+        image_url="https://r2/cp/old.png",
+    )
+
+    with patch(
+        "app.api.api_v1.checkpoint_media.validate_and_store",
+        new=AsyncMock(return_value="https://r2/cp/new.png"),
+    ), patch("app.crud.crud_checkpoint_media.storage_client.delete_image"):
+        resp = pg_client.put(
+            f"/api/rally/v1/checkpoint/media/{media.id}",
+            files={"image": ("new.png", io.BytesIO(_png_bytes()), "image/png")},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["image_url"] == "https://r2/cp/new.png"
+
+
+async def test_update_media_404_if_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.put(
+        "/api/rally/v1/checkpoint/media/999999",
+        data={"caption": "Nope"},
+    )
+
+    assert resp.status_code == 404
+
+
+async def test_delete_media_404_if_missing(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.delete("/api/rally/v1/checkpoint/media/999999")
+
+    assert resp.status_code == 404

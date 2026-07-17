@@ -63,6 +63,9 @@ async def get_my_checkpoint(
     if not current_user.staff_checkpoint_id:
         raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice;
+    # kept as a defensive guard.
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
     if not checkpoint_obj:
         raise RallyNotFoundError("Assigned checkpoint not found")
@@ -84,6 +87,9 @@ async def get_teams_at_my_checkpoint(
     # Fetch the checkpoint's order (not the FK id) for correct comparison
     from sqlalchemy import select, func
     from sqlalchemy.orm import selectinload
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice;
+    # kept as a defensive guard.
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
     if not checkpoint_obj:
         raise RallyNotFoundError("Assigned checkpoint not found")
@@ -220,7 +226,10 @@ async def evaluate_team_activity(
     """
     logger.info(f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}")
 
-    # Check if user has rally permissions
+    # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
+    # dependency) already enforces `is_admin_or_staff`, the same check
+    # `validate_rally_permissions` performs, so this branch is unreachable in
+    # practice; kept as a defensive guard/explicit precondition.
     if not validate_rally_permissions(auth):
         logger.warning(f"User {current_user.id} does not have Rally permissions")
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
@@ -310,6 +319,10 @@ async def _load_activity_and_team_for_update(
     """
     from app.crud.crud_activity import activity as activity_crud
 
+    # NOTE: the only caller, `update_team_activity_evaluation`, depends on
+    # `get_staff_with_checkpoint_access`, which already 403s a staff user with
+    # no assigned checkpoint — so this branch is unreachable in practice;
+    # kept as a defensive guard/explicit precondition.
     if not is_manager and not current_user.staff_checkpoint_id:
         raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
@@ -319,6 +332,9 @@ async def _load_activity_and_team_for_update(
     ):
         raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice;
+    # kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
@@ -338,6 +354,10 @@ async def update_team_activity_evaluation(
     auth: Annotated[AuthData, Depends(api_nei_auth)]
 ) -> ActivityResultResponse:
     """Update a team's activity evaluation"""
+    # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
+    # dependency) already enforces `is_admin_or_staff`, the same check
+    # `validate_rally_permissions` performs, so this branch is unreachable in
+    # practice; kept as a defensive guard/explicit precondition.
     if not validate_rally_permissions(auth):
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
@@ -383,6 +403,10 @@ async def get_evaluation_history(
     Manager/admin only — staff can score but the trail (who overrode whom) is a
     dispute-resolution tool for organizers.
     """
+    # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
+    # dependency) already enforces `is_admin_or_staff`, the same check
+    # `validate_rally_permissions` performs, so this branch is unreachable in
+    # practice; kept as a defensive guard/explicit precondition.
     if not validate_rally_permissions(auth):
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
     if not is_admin_or_manager(auth):
@@ -414,6 +438,10 @@ async def get_all_evaluations(
 ) -> Dict[str, Any]:
     """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
     # Check if user has rally permissions
+    # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
+    # dependency) already enforces `is_admin_or_staff`, the same check
+    # `validate_rally_permissions` performs, so this branch is unreachable in
+    # practice; kept as a defensive guard/explicit precondition.
     if not validate_rally_permissions(auth):
         raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
@@ -421,6 +449,10 @@ async def get_all_evaluations(
     is_manager = is_admin_or_manager(auth)
 
     if not is_manager:
+        # NOTE: only a non-manager (staff) reaches this branch, and
+        # `get_staff_with_checkpoint_access` already 403s a staff user with no
+        # assigned checkpoint — so this is unreachable in practice; kept as a
+        # defensive guard.
         if not current_user.staff_checkpoint_id:
             raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
         # Override checkpoint_id filter with staff's assigned checkpoint

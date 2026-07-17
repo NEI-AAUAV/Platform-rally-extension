@@ -55,6 +55,16 @@ class TestCreate:
                 await crud.get(other, id=team.id)
 
 
+class TestGetMulti:
+    async def test_for_update_locks_rows(self, pg_session, crud):
+        await crud.create(pg_session, obj_in=_CreateSchema(name="A", access_code="AAAA-0001"))
+        await crud.create(pg_session, obj_in=_CreateSchema(name="B", access_code="AAAA-0002"))
+
+        results = await crud.get_multi(pg_session, for_update=True)
+
+        assert len(results) == 2
+
+
 class TestUpdate:
     async def test_commits_by_default(self, pg_session, crud, other_session_maker):
         team = await crud.create(pg_session, obj_in=_CreateSchema())

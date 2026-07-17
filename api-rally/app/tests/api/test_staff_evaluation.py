@@ -269,6 +269,82 @@ class TestConcurrentEvaluation:
         assert len(rows) == 1
 
 
+class TestEvaluationSideEffectResilience:
+    """Mirroring the versus result and advancing the team are best-effort side
+    effects: if either raises, the evaluation itself still succeeds."""
+
+    async def test_evaluate_succeeds_when_mirror_versus_result_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        import app.api.api_v1.staff_evaluation as staff_evaluation_module
+
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "mirror_team_vs_result",
+            AsyncMock(side_effect=RuntimeError("mirror boom")),
+        )
+
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(url, json={"result_data": {"assigned_points": 50}})
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_evaluate_succeeds_when_check_and_advance_team_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        import app.api.api_v1.staff_evaluation as staff_evaluation_module
+
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "check_and_advance_team",
+            AsyncMock(side_effect=RuntimeError("advance boom")),
+        )
+
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(url, json={"result_data": {"assigned_points": 50}})
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_update_evaluation_succeeds_when_mirror_versus_result_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        import app.api.api_v1.staff_evaluation as staff_evaluation_module
+
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "mirror_team_vs_result",
+            AsyncMock(side_effect=RuntimeError("mirror boom")),
+        )
+
+        url = (
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+            f"{activity_obj.id}/evaluate/{result_id}"
+        )
+        resp = pg_client.put(url, json={"result_data": {"assigned_points": 80}})
+
+        assert resp.status_code == 200, resp.text
+
+
 class TestEvaluationIdempotency:
     """`Idempotency-Key` header behavior on the evaluate endpoint."""
 

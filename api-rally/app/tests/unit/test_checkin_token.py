@@ -83,3 +83,10 @@ def test_falls_back_to_team_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "TEAM_JWT_SECRET_KEY", "jwt-fallback-secret")
     token = checkin_token.generate_checkin_token(7)
     assert verify_checkin_token(token).checkpoint_id == 7
+
+
+def test_raises_when_no_secret_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "CHECKIN_HMAC_SECRET", None)
+    monkeypatch.setattr(settings, "TEAM_JWT_SECRET_KEY", None)
+    with pytest.raises(CheckinTokenError, match="No check-in signing secret"):
+        checkin_token.generate_checkin_token(1)

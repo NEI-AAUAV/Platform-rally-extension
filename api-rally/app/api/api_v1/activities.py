@@ -37,6 +37,10 @@ async def create_activity(
 ) -> ActivityResponse:
     """Create a new activity"""
     # Validate activity type and config
+    # ActivityFactory.get_default_config() returns {} for unrecognized types
+    # rather than raising, and activity_in.activity_type is already validated
+    # as an ActivityType enum member by pydantic — so this except is
+    # unreachable in practice; kept as a defensive guard.
     try:
         default_config = ActivityFactory.get_default_config(activity_in.activity_type.value)
 

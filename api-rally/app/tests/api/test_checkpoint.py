@@ -147,6 +147,36 @@ class TestNextCheckpoint:
         assert response.status_code == 200, response.text
         assert response.json()["order"] == 1
 
+    async def test_get_next_checkpoint_for_logged_in_user_with_team(
+        self, pg_session, pg_client
+    ):
+        """A logged-in participant (not a team-token request) whose profile is
+        linked to a team resolves team_id from curr_user (checkpoint.py line 142)."""
+        from app.api import deps
+        from app.api.auth import api_nei_auth
+        from app.main import app
+        from app.schemas.user import DetailedUser
+        from app.tests.conftest import _fake_auth_data
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+
+        await _make_event(pg_session)
+        await _make_checkpoint(pg_session, order=1)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="LinkedTeam"))
+
+        user = DetailedUser(id=99, name="Linked", disabled=False, team_id=team.id, scopes=[])
+        auth_data = _fake_auth_data(scopes=[])
+        app.dependency_overrides[api_nei_auth] = lambda: auth_data
+        app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+        try:
+            response = pg_client.get("/api/rally/v1/checkpoint/me")
+        finally:
+            app.dependency_overrides.pop(api_nei_auth, None)
+            app.dependency_overrides.pop(deps.get_current_user_optional, None)
+
+        assert response.status_code == 200, response.text
+        assert response.json()["order"] == 1
+
     async def test_get_next_checkpoint_none_left_404(self, pg_session, pg_client):
         from app.crud.crud_team import team as crud_team
         from app.schemas.team import TeamCreate
@@ -189,18 +219,30 @@ class TestCheckpointTeamsEndpoint:
     async def test_get_checkpoint_teams_by_checkpoint_id(
         self, pg_session, pg_client, as_admin
     ):
+        import datetime as dt
+
         from app.crud.crud_team import team as crud_team
         from app.schemas.team import TeamCreate
 
         await _make_event(pg_session)
         cp = await _make_checkpoint(pg_session, order=1)
-        await crud_team.create(pg_session, obj_in=TeamCreate(name="T1"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="T1"))
+        # `get_by_checkpoint` matches teams whose visited-checkpoint count
+        # equals the checkpoint's order — give the team exactly one visit so
+        # it shows up as "at" checkpoint order 1, and build_team runs for it.
+        team.times = [dt.datetime(2026, 1, 1)]
+        pg_session.add(team)
+        await pg_session.commit()
 
         response = pg_client.get(
             f"/api/rally/v1/checkpoint/teams?checkpoint_id={cp.id}"
         )
 
         assert response.status_code == 200, response.text
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["id"] == team.id
+        assert body[0]["last_checkpoint_time"] is not None
 
 
 class TestReorderCheckpoints:
@@ -216,6 +258,23 @@ class TestReorderCheckpoints:
 
         assert response.status_code == 200, response.text
         assert response.json()["message"] == "Checkpoints reordered successfully"
+
+    async def test_reorder_checkpoints_duplicate_order_rejected(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Reordering two checkpoints to the same final order violates the
+        unique order constraint, which the endpoint wraps into a 400."""
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+
+        response = pg_client.put(
+            "/api/rally/v1/checkpoint/reorder",
+            json={str(cp1.id): 5, str(cp2.id): 5},
+        )
+
+        assert response.status_code == 400
+        assert "Cannot reorder checkpoints" in response.json()["detail"]
 
     async def test_reorder_checkpoints_requires_admin(
         self, pg_session, pg_client, as_user

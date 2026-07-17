@@ -106,6 +106,17 @@ class TestKillSwitch:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    async def test_list_team_badges_empty_when_disabled(self, pg_session, pg_client):
+        await _make_event(pg_session)
+        await _set_badges_enabled(pg_session, False)
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+        await badge_service.award_badge(pg_session, team_id=team.id, badge_code="won_duel", activity_id=1)
+
+        resp = pg_client.get(f"/api/rally/v1/teams/{team.id}/badges")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
+
     async def test_showcase_empty_when_disabled(self, pg_session, pg_client):
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)

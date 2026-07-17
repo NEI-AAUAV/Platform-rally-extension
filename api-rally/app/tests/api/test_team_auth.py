@@ -93,6 +93,41 @@ class TestVerifyTeamToken:
             verify_team_token("not.a.valid.jwt")
         assert exc.value.status_code == 401
 
+    def test_raises_for_wrong_token_type(self):
+        """A validly-signed JWT with the wrong `type` claim (e.g. some other
+        token kind) must be rejected, not treated as a team-access token."""
+        from app.api.api_v1.team_auth import verify_team_token
+
+        wrong_type_token = jwt.encode(
+            {
+                "team_id": 1,
+                "team_name": "Test Team",
+                "type": "not_team_access",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
+            settings.TEAM_JWT_SECRET_KEY,
+            algorithm=settings.TEAM_JWT_ALGORITHM,
+        )
+        with pytest.raises(HTTPException) as exc:
+            verify_team_token(wrong_type_token)
+        assert exc.value.status_code == 401
+
+    def test_raises_for_missing_team_id(self):
+        from app.api.api_v1.team_auth import verify_team_token
+
+        missing_id_token = jwt.encode(
+            {
+                "team_name": "Test Team",
+                "type": "team_access",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
+            settings.TEAM_JWT_SECRET_KEY,
+            algorithm=settings.TEAM_JWT_ALGORITHM,
+        )
+        with pytest.raises(HTTPException) as exc:
+            verify_team_token(missing_id_token)
+        assert exc.value.status_code == 401
+
     def test_raises_for_wrong_secret(self):
         from app.api.api_v1.team_auth import verify_team_token
 
@@ -254,3 +289,86 @@ class TestTokenLifecycleHardening:
             "/api/rally/v1/team-auth/verify", headers={"Authorization": f"Bearer {forged}"}
         )
         assert response.status_code == 401
+
+
+class TestContestEvaluation:
+    async def _make_event(self, pg_session):
+        from app.models.activity import RallyEvent
+
+        event = RallyEvent(name="Test Event", is_current=True)
+        pg_session.add(event)
+        await pg_session.commit()
+        await pg_session.refresh(event)
+        return event
+
+    async def _make_result(self, pg_session, pg_client, as_admin_session):
+        from app.crud.crud_activity import activity as crud_activity
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.schemas.activity import ActivityCreate, ActivityType
+        from app.schemas.checkpoint import CheckPointCreate
+
+        checkpoint = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
+        )
+        team = await _make_team(pg_session, "Contester")
+        act = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Act", activity_type=ActivityType.GENERAL, checkpoint_id=checkpoint.id, config={}
+            ),
+        )
+        resp = pg_client.post(
+            "/api/rally/v1/activities/results/",
+            json={
+                "activity_id": act.id,
+                "team_id": team.id,
+                "result_data": {"assigned_points": 10},
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        return team, resp.json()
+
+    async def test_contest_result_not_found(self, pg_session, pg_client):
+        from app.tests.conftest import as_team
+
+        await self._make_event(pg_session)
+        team = await _make_team(pg_session, "Loner")
+
+        with as_team(team.id, "Loner"):
+            resp = pg_client.post(
+                "/api/rally/v1/team-auth/evaluations/999999/contest",
+                json={"reason": "not fair"},
+            )
+
+        assert resp.status_code == 404
+
+    async def test_contest_result_belonging_to_other_team_is_404(
+        self, pg_session, pg_client, as_admin
+    ):
+        from app.tests.conftest import as_team
+
+        await self._make_event(pg_session)
+        _team, result = await self._make_result(pg_session, pg_client, as_admin)
+        other_team = await _make_team(pg_session, "Other")
+
+        with as_team(other_team.id, "Other"):
+            resp = pg_client.post(
+                f"/api/rally/v1/team-auth/evaluations/{result['id']}/contest",
+                json={"reason": "not mine"},
+            )
+
+        assert resp.status_code == 404
+
+    async def test_contest_own_result_succeeds(self, pg_session, pg_client, as_admin):
+        from app.tests.conftest import as_team
+
+        team, result = await self._make_result(pg_session, pg_client, as_admin)
+
+        with as_team(team.id, "Contester"):
+            resp = pg_client.post(
+                f"/api/rally/v1/team-auth/evaluations/{result['id']}/contest",
+                json={"reason": "I disagree with this score"},
+            )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["note"] == "I disagree with this score"

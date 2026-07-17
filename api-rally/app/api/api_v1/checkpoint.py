@@ -41,6 +41,9 @@ async def _get_checkpoints_for_team(
     if settings.show_route_mode == "complete":
         return _validate_list(await crud.checkpoint.get_all_ordered(db=db))
     all_checkpoints = await crud.checkpoint.get_all_ordered(db=db)
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice
+    # (a stale team_id 404s before reaching here); kept as a defensive guard.
     team = await crud.team.get(db=db, id=team_id)
     if not team:
         return []

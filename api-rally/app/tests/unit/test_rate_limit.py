@@ -51,6 +51,15 @@ async def test_enforce_allows_under_limit():
 
 
 @pytest.mark.asyncio
+async def test_enforce_sets_expiry_on_first_attempt():
+    """The very first increment in a window (attempts == 1) arms the TTL."""
+    client = _fake_redis(1)
+    with patch.object(rl, "get_async_redis_client", return_value=client):
+        await rl._enforce("k", limit=5, window_seconds=60)
+    client.expire.assert_awaited_once_with("k", 60)
+
+
+@pytest.mark.asyncio
 async def test_enforce_blocks_over_limit():
     with patch.object(rl, "get_async_redis_client", return_value=_fake_redis(6)):
         with pytest.raises(HTTPException) as exc:

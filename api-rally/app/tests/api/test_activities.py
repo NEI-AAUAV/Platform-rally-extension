@@ -1,4 +1,6 @@
 """API tests for Activities endpoints, against real Postgres."""
+from unittest.mock import AsyncMock, patch
+
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
@@ -306,6 +308,29 @@ class TestExtraShotsAndPenalty:
 
         assert resp.status_code == 200, resp.text
         assert "successfully" in resp.json()["message"]
+
+    async def test_apply_penalty_failure_returns_400(
+        self, pg_session, pg_client, as_admin
+    ):
+        """`ScoringService.apply_penalty` returning False (e.g. a concurrent
+        deletion race) surfaces as a 400, not a silent success."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        result = await _make_result(pg_client, team.id, act.id)
+
+        with patch(
+            "app.api.api_v1.activities.ScoringService.apply_penalty",
+            new=AsyncMock(return_value=False),
+        ):
+            resp = pg_client.post(
+                f"/api/rally/v1/activities/results/{result['id']}/penalty"
+                "?penalty_type=vomit&penalty_value=1"
+            )
+
+        assert resp.status_code == 400
+        assert "Failed to apply penalty" in resp.json()["detail"]
 
     async def test_apply_extra_shots_over_limit_rejected(
         self, pg_session, pg_client, as_admin

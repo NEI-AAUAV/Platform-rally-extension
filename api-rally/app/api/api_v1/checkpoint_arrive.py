@@ -55,6 +55,9 @@ async def _auto_complete_if_no_activities(
     Posts that DO have activities are left untouched: those only advance once
     staff submits the activity result (handled by check_and_advance_team).
     """
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice
+    # (the caller already validated the checkpoint exists); kept defensively.
     checkpoint_obj = await crud.checkpoint.get(db=db, id=checkpoint_id)
     if not checkpoint_obj:
         return False
@@ -63,6 +66,10 @@ async def _auto_complete_if_no_activities(
     if any(a.is_active for a in activities):
         return False  # has activities → staff-driven advancement
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # rather than returning None, so this branch is unreachable in practice
+    # (a team with a valid arrival JWT necessarily still exists); kept as a
+    # defensive guard.
     team_obj = await crud.team.get(db=db, id=team_id)
     if not team_obj:
         return False
@@ -101,6 +108,9 @@ async def arrive_at_checkpoint(
     if not event or event.event_type != EventType.PEDDY_PAPER.value:
         raise HTTPException(status_code=400, detail="GPS check-in only available for Peddy Paper events")
 
+    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # (mapped to 404 by the app's exception handler), so this branch is
+    # unreachable in practice; kept as a defensive guard.
     checkpoint = await crud.checkpoint.get(db=db, id=checkpoint_id)
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
