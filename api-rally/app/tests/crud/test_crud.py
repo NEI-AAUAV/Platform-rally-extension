@@ -363,7 +363,7 @@ class TestTeamCheckpointLogic:
     ):
         from app.exception import APIException
 
-        event, settings, team, cp1 = await self._setup_active_rally(pg_session)
+        _, settings, team, cp1 = await self._setup_active_rally(pg_session)
         await rally_settings.update(
             pg_session,
             id=settings.id,
