@@ -425,12 +425,14 @@ class TestRequireViewTeamMembersPermission:
 
 class TestValidateCheckpointAccess:
     def test_all_checkpoints_requires_explicit_id(self):
+        user = Mock(staff_checkpoint_id=None)
+        auth = Mock(scopes=["admin"])
         with patch(
             "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
         ):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["admin"]),
+                    user=user, auth=auth,
                     requested_checkpoint_id=None,
                 )
             assert exc.value.status_code == 400
@@ -446,10 +448,12 @@ class TestValidateCheckpointAccess:
             assert result == 42
 
     def test_staff_without_request_or_assignment_raises(self):
+        user = Mock(staff_checkpoint_id=None)
+        auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[]):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=Mock(staff_checkpoint_id=None), auth=Mock(scopes=["rally-staff"]),
+                    user=user, auth=auth,
                     requested_checkpoint_id=None,
                 )
             assert exc.value.status_code == 400
@@ -463,10 +467,12 @@ class TestValidateCheckpointAccess:
             assert result == 7
 
     def test_staff_requesting_inaccessible_checkpoint_denied(self):
+        user = Mock(staff_checkpoint_id=7)
+        auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=Mock(staff_checkpoint_id=7), auth=Mock(scopes=["rally-staff"]),
+                    user=user, auth=auth,
                     requested_checkpoint_id=999,
                 )
             assert exc.value.status_code == 403
