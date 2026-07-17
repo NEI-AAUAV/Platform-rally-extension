@@ -148,9 +148,11 @@ def test_stream_scoreboard_emits_refresh_on_publish(
         def __init__(self) -> None:
             self._sent = False
             self.closed = False
+            self.channels: list[str] = []
 
         async def subscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
+            self.channels = list(_channels)
             return None
 
         async def get_message(
@@ -217,9 +219,11 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
         def __init__(self) -> None:
             self.closed = False
             self.calls = 0
+            self.subscribed_channels: list[str] = []
 
         async def subscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
+            self.subscribed_channels = list(_channels)
             return None
 
         async def get_message(
@@ -285,9 +289,11 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
         def __init__(self) -> None:
             self.closed = False
             self.calls = 0
+            self.channels: list[str] = []
 
         async def psubscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
+            self.channels = list(_channels)
             return None
 
         async def get_message(
@@ -348,9 +354,11 @@ def test_pmessage_event_stream_forwards_activity_events(
         def __init__(self) -> None:
             self._sent = False
             self.closed = False
+            self.subscribed_channels: list[str] = []
 
         async def psubscribe(self, *_channels: str) -> None:
             await asyncio.sleep(0)
+            self.subscribed_channels = list(_channels)
             return None
 
         async def get_message(
