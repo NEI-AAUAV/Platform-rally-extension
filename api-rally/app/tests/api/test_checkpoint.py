@@ -183,7 +183,6 @@ class TestNextCheckpoint:
         from app.tests.conftest import as_team
 
         await _make_event(pg_session)
-        cp = await _make_checkpoint(pg_session, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="DoneTeam"))
         # Team already checked into the only checkpoint -> no next one.
         import datetime as dt
