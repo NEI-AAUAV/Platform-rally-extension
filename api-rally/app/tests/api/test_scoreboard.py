@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.main import app
 from app.services import leaderboard_cache
 from app.api.api_v1 import scoreboard as scoreboard_module
+from app.api.api_v1.scoreboard import _decode
 
 BASE = "/api/rally/v1"
 
@@ -42,7 +43,6 @@ def test_live_computes_from_db_when_disabled(
         {"rank": 1, "team_id": 7, "team_name": "Lynxes", "total_score": 42.0, "activities_completed": 3},
     ]
 
-    import asyncio
 
     async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
         await asyncio.sleep(0)
@@ -74,8 +74,6 @@ def test_live_serves_cached_ranking(
         {"rank": 1, "team_id": 3, "team_name": "Cobras", "total_score": 50.0, "activities_completed": 4},
     ]
 
-    import asyncio
-
     asyncio.run(leaderboard_cache.write_global_leaderboard(fake, ranking))
 
     resp = client.get(f"{BASE}/scoreboard/live")
@@ -93,8 +91,6 @@ def test_live_computes_and_warms_cache_on_miss(
     ranking = [
         {"rank": 1, "team_id": 9, "team_name": "Foxes", "total_score": 10.0, "activities_completed": 1},
     ]
-
-    import asyncio
 
     async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
         await asyncio.sleep(0)
@@ -146,9 +142,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 ) -> None:
     """Directly drive the `event_stream` generator returned by
     `stream_scoreboard`, avoiding real ASGI/network timing."""
-    import asyncio
 
-    from app.api.api_v1 import scoreboard as scoreboard_module
 
     class _FakePubsub:
         def __init__(self) -> None:
@@ -215,9 +209,6 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
     client disconnects the generator exits (covers the ping and break
     branches that `test_stream_scoreboard_emits_refresh_on_publish` and the
     fake-message path never reach)."""
-    import asyncio
-
-    from app.api.api_v1 import scoreboard as scoreboard_module
 
     class _FakePubsub:
         async def subscribe(self, *_channels: str) -> None:
@@ -275,9 +266,6 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same as above for `_pmessage_event_stream`'s ping/break branches."""
-    import asyncio
-
-    from app.api.api_v1 import scoreboard as scoreboard_module
 
     class _FakePubsub:
         async def psubscribe(self, *_channels: str) -> None:
@@ -330,9 +318,6 @@ def test_pmessage_event_stream_forwards_activity_events(
 ) -> None:
     """Directly exercise `_pmessage_event_stream` so the pmessage/decode
     branches are covered without depending on ASGI transport timing."""
-    import asyncio
-
-    from app.api.api_v1 import scoreboard as scoreboard_module
 
     class _FakePubsub:
         def __init__(self) -> None:
@@ -393,7 +378,6 @@ def test_pmessage_event_stream_forwards_activity_events(
 
 
 def test_decode_handles_str_and_bytes() -> None:
-    from app.api.api_v1.scoreboard import _decode
 
     assert _decode("already-str") == "already-str"
     assert _decode(b"bytes-value") == "bytes-value"
