@@ -4,6 +4,8 @@ from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
 from app.schemas.team import TeamCreate
 from app.schemas.user import UserCreate
+from app.models.team import Team
+from app.models.user import User
 
 
 async def _make_event(pg_session):
@@ -155,11 +157,7 @@ class TestClaimMembership:
         prevents constructing this via plain data setup, so `AsyncSession.get`
         is patched (class-wide, since `pg_client` opens its own session per
         request) to return None specifically for the Team lookup."""
-        from unittest.mock import AsyncMock
 
-        from sqlalchemy.ext.asyncio import AsyncSession
-
-        from app.models.team import Team
 
         team = await _make_team(pg_session)
         placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="Orphaned"))
@@ -167,7 +165,7 @@ class TestClaimMembership:
         pg_session.add(placeholder)
         await pg_session.commit()
 
-        real_get = AsyncSession.get
+        real_get =  AsyncSession.get
 
         async def _fake_get(self, model, ident, *args, **kwargs):
             if model is Team:
@@ -183,7 +181,6 @@ class TestClaimMembership:
     async def test_claim_membership_success_creates_caller_row(self, pg_session, pg_client, as_admin):
         """First-login case: caller has no `user` row yet, so claiming a
         placeholder must create one for them (create_for_oidc path)."""
-        event = await _make_event(pg_session)
         team = await _make_team(pg_session)
         placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="João"))
         placeholder.team_id = team.id
@@ -203,16 +200,12 @@ class TestClaimMembership:
         assert me is not None
         assert me.team_id == team.id
 
-        # Placeholder row should have been removed.
-        from app.models.user import User
-
         pg_session.expire_all()
         assert await pg_session.get(User, placeholder_id) is None
 
     async def test_claim_membership_success_existing_caller_account(self, pg_session, pg_client, as_admin):
         """Caller already has a `user` row (e.g. from a prior claim/profile
         view) — the existing row is updated in place, not recreated."""
-        event = await _make_event(pg_session)
         team = await _make_team(pg_session)
         await crud_user.create_for_oidc(
             pg_session,
