@@ -6,6 +6,8 @@ progression, and progress calculation now lives in
 here.
 """
 from concurrent.futures import ThreadPoolExecutor
+from sqlalchemy import select
+from unittest.mock import AsyncMock
 
 from app.main import app
 from app.crud.crud_activity import activity as crud_activity
@@ -14,7 +16,11 @@ from app.crud.crud_team import team as crud_team
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
-
+from app.api.auth import api_nei_auth
+from app.tests.conftest import _fake_auth_data, as_team
+from app.models.activity import ActivityResult
+import app.api.api_v1.staff_evaluation as staff_evaluation_module
+from app.models.idempotency_key import IdempotencyKey
 
 async def _make_event(pg_session):
     from app.models.activity import RallyEvent
@@ -89,7 +95,7 @@ class TestMyCheckpointAPI:
         assert resp.status_code == 200, resp.text
         assert resp.json()["id"] == checkpoint.id
 
-    async def test_get_my_checkpoint_no_checkpoint_assigned(
+    def test_get_my_checkpoint_no_checkpoint_assigned(
         self, pg_session, pg_client, as_admin
     ):
         as_admin.staff_checkpoint_id = None
@@ -173,8 +179,6 @@ class TestEvaluateTeamActivityAuthzAPI:
     async def test_evaluate_staff_wrong_checkpoint_not_found(
         self, pg_session, pg_client, as_admin
     ):
-        from app.api.auth import api_nei_auth
-        from app.tests.conftest import _fake_auth_data
 
         checkpoint = await _make_checkpoint(pg_session, order=1)
         other_checkpoint = await _make_checkpoint(pg_session, order=2)
@@ -252,9 +256,6 @@ class TestConcurrentEvaluation:
         statuses = sorted(r.status_code for r in responses)
         assert all(s == 200 for s in statuses), [r.text for r in responses]
 
-        from sqlalchemy import select
-        from app.models.activity import ActivityResult
-
         rows = (
             await pg_session.scalars(
                 select(ActivityResult).where(
@@ -276,9 +277,6 @@ class TestEvaluationSideEffectResilience:
     async def test_evaluate_succeeds_when_mirror_versus_result_raises(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):
-        from unittest.mock import AsyncMock
-
-        import app.api.api_v1.staff_evaluation as staff_evaluation_module
 
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
@@ -375,9 +373,6 @@ class TestEvaluationIdempotency:
         assert first.json()["final_score"] == second.json()["final_score"]
 
         # …and still exactly one result row (no double-apply).
-        from sqlalchemy import select
-        from app.models.activity import ActivityResult
-
         rows = (
             await pg_session.scalars(
                 select(ActivityResult).where(
@@ -387,9 +382,6 @@ class TestEvaluationIdempotency:
             )
         ).all()
         assert len(rows) == 1
-
-        # Exactly one idempotency row was recorded.
-        from app.models.idempotency_key import IdempotencyKey
 
         keys = (
             await pg_session.scalars(
@@ -427,9 +419,6 @@ class TestEvaluationIdempotency:
             json={"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}},
         )
         assert resp.status_code == 200, resp.text
-
-        from sqlalchemy import select
-        from app.models.idempotency_key import IdempotencyKey
 
         keys = (await pg_session.scalars(select(IdempotencyKey))).all()
         assert keys == []
@@ -483,9 +472,6 @@ class TestEvaluationHistoryAPI:
             pg_session, pg_client, as_admin
         )
 
-        from app.api.auth import api_nei_auth
-        from app.tests.conftest import _fake_auth_data
-
         app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
             scopes=["rally-staff"]
         )
@@ -526,7 +512,6 @@ class TestEvaluationHistoryAPI:
     async def test_team_cannot_contest_other_teams_result(
         self, pg_session, pg_client, as_admin
     ):
-        from app.tests.conftest import as_team
 
         _team, _activity, result_id = await _seed_result(
             pg_session, pg_client, as_admin
@@ -552,9 +537,6 @@ class TestUpdateTeamActivityEvaluationAPI:
     async def test_update_staff_activity_not_at_checkpoint(
         self, pg_session, pg_client, as_admin
     ):
-        from app.api.auth import api_nei_auth
-        from app.tests.conftest import _fake_auth_data
-
         team_obj, activity_obj, result_id = await _seed_result(
             pg_session, pg_client, as_admin
         )
@@ -636,9 +618,6 @@ class TestAllEvaluationsAPI:
         # The `get_staff_with_checkpoint_access` dependency itself rejects
         # staff without a checkpoint assignment (403) before the endpoint's
         # own body-level checkpoint check ever runs.
-        from app.api.auth import api_nei_auth
-        from app.tests.conftest import _fake_auth_data
-
         as_admin.staff_checkpoint_id = None
         app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
             scopes=["rally-staff"]
@@ -651,12 +630,9 @@ class TestAllEvaluationsAPI:
             )
         assert resp.status_code == 403
 
-    async def test_all_evaluations_staff_restricted_to_own_checkpoint(
+    def test_all_evaluations_staff_restricted_to_own_checkpoint(
         self, pg_session, pg_client, as_admin
     ):
-        from app.api.auth import api_nei_auth
-        from app.tests.conftest import _fake_auth_data
-
         _team, _activity, _result_id = await _seed_result(
             pg_session, pg_client, as_admin
         )
