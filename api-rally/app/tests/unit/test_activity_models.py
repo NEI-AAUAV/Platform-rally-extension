@@ -1,6 +1,8 @@
 """Unit tests for GeneralActivity (app.models.activities.general) — pure
 logic, no DB needed.
 """
+import pytest
+
 from app.models.activities.general import GeneralActivity
 
 
@@ -25,7 +27,7 @@ def test_calculate_score_clamps_below_minimum() -> None:
 
     score = activity.calculate_score({"assigned_points": 5})
 
-    assert score == 10.0
+    assert score == pytest.approx(10.0)
 
 
 def test_calculate_score_clamps_above_maximum() -> None:
@@ -33,7 +35,7 @@ def test_calculate_score_clamps_above_maximum() -> None:
 
     score = activity.calculate_score({"assigned_points": 75})
 
-    assert score == 50.0
+    assert score == pytest.approx(50.0)
 
 
 async def test_validate_result_missing_assigned_points_is_invalid() -> None:

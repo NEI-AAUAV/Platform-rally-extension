@@ -18,13 +18,13 @@ def test_split_comma_list_passes_through_non_str():
 
 
 def test_assemble_cors_origins_splits_comma_string():
-    result = Settings.assemble_cors_origins("http://a.com, http://b.com")
-    assert result == ["http://a.com", "http://b.com"]
+    result = Settings.assemble_cors_origins("https://a.com, https://b.com")
+    assert result == ["https://a.com", "https://b.com"]
 
 
 def test_assemble_cors_origins_passes_through_list():
-    result = Settings.assemble_cors_origins(["http://a.com"])
-    assert result == ["http://a.com"]
+    result = Settings.assemble_cors_origins(["https://a.com"])
+    assert result == ["https://a.com"]
 
 
 def test_assemble_cors_origins_rejects_other_types():
