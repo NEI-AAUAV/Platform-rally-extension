@@ -392,7 +392,6 @@ class TestCheckpointProgressCalculation:
         """Completed checkpoint 2 must not count if checkpoint 1 is incomplete
         (teams must complete in order) -- loop breaks instead of continuing."""
         await _make_event(pg_session)
-        cp1 = await _make_checkpoint(pg_session, order=1)
         cp2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
         a2 = await _make_activity(pg_session, cp2.id)
@@ -608,7 +607,6 @@ class TestCheckinAndAdvanceExceptionPaths:
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)
         cp1 = await _make_checkpoint(pg_session, order=1)
-        cp2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
 
@@ -617,7 +615,6 @@ class TestCheckinAndAdvanceExceptionPaths:
         from app.crud.crud_rally_settings import rally_settings
         from datetime import datetime, timezone, timedelta
 
-        settings_obj = await rally_settings.get_or_create(pg_session)
         event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
         event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
         pg_session.add(event)
