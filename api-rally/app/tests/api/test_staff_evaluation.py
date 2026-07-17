@@ -585,7 +585,7 @@ class TestUpdateTeamActivityEvaluationAPI:
     async def test_update_result_wrong_team_or_activity(
         self, pg_session, pg_client, as_admin
     ):
-        team_obj, activity_obj, result_id = await _seed_result(
+        _, activity_obj, result_id = await _seed_result(
             pg_session, pg_client, as_admin
         )
         other_team = await _make_team(pg_session, "OtherTeam")
