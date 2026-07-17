@@ -145,7 +145,7 @@ class TestBrandingUploads:
         with patch(
             "app.api.api_v1.rally_settings.validate_and_store",
             new=AsyncMock(return_value="https://r2/banner-1.png"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image") as delete_mock:
+        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image"):
             pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
         with patch(
