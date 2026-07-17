@@ -98,7 +98,7 @@ class TestGetOrCreate:
         """A settings row whose home_layout/ticker_items are empty (legacy
         row created before those columns existed) gets self-healed to the
         full default set on next read."""
-        event = await _make_event(pg_session)
+        await _make_event(pg_session)
         settings = await rally_settings.get_or_create(pg_session)
         settings.home_layout = []
         settings.ticker_items = []
