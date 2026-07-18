@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BadgeDefinitionResponse } from '@/client';
 import BadgeAdminTab from '@/pages/admin/components/BadgeAdminTab';
 
 const { mockUseBadgeDefinitions, mockUpdateMutate, mockRemoveMutate } = vi.hoisted(() => ({
@@ -25,7 +26,7 @@ vi.mock('@/lib/badges', () => ({
 }));
 
 vi.mock('@/pages/admin/components/BadgeForm', () => ({
-  default: ({ editing, onDone }: any) => (
+  default: ({ editing, onDone }: { editing: BadgeDefinitionResponse | null; onDone: () => void }) => (
     <div data-testid="badge-form">
       <span>{editing ? `editing-${editing.id}` : 'new'}</span>
       <button onClick={onDone}>done-form</button>
@@ -37,7 +38,7 @@ vi.mock('@/pages/admin/components/ManualAwardPanel', () => ({
   default: () => <div data-testid="manual-award-panel" />,
 }));
 
-const badge = (overrides: Partial<any> = {}) => ({
+const badge = (overrides: Partial<BadgeDefinitionResponse> = {}): BadgeDefinitionResponse => ({
   id: 1,
   name: 'Explorer',
   code: 'EXPLORER',
@@ -49,7 +50,7 @@ const badge = (overrides: Partial<any> = {}) => ({
   color: '#111',
   glyph: '🏅',
   ...overrides,
-});
+} as BadgeDefinitionResponse);
 
 describe('BadgeAdminTab', () => {
   beforeEach(() => {
