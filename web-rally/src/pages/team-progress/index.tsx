@@ -52,7 +52,7 @@ export default function TeamProgress() {
     );
   }
 
-  const showMap = settings?.show_checkpoint_map !== false;
+  const showMap = settings?.show_checkpoint_map ?? true;
 
   return (
     <div className="duration-500 animate-in fade-in">
