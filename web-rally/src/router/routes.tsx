@@ -47,7 +47,7 @@ const profileRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/profile")),
 });
 
-const teamsRedirectRoute = createRoute({
+export const teamsRedirectRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/teams",
   component: () => <Navigate to="/scoreboard" replace />,
