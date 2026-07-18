@@ -42,7 +42,7 @@ export default function DeferredJudgedForm({
     try {
       await setTeamPhotoFromResult({
         path: { result_id: resultId },
-        body: { body: { image_url: url } },
+        body: { image_url: url },
       });
       toast.success("Foto definida como foto da equipa.");
     } catch {

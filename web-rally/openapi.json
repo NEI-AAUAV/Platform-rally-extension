@@ -2609,23 +2609,6 @@
         "summary": "Get My Checkpoint",
         "description": "Get the checkpoint assigned to the current staff member",
         "operationId": "get_my_checkpoint",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2633,16 +2616,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DetailedCheckPoint"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2663,23 +2636,6 @@
         "summary": "Get Teams At My Checkpoint",
         "description": "Get all teams at the staff member's assigned checkpoint",
         "operationId": "get_teams_at_my_checkpoint",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2692,16 +2648,6 @@
                   },
                   "type": "array",
                   "title": "Response Get Teams At My Checkpoint"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2738,23 +2684,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2835,7 +2764,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_evaluate_team_activity"
+                "$ref": "#/components/schemas/ActivityResultEvaluation"
               }
             }
           }
@@ -2911,7 +2840,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_update_team_activity_evaluation"
+                "$ref": "#/components/schemas/ActivityResultUpdate"
               }
             }
           }
@@ -2964,23 +2893,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3056,23 +2968,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3549,23 +3444,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DetailedUser"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Curr User"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3606,7 +3484,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_staff_check_in"
+                "$ref": "#/components/schemas/StaffCheckinRequest"
               }
             }
           },
@@ -5228,7 +5106,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_set_team_photo_from_result"
+                "$ref": "#/components/schemas/SetTeamPhotoRequest"
               }
             }
           }
@@ -6746,16 +6624,6 @@
             "type": "array",
             "title": "Images",
             "default": []
-          },
-          "curr_user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DetailedUser"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "type": "object",
@@ -6801,72 +6669,6 @@
         ],
         "title": "Body_create_checkpoint_media"
       },
-      "Body_evaluate_team_activity": {
-        "properties": {
-          "result_in": {
-            "$ref": "#/components/schemas/ActivityResultEvaluation"
-          },
-          "curr_user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DetailedUser"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "result_in"
-        ],
-        "title": "Body_evaluate_team_activity"
-      },
-      "Body_set_team_photo_from_result": {
-        "properties": {
-          "body": {
-            "$ref": "#/components/schemas/SetTeamPhotoRequest"
-          },
-          "curr_user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DetailedUser"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "body"
-        ],
-        "title": "Body_set_team_photo_from_result"
-      },
-      "Body_staff_check_in": {
-        "properties": {
-          "body": {
-            "$ref": "#/components/schemas/StaffCheckinRequest"
-          },
-          "curr_user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DetailedUser"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "body"
-        ],
-        "title": "Body_staff_check_in"
-      },
       "Body_update_checkpoint_media": {
         "properties": {
           "caption": {
@@ -6906,28 +6708,6 @@
         },
         "type": "object",
         "title": "Body_update_checkpoint_media"
-      },
-      "Body_update_team_activity_evaluation": {
-        "properties": {
-          "result_in": {
-            "$ref": "#/components/schemas/ActivityResultUpdate"
-          },
-          "curr_user": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DetailedUser"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "result_in"
-        ],
-        "title": "Body_update_team_activity_evaluation"
       },
       "Body_upload_badge_icon": {
         "properties": {
@@ -7664,89 +7444,6 @@
           "members"
         ],
         "title": "DetailedTeam"
-      },
-      "DetailedUser": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "team_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Team Id"
-          },
-          "is_captain": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Captain",
-            "default": false
-          },
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "disabled": {
-            "type": "boolean",
-            "title": "Disabled"
-          },
-          "staff_checkpoint_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Staff Checkpoint Id"
-          },
-          "guide_checkpoint_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Guide Checkpoint Id"
-          },
-          "scopes": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scopes",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id",
-          "disabled"
-        ],
-        "title": "DetailedUser"
       },
       "DynamicAwardCreate": {
         "properties": {
