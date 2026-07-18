@@ -64,4 +64,56 @@ describe('useAuthSync', () => {
     expect(h.clearSession).not.toHaveBeenCalled()
     expect(h.setSession).not.toHaveBeenCalled()
   })
+
+  it('handles a 401 by clearing queries/session and redirecting to the IdP', async () => {
+    const signinRedirect = vi.fn()
+    const cancelQueries = vi.fn()
+    const clear = vi.fn()
+    vi.doMock('@tanstack/react-query', () => ({
+      useQueryClient: () => ({ cancelQueries, clear }),
+    }))
+    vi.resetModules()
+    const { useAuthSync: freshUseAuthSync } = await import('@/auth/useAuthSync')
+
+    h.auth.current = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      signinRedirect,
+    }
+    renderHook(() => freshUseAuthSync())
+
+    const registeredHandler = h.setOnUnauthorized.mock.calls.at(-1)?.[0] as () => Promise<void>
+    expect(registeredHandler).toBeInstanceOf(Function)
+
+    await registeredHandler()
+
+    expect(cancelQueries).toHaveBeenCalled()
+    expect(clear).toHaveBeenCalled()
+    expect(h.clearSession).toHaveBeenCalled()
+    expect(signinRedirect).toHaveBeenCalled()
+    expect(sessionStorage.getItem('rally_auth_return_url')).toBe(
+      globalThis.location.pathname + globalThis.location.search,
+    )
+
+    // Calling again while a redirect is already in flight should be a no-op.
+    signinRedirect.mockClear()
+    await registeredHandler()
+    expect(signinRedirect).not.toHaveBeenCalled()
+
+    vi.doUnmock('@tanstack/react-query')
+  })
+
+  it('resets the 401 guard once the user re-authenticates', () => {
+    h.auth.current = {
+      isAuthenticated: true,
+      isLoading: false,
+      user: {
+        expired: false,
+        access_token: 'tok-456',
+        profile: { sub: 'uuid-2', name: 'Bob', email: 'b@x.pt', groups: [] },
+      },
+    }
+    expect(() => renderHook(() => useAuthSync())).not.toThrow()
+  })
 })

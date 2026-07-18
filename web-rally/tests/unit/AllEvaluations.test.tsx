@@ -89,6 +89,40 @@ describe('AllEvaluations', () => {
     expect(screen.getByText('vs Equipa #5')).toBeInTheDocument();
   });
 
+  it('renders TeamVsActivity lose result badge without opponent id', () => {
+    const loseEval = {
+      ...baseEvaluation,
+      id: 5,
+      activity: { ...baseEvaluation.activity, activity_type: 'TeamVsActivity' },
+      result_data: { result: 'lose' },
+    };
+    render(<AllEvaluations evaluations={[loseEval]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
+    expect(screen.getByText('✗ Lost')).toBeInTheDocument();
+    expect(screen.queryByText(/vs Equipa/)).not.toBeInTheDocument();
+  });
+
+  it('renders TeamVsActivity draw badge with fallback badge class', () => {
+    const drawEval = {
+      ...baseEvaluation,
+      id: 6,
+      activity: { ...baseEvaluation.activity, activity_type: 'TeamVsActivity' },
+      result_data: { result: 'draw' },
+    };
+    render(<AllEvaluations evaluations={[drawEval]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
+    expect(screen.getByText('= Draw')).toBeInTheDocument();
+  });
+
+  it('collapses an expanded evaluation when toggled again', () => {
+    render(<AllEvaluations evaluations={[baseEvaluation]} />);
+    const toggle = screen.getByRole('button', { name: /Sprint/ });
+    fireEvent.click(toggle);
+    expect(screen.getByText('✓ Completed')).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(screen.queryByText('✓ Completed')).not.toBeInTheDocument();
+  });
+
   it('renders BooleanActivity success/failed badge', () => {
     const boolEval = {
       ...baseEvaluation,

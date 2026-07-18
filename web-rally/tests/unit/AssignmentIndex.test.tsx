@@ -41,6 +41,34 @@ vi.mock('@/client', () => ({
   updateCheckpointAssignment: (...args: unknown[]) => mockUpdateCheckpointAssignment(...args),
 }));
 
+vi.mock('@/pages/assignment/components', async () => {
+  const actual = await vi.importActual<typeof import('@/pages/assignment/components')>(
+    '@/pages/assignment/components',
+  );
+  return {
+    ...actual,
+    StaffAssignmentList: ({
+      assignments,
+      onUpdateAssignment,
+    }: {
+      assignments: { user_id: number }[];
+      onUpdateAssignment: (userId: number, checkpointId: number) => void;
+    }) =>
+      assignments.length === 0 ? (
+        <div>Nenhuma atribuição de staff encontrada.</div>
+      ) : (
+        <div>
+          {assignments.map((a) => (
+            <div key={a.user_id}>
+              {a.user_id === 5 && 'Bob'}
+              <button onClick={() => onUpdateAssignment(a.user_id, 0)}>Remover atribuição</button>
+            </div>
+          ))}
+        </div>
+      ),
+  };
+});
+
 describe('Assignment index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -86,5 +114,43 @@ describe('Assignment index', () => {
     renderWithClient(<Assignment embedded />);
     expect(screen.queryByText('Atribuição de postos')).not.toBeInTheDocument();
     expect(screen.getByText('Nenhuma atribuição de staff encontrada.')).toBeInTheDocument();
+  });
+
+  it('triggers mutation and refetches assignments on successful update', async () => {
+    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true });
+    mockGetStaffAssignments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          user_id: 5,
+          user_name: 'Bob',
+          user_email: null,
+          checkpoint_id: null,
+          checkpoint_name: null,
+        },
+      ],
+    });
+    mockUpdateCheckpointAssignment.mockResolvedValue({ data: { id: 1 } });
+
+    renderWithClient(<Assignment />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob')).toBeInTheDocument();
+    });
+
+    const removeButton = screen.getByText('Remover atribuição');
+    const { default: userEvent } = await import('@testing-library/user-event');
+    await userEvent.setup().click(removeButton);
+
+    await waitFor(() => {
+      expect(mockUpdateCheckpointAssignment).toHaveBeenCalledWith({
+        path: { user_id: 5 },
+        body: { checkpoint_id: null },
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockGetStaffAssignments).toHaveBeenCalledTimes(2);
+    });
   });
 });

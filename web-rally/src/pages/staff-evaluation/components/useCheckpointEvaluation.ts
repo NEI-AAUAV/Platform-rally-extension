@@ -279,11 +279,10 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         extra_shots: resultData?.extra_shots ?? 0,
         penalties: resultData?.penalties ?? {},
       };
-
       try {
         const { data } = await evaluateTeamActivity({
           path: { team_id: teamId, activity_id: activityId },
-          body: payload,
+          body: { result_in: payload },
           headers: { "Idempotency-Key": idempotencyKey },
         });
         return data;
