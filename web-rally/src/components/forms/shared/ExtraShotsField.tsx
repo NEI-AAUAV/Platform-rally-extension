@@ -1,3 +1,5 @@
+import type { ChangeEvent } from 'react';
+
 interface ExtraShotsFieldProps {
   idPrefix: string;
   extraShots: number;
@@ -14,6 +16,11 @@ export default function ExtraShotsField({
   maxExtraShotsPerMember,
 }: Readonly<ExtraShotsFieldProps>) {
   const inputId = `${idPrefix}-extra-shots`;
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const parsed = Number.parseInt(e.target.value, 10);
+    onChange(Number.isNaN(parsed) ? 0 : parsed);
+  };
+
   return (
     <div>
       <label htmlFor={inputId} className="mb-2 block text-sm font-medium text-foreground">
@@ -25,7 +32,7 @@ export default function ExtraShotsField({
         min="0"
         max={maxExtraShots}
         value={extraShots}
-        onChange={(e) => onChange(Number.parseInt(e.target.value, 10) || 0)}
+        onChange={handleChange}
         className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         placeholder="Extra shots taken"
       />
