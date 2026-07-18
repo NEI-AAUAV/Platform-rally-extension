@@ -95,7 +95,8 @@ describe("useScoreboardStream", () => {
   it("closes the connection when the stream errors", () => {
     renderHook(() => useScoreboardStream([["teams"]]), { wrapper });
     const source = FakeEventSource.instances[0];
-    source?.onerror?.(new Event("error"));
+    const onerror = source?.onerror;
+    onerror?.call(source as unknown as EventSource, new Event("error"));
     expect(source?.closed).toBe(true);
   });
 
