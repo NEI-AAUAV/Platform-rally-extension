@@ -22,4 +22,4 @@ export const oidcConfig: AuthProviderProps = {
     // Strip the OIDC response params from the URL after a successful sign-in.
     globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
   },
-};
+} as unknown as AuthProviderProps;
