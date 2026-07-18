@@ -102,18 +102,19 @@ async def get_staff_with_checkpoint_access(
     
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
-        from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        logger.info(f"Checking staff assignment for user_id={curr_user.id}")
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
-        if not staff_assignment or not staff_assignment.checkpoint_id:
-            logger.warning(f"No staff assignment found for user_id={curr_user.id}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff user must be assigned to a checkpoint"
-            )
-        # Add checkpoint_id to user for easy access
-        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-        logger.info(f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}")
+        if not curr_user.staff_checkpoint_id:
+            from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+            logger.info(f"Checking staff assignment for user_id={curr_user.id}")
+            staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
+            if not staff_assignment or not staff_assignment.checkpoint_id:
+                logger.warning(f"No staff assignment found for user_id={curr_user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Staff user must be assigned to a checkpoint"
+                )
+            # Add checkpoint_id to user for easy access
+            curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+            logger.info(f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}")
     
     logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
     return curr_user
