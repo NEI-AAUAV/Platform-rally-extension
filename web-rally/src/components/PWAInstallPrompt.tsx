@@ -33,7 +33,7 @@ export default function PWAInstallPrompt() {
     if (!deferredPrompt) return;
 
     // Show the install prompt
-    deferredPrompt.prompt();
+    await deferredPrompt.prompt();
 
     // Wait for the user to respond to the prompt
     await deferredPrompt.userChoice;

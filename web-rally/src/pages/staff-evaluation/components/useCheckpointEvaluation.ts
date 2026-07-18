@@ -311,7 +311,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       // Invalidate + actively refetch so the UI reflects the new evaluation
       // status immediately instead of waiting for the next mount/focus event.
       const invalidations = [
-        queryClient.invalidateQueries({ queryKey: ["teamActivities"], refetchType: "active" }),
+        queryClient.invalidateQueries({queryKey: ["teamActivities"], refetchType: "active"}),
         queryClient.invalidateQueries({
           queryKey: ["teamEvaluationStatus"],
           refetchType: "active",

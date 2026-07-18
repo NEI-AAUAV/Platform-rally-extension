@@ -47,7 +47,7 @@ export function useAuthSync() {
       "rally_auth_return_url",
       globalThis.location.pathname + globalThis.location.search,
     );
-    auth.signinRedirect();
+    await auth.signinRedirect();
   }, [auth, queryClient, clearSession]);
 
   useEffect(() => {
