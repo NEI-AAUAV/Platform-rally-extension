@@ -2609,6 +2609,23 @@
         "summary": "Get My Checkpoint",
         "description": "Get the checkpoint assigned to the current staff member",
         "operationId": "get_my_checkpoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2616,6 +2633,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DetailedCheckPoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2636,6 +2663,23 @@
         "summary": "Get Teams At My Checkpoint",
         "description": "Get all teams at the staff member's assigned checkpoint",
         "operationId": "get_teams_at_my_checkpoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2648,6 +2692,16 @@
                   },
                   "type": "array",
                   "title": "Response Get Teams At My Checkpoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2684,6 +2738,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2716,7 +2787,7 @@
           "Staff Evaluation"
         ],
         "summary": "Evaluate Team Activity",
-        "description": "Evaluate a team's performance in an activity.\n\nAccepts an optional ``Idempotency-Key`` header. When present, a retry of the\nsame logical submit (same key + payload) replays the stored response instead\nof re-scoring; a reused key with a different payload is rejected with 409.\nSubmits without a key behave exactly as before.",
+        "description": "Evaluate a team's performance in an activity",
         "operationId": "evaluate_team_activity",
         "security": [
           {
@@ -2741,22 +2812,6 @@
               "type": "integer",
               "title": "Activity Id"
             }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
           }
         ],
         "requestBody": {
@@ -2764,7 +2819,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ActivityResultEvaluation"
+                "$ref": "#/components/schemas/Body_evaluate_team_activity"
               }
             }
           }
@@ -2840,7 +2895,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ActivityResultUpdate"
+                "$ref": "#/components/schemas/Body_update_team_activity_evaluation"
               }
             }
           }
@@ -2869,65 +2924,13 @@
         }
       }
     },
-    "/api/rally/v1/staff/evaluations/{result_id}/history": {
-      "get": {
-        "tags": [
-          "Staff Evaluation"
-        ],
-        "summary": "Get Evaluation History",
-        "description": "Audit trail for a single result: every edit and contest, newest first.\n\nManager/admin only \u2014 staff can score but the trail (who overrode whom) is a\ndispute-resolution tool for organizers.",
-        "operationId": "get_evaluation_history",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Result Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EvaluationHistoryEntry"
-                  },
-                  "title": "Response Get Evaluation History"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/rally/v1/staff/all-evaluations": {
       "get": {
         "tags": [
           "Staff Evaluation"
         ],
         "summary": "Get All Evaluations",
-        "description": "Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)",
+        "description": "Get all evaluations - accessible by managers only",
         "operationId": "get_all_evaluations",
         "security": [
           {
@@ -3444,6 +3447,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3484,7 +3504,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StaffCheckinRequest"
+                "$ref": "#/components/schemas/Body_staff_check_in"
               }
             }
           },
@@ -5106,7 +5126,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetTeamPhotoRequest"
+                "$ref": "#/components/schemas/Body_set_team_photo_from_result"
               }
             }
           }
@@ -6624,6 +6644,16 @@
             "type": "array",
             "title": "Images",
             "default": []
+          },
+          "curr_user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetailedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6669,6 +6699,72 @@
         ],
         "title": "Body_create_checkpoint_media"
       },
+      "Body_evaluate_team_activity": {
+        "properties": {
+          "result_in": {
+            "$ref": "#/components/schemas/ActivityResultEvaluation"
+          },
+          "curr_user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetailedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_in"
+        ],
+        "title": "Body_evaluate_team_activity"
+      },
+      "Body_set_team_photo_from_result": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/SetTeamPhotoRequest"
+          },
+          "curr_user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetailedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "Body_set_team_photo_from_result"
+      },
+      "Body_staff_check_in": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/StaffCheckinRequest"
+          },
+          "curr_user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetailedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "Body_staff_check_in"
+      },
       "Body_update_checkpoint_media": {
         "properties": {
           "caption": {
@@ -6708,6 +6804,28 @@
         },
         "type": "object",
         "title": "Body_update_checkpoint_media"
+      },
+      "Body_update_team_activity_evaluation": {
+        "properties": {
+          "result_in": {
+            "$ref": "#/components/schemas/ActivityResultUpdate"
+          },
+          "curr_user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetailedUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_in"
+        ],
+        "title": "Body_update_team_activity_evaluation"
       },
       "Body_upload_badge_icon": {
         "properties": {
@@ -7444,6 +7562,89 @@
           "members"
         ],
         "title": "DetailedTeam"
+      },
+      "DetailedUser": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "is_captain": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Captain",
+            "default": false
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled"
+          },
+          "staff_checkpoint_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Checkpoint Id"
+          },
+          "guide_checkpoint_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Checkpoint Id"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "disabled"
+        ],
+        "title": "DetailedUser"
       },
       "DynamicAwardCreate": {
         "properties": {

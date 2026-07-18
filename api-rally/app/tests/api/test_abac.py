@@ -201,26 +201,30 @@ class TestABACDependencies:
                     resource=Resource.TEAM
                 )
 
-    def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
+    @pytest.mark.asyncio
+    async def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
         """Test staff user with checkpoint access"""
         mock_db = AsyncMock()
         with patch('app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id') as mock_get_assignment:
+            # get_by_user_id is an async function, so mock_get_assignment is an AsyncMock.
+            # Its return value when awaited should be the mock assignment.
             mock_get_assignment.return_value = Mock(checkpoint_id=1)
-
-            result = get_staff_with_checkpoint_access(
+ 
+            result = await get_staff_with_checkpoint_access(
                 auth=mock_staff_auth_data,
                 curr_user=mock_staff_user,
                 db=mock_db
             )
-
+ 
             assert result == mock_staff_user
-
-    def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
+ 
+    @pytest.mark.asyncio
+    async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
         mock_db = AsyncMock()
-
+ 
         with pytest.raises(HTTPException):
-            get_staff_with_checkpoint_access(
+            await get_staff_with_checkpoint_access(
                 auth=mock_auth_data,
                 curr_user=mock_user,
                 db=mock_db

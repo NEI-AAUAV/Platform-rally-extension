@@ -5,9 +5,10 @@ This module provides FastAPI dependencies that enforce ABAC policies
 for Rally checkpoint and team management.
 """
 
-from typing import Optional
+from typing import Optional, Callable
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
@@ -16,7 +17,8 @@ from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission, 
-    get_accessible_checkpoints, check_permission
+    get_accessible_checkpoints, check_permission,
+    _AllCheckpoints
 )
 from app.api.deps import is_admin
 
@@ -27,6 +29,8 @@ __all__ = [
     "require_checkpoint_view_permission",
     "require_checkpoint_management_permission",
     "require_team_management_permission",
+    "require_view_team_members_permission",
+    "require",
     "validate_checkpoint_access",
     "validate_settings_update_access",
     "require_permission",
@@ -35,10 +39,31 @@ __all__ = [
 ]
 
 
-def get_staff_with_checkpoint_access(
+def require(action: Action, resource: Resource) -> Callable[..., None]:
+    """FastAPI dependency factory enforcing an ABAC permission before the route body runs.
+
+    Use for endpoints whose permission needs no per-request context kwargs
+    (e.g. checkpoint_id/team_id). Endpoints that need such context keep calling
+    require_permission(...) explicitly inside the body.
+
+    Usage:
+        @router.get(...)
+        def handler(_: None = Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY))):
+            ...
+    """
+    def dependency(
+        current_user: DetailedUser = Depends(deps.get_current_user),
+        auth: AuthData = Depends(api_nei_auth),
+    ) -> None:
+        require_permission(current_user, auth, action, resource)
+
+    return dependency
+
+
+async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: Optional[DetailedUser] = None,
-    db: Session = Depends(deps.get_db)
+    db: AsyncSession = Depends(deps.get_db)
 ) -> DetailedUser:
     """
     Get staff user with ABAC checkpoint access validation
@@ -70,7 +95,7 @@ def get_staff_with_checkpoint_access(
         except Exception as e:
             logger.error(f"Failed to create DetailedUser from auth: {e}")
             # Fallback: attempt to load from local User if schema changes
-            user = db.get(User, auth.sub)
+            user = await db.get(User, auth.sub)
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -93,7 +118,7 @@ def get_staff_with_checkpoint_access(
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
         from app.crud.crud_rally_staff_assignment import rally_staff_assignment
         logger.info(f"Checking staff assignment for user_id={auth.sub}")
-        staff_assignment = rally_staff_assignment.get_by_user_id(db, auth.sub)
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
         if not staff_assignment or not staff_assignment.checkpoint_id:
             logger.warning(f"No staff assignment found for user_id={auth.sub}")
             raise HTTPException(
@@ -106,14 +131,14 @@ def get_staff_with_checkpoint_access(
     
     logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
     return curr_user
-
-
-def require_checkpoint_score_permission(
+ 
+ 
+async def require_checkpoint_score_permission(
     checkpoint_id: int,
     team_id: int,
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> None:
     """
     Require permission to add checkpoint scores
@@ -129,7 +154,7 @@ def require_checkpoint_score_permission(
         from app import crud
         
         # Get team to check their progress
-        team = crud.team.get(db=db, id=team_id)
+        team = await crud.team.get(db=db, id=team_id)
         if not team:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -137,7 +162,7 @@ def require_checkpoint_score_permission(
             )
         
         # Get checkpoint to check its order
-        checkpoint = crud.checkpoint.get(db=db, id=checkpoint_id)
+        checkpoint = await crud.checkpoint.get(db=db, id=checkpoint_id)
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -218,6 +243,28 @@ def require_team_management_permission(
     )
 
 
+def require_view_team_members_permission(
+    auth: AuthData = Depends(api_nei_auth),
+    curr_user: DetailedUser = Depends(deps.get_participant)
+) -> None:
+    """
+    Require permission to view team members
+    """
+    # If using API key/admin access, bypass further checks
+    if is_admin(auth.scopes):
+        return
+
+    # Staff can view team members if they have a checkpoint assignment
+    # Pass staff's checkpoint_id as context for ABAC evaluation
+    require_permission(
+        user=curr_user,
+        auth=auth,
+        action=Action.VIEW_TEAM_MEMBERS,
+        resource=Resource.TEAM,
+        checkpoint_id=curr_user.staff_checkpoint_id
+    )
+
+
 def validate_checkpoint_access(
     user: DetailedUser,
     auth: AuthData,
@@ -240,7 +287,7 @@ def validate_checkpoint_access(
     accessible_checkpoints = get_accessible_checkpoints(user, auth)
     
     # Admins and managers can access any checkpoint
-    if not accessible_checkpoints:  # Empty list means all checkpoints
+    if isinstance(accessible_checkpoints, _AllCheckpoints):
         if requested_checkpoint_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
