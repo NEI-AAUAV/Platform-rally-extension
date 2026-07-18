@@ -38,7 +38,6 @@ export default defineConfig({
         '**/build/**',
         '**/node_modules/**',
       ],
-      all: true,
     },
     watch: false,
   },
