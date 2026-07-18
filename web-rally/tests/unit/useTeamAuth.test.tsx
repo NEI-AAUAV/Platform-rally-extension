@@ -211,22 +211,24 @@ describe('useTeamAuth', () => {
   describe('addMember', () => {
     it('throws when no team_id is present', async () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+      const capturedError: { current: unknown } = { current: null }
 
-      await expect(
-        act(async () => {
-          await new Promise<void>((resolve, reject) => {
-            result.current.addMember(
-              { name: 'New Member' },
-              {
-                onError: (err) => {
-                  reject(err)
-                },
-                onSuccess: () => resolve(),
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          result.current.addMember(
+            { name: 'New Member' },
+            {
+              onError: (err) => {
+                capturedError.current = err
+                resolve()
               },
-            )
-          })
-        }),
-      ).rejects.toThrow('Team ID not found')
+              onSuccess: () => resolve(),
+            },
+          )
+        })
+      })
+
+      expect((capturedError.current as Error)?.message).toBe('Team ID not found')
     })
 
     it('adds a member and invalidates team query when authenticated', async () => {
@@ -260,17 +262,21 @@ describe('useTeamAuth', () => {
   describe('removeMember', () => {
     it('throws when no team_id is present', async () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+      const capturedError: { current: unknown } = { current: null }
 
-      await expect(
-        act(async () => {
-          await new Promise<void>((resolve, reject) => {
-            result.current.removeMember(1, {
-              onError: (err) => reject(err),
-              onSuccess: () => resolve(),
-            })
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          result.current.removeMember(1, {
+            onError: (err) => {
+              capturedError.current = err
+              resolve()
+            },
+            onSuccess: () => resolve(),
           })
-        }),
-      ).rejects.toThrow('Team ID not found')
+        })
+      })
+
+      expect((capturedError.current as Error)?.message).toBe('Team ID not found')
     })
 
     it('removes a member and invalidates team query when authenticated', async () => {

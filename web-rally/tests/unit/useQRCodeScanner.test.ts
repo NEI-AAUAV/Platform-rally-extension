@@ -157,6 +157,112 @@ describe('useQRCodeScanner', () => {
     })
   })
 
+  describe('scan guard clauses', () => {
+    it('does nothing when video ref is null', () => {
+      const videoRef = { current: null } as unknown as React.RefObject<HTMLVideoElement>
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+
+      expect(mockCanvasContext.drawImage).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when canvas ref is null', () => {
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: null } as unknown as React.RefObject<HTMLCanvasElement>
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+
+      expect(mockCanvasContext.drawImage).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when canvas has no 2d context', () => {
+      const noCtxCanvas = {
+        getContext: vi.fn(() => null),
+        width: 0,
+        height: 0,
+      } as unknown as HTMLCanvasElement
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: noCtxCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+
+      expect(onDetectCode).not.toHaveBeenCalled()
+    })
+
+    it('continues scanning via requestAnimationFrame when no QR code is found', () => {
+      vi.mocked(jsQR).mockReturnValue(null)
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+
+      const callsBefore = (window.requestAnimationFrame as ReturnType<typeof vi.fn>).mock.calls.length
+
+      act(() => {
+        if (rafCallback) rafCallback(0)
+      })
+
+      expect(onDetectCode).not.toHaveBeenCalled()
+      expect(result.current.isActive).toBe(true)
+      expect((window.requestAnimationFrame as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(
+        callsBefore,
+      )
+    })
+
+    it('sets an error and does not throw when drawImage throws', () => {
+      const throwingContext = {
+        drawImage: vi.fn(() => {
+          throw new Error('boom')
+        }),
+        getImageData: vi.fn(),
+      } as unknown as CanvasRenderingContext2D
+      const throwingCanvas = {
+        getContext: vi.fn(() => throwingContext),
+        width: 0,
+        height: 0,
+      } as unknown as HTMLCanvasElement
+      const videoRef = { current: mockVideoElement }
+      const canvasRef = { current: throwingCanvas }
+      const onDetectCode = vi.fn()
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+
+      act(() => {
+        if (rafCallback) rafCallback(0)
+      })
+
+      expect(result.current.error).toBe('Erro ao processar câmara')
+      consoleSpy.mockRestore()
+    })
+  })
+
   describe('cleanup', () => {
     it('should cancel animation frame on unmount', async () => {
       const videoRef = { current: mockVideoElement }

@@ -10,7 +10,7 @@ vi.mock("idb-keyval", () => ({
   },
 }));
 
-import { enqueue, list, drain, markSynced } from "./evalQueue";
+import { enqueue, list, drain, markSynced, markFailed } from "./evalQueue";
 
 const base = {
   teamId: 1,
@@ -64,5 +64,26 @@ describe("evalQueue", () => {
     await enqueue({ idempotencyKey: "k1", ...base });
     await markSynced("k1");
     expect(await list()).toHaveLength(0);
+  });
+
+  it("returns an empty list when nothing has ever been stored", async () => {
+    expect(await list()).toEqual([]);
+  });
+
+  it("markFailed marks the matching entry as failed without dropping it", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    await markFailed("k1");
+    const items = await list();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.status).toBe("failed");
+  });
+
+  it("markSynced only drops the matching entry, leaving others untouched", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    await enqueue({ idempotencyKey: "k2", ...base });
+    await markSynced("k1");
+    const items = await list();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.idempotencyKey).toBe("k2");
   });
 });

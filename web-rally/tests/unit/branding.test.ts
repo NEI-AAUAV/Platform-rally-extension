@@ -115,4 +115,36 @@ describe('ensureContrastByLightening', () => {
     const result = ensureContrastByLightening('#333333', '#000000', 2);
     expect(result).toMatch(/^#[0-9a-f]{6}$/i);
   });
+
+  test('handles a grayscale color (max === min in HSL conversion)', () => {
+    // #333333 -> r=g=b, exercises the max===min branch (s=0) in hexToHsl.
+    const result = ensureContrastByLightening('#333333', '#000000');
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  test('handles hues where green channel is dominant (max === g branch)', () => {
+    // Pure-ish green low-lightness color where g > r and g > b.
+    const result = ensureContrastByLightening('#1a4d1a', '#050505');
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  test('handles hues where blue channel is dominant (default/max === b branch)', () => {
+    const result = ensureContrastByLightening('#1a1a4d', '#050505');
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  test('lightens across the full hue wheel to exercise all hslToHex branches', () => {
+    // Colors spanning red, yellow, green, cyan, blue, magenta hues, all with
+    // low contrast against a dark background so lightening kicks in.
+    const swatches = ['#4d1a1a', '#4d4d1a', '#1a4d1a', '#1a4d4d', '#1a1a4d', '#4d1a4d'];
+    for (const hex of swatches) {
+      const result = ensureContrastByLightening(hex, '#050505');
+      expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  test('accepts a 3-digit hex color', () => {
+    const result = ensureContrastByLightening('#333', '#000000');
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+  });
 });

@@ -83,4 +83,32 @@ describe("useScoreboardStream", () => {
     unmount();
     expect(source?.closed).toBe(true);
   });
+
+  it("does not connect when EventSource is unavailable in the environment", () => {
+    vi.unstubAllGlobals();
+    // @ts-expect-error simulate an environment without EventSource support
+    delete globalThis.EventSource;
+    renderHook(() => useScoreboardStream([["teams"]]), { wrapper });
+    expect(FakeEventSource.instances).toHaveLength(0);
+  });
+
+  it("closes the connection when the stream errors", () => {
+    renderHook(() => useScoreboardStream([["teams"]]), { wrapper });
+    const source = FakeEventSource.instances[0];
+    source?.onerror?.(new Event("error"));
+    expect(source?.closed).toBe(true);
+  });
+
+  it("uses the default queryKeys param when none is provided", () => {
+    const client = new QueryClient();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const customWrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useScoreboardStream(), { wrapper: customWrapper });
+    FakeEventSource.instances[0]?.emit("refresh");
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["teams"] });
+  });
 });

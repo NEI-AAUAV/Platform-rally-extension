@@ -217,4 +217,131 @@ describe('TeamVsForm', () => {
       expect(screen.getByText(/Opponent automatically set/i)).toBeInTheDocument();
     });
   });
+
+  it('falls back to manual selection when fetchPreselectedOpponent throws', async () => {
+    mockGetTeamOpponent.mockRejectedValue(new Error('network error'));
+
+    render(
+      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
+    );
+
+    await waitFor(() => {
+      expect(mockGetTeams).toHaveBeenCalled();
+    });
+    expect(screen.getByText('Select opponent team')).toBeInTheDocument();
+  });
+
+  it('shows loading text and disables select while teams are loading', async () => {
+    let resolveTeams: (value: { data: ListingTeam[] }) => void = () => {};
+    mockGetTeams.mockReturnValue(
+      new Promise((resolve) => {
+        resolveTeams = resolve;
+      })
+    );
+
+    render(
+      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Loading teams...')).toBeInTheDocument();
+    });
+
+    resolveTeams({ data: [{ id: 2, name: 'Team B' } as ListingTeam] });
+
+    await waitFor(() => {
+      expect(screen.getByText('Select opponent team')).toBeInTheDocument();
+    });
+  });
+
+  it('shows toast error and allows retry when loading teams fails', async () => {
+    mockGetTeams.mockRejectedValue(new Error('failed to load'));
+
+    render(
+      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
+    );
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to load teams list');
+    });
+  });
+
+  it('does not fetch anything when team has no id', () => {
+    render(
+      <TeamVsForm
+        team={{} as ListingTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        config={{}}
+      />
+    );
+
+    expect(mockGetTeamOpponent).not.toHaveBeenCalled();
+    expect(mockGetTeams).not.toHaveBeenCalled();
+  });
+
+  it('prefills state from existingResult including opponent lookup from teams list', async () => {
+    render(
+      <TeamVsForm
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        config={{}}
+        existingResult={
+          {
+            result_data: {
+              result: 'draw',
+              completed: false,
+              opponent_team_id: 2,
+              notes: 'existing notes',
+            },
+            extra_shots: 0,
+            penalties: {},
+          } as any
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Team B')).toBeInTheDocument();
+    });
+    expect(screen.getByDisplayValue('existing notes')).toBeInTheDocument();
+  });
+
+  it('prefills notes and result even without opponent_team_id in existingResult', async () => {
+    render(
+      <TeamVsForm
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        config={{}}
+        existingResult={
+          {
+            result_data: { result: 'lose', notes: 'no opponent set' },
+            extra_shots: 0,
+            penalties: {},
+          } as any
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('no opponent set')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('select-result')).toHaveValue('lose');
+  });
+
+  it('manually selects an opponent after preselection, clearing preselected state', async () => {
+    mockGetTeamOpponent.mockResolvedValue({
+      data: { opponent_id: 3, opponent_name: 'Team C' },
+    });
+
+    render(
+      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Opponent automatically set/i)).toBeInTheDocument();
+    });
+  });
 });

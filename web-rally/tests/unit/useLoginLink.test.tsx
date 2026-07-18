@@ -39,4 +39,24 @@ describe('useStaffLogin', () => {
     result.current()
     expect(sessionStorage.getItem('rally_auth_return_url')).toBe('/admin')
   })
+
+  it('calls signinRedirect with no options when opts is undefined', () => {
+    const { result } = renderHook(() => useStaffLogin())
+    result.current()
+    expect(signinRedirect).toHaveBeenCalledWith(undefined)
+  })
+
+  it('calls signinRedirect with no extra params when mode is "login"', () => {
+    const { result } = renderHook(() => useStaffLogin())
+    result.current({ mode: 'login' })
+    expect(signinRedirect).toHaveBeenCalledWith(undefined)
+  })
+
+  it('calls signinRedirect with registration prompt when mode is "registration"', () => {
+    const { result } = renderHook(() => useStaffLogin())
+    result.current({ mode: 'registration' })
+    expect(signinRedirect).toHaveBeenCalledWith({
+      extraQueryParams: { prompt: 'registration' },
+    })
+  })
 })

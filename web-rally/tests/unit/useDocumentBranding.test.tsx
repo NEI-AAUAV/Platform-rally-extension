@@ -75,4 +75,30 @@ describe('useDocumentBranding', () => {
     renderHook(() => useDocumentBranding(make({ accentColor: '' })));
     expect(document.documentElement.style.getPropertyValue('--rally-accent')).toBe('');
   });
+
+  test('does not throw when theme-color meta tag is absent', () => {
+    document.head.innerHTML = '';
+    expect(() =>
+      renderHook(() => useDocumentBranding(make({ themeColor: '#00ff00' }))),
+    ).not.toThrow();
+  });
+
+  test('does not throw when og:image meta tag is absent but custom favicon is set', () => {
+    document.head.innerHTML = `<link rel="apple-touch-icon" href="/default-apple.png" />`;
+    expect(() =>
+      renderHook(() =>
+        useDocumentBranding(make({ customFaviconUrl: 'https://r2/fav.png' })),
+      ),
+    ).not.toThrow();
+    const apple = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    expect(apple?.getAttribute('href')).toBe('https://r2/fav.png');
+  });
+
+  test('skips setting soft/glow vars when accent is a non-hex value', () => {
+    renderHook(() => useDocumentBranding(make({ accentColor: 'not-a-hex' })));
+    const style = document.documentElement.style;
+    expect(style.getPropertyValue('--rally-accent')).toBe('not-a-hex');
+    expect(style.getPropertyValue('--rally-accent-soft')).toBe('');
+    expect(style.getPropertyValue('--rally-glow')).toBe('');
+  });
 });
