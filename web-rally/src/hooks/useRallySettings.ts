@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type RallySettingsResponse, viewRallySettingsPublic } from "@/client/index";
+import { type RallySettingsResponse, viewRallySettingsPublic } from "@/client";
 
 /**
  * Hook to fetch Rally settings from the public settings endpoint
