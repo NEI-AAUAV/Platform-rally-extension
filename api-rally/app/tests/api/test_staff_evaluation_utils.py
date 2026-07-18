@@ -392,8 +392,10 @@ class TestCheckpointProgressCalculation:
         """Completed checkpoint 2 must not count if checkpoint 1 is incomplete
         (teams must complete in order) -- loop breaks instead of continuing."""
         await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
         cp2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
+        await _make_activity(pg_session, cp1.id)
         a2 = await _make_activity(pg_session, cp2.id)
         from app.models.activity import ActivityResult
 
@@ -607,6 +609,7 @@ class TestCheckinAndAdvanceExceptionPaths:
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)
         cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
 
