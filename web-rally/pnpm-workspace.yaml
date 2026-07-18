@@ -3,3 +3,4 @@
 packages: []
 overrides:
   glob: '>=10.5.0'
+  postcss: '>=8.5.19'
