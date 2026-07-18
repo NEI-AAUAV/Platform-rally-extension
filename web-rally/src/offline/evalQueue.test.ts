@@ -29,8 +29,8 @@ describe("evalQueue", () => {
     await enqueue({ idempotencyKey: "k1", ...base });
     const items = await list();
     expect(items).toHaveLength(1);
-    expect(items[0].status).toBe("pending");
-    expect(items[0].idempotencyKey).toBe("k1");
+    expect(items[0]?.status).toBe("pending");
+    expect(items[0]?.idempotencyKey).toBe("k1");
   });
 
   it("dedupes by idempotency key", async () => {
@@ -57,7 +57,7 @@ describe("evalQueue", () => {
     });
     const items = await list();
     expect(items).toHaveLength(1);
-    expect(items[0].status).toBe("failed");
+    expect(items[0]?.status).toBe("failed");
   });
 
   it("markSynced drops an entry", async () => {
