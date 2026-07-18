@@ -9,7 +9,7 @@ import {
 } from '@/pages/admin/components/useCheckpointManagement';
 
 vi.mock('@/pages/admin/components/CheckpointLocationPicker', () => ({
-  default: ({ latitude, longitude, onChange }: any) => (
+  default: ({ latitude, longitude, onChange }: { latitude: number | null; longitude: number | null; onChange: (lat: number, lng: number) => void }) => (
     <div data-testid="location-picker">
       <span>
         {latitude ?? 'null'},{longitude ?? 'null'}
