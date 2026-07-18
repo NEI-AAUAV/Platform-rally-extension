@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { getTeamOpponent, getTeams } from "@/client";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
@@ -155,7 +155,7 @@ export default function TeamVsForm({
   const hasTieredScoring = basePoints > 0 || completionPoints > 0;
   const previewTotal = basePoints + (completed ? completionPoints : 0) + outcomePoints;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateExtraShots()) return;

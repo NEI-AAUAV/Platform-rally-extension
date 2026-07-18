@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Star, X } from "lucide-react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { useAppToast } from "@/hooks/use-toast";
@@ -68,7 +68,7 @@ export default function DeferredJudgedForm({
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (files.length === 0) {
       toast.error("Adiciona pelo menos uma foto antes de submeter.");

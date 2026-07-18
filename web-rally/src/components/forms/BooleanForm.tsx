@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
 import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
@@ -37,7 +37,7 @@ export default function BooleanForm({
     }
   }, [existingResult]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateExtraShots()) return;

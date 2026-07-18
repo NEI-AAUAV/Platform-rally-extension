@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export default function TeamLogin() {
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent, codeToUse?: string) => {
+  const handleSubmit = async (e?: FormEvent, codeToUse?: string) => {
     if (e) e.preventDefault();
 
     const code = codeToUse || accessCode.trim();

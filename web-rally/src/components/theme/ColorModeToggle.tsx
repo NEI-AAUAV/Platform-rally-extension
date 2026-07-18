@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type MouseEvent } from "react";
 import { useColorMode } from "./useColorMode";
 
 interface ColorModeToggleProps {
@@ -52,7 +52,7 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
   );
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       if (pull > 0) return;
       toggle({ clientX: e.clientX, clientY: e.clientY });
     },

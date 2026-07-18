@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Lightbulb, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
 import {
@@ -82,7 +82,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
     onError: (error) => toast.error(getErrorMessage(error, "Erro ao remover")),
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadPhoto.mutate(file);
   };
