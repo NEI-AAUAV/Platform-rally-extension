@@ -50,11 +50,7 @@ export async function refreshTeamToken(): Promise<string | undefined> {
       headers: { Authorization: `Bearer ${teamToken}` },
     });
     if (!response.ok) {
-      if (process.env.NODE_ENV === "development") {
-        console.error(`Team token refresh failed: ${response.status}`);
-      }
-      clearTeamAuth();
-      return undefined;
+      throw new Error(`Team token refresh failed: ${response.status}`);
     }
     const { access_token } = (await response.json()) as { access_token: string };
     setTeamToken(access_token);
