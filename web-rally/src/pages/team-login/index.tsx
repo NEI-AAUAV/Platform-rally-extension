@@ -47,8 +47,7 @@ export default function TeamLogin() {
   const extractCodeFromUrl = (url: string): string | null => {
     try {
       const urlObj = new URL(url);
-      const code = urlObj.searchParams.get("code");
-      return code;
+      return urlObj.searchParams.get("code");
     } catch {
       // If it's just the code format (XXXX-XXXX), return as is
       if (/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(url)) {
