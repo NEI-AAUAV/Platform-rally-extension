@@ -139,7 +139,7 @@ export default function CheckpointTeamEvaluation() {
             )}
           </div>
 
-          {checkpointTeams?.length === 0 ? (
+          {teams.length === 0 ? (
             <div className="rally-surface flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
               <Users className="h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Nenhuma equipa disponível</p>

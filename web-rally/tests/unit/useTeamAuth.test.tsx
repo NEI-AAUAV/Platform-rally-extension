@@ -6,7 +6,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useTeamAuth from '@/hooks/useTeamAuth'
-import { teamLogin } from '@/client'
+import { teamLogin, getTeamById, addTeamMember, removeTeamMember } from '@/client'
 
 const TEAM_TOKEN_KEY = 'rally_team_token'
 const TEAM_DATA_KEY = 'rally_team_data'
@@ -181,6 +181,119 @@ describe('useTeamAuth', () => {
       localStorage.setItem(TEAM_TOKEN_KEY, 'my-token')
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
       expect(result.current.getToken()).toBe('my-token')
+    })
+  })
+
+  describe('team query', () => {
+    it('fetches team data when authenticated and team_id present', async () => {
+      const tokenData = { team_id: 42, team_name: 'Team Alpha' }
+      localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
+      localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      vi.mocked(getTeamById).mockResolvedValueOnce({
+        data: { id: 42, name: 'Team Alpha', members: [] },
+      } as never)
+
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+
+      await waitFor(() => expect(result.current.team).toBeDefined())
+
+      expect(getTeamById).toHaveBeenCalledWith({ path: { id: 42 } })
+      expect(result.current.team).toEqual({ id: 42, name: 'Team Alpha', members: [] })
+    })
+
+    it('does not fetch team data when not authenticated', async () => {
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
+      expect(getTeamById).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('addMember', () => {
+    it('throws when no team_id is present', async () => {
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+
+      await expect(
+        act(async () => {
+          await new Promise<void>((resolve, reject) => {
+            result.current.addMember(
+              { name: 'New Member' },
+              {
+                onError: (err) => {
+                  reject(err)
+                },
+                onSuccess: () => resolve(),
+              },
+            )
+          })
+        }),
+      ).rejects.toThrow('Team ID not found')
+    })
+
+    it('adds a member and invalidates team query when authenticated', async () => {
+      const tokenData = { team_id: 7, team_name: 'Team Beta' }
+      localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
+      localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      vi.mocked(getTeamById).mockResolvedValue({
+        data: { id: 7, name: 'Team Beta', members: [] },
+      } as never)
+      vi.mocked(addTeamMember).mockResolvedValueOnce({ data: {} } as never)
+
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+      await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          result.current.addMember(
+            { name: 'New Member', email: 'a@b.com' },
+            { onSuccess: () => resolve() },
+          )
+        })
+      })
+
+      expect(addTeamMember).toHaveBeenCalledWith({
+        path: { team_id: 7 },
+        body: { name: 'New Member', email: 'a@b.com' },
+      })
+    })
+  })
+
+  describe('removeMember', () => {
+    it('throws when no team_id is present', async () => {
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+
+      await expect(
+        act(async () => {
+          await new Promise<void>((resolve, reject) => {
+            result.current.removeMember(1, {
+              onError: (err) => reject(err),
+              onSuccess: () => resolve(),
+            })
+          })
+        }),
+      ).rejects.toThrow('Team ID not found')
+    })
+
+    it('removes a member and invalidates team query when authenticated', async () => {
+      const tokenData = { team_id: 9, team_name: 'Team Gamma' }
+      localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
+      localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      vi.mocked(getTeamById).mockResolvedValue({
+        data: { id: 9, name: 'Team Gamma', members: [] },
+      } as never)
+      vi.mocked(removeTeamMember).mockResolvedValueOnce({ data: {} } as never)
+
+      const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
+      await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          result.current.removeMember(3, { onSuccess: () => resolve() })
+        })
+      })
+
+      expect(removeTeamMember).toHaveBeenCalledWith({
+        path: { team_id: 9, user_id: 3 },
+      })
     })
   })
 })
