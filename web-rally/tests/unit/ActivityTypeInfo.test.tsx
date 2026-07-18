@@ -26,7 +26,28 @@ describe('ActivityTypeInfo', () => {
     fireEvent.click(screen.getByRole('button'));
     const closeButtons = screen.getAllByRole('button');
     const xButton = closeButtons.find((b) => b.querySelector('svg')?.classList.contains('lucide-x'));
-    if (xButton) fireEvent.click(xButton);
+    expect(xButton).toBeDefined();
+    fireEvent.click(xButton!);
+    expect(screen.queryByText('Tipos de Atividades - Sistema de Pontuação')).not.toBeInTheDocument();
+  });
+
+  it('renders the info icon again while the modal is open', () => {
+    render(<ActivityTypeInfo />);
+    fireEvent.click(screen.getByRole('button'));
+    const infoButtons = screen
+      .getAllByRole('button')
+      .filter((b) => b.querySelector('svg')?.classList.contains('lucide-info'));
+    expect(infoButtons.length).toBeGreaterThan(0);
+  });
+
+  it('shows the chevron-up icon and collapses to chevron-down for other expanded types', () => {
+    render(<ActivityTypeInfo />);
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByText('Sim/Não'));
+    expect(screen.getByText('Pontuação binária')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Equipa vs Equipa'));
+    expect(screen.getByText('Baseado no resultado')).toBeInTheDocument();
+    expect(screen.queryByText('Pontuação binária')).not.toBeInTheDocument();
   });
 
   it('expands and collapses an activity type entry', () => {

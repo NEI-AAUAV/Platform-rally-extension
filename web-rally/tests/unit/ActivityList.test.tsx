@@ -291,6 +291,28 @@ describe('ActivityList', () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
+  it('does not reorder when dropping with no dragged activity set', () => {
+    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
+
+    const { container } = render(
+      <ActivityList
+        activities={[activityA]}
+        checkpoints={checkpoints}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onReorder={onReorder}
+      />,
+    );
+
+    const item = container.querySelector('[draggable="true"]') as Element;
+    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+    // Drop without a preceding dragStart
+    fireEvent.drop(item, { dataTransfer });
+
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
   it('clears the dragged state on drag end', () => {
     const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
 
