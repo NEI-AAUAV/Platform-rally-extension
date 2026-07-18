@@ -1,5 +1,6 @@
-import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, LabelList, Rectangle, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { ListingTeam } from "@/client";
+import type { RectangleProps } from "recharts";
 
 interface PointsDistributionChartProps {
   readonly teams: ListingTeam[];
@@ -17,6 +18,11 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
     .sort((a, b) => b.total - a.total)
     .map((team) => ({ name: team.name, total: team.total, leader: team.classification === 1 }));
 
+  function renderBarShape(props: RectangleProps & { payload?: { leader: boolean } }) {
+    const { payload, ...rest } = props;
+    return <Rectangle {...rest} fill={payload?.leader ? ACCENT : ACCENT_SOFT} />;
+  }
+
   return (
     <div className="rally-brutal bg-muted p-4">
       <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
@@ -33,10 +39,7 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
             axisLine={false}
             tickLine={false}
           />
-          <Bar dataKey="total" radius={[0, 2, 2, 0]} isAnimationActive>
-            {data.map((entry) => (
-              <Cell key={entry.name} fill={entry.leader ? ACCENT : ACCENT_SOFT} />
-            ))}
+          <Bar dataKey="total" radius={[0, 2, 2, 0]} isAnimationActive shape={renderBarShape}>
             <LabelList
               dataKey="total"
               position="right"
