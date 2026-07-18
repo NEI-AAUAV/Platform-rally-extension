@@ -1,3 +1,4 @@
+
 """Tests for badge catalogue admin endpoints (A3), against real Postgres."""
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
