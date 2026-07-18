@@ -1,6 +1,6 @@
 import * as RallyTheme from "./rally";
 import type { CSSProperties } from "react";
-  import type { ThemeConfig } from "./rally";
+import type { ThemeConfig } from "./rally";
 
 type ThemeButtonComponent = typeof RallyTheme.RallyButton;
 type ThemeBadgeComponent = typeof RallyTheme.RallyBadge;
