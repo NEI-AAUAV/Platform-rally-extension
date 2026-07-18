@@ -62,7 +62,7 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
 
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: Optional[DetailedUser] = None,
+    curr_user: DetailedUser = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db)
 ) -> DetailedUser:
     """
