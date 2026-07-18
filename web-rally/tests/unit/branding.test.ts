@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
   resolveBranding,
   hexToRgba,
+  ensureContrastByLightening,
   FALLBACK_EVENT_NAME,
   FALLBACK_EVENT_SUBTITLE,
   FALLBACK_BANNER_SRC,
@@ -91,5 +92,27 @@ describe('hexToRgba', () => {
     expect(hexToRgba('#12', 0.5)).toBeNull();
     expect(hexToRgba('rgb(0,0,0)', 0.5)).toBeNull();
     expect(hexToRgba('', 0.5)).toBeNull();
+  });
+});
+
+describe('ensureContrastByLightening', () => {
+  test('returns the original hex unchanged when it is not parseable', () => {
+    expect(ensureContrastByLightening('not-a-hex', '#000000')).toBe('not-a-hex');
+  });
+
+  test('returns the original hex when it already meets the contrast target', () => {
+    expect(ensureContrastByLightening('#ffffff', '#000000')).toBe('#ffffff');
+  });
+
+  test('lightens a low-contrast color until it meets the default 4.5:1 target', () => {
+    // NEI green-ish dark color on a dark background needs lightening.
+    const result = ensureContrastByLightening('#1a3d1a', '#0b0b0b');
+    expect(result).not.toBe('#1a3d1a');
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  test('respects a custom minContrast threshold', () => {
+    const result = ensureContrastByLightening('#333333', '#000000', 2);
+    expect(result).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });

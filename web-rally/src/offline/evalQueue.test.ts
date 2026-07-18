@@ -15,7 +15,11 @@ import { enqueue, list, drain, markSynced } from "./evalQueue";
 const base = {
   teamId: 1,
   activityId: 2,
-  resultData: { result_data: { assigned_points: 50 } },
+  resultData: {
+    result_data: { assigned_points: 50 },
+    extra_shots: 0,
+    penalties: {},
+  },
 };
 
 describe("evalQueue", () => {
