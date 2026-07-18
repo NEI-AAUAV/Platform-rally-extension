@@ -282,7 +282,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       try {
         const { data } = await evaluateTeamActivity({
           path: { team_id: teamId, activity_id: activityId },
-          body: { result_in: payload },
+          body: payload,
           headers: { "Idempotency-Key": idempotencyKey },
         });
         return data;

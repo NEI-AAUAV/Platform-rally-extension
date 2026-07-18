@@ -19,7 +19,7 @@ async function replayOne(item: QueuedEval): Promise<void> {
   };
   await evaluateTeamActivity({
     path: { team_id: item.teamId, activity_id: item.activityId },
-    body: { result_in: payload },
+    body: payload,
     headers: { "Idempotency-Key": item.idempotencyKey },
   });
 }
