@@ -76,33 +76,19 @@ async def get_staff_with_checkpoint_access(
     from loguru import logger
     
     # Log authentication data for debugging
-    logger.info(f"get_staff_with_checkpoint_access: auth.sub={auth.sub}, scopes={auth.scopes}")
+    logger.info(f"get_staff_with_checkpoint_access: auth.oidc_sub={auth.oidc_sub}, scopes={auth.scopes}")
     
     # Initialize curr_user if not provided
     if curr_user is None:
-        # Build user from auth claims to avoid hard dependency on local User row
-        # Local User may not exist for staff-only access; we still want staff to work.
-        try:
-            curr_user = DetailedUser(
-                id=auth.sub,
-                name=f"{auth.name} {auth.surname}".strip() or auth.email,
-                disabled=False,
-                staff_checkpoint_id=None,
-                team_id=None,
-                is_captain=False,
+        from app import crud
+        user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
             )
-            logger.info(f"Created DetailedUser from auth: id={curr_user.id}, name={curr_user.name}")
-        except Exception as e:
-            logger.error(f"Failed to create DetailedUser from auth: {e}")
-            # Fallback: attempt to load from local User if schema changes
-            user = await db.get(User, auth.sub)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
-                )
-            curr_user = DetailedUser.model_validate(user)
-            logger.info(f"Loaded DetailedUser from database: id={curr_user.id}, name={curr_user.name}")
+        curr_user = DetailedUser.model_validate(user)
+        logger.info(f"Loaded DetailedUser from database: id={curr_user.id}, name={curr_user.name}")
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
@@ -117,17 +103,17 @@ async def get_staff_with_checkpoint_access(
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
         from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-        logger.info(f"Checking staff assignment for user_id={auth.sub}")
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, auth.sub)
+        logger.info(f"Checking staff assignment for user_id={curr_user.id}")
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
         if not staff_assignment or not staff_assignment.checkpoint_id:
-            logger.warning(f"No staff assignment found for user_id={auth.sub}")
+            logger.warning(f"No staff assignment found for user_id={curr_user.id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Staff user must be assigned to a checkpoint"
             )
         # Add checkpoint_id to user for easy access
         curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-        logger.info(f"Staff user {auth.sub} assigned to checkpoint {staff_assignment.checkpoint_id}")
+        logger.info(f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}")
     
     logger.info(f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}")
     return curr_user

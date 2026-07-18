@@ -2787,7 +2787,7 @@
           "Staff Evaluation"
         ],
         "summary": "Evaluate Team Activity",
-        "description": "Evaluate a team's performance in an activity",
+        "description": "Evaluate a team's performance in an activity.\n\nAccepts an optional ``Idempotency-Key`` header. When present, a retry of the\nsame logical submit (same key + payload) replays the stored response instead\nof re-scoring; a reused key with a different payload is rejected with 409.\nSubmits without a key behave exactly as before.",
         "operationId": "evaluate_team_activity",
         "security": [
           {
@@ -2811,6 +2811,22 @@
             "schema": {
               "type": "integer",
               "title": "Activity Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -2924,13 +2940,82 @@
         }
       }
     },
+    "/api/rally/v1/staff/evaluations/{result_id}/history": {
+      "get": {
+        "tags": [
+          "Staff Evaluation"
+        ],
+        "summary": "Get Evaluation History",
+        "description": "Audit trail for a single result: every edit and contest, newest first.\n\nManager/admin only \u2014 staff can score but the trail (who overrode whom) is a\ndispute-resolution tool for organizers.",
+        "operationId": "get_evaluation_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EvaluationHistoryEntry"
+                  },
+                  "title": "Response Get Evaluation History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/staff/all-evaluations": {
       "get": {
         "tags": [
           "Staff Evaluation"
         ],
         "summary": "Get All Evaluations",
-        "description": "Get all evaluations - accessible by managers only",
+        "description": "Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)",
         "operationId": "get_all_evaluations",
         "security": [
           {
@@ -2971,6 +3056,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DetailedUser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Curr User"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
