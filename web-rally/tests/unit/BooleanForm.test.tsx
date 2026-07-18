@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import BooleanForm from '@/components/forms/BooleanForm';
 import type { Team } from '@/types/forms';
+import type { ActivityResultResponse } from '@/client';
 
 const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
   mockUseRallySettings: vi.fn(),
@@ -82,7 +83,7 @@ describe('BooleanForm', () => {
             result_data: { success: true, attempts: 5, notes: 'prior notes' },
             extra_shots: 2,
             penalties: { vomit: 1 },
-          } as any
+          } as unknown as ActivityResultResponse
         }
       />
     );
@@ -96,7 +97,7 @@ describe('BooleanForm', () => {
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
-        existingResult={{ result_data: {}, extra_shots: 999, penalties: {} } as any}
+        existingResult={{ result_data: {}, extra_shots: 999, penalties: {} } as unknown as ActivityResultResponse}
       />
     );
     fireEvent.submit(container.querySelector('form')!);
@@ -110,7 +111,7 @@ describe('BooleanForm', () => {
         team={mockTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
-        existingResult={{ result_data: {}, extra_shots: 0, penalties: {} } as any}
+        existingResult={{ result_data: {}, extra_shots: 0, penalties: {} } as unknown as ActivityResultResponse}
       />
     );
     expect(screen.getByRole('button', { name: /Update Evaluation/ })).toBeInTheDocument();
