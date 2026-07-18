@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { HOME_SECTION_LABELS, MAX_TICKER_ITEMS, type HomeSectionKey } from "@/lib/homeLayout";
+import React from "react";
 
 type HomeLayoutSettingsProps = Readonly<{
   className?: string;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Trophy, MapPin, Swords, Award, QrCode, HelpCircle, ChevronDown } from "lucide-react";
 import type { ComponentType } from "react";
 import useRallySettings from "@/hooks/useRallySettings";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Lock, Camera, Sparkles } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";

@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from "react";
+import React, { forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface RallyCardProps {

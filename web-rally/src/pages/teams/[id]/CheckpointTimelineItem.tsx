@@ -3,6 +3,7 @@ import { formatTime } from "@/utils/timeFormat";
 import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
+import React from "react";
 
 type CheckpointTimelineItemProps = Readonly<{
   team: DetailedTeam;

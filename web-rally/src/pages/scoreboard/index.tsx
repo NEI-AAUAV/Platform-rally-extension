@@ -10,6 +10,7 @@ import { getCheckpoints, getTeams, type ListingTeam, type RallySettingsResponse 
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import { useCountdown } from "@/pages/home/useCountdown";
+import React from "react";
 
 function NoticeCard({ title, body }: { readonly title: string; readonly body: React.ReactNode }) {
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MouseEvent } from "react";
+import React, { useCallback, useRef, useState, type MouseEvent } from "react";
 import { useColorMode } from "./useColorMode";
 
 interface ColorModeToggleProps {
