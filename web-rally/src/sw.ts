@@ -29,7 +29,7 @@ registerRoute(
   new NavigationRoute(
     async () => {
       const cached = await caches.match(`${BASE}index.html`);
-      return cached ?? fetch(`${BASE}index.html`);
+      return cached ?? await fetch(`${BASE}index.html`);
     },
     { denylist },
   ),

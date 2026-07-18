@@ -29,7 +29,7 @@ export default function TeamLogin() {
         try {
           await login(codeFromUrl.trim());
           toast.success("Login bem-sucedido!");
-          navigate({ to: "/team-progress" });
+          await navigate({to: "/team-progress"});
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
           toast.error(errorMessage);
@@ -85,7 +85,7 @@ export default function TeamLogin() {
     try {
       await login(code);
       toast.success("Login bem-sucedido!");
-      navigate({ to: "/team-progress" });
+      await navigate({to: "/team-progress"});
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
       toast.error(errorMessage);
