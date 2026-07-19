@@ -19,7 +19,6 @@ test.describe('Full-stack golden path', () => {
 
   test('team logs in with a real access code, checks in via GPS, staff evaluates, scoreboard updates', async ({
     page,
-    context,
   }) => {
     const rally = await seedRally();
 
