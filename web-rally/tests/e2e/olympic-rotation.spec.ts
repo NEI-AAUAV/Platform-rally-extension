@@ -45,7 +45,7 @@ test.describe('Olympic-event rotation schedule', () => {
   // Interaction/data test (button placement + admin sidebar layout), not a
   // visual one — the mobile project's narrower viewport just adds a
   // hamburger-menu overlay that intercepts these clicks, no extra signal.
-  test.beforeEach(({}, testInfo) => {
+  test.beforeEach((_args, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
   });
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { seedOidcSession, STAFF_GROUPS, ADMIN_GROUPS } from './helpers/session';
+import { seedOidcSession, STAFF_GROUPS } from './helpers/session';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';
 import type { RallySettingsResponse } from '@/client';
 
@@ -37,7 +37,6 @@ test.describe('Security / ABAC boundaries', () => {
 
   test('guide indication expected answers are never present in the public checkpoints payload', async ({
     page,
-    context,
   }) => {
     // The guide-only endpoint (checkpoint/{id}/guide-indications) carries
     // expected_answer; the public checkpoint list must not. Assert the public
