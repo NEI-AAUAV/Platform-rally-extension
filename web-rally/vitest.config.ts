@@ -10,7 +10,13 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: ['tests/e2e/**', '**/node_modules/**', '**/dist/**', '**/.{idea,git,cache,output,temp}/**'],
+    exclude: [
+      'tests/e2e/**',
+      'tests/e2e-fullstack/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.{idea,git,cache,output,temp}/**',
+    ],
     globals: true,
     environment: 'jsdom',
     // jsdom defaults to the opaque "about:blank" origin, where localStorage is
