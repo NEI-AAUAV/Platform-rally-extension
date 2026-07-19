@@ -45,7 +45,8 @@ test.describe('Olympic-event rotation schedule', () => {
   // Interaction/data test (button placement + admin sidebar layout), not a
   // visual one — the mobile project's narrower viewport just adds a
   // hamburger-menu overlay that intercepts these clicks, no extra signal.
-  test.beforeEach((_args, testInfo) => {
+  // eslint-disable-next-line no-empty-pattern -- Playwright requires object destructuring here
+  test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
   });
 
