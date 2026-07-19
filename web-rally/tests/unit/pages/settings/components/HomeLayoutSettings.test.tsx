@@ -264,8 +264,8 @@ describe('HomeLayoutSettings', () => {
       dragEndHandlers.length = 0;
       render(<Wrapper />);
       const [, tickerOnDragEnd] = dragEndHandlers;
-      const input1 = screen.getByLabelText('Item 1 da faixa de destaques');
-      const input2 = screen.getByLabelText('Item 2 da faixa de destaques');
+      const input1 = screen.getByLabelText<HTMLInputElement>('Item 1 da faixa de destaques');
+      const input2 = screen.getByLabelText<HTMLInputElement>('Item 2 da faixa de destaques');
       const idBefore1 = input1.value;
       const idBefore2 = input2.value;
 
@@ -281,7 +281,7 @@ describe('HomeLayoutSettings', () => {
       dragEndHandlers.length = 0;
       render(<Wrapper />);
       const [, tickerOnDragEnd] = dragEndHandlers;
-      const before = screen.getByLabelText('Item 1 da faixa de destaques').value;
+      const before = screen.getByLabelText<HTMLInputElement>('Item 1 da faixa de destaques').value;
 
       act(() => tickerOnDragEnd!(makeDragEndEvent('any-id', null)));
 
@@ -292,7 +292,7 @@ describe('HomeLayoutSettings', () => {
       dragEndHandlers.length = 0;
       render(<Wrapper />);
       const [, tickerOnDragEnd] = dragEndHandlers;
-      const before = screen.getByLabelText('Item 1 da faixa de destaques').value;
+      const before = screen.getByLabelText<HTMLInputElement>('Item 1 da faixa de destaques').value;
 
       act(() => tickerOnDragEnd!(makeDragEndEvent('same-id', 'same-id')));
 
