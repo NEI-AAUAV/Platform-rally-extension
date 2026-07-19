@@ -29,11 +29,11 @@ describe('EventStatsRibbon', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseCountdown.mockReturnValue({ phase: 'live' });
-    mockGetCheckpoints.mockResolvedValue([]);
+    mockGetCheckpoints.mockResolvedValue({ data: [] });
   });
 
   it('renders nothing when there are no teams', async () => {
-    mockGetTeams.mockResolvedValue([]);
+    mockGetTeams.mockResolvedValue({ data: [] });
     const { container } = renderWithClient(
       <EventStatsRibbon settings={null} checkpointsPublic={false} />,
     );
@@ -42,10 +42,12 @@ describe('EventStatsRibbon', () => {
   });
 
   it('renders team count, total points and phase when teams are present', async () => {
-    mockGetTeams.mockResolvedValue([
-      { id: 1, name: 'A', total: 40 },
-      { id: 2, name: 'B', total: 60 },
-    ]);
+    mockGetTeams.mockResolvedValue({
+      data: [
+        { id: 1, name: 'A', total: 40 },
+        { id: 2, name: 'B', total: 60 },
+      ],
+    });
     renderWithClient(<EventStatsRibbon settings={null} checkpointsPublic={false} />);
 
     expect(await screen.findByText('Equipas')).toBeInTheDocument();
@@ -57,8 +59,8 @@ describe('EventStatsRibbon', () => {
   });
 
   it('includes checkpoint count cell when checkpointsPublic is true', async () => {
-    mockGetTeams.mockResolvedValue([{ id: 1, name: 'A', total: 10 }]);
-    mockGetCheckpoints.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]);
+    mockGetTeams.mockResolvedValue({ data: [{ id: 1, name: 'A', total: 10 }] });
+    mockGetCheckpoints.mockResolvedValue({ data: [{ id: 1 }, { id: 2 }, { id: 3 }] });
     renderWithClient(<EventStatsRibbon settings={null} checkpointsPublic />);
 
     expect(await screen.findByText('3')).toBeInTheDocument();
@@ -66,7 +68,7 @@ describe('EventStatsRibbon', () => {
   });
 
   it('omits checkpoint count cell when checkpointsPublic is false', async () => {
-    mockGetTeams.mockResolvedValue([{ id: 1, name: 'A', total: 10 }]);
+    mockGetTeams.mockResolvedValue({ data: [{ id: 1, name: 'A', total: 10 }] });
     renderWithClient(<EventStatsRibbon settings={null} checkpointsPublic={false} />);
 
     await screen.findByText('Equipas');
@@ -75,7 +77,7 @@ describe('EventStatsRibbon', () => {
 
   it('falls back to em-dash for unknown phase', async () => {
     mockUseCountdown.mockReturnValue({ phase: 'unknown-phase' });
-    mockGetTeams.mockResolvedValue([{ id: 1, name: 'A', total: 10 }]);
+    mockGetTeams.mockResolvedValue({ data: [{ id: 1, name: 'A', total: 10 }] });
     renderWithClient(<EventStatsRibbon settings={null} checkpointsPublic={false} />);
 
     await screen.findByText('Equipas');
@@ -83,7 +85,7 @@ describe('EventStatsRibbon', () => {
   });
 
   it('renders "Por começar" and "Terminada" phase labels', async () => {
-    mockGetTeams.mockResolvedValue([{ id: 1, name: 'A', total: 10 }]);
+    mockGetTeams.mockResolvedValue({ data: [{ id: 1, name: 'A', total: 10 }] });
     mockUseCountdown.mockReturnValue({ phase: 'pre' });
     const { rerender } = renderWithClient(
       <EventStatsRibbon settings={null} checkpointsPublic={false} />,
@@ -102,7 +104,9 @@ describe('EventStatsRibbon', () => {
   });
 
   it('handles teams without a total value by defaulting to 0', async () => {
-    mockGetTeams.mockResolvedValue([{ id: 1, name: 'A' }, { id: 2, name: 'B', total: 5 }]);
+    mockGetTeams.mockResolvedValue({
+      data: [{ id: 1, name: 'A' }, { id: 2, name: 'B', total: 5 }],
+    });
     renderWithClient(<EventStatsRibbon settings={null} checkpointsPublic={false} />);
 
     expect(await screen.findByText('5')).toBeInTheDocument();

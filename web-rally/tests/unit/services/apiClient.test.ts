@@ -47,13 +47,19 @@ describe('apiClient.ts', () => {
   })
 
   describe('ApiError', () => {
-    it('stores status and body, stringifying an object body for the message', async () => {
+    it('stores status and body, extracting the detail field for the message', async () => {
       const { ApiError } = await import('@/services/apiClient')
       const err = new ApiError(404, { detail: 'not found' })
       expect(err.name).toBe('ApiError')
       expect(err.status).toBe(404)
       expect(err.body).toEqual({ detail: 'not found' })
-      expect(err.message).toBe(JSON.stringify({ detail: 'not found' }))
+      expect(err.message).toBe('not found')
+    })
+
+    it('stringifies an object body without a string detail field', async () => {
+      const { ApiError } = await import('@/services/apiClient')
+      const err = new ApiError(422, { errors: ['bad'] })
+      expect(err.message).toBe(JSON.stringify({ errors: ['bad'] }))
     })
 
     it('uses a string body directly as the message', async () => {

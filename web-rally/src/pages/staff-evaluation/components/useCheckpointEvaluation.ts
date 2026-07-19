@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCheckpoints,
@@ -159,6 +159,11 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
   const [showTeamList, setShowTeamList] = useState(true);
   const [evaluationSummary, setEvaluationSummary] = useState<EvaluationSummary | null>(null);
   const [showWarningDialog, setShowWarningDialog] = useState(false);
+  // Synchronous re-entrancy guard for handleEvaluateActivity: mutation.isPending
+  // updates on the next render, which is too late to catch two clicks that land
+  // in the same synchronous burst (e.g. a fast double-click or a forced/
+  // programmatic second dispatch) — a plain ref flips immediately.
+  const isEvaluatingRef = useRef(false);
 
   // Get checkpoint details from the list of all checkpoints
   const { data: checkpoint } = useQuery<DetailedCheckPoint>({
@@ -359,13 +364,11 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
     activityId: number,
     resultData: ActivityResultData,
   ) => {
-    // Re-entrancy guard: evaluateActivityMutation.isPending only updates the
-    // submit button's `disabled` prop on the next render, so two clicks fired
-    // faster than a render cycle (or one dispatched programmatically) can both
-    // reach here with the button still enabled. Each call would otherwise mint
-    // its own idempotency key, so the server-side Idempotency-Key dedup can't
-    // catch it either — bail out here, synchronously, before that happens.
-    if (evaluateActivityMutation.isPending) return;
+    // Each call would otherwise mint its own idempotency key, so the
+    // server-side Idempotency-Key dedup can't catch a double-submit either —
+    // bail out synchronously before that happens.
+    if (isEvaluatingRef.current) return;
+    isEvaluatingRef.current = true;
 
     // Generate the idempotency key once per logical submit (here, not inside
     // mutationFn) so an offline-queue retry reuses the exact same key.
@@ -381,6 +384,8 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       // Error toast (or offline-queued notice) already shown via the mutation's
       // onError; swallow here so callers awaiting this (e.g. to close the form)
       // don't need a try/catch.
+    } finally {
+      isEvaluatingRef.current = false;
     }
   };
 
