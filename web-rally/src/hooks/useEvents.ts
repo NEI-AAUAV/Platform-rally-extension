@@ -20,7 +20,7 @@ export function useEventMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: EVENTS_KEY });
-    qc.invalidateQueries({ queryKey: ["rallySettings"] });
+    qc.invalidateQueries({ queryKey: ["rallySettings-public"] });
     qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
   };
 
@@ -37,7 +37,16 @@ export function useEventMutations() {
 
   const setCurrent = useMutation({
     mutationFn: (id: number) => EventsService.setCurrentEvent(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // Switching the current event changes the server-side data every
+      // other query implicitly scopes to (checkpoints, teams, activities,
+      // scoreboard) — without this, those stay cached from the previous
+      // event until their own staleTime/refetch trigger fires.
+      qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      qc.invalidateQueries({ queryKey: ["teams"] });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    },
   });
 
   return { create, update, setCurrent };
