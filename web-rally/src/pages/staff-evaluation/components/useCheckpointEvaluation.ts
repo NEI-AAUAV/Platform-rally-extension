@@ -359,6 +359,14 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
     activityId: number,
     resultData: ActivityResultData,
   ) => {
+    // Re-entrancy guard: evaluateActivityMutation.isPending only updates the
+    // submit button's `disabled` prop on the next render, so two clicks fired
+    // faster than a render cycle (or one dispatched programmatically) can both
+    // reach here with the button still enabled. Each call would otherwise mint
+    // its own idempotency key, so the server-side Idempotency-Key dedup can't
+    // catch it either — bail out here, synchronously, before that happens.
+    if (evaluateActivityMutation.isPending) return;
+
     // Generate the idempotency key once per logical submit (here, not inside
     // mutationFn) so an offline-queue retry reuses the exact same key.
     const idempotencyKey = crypto.randomUUID();
