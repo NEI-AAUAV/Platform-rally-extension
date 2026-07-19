@@ -70,8 +70,7 @@ export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
   const { tab: rawTab } = adminRoute.useSearch();
-  const activeTab: AdminTabId =
-    rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
+  const activeTab: AdminTabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
 
