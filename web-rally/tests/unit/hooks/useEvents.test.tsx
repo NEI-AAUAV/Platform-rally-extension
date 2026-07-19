@@ -72,7 +72,7 @@ describe("useEventMutations", () => {
 
     expect(EventsService.createEvent).toHaveBeenCalledWith({ name: "Rally 2026" });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["events"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["rallySettings"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["rallySettings-public"] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["rallySettings-admin"] });
   });
 
