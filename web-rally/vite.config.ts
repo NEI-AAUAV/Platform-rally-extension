@@ -38,4 +38,17 @@ export default defineConfig({
       ignored: ['**/.pnpm-store/**', '**/node_modules/**'],
     },
   },
+  // For the fullstack e2e project only: proxy /api to a real running
+  // api-rally instance (e.g. the docker-compose.smoke.yml stack) so the
+  // built app can talk to a real backend instead of Playwright route mocks.
+  preview: process.env.FULLSTACK_API_PROXY_TARGET
+    ? {
+        proxy: {
+          '/api': {
+            target: process.env.FULLSTACK_API_PROXY_TARGET,
+            changeOrigin: true,
+          },
+        },
+      }
+    : undefined,
 });

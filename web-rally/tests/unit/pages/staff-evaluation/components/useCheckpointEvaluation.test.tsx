@@ -133,4 +133,61 @@ describe('useCheckpointEvaluation', () => {
     });
     expect(mockEvaluateTeamActivity).toHaveBeenCalled();
   });
+
+  it('rethrows a non-ApiError, non-network error via onError toast', async () => {
+    const mockToastError = vi.fn();
+    mockUseAppToast.mockReturnValue({ success: vi.fn(), error: mockToastError });
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+    mockEvaluateTeamActivity.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
+
+    await act(async () => {
+      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalties: {} });
+    });
+
+    expect(mockEnqueue).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalled();
+  });
+
+  it('returns staff activities directly when staff endpoint succeeds and checkpoint matches', async () => {
+    mockUseUser.mockReturnValue({ isRallyAdmin: false });
+    mockGetTeamActivitiesForEvaluation.mockResolvedValue({
+      data: {
+        activities: [{ id: 10, evaluation_status: 'pending' }],
+        evaluation_summary: null,
+      },
+    });
+    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
+
+    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
+
+    act(() => result.current.selectTeam(matchingTeam));
+
+    await waitFor(() => expect(result.current.teamActivities).toEqual([
+      { id: 10, evaluation_status: 'pending' },
+    ]));
+    expect(mockGetTeamActivitiesForEvaluation).toHaveBeenCalled();
+  });
+
+  it('shows warning dialog when rally admin evaluates a team from a different checkpoint', async () => {
+    mockUseUser.mockReturnValue({ isRallyAdmin: true });
+    const mismatchedTeam = { id: 2, name: 'Team B', last_checkpoint_number: 0 } as any;
+    mockGetTeams.mockResolvedValue({ data: [mismatchedTeam] });
+    mockGetActivities.mockResolvedValue({ data: { activities: [] } });
+
+    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
+
+    act(() => result.current.selectTeam(mismatchedTeam));
+
+    await waitFor(() => expect(result.current.showWarningDialog).toBe(true));
+    expect(result.current.evaluationSummary).toMatchObject({
+      checkpoint_mismatch: true,
+      team_checkpoint: 0,
+      current_checkpoint: 2,
+    });
+  });
 });

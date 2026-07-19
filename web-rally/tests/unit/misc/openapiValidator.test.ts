@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { assertMatchesOpenApiSchema, findResponseSchema } from '../e2e/helpers/openapiValidator';
-import { MOCK_TEAM, MOCK_CHECKPOINT, MOCK_ACTIVITY_LIST, MOCK_RALLY_SETTINGS } from '../mocks/data';
+import { assertMatchesOpenApiSchema, findResponseSchema } from '../../e2e/helpers/openapiValidator';
+import { MOCK_TEAM, MOCK_CHECKPOINT, MOCK_ACTIVITY_LIST, MOCK_RALLY_SETTINGS } from '../../mocks/data';
 
 describe('assertMatchesOpenApiSchema', () => {
   it('accepts the team list mock as documented by openapi.json', () => {

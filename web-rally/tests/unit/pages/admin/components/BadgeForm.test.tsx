@@ -30,6 +30,31 @@ vi.mock('@/client', () => ({
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
 }));
 
+// Radix Select doesn't support jsdom pointer interactions well; replace with a
+// minimal native <select> so we can drive the trigger criteria selects in tests.
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string;
+    onValueChange: (value: string) => void;
+    children: React.ReactNode;
+  }) => (
+    <select value={value ?? ''} onChange={(e) => onValueChange(e.target.value)}>
+      <option value="" />
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
+}));
+
 vi.mock('@/hooks/useBadgeAdmin', () => ({
   useBadgeDefinitionMutations: () => ({
     create: {
@@ -282,6 +307,40 @@ describe('BadgeForm', () => {
     );
     await waitFor(() => expect(mockGetCheckpoints).toHaveBeenCalled());
     expect(screen.getByText('Posto (opcional — vazio = qualquer)')).toBeInTheDocument();
+  });
+
+  it('selects a specific activity for an activity-scoped trigger', async () => {
+    renderWithClient(
+      <BadgeForm
+        editing={badge({ is_auto: true, trigger_type: 'win_activity', criteria: {} })}
+        onDone={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText('Act A')).toBeInTheDocument());
+    const getSelect = () => screen.getAllByRole('combobox')[1] as HTMLSelectElement;
+
+    fireEvent.change(getSelect(), { target: { value: '1' } });
+    await waitFor(() => expect(getSelect()).toHaveValue('1'));
+
+    fireEvent.change(getSelect(), { target: { value: '__any__' } });
+    await waitFor(() => expect(getSelect()).toHaveValue('__any__'));
+  });
+
+  it('selects a specific checkpoint for a checkpoint-scoped trigger', async () => {
+    renderWithClient(
+      <BadgeForm
+        editing={badge({ is_auto: true, trigger_type: 'first_complete_checkpoint', criteria: {} })}
+        onDone={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText('CP A')).toBeInTheDocument());
+    const getSelect = () => screen.getAllByRole('combobox')[1] as HTMLSelectElement;
+
+    fireEvent.change(getSelect(), { target: { value: '1' } });
+    await waitFor(() => expect(getSelect()).toHaveValue('1'));
+
+    fireEvent.change(getSelect(), { target: { value: '__any__' } });
+    await waitFor(() => expect(getSelect()).toHaveValue('__any__'));
   });
 
   it('updates glyph and color inputs', () => {

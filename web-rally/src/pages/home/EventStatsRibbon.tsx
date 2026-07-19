@@ -32,13 +32,13 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
 
   const { data: teams } = useQuery({
     queryKey: ["teams"],
-    queryFn: async () => await getTeams(),
+    queryFn: async () => (await getTeams()).data,
     retry: false,
   });
 
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
-    queryFn: async () => await getCheckpoints(),
+    queryFn: async () => (await getCheckpoints()).data,
     retry: false,
     enabled: checkpointsPublic,
   });

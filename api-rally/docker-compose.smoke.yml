@@ -28,7 +28,6 @@ services:
       context: .
       dockerfile: Dockerfile
     working_dir: /api_rally
-    user: root
     volumes:
       - ./scripts:/api_rally/scripts:ro
     command: ["poetry", "run", "python", "scripts/smoke/fake_oidc_provider.py"]
@@ -44,7 +43,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    user: root
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +65,7 @@ services:
       EVENTS_FAIL_SILENTLY: "false"
       SELF_CHECKIN_ENABLED: "true"
     ports:
-      - "8003:8003"
+      - "${SMOKE_API_HOST_PORT:-8003}:8003"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')"]
       interval: 5s
@@ -80,7 +78,6 @@ services:
       context: .
       dockerfile: Dockerfile
     working_dir: /api_rally
-    user: root
     volumes:
       - ./scripts:/api_rally/scripts:ro
     command: ["poetry", "run", "python", "scripts/smoke/run_smoke.py"]
