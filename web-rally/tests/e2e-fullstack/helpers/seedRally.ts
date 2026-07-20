@@ -21,7 +21,13 @@ export async function seedRally(): Promise<SeededRally> {
   // corrupts state between retry attempts. Add a random component.
   const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const adminSub = `e2e-admin-${uniqueId}`;
-  const admin = await mintToken({ sub: adminSub, name: "E2E Admin", groups: ["admin"] });
+  const adminEmail = `${adminSub}@ua.pt`;
+  const admin = await mintToken({
+    sub: adminSub,
+    name: "E2E Admin",
+    groups: ["admin"],
+    email: adminEmail,
+  });
 
   // `order` must be unique per checkpoint; each call needs its own so
   // concurrent/repeated seeding within a test run doesn't collide. Uses
@@ -48,7 +54,7 @@ export async function seedRally(): Promise<SeededRally> {
   // already triggered.
   const [adminUser] = await apiCall<{ id: number; authentik_sub: string }[]>(
     "GET",
-    `/user/search?q=${encodeURIComponent(`${adminSub}@ua.pt`)}`,
+    `/user/search?q=${encodeURIComponent(adminEmail)}`,
     { token: admin.accessToken },
   );
   if (!adminUser?.id) {
