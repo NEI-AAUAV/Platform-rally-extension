@@ -140,7 +140,11 @@ async def get_team_activities_for_evaluation(
     # is_admin_or_manager bypass at line ~238) — resolve the team's current
     # checkpoint from its progress instead of requiring a staff assignment.
     if is_admin_or_manager(auth):
-        checkpoint_obj = await checkpoint.get_next(db, team_id=team_obj.id)
+        # The team's most recently reached checkpoint (order == len(times)) is
+        # where they currently stand and where staff evaluate them — not
+        # get_next()'s order+1, which is the checkpoint still ahead of them
+        # and 404s once the team has already checked into their last post.
+        checkpoint_obj = await checkpoint.get_by_order(db, order=team_checkpoint_number)
         if not checkpoint_obj:
             raise RallyNotFoundError("Checkpoint not found")
         resolved_checkpoint_id = checkpoint_obj.id
