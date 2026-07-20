@@ -139,7 +139,7 @@ export async function seedRally(): Promise<SeededRally> {
 
 /** Polls the API's OpenAPI docs endpoint until the backend is ready. */
 export async function waitForApi(timeoutMs = 60_000): Promise<void> {
-  const apiBaseUrl = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8103";
+  const apiBaseUrl = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
