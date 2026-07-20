@@ -129,8 +129,8 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   enable_versus: false,
   rally_start_time: new Date().toISOString(),
   rally_end_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
-  penalty_per_puke: 10,
-  penalty_per_not_drinking: 5,
+  penalty_per_puke: -10,
+  penalty_per_not_drinking: -5,
   bonus_per_extra_shot: 2,
   max_extra_shots_per_member: 3,
   checkpoint_order_matters: true,
@@ -139,10 +139,16 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   show_team_details: true,
   show_checkpoint_map: true,
   participant_view_enabled: true,
-  show_route_mode: 'all',
-  show_score_mode: 'all',
+  show_route_mode: 'complete',
+  show_score_mode: 'competitive',
   rally_theme: 'nei',
   public_access_enabled: true,
+  allow_photo_as_team_photo: true,
+  guide_mode_enabled: false,
+  guide_mode_active: false,
+  badges_enabled: true,
+  home_layout: [],
+  ticker_items: [],
 };
 
 // Mock JWT token for staff (for testing - properly formatted with valid sub)

@@ -266,13 +266,20 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           // A `<dialog open>` element sits in the browser's top layer and
           // remains hit-testable even when translated off-screen, so it was
           // silently intercepting clicks on whatever sat behind it whenever
-          // the drawer was "closed". Only set `open` while actually visible.
+          // the drawer was "closed". `open` alone isn't enough — the
+          // unconditional `flex` class overrides the UA stylesheet's
+          // `dialog:not([open]) { display: none }` — so pointer-events and
+          // visibility are also gated explicitly, keeping the slide
+          // transition intact instead of the abrupt cut a `hidden` toggle
+          // would cause.
           open={isMobileMenuOpen || undefined}
           aria-modal="true"
           aria-label="Menu"
           className={cn(
             "rally-elevate fixed inset-y-0 right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
-            isMobileMenuOpen ? "translate-x-0" : "translate-x-full",
+            isMobileMenuOpen
+              ? "translate-x-0"
+              : "pointer-events-none invisible translate-x-full",
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">

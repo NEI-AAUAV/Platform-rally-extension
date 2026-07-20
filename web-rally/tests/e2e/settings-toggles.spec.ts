@@ -57,7 +57,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#show_live_leaderboard').click();
+    await page.locator('label:has(#show_live_leaderboard)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { show_live_leaderboard?: boolean })?.show_live_leaderboard).toBe(false);
@@ -70,7 +70,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#show_team_details').click();
+    await page.locator('label:has(#show_team_details)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { show_team_details?: boolean })?.show_team_details).toBe(false);
@@ -83,7 +83,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#show_checkpoint_map').click();
+    await page.locator('label:has(#show_checkpoint_map)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { show_checkpoint_map?: boolean })?.show_checkpoint_map).toBe(false);
@@ -96,7 +96,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#participant_view_enabled').click();
+    await page.locator('label:has(#participant_view_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { participant_view_enabled?: boolean })?.participant_view_enabled).toBe(true);
@@ -137,7 +137,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#public_access_enabled').click();
+    await page.locator('label:has(#public_access_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { public_access_enabled?: boolean })?.public_access_enabled).toBe(true);
@@ -153,7 +153,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#guide_mode_enabled').click();
+    await page.locator('label:has(#guide_mode_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { guide_mode_enabled?: boolean })?.guide_mode_enabled).toBe(true);
@@ -167,7 +167,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#badges_enabled').click();
+    await page.locator('label:has(#badges_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { badges_enabled?: boolean })?.badges_enabled).toBe(false);
@@ -180,7 +180,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#allow_photo_as_team_photo').click();
+    await page.locator('label:has(#allow_photo_as_team_photo)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect.poll(() => (getBody() as { allow_photo_as_team_photo?: boolean })?.allow_photo_as_team_photo).toBe(true);
@@ -192,7 +192,7 @@ test.describe('Settings toggle matrix', () => {
     await mockAdminSettings(page, adminSettings({ show_live_leaderboard: true }));
 
     await gotoSettingsInEditMode(page);
-    await page.locator('#show_live_leaderboard').click();
+    await page.locator('label:has(#show_live_leaderboard)').click();
     await page.getByRole('button', { name: 'Cancelar' }).click();
 
     await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible();
@@ -212,7 +212,9 @@ test.describe('Settings toggle matrix', () => {
     await gotoSettingsInEditMode(page);
     await page.getByRole('button', { name: 'Guardar' }).click();
 
-    await expect(page.getByText('Erro ao atualizar configurações')).toBeVisible();
+    // getErrorMessage prefers the API's error.body.detail over the fallback
+    // string, so the toast shows the server's message, not the generic one.
+    await expect(page.getByText('Server error')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Guardar' })).toBeVisible();
   });
 });

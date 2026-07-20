@@ -90,7 +90,7 @@ test.describe('Admin activities', () => {
     await gotoActivities(page);
     await page.getByRole('button', { name: 'Nova Atividade' }).click();
     await page.getByPlaceholder('Ex: Cabo de Guerra').fill('Corrida de Sacos');
-    await page.locator('select[name="activity_type"]').selectOption({ label: 'Baseado em Tempo' }).catch(() => {});
+    await page.locator('select[name="activity_type"]').selectOption({ label: 'Baseada em Tempo' });
     await page.getByRole('button', { name: /Criar$/ }).click();
 
     await expect.poll(() => (capturedBody as { name?: string })?.name).toBe('Corrida de Sacos');
@@ -133,7 +133,9 @@ test.describe('Admin activities', () => {
     await mockActivities(page, [activity({})]);
 
     await gotoActivities(page);
-    await page.getByRole('button').filter({ has: page.locator('.lucide-pencil, .lucide-edit') }).first().click();
+    // lucide-react's Edit icon is an alias for SquarePen; the rendered class
+    // follows the resolved icon name, not the imported alias.
+    await page.getByRole('button').filter({ has: page.locator('.lucide-square-pen') }).first().click();
 
     await expect(page.getByText('Editar Atividade')).toBeVisible();
     await expect(page.getByPlaceholder('Ex: Cabo de Guerra')).toHaveValue('Cabo de Guerra');
