@@ -33,6 +33,21 @@ function applyModifiersOracle(
   return Math.max(0, final);
 }
 
+// GET /staff/teams/{id}/activities returns { team, activities, evaluation_summary },
+// not a raw array — each entry nests the scored result under existing_result.
+interface TeamActivitiesResponse {
+  activities: { id: number; existing_result: { final_score: number } | null }[];
+}
+
+async function getFinalScore(teamId: number, activityId: number, token: string): Promise<number> {
+  const response = await apiCall<TeamActivitiesResponse>('GET', `/staff/teams/${teamId}/activities`, { token });
+  const entry = response.activities.find((a) => a.id === activityId);
+  if (!entry?.existing_result) {
+    throw new Error(`No evaluated result for activity ${activityId} on team ${teamId}`);
+  }
+  return entry.existing_result.final_score;
+}
+
 test.describe('Scoring arithmetic vs. real backend oracle', () => {
   test.beforeAll(async () => {
     await waitForApi();
@@ -50,13 +65,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
     });
 
-    const results = await apiCall<{ final_score: number }[]>(
-      'GET',
-      `/staff/teams/${rally.teamId}/activities`,
-      { token: rally.admin.accessToken },
-    );
-    const actual = results.find((r) => (r as unknown as { activity_id: number }).activity_id === rally.activityId)!
-      .final_score;
+    const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
 
     expect(actual).toBe(booleanOracle(true));
     void page;
@@ -89,13 +98,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       token: rally.admin.accessToken,
     });
 
-    const results = await apiCall<{ final_score: number }[]>(
-      'GET',
-      `/staff/teams/${rally.teamId}/activities`,
-      { token: rally.admin.accessToken },
-    );
-    const actual = results.find((r) => (r as unknown as { activity_id: number }).activity_id === rally.activityId)!
-      .final_score;
+    const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
 
     const expected = applyModifiersOracle(booleanOracle(true), {
       extraShots: 2,
@@ -124,13 +127,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       { token: rally.admin.accessToken },
     );
 
-    const results = await apiCall<{ final_score: number }[]>(
-      'GET',
-      `/staff/teams/${rally.teamId}/activities`,
-      { token: rally.admin.accessToken },
-    );
-    const actual = results.find((r) => (r as unknown as { activity_id: number }).activity_id === rally.activityId)!
-      .final_score;
+    const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
 
     expect(actual).toBe(applyModifiersOracle(booleanOracle(true), { penalties: { not_drinking: 500 } }));
     expect(actual).toBe(0);
@@ -162,13 +159,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       body: { result_data: { achieved_points: 75 }, extra_shots: 0, penalties: {} },
     });
 
-    const results = await apiCall<{ final_score: number }[]>(
-      'GET',
-      `/staff/teams/${rally.teamId}/activities`,
-      { token: rally.admin.accessToken },
-    );
-    const actual = results.find((r) => (r as unknown as { activity_id: number }).activity_id === activity.id)!
-      .final_score;
+    const actual = await getFinalScore(rally.teamId, activity.id, rally.admin.accessToken);
 
     expect(actual).toBe(scoreBasedOracle(75, 100, 50));
   });

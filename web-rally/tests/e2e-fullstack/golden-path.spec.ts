@@ -56,6 +56,13 @@ test.describe('Full-stack golden path', () => {
       name: 'E2E Admin Two',
       groups: ['admin'],
     });
+    // A fresh sub has no mirrored local user row until an authenticated API
+    // call materializes it (see seedRally.ts's comment on the same lazy
+    // creation) — without one, GET /checkpoint/'s get_current_user_optional
+    // resolves to None and the endpoint silently falls back to the public
+    // "focused" route view, which truncates to a single checkpoint
+    // regardless of how many actually exist.
+    await apiCall('GET', '/rally/settings', { token: admin.accessToken });
     await seedRealOidcSession(context, admin);
 
     await page.goto(`/rally/admin?tab=checkpoints`);
