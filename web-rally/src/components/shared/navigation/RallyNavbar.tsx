@@ -42,6 +42,9 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
+        // The event-name span is hidden below the `sm` breakpoint, so the
+        // button would otherwise have no accessible name on mobile viewports.
+        aria-label={`Edição atual: ${eventName}`}
         className="rally-press flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
       >
         <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">

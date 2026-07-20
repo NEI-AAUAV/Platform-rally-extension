@@ -169,7 +169,11 @@ test.describe('Guide page', () => {
   test('guide nav entry appears for guide users when feature is on', async ({
     page,
     context,
-  }) => {
+  }, testInfo) => {
+    // The "Gestão" dropdown this test targets is desktop-only nav chrome —
+    // mobile groups the same links into the hamburger drawer instead, so
+    // there's no equivalent element to assert against here.
+    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: "Gestão" dropdown does not exist in the mobile nav');
     await seedSession(context, MOCK_JWT_TOKEN_GUIDE);
     await mockCommonRoutes(page, MOCK_JWT_TOKEN_GUIDE);
     await page.route('**/api/rally/v1/guide/checkpoints**', (route) =>
