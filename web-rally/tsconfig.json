@@ -37,7 +37,8 @@
     "src",
     "src/**/*.d.ts",
     "src/types.d.ts",
-    "tests/unit"
+    "tests/unit",
+    "tests/mocks"
   ],
   "exclude": [
     "tests/e2e",
