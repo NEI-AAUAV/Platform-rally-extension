@@ -103,7 +103,7 @@ jobs:
       
       - name: Install Playwright browsers
         working-directory: web-rally
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm run playwright:install
       
       - name: Run Playwright E2E tests
         working-directory: web-rally

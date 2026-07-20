@@ -6,7 +6,7 @@ ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
 WORKDIR /api_rally
 
 RUN apt-get update && \
-    apt-get -y install --no-install-recommends libpq-dev=17.10-0+deb13u1 gcc=4:14.2.0-1 && \
+    apt-get -y install --no-install-recommends gcc=4:14.2.0-1 libpq-dev=17.10-0+deb13u1 && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir --upgrade --only-binary :all: pip==24.3.1 && \
     pip install --no-cache-dir --only-binary :all: poetry==2.4.1 && \
