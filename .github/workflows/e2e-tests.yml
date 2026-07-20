@@ -89,7 +89,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: web-rally
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
       
       - name: Generate API client
         working-directory: web-rally
