@@ -233,6 +233,10 @@ jobs:
       working-directory: web-rally
       run: pnpm run test:e2e:coverage-gate
 
+    - name: Build
+      working-directory: web-rally
+      run: pnpm run build
+
     - name: Install Playwright browsers
       working-directory: web-rally
       run: pnpm exec playwright install --with-deps chromium
@@ -274,6 +278,10 @@ jobs:
     - name: Install frontend dependencies
       working-directory: web-rally
       run: pnpm install --frozen-lockfile
+
+    - name: Build
+      working-directory: web-rally
+      run: pnpm run build
 
     - name: Install Playwright browsers
       working-directory: web-rally
