@@ -125,9 +125,6 @@ async def get_team_activities_for_evaluation(
     auth: Annotated[AuthData, Depends(api_nei_auth)]
 ) -> Dict[str, Any]:
     """Get activities for a specific team that can be evaluated by this staff member"""
-    if not current_user.staff_checkpoint_id:
-        raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
-
     # Load team with members
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select
@@ -137,11 +134,26 @@ async def get_team_activities_for_evaluation(
         raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     team_checkpoint_number = len(team_obj.times)
-    logger.debug(f"Staff {current_user.id} (checkpoint {current_user.staff_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
 
-    # Always show activities for the staff's assigned checkpoint
+    # Admins/managers aren't tied to a single checkpoint (staff_checkpoint_id is
+    # only ever populated for rally-staff scope, mirroring evaluate_team_activity's
+    # is_admin_or_manager bypass at line ~238) — resolve the team's current
+    # checkpoint from its progress instead of requiring a staff assignment.
+    if is_admin_or_manager(auth):
+        checkpoint_obj = await checkpoint.get_next(db, team_id=team_obj.id)
+        if not checkpoint_obj:
+            raise RallyNotFoundError("Checkpoint not found")
+        resolved_checkpoint_id = checkpoint_obj.id
+    else:
+        if not current_user.staff_checkpoint_id:
+            raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
+        resolved_checkpoint_id = current_user.staff_checkpoint_id
+
+    logger.debug(f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
+
+    # Always show activities for the resolved checkpoint
     from app.crud.crud_activity import activity
-    activities = await activity.get_by_checkpoint(db, checkpoint_id=current_user.staff_checkpoint_id)
+    activities = await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
 
     # Get existing results for this team
     existing_results = await activity_result.get_by_team(db, team_id=team_id)
