@@ -24,8 +24,16 @@ export async function seedRally(): Promise<SeededRally> {
 
   // `order` must be unique per checkpoint; each call needs its own so
   // concurrent/repeated seeding within a test run doesn't collide. Uses
-  // crypto (not Math.random) so scanners don't flag a non-crypto PRNG here.
-  const order = (crypto.getRandomValues(new Uint32Array(1))[0] % 100_000) + 1;
+  // rejection sampling (not modulo) to avoid CodeQL's biased-modulo-on-crypto
+  // finding: 2^32 doesn't divide evenly by 100_000, so `% 100_000` would skew
+  // low values slightly more likely.
+  const MAX_ORDER = 100_000;
+  const REJECTION_THRESHOLD = Math.floor(0x1_0000_0000 / MAX_ORDER) * MAX_ORDER;
+  let randomValue: number;
+  do {
+    randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
+  } while (randomValue >= REJECTION_THRESHOLD);
+  const order = (randomValue % MAX_ORDER) + 1;
   const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
     token: admin.accessToken,
     body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
