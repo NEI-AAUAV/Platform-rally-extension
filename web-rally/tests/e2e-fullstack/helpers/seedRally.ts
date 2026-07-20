@@ -32,19 +32,40 @@ export async function seedRally(): Promise<SeededRally> {
   // `order` must be unique per checkpoint; each call needs its own so
   // concurrent/repeated seeding within a test run doesn't collide. Uses
   // rejection sampling (not modulo) to avoid CodeQL's biased-modulo-on-crypto
-  // finding: 2^32 doesn't divide evenly by 100_000, so `% 100_000` would skew
-  // low values slightly more likely.
-  const MAX_ORDER = 100_000;
+  // finding: 2^32 doesn't divide evenly by MAX_ORDER, so `% MAX_ORDER` would
+  // skew low values slightly more likely.
+  //
+  // A CI run seeds this many times across specs/retries that a 1..100_000
+  // range collided in practice (birthday paradox), poisoning the whole
+  // worker run with a 400 "already exists". Wider range + retry-on-collision
+  // makes that structurally negligible instead of merely unlikely.
+  const MAX_ORDER = 50_000_000;
   const REJECTION_THRESHOLD = Math.floor(0x1_0000_0000 / MAX_ORDER) * MAX_ORDER;
-  let randomValue: number;
-  do {
-    randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
-  } while (randomValue >= REJECTION_THRESHOLD);
-  const order = (randomValue % MAX_ORDER) + 1;
-  const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
-    token: admin.accessToken,
-    body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
-  });
+  function randomOrder(): number {
+    let randomValue: number;
+    do {
+      randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
+    } while (randomValue >= REJECTION_THRESHOLD);
+    return (randomValue % MAX_ORDER) + 1;
+  }
+
+  async function createCheckpointWithRetry(): Promise<{ id: number; order: number }> {
+    let order = randomOrder();
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const created = await apiCall<{ id: number }>("POST", "/checkpoint/", {
+          token: admin.accessToken,
+          body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
+        });
+        return { id: created.id, order };
+      } catch (error) {
+        if (attempt === 4 || !(error instanceof Error) || !error.message.includes("already exists")) throw error;
+        order = randomOrder();
+      }
+    }
+  }
+  const checkpoint = await createCheckpointWithRetry();
+  const order = checkpoint.order;
 
   // Endpoints like GET /staff/teams/{id}/activities require staff_checkpoint_id
   // even for admins (see api-rally's get_staff_with_checkpoint_access +

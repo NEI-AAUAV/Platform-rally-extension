@@ -68,24 +68,43 @@ export async function seedRallyDay(options: {
   });
   const orderBase = existingCheckpoints.reduce((max, c) => Math.max(max, c.order), 0);
 
-  const checkpoints: SeededCheckpoint[] = [];
-  for (let i = 0; i < options.checkpointCount; i++) {
-    const order = orderBase + i + 1;
-    const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
-      token: admin.accessToken,
-      body: { name: `E2E Posto ${runId}-${i}`, order, arrival_radius_m: 9999 },
-    });
-    const activity = await apiCall<{ id: number }>("POST", "/activities/", {
-      token: admin.accessToken,
-      body: {
-        name: `E2E Atividade ${runId}-${i}`,
-        activity_type: "BooleanActivity",
-        checkpoint_id: checkpoint.id,
-        config: {},
-        is_active: true,
-      },
-    });
-    checkpoints.push({ id: checkpoint.id, name: `E2E Posto ${runId}-${i}`, order, activityId: activity.id });
+  // Order values must stay consecutive across the whole batch (see comment
+  // above), so a mid-batch collision can't just bump that one checkpoint —
+  // it has to restart the batch from a fresh, higher base. Collisions happen
+  // when another seed call in this run claims a order in the gap between
+  // this GET and our POSTs; a handful of retries makes that structurally
+  // negligible instead of failing the whole test outright.
+  async function createCheckpointBatch(base: number): Promise<SeededCheckpoint[]> {
+    const created: SeededCheckpoint[] = [];
+    for (let i = 0; i < options.checkpointCount; i++) {
+      const order = base + i + 1;
+      const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
+        token: admin.accessToken,
+        body: { name: `E2E Posto ${runId}-${i}`, order, arrival_radius_m: 9999 },
+      });
+      const activity = await apiCall<{ id: number }>("POST", "/activities/", {
+        token: admin.accessToken,
+        body: {
+          name: `E2E Atividade ${runId}-${i}`,
+          activity_type: "BooleanActivity",
+          checkpoint_id: checkpoint.id,
+          config: {},
+          is_active: true,
+        },
+      });
+      created.push({ id: checkpoint.id, name: `E2E Posto ${runId}-${i}`, order, activityId: activity.id });
+    }
+    return created;
+  }
+
+  let checkpoints: SeededCheckpoint[] | undefined;
+  for (let attempt = 0, base = orderBase; !checkpoints; attempt++) {
+    try {
+      checkpoints = await createCheckpointBatch(base);
+    } catch (error) {
+      if (attempt === 4 || !(error instanceof Error) || !error.message.includes("already exists")) throw error;
+      base += 1000 * (attempt + 1);
+    }
   }
 
   const staff: SeededStaff[] = [];
