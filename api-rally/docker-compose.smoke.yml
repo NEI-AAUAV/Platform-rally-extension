@@ -43,6 +43,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Overrides the image's dev CMD (uvicorn --reload, single worker): the
+    # fullstack e2e suite's rally-day.spec.ts drives 7 concurrent browser
+    # contexts hammering the API at once, and a single --reload worker
+    # couldn't keep up — every fullstack test queued after it in the same
+    # Playwright worker then failed with a generic Node "fetch failed"
+    # (connection refused/reset) once the process fell behind. --reload
+    # also re-execs the process on every file it touches, which is pure
+    # overhead in a container that never has its source hot-swapped.
+    command:
+      [
+        "poetry", "run", "uvicorn", "app.main:app",
+        "--host", "0.0.0.0", "--port", "8003",
+        "--workers", "4",
+      ]
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +78,12 @@ services:
       EVENTS_ENABLED: "true"
       EVENTS_FAIL_SILENTLY: "false"
       SELF_CHECKIN_ENABLED: "true"
+      # 4 uvicorn workers each open their own SQLAlchemy pool
+      # (DB_POOL_SIZE + DB_MAX_OVERFLOW); keep per-worker pools small so the
+      # aggregate stays comfortably under Postgres's default 100-connection
+      # limit while still giving rally-day's concurrent bursts headroom.
+      DB_POOL_SIZE: "10"
+      DB_MAX_OVERFLOW: "10"
     ports:
       - "${SMOKE_API_HOST_PORT:-8003}:8003"
     healthcheck:

@@ -9,7 +9,7 @@ import type { BrowserContext } from "@playwright/test";
  */
 
 const OIDC_PROVIDER_URL = process.env.FULLSTACK_OIDC_URL ?? "http://localhost:9009";
-const API_BASE_URL = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8103";
+const API_BASE_URL = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
 const API_V1 = `${API_BASE_URL}/api/rally/v1`;
 
 export interface MintedUser {
