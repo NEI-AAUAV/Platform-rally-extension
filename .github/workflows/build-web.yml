@@ -28,8 +28,7 @@ jobs:
 
       - name: Install Poetry
         run: |
-          python -m pip install --upgrade pip
-          pip install --only-binary :all: poetry==2.1.3
+          pip install --only-binary :all: --require-hashes --hash=sha256:7054d3f97ccce7f31961ead16250407c4577bfe57e2037a190ae2913fc40a20c poetry==2.1.3
         shell: bash
 
       - name: Cache Poetry dependencies
@@ -43,6 +42,7 @@ jobs:
       - name: Install API dependencies
         working-directory: api-rally
         run: |
+          poetry config installer.only-binary :all:
           poetry install --no-interaction --no-root
 
       - name: Generate OpenAPI schema (offline)
@@ -78,8 +78,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: web-rally
-        # Some branches may not have pnpm-lock.yaml; avoid failing CI
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Generate API client
         working-directory: web-rally

@@ -4,6 +4,9 @@ name: Code Quality
 permissions:
   contents: read
 
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 on:
   push:
     branches: [ main ]
@@ -31,6 +34,9 @@ jobs:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
+      
+      - name: Configure Poetry security settings
+        run: poetry config installer.only-binary :all:
       
       - name: Cache Python dependencies
         uses: actions/cache@v5
@@ -89,6 +95,9 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
       
+      - name: Configure Poetry security settings
+        run: poetry config installer.only-binary :all:
+      
       - name: Install API dependencies
         working-directory: api-rally
         run: poetry install --no-interaction --no-root
@@ -130,7 +139,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: web-rally
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
       
       - name: Generate API client
         working-directory: web-rally
@@ -171,11 +180,13 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
       
+      - name: Configure Poetry security settings
+        run: poetry config installer.only-binary :all:
+      
       - name: Check Python dependencies for vulnerabilities
         working-directory: api-rally
         run: |
           poetry install --no-interaction
-          poetry run pip install safety || pip install safety
           poetry run safety check --json || echo "⚠️  Security issues found in Python dependencies"
         continue-on-error: true
       

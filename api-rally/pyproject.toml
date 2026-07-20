@@ -36,6 +36,7 @@ uvicorn = "^0.38.0"
 types-python-jose = "^3.3.4.8"
 types-passlib = "^1.7.7.20260211"
 black = "^26.1.0"
+safety = "^3.2.0"
 
 
 [tool.poetry.group.test.dependencies]
