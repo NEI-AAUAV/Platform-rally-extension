@@ -97,7 +97,9 @@ test.describe('Admin tab deep-linking', () => {
 
     await page.goto('/rally/admin?tab=members');
 
-    await expect(page.getByText('Gestão de membros')).toBeVisible();
+    // Embedded mode suppresses the page's own header, so assert on the
+    // always-visible team selector instead.
+    await expect(page.getByRole('heading', { name: 'Selecionar Equipa' })).toBeVisible();
   });
 
   test('opens directly on the evaluation tab via ?tab=evaluation', async ({ page, context }) => {
@@ -107,7 +109,9 @@ test.describe('Admin tab deep-linking', () => {
 
     await page.goto('/rally/admin?tab=evaluation');
 
-    await expect(page.getByText('Consultar equipas')).toBeVisible();
+    // Embedded mode suppresses the page's own header, so assert on the
+    // always-visible "Todas as Avaliações" toggle instead.
+    await expect(page.getByText('Todas as Avaliações')).toBeVisible();
   });
 
   test('opens directly on the settings tab via ?tab=settings', async ({ page, context }) => {
@@ -121,7 +125,9 @@ test.describe('Admin tab deep-linking', () => {
 
     await page.goto('/rally/admin?tab=settings');
 
-    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
+    // Embedded mode suppresses the page's own header (the admin shell already
+    // has one), so assert on the always-visible edit-mode entry point instead.
+    await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible({ timeout: 20000 });
   });
 
   test('non-admin visiting a deep-linked tab is redirected to the fallback path', async ({
