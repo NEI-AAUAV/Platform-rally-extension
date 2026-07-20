@@ -144,7 +144,9 @@ async def get_team_activities_for_evaluation(
         # where they currently stand and where staff evaluate them — not
         # get_next()'s order+1, which is the checkpoint still ahead of them
         # and 404s once the team has already checked into their last post.
-        checkpoint_obj = await checkpoint.get_by_order(db, order=team_checkpoint_number)
+        # Checkpoints are numbered starting at 1, so a team with no visits
+        # yet (len(times) == 0) stands at the first checkpoint, not order 0.
+        checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
         if not checkpoint_obj:
             raise RallyNotFoundError("Checkpoint not found")
         resolved_checkpoint_id = checkpoint_obj.id

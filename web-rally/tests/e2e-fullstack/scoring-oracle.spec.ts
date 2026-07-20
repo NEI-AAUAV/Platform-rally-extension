@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mintToken, apiCall } from './helpers/fullstackAuth';
+import { apiCall } from './helpers/fullstackAuth';
 import { seedRally, waitForApi } from './helpers/seedRally';
 
 /**
@@ -137,41 +137,35 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
   });
 
   test('score-based activity applies the percentage-of-max formula exactly', async () => {
-    const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-    const admin = await mintToken({ sub: `e2e-oracle-${uniqueId}`, name: 'E2E Oracle Admin', groups: ['admin'] });
-    const order = Math.floor(Math.random() * 100_000) + 1;
-    const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
-      token: admin.accessToken,
-      body: { name: `E2E Oracle Checkpoint ${order}`, order, arrival_radius_m: 50 },
-    });
+    // Reuses seedRally's checkpoint (correctly ordered — see its comment on
+    // why order must be sequential from 1) rather than minting a second
+    // checkpoint with a random order, which broke staff-check-in the same
+    // way the other oracle tests here did.
+    const rally = await seedRally();
     const activity = await apiCall<{ id: number }>('POST', '/activities/', {
-      token: admin.accessToken,
+      token: rally.admin.accessToken,
       body: {
         name: 'E2E Score Activity',
         activity_type: 'ScoreBasedActivity',
-        checkpoint_id: checkpoint.id,
+        checkpoint_id: rally.checkpointId,
         config: { max_points: 100, base_score: 50 },
         is_active: true,
       },
     });
-    const team = await apiCall<{ id: number; access_code: string }>('POST', '/team/', {
-      token: admin.accessToken,
-      body: { name: `E2E Oracle Team ${order}` },
-    });
 
     await apiCall('POST', '/checkpoint/staff-check-in', {
-      token: admin.accessToken,
-      body: { team_code: team.access_code, checkpoint_id: checkpoint.id },
+      token: rally.admin.accessToken,
+      body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
-    await apiCall('POST', `/staff/teams/${team.id}/activities/${activity.id}/evaluate`, {
-      token: admin.accessToken,
+    await apiCall('POST', `/staff/teams/${rally.teamId}/activities/${activity.id}/evaluate`, {
+      token: rally.admin.accessToken,
       body: { result_data: { achieved_points: 75 }, extra_shots: 0, penalties: {} },
     });
 
     const results = await apiCall<{ final_score: number }[]>(
       'GET',
-      `/staff/teams/${team.id}/activities`,
-      { token: admin.accessToken },
+      `/staff/teams/${rally.teamId}/activities`,
+      { token: rally.admin.accessToken },
     );
     const actual = results.find((r) => (r as unknown as { activity_id: number }).activity_id === activity.id)!
       .final_score;

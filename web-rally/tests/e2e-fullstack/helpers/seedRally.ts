@@ -29,28 +29,24 @@ export async function seedRally(): Promise<SeededRally> {
     email: adminEmail,
   });
 
-  // `order` must be unique per checkpoint; each call needs its own so
-  // concurrent/repeated seeding within a test run doesn't collide. Uses
-  // rejection sampling (not modulo) to avoid CodeQL's biased-modulo-on-crypto
-  // finding: 2^32 doesn't divide evenly by MAX_ORDER, so `% MAX_ORDER` would
-  // skew low values slightly more likely.
+  // `order` must be unique per checkpoint AND, separately, staff-check-in
+  // (api-rally's checkin.py) only advances a team past a checkpoint when
+  // `checkpoint.order === len(team.times) + 1` — i.e. real progression
+  // strictly requires order to start at 1 and be sequential. A random order
+  // (the previous approach here) satisfies uniqueness but silently breaks
+  // that invariant: staff-check-in never fires, team.times never advances,
+  // and every endpoint that resolves "the team's current checkpoint" from
+  // order arithmetic (see get_team_activities_for_evaluation) 404s.
   //
-  // A CI run seeds this many times across specs/retries that a 1..100_000
-  // range collided in practice (birthday paradox), poisoning the whole
-  // worker run with a 400 "already exists". Wider range + retry-on-collision
-  // makes that structurally negligible instead of merely unlikely.
-  const MAX_ORDER = 50_000_000;
-  const REJECTION_THRESHOLD = Math.floor(0x1_0000_0000 / MAX_ORDER) * MAX_ORDER;
-  function randomOrder(): number {
-    let randomValue: number;
-    do {
-      randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
-    } while (randomValue >= REJECTION_THRESHOLD);
-    return (randomValue % MAX_ORDER) + 1;
-  }
-
+  // Mirrors seedRallyDay.ts's fix for the same constraint: read the highest
+  // existing order in the (shared, disposable, never-reset) smoke Postgres
+  // and claim the next one, retrying past collisions from other specs
+  // concurrently seeding against the same event.
   async function createCheckpointWithRetry(): Promise<{ id: number; order: number }> {
-    let order = randomOrder();
+    const existingCheckpoints = await apiCall<{ order: number }[]>("GET", "/checkpoint/", {
+      token: admin.accessToken,
+    });
+    let order = existingCheckpoints.reduce((max, c) => Math.max(max, c.order), 0) + 1;
     for (let attempt = 0; ; attempt++) {
       try {
         const created = await apiCall<{ id: number }>("POST", "/checkpoint/", {
@@ -59,8 +55,8 @@ export async function seedRally(): Promise<SeededRally> {
         });
         return { id: created.id, order };
       } catch (error) {
-        if (attempt === 4 || !(error instanceof Error) || !error.message.includes("already exists")) throw error;
-        order = randomOrder();
+        if (attempt === 49 || !(error instanceof Error) || !error.message.includes("already exists")) throw error;
+        order += 1;
       }
     }
   }
