@@ -3,7 +3,7 @@ import { Plus, AlertCircle } from "lucide-react";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ActivityForm from "@/components/activity-form/ActivityCreateForm";
-import ActivityList from "@/components/shared/ActivityList";
+import ActivityList from "@/components/activity-form/ActivityList";
 import {
   useActivities,
   useCreateActivity,

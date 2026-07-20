@@ -1,6 +1,6 @@
-import { RallyNavbar } from "@/components/shared/RallyNavbar";
-import { SiteFooter } from "@/components/shared/SiteFooter";
-import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
+import { RallyNavbar } from "@/components/shared/navigation/RallyNavbar";
+import { SiteFooter } from "@/components/shared/layout/SiteFooter";
+import { MobileBottomNav } from "@/components/shared/navigation/MobileBottomNav";
 import PWAInstallPrompt from "@/components/pwa/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LandingGate from "@/components/landing/LandingGate";

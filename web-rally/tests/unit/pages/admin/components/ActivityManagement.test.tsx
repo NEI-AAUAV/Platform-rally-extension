@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
 import type ActivityCreateForm from '@/components/activity-form/ActivityCreateForm';
-import type ActivityList from '@/components/shared/ActivityList';
+import type ActivityList from '@/components/activity-form/ActivityList';
 import type { ActivityType } from '@/types/activityTypes';
 import ActivityManagement from '@/pages/admin/components/ActivityManagement';
 
@@ -45,7 +45,7 @@ vi.mock('@/components/activity-form/ActivityCreateForm', () => ({
   ),
 }));
 
-vi.mock('@/components/shared/ActivityList', () => ({
+vi.mock('@/components/activity-form/ActivityList', () => ({
   default: ({ activities, onEdit, onDelete }: ComponentProps<typeof ActivityList>) => (
     <div data-testid="activity-list">
       {activities.map((a) => (

@@ -26,15 +26,15 @@ vi.mock('@/hooks/useDocumentBranding', () => ({
   default: (...args: unknown[]) => mockUseDocumentBranding(...args),
 }));
 
-vi.mock('@/components/shared/RallyNavbar', () => ({
+vi.mock('@/components/shared/navigation/RallyNavbar', () => ({
   RallyNavbar: () => <nav data-testid="navbar" />,
 }));
 
-vi.mock('@/components/shared/SiteFooter', () => ({
+vi.mock('@/components/shared/layout/SiteFooter', () => ({
   SiteFooter: () => <footer data-testid="footer" />,
 }));
 
-vi.mock('@/components/shared/MobileBottomNav', () => ({
+vi.mock('@/components/shared/navigation/MobileBottomNav', () => ({
   MobileBottomNav: () => <div data-testid="mobile-nav" />,
 }));
 
