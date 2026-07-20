@@ -46,7 +46,7 @@ export default function StaffAssignmentList({
       {assignments.map((assignment: StaffAssignment) => (
         <div
           key={assignment.id}
-          className="flex items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6"
+          className="flex scroll-mt-20 items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
