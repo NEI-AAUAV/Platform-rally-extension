@@ -41,6 +41,7 @@ test.describe('Team settings', () => {
     await page.getByRole('button', { name: 'Trocar Equipa' }).click();
 
     await page.waitForURL('**/team-login');
+    await expect(page).not.toHaveURL(/\/team-settings/);
   });
 
   test('logout requires confirmation and clears session', async ({ page, context }) => {

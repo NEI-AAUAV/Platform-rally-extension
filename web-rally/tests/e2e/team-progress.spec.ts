@@ -106,6 +106,7 @@ test.describe('Team progress', () => {
     await page.goto('/rally/team-progress');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/team-progress/);
   });
 
   test('shows error status screen when team fetch fails', async ({ page, context }) => {
@@ -254,6 +255,7 @@ test.describe('Team progress', () => {
     await page.goto('/rally/team-progress');
 
     await page.waitForURL('**/team-login');
+    await expect(page).not.toHaveURL(/\/team-progress/);
   });
 
   test('renders correctly on mobile viewport', async ({ page, context }) => {

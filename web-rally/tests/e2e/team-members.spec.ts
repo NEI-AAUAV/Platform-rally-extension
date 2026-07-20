@@ -113,6 +113,7 @@ test.describe('Team members (admin)', () => {
     await page.goto('/rally/team-members');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/team-members/);
   });
 
   test('shows empty state when no teams exist', async ({ page, context }) => {

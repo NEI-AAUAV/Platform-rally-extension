@@ -100,6 +100,7 @@ test.describe('Team info', () => {
     const reloadPromise = page.waitForURL('**/team-info');
     await page.getByRole('button', { name: 'Associar a mim' }).click();
     await reloadPromise;
+    await expect(page.getByText('Os Fixes')).toBeVisible();
   });
 
   test('failed link shows error toast', async ({ page, context }) => {
