@@ -9,6 +9,7 @@ import { TeamSection } from "./TeamSection";
 import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
 import { StaffCheckinScanner } from "@/components/checkin/StaffCheckinScanner";
+import OfflineQueueBanner from "./OfflineQueueBanner";
 
 const STREAM_QUERY_KEYS = [
   ["checkpointTeams"],
@@ -65,6 +66,7 @@ export default function CheckpointTeamEvaluation() {
 
   return (
     <div className="space-y-6">
+      <OfflineQueueBanner />
       {/* Checkpoint banner */}
       <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-5 text-white">
         <div

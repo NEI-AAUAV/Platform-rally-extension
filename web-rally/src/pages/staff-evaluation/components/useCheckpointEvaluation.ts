@@ -40,11 +40,16 @@ class OfflineQueuedError extends Error {
 
 /**
  * True when the failure is a lost connection (no server response), not a server
- * error. An `ApiError` means the server answered — don't queue those. A bare
- * `TypeError` ("Failed to fetch") or `navigator.onLine === false` means offline.
+ * error. The generated client's error interceptor (src/services/apiClient.ts)
+ * wraps every failure — including a thrown fetch error with no response — into
+ * an `ApiError`, using `status: 0` for the no-response case. So an `ApiError`
+ * with a real HTTP status means the server answered (don't queue); status 0
+ * means the request never reached it. A bare `TypeError` ("Failed to fetch")
+ * or `navigator.onLine === false` covers failures from callers not going
+ * through that interceptor.
  */
 function isNetworkError(error: unknown): boolean {
-  if (error instanceof ApiError) return false;
+  if (error instanceof ApiError) return error.status === 0;
   if (typeof navigator !== "undefined" && !navigator.onLine) return true;
   return error instanceof TypeError;
 }

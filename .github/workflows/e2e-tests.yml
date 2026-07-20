@@ -46,6 +46,23 @@ jobs:
         env:
           TEAM_JWT_SECRET_KEY: test_secret
       
+      - name: Start smoke stack (postgres, redis, fake-oidc, api)
+        working-directory: api-rally
+        run: docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
+
+      - name: Wait for api-rally to be healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8003/docs > /dev/null; then
+              echo "api-rally is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "api-rally did not become healthy in time"
+          docker compose -f api-rally/docker-compose.smoke.yml logs
+          exit 1
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -114,4 +131,9 @@ jobs:
           name: playwright-screenshots
           path: web-rally/test-results/
           retention-days: 7
+
+      - name: Stop smoke stack
+        if: always()
+        working-directory: api-rally
+        run: docker compose -f docker-compose.smoke.yml down -v
 
