@@ -16,11 +16,15 @@ export interface SeededRally {
  * fresh rows (no cleanup — the smoke Postgres is disposable per CI run).
  */
 export async function seedRally(): Promise<SeededRally> {
-  const admin = await mintToken({ sub: `e2e-admin-${Date.now()}`, name: 'E2E Admin', groups: ['admin'] });
+  // A Date.now()-only suffix collides across fast sequential retries (same
+  // millisecond), which reuses the same admin `sub` / checkpoint `order` and
+  // corrupts state between retry attempts. Add a random component.
+  const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const admin = await mintToken({ sub: `e2e-admin-${uniqueId}`, name: 'E2E Admin', groups: ['admin'] });
 
   // `order` must be unique per checkpoint; each call needs its own so
   // concurrent/repeated seeding within a test run doesn't collide.
-  const order = Math.floor(Date.now() % 100_000) + 1;
+  const order = Math.floor(Math.random() * 100_000) + 1;
   const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
     token: admin.accessToken,
     body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },

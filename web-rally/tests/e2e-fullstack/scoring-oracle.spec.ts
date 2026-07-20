@@ -137,8 +137,9 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
   });
 
   test('score-based activity applies the percentage-of-max formula exactly', async () => {
-    const admin = await mintToken({ sub: `e2e-oracle-${Date.now()}`, name: 'E2E Oracle Admin', groups: ['admin'] });
-    const order = Math.floor(Date.now() % 100_000) + 1;
+    const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const admin = await mintToken({ sub: `e2e-oracle-${uniqueId}`, name: 'E2E Oracle Admin', groups: ['admin'] });
+    const order = Math.floor(Math.random() * 100_000) + 1;
     const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
       token: admin.accessToken,
       body: { name: `E2E Oracle Checkpoint ${order}`, order, arrival_radius_m: 50 },

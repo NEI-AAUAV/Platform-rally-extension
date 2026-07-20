@@ -51,7 +51,11 @@ test.describe('Full-stack golden path', () => {
 
   test('admin panel loads real checkpoint and activity data end-to-end', async ({ page, context }) => {
     const rally = await seedRally();
-    const admin = await mintToken({ sub: `e2e-admin2-${Date.now()}`, name: 'E2E Admin Two', groups: ['admin'] });
+    const admin = await mintToken({
+      sub: `e2e-admin2-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+      name: 'E2E Admin Two',
+      groups: ['admin'],
+    });
     await seedRealOidcSession(context, admin);
 
     await page.goto(`/rally/admin?tab=checkpoints`);

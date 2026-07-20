@@ -263,7 +263,11 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
 
         <dialog
           ref={mobileMenuRef}
-          open
+          // A `<dialog open>` element sits in the browser's top layer and
+          // remains hit-testable even when translated off-screen, so it was
+          // silently intercepting clicks on whatever sat behind it whenever
+          // the drawer was "closed". Only set `open` while actually visible.
+          open={isMobileMenuOpen || undefined}
           aria-modal="true"
           aria-label="Menu"
           className={cn(
