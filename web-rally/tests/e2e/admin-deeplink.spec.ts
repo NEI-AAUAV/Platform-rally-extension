@@ -141,5 +141,6 @@ test.describe('Admin tab deep-linking', () => {
     await page.goto('/rally/admin?tab=scoring');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/admin/);
   });
 });

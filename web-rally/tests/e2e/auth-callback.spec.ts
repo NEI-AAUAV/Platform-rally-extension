@@ -31,6 +31,7 @@ test.describe('Auth callback', () => {
     await page.goto('/rally/auth/callback');
 
     await page.waitForURL('**/rally/');
+    await expect(page).not.toHaveURL(/\/auth\/callback/);
   });
 
   test('shows a loading spinner before auth resolves', async ({ page }) => {

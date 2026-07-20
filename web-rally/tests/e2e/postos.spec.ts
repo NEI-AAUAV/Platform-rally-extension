@@ -78,6 +78,7 @@ test.describe('Postos', () => {
     await page.goto('/rally/postos');
 
     await page.waitForURL('**/team-progress');
+    await expect(page).not.toHaveURL(/\/postos/);
   });
 
   test('shows loading state while checkpoints are fetching', async ({ page }) => {

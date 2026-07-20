@@ -103,6 +103,7 @@ test.describe('Staff assignment', () => {
     await page.goto('/rally/assignment');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/assignment/);
   });
 
   test('shows empty state when there are no assignments', async ({ page, context }) => {

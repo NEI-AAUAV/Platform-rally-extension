@@ -61,6 +61,7 @@ test.describe('Conquistas', () => {
     await page.goto('/rally/conquistas');
 
     await page.waitForURL('**/rally/');
+    await expect(page).not.toHaveURL(/\/conquistas/);
   });
 
   test('redirects to team-login when not authenticated', async ({ page }) => {
@@ -69,6 +70,7 @@ test.describe('Conquistas', () => {
     await page.goto('/rally/conquistas');
 
     await page.waitForURL('**/team-login');
+    await expect(page).not.toHaveURL(/\/conquistas/);
   });
 
   test('renders nothing extra when showcase data fails to load', async ({ page, context }) => {

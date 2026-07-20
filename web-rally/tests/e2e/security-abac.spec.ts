@@ -21,6 +21,7 @@ test.describe('Security / ABAC boundaries', () => {
     await page.goto('/rally/guide');
 
     await page.waitForURL('**/rally/');
+    await expect(page).not.toHaveURL(/\/guide/);
   });
 
   test('staff with guide role but guide_mode disabled cannot reach the guide page', async ({
@@ -33,6 +34,7 @@ test.describe('Security / ABAC boundaries', () => {
     await page.goto('/rally/guide');
 
     await page.waitForURL('**/rally/');
+    await expect(page).not.toHaveURL(/\/guide/);
   });
 
   test('guide indication expected answers are never present in the public checkpoints payload', async ({
@@ -89,6 +91,7 @@ test.describe('Security / ABAC boundaries', () => {
     await page.goto('/rally/admin');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/admin/);
   });
 
   test('a team token used against the assignment page is redirected away', async ({ page, context }) => {
@@ -104,6 +107,7 @@ test.describe('Security / ABAC boundaries', () => {
     await page.goto('/rally/assignment');
 
     await page.waitForURL('**/scoreboard');
+    await expect(page).not.toHaveURL(/\/assignment/);
   });
 
   test('evaluating a team at a checkpoint the staff member is not assigned to is rejected by the API and surfaced as an error', async ({

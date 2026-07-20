@@ -196,6 +196,7 @@ test.describe('Home', () => {
     await page.goto('/rally/');
 
     await page.waitForURL('**/team-progress');
+    await expect(page).not.toHaveURL(/\/rally\/$/);
   });
 
   test('gates whole site behind LandingGate when public_access_enabled is false', async ({ page }) => {
