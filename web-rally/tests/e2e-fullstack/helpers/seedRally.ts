@@ -23,8 +23,9 @@ export async function seedRally(): Promise<SeededRally> {
   const admin = await mintToken({ sub: `e2e-admin-${uniqueId}`, name: 'E2E Admin', groups: ['admin'] });
 
   // `order` must be unique per checkpoint; each call needs its own so
-  // concurrent/repeated seeding within a test run doesn't collide.
-  const order = Math.floor(Math.random() * 100_000) + 1;
+  // concurrent/repeated seeding within a test run doesn't collide. Uses
+  // crypto (not Math.random) so scanners don't flag a non-crypto PRNG here.
+  const order = (crypto.getRandomValues(new Uint32Array(1))[0] % 100_000) + 1;
   const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
     token: admin.accessToken,
     body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
