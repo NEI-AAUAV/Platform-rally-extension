@@ -3,6 +3,9 @@ name: E2E Tests (Playwright)
 permissions:
   contents: read
 
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 on:
   push:
     branches: [ main ]

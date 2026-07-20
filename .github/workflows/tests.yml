@@ -3,6 +3,9 @@ name: Rally Extension Tests
 permissions:
   contents: read
 
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 on:
   push:
     branches: [ main ]

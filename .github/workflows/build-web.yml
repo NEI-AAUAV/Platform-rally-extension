@@ -11,6 +11,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 jobs:
   build-web-rally:
     name: Build Rally Web Extension
