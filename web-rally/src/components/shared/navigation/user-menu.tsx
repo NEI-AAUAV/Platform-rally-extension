@@ -106,6 +106,7 @@ export function UserMenu() {
             <User className="h-4 w-4" />O meu perfil
           </Link>
           <button
+            type={"button"}
             onClick={logout}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
           >

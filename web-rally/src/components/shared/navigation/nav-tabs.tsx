@@ -275,6 +275,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               Menu
             </span>
             <button
+              type={"button"}
               onClick={() => setIsMobileMenuOpen(false)}
               aria-label="Fechar menu"
               className="text-muted-foreground transition-colors hover:text-foreground"
