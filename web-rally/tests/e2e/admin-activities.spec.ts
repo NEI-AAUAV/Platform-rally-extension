@@ -24,7 +24,13 @@ async function mockCheckpoints(page: Page, checkpoints: unknown[] = CHECKPOINTS)
 async function mockActivities(page: Page, activities: unknown[]) {
   await page.route('**/api/rally/v1/activities/', (route) => {
     if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(activities) });
+      // ActivityManagement reads activitiesData?.activities — the endpoint
+      // returns the paginated ActivityListResponse shape, not a bare array.
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ activities, total: activities.length, page: 1, size: 100 }),
+      });
     }
     return route.fallback();
   });
@@ -118,12 +124,16 @@ test.describe('Admin activities', () => {
     await page.getByPlaceholder('Ex: Cabo de Guerra').fill('Tiro à Corda');
     await page.locator('select').nth(1).selectOption('TeamVsActivity');
 
-    await page.locator('#config-tv-win-points').fill('100');
-    await page.locator('#config-tv-draw-points').fill('50');
-    await page.locator('#config-tv-lose-points').fill('0');
+    // Values deliberately differ from the fields' own defaults (100/50/0) —
+    // filling a controlled input with its already-displayed value is a no-op
+    // that never dispatches an input event, so it wouldn't exercise the
+    // onChange -> setConfigData wiring this test is meant to cover.
+    await page.locator('#config-tv-win-points').fill('80');
+    await page.locator('#config-tv-draw-points').fill('40');
+    await page.locator('#config-tv-lose-points').fill('10');
     await page.getByRole('button', { name: /Criar$/ }).click();
 
-    await expect.poll(() => (capturedBody as { config?: Record<string, number> })?.config?.win_points).toBe(100);
+    await expect.poll(() => (capturedBody as { config?: Record<string, number> })?.config?.win_points).toBe(80);
   });
 
   test('editing an activity pre-fills the form', async ({ page, context }) => {
@@ -179,6 +189,6 @@ test.describe('Admin activities', () => {
     await page.getByPlaceholder('Ex: Cabo de Guerra').fill('Atividade Inválida');
     await page.getByRole('button', { name: /Criar$/ }).click();
 
-    await expect(page.getByText(/Invalid activity type/)).toBeVisible();
+    await expect(page.getByText(/Invalid activity type/).first()).toBeVisible();
   });
 });

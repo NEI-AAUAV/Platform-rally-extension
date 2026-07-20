@@ -70,7 +70,7 @@ test.describe('Team members (admin)', () => {
     await page.getByLabel('Nome', { exact: false }).fill('Sexto Membro');
     await page.getByRole('button', { name: /Adicionar/ }).click();
 
-    await expect(page.getByText('Team has reached the maximum number of members', { exact: true })).toBeVisible();
+    await expect(page.getByText('Team has reached the maximum number of members', { exact: true }).first()).toBeVisible();
   });
 
   test('staff sees read-only roster, not the add-member form', async ({ page, context }) => {

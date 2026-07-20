@@ -1,4 +1,4 @@
-import { mintToken, apiCall, type MintedUser } from './fullstackAuth';
+import { mintToken, apiCall, type MintedUser } from "./fullstackAuth";
 
 export interface SeededRally {
   readonly admin: MintedUser;
@@ -20,7 +20,8 @@ export async function seedRally(): Promise<SeededRally> {
   // millisecond), which reuses the same admin `sub` / checkpoint `order` and
   // corrupts state between retry attempts. Add a random component.
   const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-  const admin = await mintToken({ sub: `e2e-admin-${uniqueId}`, name: 'E2E Admin', groups: ['admin'] });
+  const adminSub = `e2e-admin-${uniqueId}`;
+  const admin = await mintToken({ sub: adminSub, name: "E2E Admin", groups: ["admin"] });
 
   // `order` must be unique per checkpoint; each call needs its own so
   // concurrent/repeated seeding within a test run doesn't collide. Uses
@@ -34,23 +35,42 @@ export async function seedRally(): Promise<SeededRally> {
     randomValue = crypto.getRandomValues(new Uint32Array(1))[0];
   } while (randomValue >= REJECTION_THRESHOLD);
   const order = (randomValue % MAX_ORDER) + 1;
-  const checkpoint = await apiCall<{ id: number }>('POST', '/checkpoint/', {
+  const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
     token: admin.accessToken,
     body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
   });
 
-  const activity = await apiCall<{ id: number }>('POST', '/activities/', {
+  // Endpoints like GET /staff/teams/{id}/activities require staff_checkpoint_id
+  // even for admins (see api-rally's get_staff_with_checkpoint_access +
+  // get_team_activities_for_evaluation's explicit check) — so assign the
+  // admin's own mirrored user row to this checkpoint. The row is created
+  // lazily on first authenticated call, which the checkpoint POST above
+  // already triggered.
+  const [adminUser] = await apiCall<{ id: number; authentik_sub: string }[]>(
+    "GET",
+    `/user/search?q=${encodeURIComponent(`${adminSub}@ua.pt`)}`,
+    { token: admin.accessToken },
+  );
+  if (!adminUser?.id) {
+    throw new Error(`seedRally: could not resolve local user id for admin sub ${adminSub}`);
+  }
+  await apiCall("PUT", `/user/${adminUser.id}/checkpoint-assignment`, {
+    token: admin.accessToken,
+    body: { checkpoint_id: checkpoint.id },
+  });
+
+  const activity = await apiCall<{ id: number }>("POST", "/activities/", {
     token: admin.accessToken,
     body: {
-      name: 'E2E Activity',
-      activity_type: 'BooleanActivity',
+      name: "E2E Activity",
+      activity_type: "BooleanActivity",
       checkpoint_id: checkpoint.id,
       config: {},
       is_active: true,
     },
   });
 
-  const team = await apiCall<{ id: number; access_code: string }>('POST', '/team/', {
+  const team = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
     token: admin.accessToken,
     body: { name: `E2E Team ${order}` },
   });
@@ -58,12 +78,12 @@ export async function seedRally(): Promise<SeededRally> {
   // The fake-oidc smoke stack starts with participant_view_enabled: false
   // (and other conservative defaults); flip on what the golden-path scenario
   // needs to see the team's own progress view render.
-  const currentSettings = await apiCall<Record<string, unknown>>('GET', '/rally/settings', {
+  const currentSettings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
     token: admin.accessToken,
   });
-  await apiCall('PUT', '/rally/settings', {
+  await apiCall("PUT", "/rally/settings", {
     token: admin.accessToken,
-    body: { ...currentSettings, participant_view_enabled: true, show_score_mode: 'competitive' },
+    body: { ...currentSettings, participant_view_enabled: true, show_score_mode: "competitive" },
   });
 
   return {
@@ -78,7 +98,7 @@ export async function seedRally(): Promise<SeededRally> {
 
 /** Polls the API's OpenAPI docs endpoint until the backend is ready. */
 export async function waitForApi(timeoutMs = 60_000): Promise<void> {
-  const apiBaseUrl = process.env.FULLSTACK_API_BASE_URL ?? 'http://localhost:8103';
+  const apiBaseUrl = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8103";
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
@@ -89,5 +109,5 @@ export async function waitForApi(timeoutMs = 60_000): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error('api-rally did not become ready in time');
+  throw new Error("api-rally did not become ready in time");
 }

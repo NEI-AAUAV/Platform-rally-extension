@@ -277,9 +277,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           aria-label="Menu"
           className={cn(
             "rally-elevate fixed inset-y-0 right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
-            isMobileMenuOpen
-              ? "translate-x-0"
-              : "pointer-events-none invisible translate-x-full",
+            isMobileMenuOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
