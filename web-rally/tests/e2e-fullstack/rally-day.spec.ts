@@ -12,15 +12,25 @@ import { seedRallyDay, type RallyDay } from './helpers/seedRallyDay';
  * conditions (double-scoring, lost writes under concurrent evaluation,
  * stale reads on the live scoreboard).
  *
+ * Checkpoint order is sequential (1, 2, …), not arbitrary: the staff
+ * evaluation UI only lists a team as "to evaluate" at a checkpoint when
+ * checkpoint.order - 1 equals the team's last completed checkpoint number,
+ * so this models a real 2-stop journey — teamAlpha/teamBeta stop at
+ * checkpoint A only, teamGamma/teamDelta pass through A (fast, via API) then
+ * reach B, where staffB evaluates them through the real UI at the same time
+ * staffA is independently evaluating teamAlpha through the UI at checkpoint
+ * A. That overlap is the actual concurrency under test.
+ *
  * Incidents deliberately injected mid-run:
- *   - a staff member's evaluate call drops offline mid-submit (recoverable
- *     via the same offline queue exercised in tests/e2e/offline-pwa.spec.ts,
- *     but here against a real backend instead of a route mock)
  *   - a team double-submits a check-in (idempotency under real concurrency,
  *     not simulated latency)
- *   - two staff evaluate two different teams at two different checkpoints in
- *     the same instant, and the admin's live scoreboard must reflect both
- *     without a lost update
+ *   - staffA and staffB submit real UI evaluations at two different
+ *     checkpoints in the same instant, and the admin's live scoreboard must
+ *     reflect both without a lost update
+ *   - staffB's evaluate call for teamDelta drops offline mid-submit
+ *     (recoverable via the same offline queue exercised in
+ *     tests/e2e/offline-pwa.spec.ts, but here against a real backend instead
+ *     of a route mock)
  *
  * Requires the same api-rally smoke stack as the rest of tests/e2e-fullstack
  * (see README.md). Single worker (see playwright.config.ts's `fullstack`
@@ -53,18 +63,14 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
     await waitForApi();
   });
 
-  test('4 teams and 2 staff act concurrently across 2 checkpoints; the admin scoreboard reflects every write with no lost updates', async ({
+  test('4 teams and 2 staff act concurrently across a real 2-checkpoint journey; the admin scoreboard reflects every write with no lost updates', async ({
     browser,
   }) => {
-    console.log('TEMP_DEBUG seeding rally day');
     const day = await seedRallyDay({ checkpointCount: 2, teamCount: 4 });
-    console.log('TEMP_DEBUG seeded', JSON.stringify({ checkpoints: day.checkpoints.length, staff: day.staff.length, teams: day.teams.length }));
     const [checkpointA, checkpointB] = day.checkpoints;
     const [staffA, staffB] = day.staff;
     const [teamAlpha, teamBeta, teamGamma, teamDelta] = day.teams;
 
-    // Teams alpha/beta head to checkpoint A, gamma/delta to checkpoint B —
-    // two independent staff members working two independent queues at once.
     const adminContext = await browser.newContext();
     await seedRealOidcSession(adminContext, day.admin);
     const adminPage = await adminContext.newPage();
@@ -88,10 +94,8 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         teamLogin(gammaPage, teamGamma.accessCode),
         teamLogin(deltaPage, teamDelta.accessCode),
       ]);
-      console.log('TEMP_DEBUG all 4 teams logged in');
 
-      // Staff check teams in at their respective checkpoints, concurrently
-      // across both checkpoints (two independent staff-side flows at once).
+      // All 4 teams arrive at checkpoint A concurrently.
       await Promise.all([
         apiCall('POST', '/checkpoint/staff-check-in', {
           token: staffA.user.accessToken,
@@ -102,17 +106,16 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
           body: { team_code: teamBeta.accessCode, checkpoint_id: checkpointA.id },
         }),
         apiCall('POST', '/checkpoint/staff-check-in', {
-          token: staffB.user.accessToken,
-          body: { team_code: teamGamma.accessCode, checkpoint_id: checkpointB.id },
+          token: staffA.user.accessToken,
+          body: { team_code: teamGamma.accessCode, checkpoint_id: checkpointA.id },
         }),
         apiCall('POST', '/checkpoint/staff-check-in', {
-          token: staffB.user.accessToken,
-          body: { team_code: teamDelta.accessCode, checkpoint_id: checkpointB.id },
+          token: staffA.user.accessToken,
+          body: { team_code: teamDelta.accessCode, checkpoint_id: checkpointA.id },
         }),
       ]);
-      console.log('TEMP_DEBUG all 4 check-ins done');
 
-      // Incident 1: teamGamma's client double-submits the same check-in (a
+      // Incident 1: teamBeta's client double-submits the same check-in (a
       // flaky-tap-retry scenario) — the second call must not error and must
       // not double-register the arrival. staff-check-in is idempotent per
       // (team, checkpoint) pair at the backend, unlike the evaluate endpoint
@@ -121,92 +124,103 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         `${process.env.FULLSTACK_API_BASE_URL ?? 'http://localhost:8103'}/api/rally/v1/checkpoint/staff-check-in`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffB.user.accessToken}` },
-          body: JSON.stringify({ team_code: teamGamma.accessCode, checkpoint_id: checkpointB.id }),
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffA.user.accessToken}` },
+          body: JSON.stringify({ team_code: teamBeta.accessCode, checkpoint_id: checkpointA.id }),
         },
       );
       expect(duplicateCheckIn.ok).toBe(true);
-      console.log('TEMP_DEBUG duplicate check-in ok');
 
-      // Incident 2: staffA's evaluate for teamAlpha and staffB's evaluate for
-      // teamGamma fire in the exact same instant — two independent checkpoint
-      // queues writing concurrently. Neither should clobber the other.
-      const [alphaResult, gammaResult] = await Promise.all([
-        apiCall('POST', `/staff/teams/${teamAlpha.id}/activities/${checkpointA.activityId}/evaluate`, {
+      // teamGamma and teamDelta are only passing through A on their way to B
+      // — evaluate them quickly via API (not the focus of this scenario) so
+      // they become eligible for checkpoint B, then check them in there.
+      await Promise.all([
+        apiCall('POST', `/staff/teams/${teamGamma.id}/activities/${checkpointA.activityId}/evaluate`, {
           token: staffA.user.accessToken,
           body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
         }),
-        apiCall('POST', `/staff/teams/${teamGamma.id}/activities/${checkpointB.activityId}/evaluate`, {
-          token: staffB.user.accessToken,
+        apiCall('POST', `/staff/teams/${teamDelta.id}/activities/${checkpointA.activityId}/evaluate`, {
+          token: staffA.user.accessToken,
           body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
         }),
       ]);
-      expect((alphaResult as { final_score: number }).final_score).toBe(100);
-      expect((gammaResult as { final_score: number }).final_score).toBe(100);
-      console.log('TEMP_DEBUG concurrent evaluations done');
+      await Promise.all([
+        apiCall('POST', '/checkpoint/staff-check-in', {
+          token: staffB.user.accessToken,
+          body: { team_code: teamGamma.accessCode, checkpoint_id: checkpointB.id },
+        }),
+        apiCall('POST', '/checkpoint/staff-check-in', {
+          token: staffB.user.accessToken,
+          body: { team_code: teamDelta.accessCode, checkpoint_id: checkpointB.id },
+        }),
+      ]);
 
-      // Incident 3: staffB goes offline mid-evaluation for teamDelta — the UI
-      // queues the submit locally (same mechanism as offline-pwa.spec.ts)
-      // rather than losing it, then a reconnect drains it against the real
-      // backend.
+      // Incident 2: the actual concurrency under test — staffA evaluates
+      // teamAlpha through the real UI at checkpoint A at the exact same time
+      // staffB evaluates teamGamma through the real UI at checkpoint B.
+      await staffAPage.goto(`/rally/staff-evaluation/checkpoint/${checkpointA.id}`);
       await staffBPage.goto(`/rally/staff-evaluation/checkpoint/${checkpointB.id}`);
-      console.log('TEMP_DEBUG staffB navigated to checkpoint page');
+
+      const evaluateOnPage = async (page: Page, teamName: string): Promise<void> => {
+        await page.getByText(teamName).first().click();
+        await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+        // BooleanActivity's form is a success/fail switch, default off.
+        await page.getByRole('switch').first().click();
+        await page.getByRole('button', { name: /submit evaluation/i }).click();
+      };
+
+      await Promise.all([
+        evaluateOnPage(staffAPage, teamAlpha.name),
+        evaluateOnPage(staffBPage, teamGamma.name),
+      ]);
+
+      // Incident 3: staffB's next evaluation (teamDelta, also at checkpoint
+      // B) drops offline mid-submit — the UI queues the submit locally (same
+      // mechanism as offline-pwa.spec.ts) rather than losing it, then a
+      // reconnect drains it against the real backend.
       await staffBPage.getByText(teamDelta.name).first().click();
-      console.log('TEMP_DEBUG staffB selected teamDelta');
-      const evaluateButton = staffBPage.getByRole('button', { name: /avaliar|evaluate/i }).first();
-      await evaluateButton.click();
-      console.log('TEMP_DEBUG staffB opened evaluate form');
+      await staffBPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+      await staffBPage.getByRole('switch').first().click();
 
       await staffBPage.context().setOffline(true);
-      const submitButton = staffBPage.getByRole('button', { name: /submit evaluation/i });
-      await submitButton.click();
-      console.log('TEMP_DEBUG staffB submitted while offline');
+      await staffBPage.getByRole('button', { name: /submit evaluation/i }).click();
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({
         timeout: 10_000,
       });
-      console.log('TEMP_DEBUG offline banner visible');
 
       await staffBPage.context().setOffline(false);
       await staffBPage.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toHaveCount(0, {
         timeout: 15_000,
       });
-      console.log('TEMP_DEBUG offline queue drained');
 
       // Every team's own progress view reflects its real, server-computed
       // state — checked concurrently across all 4 team contexts.
-      await Promise.all([
-        alphaPage.reload(),
-        betaPage.reload(),
-        gammaPage.reload(),
-        deltaPage.reload(),
-      ]);
+      await Promise.all([alphaPage.reload(), betaPage.reload(), gammaPage.reload(), deltaPage.reload()]);
       await expect(alphaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
       await expect(gammaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
       await expect(deltaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
 
-      // The admin's live scoreboard — a live-updating view fed by the same
-      // backend every context above just wrote to — must show every team
-      // that scored, with no write lost to the concurrency above.
+      // The admin's live scoreboard — fed by the same backend every context
+      // above just wrote to — must show every team that scored, with no
+      // write lost to the concurrency above.
       await adminPage.goto('/rally/scoreboard');
       await expect(adminPage.getByText(teamAlpha.name)).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText(teamGamma.name)).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText(teamDelta.name)).toBeVisible({ timeout: 15_000 });
 
       // Cross-check against the API directly: exactly one evaluation per
-      // team that was evaluated, not duplicated by the offline-queue replay
-      // or the duplicate check-in incident.
-      const allEvaluations = await apiCall<{ evaluations: { team_id: number }[] }>(
+      // activity per team, not duplicated by the offline-queue replay or the
+      // duplicate check-in incident.
+      const allEvaluations = await apiCall<{ evaluations: { team_id: number; activity_id: number }[] }>(
         'GET',
         '/staff/all-evaluations',
         { token: day.admin.accessToken },
       );
-      const alphaEvalCount = allEvaluations.evaluations.filter((e) => e.team_id === teamAlpha.id).length;
-      const gammaEvalCount = allEvaluations.evaluations.filter((e) => e.team_id === teamGamma.id).length;
-      const deltaEvalCount = allEvaluations.evaluations.filter((e) => e.team_id === teamDelta.id).length;
-      expect(alphaEvalCount).toBe(1);
-      expect(gammaEvalCount).toBe(1);
-      expect(deltaEvalCount).toBe(1);
+      const countFor = (teamId: number, activityId: number) =>
+        allEvaluations.evaluations.filter((e) => e.team_id === teamId && e.activity_id === activityId).length;
+      expect(countFor(teamAlpha.id, checkpointA.activityId)).toBe(1);
+      expect(countFor(teamGamma.id, checkpointB.activityId)).toBe(1);
+      expect(countFor(teamDelta.id, checkpointB.activityId)).toBe(1);
     } finally {
       await Promise.all([
         adminContext.close(),

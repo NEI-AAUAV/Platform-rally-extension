@@ -31,19 +31,6 @@ function uniqueId(): string {
 }
 
 /**
- * Rejection-sampled random int in [1, max] — avoids CodeQL's biased-modulo
- * finding on crypto-sourced randomness (mirrors seedRally.ts's approach).
- */
-function randomOrder(max = 100_000): number {
-  const threshold = Math.floor(0x1_0000_0000 / max) * max;
-  let value: number;
-  do {
-    value = crypto.getRandomValues(new Uint32Array(1))[0];
-  } while (value >= threshold);
-  return (value % max) + 1;
-}
-
-/**
  * Seeds a full "day of Rally Tascas": one admin, N checkpoints (each with one
  * boolean activity and one assigned staff member), and M teams. Mirrors the
  * shape of the real event this master scenario models — multiple checkpoints
@@ -64,9 +51,26 @@ export async function seedRallyDay(options: {
     email: adminEmail,
   });
 
+  // Checkpoint order must be sequential starting at 1: the staff-evaluation
+  // UI only lists a team as "to evaluate" at a checkpoint when
+  // checkpoint.order - 1 === team.last_checkpoint_number, so teams that
+  // haven't visited any checkpoint yet (last_checkpoint_number 0) only
+  // become evaluable at an order=1 checkpoint, and only become evaluable at
+  // order=2 after actually being evaluated at order=1, and so on. This
+  // mirrors how a real rally's checkpoints are actually numbered — it isn't
+  // an arbitrary unique id.
+  //
+  // The smoke Postgres accumulates checkpoints across local manual runs
+  // (disposable but not cleaned between them), so order 1..N may already be
+  // taken; start past the current max instead of assuming a clean slate.
+  const existingCheckpoints = await apiCall<{ order: number }[]>("GET", "/checkpoint/", {
+    token: admin.accessToken,
+  });
+  const orderBase = existingCheckpoints.reduce((max, c) => Math.max(max, c.order), 0);
+
   const checkpoints: SeededCheckpoint[] = [];
   for (let i = 0; i < options.checkpointCount; i++) {
-    const order = randomOrder();
+    const order = orderBase + i + 1;
     const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
       token: admin.accessToken,
       body: { name: `E2E Posto ${runId}-${i}`, order, arrival_radius_m: 9999 },
