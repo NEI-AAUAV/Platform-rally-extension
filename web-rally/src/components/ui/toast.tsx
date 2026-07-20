@@ -101,6 +101,7 @@ const ToastComponent: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast
         <Icon className={`h-5 w-5 ${iconColor} mt-0.5 flex-shrink-0`} />
         <p className="flex-1 text-sm font-medium text-white">{message}</p>
         <button
+          type={"button"}
           onClick={onClose}
           className="flex-shrink-0 text-white/70 transition-colors hover:text-white"
         >
