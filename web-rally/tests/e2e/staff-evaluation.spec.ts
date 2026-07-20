@@ -1040,7 +1040,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1161,7 +1161,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1298,7 +1298,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1338,7 +1338,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1378,7 +1378,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1520,7 +1520,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1569,7 +1569,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1618,7 +1618,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1667,7 +1667,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1716,7 +1716,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1856,7 +1856,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
     await teamElement.click();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1894,7 +1894,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
     await teamElement.click();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1933,7 +1933,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
     await teamElement.click();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1971,7 +1971,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
     await teamElement.click();
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -2296,7 +2296,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
       await new Promise(resolve => setTimeout(resolve, 1000));

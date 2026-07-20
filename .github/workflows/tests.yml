@@ -227,7 +227,11 @@ jobs:
 
     - name: Install frontend dependencies
       working-directory: web-rally
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
 
     - name: e2e traceability gate
       working-directory: web-rally
@@ -277,7 +281,11 @@ jobs:
 
     - name: Install frontend dependencies
       working-directory: web-rally
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
 
     - name: Build
       working-directory: web-rally
