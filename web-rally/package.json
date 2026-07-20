@@ -21,7 +21,8 @@
     "test:e2e:coverage-gate": "node scripts/check-e2e-coverage.mjs",
     "type-check": "tsc --noEmit",
     "generate-client": "openapi-ts",
-    "prebuild": "pnpm run generate-client"
+    "prebuild": "pnpm run generate-client",
+    "playwright:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
