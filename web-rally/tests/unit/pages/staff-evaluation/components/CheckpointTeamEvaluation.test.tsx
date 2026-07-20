@@ -42,6 +42,10 @@ vi.mock('@/pages/staff-evaluation/components/TeamActivitiesList', () => ({
   ),
 }));
 
+vi.mock('@/pages/staff-evaluation/components/OfflineQueueBanner', () => ({
+  default: () => null,
+}));
+
 const baseHookState = {
   checkpoint: { id: 1, name: 'CP1', order: 2 },
   checkpointTeams: [

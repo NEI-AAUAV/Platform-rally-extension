@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
+    "test:e2e:coverage-gate": "node scripts/check-e2e-coverage.mjs",
     "type-check": "tsc --noEmit",
     "generate-client": "openapi-ts",
     "prebuild": "pnpm run generate-client"

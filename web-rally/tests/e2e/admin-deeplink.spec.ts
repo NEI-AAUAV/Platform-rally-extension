@@ -77,6 +77,53 @@ test.describe('Admin tab deep-linking', () => {
     await expect(page).toHaveURL(/tab=checkpoints/);
   });
 
+  test('opens directly on the teams tab via ?tab=teams', async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCommonAdminApis(page);
+
+    await page.goto('/rally/admin?tab=teams');
+
+    await expect(page.getByText('Equipas Existentes')).toBeVisible();
+  });
+
+  test('opens directly on the members tab via ?tab=members', async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCommonAdminApis(page);
+    await page.route('**/api/rally/v1/team/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
+    );
+
+    await page.goto('/rally/admin?tab=members');
+
+    await expect(page.getByText('Gestão de membros')).toBeVisible();
+  });
+
+  test('opens directly on the evaluation tab via ?tab=evaluation', async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCommonAdminApis(page);
+
+    await page.goto('/rally/admin?tab=evaluation');
+
+    await expect(page.getByText('Consultar equipas')).toBeVisible();
+  });
+
+  test('opens directly on the settings tab via ?tab=settings', async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCommonAdminApis(page);
+    await page.route('**/api/rally/v1/rally/settings**', (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_RALLY_SETTINGS) });
+    });
+
+    await page.goto('/rally/admin?tab=settings');
+
+    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
+  });
+
   test('non-admin visiting a deep-linked tab is redirected to the fallback path', async ({
     page,
     context,
