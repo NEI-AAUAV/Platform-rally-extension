@@ -109,6 +109,7 @@ export default function QRCodeScanner({
       <div className="relative w-full max-w-md overflow-hidden rounded-lg border border-border bg-black">
         {/* Close button */}
         <button
+            type={"button"}
           onClick={handleClose}
           className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 transition-colors hover:bg-black/70"
           aria-label="Close QR code scanner"
