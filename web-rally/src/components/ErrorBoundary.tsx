@@ -60,6 +60,7 @@ class ErrorBoundary extends Component<Props, State> {
                 </details>
               )}
               <button
+                type="button"
                 onClick={() => this.setState({ hasError: false, error: null })}
                 className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
