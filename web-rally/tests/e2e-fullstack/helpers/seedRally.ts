@@ -76,6 +76,24 @@ export async function seedRally(): Promise<SeededRally> {
     },
   });
 
+  // The smoke Postgres is disposable but not reset between spec files sharing
+  // the same CI job, so team count accumulates across seedRally/seedRallyDay
+  // calls and can hit max_teams. Raise the cap before seeding rather than
+  // assuming headroom exists (mirrors seedRallyDay.ts's same fix).
+  const settingsForCap = await apiCall<{ max_teams: number } & Record<string, unknown>>(
+    "GET",
+    "/rally/settings",
+    { token: admin.accessToken },
+  );
+  const existingTeams = await apiCall<unknown[]>("GET", "/team/", { token: admin.accessToken });
+  const requiredCap = existingTeams.length + 5;
+  if (settingsForCap.max_teams < requiredCap) {
+    await apiCall("PUT", "/rally/settings", {
+      token: admin.accessToken,
+      body: { ...settingsForCap, max_teams: requiredCap },
+    });
+  }
+
   const team = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
     token: admin.accessToken,
     body: { name: `E2E Team ${order}` },
