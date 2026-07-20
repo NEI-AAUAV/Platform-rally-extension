@@ -29,7 +29,7 @@ jobs:
       - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
-          pip install poetry
+          pip install --only-binary :all: poetry==2.1.3
         shell: bash
 
       - name: Cache Poetry dependencies
@@ -79,7 +79,7 @@ jobs:
       - name: Install dependencies
         working-directory: web-rally
         # Some branches may not have pnpm-lock.yaml; avoid failing CI
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Generate API client
         working-directory: web-rally
