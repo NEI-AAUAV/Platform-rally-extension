@@ -121,7 +121,7 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       // (team, checkpoint) pair at the backend, unlike the evaluate endpoint
       // which relies on the client's Idempotency-Key header.
       const duplicateCheckIn = await fetch(
-        `${process.env.FULLSTACK_API_BASE_URL ?? 'http://localhost:8103'}/api/rally/v1/checkpoint/staff-check-in`,
+        `${process.env.FULLSTACK_API_BASE_URL ?? 'http://localhost:8003'}/api/rally/v1/checkpoint/staff-check-in`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffA.user.accessToken}` },

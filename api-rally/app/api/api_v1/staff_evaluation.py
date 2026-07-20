@@ -135,6 +135,8 @@ async def get_team_activities_for_evaluation(
 
     team_checkpoint_number = len(team_obj.times)
 
+    from app.crud.crud_activity import activity
+
     # Admins/managers aren't tied to a single checkpoint (staff_checkpoint_id is
     # only ever populated for rally-staff scope, mirroring evaluate_team_activity's
     # is_admin_or_manager bypass at line ~238) — resolve the team's current
@@ -146,10 +148,29 @@ async def get_team_activities_for_evaluation(
         # and 404s once the team has already checked into their last post.
         # Checkpoints are numbered starting at 1, so a team with no visits
         # yet (len(times) == 0) stands at the first checkpoint, not order 0.
+        #
+        # But evaluating the *last* pending activity at a checkpoint makes
+        # check_and_advance_team auto-advance the team past it in the same
+        # request (staff_evaluation_utils.py's ensure_team_checkpoint_and_advance),
+        # so by the time this GET runs right after that evaluate,
+        # len(times) already reflects the *next* checkpoint — order+1 relative
+        # to where the just-scored activity actually lives. Try the team's
+        # current order first; if it has no activities for this team (no
+        # pending ones, no prior results), assume they just completed and
+        # advanced past it, and fall back one order to show what was just
+        # evaluated instead of an empty list.
         checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
         if not checkpoint_obj:
             raise RallyNotFoundError("Checkpoint not found")
         resolved_checkpoint_id = checkpoint_obj.id
+
+        checkpoint_activities_preview = await activity.get_by_checkpoint(
+            db, checkpoint_id=resolved_checkpoint_id
+        )
+        if not checkpoint_activities_preview and team_checkpoint_number > 1:
+            previous_checkpoint = await checkpoint.get_by_order(db, order=team_checkpoint_number - 1)
+            if previous_checkpoint:
+                resolved_checkpoint_id = previous_checkpoint.id
     else:
         if not current_user.staff_checkpoint_id:
             raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
@@ -158,7 +179,6 @@ async def get_team_activities_for_evaluation(
     logger.debug(f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
 
     # Always show activities for the resolved checkpoint
-    from app.crud.crud_activity import activity
     activities = await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
 
     # Get existing results for this team
