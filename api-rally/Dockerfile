@@ -1,6 +1,7 @@
 FROM python:3.12-slim AS requirements-stage
 
 ENV PYTHONUNBUFFERED=1
+ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
 
 WORKDIR /api_rally
 
@@ -16,7 +17,7 @@ USER appuser
 
 COPY --chown=appuser:appuser poetry.lock pyproject.toml ./
 
-# NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
+# Only binary wheels are allowed (via POETRY_INSTALLER_ONLY_BINARY env var) to prevent execution of untrusted build scripts
 RUN poetry install --no-root --no-cache
 
 COPY --chown=appuser:appuser app ./app
@@ -24,7 +25,7 @@ COPY --chown=appuser:appuser alembic ./alembic
 COPY --chown=appuser:appuser alembic.ini pytest.ini ./
 COPY --chown=appuser:appuser static ./static
 
-# NOSONAR: source builds required for native deps (libpq-dev/gcc installed above); lockfile pins versions
+# Only binary wheels are allowed (via POETRY_INSTALLER_ONLY_BINARY env var) to prevent execution of untrusted build scripts
 RUN poetry install --no-cache
 
 EXPOSE 8003

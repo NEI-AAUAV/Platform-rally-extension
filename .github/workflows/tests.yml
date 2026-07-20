@@ -246,7 +246,7 @@ jobs:
 
     - name: Install Playwright browsers
       working-directory: web-rally
-      run: npx playwright install --with-deps chromium
+      run: pnpm exec playwright install --with-deps chromium
 
     - name: Run mocked e2e suite (chromium + mobile)
       working-directory: web-rally
