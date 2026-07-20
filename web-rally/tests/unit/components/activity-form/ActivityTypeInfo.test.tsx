@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import ActivityTypeInfo from '@/components/ActivityTypeInfo';
+import ActivityTypeInfo from '@/components/activity-form/ActivityTypeInfo';
 
 describe('ActivityTypeInfo', () => {
   it('renders info icon closed by default', () => {

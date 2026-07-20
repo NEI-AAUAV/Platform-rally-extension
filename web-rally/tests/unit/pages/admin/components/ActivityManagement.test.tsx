@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
-import type ActivityCreateForm from '@/components/ActivityCreateForm';
-import type ActivityList from '@/components/ActivityList';
+import type ActivityCreateForm from '@/components/activity-form/ActivityCreateForm';
+import type ActivityList from '@/components/shared/ActivityList';
 import type { ActivityType } from '@/types/activityTypes';
 import ActivityManagement from '@/pages/admin/components/ActivityManagement';
 
@@ -33,7 +33,7 @@ vi.mock('@/hooks/use-toast', () => ({
   useAppToast: () => ({ success: mockToastSuccess, error: mockToastError }),
 }));
 
-vi.mock('@/components/ActivityCreateForm', () => ({
+vi.mock('@/components/activity-form/ActivityCreateForm', () => ({
   default: ({ onSubmit, onCancel, initialData }: ComponentProps<typeof ActivityCreateForm>) => (
     <div data-testid="activity-form">
       <span>{initialData ? 'editing' : 'creating'}</span>
@@ -45,7 +45,7 @@ vi.mock('@/components/ActivityCreateForm', () => ({
   ),
 }));
 
-vi.mock('@/components/ActivityList', () => ({
+vi.mock('@/components/shared/ActivityList', () => ({
   default: ({ activities, onEdit, onDelete }: ComponentProps<typeof ActivityList>) => (
     <div data-testid="activity-list">
       {activities.map((a) => (

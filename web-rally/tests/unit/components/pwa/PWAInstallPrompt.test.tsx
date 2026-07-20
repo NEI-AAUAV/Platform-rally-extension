@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import PWAInstallPrompt from '@/components/PWAInstallPrompt'
+import PWAInstallPrompt from '@/components/pwa/PWAInstallPrompt'
 
 function dispatchBeforeInstallPrompt() {
   const event = new Event('beforeinstallprompt', { cancelable: true }) as Event & {

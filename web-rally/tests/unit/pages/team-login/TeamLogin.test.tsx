@@ -30,7 +30,7 @@ vi.mock('@/hooks/use-toast', () => ({
   useAppToast: () => mockToast,
 }));
 
-vi.mock('@/components/QRCodeScanner', () => ({
+vi.mock('@/components/qr/QRCodeScanner', () => ({
   default: ({
     isOpen,
     onScan,

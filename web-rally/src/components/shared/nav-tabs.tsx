@@ -125,7 +125,7 @@ function ViewToggle({
   if (!isDualRole) return null;
   return (
     <li>
-      <button
+      <button type="button"
         onClick={toggleViewMode}
         title={viewMode === "staff" ? "Mudar para vista de equipa" : "Mudar para vista de staff"}
         className="flex w-full items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-secondary-foreground transition-colors hover:bg-accent sm:w-auto"
@@ -243,6 +243,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       {/* Mobile overflow */}
       <div className="sm:hidden">
         <button
+          type={"button"}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label="Abrir menu"
           aria-expanded={isMobileMenuOpen}

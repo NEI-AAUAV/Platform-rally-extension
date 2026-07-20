@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import ActivityCreateForm from '@/components/ActivityCreateForm';
+import ActivityCreateForm from '@/components/activity-form/ActivityCreateForm';
 import { ActivityType, type Checkpoint } from '@/types/activityTypes';
 
 describe('ActivityCreateForm', () => {

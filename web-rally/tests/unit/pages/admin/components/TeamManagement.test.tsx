@@ -40,7 +40,7 @@ vi.mock('@/hooks/use-toast', () => ({
   useAppToast: () => ({ success: mockToastSuccess, error: mockToastError }),
 }));
 
-vi.mock('@/components/QRCodeDisplay', () => ({
+vi.mock('@/components/qr/QRCodeDisplay', () => ({
   default: ({ accessCode }: { accessCode: string }) => (
     <div data-testid="qr-code-display">{accessCode}</div>
   ),

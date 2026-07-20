@@ -1,5 +1,5 @@
 import { Users, QrCode } from "lucide-react";
-import QRCodeDisplay from "@/components/QRCodeDisplay";
+import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
 import type { TeamMemberResponse, DetailedTeam } from "@/client";
 
 type ExtendedDetailedTeam = Omit<DetailedTeam, "access_code"> & { access_code?: string };

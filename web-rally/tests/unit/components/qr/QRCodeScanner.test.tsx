@@ -15,7 +15,7 @@ vi.mock('@/hooks/useQRCodeScanner', () => ({
   }),
 }))
 
-import QRCodeScanner from '@/components/QRCodeScanner'
+import QRCodeScanner from '@/components/qr/QRCodeScanner'
 
 function mockGetUserMedia(impl: () => Promise<MediaStream>) {
   Object.defineProperty(navigator, 'mediaDevices', {

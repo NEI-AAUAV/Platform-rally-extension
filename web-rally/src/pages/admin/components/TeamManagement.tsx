@@ -29,7 +29,7 @@ import {
   type DetailedTeam,
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
-import QRCodeDisplay from "@/components/QRCodeDisplay";
+import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
 
 const teamFormSchema = z.object({
   name: z.string().min(1, "Nome da equipa é obrigatório"),

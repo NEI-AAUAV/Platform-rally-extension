@@ -15,7 +15,7 @@ import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ActivityType, ActivityCreate, Checkpoint } from "@/types/activityTypes";
 import { AlertCircle } from "lucide-react";
-import ActivityTypeInfo from "@/components/ActivityTypeInfo";
+import ActivityTypeInfo from "@/components/activity-form/ActivityTypeInfo";
 import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigFields";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
 

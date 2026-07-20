@@ -38,7 +38,7 @@ vi.mock('@/components/shared/MobileBottomNav', () => ({
   MobileBottomNav: () => <div data-testid="mobile-nav" />,
 }));
 
-vi.mock('@/components/PWAInstallPrompt', () => ({
+vi.mock('@/components/pwa/PWAInstallPrompt', () => ({
   default: () => <div data-testid="pwa-prompt" />,
 }));
 

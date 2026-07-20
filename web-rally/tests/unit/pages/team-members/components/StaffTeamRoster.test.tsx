@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import StaffTeamRoster from '@/pages/team-members/components/StaffTeamRoster';
 import type { TeamMemberResponse, DetailedTeam } from '@/client';
 
-vi.mock('@/components/QRCodeDisplay', () => ({
+vi.mock('@/components/qr/QRCodeDisplay', () => ({
   default: ({ accessCode }: { accessCode: string }) => <div data-testid="qr">{accessCode}</div>,
 }));
 

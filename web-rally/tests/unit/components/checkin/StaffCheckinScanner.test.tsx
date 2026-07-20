@@ -24,7 +24,7 @@ vi.mock('@/hooks/use-toast', () => ({
   }),
 }))
 
-vi.mock('@/components/QRCodeScanner', () => ({
+vi.mock('@/components/qr/QRCodeScanner', () => ({
   default: ({ onScan }: { onScan: (data: string) => void }) => {
     h.onScan = onScan
     return <div data-testid="qr-scanner-stub" />

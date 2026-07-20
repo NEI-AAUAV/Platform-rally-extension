@@ -7,7 +7,7 @@ import { LogIn, Loader2, Camera, ShieldCheck } from "lucide-react";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import { useAppToast } from "@/hooks/use-toast";
-import QRCodeScanner from "@/components/QRCodeScanner";
+import QRCodeScanner from "@/components/qr/QRCodeScanner";
 
 export default function TeamLogin() {
   const navigate = useNavigate();

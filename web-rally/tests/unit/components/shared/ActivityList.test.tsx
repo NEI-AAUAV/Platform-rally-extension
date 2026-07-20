@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ActivityList from '@/components/ActivityList';
+import ActivityList from '@/components/shared/ActivityList';
 import { ActivityType } from '@/types/activityTypes';
 import type { Activity, Checkpoint } from '@/types/activityTypes';
 

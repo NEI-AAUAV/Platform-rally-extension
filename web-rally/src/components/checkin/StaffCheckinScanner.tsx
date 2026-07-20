@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera, QrCode, Check } from "lucide-react";
-import QRCodeScanner from "@/components/QRCodeScanner";
+import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import { CheckinService, type StaffCheckinResponse } from "@/services/CheckinService";
 import { useAppToast } from "@/hooks/use-toast";
 import { ApiError } from "@/services/apiClient";

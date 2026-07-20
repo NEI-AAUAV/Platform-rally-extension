@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import QRCodeDisplay from '@/components/QRCodeDisplay'
+import QRCodeDisplay from '@/components/qr/QRCodeDisplay'
 
 describe('QRCodeDisplay', () => {
   it('renders the access code as text', () => {
