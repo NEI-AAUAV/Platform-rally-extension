@@ -28,6 +28,7 @@ on:
         - api
         - frontend
         - integration
+        - e2e
       coverage:
         description: 'Generate coverage reports'
         required: false
@@ -180,7 +181,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: web-rally
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --ignore-scripts
 
     - name: Generate API client
       working-directory: web-rally
@@ -202,6 +203,127 @@ jobs:
         name: frontend-test-results
         path: |
           web-rally/coverage/
+
+  test-e2e-mocked:
+    name: E2E Tests (mocked)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' || github.event.inputs.test_type == '' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
+    - name: Install frontend dependencies
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile
+
+    - name: e2e traceability gate
+      working-directory: web-rally
+      run: pnpm run test:e2e:coverage-gate
+
+    - name: Install Playwright browsers
+      working-directory: web-rally
+      run: pnpm exec playwright install --with-deps chromium
+
+    - name: Run mocked e2e suite (chromium + mobile)
+      working-directory: web-rally
+      env:
+        CI: true
+      run: pnpm run test:e2e --project=chromium --project=mobile
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v7
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report-mocked
+        path: web-rally/playwright-report/
+
+  test-e2e-fullstack:
+    name: E2E Tests (fullstack, real backend)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' || github.event.inputs.test_type == '' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
+    - name: Install frontend dependencies
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile
+
+    - name: Install Playwright browsers
+      working-directory: web-rally
+      run: pnpm exec playwright install --with-deps chromium
+
+    - name: Start api-rally smoke stack
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
+
+    - name: Wait for api-rally to become healthy
+      working-directory: api-rally
+      run: |
+        for i in $(seq 1 30); do
+          status="$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose -f docker-compose.smoke.yml ps -q api)" 2>/dev/null || echo starting)"
+          if [ "$status" = "healthy" ]; then
+            echo "api-rally is healthy"
+            exit 0
+          fi
+          echo "waiting for api-rally ($status)..."
+          sleep 5
+        done
+        echo "api-rally did not become healthy in time"
+        docker compose -f docker-compose.smoke.yml logs
+        exit 1
+
+    - name: Run fullstack e2e suite
+      working-directory: web-rally
+      env:
+        CI: true
+        FULLSTACK_OIDC_URL: http://localhost:9009
+        FULLSTACK_API_BASE_URL: http://localhost:8003
+        FULLSTACK_API_PROXY_TARGET: http://localhost:8003
+      run: pnpm run test:e2e --project=fullstack
+
+    - name: Dump api-rally logs on failure
+      if: failure()
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml logs
+
+    - name: Stop api-rally smoke stack
+      if: always()
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml down -v
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v7
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report-fullstack
+        path: web-rally/playwright-report/
 
   test-integration:
     name: Integration Tests
@@ -259,7 +381,7 @@ jobs:
 
     - name: Install frontend dependencies
       working-directory: web-rally
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --ignore-scripts
 
     - name: Generate OpenAPI schema
       working-directory: api-rally

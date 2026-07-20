@@ -100,7 +100,7 @@ fi
 
 if [[ ! -d "web-rally/node_modules" ]]; then
     print_warning "Installing frontend dependencies..."
-    (cd web-rally && pnpm install --frozen-lockfile)
+    (cd web-rally && pnpm install --frozen-lockfile --ignore-scripts)
 fi
 
 print_status "Dependencies installed"
