@@ -36,7 +36,7 @@ def _make_db(existing_after_race):
 
     call_count = {"n": 0}
 
-    async def _scalars(*args, **kwargs):
+    def _scalars(*args, **kwargs):
         call_count["n"] += 1
         if call_count["n"] == 1:
             return _FakeScalarsResult(None)  # initial pre-check: no existing row
