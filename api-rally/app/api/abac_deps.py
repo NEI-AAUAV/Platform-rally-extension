@@ -63,7 +63,7 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     db: AsyncSession = Depends(deps.get_db),
-    curr_user: Annotated[Optional[DetailedUser], Depends(lambda: None)] = None,
+    curr_user: DetailedUser = Depends(deps.get_current_user),
 ) -> DetailedUser:
     """
     Get staff user with ABAC checkpoint access validation
@@ -78,11 +78,7 @@ async def get_staff_with_checkpoint_access(
     # Log authentication data for debugging
     logger.info(f"get_staff_with_checkpoint_access: auth.oidc_sub={auth.oidc_sub}, scopes={auth.scopes}")
 
-    # Initialize curr_user if not provided
-    if curr_user is None:
-        curr_user = await deps.get_current_user(auth=auth, db=db)
 
-    
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
                           for scope in auth.scopes)
