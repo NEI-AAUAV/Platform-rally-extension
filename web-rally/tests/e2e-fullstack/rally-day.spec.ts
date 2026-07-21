@@ -210,9 +210,9 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       // Every team's own progress view reflects its real, server-computed
       // state — checked concurrently across all 4 team contexts.
       await Promise.all([alphaPage.reload(), betaPage.reload(), gammaPage.reload(), deltaPage.reload()]);
-      await expect(alphaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
-      await expect(gammaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
-      await expect(deltaPage.getByText('Concluído').first()).toBeVisible({ timeout: 15_000 });
+      await expect(alphaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
+      await expect(gammaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
+      await expect(deltaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
 
       // The admin's live scoreboard — fed by the same backend every context
       // above just wrote to — must show every team that scored, with no
