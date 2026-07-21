@@ -5,7 +5,7 @@ This module provides FastAPI dependencies that enforce ABAC policies
 for Rally checkpoint and team management.
 """
 
-from typing import Optional, Callable
+from typing import Annotated, Optional, Callable
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,22 +62,22 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
 
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: Optional[DetailedUser] = None,
-    db: AsyncSession = Depends(deps.get_db)
+    db: AsyncSession = Depends(deps.get_db),
+    curr_user: Annotated[Optional[DetailedUser], Depends(lambda: None)] = None,
 ) -> DetailedUser:
     """
     Get staff user with ABAC checkpoint access validation
-    
+
     Ensures the user is either:
     - Admin (full access)
-    - Rally manager (full access) 
+    - Rally manager (full access)
     - Rally staff with assigned checkpoint
     """
     from loguru import logger
-    
+
     # Log authentication data for debugging
     logger.info(f"get_staff_with_checkpoint_access: auth.oidc_sub={auth.oidc_sub}, scopes={auth.scopes}")
-    
+
     # Initialize curr_user if not provided
     if curr_user is None:
         curr_user = await deps.get_current_user(auth=auth, db=db)
