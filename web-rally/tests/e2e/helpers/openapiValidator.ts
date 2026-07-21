@@ -83,71 +83,106 @@ export interface ValidationError {
   message: string;
 }
 
+function validateAnyOf(value: unknown, variants: JsonSchema[], path: string, errors: ValidationError[]): void {
+  const allFailed = variants.every((variant) => {
+    const localErrors: ValidationError[] = [];
+    validateValue(value, variant, path, localErrors);
+    return localErrors.length > 0;
+  });
+  if (allFailed) {
+    errors.push({ path, message: `value matches none of the anyOf variants` });
+  }
+}
+
+function validateAllOf(value: unknown, subSchemas: JsonSchema[], path: string, errors: ValidationError[]): void {
+  for (const sub of subSchemas) {
+    validateValue(value, sub, path, errors);
+  }
+}
+
+function getExpectedTypes(schema: JsonSchema): string[] {
+  if (Array.isArray(schema.type)) return schema.type as string[];
+  return schema.type ? [schema.type as string] : [];
+}
+
+function validateEnum(value: unknown, schema: JsonSchema, path: string, errors: ValidationError[]): void {
+  if (schema.enum && !(schema.enum as unknown[]).includes(value)) {
+    errors.push({ path, message: `value "${String(value)}" not in enum [${(schema.enum as unknown[]).join(', ')}]` });
+  }
+}
+
+function validateObjectProperties(
+  value: unknown,
+  schema: JsonSchema,
+  expectedTypes: string[],
+  path: string,
+  errors: ValidationError[],
+): void {
+  if (!expectedTypes.includes('object') && !(schema.properties && typeof value === 'object')) return;
+
+  const obj = value as Record<string, unknown>;
+  const properties = (schema.properties ?? {}) as Record<string, JsonSchema>;
+  const required = (schema.required ?? []) as string[];
+
+  for (const key of required) {
+    if (!(key in obj)) {
+      errors.push({ path: `${path}.${key}`, message: 'required property missing' });
+    }
+  }
+
+  for (const [key, propSchema] of Object.entries(properties)) {
+    if (key in obj) {
+      validateValue(obj[key], propSchema, `${path}.${key}`, errors);
+    }
+  }
+}
+
+function validateArrayItems(
+  value: unknown,
+  schema: JsonSchema,
+  expectedTypes: string[],
+  path: string,
+  errors: ValidationError[],
+): void {
+  if (!expectedTypes.includes('array') || !schema.items || !Array.isArray(value)) return;
+
+  value.forEach((item, index) => {
+    validateValue(item, schema.items as JsonSchema, `${path}[${index}]`, errors);
+  });
+}
+
+function validateExpectedType(value: unknown, expectedTypes: string[], path: string, errors: ValidationError[]): boolean {
+  if (expectedTypes.length === 0) return true;
+  const matches = expectedTypes.some((t) => typeMatches(value, t));
+  if (!matches) {
+    errors.push({
+      path,
+      message: `expected type ${expectedTypes.join(' | ')}, got ${value === null ? 'null' : typeof value}`,
+    });
+  }
+  return matches;
+}
+
 function validateValue(value: unknown, rawSchema: JsonSchema, path: string, errors: ValidationError[]): void {
   const schema = resolveRef(rawSchema);
 
   if (schema.anyOf) {
-    const variants = schema.anyOf as JsonSchema[];
-    const variantErrors = variants.map((variant) => {
-      const localErrors: ValidationError[] = [];
-      validateValue(value, variant, path, localErrors);
-      return localErrors;
-    });
-    if (!variantErrors.some((e) => e.length === 0)) {
-      errors.push({ path, message: `value matches none of the anyOf variants` });
-    }
+    validateAnyOf(value, schema.anyOf as JsonSchema[], path, errors);
     return;
   }
 
   if (schema.allOf) {
-    for (const sub of schema.allOf as JsonSchema[]) {
-      validateValue(value, sub, path, errors);
-    }
+    validateAllOf(value, schema.allOf as JsonSchema[], path, errors);
     return;
   }
 
-  const expectedTypes = Array.isArray(schema.type) ? (schema.type as string[]) : schema.type ? [schema.type as string] : [];
-
-  if (expectedTypes.length > 0) {
-    const matches = expectedTypes.some((t) => typeMatches(value, t));
-    if (!matches) {
-      errors.push({
-        path,
-        message: `expected type ${expectedTypes.join(' | ')}, got ${value === null ? 'null' : typeof value}`,
-      });
-      return;
-    }
-  }
-
+  const expectedTypes = getExpectedTypes(schema);
+  if (!validateExpectedType(value, expectedTypes, path, errors)) return;
   if (value === null) return;
 
-  if (schema.enum && !(schema.enum as unknown[]).includes(value)) {
-    errors.push({ path, message: `value "${String(value)}" not in enum [${(schema.enum as unknown[]).join(', ')}]` });
-  }
-
-  if (expectedTypes.includes('object') || (schema.properties && typeof value === 'object')) {
-    const obj = value as Record<string, unknown>;
-    const properties = (schema.properties ?? {}) as Record<string, JsonSchema>;
-    const required = (schema.required ?? []) as string[];
-
-    for (const key of required) {
-      if (!(key in obj)) {
-        errors.push({ path: `${path}.${key}`, message: 'required property missing' });
-      }
-    }
-
-    for (const [key, propSchema] of Object.entries(properties)) {
-      if (key in obj) {
-        validateValue(obj[key], propSchema, `${path}.${key}`, errors);
-      }
-    }
-  }
-
-  if (expectedTypes.includes('array') && schema.items && Array.isArray(value)) {
-    value.forEach((item, index) => {
-      validateValue(item, schema.items as JsonSchema, `${path}[${index}]`, errors);
-    });
-  }
+  validateEnum(value, schema, path, errors);
+  validateObjectProperties(value, schema, expectedTypes, path, errors);
+  validateArrayItems(value, schema, expectedTypes, path, errors);
 }
 
 /**
