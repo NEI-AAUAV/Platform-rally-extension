@@ -163,8 +163,9 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       const evaluateOnPage = async (page: Page, teamName: string): Promise<void> => {
         await page.getByText(teamName).first().click();
         await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-        // BooleanActivity's form is a success/fail switch, default off.
-        await page.getByRole('switch').first().click();
+        // BooleanForm's success control is a native checkbox (visually styled as a
+        // switch), default unchecked — see src/components/forms/BooleanForm.tsx.
+        await page.getByRole('checkbox').first().click();
         await page.getByRole('button', { name: /submit evaluation/i }).click();
       };
 
@@ -179,7 +180,7 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       // reconnect drains it against the real backend.
       await staffBPage.getByText(teamDelta.name).first().click();
       await staffBPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-      await staffBPage.getByRole('switch').first().click();
+      await staffBPage.getByRole('checkbox').first().click();
 
       await staffBPage.context().setOffline(true);
       await staffBPage.getByRole('button', { name: /submit evaluation/i }).click();
