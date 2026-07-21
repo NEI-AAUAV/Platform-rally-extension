@@ -93,10 +93,11 @@ async def test_jwks_cached_across_validations():
 
 @pytest.mark.asyncio
 async def test_wrong_issuer_rejected():
+    token = _sign("RS256", sub="u1")
     with _wired_validator() as v:
         v._issuer = "https://different-issuer.example"
         with pytest.raises(HTTPException) as exc:
-            await v.validate_token(_sign("RS256", sub="u1"), settings)
+            await v.validate_token(token, settings)
     assert exc.value.status_code == 401
     assert "issuer" in exc.value.detail.lower()
 
@@ -133,10 +134,11 @@ async def test_scalar_audience_mismatch_rejected():
 async def test_unexpected_error_wrapped_as_401():
     """A non-Jose, non-HTTPException failure mid-validation still surfaces as
     a 401 rather than leaking a raw exception."""
+    token = _sign("RS256", sub="u1")
     with _wired_validator() as v:
         with patch("app.api.oidc._jwt.decode", side_effect=RuntimeError("boom")):
             with pytest.raises(HTTPException) as exc:
-                await v.validate_token(_sign("RS256", sub="u1"), settings)
+                await v.validate_token(token, settings)
     assert exc.value.status_code == 401
     assert "validation failed" in exc.value.detail.lower()
 
