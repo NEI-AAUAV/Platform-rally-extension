@@ -6,6 +6,7 @@ import type { QueuedEval } from "@/offline/evalQueue";
 
 vi.mock("@/offline/evalQueue", () => ({
   list: vi.fn(),
+  QUEUE_CHANGED_EVENT: "rally-offline-queue-changed",
 }));
 
 function makeEval(overrides: Partial<QueuedEval> = {}): QueuedEval {

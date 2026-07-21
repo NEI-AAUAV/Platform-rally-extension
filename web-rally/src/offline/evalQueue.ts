@@ -32,8 +32,14 @@ async function readAll(): Promise<QueuedEval[]> {
   return (await get<QueuedEval[]>(QUEUE_KEY, STORE)) ?? [];
 }
 
+/** Fired whenever the queue's contents change, so UI can refresh without polling. */
+export const QUEUE_CHANGED_EVENT = "rally-offline-queue-changed";
+
 async function writeAll(items: QueuedEval[]): Promise<void> {
   await set(QUEUE_KEY, items, STORE);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+  }
 }
 
 /** Append a submit to the queue (idempotencyKey is the identity). */

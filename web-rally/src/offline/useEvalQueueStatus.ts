@@ -1,11 +1,12 @@
 /**
  * Reactive view of the offline evaluation queue for UI badges.
  *
- * idb-keyval has no change events, so we poll on an interval plus refresh on
- * the `online`/`offline` and window-focus signals that bracket a sync.
+ * Refreshes immediately on the queue's own change event (fired by
+ * evalQueue.writeAll) plus the `online`/`offline`/focus signals that bracket
+ * a sync, with a polling fallback in case an event is ever missed.
  */
 import { useCallback, useEffect, useState } from "react";
-import { list, type QueuedEval } from "./evalQueue";
+import { list, QUEUE_CHANGED_EVENT, type QueuedEval } from "./evalQueue";
 
 const POLL_MS = 4000;
 
@@ -30,11 +31,13 @@ export function useEvalQueueStatus(): EvalQueueStatus {
     window.addEventListener("online", onSignal);
     window.addEventListener("offline", onSignal);
     window.addEventListener("focus", onSignal);
+    window.addEventListener(QUEUE_CHANGED_EVENT, onSignal);
     return () => {
       window.clearInterval(id);
       window.removeEventListener("online", onSignal);
       window.removeEventListener("offline", onSignal);
       window.removeEventListener("focus", onSignal);
+      window.removeEventListener(QUEUE_CHANGED_EVENT, onSignal);
     };
   }, [refresh]);
 

@@ -163,10 +163,16 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       const evaluateOnPage = async (page: Page, teamName: string): Promise<void> => {
         await page.getByText(teamName).first().click();
         await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-        // BooleanForm's success control is a native checkbox (visually styled as a
-        // switch), default unchecked — see src/components/forms/BooleanForm.tsx.
-        await page.getByRole('checkbox').first().click();
+        // BooleanForm's success control is a visually-hidden (`sr-only`) native
+        // checkbox with a styled label sitting on top of it — clicking the
+        // checkbox role directly fails Playwright's actionability check (the
+        // label div intercepts pointer events), so target the label instead.
+        // See src/components/forms/BooleanForm.tsx.
+        await page.getByText('Team succeeded in the activity').first().click();
         await page.getByRole('button', { name: /submit evaluation/i }).click();
+        // Submitting drills into the team's own activity detail view — return
+        // to the checkpoint's team list so the next team is selectable.
+        await page.getByText('Voltar às equipas').click();
       };
 
       await Promise.all([
@@ -180,15 +186,22 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       // reconnect drains it against the real backend.
       await staffBPage.getByText(teamDelta.name).first().click();
       await staffBPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-      await staffBPage.getByRole('checkbox').first().click();
+      await staffBPage.getByText('Team succeeded in the activity').first().click();
 
-      await staffBPage.context().setOffline(true);
+      // Simulate the device dropping mid-submit: abort just the evaluate call
+      // like a lost connection. context.setOffline is unreliable for this —
+      // it also blocks the API reads the page still needs, and there's a race
+      // between it taking effect and the submit click firing (see the same
+      // note in tests/e2e/offline-pwa.spec.ts).
+      await staffBPage.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', (route) =>
+        route.abort('internetdisconnected'),
+      );
       await staffBPage.getByRole('button', { name: /submit evaluation/i }).click();
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({
         timeout: 10_000,
       });
 
-      await staffBPage.context().setOffline(false);
+      await staffBPage.unroute('**/api/rally/v1/staff/teams/*/activities/*/evaluate**');
       await staffBPage.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toHaveCount(0, {
         timeout: 15_000,
