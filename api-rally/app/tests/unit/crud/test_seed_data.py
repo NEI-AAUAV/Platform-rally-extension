@@ -165,10 +165,10 @@ async def test_upsert_activity_creates_and_updates(pg_session):
 async def test_seed_data_end_to_end(pg_session, monkeypatch):
     calls = {}
 
-    async def _fake_seed_checkpoints(db, data_dir, event):
+    async def _fake_seed_checkpoints(db, data_dir, event):  # NOSONAR: must stay async, awaited by seed_data
         calls["checkpoints"] = (data_dir, event.id)
 
-    async def _fake_seed_activities(db, data_dir, event):
+    async def _fake_seed_activities(db, data_dir, event):  # NOSONAR: must stay async, awaited by seed_data
         calls["activities"] = (data_dir, event.id)
 
     monkeypatch.setattr("app.db.seed_data._seed_checkpoints", _fake_seed_checkpoints)
