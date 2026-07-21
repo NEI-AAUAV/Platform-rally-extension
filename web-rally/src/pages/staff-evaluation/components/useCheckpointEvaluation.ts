@@ -49,9 +49,42 @@ class OfflineQueuedError extends Error {
  * through that interceptor.
  */
 function isNetworkError(error: unknown): boolean {
+  if (error instanceof NetworkTimeoutError) return true;
   if (error instanceof ApiError) return error.status === 0;
   if (typeof navigator !== "undefined" && !navigator.onLine) return true;
   return error instanceof TypeError;
+}
+
+/** Thrown when a request outraces {@link EVALUATE_NETWORK_TIMEOUT_MS} — treated as a network error. */
+class NetworkTimeoutError extends Error {
+  constructor() {
+    super("network-timeout");
+    this.name = "NetworkTimeoutError";
+  }
+}
+
+/**
+ * Some browsers don't reject a `fetch` promptly when connectivity drops
+ * mid-request (offline emulation can leave it pending indefinitely instead of
+ * throwing). Racing against this bound guarantees the offline-queue fallback
+ * in `isNetworkError` still triggers instead of hanging the submit forever.
+ */
+const EVALUATE_NETWORK_TIMEOUT_MS = 8_000;
+
+function withNetworkTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new NetworkTimeoutError()), EVALUATE_NETWORK_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 interface StaffActivitiesParams {
@@ -290,11 +323,13 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         penalties: resultData?.penalties ?? {},
       };
       try {
-        const { data } = await evaluateTeamActivity({
-          path: { team_id: teamId, activity_id: activityId },
-          body: payload,
-          headers: { "Idempotency-Key": idempotencyKey },
-        });
+        const { data } = await withNetworkTimeout(
+          evaluateTeamActivity({
+            path: { team_id: teamId, activity_id: activityId },
+            body: payload,
+            headers: { "Idempotency-Key": idempotencyKey },
+          }),
+        );
         return data;
       } catch (error) {
         // A network/offline failure (no server response) is retryable: queue it
