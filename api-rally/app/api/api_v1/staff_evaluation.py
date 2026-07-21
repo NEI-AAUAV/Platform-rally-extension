@@ -116,6 +116,78 @@ async def get_teams_at_my_checkpoint(
     ]
 
 
+async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number: int):
+    """Resolve the checkpoint an admin/manager should see activities for.
+
+    The team's most recently reached checkpoint (order == len(times)) is
+    where they currently stand and where staff evaluate them — not
+    get_next()'s order+1, which is the checkpoint still ahead of them
+    and 404s once the team has already checked into their last post.
+    Checkpoints are numbered starting at 1, so a team with no visits
+    yet (len(times) == 0) stands at the first checkpoint, not order 0.
+
+    But evaluating the *last* pending activity at a checkpoint makes
+    check_and_advance_team auto-advance the team past it in the same
+    request (staff_evaluation_utils.py's ensure_team_checkpoint_and_advance),
+    so by the time this GET runs right after that evaluate,
+    len(times) already reflects the *next* checkpoint — order+1 relative
+    to where the just-scored activity actually lives. Try the team's
+    current order first; if it has no activities for this team (no
+    pending ones, no prior results), assume they just completed and
+    advanced past it, and fall back one order to show what was just
+    evaluated instead of an empty list.
+    """
+    from app.crud.crud_activity import activity
+
+    checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
+    if not checkpoint_obj:
+        raise RallyNotFoundError("Checkpoint not found")
+    resolved_checkpoint_id = checkpoint_obj.id
+
+    checkpoint_activities_preview = await activity.get_by_checkpoint(
+        db, checkpoint_id=resolved_checkpoint_id
+    )
+    if not checkpoint_activities_preview and team_checkpoint_number > 1:
+        previous_checkpoint = await checkpoint.get_by_order(db, order=team_checkpoint_number - 1)
+        if previous_checkpoint:
+            resolved_checkpoint_id = previous_checkpoint.id
+
+    return resolved_checkpoint_id
+
+
+def _build_activity_status_list(activities, result_map):
+    """Build per-activity evaluation status entries plus completion bookkeeping."""
+    activities_with_status = []
+    completed_activities = 0
+    pending_activities = []
+
+    for activity_obj in activities:
+        existing = result_map.get(activity_obj.id)
+        has_result = existing is not None
+        if has_result:
+            completed_activities += 1
+        else:
+            pending_activities.append(activity_obj.name)
+
+        activities_with_status.append({
+            "id": activity_obj.id,
+            "name": activity_obj.name,
+            "description": activity_obj.description,
+            "activity_type": activity_obj.activity_type,
+            "config": activity_obj.config,
+            "is_active": activity_obj.is_active,
+            "evaluation_status": "completed" if has_result else "pending",
+            # Serialize through the response schema so FastAPI's encoder never
+            # walks the ORM's lazy relationships (activity/team) on the async
+            # session, which would raise MissingGreenlet -> 500.
+            "existing_result": (
+                ActivityResultResponse.model_validate(existing) if existing else None
+            ),
+        })
+
+    return activities_with_status, completed_activities, pending_activities
+
+
 @router.get("/teams/{team_id}/activities")
 async def get_team_activities_for_evaluation(
     *,
@@ -142,35 +214,7 @@ async def get_team_activities_for_evaluation(
     # is_admin_or_manager bypass at line ~238) — resolve the team's current
     # checkpoint from its progress instead of requiring a staff assignment.
     if is_admin_or_manager(auth):
-        # The team's most recently reached checkpoint (order == len(times)) is
-        # where they currently stand and where staff evaluate them — not
-        # get_next()'s order+1, which is the checkpoint still ahead of them
-        # and 404s once the team has already checked into their last post.
-        # Checkpoints are numbered starting at 1, so a team with no visits
-        # yet (len(times) == 0) stands at the first checkpoint, not order 0.
-        #
-        # But evaluating the *last* pending activity at a checkpoint makes
-        # check_and_advance_team auto-advance the team past it in the same
-        # request (staff_evaluation_utils.py's ensure_team_checkpoint_and_advance),
-        # so by the time this GET runs right after that evaluate,
-        # len(times) already reflects the *next* checkpoint — order+1 relative
-        # to where the just-scored activity actually lives. Try the team's
-        # current order first; if it has no activities for this team (no
-        # pending ones, no prior results), assume they just completed and
-        # advanced past it, and fall back one order to show what was just
-        # evaluated instead of an empty list.
-        checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
-        if not checkpoint_obj:
-            raise RallyNotFoundError("Checkpoint not found")
-        resolved_checkpoint_id = checkpoint_obj.id
-
-        checkpoint_activities_preview = await activity.get_by_checkpoint(
-            db, checkpoint_id=resolved_checkpoint_id
-        )
-        if not checkpoint_activities_preview and team_checkpoint_number > 1:
-            previous_checkpoint = await checkpoint.get_by_order(db, order=team_checkpoint_number - 1)
-            if previous_checkpoint:
-                resolved_checkpoint_id = previous_checkpoint.id
+        resolved_checkpoint_id = await _resolve_admin_checkpoint_id(db, team_checkpoint_number)
     else:
         if not current_user.staff_checkpoint_id:
             raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
@@ -185,37 +229,10 @@ async def get_team_activities_for_evaluation(
     existing_results = await activity_result.get_by_team(db, team_id=team_id)
     result_map = {result.activity_id: result for result in existing_results}
 
-    # Build response with evaluation status
-    activities_with_status = []
     total_activities = len(activities)
-    completed_activities = 0
-    pending_activities = []
-
-    for activity_obj in activities:
-        has_result = activity_obj.id in result_map
-        if has_result:
-            completed_activities += 1
-
-        existing = result_map.get(activity_obj.id)
-        activity_data = {
-            "id": activity_obj.id,
-            "name": activity_obj.name,
-            "description": activity_obj.description,
-            "activity_type": activity_obj.activity_type,
-            "config": activity_obj.config,
-            "is_active": activity_obj.is_active,
-            "evaluation_status": "completed" if has_result else "pending",
-            # Serialize through the response schema so FastAPI's encoder never
-            # walks the ORM's lazy relationships (activity/team) on the async
-            # session, which would raise MissingGreenlet -> 500.
-            "existing_result": (
-                ActivityResultResponse.model_validate(existing) if existing else None
-            ),
-        }
-        activities_with_status.append(activity_data)
-
-        if not has_result:
-            pending_activities.append(activity_obj.name)
+    activities_with_status, completed_activities, pending_activities = _build_activity_status_list(
+        activities, result_map
+    )
 
     # Calculate completion ratio
     # Only flag as "incomplete" when some activities are already done but not
