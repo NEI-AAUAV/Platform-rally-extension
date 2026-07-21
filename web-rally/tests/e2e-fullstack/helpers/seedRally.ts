@@ -1,5 +1,32 @@
 import { mintToken, apiCall, type MintedUser } from "./fullstackAuth";
 
+/**
+ * Checkpoint `order` is a single sequence scoped to whichever event is
+ * "current" (api-rally/app/models/checkpoint.py's uq_checkpoint_event_order
+ * constraint) — real rallies have exactly one ordered checkpoint list shared
+ * by every team. staff-check-in only advances a team past a checkpoint when
+ * `checkpoint.order === len(team.times) + 1`, so a team's *first* checkpoint
+ * must be order 1 within its event.
+ *
+ * The smoke Postgres is disposable but not reset between spec files sharing
+ * one CI job, and every seedRally()/seedRallyDay() call previously reused
+ * whatever event happened to be "current" — so by the 2nd+ call in a job,
+ * its checkpoint landed at some already-high global order while the fresh
+ * team's own len(times) was still 0, and staff-check-in could never fire.
+ * Minting and activating a fresh event per call gives each test a genuinely
+ * empty checkpoint sequence to start its own order at 1, matching how real
+ * rallies actually work instead of simulating several unrelated rallies
+ * sharing one event's order space.
+ */
+export async function createAndActivateEvent(admin: MintedUser, label: string): Promise<void> {
+  const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const event = await apiCall<{ id: number }>("POST", "/events", {
+    token: admin.accessToken,
+    body: { name: `E2E Event ${label} ${uniqueId}`, slug: `e2e-event-${label}-${uniqueId}` },
+  });
+  await apiCall("POST", `/events/${event.id}/set-current`, { token: admin.accessToken });
+}
+
 export interface SeededRally {
   readonly admin: MintedUser;
   readonly checkpointId: number;
@@ -29,39 +56,15 @@ export async function seedRally(): Promise<SeededRally> {
     email: adminEmail,
   });
 
-  // `order` must be unique per checkpoint AND, separately, staff-check-in
-  // (api-rally's checkin.py) only advances a team past a checkpoint when
-  // `checkpoint.order === len(team.times) + 1` — i.e. real progression
-  // strictly requires order to start at 1 and be sequential. A random order
-  // (the previous approach here) satisfies uniqueness but silently breaks
-  // that invariant: staff-check-in never fires, team.times never advances,
-  // and every endpoint that resolves "the team's current checkpoint" from
-  // order arithmetic (see get_team_activities_for_evaluation) 404s.
-  //
-  // Mirrors seedRallyDay.ts's fix for the same constraint: read the highest
-  // existing order in the (shared, disposable, never-reset) smoke Postgres
-  // and claim the next one, retrying past collisions from other specs
-  // concurrently seeding against the same event.
-  async function createCheckpointWithRetry(): Promise<{ id: number; order: number }> {
-    const existingCheckpoints = await apiCall<{ order: number }[]>("GET", "/checkpoint/", {
-      token: admin.accessToken,
-    });
-    let order = existingCheckpoints.reduce((max, c) => Math.max(max, c.order), 0) + 1;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const created = await apiCall<{ id: number }>("POST", "/checkpoint/", {
-          token: admin.accessToken,
-          body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
-        });
-        return { id: created.id, order };
-      } catch (error) {
-        if (attempt === 49 || !(error instanceof Error) || !error.message.includes("already exists")) throw error;
-        order += 1;
-      }
-    }
-  }
-  const checkpoint = await createCheckpointWithRetry();
-  const order = checkpoint.order;
+  // Fresh event -> this call's checkpoint can genuinely be order 1 (see
+  // createAndActivateEvent's comment for why that's required).
+  await createAndActivateEvent(admin, "rally");
+
+  const order = 1;
+  const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
+    token: admin.accessToken,
+    body: { name: `E2E Checkpoint ${order}`, order, arrival_radius_m: 50 },
+  });
 
   // Endpoints like GET /staff/teams/{id}/activities require staff_checkpoint_id
   // even for admins (see api-rally's get_staff_with_checkpoint_access +

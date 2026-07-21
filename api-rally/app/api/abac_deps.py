@@ -62,7 +62,7 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
 
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    curr_user: DetailedUser = Depends(deps.get_current_user),
+    curr_user: Optional[DetailedUser] = None,
     db: AsyncSession = Depends(deps.get_db)
 ) -> DetailedUser:
     """
@@ -80,15 +80,8 @@ async def get_staff_with_checkpoint_access(
     
     # Initialize curr_user if not provided
     if curr_user is None:
-        from app import crud
-        user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        curr_user = DetailedUser.model_validate(user)
-        logger.info(f"Loaded DetailedUser from database: id={curr_user.id}, name={curr_user.name}")
+        curr_user = await deps.get_current_user(auth=auth, db=db)
+
     
     # Check if user has any Rally permissions
     has_rally_access = any(scope in ["admin", "manager-rally", "rally-staff"] 
