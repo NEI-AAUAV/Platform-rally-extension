@@ -79,6 +79,11 @@ function formatRange(ev: RallyEvent): string | null {
 
 type ScheduleRounds = ReadonlyArray<ReadonlyArray<Record<string, unknown>>>;
 
+function generateButtonLabel(isPending: boolean, hasRounds: boolean): string {
+  if (isPending) return "A gerar…";
+  return hasRounds ? "Regenerar escalonamento" : "Gerar escalonamento";
+}
+
 function ExportResultsButton({ event }: Readonly<{ event: RallyEvent }>) {
   const toast = useAppToast();
   const exportMutation = useMutation({
@@ -130,11 +135,7 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
           ) : (
             <Shuffle className="mr-1.5 h-3.5 w-3.5" />
           )}
-          {generateMutation.isPending
-            ? "A gerar…"
-            : rounds
-              ? "Regenerar escalonamento"
-              : "Gerar escalonamento"}
+          {generateButtonLabel(generateMutation.isPending, Boolean(rounds))}
         </Button>
         {rounds && (
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">

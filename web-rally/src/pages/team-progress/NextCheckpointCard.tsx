@@ -16,10 +16,9 @@ type GpsState = "idle" | "locating" | "done" | "error";
 
 /** "Too far from checkpoint: 240m (max 50m)" → friendly PT message. */
 function traduzirDistancia(detail: string): string {
-  const regex = /(\d+)m \(max (\d+)m\)/;
-  const m = regex.exec(detail);
-  if (m) {
-    return `Ainda estás longe do posto: ${m[1]} m (tens de estar a menos de ${m[2]} m). Aproxima-te e tenta outra vez.`;
+  const match = /(\d+)m \(max (\d+)m\)$/.exec(detail.trim());
+  if (match) {
+    return `Ainda estás longe do posto: ${match[1]} m (tens de estar a menos de ${match[2]} m). Aproxima-te e tenta outra vez.`;
   }
   return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
 }

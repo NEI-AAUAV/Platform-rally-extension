@@ -14,17 +14,14 @@ def test_rally_error_handler_logs_traceback_for_5xx(monkeypatch):
     """A RallyError with status_code >= 500 hits the `logger.exception`
     branch (base RallyError defaults to 500)."""
 
+    monkeypatch.setattr(app.router, "routes", list(app.router.routes))
+
     @app.get("/__test-rally-500-error")
     async def _boom():
         raise RallyError("something broke")
 
     client = TestClient(app, raise_server_exceptions=False)
-    try:
-        resp = client.get("/__test-rally-500-error")
-    finally:
-        app.router.routes = [
-            r for r in app.router.routes if getattr(r, "path", None) != "/__test-rally-500-error"
-        ]
+    resp = client.get("/__test-rally-500-error")
 
     assert resp.status_code == 500
     assert resp.json() == {"detail": "something broke"}

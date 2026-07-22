@@ -162,6 +162,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
             <span className="text-sm font-medium text-foreground">Filtros</span>
             {hasActiveFilters && (
               <button
+                type="button"
                 onClick={() => {
                   setSelectedTeam("all");
                   setSelectedCheckpoint("all");

@@ -23,7 +23,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function ChangeRow({ field, diff }: { field: string; diff: unknown }) {
+function ChangeRow({ field, diff }: Readonly<{ field: string; diff: unknown }>) {
   const { before, after } =
     diff && typeof diff === "object"
       ? (diff as { before?: unknown; after?: unknown })
@@ -38,7 +38,7 @@ function ChangeRow({ field, diff }: { field: string; diff: unknown }) {
   );
 }
 
-function HistoryEntryCard({ entry }: { entry: EvaluationHistoryEntry }) {
+function HistoryEntryCard({ entry }: Readonly<{ entry: EvaluationHistoryEntry }>) {
   const isContest = entry.action === "contested";
   const when = new Date(entry.created_at).toLocaleString("pt-PT", {
     dateStyle: "short",

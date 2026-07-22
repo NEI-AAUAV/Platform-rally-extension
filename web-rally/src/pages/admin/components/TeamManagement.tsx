@@ -277,6 +277,7 @@ export default function TeamManagement() {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setNewlyCreatedTeam(null);
                     setSelectedTeamForQR(null);

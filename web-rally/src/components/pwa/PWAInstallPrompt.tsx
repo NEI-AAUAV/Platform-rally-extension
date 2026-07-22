@@ -90,6 +90,7 @@ export default function PWAInstallPrompt() {
             Agora não
           </button>
           <button
+            type="button"
             onClick={handleInstallClick}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
           >

@@ -41,6 +41,7 @@ export default function EvaluationFormModal({
             Avaliar: {activity.name}
           </h2>
           <button
+            type="button"
             onClick={onCancel}
             className="text-2xl text-muted-foreground transition-colors hover:text-foreground"
           >

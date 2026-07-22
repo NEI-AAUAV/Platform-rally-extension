@@ -24,7 +24,11 @@ export async function downloadEventResults(eventId: number, eventName: string): 
   }
 
   const blob = await response.blob();
-  const safeName = eventName.replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "") || "evento";
+  const safeName =
+    eventName
+      .replace(/[^\p{L}\p{N}_-]/gu, "_")
+      .replace(/_{2,}/g, "_")
+      .replace(/^_|_$/g, "") || "evento";
   triggerDownload(blob, `${safeName}_resultados.xlsx`);
 }
 

@@ -26,7 +26,7 @@ function extractRoutePaths(source) {
 }
 
 function extractAdminTabIds(source) {
-  const tabsBlock = source.match(/const TABS[^=]*=\s*\[([\s\S]*?)\n];/);
+  const tabsBlock = source.match(/const TABS(?::\s*[^=\n]+)?\s*=\s*\[([\s\S]*?)\n];/);
   if (!tabsBlock) return [];
   return [...tabsBlock[1].matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
@@ -83,10 +83,12 @@ function main() {
 
   const problems = [];
   if (missingRoutes.length > 0) {
-    problems.push(`Routes with no e2e spec coverage:\n${missingRoutes.map((r) => `  - ${r}`).join("\n")}`);
+    const lines = missingRoutes.map((r) => "  - " + r).join("\n");
+    problems.push(`Routes with no e2e spec coverage:\n${lines}`);
   }
   if (missingTabs.length > 0) {
-    problems.push(`Admin tabs with no e2e spec coverage:\n${missingTabs.map((t) => `  - ${t}`).join("\n")}`);
+    const lines = missingTabs.map((t) => "  - " + t).join("\n");
+    problems.push(`Admin tabs with no e2e spec coverage:\n${lines}`);
   }
 
   if (problems.length > 0) {
