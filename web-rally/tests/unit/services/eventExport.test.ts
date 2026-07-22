@@ -51,7 +51,7 @@ describe('downloadEventResults', () => {
     await downloadEventResults(42, 'Rally 2026')
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/rally/v1/events/42/export',
+      '/api/rally/v1/events/42/export',
       { headers: { Authorization: 'Bearer staff-jwt' } },
     )
   })

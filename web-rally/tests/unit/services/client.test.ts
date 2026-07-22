@@ -44,7 +44,7 @@ describe('client.ts', () => {
 
       expect(result).toBe('new-team-token')
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://localhost:8000/api/rally/v1/team-auth/refresh',
+        '/api/rally/v1/team-auth/refresh',
         expect.objectContaining({
           method: 'POST',
           headers: { Authorization: 'Bearer team-jwt' },
