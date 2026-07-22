@@ -46,7 +46,7 @@ test.describe('Full-stack golden path', () => {
 
     // Public scoreboard (real backend, no mock) lists the team.
     await page.goto('/rally/scoreboard');
-    await expect(page.getByText(`E2E Team ${rally.checkpointOrder}`)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(`E2E Team ${rally.checkpointOrder}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('admin panel loads real checkpoint and activity data end-to-end', async ({ page, context }) => {

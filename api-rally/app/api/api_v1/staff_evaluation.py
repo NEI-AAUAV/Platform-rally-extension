@@ -140,17 +140,24 @@ async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number:
     from app.crud.crud_activity import activity
 
     checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
-    if not checkpoint_obj:
-        raise RallyNotFoundError("Checkpoint not found")
-    resolved_checkpoint_id = checkpoint_obj.id
+    resolved_checkpoint_id = checkpoint_obj.id if checkpoint_obj else None
 
-    checkpoint_activities_preview = await activity.get_by_checkpoint(
-        db, checkpoint_id=resolved_checkpoint_id
+    checkpoint_activities_preview = (
+        await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
+        if resolved_checkpoint_id is not None
+        else []
     )
-    if not checkpoint_activities_preview and team_checkpoint_number > 1:
+    # No checkpoint at the team's current order, or it has nothing pending:
+    # either way this can mean the team just advanced past their last
+    # checkpoint in this event (e.g. a single-checkpoint event), so fall back
+    # one order to show what was just evaluated instead of 404ing.
+    if (not checkpoint_obj or not checkpoint_activities_preview) and team_checkpoint_number > 1:
         previous_checkpoint = await checkpoint.get_by_order(db, order=team_checkpoint_number - 1)
         if previous_checkpoint:
             resolved_checkpoint_id = previous_checkpoint.id
+
+    if resolved_checkpoint_id is None:
+        raise RallyNotFoundError("Checkpoint not found")
 
     return resolved_checkpoint_id
 
