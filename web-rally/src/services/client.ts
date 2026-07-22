@@ -1,4 +1,3 @@
-import config from "@/config";
 import { getTeamToken, setTeamToken, clearTeamAuth } from "@/lib/auth/tokenStore";
 
 /**
@@ -45,7 +44,10 @@ export async function refreshTeamToken(): Promise<string | undefined> {
   if (!teamToken) return undefined;
 
   try {
-    const response = await fetch(`${config.BASE_URL}/api/rally/v1/team-auth/refresh`, {
+    // Relative path — config.BASE_URL is a bare "http://localhost" with no
+    // port, so an absolute fetch against it silently hit port 80 (nothing
+    // there) in every environment except prod behind a reverse proxy on 80.
+    const response = await fetch(`/api/rally/v1/team-auth/refresh`, {
       method: "POST",
       headers: { Authorization: `Bearer ${teamToken}` },
     });

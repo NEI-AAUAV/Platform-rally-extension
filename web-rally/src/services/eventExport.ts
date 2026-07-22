@@ -1,4 +1,3 @@
-import config from "@/config";
 import { useUserStore } from "@/stores/useUserStore";
 
 /**
@@ -15,7 +14,9 @@ export async function downloadEventResults(eventId: number, eventName: string): 
     throw new Error("Sessão de administrador necessária");
   }
 
-  const response = await fetch(`${config.BASE_URL}/api/rally/v1/events/${eventId}/export`, {
+  // Relative path — see client.ts's refreshTeamToken for why config.BASE_URL
+  // (a bare "http://localhost" with no port) is wrong here.
+  const response = await fetch(`/api/rally/v1/events/${eventId}/export`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
