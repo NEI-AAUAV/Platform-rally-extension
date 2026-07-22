@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Admin from '@/pages/admin/index';
@@ -147,104 +147,34 @@ describe('Admin index page', () => {
     expect(mockNavigate).toHaveBeenCalledWith({ search: { tab: 'teams' }, replace: true });
   });
 
-  it('renders the teams tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'teams' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-teams')).toBeInTheDocument();
-  });
-
-  it('renders the checkpoints tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'checkpoints' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-checkpoints')).toBeInTheDocument();
-  });
-
   it('renders the activities tab content with fetched checkpoints', async () => {
     mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
     mockUseSearch.mockReturnValue({ tab: 'activities' });
     mockGetCheckpoints.mockResolvedValue({ data: [{ id: 1, name: 'CP1' }] });
     renderWithClient(<Admin />);
 
-    await waitFor(() => expect(screen.getByTestId('tab-activities')).toBeInTheDocument());
+    expect(await screen.findByTestId('tab-activities')).toBeInTheDocument();
   });
 
-  it('renders the branding tab content', () => {
+  it.each([
+    ['teams', 'tab-teams'],
+    ['checkpoints', 'tab-checkpoints'],
+    ['branding', 'tab-branding'],
+    ['events', 'tab-events'],
+    ['members', 'tab-members'],
+    ['assignment', 'tab-assignment'],
+    ['guide-assignment', 'tab-guide-assignment'],
+    ['versus', 'tab-versus'],
+    ['evaluation', 'tab-evaluation'],
+    ['judging', 'tab-judging'],
+    ['badges', 'tab-badges'],
+    ['scoring', 'tab-scoring'],
+    ['settings', 'tab-settings'],
+  ])('renders the %s tab content', (tab, testId) => {
     mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'branding' });
+    mockUseSearch.mockReturnValue({ tab });
     renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-branding')).toBeInTheDocument();
-  });
-
-  it('renders the events tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'events' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-events')).toBeInTheDocument();
-  });
-
-  it('renders the members tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'members' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-members')).toBeInTheDocument();
-  });
-
-  it('renders the assignment tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'assignment' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-assignment')).toBeInTheDocument();
-  });
-
-  it('renders the guide-assignment tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'guide-assignment' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-guide-assignment')).toBeInTheDocument();
-  });
-
-  it('renders the versus tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'versus' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-versus')).toBeInTheDocument();
-  });
-
-  it('renders the evaluation tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'evaluation' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-evaluation')).toBeInTheDocument();
-  });
-
-  it('renders the judging tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'judging' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-judging')).toBeInTheDocument();
-  });
-
-  it('renders the badges tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'badges' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-badges')).toBeInTheDocument();
-  });
-
-  it('renders the scoring tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'scoring' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-scoring')).toBeInTheDocument();
-  });
-
-  it('renders the settings tab content', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
-    mockUseSearch.mockReturnValue({ tab: 'settings' });
-    renderWithClient(<Admin />);
-    expect(screen.getByTestId('tab-settings')).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
 
   it('defaults to the dashboard tab when no tab is provided in search', () => {

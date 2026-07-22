@@ -104,6 +104,7 @@ test.describe('PWA / offline evaluation queue', () => {
     page,
     context,
   }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);
@@ -145,6 +146,7 @@ test.describe('PWA / offline evaluation queue', () => {
   });
 
   test('reconnecting drains the queue and clears the pending banner', async ({ page, context }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);
@@ -176,6 +178,7 @@ test.describe('PWA / offline evaluation queue', () => {
   });
 
   test('a permanently-failed replay is shown as failed, not silently dropped', async ({ page, context }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);

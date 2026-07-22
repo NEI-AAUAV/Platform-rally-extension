@@ -249,7 +249,7 @@ describe('StaffCheckinScanner', () => {
       })
     }
 
-    await waitFor(() => expect(screen.getByText('Team 5')).toBeInTheDocument())
+    expect(await screen.findByText('Team 5')).toBeInTheDocument()
     expect(screen.queryByText('Team 0')).not.toBeInTheDocument()
   })
 })

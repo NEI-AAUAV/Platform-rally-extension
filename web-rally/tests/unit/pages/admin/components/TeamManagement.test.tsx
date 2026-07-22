@@ -83,7 +83,7 @@ describe('TeamManagement', () => {
   it('renders a list of existing teams', async () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
     expect(screen.getByText('Pontuação: 100 • Membros: 3')).toBeInTheDocument();
   });
 
@@ -102,7 +102,7 @@ describe('TeamManagement', () => {
     await user.type(screen.getByPlaceholderText('Ex: Equipa Alpha'), 'New Team');
     fireEvent.click(screen.getByText('Criar Equipa'));
     await waitFor(() => expect(mockCreateTeam).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText('Equipa Criada!')).toBeInTheDocument());
+    expect(await screen.findByText('Equipa Criada!')).toBeInTheDocument();
     expect(mockToastSuccess).toHaveBeenCalledWith('Equipa criada com sucesso!');
     expect(screen.getByTestId('qr-code-display')).toHaveTextContent('ABC123');
   });
@@ -121,7 +121,7 @@ describe('TeamManagement', () => {
     renderWithClient(<TeamManagement />);
     await user.type(screen.getByPlaceholderText('Ex: Equipa Alpha'), 'New Team');
     fireEvent.click(screen.getByText('Criar Equipa'));
-    await waitFor(() => expect(screen.getByText('Equipa Criada!')).toBeInTheDocument());
+    expect(await screen.findByText('Equipa Criada!')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Fechar'));
     expect(screen.queryByText('Equipa Criada!')).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('TeamManagement', () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     const user = userEvent.setup();
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -153,7 +153,7 @@ describe('TeamManagement', () => {
   it('cancels edit mode', async () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -168,7 +168,7 @@ describe('TeamManagement', () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     mockUpdateTeam.mockRejectedValue(new Error('boom'));
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -181,7 +181,7 @@ describe('TeamManagement', () => {
   it('deletes a team after confirm', async () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -195,7 +195,7 @@ describe('TeamManagement', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -207,7 +207,7 @@ describe('TeamManagement', () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     mockDeleteTeam.mockRejectedValue(new Error('boom'));
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -219,7 +219,7 @@ describe('TeamManagement', () => {
   it('navigates to team-members page when clicking members button', async () => {
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
@@ -234,13 +234,13 @@ describe('TeamManagement', () => {
       data: { id: 1, name: 'Team Alpha', access_code: 'XYZ789' },
     });
     renderWithClient(<TeamManagement />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
 
     const teamRow = screen.getByText('Team Alpha').closest('li')!;
     const rowButtons = teamRow.querySelectorAll('button');
     fireEvent.click(rowButtons[0]!);
 
-    await waitFor(() => expect(screen.getByText('Código QR da Equipa')).toBeInTheDocument());
+    expect(await screen.findByText('Código QR da Equipa')).toBeInTheDocument();
     expect(screen.getByTestId('qr-code-display')).toHaveTextContent('XYZ789');
   });
 });

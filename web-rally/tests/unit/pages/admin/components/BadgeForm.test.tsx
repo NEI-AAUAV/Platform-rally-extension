@@ -316,7 +316,7 @@ describe('BadgeForm', () => {
         onDone={vi.fn()}
       />,
     );
-    await waitFor(() => expect(screen.getByText('Act A')).toBeInTheDocument());
+    expect(await screen.findByText('Act A')).toBeInTheDocument();
     const getSelect = () => screen.getAllByRole('combobox')[1] as HTMLSelectElement;
 
     fireEvent.change(getSelect(), { target: { value: '1' } });
@@ -333,7 +333,7 @@ describe('BadgeForm', () => {
         onDone={vi.fn()}
       />,
     );
-    await waitFor(() => expect(screen.getByText('CP A')).toBeInTheDocument());
+    expect(await screen.findByText('CP A')).toBeInTheDocument();
     const getSelect = () => screen.getAllByRole('combobox')[1] as HTMLSelectElement;
 
     fireEvent.change(getSelect(), { target: { value: '1' } });

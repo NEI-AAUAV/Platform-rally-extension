@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EvaluationHistory from '@/pages/staff-evaluation/components/EvaluationHistory';
@@ -32,19 +32,15 @@ describe('EvaluationHistory', () => {
   it('shows error state', async () => {
     mockGetEvaluationHistory.mockRejectedValue(new Error('fail'));
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() =>
-      expect(screen.getByText('Não foi possível carregar o histórico.')).toBeInTheDocument(),
-    );
+    expect(await screen.findByText('Não foi possível carregar o histórico.')).toBeInTheDocument();
   });
 
   it('shows empty state', async () => {
     mockGetEvaluationHistory.mockResolvedValue({ data: [] });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() =>
-      expect(
-        screen.getByText('Sem alterações registadas — avaliação nunca foi editada nem contestada.'),
-      ).toBeInTheDocument(),
-    );
+    expect(
+      await screen.findByText('Sem alterações registadas — avaliação nunca foi editada nem contestada.'),
+    ).toBeInTheDocument();
   });
 
   it('renders edit entries with changes', async () => {
@@ -60,7 +56,7 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText('Edição')).toBeInTheDocument());
+    expect(await screen.findByText('Edição')).toBeInTheDocument();
     expect(screen.getByText(/Jane/)).toBeInTheDocument();
     expect(screen.getByText('Pontuação final:')).toBeInTheDocument();
   });
@@ -78,7 +74,7 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText('Contestação')).toBeInTheDocument());
+    expect(await screen.findByText('Contestação')).toBeInTheDocument();
     expect(screen.getByText(/This looks wrong/)).toBeInTheDocument();
   });
 
@@ -94,7 +90,7 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText('Contestação')).toBeInTheDocument());
+    expect(await screen.findByText('Contestação')).toBeInTheDocument();
   });
 
   it('falls back to "desconhecido" when editor_name is missing', async () => {
@@ -109,7 +105,7 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText(/desconhecido/)).toBeInTheDocument());
+    expect(await screen.findByText(/desconhecido/)).toBeInTheDocument();
     // unknown_field has no label mapping, so falls back to raw field name
     expect(screen.getByText('unknown_field:')).toBeInTheDocument();
   });
@@ -130,7 +126,7 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText('Dados:')).toBeInTheDocument());
+    expect(await screen.findByText('Dados:')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
     expect(screen.getByText('{"foo":"bar"}')).toBeInTheDocument();
   });
@@ -148,16 +144,14 @@ describe('EvaluationHistory', () => {
       ],
     });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() => expect(screen.getByText('Penalizações:')).toBeInTheDocument());
+    expect(await screen.findByText('Penalizações:')).toBeInTheDocument();
   });
 
   it('handles missing data by defaulting to empty entries list', async () => {
     mockGetEvaluationHistory.mockResolvedValue({ data: undefined });
     renderWithClient(<EvaluationHistory resultId={1} />);
-    await waitFor(() =>
-      expect(
-        screen.getByText('Sem alterações registadas — avaliação nunca foi editada nem contestada.'),
-      ).toBeInTheDocument(),
-    );
+    expect(
+      await screen.findByText('Sem alterações registadas — avaliação nunca foi editada nem contestada.'),
+    ).toBeInTheDocument();
   });
 });

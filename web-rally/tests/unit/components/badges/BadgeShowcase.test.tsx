@@ -17,32 +17,12 @@ vi.mock('@/hooks/useBadges', () => ({
 const mockedUseBadgeShowcase = vi.mocked(useBadgeShowcase);
 
 describe('BadgeShowcase', () => {
-  it('renders nothing while loading', () => {
-    mockedUseBadgeShowcase.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      isError: false,
-    } as never);
-    const { container } = render(<BadgeShowcase teamId={1} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders nothing on error', () => {
-    mockedUseBadgeShowcase.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-    } as never);
-    const { container } = render(<BadgeShowcase teamId={1} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders nothing when data is undefined', () => {
-    mockedUseBadgeShowcase.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-    } as never);
+  it.each([
+    ['while loading', { data: undefined, isLoading: true, isError: false }],
+    ['on error', { data: undefined, isLoading: false, isError: true }],
+    ['when data is undefined', { data: undefined, isLoading: false, isError: false }],
+  ])('renders nothing %s', (_label, hookValue) => {
+    mockedUseBadgeShowcase.mockReturnValue(hookValue as never);
     const { container } = render(<BadgeShowcase teamId={1} />);
     expect(container).toBeEmptyDOMElement();
   });

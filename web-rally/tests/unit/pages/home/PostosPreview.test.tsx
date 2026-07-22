@@ -56,7 +56,7 @@ describe('PostosPreview', () => {
 
     const firstDesc = screen.getByText('desc-1');
     expect(firstDesc).toBeInTheDocument();
-    expect(screen.queryByText('desc-3')).toBeInTheDocument();
+    expect(screen.getByText('desc-3')).toBeInTheDocument();
   });
 
   it('shows a "+N postos" indicator when checkpoints exceed the preview limit', async () => {

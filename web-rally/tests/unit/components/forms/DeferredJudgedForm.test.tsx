@@ -95,7 +95,7 @@ describe('DeferredJudgedForm', () => {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() => screen.getByText(/Enviar \(1\) fotos/));
+    await screen.findByText(/Enviar \(1\) fotos/);
     fireEvent.click(screen.getByRole('button', { name: /Enviar/ }));
 
     await waitFor(() => {
@@ -109,7 +109,7 @@ describe('DeferredJudgedForm', () => {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() => screen.getByLabelText('Remover foto'));
+    await screen.findByLabelText('Remover foto');
     fireEvent.click(screen.getByLabelText('Remover foto'));
 
     await waitFor(() => {

@@ -102,6 +102,9 @@ test.describe('Idempotency', () => {
     // verifying the button itself is the idempotency guard, not just the
     // request's Idempotency-Key header.
     await submitButton.click();
+    // force: true is intentional here — the button is expected to become disabled
+    // or unmount immediately after the first click (that's the behavior under test),
+    // so waiting for actionability would defeat the purpose of this rapid second click.
     await submitButton.click({ force: true, timeout: 1000 }).catch(() => {});
 
     await expect.poll(() => getCallCount(), { timeout: 5000 }).toBe(1);

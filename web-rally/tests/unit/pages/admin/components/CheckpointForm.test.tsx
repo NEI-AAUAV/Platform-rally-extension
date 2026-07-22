@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -113,9 +113,7 @@ describe('CheckpointForm', () => {
   it('shows a validation error when name is empty and the form is submitted', async () => {
     const { onSubmit } = renderForm();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Criar Checkpoint/i }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Criar Checkpoint/i }));
 
     expect(await screen.findByText('Nome do checkpoint é obrigatório')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -126,9 +124,7 @@ describe('CheckpointForm', () => {
       defaultValues: { name: 'CP One', arrival_radius_m: 25, order: 2 },
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Criar Checkpoint/i }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Criar Checkpoint/i }));
 
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith(

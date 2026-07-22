@@ -53,7 +53,7 @@ describe('QRCodeScanner', () => {
 
     render(<QRCodeScanner onScan={vi.fn()} isOpen />)
 
-    await waitFor(() => expect(screen.getByText('Permissão Negada')).toBeInTheDocument())
+    expect(await screen.findByText('Permissão Negada')).toBeInTheDocument()
   })
 
   it('shows a not-found message when no camera is available', async () => {
@@ -63,9 +63,9 @@ describe('QRCodeScanner', () => {
 
     render(<QRCodeScanner onScan={vi.fn()} isOpen />)
 
-    await waitFor(() =>
-      expect(screen.getByText('Nenhuma câmara disponível no dispositivo.')).toBeInTheDocument(),
-    )
+    expect(
+      await screen.findByText('Nenhuma câmara disponível no dispositivo.'),
+    ).toBeInTheDocument()
   })
 
   it('shows a generic error message for unknown camera errors', async () => {
@@ -75,11 +75,9 @@ describe('QRCodeScanner', () => {
 
     render(<QRCodeScanner onScan={vi.fn()} isOpen />)
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('Não foi possível aceder à câmara. Tente novamente.'),
-      ).toBeInTheDocument(),
-    )
+    expect(
+      await screen.findByText('Não foi possível aceder à câmara. Tente novamente.'),
+    ).toBeInTheDocument()
   })
 
   it('calls onClose when the close button is clicked', async () => {
@@ -164,7 +162,7 @@ describe('QRCodeScanner', () => {
       await Promise.resolve()
     })
 
-    await waitFor(() => expect(screen.getByText('Erro ao iniciar câmara')).toBeInTheDocument())
+    expect(await screen.findByText('Erro ao iniciar câmara')).toBeInTheDocument()
   })
 
   it('stops existing tracks and does not render video when unmounted before getUserMedia resolves', async () => {

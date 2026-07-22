@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { renderHook } from '@testing-library/react'
 import { ColorModeProvider } from '@/components/theme/ColorModeProvider'
 import { useColorMode } from '@/components/theme/useColorMode'
@@ -70,11 +70,11 @@ describe('useColorMode', () => {
 
     expect(screen.getByText('dark')).toBeInTheDocument()
 
-    act(() => fireEvent.click(screen.getByText('set-light')))
+    fireEvent.click(screen.getByText('set-light'))
     expect(screen.getByText('light')).toBeInTheDocument()
     expect(localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe('light')
 
-    act(() => fireEvent.click(screen.getByText('toggle')))
+    fireEvent.click(screen.getByText('toggle'))
     expect(screen.getByText('dark')).toBeInTheDocument()
   })
 
@@ -102,7 +102,7 @@ describe('useColorMode', () => {
       </ColorModeProvider>,
     )
 
-    act(() => fireEvent.click(screen.getByText('toggle')))
+    fireEvent.click(screen.getByText('toggle'))
 
     expect(startViewTransition).toHaveBeenCalled()
     expect(screen.getByText('light')).toBeInTheDocument()

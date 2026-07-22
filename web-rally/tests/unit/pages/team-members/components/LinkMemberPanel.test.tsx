@@ -161,7 +161,7 @@ describe('LinkMemberPanel', () => {
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), 'Carlos');
     await user.click(screen.getByRole('button', { name: '' }));
 
-    await waitFor(() => expect(screen.getByText('Carlos')).toBeInTheDocument());
+    expect(await screen.findByText('Carlos')).toBeInTheDocument();
     await user.click(screen.getByText('Carlos').closest('button')!);
 
     await waitFor(() => {

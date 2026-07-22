@@ -34,7 +34,7 @@ function resolveRef(schema: JsonSchema): JsonSchema {
 function pathTemplateToRegex(template: string): RegExp {
   const escaped = template
     .split('/')
-    .map((segment) => (segment.startsWith('{') && segment.endsWith('}') ? '[^/]+' : segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    .map((segment) => (segment.startsWith('{') && segment.endsWith('}') ? '[^/]+' : segment.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)))
     .join('/');
   return new RegExp(`^${escaped}/?$`);
 }

@@ -121,8 +121,7 @@ describe('JoinTeamCard', () => {
     await user.type(screen.getByLabelText('Código da equipa'), 'ABCD-1234');
     await user.click(screen.getByRole('button', { name: /Procurar/i }));
 
-    await waitFor(() => screen.getByText('Carla'));
-    await user.click(screen.getByText('Carla'));
+    await user.click(await screen.findByText('Carla'));
 
     await waitFor(() => {
       expect(ProfileService.claimMembership).toHaveBeenCalledWith(5);
@@ -141,8 +140,7 @@ describe('JoinTeamCard', () => {
     await user.type(screen.getByLabelText('Código da equipa'), 'ABCD-1234');
     await user.click(screen.getByRole('button', { name: /Procurar/i }));
 
-    await waitFor(() => screen.getByText('Carla'));
-    await user.click(screen.getByText('Carla'));
+    await user.click(await screen.findByText('Carla'));
 
     await waitFor(() => {
       expect(screen.getByText('claim failed')).toBeInTheDocument();

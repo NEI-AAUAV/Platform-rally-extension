@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import PWAInstallPrompt from '@/components/pwa/PWAInstallPrompt'
 
 function dispatchBeforeInstallPrompt() {
@@ -43,13 +43,13 @@ describe('PWAInstallPrompt', () => {
       event = dispatchBeforeInstallPrompt()
     })
 
-    await act(async () => {
-      fireEvent.click(screen.getByText('Instalar'))
-      await event!.userChoice
-    })
+    fireEvent.click(screen.getByText('Instalar'))
+    await event!.userChoice
 
     expect(event!.prompt).toHaveBeenCalled()
-    expect(screen.queryByText('Instalar Rally Tascas')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByText('Instalar Rally Tascas')).not.toBeInTheDocument(),
+    )
   })
 
   it('removes the beforeinstallprompt listener on unmount', () => {

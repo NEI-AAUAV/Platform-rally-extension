@@ -64,7 +64,7 @@ describe("MapSection", () => {
 
   it("renders the real map (lazy loaded) when at least one checkpoint has coordinates", async () => {
     render(<MapSection checkpoints={withCoords} selectedCheckpoint={null} />);
-    await waitFor(() => expect(screen.getByTestId("map-container")).toBeInTheDocument());
+    expect(await screen.findByTestId("map-container")).toBeInTheDocument();
   });
 
   it("renders the schematic SVG fallback when no checkpoints have coordinates", () => {
@@ -127,6 +127,6 @@ describe("MapSection", () => {
       { id: 2, name: "No coords", order: 2 },
     ];
     render(<MapSection checkpoints={mixed} selectedCheckpoint={null} />);
-    await waitFor(() => expect(screen.getByTestId("map-container")).toBeInTheDocument());
+    expect(await screen.findByTestId("map-container")).toBeInTheDocument();
   });
 });

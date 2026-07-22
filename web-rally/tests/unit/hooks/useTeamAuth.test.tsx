@@ -213,19 +213,17 @@ describe('useTeamAuth', () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
       const capturedError: { current: unknown } = { current: null }
 
-      await act(async () => {
-        await new Promise<void>((resolve) => {
-          result.current.addMember(
-            { name: 'New Member' },
-            {
-              onError: (err) => {
-                capturedError.current = err
-                resolve()
-              },
-              onSuccess: () => resolve(),
+      await new Promise<void>((resolve) => {
+        result.current.addMember(
+          { name: 'New Member' },
+          {
+            onError: (err) => {
+              capturedError.current = err
+              resolve()
             },
-          )
-        })
+            onSuccess: () => resolve(),
+          },
+        )
       })
 
       expect((capturedError.current as Error)?.message).toBe('Team ID not found')
@@ -243,13 +241,11 @@ describe('useTeamAuth', () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
       await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
 
-      await act(async () => {
-        await new Promise<void>((resolve) => {
-          result.current.addMember(
-            { name: 'New Member', email: 'a@b.com' },
-            { onSuccess: () => resolve() },
-          )
-        })
+      await new Promise<void>((resolve) => {
+        result.current.addMember(
+          { name: 'New Member', email: 'a@b.com' },
+          { onSuccess: () => resolve() },
+        )
       })
 
       expect(addTeamMember).toHaveBeenCalledWith({
@@ -264,15 +260,13 @@ describe('useTeamAuth', () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
       const capturedError: { current: unknown } = { current: null }
 
-      await act(async () => {
-        await new Promise<void>((resolve) => {
-          result.current.removeMember(1, {
-            onError: (err) => {
-              capturedError.current = err
-              resolve()
-            },
-            onSuccess: () => resolve(),
-          })
+      await new Promise<void>((resolve) => {
+        result.current.removeMember(1, {
+          onError: (err) => {
+            capturedError.current = err
+            resolve()
+          },
+          onSuccess: () => resolve(),
         })
       })
 
@@ -291,10 +285,8 @@ describe('useTeamAuth', () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
       await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
 
-      await act(async () => {
-        await new Promise<void>((resolve) => {
-          result.current.removeMember(3, { onSuccess: () => resolve() })
-        })
+      await new Promise<void>((resolve) => {
+        result.current.removeMember(3, { onSuccess: () => resolve() })
       })
 
       expect(removeTeamMember).toHaveBeenCalledWith({

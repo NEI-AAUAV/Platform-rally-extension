@@ -91,7 +91,7 @@ describe('DynamicScoringTab', () => {
   it('renders a list of rules', async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Rule One')).toBeInTheDocument());
+    expect(await screen.findByText('Rule One')).toBeInTheDocument();
     expect(screen.getByText(/bonus · \+10 pts · desc/)).toBeInTheDocument();
   });
 
@@ -99,14 +99,14 @@ describe('DynamicScoringTab', () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     mockListDynamicAwards.mockResolvedValue({ data: [award()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
     expect(screen.getByText(/\+20 pts · good job/)).toBeInTheDocument();
   });
 
   it('does not show inactive awards', async () => {
     mockListDynamicAwards.mockResolvedValue({ data: [award({ is_active: false })] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Sem prémios ativos.')).toBeInTheDocument());
+    expect(await screen.findByText('Sem prémios ativos.')).toBeInTheDocument();
   });
 
   it('opens and cancels the new rule form', async () => {
@@ -148,13 +148,13 @@ describe('DynamicScoringTab', () => {
     });
     fireEvent.change(screen.getByPlaceholderText('ex: 50'), { target: { value: '5' } });
     fireEvent.click(screen.getByText('Criar'));
-    await waitFor(() => expect(screen.getByText('Erro ao criar regra.')).toBeInTheDocument());
+    expect(await screen.findByText('Erro ao criar regra.')).toBeInTheDocument();
   });
 
   it('toggles a rule active state', async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Rule One')).toBeInTheDocument());
+    expect(await screen.findByText('Rule One')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Desativar'));
     await waitFor(() =>
       expect(mockUpdateDynamicRule).toHaveBeenCalledWith({
@@ -167,7 +167,7 @@ describe('DynamicScoringTab', () => {
   it('deletes a rule after confirm', async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Rule One')).toBeInTheDocument());
+    expect(await screen.findByText('Rule One')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Eliminar'));
     await waitFor(() =>
       expect(mockDeleteDynamicRule).toHaveBeenCalledWith({ path: { rule_id: 1 } }),
@@ -178,7 +178,7 @@ describe('DynamicScoringTab', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Rule One')).toBeInTheDocument());
+    expect(await screen.findByText('Rule One')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Eliminar'));
     expect(mockDeleteDynamicRule).not.toHaveBeenCalled();
   });
@@ -194,9 +194,9 @@ describe('DynamicScoringTab', () => {
   it('creates a new award via the form', async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Novo prémio')).toBeInTheDocument());
+    expect(await screen.findByText('Novo prémio')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Novo prémio'));
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getAllByRole('combobox')[0]!, '1');
     fireEvent.change(screen.getByPlaceholderText('ex: -10 ou 50'), { target: { value: '15' } });
     fireEvent.click(screen.getAllByText('Criar')[0]!);
@@ -212,20 +212,20 @@ describe('DynamicScoringTab', () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     mockCreateDynamicAward.mockRejectedValue(new Error('failed'));
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Novo prémio')).toBeInTheDocument());
+    expect(await screen.findByText('Novo prémio')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Novo prémio'));
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getAllByRole('combobox')[0]!, '1');
     fireEvent.change(screen.getByPlaceholderText('ex: -10 ou 50'), { target: { value: '15' } });
     fireEvent.click(screen.getAllByText('Criar')[0]!);
-    await waitFor(() => expect(screen.getByText('Erro ao criar prémio.')).toBeInTheDocument());
+    expect(await screen.findByText('Erro ao criar prémio.')).toBeInTheDocument();
   });
 
   it('revokes an award after confirm', async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     mockListDynamicAwards.mockResolvedValue({ data: [award()] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('Team Alpha')).toBeInTheDocument());
+    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Revogar'));
     await waitFor(() =>
       expect(mockDeleteDynamicAward).toHaveBeenCalledWith({ path: { award_id: 1 } }),
@@ -236,6 +236,6 @@ describe('DynamicScoringTab', () => {
     mockGetTeams.mockResolvedValue({ data: [] });
     mockListDynamicAwards.mockResolvedValue({ data: [award({ team_id: 99 })] });
     renderWithClient(<DynamicScoringTab />);
-    await waitFor(() => expect(screen.getByText('#99')).toBeInTheDocument());
+    expect(await screen.findByText('#99')).toBeInTheDocument();
   });
 });
