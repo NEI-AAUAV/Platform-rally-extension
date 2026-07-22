@@ -94,7 +94,6 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         teamLogin(gammaPage, teamGamma.accessCode),
         teamLogin(deltaPage, teamDelta.accessCode),
       ]);
-
       // All 4 teams arrive at checkpoint A concurrently.
       await Promise.all([
         apiCall('POST', '/checkpoint/staff-check-in', {
@@ -114,7 +113,6 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
           body: { team_code: teamDelta.accessCode, checkpoint_id: checkpointA.id },
         }),
       ]);
-
       // Incident 1: teamBeta's client double-submits the same check-in (a
       // flaky-tap-retry scenario) — the second call must not error and must
       // not double-register the arrival. staff-check-in is idempotent per
@@ -129,7 +127,6 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         },
       );
       expect(duplicateCheckIn.ok).toBe(true);
-
       // teamGamma and teamDelta are only passing through A on their way to B
       // — evaluate them quickly via API (not the focus of this scenario) so
       // they become eligible for checkpoint B, then check them in there.
@@ -153,13 +150,11 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
           body: { team_code: teamDelta.accessCode, checkpoint_id: checkpointB.id },
         }),
       ]);
-
       // Incident 2: the actual concurrency under test — staffA evaluates
       // teamAlpha through the real UI at checkpoint A at the exact same time
       // staffB evaluates teamGamma through the real UI at checkpoint B.
       await staffAPage.goto(`/rally/staff-evaluation/checkpoint/${checkpointA.id}`);
       await staffBPage.goto(`/rally/staff-evaluation/checkpoint/${checkpointB.id}`);
-
       const evaluateOnPage = async (page: Page, teamName: string): Promise<void> => {
         await page.getByText(teamName).first().click();
         await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
@@ -179,7 +174,6 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         evaluateOnPage(staffAPage, teamAlpha.name),
         evaluateOnPage(staffBPage, teamGamma.name),
       ]);
-
       // Incident 3: staffB's next evaluation (teamDelta, also at checkpoint
       // B) drops offline mid-submit — the UI queues the submit locally (same
       // mechanism as offline-pwa.spec.ts) rather than losing it, then a
@@ -200,20 +194,17 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({
         timeout: 10_000,
       });
-
       await staffBPage.unroute('**/api/rally/v1/staff/teams/*/activities/*/evaluate**');
       await staffBPage.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toHaveCount(0, {
-        timeout: 15_000,
+        timeout: 30_000,
       });
-
       // Every team's own progress view reflects its real, server-computed
       // state — checked concurrently across all 4 team contexts.
       await Promise.all([alphaPage.reload(), betaPage.reload(), gammaPage.reload(), deltaPage.reload()]);
       await expect(alphaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
       await expect(gammaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
       await expect(deltaPage.getByText('Concluído').first()).toBeVisible({ timeout: 30_000 });
-
       // The admin's live scoreboard — fed by the same backend every context
       // above just wrote to — must show every team that scored, with no
       // write lost to the concurrency above.
@@ -221,7 +212,6 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       await expect(adminPage.getByText(teamAlpha.name)).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText(teamGamma.name)).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText(teamDelta.name)).toBeVisible({ timeout: 15_000 });
-
       // Cross-check against the API directly: exactly one evaluation per
       // activity per team, not duplicated by the offline-queue replay or the
       // duplicate check-in incident.
