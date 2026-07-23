@@ -105,11 +105,12 @@ test.describe('Idempotency', () => {
     // force: true is intentional here — the button is expected to become disabled
     // or unmount immediately after the first click (that's the behavior under test),
     // so waiting for actionability would defeat the purpose of this rapid second click.
-    await submitButton.click({ force: true, timeout: 1000 }).catch(() => {});
+    await submitButton.click({ force: true, timeout: 1000 }).catch(() => {}); // NOSONAR(S8783): forcing the race is the point of this test, see comment above
 
     await expect.poll(() => getCallCount(), { timeout: 5000 }).toBe(1);
-    // Give any accidental second request a moment to land before the final check.
-    await page.waitForTimeout(1000);
+    // Keep polling for a window so any accidental straggler request would surface as a failure,
+    // instead of sleeping blind and hoping it arrived in time.
+    await expect.poll(() => getCallCount(), { timeout: 1000 }).toBe(1);
     expect(getCallCount()).toBe(1);
   });
 });

@@ -64,9 +64,8 @@ export default function RotationScheduleView({ rounds }: Readonly<RotationSchedu
     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {rounds.map((round, roundIdx) => {
         const pairs = round.map(asPair).filter((p): p is RotationPair => p !== null);
-        const roundKey = pairs.length > 0
-          ? `round-${pairs.map((p) => `${p.team_id}:${p.checkpoint_id}`).join(",")}`
-          : `round-empty-${roundIdx}`;
+        const pairKeys = pairs.map((p) => p.team_id + ":" + p.checkpoint_id).join(",");
+        const roundKey = pairs.length > 0 ? `round-${pairKeys}` : `round-empty-${roundIdx}`;
         return (
           <section
             key={roundKey}

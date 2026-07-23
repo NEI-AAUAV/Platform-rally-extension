@@ -20,7 +20,10 @@ const FIELD_LABELS: Record<string, string> = {
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return "—";
 }
 
 function ChangeRow({ field, diff }: Readonly<{ field: string; diff: unknown }>) {

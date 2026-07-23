@@ -8,9 +8,9 @@ WORKDIR /app
 
 # Copy only what's needed for schema generation
 COPY api-rally/pyproject.toml api-rally/poetry.lock* ./
-RUN pip install --no-cache-dir --only-binary :all: poetry==2.4.1 && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-root --only main
+RUN pip install --no-cache-dir --only-binary :all: poetry-plugin-export==1.9.0 poetry==2.4.1 && \
+    poetry export -f requirements.txt --output requirements.txt --only main && \
+    pip install --no-compile --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
 
 # Copy API source and generate schema
 COPY api-rally/app ./app

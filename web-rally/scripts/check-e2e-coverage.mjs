@@ -21,14 +21,17 @@ const EXCLUDED_ROUTES = new Set([
 ]);
 
 function extractRoutePaths(source) {
-  const matches = [...source.matchAll(/^\s*path:\s*"([^"]+)"/gm)];
+  const matches = [...source.matchAll(/^[ \t]*path:[ \t]*"([^"\n]+)"/gm)];
   return matches.map((m) => m[1]).filter((p) => !EXCLUDED_ROUTES.has(p));
 }
 
 function extractAdminTabIds(source) {
-  const tabsBlock = source.match(/const TABS(?::\s*[^=\n]+)?\s*=\s*\[([\s\S]*?)\n];/);
-  if (!tabsBlock) return [];
-  return [...tabsBlock[1].matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const startMatch = /const TABS(?::[^=\n]*)?=\s*\[/.exec(source);
+  if (!startMatch) return [];
+  const closeIdx = source.indexOf("\n];", startMatch.index);
+  if (closeIdx === -1) return [];
+  const tabsBlock = source.slice(startMatch.index + startMatch[0].length, closeIdx);
+  return [...tabsBlock.matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
 function walk(dir, out = []) {

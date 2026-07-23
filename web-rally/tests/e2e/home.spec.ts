@@ -29,7 +29,7 @@ async function scrollThroughPage(page: Page) {
   const steps = 8;
   for (let i = 0; i < steps; i++) {
     await page.mouse.wheel(0, 600);
-    await page.waitForTimeout(150);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
 }
 

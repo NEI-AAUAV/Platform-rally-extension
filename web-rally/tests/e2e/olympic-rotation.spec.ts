@@ -47,7 +47,7 @@ test.describe('Olympic-event rotation schedule', () => {
   // hamburger-menu overlay that intercepts these clicks, no extra signal.
   // eslint-disable-next-line no-empty-pattern -- Playwright requires object destructuring here
   test.beforeEach(({}, testInfo) => {
-    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
+    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test'); // NOSONAR(S1607): reason given in the skip() call above
   });
 
   test('generates a round-robin schedule for a 4-team olympic event with resolved team/checkpoint names', async ({

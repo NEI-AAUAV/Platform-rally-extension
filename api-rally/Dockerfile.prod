@@ -7,7 +7,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --only-binary :all: pip==24.3.1 \
-    && pip install --no-cache-dir --only-binary :all: poetry==2.4.1 poetry-plugin-export==1.9.0
+    && pip install --no-cache-dir --only-binary :all: poetry-plugin-export==1.9.0 poetry==2.4.1
 
 COPY ./pyproject.toml ./poetry.lock* /tmp/
 
