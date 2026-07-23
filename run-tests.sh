@@ -95,10 +95,10 @@ echo "📦 Installing dependencies..."
 
 if [[ ! -d "api-rally/.venv" ]]; then
     print_warning "Installing API dependencies..."
-    # --no-root: don't build/install this project itself. Deps resolve from our
-    # own committed poetry.lock (no untrusted input), and this script is a
-    # local dev convenience, never run in CI or prod builds.
-    (cd api-rally && poetry install --no-interaction --no-root) # NOSONAR shell:S8541
+    # --no-root/--no-directory: never build this project or any path dependency
+    # from source, so poetry runs no setup scripts. Deps resolve from our own
+    # committed poetry.lock.
+    (cd api-rally && poetry install --no-interaction --no-root --no-directory)
 fi
 
 if [[ ! -d "web-rally/node_modules" ]]; then
