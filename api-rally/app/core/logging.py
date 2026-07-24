@@ -11,9 +11,15 @@ from typing import Any, Optional
 # if you dont like imports of private modules
 # you can move it to typing.py module
 from loguru import logger
-from loguru._defaults import LOGURU_FORMAT
 
 from app.core.config import settings
+
+# loguru's default format string, duplicated here to avoid importing the
+# library's private `loguru._defaults` module.
+LOGURU_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+)
 
 
 class InterceptHandler(logging.Handler):

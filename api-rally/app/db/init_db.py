@@ -86,7 +86,8 @@ def _create_schema_and_tables(connection: Connection) -> None:
     # with it. A SAVEPOINT scopes the failure to just this statement so a
     # losing worker can roll back to it and continue in the same
     # transaction instead of poisoning it.
-    for schema in Base.metadata._schemas:
+    schemas = {table.schema for table in Base.metadata.tables.values() if table.schema}
+    for schema in schemas:
         savepoint = connection.begin_nested()
         try:
             connection.execute(CreateSchema(schema, if_not_exists=True))
