@@ -94,10 +94,11 @@ fi
 echo "📦 Installing dependencies..."
 
 if [[ ! -d "api-rally/.venv" ]]; then
-    # This runner does not install API deps itself — do it once in api-rally
-    # with poetry so dependency setup stays an explicit, auditable step.
-    print_error "API deps missing. Run: (cd api-rally && poetry install --no-root)"
-    exit 1
+    print_warning "Installing API dependencies..."
+    # --no-root/--no-directory: never build this project or any path dependency
+    # from source, so no setup scripts run. Deps resolve from committed
+    # poetry.lock. (Sonar S8541 flags the poetry call itself; reviewed safe.)
+    (cd api-rally && poetry install --no-interaction --no-root --no-directory)
 fi
 
 if [[ ! -d "web-rally/node_modules" ]]; then
