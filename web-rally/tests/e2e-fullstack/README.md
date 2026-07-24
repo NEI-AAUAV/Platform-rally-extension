@@ -48,6 +48,7 @@ files would only confuse.
 | `guide-and-badges.spec.ts` | Guide-mode (a guide viewing their checkpoint's real indications) running concurrently with a staff evaluation that triggers a real `FIRST_COMPLETE_CHECKPOINT` badge auto-award, confirmed on the team's own `/conquistas` page. |
 | `scoreboard-sse.spec.ts` | The real `/scoreboard/stream` SSE endpoint: a public scoreboard page, opened once and never reloaded, must reflect a staff evaluation submitted afterwards — proves the live-update wiring works against the real backend, not just a mocked `EventSource`. |
 | `rally-day.spec.ts` | The master concurrency scenario — 7 simultaneous browser contexts (admin, 2 staff, 4 teams) racing through a real 2-checkpoint journey, with deliberately injected incidents (duplicate check-in, concurrent UI evaluations at two checkpoints, an offline-mid-submit recovery). This is the one test in the suite built specifically to catch cross-context race conditions. |
+| `security-abac.spec.ts` | ABAC boundaries against the real backend: staff evaluating an activity at a checkpoint they aren't assigned to gets a real 404 (not a mocked assumption); a genuine team JWT (logged in through the real UI, not synthesized) is rejected by admin/staff-only endpoints and the admin UI itself; a checkpoint's public payload is confirmed to never contain a guide indication's `expected_answer`. |
 
 ## Known gaps (not yet covered against a real backend)
 
@@ -56,7 +57,6 @@ could drift from the real API contract and nothing here would catch it:
 
 - Multi-edition / event switching (`tests/e2e/multi-edicao.spec.ts`)
 - Olympic rotation-schedule generation (`tests/e2e/olympic-rotation.spec.ts`)
-- ABAC security boundaries (`tests/e2e/security-abac.spec.ts`)
 - PWA install / offline manifest behavior (`tests/e2e/offline-pwa.spec.ts`)
 
 Left as mocked-only for now: the cost of running them against a disposable,
