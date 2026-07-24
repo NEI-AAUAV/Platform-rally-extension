@@ -9,9 +9,11 @@ Create Date: 2026-06-30
 """
 from typing import Sequence, Union
 
-import sqlalchemy as sa
-from alembic import op
-
+from alembic._migration_utils import (
+    create_team_score_history_table,
+    drop_team_score_history_table,
+    table_exists,
+)
 from app.core.config import settings
 
 # revision identifiers, used by Alembic.
@@ -24,49 +26,13 @@ SCHEMA = settings.SCHEMA_NAME
 TABLE = "team_score_history"
 
 
-def _table_exists() -> bool:
-    bind = op.get_bind()
-    return sa.inspect(bind).has_table(TABLE, schema=SCHEMA)
-
-
 def upgrade() -> None:
-    if not _table_exists():
+    if not table_exists(TABLE, SCHEMA):
         return
-    op.drop_index(
-        "ix_score_history_event_time",
-        table_name=TABLE,
-        schema=SCHEMA,
-    )
-    op.drop_table(TABLE, schema=SCHEMA)
+    drop_team_score_history_table(SCHEMA)
 
 
 def downgrade() -> None:
-    if _table_exists():
+    if table_exists(TABLE, SCHEMA):
         return
-    op.create_table(
-        "team_score_history",
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column(
-            "event_id",
-            sa.Integer(),
-            sa.ForeignKey(f"{SCHEMA}.rally_events.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "team_id",
-            sa.Integer(),
-            sa.ForeignKey(f"{SCHEMA}.teams.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column("total", sa.Integer(), nullable=False),
-        sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
-        schema=SCHEMA,
-    )
-    op.create_index(
-        "ix_score_history_event_time",
-        "team_score_history",
-        ["event_id", "recorded_at"],
-        schema=SCHEMA,
-    )
+    create_team_score_history_table(SCHEMA)

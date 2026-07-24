@@ -12,16 +12,7 @@ from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_user import user as crud_user
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.user import UserCreate
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def _make_checkpoint(pg_session, order=1):

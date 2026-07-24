@@ -5,6 +5,7 @@ import io
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from app.tests.conftest import make_event as _make_event
 
 
 def _png_upload(field: str = "image") -> dict:
@@ -33,16 +34,6 @@ def _valid_settings_payload(**overrides) -> dict:
     }
     payload.update(overrides)
     return payload
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
 
 
 class TestViewRallySettings:

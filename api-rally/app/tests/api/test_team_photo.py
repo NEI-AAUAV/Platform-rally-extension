@@ -6,20 +6,11 @@ from unittest.mock import AsyncMock, patch
 
 from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
+from app.tests.conftest import make_event as _make_event
 
 
 def _png_upload() -> dict:
     return {"image": ("team.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 16), "image/png")}
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
 
 
 async def _make_team(pg_session, name="T"):

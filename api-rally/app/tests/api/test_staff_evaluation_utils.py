@@ -35,16 +35,7 @@ from app.crud.crud_team import team as crud_team
 from app.schemas.activity import ActivityCreate, ActivityResultEvaluation, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def _activate_rally(pg_session, event):

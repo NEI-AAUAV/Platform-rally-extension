@@ -71,7 +71,6 @@ def _generate_unique_id(route: APIRoute) -> str:
 
 app = FastAPI(
     title="Rally Tascas API",
-    default_response_class=ORJSONResponse,
     lifespan=lifespan,
     generate_unique_id_function=_generate_unique_id,
 )

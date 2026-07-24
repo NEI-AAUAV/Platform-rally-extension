@@ -1,16 +1,7 @@
 """Checkpoint API tests against a real Postgres schema (pg_client + as_admin/as_user)."""
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.schemas.checkpoint import CheckPointCreate
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def _make_checkpoint(pg_session, order: int = 1):

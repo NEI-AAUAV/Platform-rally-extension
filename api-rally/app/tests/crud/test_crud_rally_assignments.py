@@ -11,16 +11,7 @@ from app.crud.crud_rally_staff_assignment import (
 from app.crud.crud_user import user as crud_user
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.user import UserCreate
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def _make_user(pg_session, name="Staffer"):

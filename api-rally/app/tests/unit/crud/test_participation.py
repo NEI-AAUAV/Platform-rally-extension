@@ -2,16 +2,7 @@
 from app.crud.crud_participation import CRUDParticipation
 from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def test_record_creates_with_team_snapshot(pg_session):

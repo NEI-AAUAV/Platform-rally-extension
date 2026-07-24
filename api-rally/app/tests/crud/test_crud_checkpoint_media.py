@@ -11,14 +11,7 @@ from app.models.activity import RallyEvent
 from app.models.checkpoint_media import MediaKind
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.checkpoint_media import CheckpointMediaCreate, CheckpointMediaUpdate
-
-
-async def _make_event(pg_session):
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def _make_checkpoint(pg_session, order=1):

@@ -6,16 +6,7 @@ from app.schemas.badge_definition import BadgeDefinitionCreate
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 from app.services import badge_service
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:

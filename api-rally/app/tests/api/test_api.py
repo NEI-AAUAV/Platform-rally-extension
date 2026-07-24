@@ -3,16 +3,7 @@ from datetime import datetime, timezone
 
 from app.crud.crud_rally_settings import rally_settings
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
-
-
-async def _make_event(pg_session, event_type="peddy_paper"):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, event_type=event_type)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:

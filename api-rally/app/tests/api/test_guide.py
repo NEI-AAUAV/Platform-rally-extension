@@ -11,16 +11,7 @@ from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.checkpoint_guide_indication import CheckpointGuideIndicationCreate
 from app.schemas.checkpoint_media import CheckpointMediaCreate
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
-
-
-async def _make_event(pg_session, event_type=EventType.GENERIC.value):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, event_type=event_type)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:

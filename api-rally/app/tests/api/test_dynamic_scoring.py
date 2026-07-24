@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.crud.crud_team import team as crud_team
 from app.models.team import Team
 from app.schemas.team import TeamCreate
+from app.tests.conftest import make_event as _make_event
 
 
 async def _reread_team(pg_session, team_id: int) -> Team:
@@ -14,16 +15,6 @@ async def _reread_team(pg_session, team_id: int) -> Team:
     """
     stmt = select(Team).where(Team.id == team_id).execution_options(populate_existing=True)
     return (await pg_session.scalars(stmt)).one()
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
 
 
 async def _make_team(pg_session, name="Team A"):

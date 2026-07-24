@@ -23,18 +23,9 @@ from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 from app.schemas.team_auth import TeamTokenData
 from app.services.checkin_token import CheckinClaims, CheckinTokenError
+from app.tests.conftest import make_event as _make_event
 
 CHECK_IN_URL = "/api/rally/v1/checkpoint/check-in"
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
 
 
 async def _activate_rally(pg_session, event):

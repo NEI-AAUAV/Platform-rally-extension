@@ -21,16 +21,7 @@ from app.tests.conftest import _fake_auth_data, as_team
 from app.models.activity import ActivityResult
 import app.api.api_v1.staff_evaluation as staff_evaluation_module
 from app.models.idempotency_key import IdempotencyKey
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
-
+from app.tests.conftest import make_event as _make_event
 
 async def _make_checkpoint(pg_session, order=1):
     return await crud_checkpoint.create(

@@ -2,16 +2,7 @@
 get_next() returning None for a missing team, and get_max_order()."""
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.schemas.checkpoint import CheckPointCreate
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 async def test_get_next_returns_none_for_unknown_team(pg_session):

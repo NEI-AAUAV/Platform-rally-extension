@@ -3,16 +3,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
-
-
-async def _make_event(pg_session):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:

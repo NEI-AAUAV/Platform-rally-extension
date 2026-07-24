@@ -15,6 +15,7 @@ from app.models.checkpoint import CheckPoint
 from app.schemas.rally_settings import RallySettingsUpdate
 from app.schemas.user import UserCreate
 from app.schemas.team import TeamCreate, TeamScoresUpdate, TeamUpdate
+from app.tests.conftest import make_event as _make_event
 
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:
@@ -25,16 +26,6 @@ def _settings_update(current, **overrides) -> RallySettingsUpdate:
     data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
     data.update(overrides)
     return RallySettingsUpdate(**data)
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
 
 
 async def _set_event_timing(pg_session, event, *, start_time, end_time):

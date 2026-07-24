@@ -16,6 +16,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from alembic._migration_utils import constraint_exists
 from app.core.config import settings
 
 revision: str = "0023"
@@ -28,17 +29,8 @@ TABLE = "activity_results"
 CONSTRAINT = "uq_activity_results_activity_id_team_id"
 
 
-def _constraint_exists() -> bool:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    if not inspector.has_table(TABLE, schema=SCHEMA):
-        return True  # nothing to do either way
-    constraints = inspector.get_unique_constraints(TABLE, schema=SCHEMA)
-    return any(c["name"] == CONSTRAINT for c in constraints)
-
-
 def upgrade() -> None:
-    if _constraint_exists():
+    if constraint_exists(TABLE, SCHEMA, CONSTRAINT):
         return
     # Deduplicate: keep the most recent result (highest id) per (activity, team).
     op.execute(
@@ -52,6 +44,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if not _constraint_exists():
+    if not constraint_exists(TABLE, SCHEMA, CONSTRAINT):
         return
     op.drop_constraint(CONSTRAINT, TABLE, schema=SCHEMA, type_="unique")

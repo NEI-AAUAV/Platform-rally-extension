@@ -11,16 +11,7 @@ import pytest
 from app.crud.crud_rally_settings import rally_settings
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS
-
-
-async def _make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+from app.tests.conftest import make_event as _make_event
 
 
 class TestGetOrCreate:

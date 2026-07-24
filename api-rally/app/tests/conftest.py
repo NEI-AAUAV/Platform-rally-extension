@@ -198,6 +198,16 @@ def pg_client(_pg_engine) -> TestClient:
         app.dependency_overrides[get_db] = override_get_db  # restore the module-level SQLite override
 
 
+async def make_event(pg_session, **overrides):
+    from app.models.activity import RallyEvent
+
+    event = RallyEvent(name="Test Event", is_current=True, **overrides)
+    pg_session.add(event)
+    await pg_session.commit()
+    await pg_session.refresh(event)
+    return event
+
+
 def _fake_detailed_user(**overrides):
     from app.schemas.user import DetailedUser
 
