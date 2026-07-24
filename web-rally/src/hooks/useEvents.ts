@@ -19,9 +19,9 @@ export function useEvents(enabled = true) {
 export function useEventMutations() {
   const qc = useQueryClient();
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: EVENTS_KEY });
-    qc.invalidateQueries({ queryKey: ["rallySettings-public"] });
-    qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
+    void qc.invalidateQueries({ queryKey: EVENTS_KEY });
+    void qc.invalidateQueries({ queryKey: ["rallySettings-public"] });
+    void qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
   };
 
   const create = useMutation({
@@ -43,9 +43,9 @@ export function useEventMutations() {
       // other query implicitly scopes to (checkpoints, teams, activities,
       // scoreboard) — without this, those stay cached from the previous
       // event until their own staleTime/refetch trigger fires.
-      qc.invalidateQueries({ queryKey: ["checkpoints"] });
-      qc.invalidateQueries({ queryKey: ["teams"] });
-      qc.invalidateQueries({ queryKey: ["activities"] });
+      void qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      void qc.invalidateQueries({ queryKey: ["teams"] });
+      void qc.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 
