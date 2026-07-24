@@ -61,11 +61,27 @@ async function evaluateOnPage(page: Page, teamName: string): Promise<void> {
   // a visually-hidden checkbox with a styled label on top — target the label.
   await page.getByText('Team succeeded in the activity').first().click();
   await page.getByRole('button', { name: /submit evaluation/i }).click();
+  // Wait for the exact success toast (useCheckpointEvaluation.ts) before
+  // moving on — this scenario runs far more prior activity (admin work,
+  // other evaluations, an edition-switch round trip) than rally-day.spec.ts's
+  // otherwise-identical sequence, and "Voltar às equipas" is a static nav
+  // button present regardless of whether the submit actually succeeded, so
+  // clicking it immediately can't be trusted to mean the POST landed. A
+  // looser "avaliad[ao]" match false-positives on the ever-present "Já
+  // avaliadas" section heading the moment any other team has been
+  // evaluated at this checkpoint — this must be the toast text exactly.
+  // .first(): this scenario evaluates 5 teams back-to-back at the same
+  // checkpoint, faster than each toast's own dismiss timer, so more than one
+  // "Atividade avaliada com sucesso!" instance can be stacked and visible at
+  // once — any one of them confirms this submission's toast fired.
+  await expect(page.getByText('Atividade avaliada com sucesso!').first()).toBeVisible({
+    timeout: 15_000,
+  });
   await page.getByText('Voltar às equipas').click();
 }
 
 test.describe('Master rally day — every feature combined under real concurrency', () => {
-  test.setTimeout(240_000);
+  test.setTimeout(600_000);
 
   test.beforeAll(async () => {
     await waitForApi();
@@ -197,11 +213,19 @@ test.describe('Master rally day — every feature combined under real concurrenc
       ]);
       await staffBPage.goto(`/rally/staff-evaluation/checkpoint/${checkpoint2.id}`);
       await evaluateOnPage(staffBPage, teamAlpha.name);
+      await evaluateOnPage(staffBPage, teamBeta.name);
+      // GET /staff/teams/{id}/activities scopes its `activities` array to the
+      // *calling staff member's own resolved checkpoint* server-side
+      // (get_team_activities_for_evaluation) — it never returns a
+      // checkpoint_id field on each activity to filter by (this endpoint
+      // assumes the caller only wants their own checkpoint's activities).
+      // staffB is assigned to checkpoint2, so its only entry here already is
+      // checkpoint2's activity.
       const teamAlphaResultId = (
         await apiCall<{
-          activities: { checkpoint_id: number; existing_result: { id: number } | null }[];
+          activities: { id: number; existing_result: { id: number } | null }[];
         }>('GET', `/staff/teams/${teamAlpha.id}/activities`, { token: staffB.user.accessToken })
-      ).activities.find((a) => a.checkpoint_id === checkpoint2.id)?.existing_result?.id;
+      ).activities.find((a) => a.id === checkpoint2.activityId)?.existing_result?.id;
       if (!teamAlphaResultId) throw new Error('teamAlpha checkpoint 2 result not found');
 
       // Contestation via the real API, concurrent with the admin's live
@@ -244,8 +268,10 @@ test.describe('Master rally day — every feature combined under real concurrenc
         `/staff/evaluations/${teamAlphaResultId}/history`,
         { token: day.admin.accessToken },
       );
-      expect(history.some((h) => h.action === 'CONTESTED')).toBe(true);
-      expect(history.some((h) => h.action === 'UPDATED')).toBe(true);
+      // EvaluationAction enum values are lowercase ("contested"/"updated"),
+      // not their Python enum member names.
+      expect(history.some((h) => h.action === 'contested')).toBe(true);
+      expect(history.some((h) => h.action === 'updated')).toBe(true);
 
       // teamAlpha's badge from completing checkpoint 1 first must be real
       // and visible on its own achievements page.
