@@ -23,6 +23,61 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+class _FakePubsub:
+    """Shared pubsub double. `messages` is served in order to `get_message`
+    (one per call, `None` once exhausted); defaults to no messages, i.e. a
+    heartbeat-ping-only stream."""
+
+    def __init__(self, messages: list[dict[str, Any]] | None = None) -> None:
+        self.closed = False
+        self.calls = 0
+        self.channels: list[str] = []
+        self._messages = list(messages or [])
+
+    async def subscribe(self, *_channels: str) -> None:
+        await asyncio.sleep(0)
+        self.channels = list(_channels)
+
+    psubscribe = subscribe
+
+    async def get_message(self, ignore_subscribe_messages: bool) -> dict[str, Any] | None:
+        await asyncio.sleep(0)
+        self.calls += 1
+        if self._messages:
+            return self._messages.pop(0)
+        return None
+
+    async def aclose(self) -> None:
+        await asyncio.sleep(0)
+        self.closed = True
+
+
+class _FakeClient:
+    def __init__(self, messages: list[dict[str, Any]] | None = None) -> None:
+        self.closed = False
+        self._messages = messages
+
+    def pubsub(self) -> _FakePubsub:
+        return _FakePubsub(self._messages)
+
+    async def aclose(self) -> None:
+        await asyncio.sleep(0)
+        self.closed = True
+
+
+class _FakeRequest:
+    """Reports connected for `disconnect_after` checks, then disconnected."""
+
+    def __init__(self, disconnect_after: int = 1) -> None:
+        self._calls = 0
+        self._disconnect_after = disconnect_after
+
+    async def is_disconnected(self) -> bool:
+        await asyncio.sleep(0)
+        self._calls += 1
+        return self._calls > self._disconnect_after
+
+
 @contextmanager
 def _override_settings(**overrides: Any) -> Iterator[None]:
     base = get_settings()
@@ -142,58 +197,16 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 ) -> None:
     """Directly drive the `event_stream` generator returned by
     `stream_scoreboard`, avoiding real ASGI/network timing."""
-
-
-    class _FakePubsub:
-        def __init__(self) -> None:
-            self._sent = False
-            self.closed = False
-            self.channels: list[str] = []
-
-        async def subscribe(self, *_channels: str) -> None:
-            await asyncio.sleep(0)
-            self.channels = list(_channels)
-            return None
-
-        async def get_message(
-            self, ignore_subscribe_messages: bool
-        ) -> dict[str, Any] | None:
-            await asyncio.sleep(0)
-            if not self._sent:
-                self._sent = True
-                return {"type": "message"}
-            return None
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeClient:
-        def pubsub(self) -> _FakePubsub:
-            return _FakePubsub()
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            return None
-
-    class _FakeRequest:
-        def __init__(self) -> None:
-            self._calls = 0
-
-        async def is_disconnected(self) -> bool:
-            await asyncio.sleep(0)
-            self._calls += 1
-            return self._calls > 2
-
     monkeypatch.setattr(
-        scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
+        scoreboard_module,
+        "get_async_redis_client",
+        lambda: _FakeClient(messages=[{"type": "message"}]),
     )
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
         response = await scoreboard_module.stream_scoreboard(
-            _FakeRequest(), settings
+            _FakeRequest(disconnect_after=2), settings
         )
         events = []
         async for event in response.body_iterator:
@@ -214,61 +227,16 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
     client disconnects the generator exits (covers the ping and break
     branches that `test_stream_scoreboard_emits_refresh_on_publish` and the
     fake-message path never reach)."""
-
-    class _FakePubsub:
-        def __init__(self) -> None:
-            self.closed = False
-            self.calls = 0
-            self.subscribed_channels: list[str] = []
-
-        async def subscribe(self, *_channels: str) -> None:
-            await asyncio.sleep(0)
-            self.subscribed_channels = list(_channels)
-            return None
-
-        async def get_message(
-            self, ignore_subscribe_messages: bool
-        ) -> dict[str, Any] | None:
-            await asyncio.sleep(0)
-            self.calls += 1
-            return None
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeClient:
-        def __init__(self) -> None:
-            self.closed = False
-
-        def pubsub(self) -> _FakePubsub:
-            return _FakePubsub()
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeRequest:
-        def __init__(self) -> None:
-            self._calls = 0
-
-        async def is_disconnected(self) -> bool:
-            await asyncio.sleep(0)
-            self._calls += 1
-            # Stay connected for the first check (so a ping is emitted), then
-            # report disconnected to end the generator.
-            return self._calls > 1
-
     monkeypatch.setattr(
         scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
     )
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
+        # Stay connected for the first check (so a ping is emitted), then
+        # report disconnected to end the generator.
         response = await scoreboard_module.stream_scoreboard(
-            _FakeRequest(), settings
+            _FakeRequest(disconnect_after=1), settings
         )
         events = []
         async for event in response.body_iterator:
@@ -284,58 +252,14 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same as above for `_pmessage_event_stream`'s ping/break branches."""
-
-    class _FakePubsub:
-        def __init__(self) -> None:
-            self.closed = False
-            self.calls = 0
-            self.channels: list[str] = []
-
-        async def psubscribe(self, *_channels: str) -> None:
-            await asyncio.sleep(0)
-            self.channels = list(_channels)
-            return None
-
-        async def get_message(
-            self, ignore_subscribe_messages: bool
-        ) -> dict[str, Any] | None:
-            await asyncio.sleep(0)
-            self.calls += 1
-            return None
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeClient:
-        def __init__(self) -> None:
-            self.closed = False
-
-        def pubsub(self) -> _FakePubsub:
-            return _FakePubsub()
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeRequest:
-        def __init__(self) -> None:
-            self._calls = 0
-
-        async def is_disconnected(self) -> bool:
-            await asyncio.sleep(0)
-            self._calls += 1
-            return self._calls > 1
-
     monkeypatch.setattr(
         scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
     )
 
     async def _run() -> list[str]:
         events = []
-        async for event in scoreboard_module._pmessage_event_stream(_FakeRequest()):
+        request = _FakeRequest(disconnect_after=1)
+        async for event in scoreboard_module._pmessage_event_stream(request):
             events.append(event)
         return events
 
@@ -349,64 +273,21 @@ def test_pmessage_event_stream_forwards_activity_events(
 ) -> None:
     """Directly exercise `_pmessage_event_stream` so the pmessage/decode
     branches are covered without depending on ASGI transport timing."""
-
-    class _FakePubsub:
-        def __init__(self) -> None:
-            self._sent = False
-            self.closed = False
-            self.subscribed_channels: list[str] = []
-
-        async def psubscribe(self, *_channels: str) -> None:
-            await asyncio.sleep(0)
-            self.subscribed_channels = list(_channels)
-            return None
-
-        async def get_message(
-            self, ignore_subscribe_messages: bool
-        ) -> dict[str, Any] | None:
-            await asyncio.sleep(0)
-            if not self._sent:
-                self._sent = True
-                return {
-                    "type": "pmessage",
-                    "channel": b"activity_result:1",
-                    "data": b'{"foo": "bar"}',
-                }
-            return None
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeClient:
-        def __init__(self) -> None:
-            self.closed = False
-
-        def pubsub(self) -> _FakePubsub:
-            return _FakePubsub()
-
-        async def aclose(self) -> None:
-            await asyncio.sleep(0)
-            self.closed = True
-            return None
-
-    class _FakeRequest:
-        def __init__(self) -> None:
-            self._calls = 0
-
-        async def is_disconnected(self) -> bool:
-            await asyncio.sleep(0)
-            self._calls += 1
-            return self._calls > 2
-
+    pmessage = {
+        "type": "pmessage",
+        "channel": b"activity_result:1",
+        "data": b'{"foo": "bar"}',
+    }
     monkeypatch.setattr(
-        scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
+        scoreboard_module,
+        "get_async_redis_client",
+        lambda: _FakeClient(messages=[pmessage]),
     )
 
     async def _run() -> list[str]:
         events = []
-        async for event in scoreboard_module._pmessage_event_stream(_FakeRequest()):
+        request = _FakeRequest(disconnect_after=2)
+        async for event in scoreboard_module._pmessage_event_stream(request):
             events.append(event)
             if len(events) >= 2:
                 break

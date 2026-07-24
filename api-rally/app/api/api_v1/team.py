@@ -1,6 +1,5 @@
 from typing import Annotated, List, Tuple, Optional, Dict, Any
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
 from app.core.exceptions import RallyForbiddenError, RallyValidationError

@@ -10,12 +10,11 @@ from sqlalchemy import desc, select
 
 from app.api.deps import get_db
 from app.api.abac_deps import require, Action, Resource
-from app.crud.crud_activity import activity, activity_result, rally_event
+from app.crud.crud_activity import activity, activity_result
 from app.models.activity import ActivityResult
 from app.schemas.activity import (
     ActivityCreate, ActivityUpdate, ActivityResponse, ActivityListResponse,
     ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse,
-    RallyEventCreate, RallyEventUpdate, RallyEventResponse,
     ActivityRanking, GlobalRanking
 )
 from app.services.scoring_service import ScoringService

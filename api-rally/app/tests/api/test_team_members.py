@@ -4,7 +4,8 @@ from app.crud.crud_team import team as crud_team
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 from app.tests.conftest import make_event as _make_event
-
+from app.api.auth import api_nei_auth, AuthData
+from app.main import app
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:
     data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
@@ -300,9 +301,6 @@ class TestLinkSelfTeamMember:
     """`link-self`: OIDC-authenticated caller claims their own placeholder slot."""
 
     def _oidc_override(self, oidc_sub="oidc-sub-1", name="Real Name", email="real@nei.pt"):
-        from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
-        from app.main import app
 
         auth = AuthData(oidc_sub=oidc_sub, name=name, email=email, scopes=[])
         app.dependency_overrides[api_nei_auth] = lambda: auth

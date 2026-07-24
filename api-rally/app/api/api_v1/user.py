@@ -1,10 +1,10 @@
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, Any, Dict, List, Type, TypeVar
 from fastapi import APIRouter, Depends, Security
 from app.core.exceptions import RallyValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from app import crud
 from app.api import authentik_client
@@ -16,6 +16,97 @@ from app.schemas.user import DetailedUser
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
 from app.models.user import User
+
+AssignmentSchemaT = TypeVar("AssignmentSchemaT", bound=BaseModel)
+
+
+async def _list_assignments(
+    db: AsyncSession,
+    *,
+    group: str,
+    scope: str,
+    assignment_crud: Any,
+    schema: Type[AssignmentSchemaT],
+) -> List[AssignmentSchemaT]:
+    """Shared list/mirror logic behind /staff-assignments and
+    /guide-assignments: mirrors the Authentik group live, then joins each
+    mirrored user against their (possibly absent) checkpoint assignment.
+    """
+    group_members = await authentik_client.list_group_members(group)
+    for member in group_members:
+        await crud.user.get_or_create_mirror(
+            db,
+            name=member.name,
+            email=member.email,
+            scope=scope,
+        )
+
+    stmt = select(User).where(User.scopes.contains([scope]))
+    users = (await db.scalars(stmt)).all()
+
+    existing_assignments = await assignment_crud.get_multi_with_checkpoint(db)
+    assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
+
+    result = []
+    for user in users:
+        assignment = assignment_map.get(user.id)
+        if assignment:
+            result.append(
+                schema(
+                    id=assignment.id,
+                    user_id=user.id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=assignment.checkpoint_id,
+                    checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
+                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
+                )
+            )
+        else:
+            result.append(
+                schema(
+                    id=0,  # Temporary ID for unassigned users
+                    user_id=user.id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=None,
+                    checkpoint_name=None,
+                    checkpoint_description=None,
+                )
+            )
+    return result
+
+
+async def _update_checkpoint_assignment(
+    *,
+    db: AsyncSession,
+    user_id: int,
+    checkpoint_id: int | None,
+    assignment_crud: Any,
+    schema: Type[AssignmentSchemaT],
+    error_message: str,
+) -> AssignmentSchemaT:
+    """Shared create/update logic behind the staff and guide
+    checkpoint-assignment PUT endpoints."""
+    try:
+        updated_assignment = await assignment_crud.create_or_update(
+            db=db, user_id=user_id, checkpoint_id=checkpoint_id
+        )
+
+        if updated_assignment:
+            return schema(
+                id=updated_assignment.id,
+                user_id=updated_assignment.user_id,
+                checkpoint_id=updated_assignment.checkpoint_id,
+                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
+                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
+            )
+        return schema(
+            id=0, user_id=user_id, checkpoint_id=None,
+            checkpoint_name=None, checkpoint_description=None,
+        )
+    except SQLAlchemyError as e:
+        raise RallyValidationError(f"{error_message}: {str(e)}")
 
 router = APIRouter()
 
@@ -97,54 +188,13 @@ async def get_staff_assignments(
     prior login required. Otherwise falls back to users already mirrored
     locally (i.e. who have logged in at least once with the staff scope).
     """
-    group_members = await authentik_client.list_group_members(settings.OIDC_STAFF_GROUP)
-    for member in group_members:
-        await crud.user.get_or_create_mirror(
-            db,
-            name=member.name,
-            email=member.email,
-            scope="rally-staff",
-        )
-
-    stmt = select(User).where(User.scopes.contains(['rally-staff']))
-    rally_staff_users = (await db.scalars(stmt)).all()
-
-    # Get existing assignments
-    existing_assignments = await crud.rally_staff_assignment.get_multi_with_checkpoint(db)
-    assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
-
-    # Build result list with all rally-staff users
-    result = []
-    for user in rally_staff_users:
-        user_id = user.id
-        assignment = assignment_map.get(user_id)
-
-        if assignment:
-            result.append(
-                RallyStaffAssignmentWithCheckpoint(
-                    id=assignment.id,
-                    user_id=user_id,
-                    user_name=user.name,
-                    user_email=user.email,
-                    checkpoint_id=assignment.checkpoint_id,
-                    checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
-                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
-                )
-            )
-        else:
-            result.append(
-                RallyStaffAssignmentWithCheckpoint(
-                    id=0,  # Temporary ID for unassigned users
-                    user_id=user_id,
-                    user_name=user.name,
-                    user_email=user.email,
-                    checkpoint_id=None,
-                    checkpoint_name=None,
-                    checkpoint_description=None,
-                )
-            )
-
-    return result
+    return await _list_assignments(
+        db,
+        group=settings.OIDC_STAFF_GROUP,
+        scope="rally-staff",
+        assignment_crud=crud.rally_staff_assignment,
+        schema=RallyStaffAssignmentWithCheckpoint,
+    )
 
 
 @router.get("/me")
@@ -172,28 +222,14 @@ async def update_checkpoint_assignment(
     Update a user's checkpoint assignment.
     This creates/updates Rally-specific staff assignments.
     """
-    try:
-        updated_assignment = await crud.rally_staff_assignment.create_or_update(
-            db=db, user_id=user_id, checkpoint_id=assignment.checkpoint_id
-        )
-        
-        if updated_assignment:
-            # Return with checkpoint details
-            return RallyStaffAssignmentWithCheckpoint(
-                id=updated_assignment.id,
-                user_id=updated_assignment.user_id,
-                checkpoint_id=updated_assignment.checkpoint_id,
-                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
-                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
-            )
-        else:
-            # Assignment was removed
-            return RallyStaffAssignmentWithCheckpoint(
-                id=0, user_id=user_id, checkpoint_id=None, 
-                checkpoint_name=None, checkpoint_description=None
-            )
-    except SQLAlchemyError as e:
-        raise RallyValidationError(f"Failed to update checkpoint assignment: {str(e)}")
+    return await _update_checkpoint_assignment(
+        db=db,
+        user_id=user_id,
+        checkpoint_id=assignment.checkpoint_id,
+        assignment_crud=crud.rally_staff_assignment,
+        schema=RallyStaffAssignmentWithCheckpoint,
+        error_message="Failed to update checkpoint assignment",
+    )
 
 
 @router.get("/guide-assignments")
@@ -209,52 +245,13 @@ async def get_guide_assignments(
     are fetched live and mirrored locally, so an account shows up as soon as
     it is added to the group, with no prior login required.
     """
-    group_members = await authentik_client.list_group_members(settings.OIDC_GUIDE_GROUP)
-    for member in group_members:
-        await crud.user.get_or_create_mirror(
-            db,
-            name=member.name,
-            email=member.email,
-            scope="rally-guide",
-        )
-
-    stmt = select(User).where(User.scopes.contains(['rally-guide']))
-    rally_guide_users = (await db.scalars(stmt)).all()
-
-    existing_assignments = await crud.rally_guide_assignment.get_multi_with_checkpoint(db)
-    assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
-
-    result = []
-    for user in rally_guide_users:
-        user_id = user.id
-        assignment = assignment_map.get(user_id)
-
-        if assignment:
-            result.append(
-                RallyGuideAssignmentWithCheckpoint(
-                    id=assignment.id,
-                    user_id=user_id,
-                    user_name=user.name,
-                    user_email=user.email,
-                    checkpoint_id=assignment.checkpoint_id,
-                    checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
-                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
-                )
-            )
-        else:
-            result.append(
-                RallyGuideAssignmentWithCheckpoint(
-                    id=0,
-                    user_id=user_id,
-                    user_name=user.name,
-                    user_email=user.email,
-                    checkpoint_id=None,
-                    checkpoint_name=None,
-                    checkpoint_description=None,
-                )
-            )
-
-    return result
+    return await _list_assignments(
+        db,
+        group=settings.OIDC_GUIDE_GROUP,
+        scope="rally-guide",
+        assignment_crud=crud.rally_guide_assignment,
+        schema=RallyGuideAssignmentWithCheckpoint,
+    )
 
 
 @router.put("/{user_id}/guide-checkpoint-assignment")
@@ -265,23 +262,11 @@ async def update_guide_checkpoint_assignment(
     _: Annotated[DetailedUser, Depends(get_admin)],
 ) -> RallyGuideAssignmentWithCheckpoint:
     """Update a guide user's checkpoint assignment."""
-    try:
-        updated_assignment = await crud.rally_guide_assignment.create_or_update(
-            db=db, user_id=user_id, checkpoint_id=assignment.checkpoint_id
-        )
-
-        if updated_assignment:
-            return RallyGuideAssignmentWithCheckpoint(
-                id=updated_assignment.id,
-                user_id=updated_assignment.user_id,
-                checkpoint_id=updated_assignment.checkpoint_id,
-                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
-                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
-            )
-        else:
-            return RallyGuideAssignmentWithCheckpoint(
-                id=0, user_id=user_id, checkpoint_id=None,
-                checkpoint_name=None, checkpoint_description=None
-            )
-    except SQLAlchemyError as e:
-        raise RallyValidationError(f"Failed to update guide checkpoint assignment: {str(e)}")
+    return await _update_checkpoint_assignment(
+        db=db,
+        user_id=user_id,
+        checkpoint_id=assignment.checkpoint_id,
+        assignment_crud=crud.rally_guide_assignment,
+        schema=RallyGuideAssignmentWithCheckpoint,
+        error_message="Failed to update guide checkpoint assignment",
+    )

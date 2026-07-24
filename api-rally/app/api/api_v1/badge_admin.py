@@ -3,17 +3,16 @@
 BadgeDefinition CRUD + icon upload + manual award/revoke.
 All write operations require admin scope.
 """
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.crud._deps import foreign_key_error_regex
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
-from app.models.badge import BadgeType, TeamBadge
-from app.models.badge_definition import BadgeDefinition
+from app.models.badge import TeamBadge
 from app.schemas.badge_definition import (
     BadgeDefinitionCreate,
     BadgeDefinitionResponse,

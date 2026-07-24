@@ -5,19 +5,16 @@ endpoint rather than mocked, so `_compute_checkpoint_progress` runs for real.
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
-from app.models.activity import EventType, RallyEvent
+from app.models.activity import EventType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 from app.tests.conftest import as_team
+from app.tests.conftest import make_event
 
 
 async def _make_event(pg_session):
-    event = RallyEvent(name="Test Event", is_current=True, event_type=EventType.PEDDY_PAPER.value)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+    return await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
 
 
 async def _make_checkpoint(pg_session, order, lat=41.0, lon=-8.0):

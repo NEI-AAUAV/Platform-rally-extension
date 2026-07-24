@@ -4,7 +4,10 @@ against real Postgres.
 from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
 from app.tests.conftest import make_event as _make_event
-
+from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.schemas.activity import ActivityCreate, ActivityType
+from app.schemas.checkpoint import CheckPointCreate
 
 async def _make_team(pg_session, name="Test Team"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
@@ -79,12 +82,6 @@ class TestGetTeamById:
         a checkpoint with an active activity only counts as completed once
         every active activity has a completed result.
         """
-        import datetime as dt
-
-        from app.crud.crud_activity import activity as crud_activity
-        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-        from app.schemas.activity import ActivityCreate, ActivityType
-        from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
         cp1 = await crud_checkpoint.create(

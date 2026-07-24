@@ -18,7 +18,6 @@ from sqlalchemy import (
     JSON,
     DateTime,
     ForeignKey,
-    Integer,
     String,
     Text,
 )

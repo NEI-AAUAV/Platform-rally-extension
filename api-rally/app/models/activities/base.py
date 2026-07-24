@@ -3,7 +3,6 @@ Base activity class for Rally extension
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from app.core.config import settings
 
 
 class BaseActivity(ABC):

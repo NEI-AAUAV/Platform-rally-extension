@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from typing import Annotated, List, Dict
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
@@ -89,8 +90,6 @@ async def add_team_member(
         raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
 
     # Check member limit
-    from sqlalchemy import select, func
-    from app.core.abac import Action
     settings = await rally_settings.get_or_create(db)
 
     # Staff can only add members when walk-up registration is enabled (B4).

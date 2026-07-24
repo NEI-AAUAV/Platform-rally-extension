@@ -4,7 +4,6 @@ mocked — external I/O, out of scope.
 """
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.authentik_client import AuthentikUser

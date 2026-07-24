@@ -5,15 +5,13 @@ This module provides FastAPI dependencies that enforce ABAC policies
 for Rally checkpoint and team management.
 """
 
-from typing import Annotated, Optional, Callable
+from typing import Optional, Callable
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
-from app.models.user import User
 from app.schemas.user import DetailedUser
 from app.core.abac import (
     Action, Resource, require_permission, 

@@ -1,7 +1,7 @@
 """
 Activity factory for Rally extension
 """
-from typing import Dict, Any, List
+from typing import Dict, Any
 from app.schemas.activity_types import ActivityType
 
 from .activities import (

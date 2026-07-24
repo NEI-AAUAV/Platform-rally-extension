@@ -21,7 +21,6 @@ from app.crud.crud_activity import rally_event
 from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import EventType
 from app.models.checkpoint import CheckPoint
-from app.models.checkpoint_media import CheckpointMedia, MediaKind
 from app.schemas.user import DetailedUser
 
 router = APIRouter()

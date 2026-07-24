@@ -606,8 +606,6 @@ class TestCheckinAndAdvanceExceptionPaths:
 
         # Deactivate the rally window so the next add_checkpoint call fails
         # timing validation, exercising the except/raise path.
-        from app.crud.crud_rally_settings import rally_settings
-        from datetime import datetime, timezone, timedelta
 
         event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
         event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)

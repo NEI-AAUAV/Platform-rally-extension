@@ -1,8 +1,8 @@
-from typing import Annotated, List, Dict, Any, Sequence, Optional
+from typing import Annotated, List, Dict, Any, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from app.core.exceptions import RallyForbiddenError, RallyValidationError
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload

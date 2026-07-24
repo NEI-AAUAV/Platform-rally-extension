@@ -4,7 +4,7 @@ Staff captures photo(s) at the moment of performance (best outfit, best object,
 etc.). Score is assigned later by a judge via the admin judging panel. The result
 starts as ``pending_judgment`` and becomes ``judged`` once the admin sets points.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .base import BaseActivity
 

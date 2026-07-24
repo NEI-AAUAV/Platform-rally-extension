@@ -4,7 +4,7 @@ Team app posts its current GPS coords; server checks distance vs
 checkpoint.arrival_radius_m and records idempotent arrival.
 Only available when the current event is PEDDY_PAPER.
 """
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

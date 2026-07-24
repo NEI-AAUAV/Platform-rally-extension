@@ -2,7 +2,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.checkpoint_media import CheckpointMedia, MediaKind
+from app.models.checkpoint_media import CheckpointMedia
 from app.schemas.checkpoint_media import CheckpointMediaCreate, CheckpointMediaUpdate
 from app.services.storage import storage_client
 

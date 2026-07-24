@@ -4,7 +4,6 @@ against real Postgres. R2 upload I/O (`validate_and_store`) stays mocked.
 import io
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from app.tests.conftest import make_event as _make_event
 
 

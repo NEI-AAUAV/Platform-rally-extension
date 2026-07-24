@@ -4,6 +4,8 @@ API endpoints for staff evaluation system
 from typing import Annotated, List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+from sqlalchemy import select
 from loguru import logger
 
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
@@ -21,6 +23,7 @@ from app.schemas.checkpoint import DetailedCheckPoint
 from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
 
+
 # Import utility functions
 from app.api.api_v1.staff_evaluation_utils import (
     serialize_activity,
@@ -29,7 +32,6 @@ from app.api.api_v1.staff_evaluation_utils import (
     is_admin_or_manager,
     validate_staff_checkpoint_access,
     validate_admin_access,
-    check_existing_result,
     check_and_advance_team,
     build_team_for_staff,
     create_or_update_activity_result,
@@ -525,8 +527,7 @@ async def get_all_evaluations(
 
     # Get all activity results. Eager-load activity and team (+ team.members for
     # serialize_team) to avoid lazy loads on the async session.
-    from sqlalchemy.orm import joinedload, selectinload
-    from sqlalchemy import select
+
     stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
         joinedload(ActivityResult.team).selectinload(Team.members)
