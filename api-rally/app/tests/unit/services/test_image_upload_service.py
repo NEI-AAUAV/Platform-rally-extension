@@ -1,6 +1,6 @@
 """Unit tests for the shared image upload/validation service."""
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException

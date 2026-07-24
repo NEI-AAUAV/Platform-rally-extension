@@ -11,7 +11,7 @@ tests tend to miss.
 from typing import Any
 
 import pytest
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from app.models.activities.score_based import ScoreBasedActivity

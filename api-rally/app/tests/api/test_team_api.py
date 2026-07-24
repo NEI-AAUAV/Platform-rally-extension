@@ -8,6 +8,8 @@ from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
+from app.main import app
+from app.api.auth import api_nei_auth_optional, api_nei_auth
 
 async def _make_team(pg_session, name="Test Team"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
@@ -376,9 +378,6 @@ class TestGetTeamEvaluations:
     async def test_evaluations_accessible_by_admin(
         self, pg_session, pg_client, as_admin
     ):
-        from app.main import app
-        from app.api.auth import api_nei_auth_optional, api_nei_auth
-        from app.tests.conftest import _fake_auth_data
 
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Visible")

@@ -146,7 +146,6 @@ async def test_result_vanished_before_handling_is_ignored(
 
 async def test_load_result_queries_by_id(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the real `_load_result` query building (not mocked out)."""
-    from unittest.mock import MagicMock
 
     fake_result = SimpleNamespace(id=5)
 

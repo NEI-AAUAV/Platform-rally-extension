@@ -1,9 +1,8 @@
 """Covers app.main's exception handlers, lifespan worker wiring, and
 security-headers middleware branches not exercised by feature-specific API
 tests."""
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.core.exceptions import RallyError

@@ -2,8 +2,6 @@
 Unit test simulating a complete rally game with different activity types
 This test emulates a real game scenario with multiple teams competing and scoring
 """
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from app.models.activity_factory import ActivityFactory

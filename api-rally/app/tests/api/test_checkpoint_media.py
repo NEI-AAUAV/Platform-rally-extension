@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, patch
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_checkpoint_media import checkpoint_media as crud_media
-from app.models.activity import RallyEvent
 from app.models.checkpoint_media import MediaKind
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.checkpoint_media import CheckpointMediaCreate

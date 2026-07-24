@@ -26,7 +26,6 @@ from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
-from app.schemas.user import DetailedUser
 
 SCHEMA = app_settings.SCHEMA_NAME
 

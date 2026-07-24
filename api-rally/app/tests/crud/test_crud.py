@@ -3,7 +3,6 @@
 Exercises actual SQL, constraints, and ARRAY columns instead of mocking the
 CRUD layer — see app/tests/conftest.py::pg_session.
 """
-import math
 from datetime import datetime, timedelta, timezone
 
 import pytest
