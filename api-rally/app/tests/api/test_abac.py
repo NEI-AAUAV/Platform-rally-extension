@@ -23,7 +23,7 @@ from app.api.abac_deps import (
     validate_settings_update_access,
     validate_settings_view_access,
 )
-from app.core.abac import _AllCheckpoints
+from app.core.abac import AllCheckpoints
 from app.schemas.user import DetailedUser
 
 
@@ -432,7 +432,7 @@ class TestValidateCheckpointAccess:
         user = Mock(staff_checkpoint_id=None)
         auth = Mock(scopes=["admin"])
         with patch(
-            "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
+            "app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()
         ):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
@@ -445,7 +445,7 @@ class TestValidateCheckpointAccess:
         user = Mock(staff_checkpoint_id=None)
         auth = Mock(scopes=["admin"])
         with patch(
-            "app.api.abac_deps.get_accessible_checkpoints", return_value=_AllCheckpoints()
+            "app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()
         ):
             result = validate_checkpoint_access(
                 user=user, auth=auth,

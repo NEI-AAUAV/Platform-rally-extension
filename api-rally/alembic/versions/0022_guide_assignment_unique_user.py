@@ -15,7 +15,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-from alembic._migration_utils import constraint_exists
+from alembic.migration_utils import constraint_exists
 from app.core.config import settings
 
 revision: str = "0022"

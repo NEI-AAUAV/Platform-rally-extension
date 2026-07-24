@@ -18,13 +18,13 @@ from .session import engine
 # Repo layout: api-rally/app/db/init_db.py -> api-rally/alembic.ini
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 
-# Migration files under alembic/versions/ do `from alembic._migration_utils
+# Migration files under alembic/versions/ do `from alembic.migration_utils
 # import ...` — but this repo's local alembic/ directory (script_location in
 # alembic.ini) shares its name with the *installed* alembic pip package, and
 # `alembic` is already bound in sys.modules to that pip package by the time
 # any migration file runs (we import it directly above, and Alembic's own
 # internals import it too). No sys.path change fixes this: Python resolves
-# `alembic._migration_utils` by looking up `_migration_utils` on the already-
+# `alembic.migration_utils` by looking up `migration_utils` on the already-
 # loaded `alembic` module object, not by re-searching sys.path, so it's a
 # ModuleNotFoundError every time this runs outside Alembic's own CLI
 # entrypoint (which manually reads alembic.ini's prepend_sys_path and takes a
@@ -32,17 +32,17 @@ ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
 # which drives Config/ScriptDirectory directly instead).
 #
 # Fix: load the local helper file by path and attach it to the real `alembic`
-# module as an attribute named `_migration_utils`, so the migrations' import
+# module as an attribute named `migration_utils`, so the migrations' import
 # statement finds it there instead of failing to find it on disk.
 def _install_local_migration_utils_shim() -> None:
-    helper_path = ALEMBIC_INI.parent / "alembic" / "_migration_utils.py"
-    spec = importlib.util.spec_from_file_location("alembic._migration_utils", helper_path)
+    helper_path = ALEMBIC_INI.parent / "alembic" / "migration_utils.py"
+    spec = importlib.util.spec_from_file_location("alembic.migration_utils", helper_path)
     if spec is None or spec.loader is None:
         raise ImportError(f"could not load migration helper module from {helper_path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    sys.modules["alembic._migration_utils"] = module
-    _alembic_pkg._migration_utils = module
+    sys.modules["alembic.migration_utils"] = module
+    _alembic_pkg.migration_utils = module
 
 
 _install_local_migration_utils_shim()

@@ -17,7 +17,7 @@ Create Date: 2026-06-28
 """
 from typing import Sequence, Union
 
-from alembic._migration_utils import (
+from alembic.migration_utils import (
     create_team_score_history_table,
     drop_team_score_history_table,
     table_exists,

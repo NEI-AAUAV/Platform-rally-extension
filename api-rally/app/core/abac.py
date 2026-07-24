@@ -251,7 +251,7 @@ def require_permission(
         )
 
 
-class _AllCheckpoints:
+class AllCheckpoints:
     """Sentinel meaning "every checkpoint" (admins/managers).
 
     A distinct type instead of an empty list so that "all checkpoints" is
@@ -265,9 +265,9 @@ class _AllCheckpoints:
         return "ALL_CHECKPOINTS"
 
 
-ALL_CHECKPOINTS = _AllCheckpoints()
+ALL_CHECKPOINTS = AllCheckpoints()
 
-AccessibleCheckpoints = Union[_AllCheckpoints, list[int]]
+AccessibleCheckpoints = Union[AllCheckpoints, list[int]]
 
 
 def get_accessible_checkpoints(

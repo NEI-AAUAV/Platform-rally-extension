@@ -116,7 +116,17 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             (Team.event_id == event_id) | (Team.event_id.is_(None))
         ).limit(limit).offset(skip)
         if for_update:
-            stmt = stmt.with_for_update()
+            # Deterministic lock order (by id) is required here, not
+            # cosmetic: add_checkpoint already holds one team row locked via
+            # its own for_update=True before calling update_classification,
+            # which locks *every* team. Two concurrent check-ins for
+            # different teams each already hold a different single row, then
+            # both try to acquire the full set — without a fixed order,
+            # Postgres can pick a different scan order per transaction and
+            # deadlock (each waiting on the row the other already holds).
+            # Real DeadlockDetectedError reproduced under concurrent
+            # staff-check-in calls before this fix.
+            stmt = stmt.order_by(Team.id).with_for_update()
         return list((await db.scalars(stmt)).all())
 
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
