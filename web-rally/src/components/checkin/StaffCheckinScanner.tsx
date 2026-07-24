@@ -58,8 +58,8 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
     onSuccess: (res) => {
       if (res.status === "checked_in") {
         toast.success(`${res.team_name} — chegada registada no posto ${res.checkpoint_order}.`);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
+        void queryClient.invalidateQueries({ queryKey: ["teams"] });
+        void queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
       } else if (res.status === "already_present") {
         toast.success(`${res.team_name} — já neste posto. A abrir avaliação.`);
       } else {

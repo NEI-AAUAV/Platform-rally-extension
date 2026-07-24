@@ -33,7 +33,6 @@ SCHEMA = settings.SCHEMA_NAME
 _INDEXES: tuple[tuple[str, str, str], ...] = (
     ("ix_user_team_id", "user", "team_id"),
     ("ix_user_staff_checkpoint_id", "user", "staff_checkpoint_id"),
-    ("ix_activity_results_checkpoint_id", "activity_results", "checkpoint_id"),
     ("ix_activity_results_team_id", "activity_results", "team_id"),
     ("ix_dynamic_awards_team_id", "dynamic_awards", "team_id"),
     ("ix_dynamic_awards_event_id", "dynamic_awards", "event_id"),
