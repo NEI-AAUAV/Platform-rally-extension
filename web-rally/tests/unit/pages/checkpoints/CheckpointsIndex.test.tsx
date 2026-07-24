@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Postos from '@/pages/checkpoints/index';
+import Checkpoints from '@/pages/checkpoints/index';
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
@@ -56,7 +56,7 @@ vi.mock('@/pages/checkpoints/components', () => ({
   MapSection: () => <div>MapSection</div>,
 }));
 
-describe('Postos index', () => {
+describe('Checkpoints index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRallySettings.mockReturnValue({ settings: { show_checkpoint_map: true } });
@@ -69,13 +69,13 @@ describe('Postos index', () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_checkpoint_map: false } });
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true });
     mockUseUserStore.mockReturnValue({ scopes: [] });
-    renderWithClient(<Postos />);
+    renderWithClient(<Checkpoints />);
     expect(screen.getByText('Navigate to /team-progress')).toBeInTheDocument();
   });
 
   it('shows loading state while fetching checkpoints', () => {
     mockGetCheckpoints.mockReturnValue(new Promise(() => {}));
-    renderWithClient(<Postos />);
+    renderWithClient(<Checkpoints />);
     expect(screen.getByText('A carregar postos...')).toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe('Postos index', () => {
         { id: 1, name: 'First', order: 1 },
       ],
     });
-    renderWithClient(<Postos />);
+    renderWithClient(<Checkpoints />);
     await waitFor(() => {
       expect(screen.getByText('CheckpointList: First, Second')).toBeInTheDocument();
     });
@@ -97,7 +97,7 @@ describe('Postos index', () => {
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true });
     mockUseUserStore.mockReturnValue({ scopes: ['rally-staff'] });
     mockGetCheckpoints.mockResolvedValue({ data: [] });
-    renderWithClient(<Postos />);
+    renderWithClient(<Checkpoints />);
     await waitFor(() => {
       expect(screen.getByText('CheckpointList:')).toBeInTheDocument();
     });
