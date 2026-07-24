@@ -53,7 +53,7 @@ test.describe('Admin events', () => {
     await page.route('**/api/rally/v1/events', (route) => {
       if (route.request().method() === 'POST') {
         capturedBody = route.request().postDataJSON();
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(event(capturedBody as object)) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(event(capturedBody as Record<string, unknown>)) });
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });

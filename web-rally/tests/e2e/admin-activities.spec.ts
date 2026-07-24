@@ -88,7 +88,7 @@ test.describe('Admin activities', () => {
     await page.route('**/api/rally/v1/activities/', (route) => {
       if (route.request().method() === 'POST') {
         capturedBody = route.request().postDataJSON();
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(activity(capturedBody as object)) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(activity(capturedBody as Record<string, unknown>)) });
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
@@ -114,7 +114,7 @@ test.describe('Admin activities', () => {
     await page.route('**/api/rally/v1/activities/', (route) => {
       if (route.request().method() === 'POST') {
         capturedBody = route.request().postDataJSON();
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(activity(capturedBody as object)) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(activity(capturedBody as Record<string, unknown>)) });
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });

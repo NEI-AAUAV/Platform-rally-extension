@@ -64,7 +64,7 @@ test.describe('Admin badges', () => {
     await page.route('**/api/rally/v1/badge-definitions', (route) => {
       if (route.request().method() === 'POST') {
         capturedBody = route.request().postDataJSON();
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(badge(capturedBody as object)) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(badge(capturedBody as Record<string, unknown>)) });
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });

@@ -112,7 +112,6 @@ test.describe('ABAC security boundaries against a real backend', () => {
   });
 
   test('a team access-token is rejected by admin and staff-only endpoints', async ({
-    page,
     context,
   }) => {
     const runId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -128,14 +127,18 @@ test.describe('ABAC security boundaries against a real backend', () => {
       body: { name: `E2E Equipa ABAC ${runId}` },
     }).then((r) => r.json() as Promise<{ id: number; access_code: string }>);
 
-    // Log the team in through the real UI (real login endpoint, real JWT),
-    // then read the genuine token back out of storage to attack the API
-    // directly with it — not a synthesized/fake token.
-    await page.goto('/rally/team-login');
-    await page.getByPlaceholder('XXXX-XXXX').fill(team.access_code);
-    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-    await page.waitForURL('**/team-progress');
-    const teamToken = await page.evaluate(() => localStorage.getItem('rally_team_token'));
+    // Log the team in via the real login endpoint directly (not the UI
+    // form) — the login rate limiter is keyed per client IP across the
+    // *whole* test run (rate_limit.py's check_login_rate_limit), and this
+    // suite already drives several UI team-logins elsewhere (golden-path,
+    // rally-day, guide-and-badges, multi-edicao); one more UI login here
+    // risked tipping a full-suite run over the limit. The token itself is
+    // still genuinely minted by the real backend — only the delivery
+    // mechanism changes, not what's being attacked below.
+    const loginResponse = await rawFetch('POST', '/team-auth/login', {
+      body: { access_code: team.access_code },
+    }).then((r) => r.json() as Promise<{ access_token: string }>);
+    const teamToken = loginResponse.access_token;
     expect(teamToken).toBeTruthy();
 
     const adminEndpointResponse = await rawFetch('POST', '/checkpoint/', {

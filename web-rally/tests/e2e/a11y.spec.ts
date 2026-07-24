@@ -27,7 +27,7 @@ async function expectNoSeriousViolations(page: Page): Promise<void> {
   const summary = serious
     .map(
       (v) =>
-        `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node(s)) — ${v.helpNodes?.[0]?.target ?? ''}`,
+        `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node(s)) — ${v.nodes[0]?.target.join(' ') ?? ''}`,
     )
     .join('\n');
 
