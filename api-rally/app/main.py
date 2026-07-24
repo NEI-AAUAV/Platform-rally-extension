@@ -7,8 +7,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.db.init_db import init_db
@@ -77,18 +77,18 @@ app = FastAPI(
 
 
 @app.exception_handler(RallyError)
-async def rally_error_handler(request: Request, exc: RallyError) -> ORJSONResponse:
+async def rally_error_handler(request: Request, exc: RallyError) -> JSONResponse:
     """Map domain errors to HTTP responses; log 5xx with a traceback."""
     where = f"{request.method} {request.url.path}"
     if exc.status_code >= 500:
         logger.exception(f"Rally error on {where}: {exc.message}")
     else:
         logger.warning(f"Rally error on {where}: {exc.message}")
-    return ORJSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> ORJSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Log validation errors for debugging.
 
     Logs only the field-level error list (which omits raw input values), never
@@ -101,7 +101,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         for err in exc.errors()
     ]
     logger.error(f"Validation error on {request.method} {request.url.path}: {safe_errors}")
-    return ORJSONResponse(
+    return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": safe_errors}
     )
@@ -180,7 +180,7 @@ async def health_check() -> dict[str, str]:
 
 
 @app.get("/health/ready", tags=["health"])
-async def readiness_check() -> ORJSONResponse:
+async def readiness_check() -> JSONResponse:
     """Readiness probe: aggregates DB, Redis and worker liveness.
 
     Returns 503 when any checked dependency is unhealthy so a silently-stale
@@ -209,7 +209,7 @@ async def readiness_check() -> ORJSONResponse:
     body["workers"] = workers
 
     body["status"] = "ready" if ready else "not_ready"
-    return ORJSONResponse(
+    return JSONResponse(
         status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
         content=body,
     )

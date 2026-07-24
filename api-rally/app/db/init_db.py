@@ -1,12 +1,15 @@
+import importlib.util
+import sys
 from pathlib import Path
 
+import alembic as _alembic_pkg
 from alembic import command
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy.schema import CreateSchema
-from sqlalchemy import inspect
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.models.base import Base
@@ -14,6 +17,35 @@ from .session import engine
 
 # Repo layout: api-rally/app/db/init_db.py -> api-rally/alembic.ini
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
+
+# Migration files under alembic/versions/ do `from alembic._migration_utils
+# import ...` — but this repo's local alembic/ directory (script_location in
+# alembic.ini) shares its name with the *installed* alembic pip package, and
+# `alembic` is already bound in sys.modules to that pip package by the time
+# any migration file runs (we import it directly above, and Alembic's own
+# internals import it too). No sys.path change fixes this: Python resolves
+# `alembic._migration_utils` by looking up `_migration_utils` on the already-
+# loaded `alembic` module object, not by re-searching sys.path, so it's a
+# ModuleNotFoundError every time this runs outside Alembic's own CLI
+# entrypoint (which manually reads alembic.ini's prepend_sys_path and takes a
+# different code path that happens to avoid this — see _run_migrations below,
+# which drives Config/ScriptDirectory directly instead).
+#
+# Fix: load the local helper file by path and attach it to the real `alembic`
+# module as an attribute named `_migration_utils`, so the migrations' import
+# statement finds it there instead of failing to find it on disk.
+def _install_local_migration_utils_shim() -> None:
+    helper_path = ALEMBIC_INI.parent / "alembic" / "_migration_utils.py"
+    spec = importlib.util.spec_from_file_location("alembic._migration_utils", helper_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"could not load migration helper module from {helper_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules["alembic._migration_utils"] = module
+    _alembic_pkg._migration_utils = module
+
+
+_install_local_migration_utils_shim()
 
 # IMPORTANT: Import all models here so they're registered with Base.metadata
 # before create_all() is called. Otherwise tables will be missing columns!
@@ -43,11 +75,26 @@ def _create_schema_and_tables(connection: Connection) -> None:
     alembic baseline revision 0001 produces. Only called when the database has
     no alembic version yet (see :func:`_run_migrations`).
     """
-    inspector = inspect(connection)
-    all_schemas = inspector.get_schema_names()
+    # Even CREATE SCHEMA IF NOT EXISTS isn't race-free under true concurrent
+    # DDL (this API image runs 4 uvicorn workers, each independently reaching
+    # this path against a fresh database): two workers can both pass
+    # Postgres's own existence check in the same instant and one still gets
+    # a UniqueViolationError on pg_namespace. That's fine — the schema exists
+    # either way — but the whole outer transaction (see init_db's
+    # engine.begin()) is otherwise left aborted by Postgres once any
+    # statement inside it errors, taking the rest of this bootstrap down
+    # with it. A SAVEPOINT scopes the failure to just this statement so a
+    # losing worker can roll back to it and continue in the same
+    # transaction instead of poisoning it.
     for schema in Base.metadata._schemas:
-        if schema not in all_schemas:
-            connection.execute(CreateSchema(schema))
+        savepoint = connection.begin_nested()
+        try:
+            connection.execute(CreateSchema(schema, if_not_exists=True))
+            savepoint.commit()
+        except IntegrityError as exc:
+            savepoint.rollback()
+            if "UniqueViolationError" not in str(exc.orig):
+                raise
 
     Base.metadata.reflect(bind=connection, schema=settings.SCHEMA_NAME)
     Base.metadata.create_all(bind=connection, checkfirst=True)

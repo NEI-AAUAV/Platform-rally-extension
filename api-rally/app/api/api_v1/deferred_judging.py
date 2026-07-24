@@ -68,7 +68,7 @@ async def capture_deferred_result(
     activity_id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
-    images: Annotated[List[UploadFile], File()] = [],
+    images: Annotated[List[UploadFile], File()] = None,
     team_id: int = 0,
 ) -> DeferredResultResponse:
     activity = await crud_activity.get(db, activity_id)
@@ -81,7 +81,7 @@ async def capture_deferred_result(
 
     # Upload images
     urls: List[str] = []
-    for image in images:
+    for image in images or []:
         if image and image.filename:
             url = await validate_and_store(
                 image=image,
