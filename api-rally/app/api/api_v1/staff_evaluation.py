@@ -18,7 +18,7 @@ from app.services.scoring_service import ScoringService
 from app.schemas.activity import ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.checkpoint import DetailedCheckPoint
-from app.models.activity import ActivityResult
+from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
 
 # Import utility functions
@@ -116,7 +116,7 @@ async def get_teams_at_my_checkpoint(
     ]
 
 
-async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number: int):
+async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number: int) -> int:
     """Resolve the checkpoint an admin/manager should see activities for.
 
     The team's most recently reached checkpoint (order == len(times)) is
@@ -162,7 +162,9 @@ async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number:
     return resolved_checkpoint_id
 
 
-def _build_activity_status_list(activities, result_map):
+def _build_activity_status_list(
+    activities: list[Activity], result_map: dict[int, ActivityResult]
+) -> tuple[list[dict[str, Any]], int, list[str]]:
     """Build per-activity evaluation status entries plus completion bookkeeping."""
     activities_with_status = []
     completed_activities = 0

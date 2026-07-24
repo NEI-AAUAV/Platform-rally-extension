@@ -99,5 +99,10 @@ def init_logging() -> None:
     # set logs output, level and format
     level_log = logging.INFO if settings.PRODUCTION else logging.DEBUG
     logger.configure(
-        handlers=[{"sink": sys.stdout, "level": level_log, "format": format_record}]
+        handlers=[
+            typing.cast(
+                Any,
+                {"sink": sys.stdout, "level": level_log, "format": format_record},
+            )
+        ]
     )

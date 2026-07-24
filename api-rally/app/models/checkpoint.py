@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class CheckPoint(Base):
-    __tablename__ = "checkpoints"  # type: ignore[assignment]
+    __tablename__ = "checkpoints"
     # Checkpoint order is unique within an event, not globally — different
     # editions can each have an "order 1" checkpoint.
     __table_args__: Any = (

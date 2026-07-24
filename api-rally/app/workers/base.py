@@ -87,6 +87,9 @@ class BaseWorker(ABC):
         raw = message.get("data")
         try:
             data = json.loads(raw) if isinstance(raw, str) else raw
+            if not isinstance(data, dict):
+                logger.warning("[%s] Non-dict payload on %s, skipping", self.name, channel)
+                return
             asyncio.run(self.handle_event(channel, data))
         except json.JSONDecodeError:
             logger.exception("[%s] Bad JSON on %s", self.name, channel)

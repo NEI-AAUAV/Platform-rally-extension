@@ -15,6 +15,7 @@ Run: python scripts/smoke/run_smoke.py
 
 import os
 import time
+from typing import Any
 
 import httpx
 
@@ -32,10 +33,11 @@ def mint_token(*, sub: str, name: str, groups: list[str]) -> str:
         timeout=5.0,
     )
     response.raise_for_status()
-    return response.json()["access_token"]
+    token: str = response.json()["access_token"]
+    return token
 
 
-def _check(response: httpx.Response, expected: int, step: str) -> dict:
+def _check(response: httpx.Response, expected: int, step: str) -> Any:
     if response.status_code != expected:
         raise SystemExit(
             f"[SMOKE FAIL] {step}: expected {expected}, got {response.status_code}\n{response.text}"

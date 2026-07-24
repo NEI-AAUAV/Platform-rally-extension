@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class Team(Base):
-    __tablename__ = "teams"  # type: ignore[assignment]
+    __tablename__ = "teams"
     # Team name is unique within an event, not globally. access_code stays
     # globally unique so team login can resolve a team (and its event) from
     # the code alone.

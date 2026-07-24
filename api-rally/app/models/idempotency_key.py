@@ -28,7 +28,7 @@ class IdempotencyKey(Base):
     """One record per (endpoint, idempotency_key): the request fingerprint and
     the response to replay."""
 
-    __tablename__ = "idempotency_keys"  # type: ignore[assignment]
+    __tablename__ = "idempotency_keys"
     __table_args__ = (
         UniqueConstraint(
             "endpoint", "idempotency_key", name="uq_idempotency_keys_endpoint_key"

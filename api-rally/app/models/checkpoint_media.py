@@ -16,7 +16,7 @@ class MediaKind(str, enum.Enum):
 
 
 class CheckpointMedia(Base):
-    __tablename__ = "checkpoint_media"  # type: ignore[assignment]
+    __tablename__ = "checkpoint_media"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)

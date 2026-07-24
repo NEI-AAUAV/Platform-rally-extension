@@ -17,7 +17,7 @@ DEFAULT_BADGE_COLOR = "#8b5cf6"
 
 
 class BadgeDefinition(Base):
-    __tablename__ = "badge_definitions"  # type: ignore[assignment]
+    __tablename__ = "badge_definitions"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)

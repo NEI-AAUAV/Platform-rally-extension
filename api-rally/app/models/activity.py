@@ -14,7 +14,7 @@ from app.core.config import settings
 
 class Activity(Base):
     """Base activity model"""
-    __tablename__ = "activities"  # type: ignore[assignment]
+    __tablename__ = "activities"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -56,7 +56,7 @@ class Activity(Base):
 
 class ActivityResult(Base):
     """Activity result model - stores team performance for each activity"""
-    __tablename__ = "activity_results"  # type: ignore[assignment]
+    __tablename__ = "activity_results"
     __table_args__ = (
         UniqueConstraint("activity_id", "team_id", name="uq_activity_results_activity_id_team_id"),
         {"schema": settings.SCHEMA_NAME},
@@ -137,7 +137,7 @@ class RallyEvent(Base):
     Exactly one event is flagged ``is_current`` and is what public/unscoped
     reads resolve to. Creating a new event no longer requires wiping the DB.
     """
-    __tablename__ = "rally_events"  # type: ignore[assignment]
+    __tablename__ = "rally_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)

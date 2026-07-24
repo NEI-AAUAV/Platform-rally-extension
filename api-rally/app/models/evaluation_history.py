@@ -40,7 +40,7 @@ class EvaluationAction(str, Enum):
 class EvaluationHistory(Base):
     """One audit-trail entry for a change to (or dispute of) an activity result."""
 
-    __tablename__ = "evaluation_history"  # type: ignore[assignment]
+    __tablename__ = "evaluation_history"
     __table_args__ = ({"schema": settings.SCHEMA_NAME},)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

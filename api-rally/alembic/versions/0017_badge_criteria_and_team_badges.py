@@ -13,7 +13,7 @@ Revision ID: 0017
 Revises: 0016
 Create Date: 2026-07-02
 """
-from typing import Sequence, Union
+from typing import Any, Callable, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
@@ -31,7 +31,7 @@ SCHEMA = settings.SCHEMA_NAME
 DEF_TABLE = "badge_definitions"
 BADGE_TABLE = "team_badges"
 
-NEW_COLUMNS = {
+NEW_COLUMNS: dict[str, Callable[[], sa.Column[Any]]] = {
     "color": lambda: sa.Column(
         "color", sa.String(9), nullable=False, server_default=DEFAULT_BADGE_COLOR
     ),

@@ -3,7 +3,7 @@ from app.models.base import Base
 from app.core.config import settings as app_settings
 
 class RallySettings(Base):
-    __tablename__ = "rally_settings"  # type: ignore[assignment]
+    __tablename__ = "rally_settings"
 
     id = Column(Integer, primary_key=True)
     # One settings row per event. Nullable + unique so the legacy single-row

@@ -41,7 +41,7 @@ class BadgeType(str, Enum):
 class TeamBadge(Base):
     """A single badge awarded to a team."""
 
-    __tablename__ = "team_badges"  # type: ignore[assignment]
+    __tablename__ = "team_badges"
     __table_args__ = (
         # A team can hold a given badge for a given scope at most once. The
         # scope is whichever of activity_id / checkpoint_id the badge uses;

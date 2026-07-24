@@ -120,27 +120,29 @@ async def get_staff_assignments(
         assignment = assignment_map.get(user_id)
 
         if assignment:
-            assignment_data = {
-                "id": assignment.id,
-                "user_id": user_id,
-                "user_name": user.name,
-                "user_email": user.email,
-                "checkpoint_id": assignment.checkpoint_id,
-                "checkpoint_name": assignment.checkpoint.name if assignment.checkpoint else None,
-                "checkpoint_description": assignment.checkpoint.description if assignment.checkpoint else None,
-            }
+            result.append(
+                RallyStaffAssignmentWithCheckpoint(
+                    id=assignment.id,
+                    user_id=user_id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=assignment.checkpoint_id,
+                    checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
+                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
+                )
+            )
         else:
-            assignment_data = {
-                "id": 0,  # Temporary ID for unassigned users
-                "user_id": user_id,
-                "user_name": user.name,
-                "user_email": user.email,
-                "checkpoint_id": None,
-                "checkpoint_name": None,
-                "checkpoint_description": None,
-            }
-
-        result.append(RallyStaffAssignmentWithCheckpoint(**assignment_data))
+            result.append(
+                RallyStaffAssignmentWithCheckpoint(
+                    id=0,  # Temporary ID for unassigned users
+                    user_id=user_id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=None,
+                    checkpoint_name=None,
+                    checkpoint_description=None,
+                )
+            )
 
     return result
 
@@ -177,14 +179,13 @@ async def update_checkpoint_assignment(
         
         if updated_assignment:
             # Return with checkpoint details
-            assignment_data = {
-                "id": updated_assignment.id,
-                "user_id": updated_assignment.user_id,
-                "checkpoint_id": updated_assignment.checkpoint_id,
-                "checkpoint_name": updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
-                "checkpoint_description": updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
-            }
-            return RallyStaffAssignmentWithCheckpoint(**assignment_data)
+            return RallyStaffAssignmentWithCheckpoint(
+                id=updated_assignment.id,
+                user_id=updated_assignment.user_id,
+                checkpoint_id=updated_assignment.checkpoint_id,
+                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
+                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
+            )
         else:
             # Assignment was removed
             return RallyStaffAssignmentWithCheckpoint(
@@ -229,27 +230,29 @@ async def get_guide_assignments(
         assignment = assignment_map.get(user_id)
 
         if assignment:
-            assignment_data = {
-                "id": assignment.id,
-                "user_id": user_id,
-                "user_name": user.name,
-                "user_email": user.email,
-                "checkpoint_id": assignment.checkpoint_id,
-                "checkpoint_name": assignment.checkpoint.name if assignment.checkpoint else None,
-                "checkpoint_description": assignment.checkpoint.description if assignment.checkpoint else None,
-            }
+            result.append(
+                RallyGuideAssignmentWithCheckpoint(
+                    id=assignment.id,
+                    user_id=user_id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=assignment.checkpoint_id,
+                    checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
+                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
+                )
+            )
         else:
-            assignment_data = {
-                "id": 0,
-                "user_id": user_id,
-                "user_name": user.name,
-                "user_email": user.email,
-                "checkpoint_id": None,
-                "checkpoint_name": None,
-                "checkpoint_description": None,
-            }
-
-        result.append(RallyGuideAssignmentWithCheckpoint(**assignment_data))
+            result.append(
+                RallyGuideAssignmentWithCheckpoint(
+                    id=0,
+                    user_id=user_id,
+                    user_name=user.name,
+                    user_email=user.email,
+                    checkpoint_id=None,
+                    checkpoint_name=None,
+                    checkpoint_description=None,
+                )
+            )
 
     return result
 
@@ -268,14 +271,13 @@ async def update_guide_checkpoint_assignment(
         )
 
         if updated_assignment:
-            assignment_data = {
-                "id": updated_assignment.id,
-                "user_id": updated_assignment.user_id,
-                "checkpoint_id": updated_assignment.checkpoint_id,
-                "checkpoint_name": updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
-                "checkpoint_description": updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
-            }
-            return RallyGuideAssignmentWithCheckpoint(**assignment_data)
+            return RallyGuideAssignmentWithCheckpoint(
+                id=updated_assignment.id,
+                user_id=updated_assignment.user_id,
+                checkpoint_id=updated_assignment.checkpoint_id,
+                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
+                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
+            )
         else:
             return RallyGuideAssignmentWithCheckpoint(
                 id=0, user_id=user_id, checkpoint_id=None,

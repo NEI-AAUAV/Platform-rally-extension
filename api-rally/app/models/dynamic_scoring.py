@@ -20,7 +20,7 @@ class DynamicRule(Base):
     whether it fires automatically or requires a manual admin action. The
     ``rule_type`` is a free-form tag (e.g. "first_arrival", "bonus", "penalty").
     """
-    __tablename__ = "dynamic_rules"  # type: ignore[assignment]
+    __tablename__ = "dynamic_rules"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -45,7 +45,7 @@ class DynamicAward(Base):
     ScoringService folds all active awards into a team's total so they appear
     on the leaderboard without needing an ActivityResult row.
     """
-    __tablename__ = "dynamic_awards"  # type: ignore[assignment]
+    __tablename__ = "dynamic_awards"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
