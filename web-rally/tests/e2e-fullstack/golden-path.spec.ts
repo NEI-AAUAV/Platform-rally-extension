@@ -17,7 +17,7 @@ test.describe('Full-stack golden path', () => {
     await waitForApi();
   });
 
-  test('team logs in with a real access code, checks in via GPS, staff evaluates, scoreboard updates', async ({
+  test('team logs in with a real access code, is checked in by staff, staff evaluates, scoreboard updates', async ({
     page,
   }) => {
     const rally = await seedRally();
@@ -28,7 +28,9 @@ test.describe('Full-stack golden path', () => {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
     await page.waitForURL('**/team-progress');
 
-    // Staff (admin token, real backend) checks the team in at the checkpoint.
+    // Staff checks the team in at the checkpoint via the real
+    // staff-check-in endpoint (access-code based, not GPS geofencing —
+    // GPS arrival is a peddy_paper-only flow, not exercised here).
     await apiCall('POST', '/checkpoint/staff-check-in', {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
