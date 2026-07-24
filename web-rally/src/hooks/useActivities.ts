@@ -47,7 +47,7 @@ export function useCreateActivity() {
   return useMutation({
     mutationFn: async (activity: ActivityCreate) => (await createActivity({ body: activity })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
@@ -74,7 +74,7 @@ export function useUpdateActivity() {
     mutationFn: async ({ id, activity }: { id: number; activity: ActivityUpdate }) =>
       (await updateActivity({ path: { activity_id: id }, body: activity })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
@@ -97,7 +97,7 @@ export function useDeleteActivity() {
   return useMutation({
     mutationFn: async (id: number) => (await deleteActivity({ path: { activity_id: id } })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
