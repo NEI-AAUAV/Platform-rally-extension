@@ -8,9 +8,11 @@ import {
   TeamSelector,
   MemberForm,
   MemberList,
-  ErrorBanner,
-  NoTeamsMessage,
   StaffTeamRoster,
+  TeamMembersErrorBanners,
+  TeamsLoadingBanner,
+  MembersLoadingBanner,
+  NoTeamsBanner,
 } from "./components";
 import { useTeamMembersData } from "./hooks/useTeamMembersData";
 
@@ -67,24 +69,15 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
         />
       )}
 
-      {teamsError && <ErrorBanner title="Erro ao carregar equipas:" error={teamsError} />}
-      {membersError && <ErrorBanner title="Erro ao carregar membros:" error={membersError} />}
+      <TeamMembersErrorBanners teamsError={teamsError} membersError={membersError} />
 
-      {teamsLoading && (
-        <div className="rounded-lg border border-border bg-muted p-4 sm:p-6">
-          <p className="text-muted-foreground">A carregar equipas...</p>
-        </div>
-      )}
+      <TeamsLoadingBanner teamsLoading={teamsLoading} />
 
       <TeamSelector teams={teams} selectedTeam={selectedTeam} onTeamChange={setSelectedTeam} />
 
       {selectedTeam && (
         <>
-          {membersLoading && (
-            <div className="rounded-lg border border-border bg-muted p-4 sm:p-6">
-              <p className="text-muted-foreground">A carregar membros da equipa...</p>
-            </div>
-          )}
+          <MembersLoadingBanner membersLoading={membersLoading} />
 
           {isRallyAdmin && (
             <>
@@ -118,15 +111,16 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
         </>
       )}
 
-      {!teamsLoading && !teamsError && (!teams || teams.length === 0) && (
-        <NoTeamsMessage
-          description={
-            isRallyAdmin
-              ? "Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas."
-              : "Não existem equipas criadas ainda. Contacte um administrador."
-          }
-        />
-      )}
+      <NoTeamsBanner
+        teamsLoading={teamsLoading}
+        teamsError={teamsError}
+        hasTeams={!!teams && teams.length > 0}
+        description={
+          isRallyAdmin
+            ? "Não existem equipas criadas ainda. Para gerir membros das equipas, primeiro precisa de criar equipas."
+            : "Não existem equipas criadas ainda. Contacte um administrador."
+        }
+      />
     </div>
   );
 }
