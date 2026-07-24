@@ -114,7 +114,7 @@ export default function TeamVsForm({
       }
     };
 
-    initializeOpponent();
+    void initializeOpponent();
     // Note: Intentionally omitting opponentTeamId, opponentTeamName, and teams from dependencies
     // to avoid infinite loops. These are state variables set by this effect itself.
     // The effect only needs to run when team.id or existingResult changes.
