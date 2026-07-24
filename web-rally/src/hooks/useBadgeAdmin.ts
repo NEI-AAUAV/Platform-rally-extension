@@ -26,7 +26,7 @@ export function useBadgeDefinitions() {
 /** Create / update / delete a definition + icon upload, invalidating the list. */
 export function useBadgeDefinitionMutations() {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: DEFINITIONS_KEY });
+  const invalidate = () => void qc.invalidateQueries({ queryKey: DEFINITIONS_KEY });
 
   const create = useMutation({
     mutationFn: async (data: BadgeDefinitionCreate) =>
@@ -57,7 +57,7 @@ export function useBadgeDefinitionMutations() {
 /** Manual award + revoke, invalidating both the awards and showcase queries. */
 export function useBadgeAwardMutations() {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["badges"] });
+  const invalidate = () => void qc.invalidateQueries({ queryKey: ["badges"] });
 
   const award = useMutation({
     mutationFn: async (data: ManualBadgeAwardCreate) =>

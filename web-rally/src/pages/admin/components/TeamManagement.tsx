@@ -93,7 +93,7 @@ export default function TeamManagement() {
       // Store the newly created team to show QR code modal
       setNewlyCreatedTeam(data as DetailedTeam);
       // Invalidate and refetch teams data
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      void queryClient.invalidateQueries({ queryKey: ["teams"] });
       teamForm.reset();
       toast.success("Equipa criada com sucesso!");
     },
@@ -110,7 +110,7 @@ export default function TeamManagement() {
       return apiUpdateTeam({ path: { id }, body: requestBody });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      void queryClient.invalidateQueries({ queryKey: ["teams"] });
       setEditingTeam(null);
       teamForm.reset();
       toast.success("Equipa atualizada com sucesso!");
@@ -125,7 +125,7 @@ export default function TeamManagement() {
       return apiDeleteTeam({ path: { id } });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      void queryClient.invalidateQueries({ queryKey: ["teams"] });
       toast.success("Equipa deletada com sucesso!");
     },
     onError: (error) => {

@@ -35,7 +35,7 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
     },
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey });
+  const invalidate = () => void qc.invalidateQueries({ queryKey });
 
   const addIndication = useMutation({
     mutationFn: () =>

@@ -33,7 +33,7 @@ export default function DeferredJudgingTab() {
         body: { points, notes },
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["deferred-pending"] });
+      void qc.invalidateQueries({ queryKey: ["deferred-pending"] });
       setJudging(null);
     },
   });

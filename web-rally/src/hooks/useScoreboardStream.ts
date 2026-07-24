@@ -29,7 +29,7 @@ export default function useScoreboardStream(
 
     const handleRefresh = () => {
       for (const queryKey of queryKeys) {
-        queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        void queryClient.invalidateQueries({ queryKey: [...queryKey] });
       }
     };
 

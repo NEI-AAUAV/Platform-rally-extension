@@ -131,8 +131,8 @@ export default function BrandingSettings() {
   }, [settings]);
 
   const invalidateBranding = () => {
-    queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
-    queryClient.invalidateQueries({ queryKey: ["rallySettings-public"] });
+    void queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["rallySettings-public"] });
   };
 
   const { mutate: save, isPending: isSaving } = useMutation({

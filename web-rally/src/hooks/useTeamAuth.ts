@@ -102,7 +102,7 @@ export default function useTeamAuth() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
+      void queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
     },
   });
 
@@ -115,7 +115,7 @@ export default function useTeamAuth() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
+      void queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
     },
   });
 
@@ -127,7 +127,7 @@ export default function useTeamAuth() {
     clearTeamAuth();
     setIsAuthenticated(false);
     setCurrentTeamData(null);
-    queryClient.invalidateQueries({ queryKey: ["team"] });
+    void queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 
   const getToken = (): string | null => {

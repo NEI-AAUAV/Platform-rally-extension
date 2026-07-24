@@ -48,8 +48,8 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         setGpsMsg("Posto concluído! A avançar para o próximo…");
         // Progress changed server-side — refresh team + checkpoints so the
         // route jumps to the next post without a manual reload.
-        qc.invalidateQueries({ queryKey: ["team"] });
-        qc.invalidateQueries({ queryKey: ["checkpoints"] });
+        void qc.invalidateQueries({ queryKey: ["team"] });
+        void qc.invalidateQueries({ queryKey: ["checkpoints"] });
       } else if (data.already_registered) {
         setGpsMsg(`Já registado. Distância: ${Math.round(data.distance_m)} m.`);
       } else {

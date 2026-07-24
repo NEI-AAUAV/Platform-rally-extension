@@ -35,7 +35,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
     },
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey });
+  const invalidate = () => void qc.invalidateQueries({ queryKey });
 
   const uploadPhoto = useMutation({
     mutationFn: (image: Blob) =>

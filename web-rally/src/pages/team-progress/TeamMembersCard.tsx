@@ -41,7 +41,7 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
     mutationFn: (memberId: number) => claimMembership({ path: { member_user_id: memberId } }),
     onSuccess: () => {
       toast.success("Conta associada! O teu histórico foi atualizado.");
-      queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

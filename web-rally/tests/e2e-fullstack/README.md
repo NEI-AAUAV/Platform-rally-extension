@@ -48,22 +48,35 @@ files would only confuse.
 | `guide-and-badges.spec.ts` | Guide-mode (a guide viewing their checkpoint's real indications) running concurrently with a staff evaluation that triggers a real `FIRST_COMPLETE_CHECKPOINT` badge auto-award, confirmed on the team's own `/conquistas` page. |
 | `scoreboard-sse.spec.ts` | The real `/scoreboard/stream` SSE endpoint: a public scoreboard page, opened once and never reloaded, must reflect a staff evaluation submitted afterwards — proves the live-update wiring works against the real backend, not just a mocked `EventSource`. |
 | `rally-day.spec.ts` | The master concurrency scenario — 7 simultaneous browser contexts (admin, 2 staff, 4 teams) racing through a real 2-checkpoint journey, with deliberately injected incidents (duplicate check-in, concurrent UI evaluations at two checkpoints, an offline-mid-submit recovery). This is the one test in the suite built specifically to catch cross-context race conditions. |
-| `security-abac.spec.ts` | ABAC boundaries against the real backend: staff evaluating an activity at a checkpoint they aren't assigned to gets a real 404 (not a mocked assumption); a genuine team JWT (logged in through the real UI, not synthesized) is rejected by admin/staff-only endpoints and the admin UI itself; a checkpoint's public payload is confirmed to never contain a guide indication's `expected_answer`. |
+| `security-abac.spec.ts` | ABAC boundaries against the real backend: staff evaluating an activity at a checkpoint they aren't assigned to gets a real 404 (not 403 — `RallyNotFoundError`, confirmed by reading `staff_evaluation.py`, not assumed); a genuine team JWT is rejected by admin/staff-only endpoints and the admin UI itself; a checkpoint's public payload is confirmed to never contain a guide indication's `expected_answer`. |
+| `multi-edicao.spec.ts` | Multi-edition isolation against the real backend: switching the current edition through the admin UI changes which checkpoints/teams are visible; a team from a non-current edition can still log in (access codes are intentionally global per `crud_team.get_by_access_code` — isolation is enforced at listing/check-in, not login) but is absent from the current edition's team listing; checking a team in at a checkpoint from a different edition is rejected (404, `_require_same_event`). This surfaced a real discrepancy with `tests/e2e/multi-edicao.spec.ts`'s mocked "non-current access code is rejected by login" test, which asserts something the real backend does not do. |
 
 ## Known gaps (not yet covered against a real backend)
 
 These currently exist **only** as mocked specs in `tests/e2e/` — their mocks
 could drift from the real API contract and nothing here would catch it:
 
-- Multi-edition / event switching (`tests/e2e/multi-edicao.spec.ts`)
 - Olympic rotation-schedule generation (`tests/e2e/olympic-rotation.spec.ts`)
 - PWA install / offline manifest behavior (`tests/e2e/offline-pwa.spec.ts`)
 
-Left as mocked-only for now: the cost of running them against a disposable,
-not-reset-between-runs Postgres (event isolation, rotation-schedule
-determinism) is higher than for the specs above, and the mocked coverage is
-already thorough. Promote them to this directory if the mocked/real contract
-ever needs re-verifying — the seeding pattern in `helpers/seedRally.ts` and
+Left as mocked-only for now: rotation-schedule determinism is cheap to verify
+against the pure `utils/round_robin.py` function directly and doesn't need a
+browser; PWA/offline manifest behavior isn't backend-contract-dependent in the
+way everything else here is. Promote either to this directory if that
+changes — the seeding pattern in `helpers/seedRally.ts` and
 `helpers/seedRallyDay.ts` (fresh event per call, lazy user-row materialization
 via one authenticated call before assignment) covers everything needed to do
 so.
+
+## Team-login rate limiting across a full run
+
+`check_login_rate_limit` (`app/api/rate_limit.py`) is keyed **per client IP**,
+not per access code, with a real Redis-backed fixed window (10 attempts /
+5 min by default). Every spec here runs from the same test-runner IP against
+the same backend, so UI-driven team logins accumulate *across the whole
+suite* — `rally-day.spec.ts` alone logs in 4 teams. Prefer `POST
+/team-auth/login` via `fetch` (see `security-abac.spec.ts`'s "team
+access-token" test) over driving `/rally/team-login` through the browser
+when a spec doesn't specifically need to prove the *login form* works — the
+resulting JWT is equally real either way, and it keeps the full-suite budget
+from tipping over into a spurious "Too many requests" failure.

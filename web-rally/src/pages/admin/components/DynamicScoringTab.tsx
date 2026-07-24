@@ -47,7 +47,7 @@ function RulesSection() {
         },
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dynamic-rules"] });
+      void qc.invalidateQueries({ queryKey: ["dynamic-rules"] });
       setShowForm(false);
       setForm(EMPTY_RULE);
     },
@@ -56,12 +56,12 @@ function RulesSection() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
       updateDynamicRule({ path: { rule_id: id }, body: { is_active } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDynamicRule({ path: { rule_id: id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["dynamic-rules"] }),
   });
 
   return (
@@ -226,7 +226,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
         },
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dynamic-awards"] });
+      void qc.invalidateQueries({ queryKey: ["dynamic-awards"] });
       setShowForm(false);
       setForm(EMPTY_AWARD);
     },
@@ -234,7 +234,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDynamicAward({ path: { award_id: id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dynamic-awards"] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["dynamic-awards"] }),
   });
 
   const teamName = (id: number) => teams.find((t) => t.id === id)?.name ?? `#${id}`;
