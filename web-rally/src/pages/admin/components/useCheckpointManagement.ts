@@ -70,7 +70,7 @@ export function useCheckpointManagement(userStore: UserState) {
     mutationFn: async (checkpointData: CheckpointForm) =>
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
     onSuccess: () => {
-      refetchCheckpoints();
+      void refetchCheckpoints();
       checkpointForm.reset();
       toast.success("Checkpoint criado com sucesso!");
     },
@@ -83,7 +83,7 @@ export function useCheckpointManagement(userStore: UserState) {
     mutationFn: async ({ id, data }: { id: number; data: CheckpointForm }) =>
       apiUpdateCheckpoint({ path: { id }, body: toRequestBody(data) as CheckPointUpdate }),
     onSuccess: () => {
-      refetchCheckpoints();
+      void refetchCheckpoints();
       setEditingCheckpoint(null);
       checkpointForm.reset();
       toast.success("Checkpoint atualizado com sucesso!");
@@ -96,7 +96,7 @@ export function useCheckpointManagement(userStore: UserState) {
   const { mutate: deleteCheckpoint, isPending: isDeletingCheckpoint } = useMutation({
     mutationFn: async (id: number) => apiDeleteCheckpoint({ path: { id } }),
     onSuccess: () => {
-      refetchCheckpoints();
+      void refetchCheckpoints();
       toast.success("Checkpoint deletado com sucesso!");
     },
     onError: (error) => {
@@ -108,7 +108,7 @@ export function useCheckpointManagement(userStore: UserState) {
     mutationFn: async (checkpointOrders: Record<number, number>) =>
       apiReorderCheckpoints({ body: checkpointOrders }),
     onSuccess: () => {
-      refetchCheckpoints();
+      void refetchCheckpoints();
       toast.success("Ordem dos checkpoints atualizada com sucesso!");
     },
     onError: (error) => {
