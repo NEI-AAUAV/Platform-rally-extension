@@ -29,37 +29,38 @@ const firstNonEmpty = (...vals: Array<string | null | undefined>): string =>
   vals.find((v) => typeof v === "string" && v.trim().length > 0)?.trim() ?? "";
 
 /**
+ * Parse a #rgb/#rrggbb color into its packed 24-bit RGB integer. Returns null
+ * for anything that is not a parseable hex (e.g. named colors), so callers can
+ * skip setting a derived value rather than emit an invalid one.
+ */
+function parseHex(hex: string): number | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m?.[1]) return null;
+  const raw = m[1];
+  const h =
+    raw.length === 3
+      ? raw
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : raw;
+  return Number.parseInt(h, 16);
+}
+
+/**
  * Convert a #rgb/#rrggbb color to an `rgba(r, g, b, a)` string. Returns null
  * for anything that is not a parseable hex (e.g. named colors), so callers can
  * skip setting a derived value rather than emit an invalid one.
  */
 export function hexToRgba(hex: string, alpha: number): string | null {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m?.[1]) return null;
-  const raw = m[1];
-  const h =
-    raw.length === 3
-      ? raw
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : raw;
-  const n = Number.parseInt(h, 16);
+  const n = parseHex(hex);
+  if (n === null) return null;
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
 function hexToHsl(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m?.[1]) return null;
-  const raw = m[1];
-  const h =
-    raw.length === 3
-      ? raw
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : raw;
-  const n = Number.parseInt(h, 16);
+  const n = parseHex(hex);
+  if (n === null) return null;
   const r = ((n >> 16) & 255) / 255;
   const g = ((n >> 8) & 255) / 255;
   const b = (n & 255) / 255;
