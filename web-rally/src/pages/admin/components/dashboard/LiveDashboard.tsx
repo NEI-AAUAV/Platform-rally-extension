@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Rectangle, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { BarShapeProps } from "recharts/types/cartesian/Bar";
 import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
 import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
@@ -195,15 +196,21 @@ export default function LiveDashboard() {
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="reached" radius={[0, 4, 4, 0]}>
-                {perCheckpointData.map((entry) => (
-                  <Cell
-                    key={entry.order}
-                    fill={ACCENT}
-                    fillOpacity={0.2 + (entry.reached / (teamList.length || 1)) * 0.8}
-                  />
-                ))}
-              </Bar>
+              <Bar
+                dataKey="reached"
+                radius={[0, 4, 4, 0]}
+                fill={ACCENT}
+                shape={(props: BarShapeProps) => {
+                  const reached = (props.payload as { reached?: number } | undefined)?.reached ?? 0;
+                  return (
+                    <Rectangle
+                      {...props}
+                      fill={ACCENT}
+                      fillOpacity={0.2 + (reached / (teamList.length || 1)) * 0.8}
+                    />
+                  );
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
