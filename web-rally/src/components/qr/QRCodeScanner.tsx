@@ -86,7 +86,7 @@ export default function QRCodeScanner({
       }
     };
 
-    startCamera();
+    void startCamera();
 
     return () => {
       cancelled = true;
