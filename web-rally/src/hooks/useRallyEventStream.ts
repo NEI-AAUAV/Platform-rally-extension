@@ -39,7 +39,7 @@ export default function useRallyEventStream(queryKeys: readonly (readonly unknow
 
     const handleEvent = () => {
       for (const queryKey of queryKeys) {
-        queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        void queryClient.invalidateQueries({ queryKey: [...queryKey] });
       }
     };
 
