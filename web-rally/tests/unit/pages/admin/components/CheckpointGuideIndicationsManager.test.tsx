@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import CheckpointGuideIndicationsManager from '@/pages/admin/components/CheckpointGuideIndicationsManager';
+import CheckpointGuideIndicationsManager from '@/pages/admin/components/checkpoints/CheckpointGuideIndicationsManager';
 
 const { mockListGuideIndications, mockCreateGuideIndication, mockDeleteGuideIndication, mockToast } =
   vi.hoisted(() => ({

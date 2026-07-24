@@ -1,20 +1,20 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CheckpointManagement from '@/pages/admin/components/CheckpointManagement';
+import CheckpointManagement from '@/pages/admin/components/checkpoints/CheckpointManagement';
 
 const { mockUseCheckpointManagement } = vi.hoisted(() => ({
   mockUseCheckpointManagement: vi.fn(),
 }));
 
-vi.mock('@/pages/admin/components/useCheckpointManagement', () => ({
+vi.mock('@/pages/admin/components/checkpoints/useCheckpointManagement', () => ({
   useCheckpointManagement: (...args: unknown[]) => mockUseCheckpointManagement(...args),
 }));
 
-vi.mock('@/pages/admin/components/CheckpointForm', () => ({
+vi.mock('@/pages/admin/components/checkpoints/CheckpointForm', () => ({
   default: ({ isEditing }: any) => <div data-testid="checkpoint-form">{isEditing ? 'editing' : 'new'}</div>,
 }));
 
-vi.mock('@/pages/admin/components/CheckpointListItem', () => ({
+vi.mock('@/pages/admin/components/checkpoints/CheckpointListItem', () => ({
   default: ({ checkpoint, onEdit, onDelete }: any) => (
     <li>
       <span>{checkpoint.name}</span>

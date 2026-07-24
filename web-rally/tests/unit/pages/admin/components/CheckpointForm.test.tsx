@@ -2,13 +2,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import CheckpointForm from '@/pages/admin/components/CheckpointForm';
+import CheckpointForm from '@/pages/admin/components/checkpoints/CheckpointForm';
 import {
   checkpointFormSchema,
   type CheckpointForm as CheckpointFormValues,
-} from '@/pages/admin/components/useCheckpointManagement';
+} from '@/pages/admin/components/checkpoints/useCheckpointManagement';
 
-vi.mock('@/pages/admin/components/CheckpointLocationPicker', () => ({
+vi.mock('@/pages/admin/components/checkpoints/CheckpointLocationPicker', () => ({
   default: ({ latitude, longitude, onChange }: { latitude: number | null; longitude: number | null; onChange: (lat: number, lng: number) => void }) => (
     <div data-testid="location-picker">
       <span>

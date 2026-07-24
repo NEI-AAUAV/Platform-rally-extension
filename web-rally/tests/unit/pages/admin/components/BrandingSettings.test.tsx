@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import BrandingSettings from '@/pages/admin/components/BrandingSettings';
+import BrandingSettings from '@/pages/admin/components/branding/BrandingSettings';
 
 const {
   mockViewRallySettings,

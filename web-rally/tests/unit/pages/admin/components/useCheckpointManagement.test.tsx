@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useCheckpointManagement } from '@/pages/admin/components/useCheckpointManagement';
+import { useCheckpointManagement } from '@/pages/admin/components/checkpoints/useCheckpointManagement';
 import type { UserState } from '@/stores/useUserStore';
 
 const {

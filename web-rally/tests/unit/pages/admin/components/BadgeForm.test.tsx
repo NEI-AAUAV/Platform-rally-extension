@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { BadgeDefinitionResponse } from '@/client';
-import BadgeForm from '@/pages/admin/components/BadgeForm';
+import BadgeForm from '@/pages/admin/components/badges/BadgeForm';
 
 const {
   mockGetActivities,

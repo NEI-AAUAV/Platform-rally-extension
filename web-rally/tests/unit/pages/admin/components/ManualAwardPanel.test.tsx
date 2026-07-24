@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import ManualAwardPanel from '@/pages/admin/components/ManualAwardPanel';
+import ManualAwardPanel from '@/pages/admin/components/badges/ManualAwardPanel';
 
 const { mockGetTeams, mockUseBadgeAwardMutations, mockUseTeamBadges, mockAwardMutate } = vi.hoisted(() => ({
   mockGetTeams: vi.fn(),

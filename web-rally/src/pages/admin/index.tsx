@@ -38,7 +38,7 @@ import GuideAssignment from "@/pages/guide-assignment";
 import Versus from "@/pages/versus";
 import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
-import LiveDashboard from "./components/LiveDashboard";
+import LiveDashboard from "./components/dashboard/LiveDashboard";
 import { adminRoute, type AdminTabId } from "@/router/routes";
 
 interface Checkpoint {

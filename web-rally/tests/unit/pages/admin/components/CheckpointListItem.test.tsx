@@ -1,14 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CheckpointListItem from '@/pages/admin/components/CheckpointListItem';
+import CheckpointListItem from '@/pages/admin/components/checkpoints/CheckpointListItem';
 
-vi.mock('@/pages/admin/components/CheckpointMediaManager', () => ({
+vi.mock('@/pages/admin/components/checkpoints/CheckpointMediaManager', () => ({
   default: ({ checkpointId }: { checkpointId: number }) => (
     <div data-testid="media-manager">media-{checkpointId}</div>
   ),
 }));
 
-vi.mock('@/pages/admin/components/CheckpointGuideIndicationsManager', () => ({
+vi.mock('@/pages/admin/components/checkpoints/CheckpointGuideIndicationsManager', () => ({
   default: ({ checkpointId }: { checkpointId: number }) => (
     <div data-testid="guide-manager">guide-{checkpointId}</div>
   ),

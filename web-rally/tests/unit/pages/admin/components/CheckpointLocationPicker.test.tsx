@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import CheckpointLocationPicker from '@/pages/admin/components/CheckpointLocationPicker';
+import CheckpointLocationPicker from '@/pages/admin/components/checkpoints/CheckpointLocationPicker';
 
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 

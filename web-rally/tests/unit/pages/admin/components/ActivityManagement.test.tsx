@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 import type ActivityCreateForm from '@/components/activity-form/ActivityCreateForm';
 import type ActivityList from '@/components/activity-form/ActivityList';
 import type { ActivityType } from '@/types/activityTypes';
-import ActivityManagement from '@/pages/admin/components/ActivityManagement';
+import ActivityManagement from '@/pages/admin/components/activity/ActivityManagement';
 
 const {
   mockUseActivities,

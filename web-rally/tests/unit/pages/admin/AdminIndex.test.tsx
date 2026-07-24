@@ -61,7 +61,7 @@ vi.mock('@/pages/admin/components', () => ({
   DynamicScoringTab: () => <div data-testid="tab-scoring">DynamicScoringTab</div>,
 }));
 
-vi.mock('@/pages/admin/components/LiveDashboard', () => ({
+vi.mock('@/pages/admin/components/dashboard/LiveDashboard', () => ({
   default: () => <div data-testid="tab-dashboard">LiveDashboard</div>,
 }));
 

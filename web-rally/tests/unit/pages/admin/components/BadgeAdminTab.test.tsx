@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BadgeDefinitionResponse } from '@/client';
-import BadgeAdminTab from '@/pages/admin/components/BadgeAdminTab';
+import BadgeAdminTab from '@/pages/admin/components/badges/BadgeAdminTab';
 
 const { mockUseBadgeDefinitions, mockUpdateMutate, mockRemoveMutate } = vi.hoisted(() => ({
   mockUseBadgeDefinitions: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/lib/badges', () => ({
   BADGE_FALLBACK: { color: '#000', glyph: '?' },
 }));
 
-vi.mock('@/pages/admin/components/BadgeForm', () => ({
+vi.mock('@/pages/admin/components/badges/BadgeForm', () => ({
   default: ({ editing, onDone }: { editing: BadgeDefinitionResponse | null; onDone: () => void }) => (
     <div data-testid="badge-form">
       <span>{editing ? `editing-${editing.id}` : 'new'}</span>
@@ -34,7 +34,7 @@ vi.mock('@/pages/admin/components/BadgeForm', () => ({
   ),
 }));
 
-vi.mock('@/pages/admin/components/ManualAwardPanel', () => ({
+vi.mock('@/pages/admin/components/badges/ManualAwardPanel', () => ({
   default: () => <div data-testid="manual-award-panel" />,
 }));
 

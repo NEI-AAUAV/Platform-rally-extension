@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import EventsManagement from '@/pages/admin/components/EventsManagement';
+import EventsManagement from '@/pages/admin/components/events/EventsManagement';
 import type { RallyEvent } from '@/types/event';
 
 function renderWithClient() {

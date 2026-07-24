@@ -73,7 +73,7 @@ describe('client.ts', () => {
       expect(result).toBeUndefined()
     })
 
-    it('logs the error in development mode when refresh fails', async () => {
+    it('logs the status in development mode when refresh fails', async () => {
       const originalEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'development'
       localStorage.setItem('rally_team_token', 'expired-team-jwt')
@@ -83,7 +83,7 @@ describe('client.ts', () => {
       const { refreshTeamToken } = await import('@/services/client')
       await refreshTeamToken()
 
-      expect(consoleSpy).toHaveBeenCalledWith('Team token refresh failed:', expect.any(Error))
+      expect(consoleSpy).toHaveBeenCalledWith('Team token refresh failed: 401')
       consoleSpy.mockRestore()
       process.env.NODE_ENV = originalEnv
     })

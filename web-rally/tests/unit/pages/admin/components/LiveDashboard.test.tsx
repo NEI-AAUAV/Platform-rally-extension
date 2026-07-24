@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import LiveDashboard from '@/pages/admin/components/LiveDashboard';
+import LiveDashboard from '@/pages/admin/components/dashboard/LiveDashboard';
 
 const {
   mockGetTeams,
