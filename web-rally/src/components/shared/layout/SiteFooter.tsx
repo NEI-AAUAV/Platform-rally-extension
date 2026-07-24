@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Facebook, Github, Instagram, Linkedin, Youtube, Mail, MapPin } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
+import { SiFacebook, SiGithub, SiInstagram, SiYoutube } from "@icons-pack/react-simple-icons";
+import { LinkedinIcon } from "@/components/shared/icons/LinkedinIcon";
 import type { Branding } from "@/lib/branding";
 import neiLogoBlack from "@/assets/nei/logo/horizontal/black.png";
 import neiLogoWhite from "@/assets/nei/logo/horizontal/white.png";
@@ -11,11 +13,11 @@ interface SiteFooterProps {
 }
 
 const SOCIALS = [
-  { label: "Instagram", href: "https://www.instagram.com/nei.aauav/", Icon: Instagram },
-  { label: "Facebook", href: "https://www.facebook.com/nei.aauav", Icon: Facebook },
-  { label: "LinkedIn", href: "https://www.linkedin.com/company/nei-aauav", Icon: Linkedin },
-  { label: "GitHub", href: "https://github.com/NEI-AAUAV", Icon: Github },
-  { label: "YouTube", href: "https://www.youtube.com/@neiaauav2598", Icon: Youtube },
+  { label: "Instagram", href: "https://www.instagram.com/nei.aauav/", Icon: SiInstagram },
+  { label: "Facebook", href: "https://www.facebook.com/nei.aauav", Icon: SiFacebook },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/nei-aauav", Icon: LinkedinIcon },
+  { label: "GitHub", href: "https://github.com/NEI-AAUAV", Icon: SiGithub },
+  { label: "YouTube", href: "https://www.youtube.com/@neiaauav2598", Icon: SiYoutube },
 ] as const;
 
 const QUICK_LINKS = [
@@ -67,7 +69,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
                 aria-label={label}
                 className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-all hover:-translate-y-0.5 hover:bg-[var(--rally-accent,#008542)] hover:text-white"
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" color="currentColor" />
               </a>
             ))}
           </div>
