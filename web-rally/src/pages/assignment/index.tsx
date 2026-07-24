@@ -70,7 +70,7 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
       return data;
     },
     onSuccess: () => {
-      refetchAssignments(); // Refetch assignments to update UI
+      void refetchAssignments(); // Refetch assignments to update UI
     },
   });
 

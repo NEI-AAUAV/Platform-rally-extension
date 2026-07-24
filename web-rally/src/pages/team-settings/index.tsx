@@ -23,7 +23,7 @@ export default function TeamSettings() {
   const handleLogout = () => {
     logout();
     toast.success("Sessão terminada");
-    navigate({ to: "/" });
+    void navigate({ to: "/" });
   };
 
   return (

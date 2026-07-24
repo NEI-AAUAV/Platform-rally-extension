@@ -39,7 +39,7 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
   const { data: teamData } = teamDataQuery;
 
   const handleSuccess = () => {
-    refetchTeamMembers();
+    void refetchTeamMembers();
   };
 
   if (isLoading) {

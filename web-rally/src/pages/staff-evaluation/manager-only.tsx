@@ -111,7 +111,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
   });
 
   const handleCheckpointClick = (checkpoint: DetailedCheckPoint) => {
-    navigate({
+    void navigate({
       to: "/staff-evaluation/checkpoint/$checkpointId",
       params: { checkpointId: String(checkpoint.id) },
     });

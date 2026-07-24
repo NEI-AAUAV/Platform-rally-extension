@@ -237,7 +237,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
     },
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");
-      refetchSettings();
+      void refetchSettings();
       setIsEditing(false);
     },
     onError: (error) => {

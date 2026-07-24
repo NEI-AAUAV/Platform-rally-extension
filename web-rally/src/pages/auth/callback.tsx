@@ -18,9 +18,9 @@ export default function AuthCallback() {
       sessionStorage.removeItem("rally_auth_return_url");
       // returnUrl is an arbitrary stored path (pathname+search+hash), so it is
       // not a statically known route — navigate by raw href.
-      navigate({ to: returnUrl || "/", replace: true });
+      void navigate({ to: returnUrl || "/", replace: true });
     } else if (auth.error) {
-      navigate({ to: "/", replace: true });
+      void navigate({ to: "/", replace: true });
     }
   }, [auth.isLoading, auth.isAuthenticated, auth.error, navigate]);
 

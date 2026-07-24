@@ -70,7 +70,7 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
       return data;
     },
     onSuccess: () => {
-      refetchAssignments();
+      void refetchAssignments();
     },
   });
 

@@ -20,7 +20,7 @@ initSentry();
 
 // Keep a returning team session alive on startup (staff sessions are owned by
 // react-oidc-context, which restores them automatically).
-refreshTeamToken();
+void refreshTeamToken();
 
 /**
  * A staff request hit an unrecoverable 401: hand off to the OIDC layer to

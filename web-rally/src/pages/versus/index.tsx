@@ -39,8 +39,8 @@ export default function Versus({ embedded = false }: VersusProps) {
   });
 
   const handleSuccess = () => {
-    refetchVersusGroups();
-    refetchTeams();
+    void refetchVersusGroups();
+    void refetchTeams();
   };
 
   if (isLoading) {

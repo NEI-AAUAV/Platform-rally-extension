@@ -64,7 +64,7 @@ export default function TeamLogin() {
       setShowScanner(false);
       // Auto-submit after extracting code
       setTimeout(() => {
-        handleSubmit(undefined, code);
+        void handleSubmit(undefined, code);
       }, 200);
     } else {
       toast.error("Código QR inválido. Por favor, tente novamente.");

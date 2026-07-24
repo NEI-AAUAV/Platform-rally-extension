@@ -28,14 +28,14 @@ export function useTeamProgress() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate({ to: "/team-login" });
+      void navigate({ to: "/team-login" });
     }
   }, [authLoading, isAuthenticated, navigate]);
 
   // Check if participant view is enabled
   useEffect(() => {
     if (!settingsLoading && settings && !settings.participant_view_enabled) {
-      navigate({ to: "/scoreboard" });
+      void navigate({ to: "/scoreboard" });
     }
   }, [settingsLoading, settings, navigate]);
 

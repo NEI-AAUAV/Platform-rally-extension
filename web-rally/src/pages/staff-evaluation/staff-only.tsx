@@ -21,7 +21,7 @@ export default function StaffEvaluationPage() {
 
   useEffect(() => {
     if (myCheckpoint) {
-      navigate({
+      void navigate({
         to: "/staff-evaluation/checkpoint/$checkpointId",
         params: { checkpointId: String(myCheckpoint.id) },
       });
