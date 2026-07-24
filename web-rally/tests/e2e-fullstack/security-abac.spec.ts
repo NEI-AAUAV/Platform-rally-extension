@@ -166,7 +166,7 @@ test.describe('ABAC security boundaries against a real backend', () => {
       // "/checkpoints" when hidden, the fresh event's default; "/scoreboard"
       // otherwise) — the ABAC boundary under test is that /admin itself is
       // never reachable, not which specific page it bounces to.
-      await adminPage.waitForURL(/\/(scoreboard|postos)$/, { timeout: 15_000 });
+      await adminPage.waitForURL(/\/(scoreboard|checkpoints)$/, { timeout: 15_000 });
       await expect(adminPage).not.toHaveURL(/\/admin/);
     } finally {
       await adminContext.close();

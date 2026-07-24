@@ -15,7 +15,7 @@ import { seedGuideAndBadgesScenario } from './helpers/seedGuideAndBadges';
  * indications, a staff member evaluating a team's activity at that same
  * checkpoint through the real UI, and the team itself. The evaluation
  * triggers a real FIRST_COMPLETE_CHECKPOINT badge award server-side; the
- * team must see it on its own real /rally/conquistas page afterwards.
+ * team must see it on its own real /rally/achievements page afterwards.
  */
 
 test.describe('Guide mode and auto-awarded badges against a real backend', () => {
@@ -76,7 +76,7 @@ test.describe('Guide mode and auto-awarded badges against a real backend', () =>
       // The auto-award runs synchronously with the evaluation on the real
       // backend — the team's own conquistas page (real navigation, real
       // team JWT) should now show the badge as earned, not locked.
-      await teamPage.goto('/rally/conquistas');
+      await teamPage.goto('/rally/achievements');
       await expect(teamPage.getByText('Badges')).toBeVisible({ timeout: 20_000 });
       const badgeCard = teamPage.locator('div', { hasText: `E2E Primeiro Posto` }).last();
       await expect(badgeCard).toBeVisible({ timeout: 15_000 });
