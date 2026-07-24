@@ -45,7 +45,7 @@ test.describe('Conquistas', () => {
       { code: 'first-checkin', awarded_at: new Date().toISOString() },
     ]);
 
-    await page.goto('/rally/conquistas');
+    await page.goto('/rally/achievements');
 
     await expect(page.getByText('Badges')).toBeVisible();
     await expect(page.getByText('Conquistadas')).toBeVisible();
@@ -58,19 +58,19 @@ test.describe('Conquistas', () => {
     await seedTeamAuth(context, page);
     await mockShowcase(page, DEFINITIONS, []);
 
-    await page.goto('/rally/conquistas');
+    await page.goto('/rally/achievements');
 
     await page.waitForURL('**/rally/');
-    await expect(page).not.toHaveURL(/\/conquistas/);
+    await expect(page).not.toHaveURL(/\/achievements/);
   });
 
   test('redirects to team-login when not authenticated', async ({ page }) => {
     await mockSettings(page, { badges_enabled: true });
 
-    await page.goto('/rally/conquistas');
+    await page.goto('/rally/achievements');
 
     await page.waitForURL('**/team-login');
-    await expect(page).not.toHaveURL(/\/conquistas/);
+    await expect(page).not.toHaveURL(/\/achievements/);
   });
 
   test('renders nothing extra when showcase data fails to load', async ({ page, context }) => {
@@ -80,7 +80,7 @@ test.describe('Conquistas', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) }),
     );
 
-    await page.goto('/rally/conquistas');
+    await page.goto('/rally/achievements');
 
     await expect(page.getByText('Badges')).toHaveCount(0);
   });
@@ -91,7 +91,7 @@ test.describe('Conquistas', () => {
     await seedTeamAuth(context, page);
     await mockShowcase(page, DEFINITIONS, []);
 
-    await page.goto('/rally/conquistas');
+    await page.goto('/rally/achievements');
 
     await expect(page.getByText('Badges')).toBeVisible();
   });

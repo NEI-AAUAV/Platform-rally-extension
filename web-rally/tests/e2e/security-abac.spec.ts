@@ -54,7 +54,7 @@ test.describe('Security / ABAC boundaries', () => {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
     await expect(page.getByText('Posto 1').first()).toBeVisible();
 
     expect(JSON.stringify(capturedPublicBody)).not.toContain('expected_answer');
@@ -150,7 +150,7 @@ test.describe('Security / ABAC boundaries', () => {
   }) => {
     await mockSettings(page, { public_access_enabled: false });
 
-    for (const path of ['/rally/', '/rally/postos', '/rally/rules', '/rally/scoreboard']) {
+    for (const path of ['/rally/', '/rally/checkpoints', '/rally/rules', '/rally/scoreboard']) {
       await page.goto(path);
       await expect(page.getByRole('button', { name: /login/i })).toBeVisible();
     }

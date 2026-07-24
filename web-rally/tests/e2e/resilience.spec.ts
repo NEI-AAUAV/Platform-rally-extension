@@ -45,7 +45,7 @@ test.describe('Resilience', () => {
     await expect(page.locator('#home-hero-heading')).toBeVisible();
   });
 
-  test('postos page shows an empty route instead of crashing when checkpoints API errors', async ({
+  test('checkpoints page shows an empty route instead of crashing when checkpoints API errors', async ({
     page,
   }) => {
     await mockSettings(page);
@@ -53,7 +53,7 @@ test.describe('Resilience', () => {
       route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) }),
     );
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
     await expect(page.getByText('Nenhum posto disponível')).toBeVisible();
@@ -68,7 +68,7 @@ test.describe('Resilience', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
     });
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
     await page.goto('/rally/rules');
 
     await expect(page.getByText('Regras & FAQ')).toBeVisible();

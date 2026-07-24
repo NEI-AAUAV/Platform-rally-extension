@@ -26,7 +26,7 @@ test.describe('Postos', () => {
     await mockSettings(page, { show_checkpoint_map: true });
     await mockCheckpoints(page, CHECKPOINTS);
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     const cards = page.getByText(/Posto \d/);
     await expect(cards.first()).toBeVisible();
@@ -39,7 +39,7 @@ test.describe('Postos', () => {
     await mockSettings(page, { show_checkpoint_map: true });
     await mockCheckpoints(page, []);
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await expect(page.getByText('Nenhum posto disponível')).toBeVisible();
   });
@@ -75,10 +75,10 @@ test.describe('Postos', () => {
       }),
     );
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await page.waitForURL('**/team-progress');
-    await expect(page).not.toHaveURL(/\/postos/);
+    await expect(page).not.toHaveURL(/\/checkpoints/);
   });
 
   test('shows loading state while checkpoints are fetching', async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('Postos', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CHECKPOINTS) });
     });
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await expect(page.getByText('A carregar postos...')).toBeVisible();
   });
@@ -97,7 +97,7 @@ test.describe('Postos', () => {
     await mockSettings(page, { show_checkpoint_map: true });
     await mockCheckpoints(page, CHECKPOINTS);
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await expect(page.getByText('O percurso')).toBeVisible();
   });
@@ -107,7 +107,7 @@ test.describe('Postos', () => {
     await mockSettings(page, { show_checkpoint_map: true });
     await mockCheckpoints(page, CHECKPOINTS);
 
-    await page.goto('/rally/postos');
+    await page.goto('/rally/checkpoints');
 
     await expect(page.getByText('Posto 1').first()).toBeVisible();
   });
