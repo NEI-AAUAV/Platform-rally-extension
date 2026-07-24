@@ -8,7 +8,7 @@ import TeamMembersCard from "./TeamMembersCard";
 import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
-import MapSection from "@/pages/postos/components/MapSection";
+import MapSection from "@/pages/checkpoints/components/MapSection";
 
 export default function TeamProgress() {
   const {

@@ -20,7 +20,7 @@ const SOCIALS = [
 
 const QUICK_LINKS = [
   { name: "Pontuação", to: "/scoreboard" },
-  { name: "Postos", to: "/postos" },
+  { name: "Postos", to: "/checkpoints" },
   { name: "Regras", to: "/rules" },
 ] as const;
 

@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import MapSection from "@/pages/postos/components/MapSection";
+import MapSection from "@/pages/checkpoints/components/MapSection";
 
 vi.mock("leaflet/dist/leaflet.css", () => ({}));
 

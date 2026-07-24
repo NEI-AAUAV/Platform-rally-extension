@@ -40,7 +40,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
           Postos
         </h2>
         <Link
-          to="/postos"
+          to="/checkpoints"
           className="rally-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
         >
           Ver mapa

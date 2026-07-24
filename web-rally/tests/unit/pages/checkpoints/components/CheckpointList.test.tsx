@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import CheckpointList from '@/pages/postos/components/CheckpointList';
+import CheckpointList from '@/pages/checkpoints/components/CheckpointList';
 
 vi.mock('@/hooks/useCheckpointMedia', () => ({
   useCheckpointMedia: () => ({ photos: [], funFacts: [] }),

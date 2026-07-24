@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Postos from '@/pages/postos/index';
+import Postos from '@/pages/checkpoints/index';
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
@@ -47,7 +47,7 @@ vi.mock('@tanstack/react-router', () => ({
   Navigate: ({ to }: { to: string }) => <div>Navigate to {to}</div>,
 }));
 
-vi.mock('@/pages/postos/components', () => ({
+vi.mock('@/pages/checkpoints/components', () => ({
   CheckpointList: ({ checkpoints }: { checkpoints: { id: number; name: string }[] }) => (
     <div>
       CheckpointList: {checkpoints.map((c) => c.name).join(', ')}

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CheckpointCard from '@/pages/postos/components/CheckpointCard';
+import CheckpointCard from '@/pages/checkpoints/components/CheckpointCard';
 
 const { mockUseCheckpointMedia } = vi.hoisted(() => ({
   mockUseCheckpointMedia: vi.fn(),

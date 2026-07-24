@@ -44,7 +44,7 @@ vi.mock('@/pages/team-progress/RouteCheckpointItem', () => ({
   default: ({ index }: { index: number }) => <div data-testid={`route-item-${index}`} />,
 }));
 
-vi.mock('@/pages/postos/components/MapSection', () => ({
+vi.mock('@/pages/checkpoints/components/MapSection', () => ({
   default: () => <div data-testid="map-section" />,
 }));
 

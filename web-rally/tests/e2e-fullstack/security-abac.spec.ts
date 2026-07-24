@@ -163,7 +163,7 @@ test.describe('ABAC security boundaries against a real backend', () => {
     try {
       await adminPage.goto('/rally/admin');
       // The fallback target depends on show_score_mode (useFallbackNavigation:
-      // "/postos" when hidden, the fresh event's default; "/scoreboard"
+      // "/checkpoints" when hidden, the fresh event's default; "/scoreboard"
       // otherwise) — the ABAC boundary under test is that /admin itself is
       // never reachable, not which specific page it bounces to.
       await adminPage.waitForURL(/\/(scoreboard|postos)$/, { timeout: 15_000 });

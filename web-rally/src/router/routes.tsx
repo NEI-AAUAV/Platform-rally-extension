@@ -29,10 +29,10 @@ const scoreboardRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/scoreboard")),
 });
 
-const postosRoute = createRoute({
+const checkpointsRoute = createRoute({
   getParentRoute: () => layoutRoute,
-  path: "/postos",
-  component: lazyRouteComponent(() => import("@/pages/postos")),
+  path: "/checkpoints",
+  component: lazyRouteComponent(() => import("@/pages/checkpoints")),
 });
 
 const rulesRoute = createRoute({
@@ -125,10 +125,10 @@ const settingsRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/settings")),
 });
 
-const conquistasRoute = createRoute({
+const achievementsRoute = createRoute({
   getParentRoute: () => layoutRoute,
-  path: "/conquistas",
-  component: lazyRouteComponent(() => import("@/pages/conquistas")),
+  path: "/achievements",
+  component: lazyRouteComponent(() => import("@/pages/achievements")),
 });
 
 const teamMembersRoute = createRoute({
@@ -174,7 +174,7 @@ export const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     indexRoute,
     scoreboardRoute,
-    postosRoute,
+    checkpointsRoute,
     rulesRoute,
     profileRoute,
     teamsRedirectRoute,
@@ -185,7 +185,7 @@ export const routeTree = rootRoute.addChildren([
     versusRoute,
     teamLoginRoute,
     teamProgressRoute,
-    conquistasRoute,
+    achievementsRoute,
     settingsRoute,
     teamSettingsRoute,
     teamInfoRoute,

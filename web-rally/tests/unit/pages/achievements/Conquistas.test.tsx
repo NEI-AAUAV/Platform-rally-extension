@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Conquistas from '@/pages/conquistas/index';
+import Conquistas from '@/pages/achievements/index';
 
 const { mockUseTeamAuth, mockUseRallySettings } = vi.hoisted(() => ({
   mockUseTeamAuth: vi.fn(),

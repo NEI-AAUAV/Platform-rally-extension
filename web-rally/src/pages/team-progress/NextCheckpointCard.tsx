@@ -16,17 +16,12 @@ type GpsState = "idle" | "locating" | "done" | "error";
 
 /** "Too far from checkpoint: 240m (max 50m)" → friendly PT message. */
 function traduzirDistancia(detail: string): string {
-  const suffixMatch = /m \(max \d+m\)$/.exec(detail.trimEnd());
-  if (!suffixMatch) {
+  const match = /(\d+)m \(max (\d+)m\)$/.exec(detail.trimEnd());
+  if (!match) {
     return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
   }
-  const distance = detail.slice(0, suffixMatch.index);
-  const maxDistanceMatch = /\d+/.exec(suffixMatch[0]);
-  const distanceValue = /\d+$/.exec(distance)?.[0];
-  if (!distanceValue || !maxDistanceMatch) {
-    return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
-  }
-  return `Ainda estás longe do posto: ${distanceValue} m (tens de estar a menos de ${maxDistanceMatch[0]} m). Aproxima-te e tenta outra vez.`;
+  const [, distanceValue, maxDistance] = match;
+  return `Ainda estás longe do posto: ${distanceValue} m (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
 }
 
 export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {

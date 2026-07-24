@@ -182,7 +182,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
     {
       name: "Conquistas",
-      href: "/conquistas",
+      href: "/achievements",
       show: showTeamView && settings?.badges_enabled !== false,
     },
     { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
@@ -190,7 +190,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
     {
       name: checkpointsLabel,
-      href: "/postos",
+      href: "/checkpoints",
       show: !showTeamView && (isPrivileged || settings?.show_checkpoint_map === true),
     },
   ].filter((item) => item.show);

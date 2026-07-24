@@ -87,7 +87,7 @@ export default function Scoreboard() {
   const accessStatus = getAccessStatus(settings, isPrivileged, isAuthenticated, !!teamData);
 
   if (accessStatus === "hidden") {
-    return <Navigate to="/postos" replace />;
+    return <Navigate to="/checkpoints" replace />;
   }
 
   if (accessStatus === "restricted") {

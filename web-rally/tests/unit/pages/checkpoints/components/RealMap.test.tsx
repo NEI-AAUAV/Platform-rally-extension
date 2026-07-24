@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import RealMap from '@/pages/postos/components/RealMap';
+import RealMap from '@/pages/checkpoints/components/RealMap';
 
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 

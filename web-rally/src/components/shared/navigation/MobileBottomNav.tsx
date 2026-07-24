@@ -65,10 +65,10 @@ export function MobileBottomNav() {
     ? [
         { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
-        { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
+        { name: checkpointsLabel, href: "/checkpoints", Icon: MapPin, show: showPostos },
         {
           name: "Conquistas",
-          href: "/conquistas",
+          href: "/achievements",
           Icon: Award,
           show: settings?.badges_enabled !== false,
         },
@@ -78,7 +78,7 @@ export function MobileBottomNav() {
     : [
         { name: "Início", href: "/", Icon: Home, show: true },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
-        { name: checkpointsLabel, href: "/postos", Icon: MapPin, show: showPostos },
+        { name: checkpointsLabel, href: "/checkpoints", Icon: MapPin, show: showPostos },
         { name: "Admin", href: "/admin", Icon: ShieldCheck, show: isAdminOrManager },
         {
           name: "Avaliação",

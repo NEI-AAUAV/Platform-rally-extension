@@ -8,10 +8,10 @@ vi.mock('@/hooks/useRallySettings', () => ({ default: h.useRallySettings }))
 import useFallbackNavigation from '@/hooks/useFallbackNavigation'
 
 describe('useFallbackNavigation', () => {
-  it('returns /postos when score mode is hidden', () => {
+  it('returns /checkpoints when score mode is hidden', () => {
     h.useRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } })
     const { result } = renderHook(() => useFallbackNavigation())
-    expect(result.current).toBe('/postos')
+    expect(result.current).toBe('/checkpoints')
   })
 
   it('returns /scoreboard otherwise', () => {

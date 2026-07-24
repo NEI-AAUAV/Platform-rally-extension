@@ -113,7 +113,7 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
     token: admin.accessToken,
     body: {
       // Badge `code` must match ^[a-z0-9_]+$ — runId's dashes aren't allowed.
-      code: `e2e_first_checkpoint_${runId.replace(/-/g, "_")}`,
+      code: `e2e_first_checkpoint_${runId.replaceAll("-", "_")}`,
       name: `E2E Primeiro Posto ${runId}`,
       description: "Concluiu o primeiro checkpoint",
       is_auto: true,
@@ -143,7 +143,7 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
     token: admin.accessToken,
     body: {
       ...currentSettings,
-      max_teams: settingsForCap.max_teams < requiredCap ? requiredCap : settingsForCap.max_teams,
+      max_teams: Math.max(settingsForCap.max_teams, requiredCap),
       participant_view_enabled: true,
       show_score_mode: "competitive",
       show_live_leaderboard: true,

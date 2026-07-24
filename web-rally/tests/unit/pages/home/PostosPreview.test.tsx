@@ -74,12 +74,12 @@ describe('PostosPreview', () => {
     expect(screen.queryByText('CP 7')).not.toBeInTheDocument();
   });
 
-  it('links to /postos with "Ver mapa"', async () => {
+  it('links to /checkpoints with "Ver mapa"', async () => {
     mockGetCheckpoints.mockResolvedValue({ data: [{ id: 1, name: 'CP', order: 1 }] });
     renderWithClient(<PostosPreview enabled />);
 
     const link = await screen.findByText('Ver mapa');
-    expect(link.closest('a')).toHaveAttribute('href', '/postos');
+    expect(link.closest('a')).toHaveAttribute('href', '/checkpoints');
   });
 
   it('does not render description when absent', async () => {
