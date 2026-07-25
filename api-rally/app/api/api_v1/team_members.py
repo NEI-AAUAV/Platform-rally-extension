@@ -1,82 +1,24 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api import deps
 from app.api.abac_deps import (
     require_team_management_permission,
     require_view_team_members_permission,
 )
 from app.api.auth import AuthData, api_nei_auth
-from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
-from app.crud.crud_rally_settings import rally_settings
-from app.models.team import Team
-from app.models.user import User
 from app.schemas.team_members import (
     TeamMemberAdd,
     TeamMemberLink,
     TeamMemberResponse,
     TeamMemberUpdate,
 )
-from app.schemas.user import DetailedUser, UserCreate
+from app.schemas.user import DetailedUser
+from app.services.team_member_service import TeamMemberService
 
 router = APIRouter()
-
-# Constants
-TEAM_NOT_FOUND_MESSAGE = "Team not found"
-USER_NOT_FOUND_MESSAGE = "User not found"
-USER_NOT_TEAM_MEMBER_MESSAGE = "User is not a member of this team"
-
-
-async def _link_placeholder_to_authentik_account(
-    db: AsyncSession,
-    *,
-    team: Team,
-    placeholder: User,
-    authentik_sub: str,
-    name: str | None,
-    email: str | None,
-) -> User:
-    """Move a placeholder member's team slot onto a real NEI (OIDC) account.
-
-    Shared by the admin-driven link endpoint and the team's own self-serve
-    link endpoint. Creates a local mirror of the account on first login.
-    """
-    if placeholder.authentik_sub is not None:
-        raise RallyValidationError("This member is already linked to an account")
-
-    target = await crud.user.get_by_authentik_sub(db, authentik_sub=authentik_sub)
-    if target is None:
-        target = await crud.user.create_for_oidc(
-            db,
-            authentik_sub=authentik_sub,
-            name=name or placeholder.name,
-            email=email,
-            scopes=[],
-        )
-    if target.team_id is not None:
-        raise RallyValidationError("Target account is already on a team")
-
-    target.team_id = placeholder.team_id
-    target.is_captain = bool(placeholder.is_captain)
-    db.add(target)
-    await db.delete(placeholder)
-    await db.flush()
-
-    await crud.participation.record(
-        db,
-        authentik_sub=authentik_sub,
-        event_id=team.event_id or (await crud.rally_event.ensure_current(db)).id,
-        team=team,
-        is_captain=bool(target.is_captain),
-        commit=False,
-    )
-    await db.commit()
-    await db.refresh(target)
-    return target
 
 
 @router.post("/team/{team_id}/members", status_code=201)
@@ -87,48 +29,12 @@ async def add_team_member(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> TeamMemberResponse:
-    """
-    Add a member to a team.
-    """
+    """Add a member to a team."""
     require_team_management_permission(auth=auth, curr_user=curr_user)
 
-    # Check if team exists
-    team = await db.get(Team, team_id)
-    if not team:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
-
-    # Check member limit
-    settings = await rally_settings.get_or_create(db)
-
-    # Staff can only add members when walk-up registration is enabled (B4).
-    # Admins and managers are never gated.
-    is_privileged = deps.is_admin(auth.scopes)
-    if not is_privileged and not settings.allow_staff_registration:
-        raise RallyForbiddenError("Walk-up registration is currently disabled")
-    count_stmt = select(func.count(User.id)).where(User.team_id == team_id)
-    current_member_count = await db.scalar(count_stmt) or 0
-
-    if current_member_count >= settings.max_members_per_team:
-        raise RallyValidationError(
-            f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team."
-        )
-
-    # If setting as captain, check if team already has a captain
-    if member_data.is_captain:
-        captain_stmt = select(User).where(User.team_id == team_id, User.is_captain.is_(True))
-        existing_captain = (await db.scalars(captain_stmt)).first()
-        if existing_captain:
-            raise RallyValidationError("Team already has a captain. Remove current captain first.")
-
-    # Create new user with auto-assigned ID
-    user_data = UserCreate(
-        name=member_data.name,
-        email=member_data.email,
-        team_id=team_id,
-        is_captain=member_data.is_captain,
+    user = await TeamMemberService(db).add_member(
+        team_id, member_data, is_privileged=deps.is_admin(auth.scopes)
     )
-    user = await crud.user.create(db, obj_in=user_data)
-
     return TeamMemberResponse(
         id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
     )
@@ -154,18 +60,11 @@ async def link_team_member(
     """
     require_team_management_permission(auth=auth, curr_user=curr_user)
 
-    team = await db.get(Team, team_id)
-    if not team:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
+    service = TeamMemberService(db)
+    team = await service.get_team_or_raise(team_id)
+    placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
-    placeholder = await db.get(User, user_id)
-    if placeholder is None:
-        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
-    if placeholder.team_id != team_id:
-        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
-
-    target = await _link_placeholder_to_authentik_account(
-        db,
+    target = await service.link_placeholder_to_authentik_account(
         team=team,
         placeholder=placeholder,
         authentik_sub=link_data.authentik_sub,
@@ -202,18 +101,11 @@ async def link_self_team_member(
     must both belong to that team *and* have no ``authentik_sub`` yet
     (enforced below), so a caller can only ever claim an actually-open slot.
     """
-    team_obj = await db.get(Team, team_id)
-    if not team_obj:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
+    service = TeamMemberService(db)
+    team_obj = await service.get_team_or_raise(team_id)
+    placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
-    placeholder = await db.get(User, user_id)
-    if placeholder is None:
-        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
-    if placeholder.team_id != team_id:
-        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
-
-    target = await _link_placeholder_to_authentik_account(
-        db,
+    target = await service.link_placeholder_to_authentik_account(
         team=team_obj,
         placeholder=placeholder,
         authentik_sub=auth.oidc_sub,
@@ -238,28 +130,10 @@ async def remove_team_member(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> dict[str, str]:
-    """
-    Remove a member from a team.
-    """
+    """Remove a member from a team."""
     require_team_management_permission(auth=auth, curr_user=curr_user)
 
-    # Check if team exists
-    team = await db.get(Team, team_id)
-    if not team:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
-
-    # Check if user exists and is in this team
-    user = await db.get(User, user_id)
-    if not user:
-        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
-
-    if user.team_id != team_id:
-        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
-
-    # Remove user from team
-    user.team_id = None
-    await db.commit()
-
+    await TeamMemberService(db).remove_member(team_id, user_id)
     return {"message": "Member removed from team successfully"}
 
 
@@ -272,46 +146,10 @@ async def update_team_member(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> TeamMemberResponse:
-    """
-    Update a team member's information.
-    """
+    """Update a team member's information."""
     require_team_management_permission(auth=auth, curr_user=curr_user)
 
-    # Check if team exists
-    team = await db.get(Team, team_id)
-    if not team:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
-
-    # Check if user exists and is in this team
-    user = await db.get(User, user_id)
-    if not user:
-        raise RallyNotFoundError(USER_NOT_FOUND_MESSAGE)
-
-    if user.team_id != team_id:
-        raise RallyValidationError(USER_NOT_TEAM_MEMBER_MESSAGE)
-
-    # If setting as captain, check if team already has a captain
-    if member_data.is_captain is True:
-        from sqlalchemy import select
-
-        stmt = select(User).where(
-            User.team_id == team_id, User.is_captain.is_(True), User.id != user_id
-        )
-        existing_captain = (await db.scalars(stmt)).first()
-        if existing_captain:
-            raise RallyValidationError("Team already has a captain. Remove current captain first.")
-
-    # Update user fields
-    if member_data.name is not None:
-        user.name = member_data.name
-    if member_data.email is not None:
-        user.email = member_data.email
-    if member_data.is_captain is not None:
-        user.is_captain = member_data.is_captain
-
-    await db.commit()
-    await db.refresh(user)
-
+    user = await TeamMemberService(db).update_member(team_id, user_id, member_data)
     return TeamMemberResponse(
         id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
     )
@@ -324,22 +162,10 @@ async def get_team_members(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> list[TeamMemberResponse]:
-    """
-    Get all members of a team.
-    """
+    """Get all members of a team."""
     require_view_team_members_permission(auth=auth, curr_user=curr_user)
 
-    # Check if team exists
-    team = await db.get(Team, team_id)
-    if not team:
-        raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
-
-    # Get team members
-    from sqlalchemy import select
-
-    stmt = select(User).where(User.team_id == team_id)
-    members = list((await db.scalars(stmt)).all())
-
+    members = await TeamMemberService(db).list_members(team_id)
     return [
         TeamMemberResponse(
             id=member.id,

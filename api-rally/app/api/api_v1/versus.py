@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +14,7 @@ from app.schemas.versus import (
     VersusPairCreate,
     VersusPairResponse,
 )
+from app.services.versus_service import VersusService
 
 router = APIRouter()
 
@@ -72,21 +71,14 @@ async def list_versus_groups(
         user=curr_user, auth=auth, action=Action.VIEW_VERSUS_GROUP, resource=Resource.VERSUS_GROUP
     )
 
-    teams = (
-        await db.scalars(
-            select(Team)
-            .where(Team.versus_group_id.isnot(None))
-            .order_by(Team.versus_group_id, Team.id)
-        )
-    ).all()
+    teams = list(
+        (
+            await db.scalars(
+                select(Team)
+                .where(Team.versus_group_id.isnot(None))
+                .order_by(Team.versus_group_id, Team.id)
+            )
+        ).all()
+    )
 
-    groups = defaultdict(list)
-    for team in teams:
-        groups[team.versus_group_id].append(team)
-
-    pairs = []
-    for gid, tl in groups.items():
-        if len(tl) == 2 and gid is not None:
-            pairs.append(VersusPairResponse(group_id=gid, team_a_id=tl[0].id, team_b_id=tl[1].id))
-
-    return VersusGroupListResponse(groups=pairs)
+    return VersusGroupListResponse(groups=VersusService.build_pair_list(teams))
