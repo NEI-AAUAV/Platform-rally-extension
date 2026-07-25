@@ -12,7 +12,6 @@ Anti-fraud layers, in order of importance:
 3. A best-effort per-(token, team) Redis guard rejects a double-submit race.
 """
 
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,32 +20,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
-from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_current_team, get_db
 from app.core.config import Settings, SettingsDep
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
-from app.core.redis import get_async_redis_client
-from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
-from app.events import (
-    TeamCheckpointAdvancedEvent,
-    TeamCheckpointAdvancedPayload,
-    publish_event,
-)
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.checkin_service import CheckinService, require_same_event
 from app.services.checkin_token import (
     CheckinTokenError,
     generate_checkin_token,
     verify_checkin_token,
 )
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
-CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 
 
 class CheckinRequest(BaseModel):
@@ -62,39 +50,6 @@ class CheckinResponse(BaseModel):
 def _require_enabled(settings: Settings) -> None:
     if not settings.SELF_CHECKIN_ENABLED:
         raise RallyNotFoundError("Self check-in is disabled")
-
-
-def _require_same_event(team_event_id: int | None, checkpoint_event_id: int | None) -> None:
-    """Reject cross-event check-ins.
-
-    A valid token/scan for a checkpoint of another edition must not advance a
-    team in this one. NULL event ids (legacy rows) are treated as compatible.
-    """
-    if (
-        team_event_id is not None
-        and checkpoint_event_id is not None
-        and team_event_id != checkpoint_event_id
-    ):
-        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
-
-
-async def _claim_nonce(nonce: str, team_id: int, settings: Settings) -> bool:
-    """Best-effort single-use guard for one (token, team) pair.
-
-    Returns True when the claim is fresh, False when already claimed. Fails open
-    (returns True) if Redis is unavailable — sequential ordering remains the
-    authoritative guard, so a transient Redis outage never blocks legit teams.
-    """
-    key = f"rally:checkin:{nonce}:{team_id}"
-    client = get_async_redis_client()
-    try:
-        was_set = await client.set(key, "1", nx=True, ex=settings.CHECKIN_TOKEN_TTL_SECONDS)
-        return bool(was_set)
-    except Exception as exc:  # noqa: BLE001 — replay guard is best-effort
-        logger.warning("Check-in replay guard unavailable: %s", exc)
-        return True
-    finally:
-        await client.aclose()
 
 
 @router.get("/checkpoint/checkin-token")
@@ -180,39 +135,21 @@ async def staff_check_in(
     if checkpoint_id is None:
         raise RallyForbiddenError("No checkpoint assigned")
 
+    service = CheckinService(db)
+
     code = body.team_code.strip().upper()
     team_obj = await team_crud.get_by_access_code(db, access_code=code)
     if team_obj is None:
         raise RallyNotFoundError("Equipa não encontrada para este código")
 
-    # NOTE: CRUDBase.get() raises RallyNotFoundError itself when the row is
-    # missing rather than returning None, so this branch is unreachable in
-    # practice (defensive dead code kept for API/type-contract clarity — see
-    # equivalent notes below on the `check_in` handler for the same pattern).
-    checkpoint = await checkpoint_crud.get(db, id=checkpoint_id)
-    if checkpoint is None:
-        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
+    checkpoint = await service.get_checkpoint_or_raise(checkpoint_id)
+    require_same_event(team_obj.event_id, checkpoint.event_id)
 
-    _require_same_event(team_obj.event_id, checkpoint.event_id)
-
-    # times[] holds posts already reached; the next expected post is len + 1.
-    reached = len(team_obj.times)
-    expected_order = reached + 1
-
-    if checkpoint.order == expected_order:
-        await checkin_team_to_checkpoint(db, team_obj.id, checkpoint.id)
-        await publish_event(
-            TeamCheckpointAdvancedEvent(
-                payload=TeamCheckpointAdvancedPayload(
-                    team_id=team_obj.id, checkpoint_number=checkpoint.order
-                )
-            )
-        )
-        arrival_status = "checked_in"
-    elif checkpoint.order <= reached:
-        arrival_status = "already_present"
-    else:
-        arrival_status = "ahead"
+    arrival_status = service.derive_staff_scan_status(
+        checkpoint_order=checkpoint.order, times_reached=len(team_obj.times)
+    )
+    if arrival_status == "checked_in":
+        await service.check_in_and_publish(team_obj.id, checkpoint)
 
     return StaffCheckinResponse(
         team_id=team_obj.id,
@@ -234,30 +171,22 @@ async def check_in(
     """Check the calling team into the checkpoint encoded in the scanned token."""
     _require_enabled(settings)
 
+    service = CheckinService(db)
+
     try:
         claims = verify_checkin_token(body.token)
     except CheckinTokenError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    if not await _claim_nonce(claims.nonce, team.team_id, settings):
+    if not await service.claim_nonce(claims.nonce, team.team_id, settings):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This QR was already used by your team",
         )
 
-    # NOTE: CRUDBase.get() raises RallyNotFoundError itself instead of
-    # returning None when the row is missing, so the `is None` branches below
-    # are unreachable dead code in practice; kept as defensive documentation
-    # of the contract in case `.get()`'s behavior ever changes.
-    checkpoint = await checkpoint_crud.get(db, id=claims.checkpoint_id)
-    if checkpoint is None:
-        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
-
-    team_obj = await team_crud.get(db, id=team.team_id)
-    if team_obj is None:
-        raise RallyNotFoundError("Team not found")
-
-    _require_same_event(team_obj.event_id, checkpoint.event_id)
+    checkpoint = await service.get_checkpoint_or_raise(claims.checkpoint_id)
+    team_obj = await service.get_team_or_raise(team.team_id)
+    require_same_event(team_obj.event_id, checkpoint.event_id)
 
     # Sequential guard: a team may only check into its next checkpoint. times[]
     # holds the checkpoints already visited, so the next expected order is
@@ -272,15 +201,7 @@ async def check_in(
             ),
         )
 
-    await checkin_team_to_checkpoint(db, team.team_id, checkpoint.id)
-
-    await publish_event(
-        TeamCheckpointAdvancedEvent(
-            payload=TeamCheckpointAdvancedPayload(
-                team_id=team.team_id, checkpoint_number=checkpoint.order
-            )
-        )
-    )
+    await service.check_in_and_publish(team.team_id, checkpoint)
 
     return CheckinResponse(
         team_id=team.team_id,
