@@ -61,7 +61,11 @@ function ImageUploadField({
     event.target.value = "";
   };
 
-  const shown = preview ?? currentUrl ?? null;
+  const isSafeImageUrl = (url: string) =>
+    url.startsWith("blob:") || url.startsWith("data:image/") || url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://");
+
+  const candidate = preview ?? currentUrl ?? null;
+  const shown = candidate && isSafeImageUrl(candidate) ? candidate : null;
 
   return (
     <div className="flex items-center gap-4 border-t border-border py-4 first:border-t-0 first:pt-0">
