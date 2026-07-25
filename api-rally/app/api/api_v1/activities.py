@@ -14,7 +14,6 @@ from app.api.deps import get_db
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity, activity_result
 from app.models.activity import ActivityResult
-from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import (
     ActivityCreate,
     ActivityListResponse,
@@ -26,6 +25,7 @@ from app.schemas.activity import (
     ActivityUpdate,
     GlobalRanking,
 )
+from app.services.activity_service import ActivityService
 from app.services.scoring_service import ScoringService
 
 # Error message constants
@@ -43,22 +43,7 @@ async def create_activity(
     _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY, Resource.ACTIVITY))],
 ) -> ActivityResponse:
     """Create a new activity"""
-    # Validate activity type and config
-    # ActivityFactory.get_default_config() returns {} for unrecognized types
-    # rather than raising, and activity_in.activity_type is already validated
-    # as an ActivityType enum member by pydantic — so this except is
-    # unreachable in practice; kept as a defensive guard.
-    try:
-        default_config = ActivityFactory.get_default_config(activity_in.activity_type.value)
-
-        # Merge with provided config
-        final_config = {**default_config, **activity_in.config}
-        activity_in.config = final_config
-
-    except ValueError:
-        raise RallyValidationError("Invalid activity type")
-
-    db_activity = await activity.create(db=db, obj_in=activity_in)
+    db_activity = await ActivityService(db, activity).create_activity(activity_in)
     return ActivityResponse.model_validate(db_activity)
 
 
@@ -270,22 +255,8 @@ async def get_activity_ranking(
     scoring_service = ScoringService(db)
     rankings_dict = await scoring_service.get_team_ranking(activity_id)
 
-    from app.schemas.activity import TeamRanking
-
-    # Normalize dict keys to match TeamRanking schema
-    rankings = [
-        TeamRanking(
-            team_id=r.get("team_id", 0),
-            team_name=r.get("team_name", ""),
-            total_score=r.get("score", r.get("total_score", 0.0)),
-            activities_completed=r.get("activities_completed", 0),
-            rank=r.get("rank", 0),
-        )
-        for r in rankings_dict
-    ]
-
-    return ActivityRanking(
-        activity_id=activity_id, activity_name=db_activity.name, rankings=rankings
+    return ActivityService.build_activity_ranking(
+        activity_id=activity_id, activity_name=db_activity.name, rankings_dict=rankings_dict
     )
 
 
