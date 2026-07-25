@@ -78,6 +78,14 @@ services:
       EVENTS_ENABLED: "true"
       EVENTS_FAIL_SILENTLY: "false"
       SELF_CHECKIN_ENABLED: "true"
+      # Production default (10/5min) is tuned for brute-force abuse
+      # prevention, not test load — several e2e-fullstack specs each mint a
+      # real team login against this one shared IP in a single suite run
+      # (golden-path, guide-and-badges, multi-edicao, master-rally-day,
+      # security-abac, rally-day), so the production limit gets legitimately
+      # exhausted mid-suite and later logins 429 with no attacker involved.
+      # Raised here only, not in the app's own default.
+      TEAM_LOGIN_RATE_LIMIT_ATTEMPTS: "200"
       # 4 uvicorn workers each open their own SQLAlchemy pool
       # (DB_POOL_SIZE + DB_MAX_OVERFLOW); keep per-worker pools small so the
       # aggregate stays comfortably under Postgres's default 100-connection
