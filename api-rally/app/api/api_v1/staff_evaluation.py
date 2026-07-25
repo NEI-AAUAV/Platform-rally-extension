@@ -1,49 +1,54 @@
 """
 API endpoints for staff evaluation system
 """
-from typing import Annotated, List, Optional, Dict, Any
+
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select
-from loguru import logger
 
-from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
-from app.api.deps import get_db
-from app.api.auth import AuthData, api_nei_auth
 from app.api.abac_deps import get_staff_with_checkpoint_access
-from app.schemas.user import DetailedUser
-from app.crud.crud_activity import activity_result
-from app.crud.crud_team import team
-from app.crud.crud_checkpoint import checkpoint
-from app.services.scoring_service import ScoringService
-from app.schemas.activity import ActivityResultUpdate, ActivityResultResponse, ActivityResultEvaluation
-from app.schemas.evaluation_history import EvaluationHistoryEntry
-from app.schemas.checkpoint import DetailedCheckPoint
-from app.models.activity import Activity, ActivityResult
-from app.models.team import Team
-
-
-# Import utility functions
-from app.api.api_v1.staff_evaluation_utils import (
-    serialize_activity,
-    serialize_team,
-    validate_rally_permissions,
-    is_admin_or_manager,
-    validate_staff_checkpoint_access,
-    validate_admin_access,
-    check_and_advance_team,
-    build_team_for_staff,
-    create_or_update_activity_result,
-    mirror_team_vs_result,
-    NO_CHECKPOINT_ASSIGNED,
-    TEAM_NOT_FOUND,
-)
 from app.api.api_v1.idempotency import (
     compute_fingerprint,
     reserve_idempotency_key,
     store_idempotent_response,
 )
+
+# Import utility functions
+from app.api.api_v1.staff_evaluation_utils import (
+    NO_CHECKPOINT_ASSIGNED,
+    TEAM_NOT_FOUND,
+    build_team_for_staff,
+    check_and_advance_team,
+    create_or_update_activity_result,
+    is_admin_or_manager,
+    mirror_team_vs_result,
+    serialize_activity,
+    serialize_team,
+    validate_admin_access,
+    validate_rally_permissions,
+    validate_staff_checkpoint_access,
+)
+from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_db
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
+from app.crud.crud_activity import activity_result
+from app.crud.crud_checkpoint import checkpoint
+from app.crud.crud_team import team
+from app.models.activity import Activity, ActivityResult
+from app.models.team import Team
+from app.schemas.activity import (
+    ActivityResultEvaluation,
+    ActivityResultResponse,
+    ActivityResultUpdate,
+)
+from app.schemas.checkpoint import DetailedCheckPoint
+from app.schemas.evaluation_history import EvaluationHistoryEntry
+from app.schemas.user import DetailedUser
+from app.services.scoring_service import ScoringService
 
 _EVALUATE_ENDPOINT = "evaluate_team_activity"
 
@@ -59,13 +64,13 @@ async def get_my_checkpoint(
     *,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
 ) -> DetailedCheckPoint:
     """Get the checkpoint assigned to the current staff member"""
     if not current_user.staff_checkpoint_id:
         raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice;
     # kept as a defensive guard.
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
@@ -80,16 +85,17 @@ async def get_teams_at_my_checkpoint(
     *,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
-) -> List[Dict[str, Any]]:
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+) -> list[dict[str, Any]]:
     """Get all teams at the staff member's assigned checkpoint"""
     if not current_user.staff_checkpoint_id:
         raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
     # Fetch the checkpoint's order (not the FK id) for correct comparison
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
     from sqlalchemy.orm import selectinload
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice;
     # kept as a defensive guard.
     checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
@@ -101,6 +107,7 @@ async def get_teams_at_my_checkpoint(
     # Eager-load members (build_team_for_staff reads team.members).
     # Scoped to the current event (legacy NULL rows count as current).
     from app.crud._event_scope import current_event_id
+
     event_id = await current_event_id(db)
     teams_stmt = (
         select(Team)
@@ -180,21 +187,23 @@ def _build_activity_status_list(
         else:
             pending_activities.append(activity_obj.name)
 
-        activities_with_status.append({
-            "id": activity_obj.id,
-            "name": activity_obj.name,
-            "description": activity_obj.description,
-            "activity_type": activity_obj.activity_type,
-            "config": activity_obj.config,
-            "is_active": activity_obj.is_active,
-            "evaluation_status": "completed" if has_result else "pending",
-            # Serialize through the response schema so FastAPI's encoder never
-            # walks the ORM's lazy relationships (activity/team) on the async
-            # session, which would raise MissingGreenlet -> 500.
-            "existing_result": (
-                ActivityResultResponse.model_validate(existing) if existing else None
-            ),
-        })
+        activities_with_status.append(
+            {
+                "id": activity_obj.id,
+                "name": activity_obj.name,
+                "description": activity_obj.description,
+                "activity_type": activity_obj.activity_type,
+                "config": activity_obj.config,
+                "is_active": activity_obj.is_active,
+                "evaluation_status": "completed" if has_result else "pending",
+                # Serialize through the response schema so FastAPI's encoder never
+                # walks the ORM's lazy relationships (activity/team) on the async
+                # session, which would raise MissingGreenlet -> 500.
+                "existing_result": (
+                    ActivityResultResponse.model_validate(existing) if existing else None
+                ),
+            }
+        )
 
     return activities_with_status, completed_activities, pending_activities
 
@@ -205,14 +214,15 @@ async def get_team_activities_for_evaluation(
     db: Annotated[AsyncSession, Depends(get_db)],
     team_id: int,
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
-) -> Dict[str, Any]:
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+) -> dict[str, Any]:
     """Get activities for a specific team that can be evaluated by this staff member"""
     # Load team with members
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     stmt = select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
-    team_obj: Optional[Team] = (await db.scalars(stmt)).first()
+    team_obj: Team | None = (await db.scalars(stmt)).first()
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
 
@@ -231,7 +241,9 @@ async def get_team_activities_for_evaluation(
             raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
         resolved_checkpoint_id = current_user.staff_checkpoint_id
 
-    logger.debug(f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})")
+    logger.debug(
+        f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})"
+    )
 
     # Always show activities for the resolved checkpoint
     activities = await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
@@ -265,10 +277,12 @@ async def get_team_activities_for_evaluation(
             "total_activities": total_activities,
             "completed_activities": completed_activities,
             "pending_activities": len(pending_activities),
-            "completion_rate": round((completed_activities / total_activities * 100) if total_activities > 0 else 0, 1),
+            "completion_rate": round(
+                (completed_activities / total_activities * 100) if total_activities > 0 else 0, 1
+            ),
             "has_incomplete": has_incomplete,
-            "missing_activities": pending_activities
-        }
+            "missing_activities": pending_activities,
+        },
     }
 
 
@@ -281,7 +295,7 @@ async def evaluate_team_activity(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
-    idempotency_key: Annotated[Optional[str], Header(alias="Idempotency-Key")] = None,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> ActivityResultResponse:
     """Evaluate a team's performance in an activity.
 
@@ -290,7 +304,9 @@ async def evaluate_team_activity(
     of re-scoring; a reused key with a different payload is rejected with 409.
     Submits without a key behave exactly as before.
     """
-    logger.info(f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}")
+    logger.info(
+        f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}"
+    )
 
     # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
     # dependency) already enforces `is_admin_or_staff`, the same check
@@ -307,8 +323,12 @@ async def evaluate_team_activity(
         if is_admin_or_manager_flag:
             _, activity_obj = await validate_admin_access(db, team_id, activity_id)
         else:
-            _, activity_obj = await validate_staff_checkpoint_access(db, current_user, team_id, activity_id)
-        logger.debug(f"Access validated: activity_id={activity_obj.id}, checkpoint_id={activity_obj.checkpoint_id}")
+            _, activity_obj = await validate_staff_checkpoint_access(
+                db, current_user, team_id, activity_id
+            )
+        logger.debug(
+            f"Access validated: activity_id={activity_obj.id}, checkpoint_id={activity_obj.checkpoint_id}"
+        )
     except HTTPException as e:
         logger.error(f"Access validation failed: {e.status_code} - {e.detail}")
         raise
@@ -341,13 +361,18 @@ async def evaluate_team_activity(
     # where two concurrent requests both see no existing result and try to
     # insert — the loser falls back to an update instead of duplicating.
     db_result = await create_or_update_activity_result(db, team_id, activity_id, result_in)
-    logger.info(f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}")
+    logger.info(
+        f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"
+    )
 
     # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
     try:
         await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
     except Exception as e:
-        logger.error(f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}",
+            exc_info=True,
+        )
         # Don't fail the evaluation if mirroring fails - it's a side effect
 
     # Check if team has completed all activities and advance if needed
@@ -398,7 +423,7 @@ async def _load_activity_and_team_for_update(
     ):
         raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice;
     # kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
@@ -417,7 +442,7 @@ async def update_team_activity_evaluation(
     result_id: int,
     result_in: ActivityResultUpdate,
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
 ) -> ActivityResultResponse:
     """Update a team's activity evaluation"""
     # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
@@ -443,6 +468,7 @@ async def update_team_activity_evaluation(
 
     # Update the result, tagging the audit trail with who made the change.
     from app.services.scoring_service import EvaluationEditor
+
     editor = EvaluationEditor(id=str(current_user.id), name=current_user.name)
     db_result = await ScoringService(db).update_result(db_result, result_in, editor=editor)
 
@@ -451,7 +477,10 @@ async def update_team_activity_evaluation(
         if activity_obj:
             await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
     except Exception as e:
-        logger.error(f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}",
+            exc_info=True,
+        )
 
     return ActivityResultResponse.model_validate(db_result)
 
@@ -462,8 +491,8 @@ async def get_evaluation_history(
     db: Annotated[AsyncSession, Depends(get_db)],
     result_id: int,
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
-) -> List[EvaluationHistoryEntry]:
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+) -> list[EvaluationHistoryEntry]:
     """Audit trail for a single result: every edit and contest, newest first.
 
     Manager/admin only — staff can score but the trail (who overrode whom) is a
@@ -483,7 +512,9 @@ async def get_evaluation_history(
         raise RallyNotFoundError("Activity result not found")
 
     from sqlalchemy import select
+
     from app.models.evaluation_history import EvaluationHistory
+
     stmt = (
         select(EvaluationHistory)
         .where(EvaluationHistory.result_id == result_id)
@@ -497,11 +528,11 @@ async def get_evaluation_history(
 async def get_all_evaluations(
     *,
     db: Annotated[AsyncSession, Depends(get_db)],
-    checkpoint_id: Annotated[Optional[int], Query()] = None,
-    team_id: Annotated[Optional[int], Query()] = None,
+    checkpoint_id: Annotated[int | None, Query()] = None,
+    team_id: Annotated[int | None, Query()] = None,
     current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
-    auth: Annotated[AuthData, Depends(api_nei_auth)]
-) -> Dict[str, Any]:
+    auth: Annotated[AuthData, Depends(api_nei_auth)],
+) -> dict[str, Any]:
     """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
     # Check if user has rally permissions
     # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
@@ -530,7 +561,7 @@ async def get_all_evaluations(
 
     stmt = select(ActivityResult).options(
         joinedload(ActivityResult.activity),
-        joinedload(ActivityResult.team).selectinload(Team.members)
+        joinedload(ActivityResult.team).selectinload(Team.members),
     )
 
     if team_id:
@@ -566,11 +597,8 @@ async def get_all_evaluations(
             "points_score": result.points_score,
             "boolean_score": result.boolean_score,
             "activity": serialize_activity(result) if result.activity else None,
-            "team": serialize_team(result) if result.team else None
+            "team": serialize_team(result) if result.team else None,
         }
         evaluations.append(evaluation_data)
 
-    return {
-        "evaluations": evaluations,
-        "total": len(evaluations)
-    }
+    return {"evaluations": evaluations, "total": len(evaluations)}

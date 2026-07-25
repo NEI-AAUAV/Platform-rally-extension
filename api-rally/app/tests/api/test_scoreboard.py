@@ -1,5 +1,6 @@
 """API tests for the live scoreboard endpoints."""
 
+import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -7,13 +8,12 @@ from typing import Any
 import fakeredis.aioredis
 import pytest
 from fastapi.testclient import TestClient
-import asyncio
 
+from app.api.api_v1 import scoreboard as scoreboard_module
+from app.api.api_v1.scoreboard import _decode
 from app.core.config import get_settings
 from app.main import app
 from app.services import leaderboard_cache
-from app.api.api_v1 import scoreboard as scoreboard_module
-from app.api.api_v1.scoreboard import _decode
 
 BASE = "/api/rally/v1"
 
@@ -95,17 +95,20 @@ def test_live_computes_from_db_when_disabled(
     """With the realtime subsystem off, /scoreboard/live serves a DB compute
     (no Redis), not a 503."""
     ranking = [
-        {"rank": 1, "team_id": 7, "team_name": "Lynxes", "total_score": 42.0, "activities_completed": 3},
+        {
+            "rank": 1,
+            "team_id": 7,
+            "team_name": "Lynxes",
+            "total_score": 42.0,
+            "activities_completed": 3,
+        },
     ]
-
 
     async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
         await asyncio.sleep(0)
         return ranking
 
-    monkeypatch.setattr(
-        "app.api.api_v1.scoreboard.ScoringService.get_team_ranking", _fake_ranking
-    )
+    monkeypatch.setattr("app.api.api_v1.scoreboard.ScoringService.get_team_ranking", _fake_ranking)
 
     with _override_settings(EVENTS_ENABLED=False):
         resp = client.get(f"{BASE}/scoreboard/live")
@@ -119,14 +122,18 @@ def test_stream_returns_503_when_disabled(client: TestClient) -> None:
     assert resp.status_code == 503
 
 
-def test_live_serves_cached_ranking(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_live_serves_cached_ranking(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     fake = fakeredis.aioredis.FakeRedis(decode_responses=True)
     monkeypatch.setattr("app.api.api_v1.scoreboard.get_async_redis_client", lambda: fake)
 
     ranking = [
-        {"rank": 1, "team_id": 3, "team_name": "Cobras", "total_score": 50.0, "activities_completed": 4},
+        {
+            "rank": 1,
+            "team_id": 3,
+            "team_name": "Cobras",
+            "total_score": 50.0,
+            "activities_completed": 4,
+        },
     ]
 
     asyncio.run(leaderboard_cache.write_global_leaderboard(fake, ranking))
@@ -144,16 +151,20 @@ def test_live_computes_and_warms_cache_on_miss(
     monkeypatch.setattr("app.api.api_v1.scoreboard.get_async_redis_client", lambda: fake)
 
     ranking = [
-        {"rank": 1, "team_id": 9, "team_name": "Foxes", "total_score": 10.0, "activities_completed": 1},
+        {
+            "rank": 1,
+            "team_id": 9,
+            "team_name": "Foxes",
+            "total_score": 10.0,
+            "activities_completed": 1,
+        },
     ]
 
     async def _fake_ranking(self: Any) -> list[dict[str, Any]]:
         await asyncio.sleep(0)
         return ranking
 
-    monkeypatch.setattr(
-        "app.api.api_v1.scoreboard.ScoringService.get_team_ranking", _fake_ranking
-    )
+    monkeypatch.setattr("app.api.api_v1.scoreboard.ScoringService.get_team_ranking", _fake_ranking)
 
     resp = client.get(f"{BASE}/scoreboard/live")
     assert resp.status_code == 200
@@ -183,9 +194,7 @@ def test_stream_rally_events_returns_streaming_response_when_enabled(
 
     async def _run() -> None:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
-        response = await scoreboard_module.stream_rally_events(
-            _FakeRequest(), settings
-        )
+        response = await scoreboard_module.stream_rally_events(_FakeRequest(), settings)
         assert response.media_type == "text/event-stream"
         assert response.headers["Cache-Control"] == "no-cache"
 
@@ -227,9 +236,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
     client disconnects the generator exits (covers the ping and break
     branches that `test_stream_scoreboard_emits_refresh_on_publish` and the
     fake-message path never reach)."""
-    monkeypatch.setattr(
-        scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
-    )
+    monkeypatch.setattr(scoreboard_module, "get_async_redis_client", lambda: _FakeClient())
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
@@ -252,9 +259,7 @@ def test_pmessage_event_stream_emits_ping_and_stops_on_disconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same as above for `_pmessage_event_stream`'s ping/break branches."""
-    monkeypatch.setattr(
-        scoreboard_module, "get_async_redis_client", lambda: _FakeClient()
-    )
+    monkeypatch.setattr(scoreboard_module, "get_async_redis_client", lambda: _FakeClient())
 
     async def _run() -> list[str]:
         events = []
@@ -295,10 +300,9 @@ def test_pmessage_event_stream_forwards_activity_events(
 
     events = asyncio.run(_run())
     assert events[0] == ": connected\n\n"
-    assert any("event: activity_result:1\ndata: {\"foo\": \"bar\"}" in e for e in events)
+    assert any('event: activity_result:1\ndata: {"foo": "bar"}' in e for e in events)
 
 
 def test_decode_handles_str_and_bytes() -> None:
-
     assert _decode("already-str") == "already-str"
     assert _decode(b"bytes-value") == "bytes-value"

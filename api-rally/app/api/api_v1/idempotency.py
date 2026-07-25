@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -45,13 +45,11 @@ class IdempotencyReservation:
                          the write via ``store_idempotent_response``.
     """
 
-    replay: Optional[dict[str, Any]] = None
-    row: Optional[IdempotencyKey] = None
+    replay: dict[str, Any] | None = None
+    row: IdempotencyKey | None = None
 
 
-async def _existing(
-    db: AsyncSession, *, endpoint: str, key: str
-) -> Optional[IdempotencyKey]:
+async def _existing(db: AsyncSession, *, endpoint: str, key: str) -> IdempotencyKey | None:
     stmt = select(IdempotencyKey).where(
         IdempotencyKey.endpoint == endpoint,
         IdempotencyKey.idempotency_key == key,

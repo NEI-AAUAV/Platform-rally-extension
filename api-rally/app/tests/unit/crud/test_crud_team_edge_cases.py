@@ -1,6 +1,7 @@
 """Covers CRUDTeam.create's generic IntegrityError re-raise branches, the
 classification-update-failure swallow path, and the locked-array None-skip
 branch in update() that test_crud.py's happy paths don't exercise."""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -14,11 +15,13 @@ from app.tests.conftest import make_event as _make_event
 async def test_create_reraises_when_orig_is_none(pg_session):
     await _make_event(pg_session)
     obj_in = TeamCreate(name="Orig None Team")
-    with patch.object(
-        pg_session, "commit", new=AsyncMock(side_effect=IntegrityError("x", None, None))
+    with (
+        patch.object(
+            pg_session, "commit", new=AsyncMock(side_effect=IntegrityError("x", None, None))
+        ),
+        pytest.raises(IntegrityError),
     ):
-        with pytest.raises(IntegrityError):
-            await crud_team.create(pg_session, obj_in=obj_in)
+        await crud_team.create(pg_session, obj_in=obj_in)
 
 
 async def test_create_reraises_when_error_does_not_match_name_unique(pg_session):
@@ -52,9 +55,7 @@ async def test_update_skips_locked_array_validation_when_value_is_none(pg_sessio
     # `update_unlocked` is stubbed to a no-op so the (DB-disallowed) None value
     # is never actually persisted to the NOT NULL array columns — only the
     # validation loop above it is under test here.
-    with patch(
-        "app.crud.crud_team.CRUDBase.update_unlocked", return_value=created
-    ):
+    with patch("app.crud.crud_team.CRUDBase.update_unlocked", return_value=created):
         updated = await crud_team.update(
             pg_session,
             id=created.id,

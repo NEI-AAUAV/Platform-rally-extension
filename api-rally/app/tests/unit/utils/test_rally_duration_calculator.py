@@ -1,5 +1,6 @@
 """Unit tests for RallyDurationCalculator (pure timing logic, no DB needed)."""
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +12,7 @@ from app.utils.rally_duration import (
     get_team_duration_info,
 )
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def _settings(start=None, end=None):
@@ -140,9 +141,7 @@ class TestCalculateProgressPercentage:
 
     def test_caps_at_100(self):
         calc = RallyDurationCalculator(db=None, settings=_settings())
-        pct = calc._calculate_progress_percentage(
-            timedelta(hours=10), timedelta(hours=1)
-        )
+        pct = calc._calculate_progress_percentage(timedelta(hours=10), timedelta(hours=1))
         assert pct == pytest.approx(100.0)
 
 

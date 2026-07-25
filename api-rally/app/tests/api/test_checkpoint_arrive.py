@@ -1,4 +1,5 @@
 """Tests for GPS geofence arrive endpoint (A2), against a real Postgres schema."""
+
 from unittest.mock import AsyncMock, patch
 
 from sqlalchemy import select
@@ -154,15 +155,17 @@ async def test_arrive_auto_complete_swallows_checkin_failure(pg_session, pg_clie
     checkpoint = await _make_checkpoint(pg_session, order=1)
     team = await _make_team(pg_session)
 
-    with patch(
-        "app.api.api_v1.checkpoint_arrive.checkin_team_to_checkpoint",
-        new=AsyncMock(side_effect=RuntimeError("boom")),
+    with (
+        patch(
+            "app.api.api_v1.checkpoint_arrive.checkin_team_to_checkpoint",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ),
+        as_team(team.id, "TeamA"),
     ):
-        with as_team(team.id, "TeamA"):
-            resp = pg_client.post(
-                f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
-                json={"latitude": 41.000045, "longitude": -8.0},
-            )
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
 
     assert resp.status_code == 200, resp.text
     assert resp.json()["auto_completed"] is False
@@ -174,8 +177,8 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
     instead of failing the request. Simulated directly by calling the route
     function with a mocked `already_registered` SELECT (real DB unique
     constraint then raises IntegrityError on the real INSERT/commit)."""
+    from app.api.api_v1.checkpoint_arrive import ArriveRequest, arrive_at_checkpoint
     from app.models.checkpoint_arrival import CheckpointArrival
-    from app.api.api_v1.checkpoint_arrive import arrive_at_checkpoint, ArriveRequest
     from app.schemas.team_auth import TeamTokenData
 
     await _make_event(pg_session)

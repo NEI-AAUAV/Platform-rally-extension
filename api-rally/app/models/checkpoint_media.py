@@ -1,10 +1,12 @@
-from typing import Any, Optional, TYPE_CHECKING
-from sqlalchemy import ForeignKey, Integer, Text, String, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
+from typing import TYPE_CHECKING, Any
 
-from app.models.base import Base
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.config import settings
+from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.checkpoint import CheckPoint
@@ -30,8 +32,8 @@ class CheckpointMedia(Base):
         SAEnum(MediaKind, name="media_kind", schema=settings.SCHEMA_NAME),
         nullable=False,
     )
-    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    caption: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     checkpoint: Mapped["CheckPoint"] = relationship("CheckPoint", back_populates="media")

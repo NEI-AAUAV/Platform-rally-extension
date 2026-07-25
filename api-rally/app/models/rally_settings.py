@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, Boolean, DateTime, String, ForeignKey, JSON
-from app.models.base import Base
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
+
 from app.core.config import settings as app_settings
+from app.models.base import Base
+
 
 class RallySettings(Base):
     __tablename__ = "rally_settings"
@@ -20,31 +22,35 @@ class RallySettings(Base):
     max_teams = Column(Integer, nullable=False, default=16)
     max_members_per_team = Column(Integer, nullable=False, default=10)
     enable_versus = Column(Boolean, nullable=False, default=False)
-    
+
     # Rally timing
     rally_start_time = Column(DateTime(timezone=True), nullable=True)
     rally_end_time = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Scoring system
     penalty_per_puke = Column(Integer, nullable=False, default=-5)
     penalty_per_not_drinking = Column(Integer, nullable=False, default=-2)
     bonus_per_extra_shot = Column(Integer, nullable=False, default=1)
     max_extra_shots_per_member = Column(Integer, nullable=False, default=1)
-    
+
     # Checkpoint behavior
     checkpoint_order_matters = Column(Boolean, nullable=False, default=True)
-    
+
     # Staff and scoring
     enable_staff_scoring = Column(Boolean, nullable=False, default=True)
-    
+
     # Display settings
     show_live_leaderboard = Column(Boolean, nullable=False, default=True)
     show_team_details = Column(Boolean, nullable=False, default=True)
     show_checkpoint_map = Column(Boolean, nullable=False, default=True)
     participant_view_enabled = Column(Boolean, nullable=False, default=False)
-    show_route_mode = Column(String(20), nullable=False, default="focused")  # 'focused' or 'complete'
-    show_score_mode = Column(String(20), nullable=False, default="hidden")  # 'hidden', 'individual', or 'competitive'
-    
+    show_route_mode = Column(
+        String(20), nullable=False, default="focused"
+    )  # 'focused' or 'complete'
+    show_score_mode = Column(
+        String(20), nullable=False, default="hidden"
+    )  # 'hidden', 'individual', or 'competitive'
+
     # Rally customization
     # rally_theme is a SKIN PRESET (structure/motif only): 'bloody' | 'nei' | 'default'.
     # Event identity below is DATA, so one build serves every edition.

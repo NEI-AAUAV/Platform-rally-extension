@@ -12,6 +12,7 @@ class TeamLoginRequest(BaseModel):
 
 class TeamLoginResponse(BaseModel):
     """Response schema for team login"""
+
     access_token: str
     token_type: str = "bearer"
     team_id: int
@@ -20,5 +21,6 @@ class TeamLoginResponse(BaseModel):
 
 class TeamTokenData(BaseModel):
     """Data stored in team JWT token"""
+
     team_id: int
     team_name: str

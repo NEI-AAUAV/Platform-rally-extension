@@ -1,4 +1,5 @@
 """DB-backed tests for app.crud.crud_user (real Postgres via pg_session)."""
+
 import pytest
 
 from app.core.exceptions import RallyNotFoundError
@@ -7,9 +8,7 @@ from app.schemas.user import UserCreate, UserUpdate
 
 
 async def test_get_by_authentik_sub_found_and_missing(pg_session):
-    created = await crud_user.create(
-        pg_session, obj_in=UserCreate(name="Ana Sub")
-    )
+    created = await crud_user.create(pg_session, obj_in=UserCreate(name="Ana Sub"))
     created.authentik_sub = "sub-123"
     pg_session.add(created)
     await pg_session.commit()

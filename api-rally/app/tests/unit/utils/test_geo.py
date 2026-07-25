@@ -1,5 +1,7 @@
 """Unit tests for haversine distance utility."""
+
 import pytest
+
 from app.utils.geo import distance_m
 
 

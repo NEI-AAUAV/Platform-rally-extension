@@ -17,9 +17,10 @@ data entry, no change here.
 
 import logging
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,9 +45,7 @@ class BadgeAward:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
-Handler = Callable[
-    [AsyncSession, ActivityResult, BadgeDefinition], Awaitable[list[BadgeAward]]
-]
+Handler = Callable[[AsyncSession, ActivityResult, BadgeDefinition], Awaitable[list[BadgeAward]]]
 
 
 async def _handle_win_activity(
@@ -126,9 +125,7 @@ async def _handle_first_complete_activity(
             badge_code=defn.code,
             activity_id=earliest.activity_id,
             meta={
-                "completed_at": earliest.completed_at.isoformat()
-                if earliest.completed_at
-                else None
+                "completed_at": earliest.completed_at.isoformat() if earliest.completed_at else None
             },
         )
     ]
@@ -194,14 +191,10 @@ async def _handle_first_complete_checkpoint(
         done[r.team_id].add(r.activity_id)
         if r.completed_at is not None:
             prev = last_finish.get(r.team_id)
-            last_finish[r.team_id] = (
-                r.completed_at if prev is None else max(prev, r.completed_at)
-            )
+            last_finish[r.team_id] = r.completed_at if prev is None else max(prev, r.completed_at)
 
     finishers = [
-        (team_id, last_finish[team_id])
-        for team_id, acts in done.items()
-        if activity_ids <= acts
+        (team_id, last_finish[team_id]) for team_id, acts in done.items() if activity_ids <= acts
     ]
     if not finishers:
         return []
@@ -291,11 +284,7 @@ async def _handle_complete_all_checkpoints(
         return []
 
     all_active = set(
-        (
-            await db.scalars(
-                select(Activity.id).where(Activity.is_active.is_(True))
-            )
-        ).all()
+        (await db.scalars(select(Activity.id).where(Activity.is_active.is_(True)))).all()
     )
     if not all_active:
         return []
@@ -427,9 +416,7 @@ async def _load_auto_definitions(db: AsyncSession) -> list[BadgeDefinition]:
     return list((await db.scalars(stmt)).all())
 
 
-async def evaluate_result(
-    db: AsyncSession, result: ActivityResult
-) -> list[BadgeAward]:
+async def evaluate_result(db: AsyncSession, result: ActivityResult) -> list[BadgeAward]:
     """Run every configured auto rule against a changed result, collect awards.
 
     A failing rule is logged and skipped so one bad definition never blocks the

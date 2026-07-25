@@ -1,11 +1,11 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict
+
 from app.models.checkpoint_media import MediaKind
 
 
 class CheckpointMediaBase(BaseModel):
     kind: MediaKind
-    caption: Optional[str] = None
+    caption: str | None = None
     order: int = 0
 
 
@@ -14,8 +14,8 @@ class CheckpointMediaCreate(CheckpointMediaBase):
 
 
 class CheckpointMediaUpdate(BaseModel):
-    caption: Optional[str] = None
-    order: Optional[int] = None
+    caption: str | None = None
+    order: int | None = None
 
 
 class CheckpointMediaResponse(CheckpointMediaBase):
@@ -23,4 +23,4 @@ class CheckpointMediaResponse(CheckpointMediaBase):
 
     id: int
     checkpoint_id: int
-    image_url: Optional[str] = None
+    image_url: str | None = None

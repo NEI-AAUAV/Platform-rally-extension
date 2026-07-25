@@ -29,9 +29,7 @@ async def _badges_enabled(db: AsyncSession) -> bool:
 
 
 @router.get("/badges")
-async def list_all_badges(
-    *, db: Annotated[AsyncSession, Depends(get_db)]
-) -> list[TeamBadgeRead]:
+async def list_all_badges(*, db: Annotated[AsyncSession, Depends(get_db)]) -> list[TeamBadgeRead]:
     """Every badge awarded across all teams, newest first."""
     if not await _badges_enabled(db):
         return []

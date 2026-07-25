@@ -4,7 +4,8 @@
 dict-shaping functions with no DB access — kept as plain unit tests, not
 migrated here.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -26,9 +27,7 @@ from app.api.api_v1.staff_evaluation_utils import (
     validate_admin_access,
     validate_staff_checkpoint_access,
 )
-from app.exception import APIException
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
-from app.exception import NotFoundException
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
@@ -41,7 +40,7 @@ from app.tests.conftest import make_event as _make_event
 async def _activate_rally(pg_session, event):
     from app.crud.crud_rally_settings import rally_settings
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event.start_time = now - timedelta(hours=1)
     event.end_time = now + timedelta(hours=1)
     pg_session.add(event)
@@ -71,7 +70,13 @@ async def _make_activity(pg_session, checkpoint_id, activity_type=ActivityType.G
 def _staff_user(staff_checkpoint_id):
     from app.schemas.user import DetailedUser
 
-    return DetailedUser(id=1, name="Staff", disabled=False, staff_checkpoint_id=staff_checkpoint_id, scopes=["rally-staff"])
+    return DetailedUser(
+        id=1,
+        name="Staff",
+        disabled=False,
+        staff_checkpoint_id=staff_checkpoint_id,
+        scopes=["rally-staff"],
+    )
 
 
 class TestValidateStaffCheckpointAccess:
@@ -85,12 +90,12 @@ class TestValidateStaffCheckpointAccess:
         assert "No checkpoint assigned" in exc.value.message
 
     async def test_team_not_found_raises(self, pg_session):
-        """crud.team.get() itself raises NotFoundException (404) before
+        """crud.team.get() itself raises RallyNotFoundError (404) before
         validate_staff_checkpoint_access's own `if not team_obj` check (which
         is unreachable dead code as a result — team.get never returns None)."""
         user = _staff_user(1)
 
-        with pytest.raises(NotFoundException) as exc:
+        with pytest.raises(RallyNotFoundError) as exc:
             await validate_staff_checkpoint_access(pg_session, user, team_id=999999, activity_id=1)
 
         assert exc.value.status_code == 404
@@ -104,7 +109,9 @@ class TestValidateStaffCheckpointAccess:
         user = _staff_user(cp1.id)
 
         with pytest.raises(RallyNotFoundError) as exc:
-            await validate_staff_checkpoint_access(pg_session, user, team_id=team.id, activity_id=activity.id)
+            await validate_staff_checkpoint_access(
+                pg_session, user, team_id=team.id, activity_id=activity.id
+            )
 
         assert "assigned checkpoint" in exc.value.message
 
@@ -139,8 +146,8 @@ class TestValidateStaffCheckpointAccess:
 
 class TestValidateAdminAccess:
     async def test_team_not_found(self, pg_session):
-        """Same dead-code path as above: crud.team.get() raises NotFoundException first."""
-        with pytest.raises(NotFoundException):
+        """Same dead-code path as above: crud.team.get() raises RallyNotFoundError first."""
+        with pytest.raises(RallyNotFoundError):
             await validate_admin_access(pg_session, team_id=999999, activity_id=1)
 
     async def test_activity_not_found(self, pg_session):
@@ -241,7 +248,11 @@ class TestCheckpointProgression:
         from app.models.activity import Activity
 
         global_activity = Activity(
-            name="Global", activity_type="GeneralActivity", checkpoint_id=None, config={}, is_active=True
+            name="Global",
+            activity_type="GeneralActivity",
+            checkpoint_id=None,
+            config={},
+            is_active=True,
         )
 
         await check_and_advance_team(pg_session, team.id, global_activity)
@@ -330,10 +341,16 @@ class TestCheckpointProgressCalculation:
         a2 = await _make_activity(pg_session, cp2.id)
         from app.models.activity import ActivityResult
 
-        pg_session.add_all([
-            ActivityResult(team_id=team.id, activity_id=a1.id, result_data={}, is_completed=True),
-            ActivityResult(team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True),
-        ])
+        pg_session.add_all(
+            [
+                ActivityResult(
+                    team_id=team.id, activity_id=a1.id, result_data={}, is_completed=True
+                ),
+                ActivityResult(
+                    team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True
+                ),
+            ]
+        )
         await pg_session.commit()
 
         last, current, completed = await compute_checkpoint_progress(pg_session, team)
@@ -347,13 +364,16 @@ class TestCheckpointProgressCalculation:
         cp = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
         activity = await _make_activity(pg_session, cp.id)
-        from app.models.activity import ActivityResult
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+
+        from app.models.activity import ActivityResult
         from app.models.team import Team
 
         pg_session.add(
-            ActivityResult(team_id=team.id, activity_id=activity.id, result_data={}, is_completed=True)
+            ActivityResult(
+                team_id=team.id, activity_id=activity.id, result_data={}, is_completed=True
+            )
         )
         await pg_session.commit()
 
@@ -468,12 +488,18 @@ class TestCreateOrUpdateActivityResult:
         activity = await _make_activity(pg_session, cp.id)
 
         first = await create_or_update_activity_result(
-            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 10})
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 10}),
         )
         assert first.result_data == {"assigned_points": 10}
 
         updated = await create_or_update_activity_result(
-            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 20})
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 20}),
         )
 
         assert updated.id == first.id
@@ -491,11 +517,15 @@ class TestCreateOrUpdateActivityResult:
 
         # Seed a "winner" result as if a concurrent request created it first.
         winner = await create_or_update_activity_result(
-            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 1})
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 1}),
         )
 
-        import app.api.api_v1.staff_evaluation_utils as utils_module
         from sqlalchemy.exc import IntegrityError
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
 
         async def _raise_integrity_error(*args, **kwargs):
             raise IntegrityError("dup", None, RuntimeError("duplicate key"))
@@ -503,7 +533,10 @@ class TestCreateOrUpdateActivityResult:
         monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
 
         result = await create_or_update_activity_result(
-            pg_session, team.id, activity.id, ActivityResultEvaluation(result_data={"assigned_points": 99})
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 99}),
         )
         assert result.id == winner.id
         assert result.result_data == {"assigned_points": 99}
@@ -518,8 +551,9 @@ class TestCreateOrUpdateActivityResult:
         team = await _make_team(pg_session)
         activity = await _make_activity(pg_session, cp.id)
 
-        import app.api.api_v1.staff_evaluation_utils as utils_module
         from sqlalchemy.exc import IntegrityError
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
 
         async def _raise_integrity_error(*args, **kwargs):
             raise IntegrityError("dup", None, RuntimeError("some unrelated constraint"))
@@ -528,9 +562,7 @@ class TestCreateOrUpdateActivityResult:
 
         eval_obj = ActivityResultEvaluation(result_data={"assigned_points": 5})
         with pytest.raises(IntegrityError):
-            await create_or_update_activity_result(
-                pg_session, team.id, activity.id, eval_obj
-            )
+            await create_or_update_activity_result(pg_session, team.id, activity.id, eval_obj)
 
 
 class TestMirrorTeamVsResult:
@@ -540,7 +572,9 @@ class TestMirrorTeamVsResult:
         activity = await _make_activity(pg_session, cp.id)  # GENERAL, not TeamVsActivity
 
         # Should simply return without raising or doing anything.
-        await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "win"})
+        await mirror_team_vs_result(
+            pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "win"}
+        )
 
     async def test_no_op_when_missing_opponent_or_result(self, pg_session):
         await _make_event(pg_session)
@@ -549,7 +583,10 @@ class TestMirrorTeamVsResult:
 
         await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={})
         await mirror_team_vs_result(
-            pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "invalid"}
+            pg_session,
+            activity,
+            team_id=1,
+            result_data={"opponent_team_id": 2, "result": "invalid"},
         )
 
     async def test_mirrors_opposite_result_to_opponent(self, pg_session):
@@ -581,10 +618,10 @@ class TestCheckinAndAdvanceExceptionPaths:
     async def test_checkin_team_to_checkpoint_propagates_exception(self, pg_session):
         """Rally window set entirely in the future: `_validate_rally_timing`
         raises, exercising the `except Exception: log + raise` path."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         event = await _make_event(pg_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         event.start_time = now + timedelta(hours=1)
         event.end_time = now + timedelta(hours=2)
         pg_session.add(event)
@@ -593,7 +630,7 @@ class TestCheckinAndAdvanceExceptionPaths:
         cp = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
 
     async def test_advance_team_to_next_checkpoint_propagates_exception(self, pg_session):
@@ -607,10 +644,10 @@ class TestCheckinAndAdvanceExceptionPaths:
         # Deactivate the rally window so the next add_checkpoint call fails
         # timing validation, exercising the except/raise path.
 
-        event.start_time = datetime.now(timezone.utc) + timedelta(hours=1)
-        event.end_time = datetime.now(timezone.utc) + timedelta(hours=2)
+        event.start_time = datetime.now(UTC) + timedelta(hours=1)
+        event.end_time = datetime.now(UTC) + timedelta(hours=2)
         pg_session.add(event)
         await pg_session.commit()
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await advance_team_to_next_checkpoint(pg_session, team.id)

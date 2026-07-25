@@ -1,9 +1,10 @@
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
 from app.core.config import settings
+from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.checkpoint import CheckPoint
@@ -28,8 +29,8 @@ class CheckpointGuideIndication(Base):
         index=True,
     )
     hint: Mapped[str] = mapped_column(Text, nullable=False)
-    question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    expected_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expected_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     checkpoint: Mapped["CheckPoint"] = relationship(

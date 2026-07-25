@@ -1,13 +1,14 @@
 """API tests for the profile / participation-history endpoints, against real Postgres."""
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_participation import CRUDParticipation
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
-from app.schemas.team import TeamCreate
-from app.schemas.user import UserCreate
 from app.models.team import Team
 from app.models.user import User
+from app.schemas.team import TeamCreate
+from app.schemas.user import UserCreate
 
 
 async def _make_event(pg_session):
@@ -36,7 +37,11 @@ class TestProfileMe:
             scopes=["admin"],
         )
         await CRUDParticipation().record(
-            pg_session, authentik_sub="test-admin-sub", event_id=event.id, team=team, is_captain=True
+            pg_session,
+            authentik_sub="test-admin-sub",
+            event_id=event.id,
+            team=team,
+            is_captain=True,
         )
 
         resp = pg_client.get("/api/rally/v1/profile/me")
@@ -49,7 +54,9 @@ class TestProfileMe:
         assert entry["event_name"] == "Rally 2026"
         assert entry["team_name"] == "Os Bons"
 
-    async def test_profile_me_lazily_records_participation_when_on_team(self, pg_session, pg_client, as_admin):
+    async def test_profile_me_lazily_records_participation_when_on_team(
+        self, pg_session, pg_client, as_admin
+    ):
         """When the caller is directly linked to a team via `user.team_id`,
         their participation in the current event is recorded on-the-fly."""
         event = await _make_event(pg_session)
@@ -116,9 +123,7 @@ class TestClaimable:
     async def test_claimable_unknown_code_returns_404(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        resp = pg_client.get(
-            "/api/rally/v1/profile/claimable", params={"access_code": "NOPE-0000"}
-        )
+        resp = pg_client.get("/api/rally/v1/profile/claimable", params={"access_code": "NOPE-0000"})
 
         assert resp.status_code == 404
 
@@ -142,7 +147,9 @@ class TestClaimMembership:
         resp = pg_client.post(f"/api/rally/v1/profile/claim/{linked.id}")
 
         assert resp.status_code == 400
-        assert "already linked" in resp.json()["detail"].lower() or "already linked" in str(resp.json())
+        assert "already linked" in resp.json()["detail"].lower() or "already linked" in str(
+            resp.json()
+        )
 
     async def test_claim_membership_not_on_team(self, pg_session, pg_client, as_admin):
         placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="NoTeam"))
@@ -160,14 +167,13 @@ class TestClaimMembership:
         is patched (class-wide, since `pg_client` opens its own session per
         request) to return None specifically for the Team lookup."""
 
-
         team = await _make_team(pg_session)
         placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="Orphaned"))
         placeholder.team_id = team.id
         pg_session.add(placeholder)
         await pg_session.commit()
 
-        real_get =  AsyncSession.get
+        real_get = AsyncSession.get
 
         async def _fake_get(self, model, ident, *args, **kwargs):
             if model is Team:
@@ -180,7 +186,9 @@ class TestClaimMembership:
 
         assert resp.status_code == 404
 
-    async def test_claim_membership_success_creates_caller_row(self, pg_session, pg_client, as_admin):
+    async def test_claim_membership_success_creates_caller_row(
+        self, pg_session, pg_client, as_admin
+    ):
         """First-login case: caller has no `user` row yet, so claiming a
         placeholder must create one for them (create_for_oidc path)."""
         team = await _make_team(pg_session)
@@ -205,7 +213,9 @@ class TestClaimMembership:
         pg_session.expire_all()
         assert await pg_session.get(User, placeholder_id) is None
 
-    async def test_claim_membership_success_existing_caller_account(self, pg_session, pg_client, as_admin):
+    async def test_claim_membership_success_existing_caller_account(
+        self, pg_session, pg_client, as_admin
+    ):
         """Caller already has a `user` row (e.g. from a prior claim/profile
         view) — the existing row is updated in place, not recreated."""
         team = await _make_team(pg_session)

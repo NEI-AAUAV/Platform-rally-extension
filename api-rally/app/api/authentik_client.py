@@ -8,8 +8,8 @@ Authentik's default OIDC ``sub`` claim is the user's UUID, so we surface
 ``uuid`` as ``authentik_sub``. We also keep ``username``/``email`` so the link
 can be reconciled if a deployment customised the ``sub`` mapping.
 """
+
 from dataclasses import dataclass
-from typing import Optional
 
 import httpx
 from loguru import logger
@@ -28,7 +28,7 @@ class AuthentikUser:
     authentik_sub: str
     name: str
     username: str
-    email: Optional[str]
+    email: str | None
 
 
 def is_configured() -> bool:

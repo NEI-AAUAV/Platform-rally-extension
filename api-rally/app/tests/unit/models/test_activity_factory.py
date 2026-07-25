@@ -1,4 +1,5 @@
 """Unit tests for ActivityFactory, no dedicated test file existed before."""
+
 import pytest
 
 from app.models.activities.boolean import BooleanActivity

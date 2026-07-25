@@ -84,9 +84,7 @@ async def test_published_event_reaches_worker_over_real_redis(
 
         await publish_event(
             ActivityResultCreatedEvent(
-                payload=ActivityResultChangedPayload(
-                    result_id=1, team_id=2, activity_id=3
-                )
+                payload=ActivityResultChangedPayload(result_id=1, team_id=2, activity_id=3)
             )
         )
 

@@ -5,18 +5,21 @@ This module implements ABAC policies for Rally checkpoint management,
 ensuring staff can only add scores to teams at their assigned checkpoint.
 """
 
-from typing import Callable, Optional, Any, Union
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, Union
+
 from fastapi import HTTPException, status
 
-from app.schemas.user import DetailedUser
 from app.api.auth import AuthData
+from app.schemas.user import DetailedUser
 
 
 class Action(Enum):
     """Actions that can be performed on Rally resources"""
+
     ADD_CHECKPOINT_SCORE = "add_checkpoint_score"
     VIEW_CHECKPOINT_TEAMS = "view_checkpoint_teams"
     VIEW_TEAM_MEMBERS = "view_team_members"
@@ -51,6 +54,7 @@ class Action(Enum):
 
 class Resource(Enum):
     """Resources in the Rally system"""
+
     CHECKPOINT = "checkpoint"
     TEAM = "team"
     SCORE = "score"
@@ -65,20 +69,21 @@ class Resource(Enum):
 @dataclass
 class Context:
     """ABAC evaluation context"""
+
     user: DetailedUser
     auth: AuthData
     action: Action
     resource: Resource
-    resource_id: Optional[int] = None
-    checkpoint_id: Optional[int] = None
-    team_id: Optional[int] = None
-    request_time: Optional[datetime] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    resource_id: int | None = None
+    checkpoint_id: int | None = None
+    team_id: int | None = None
+    request_time: datetime | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
 
     def __post_init__(self) -> None:
         if self.request_time is None:
-            self.request_time = datetime.now(timezone.utc)
+            self.request_time = datetime.now(UTC)
 
 
 # A rule decides whether a matched (scope, action) pair grants access for the
@@ -194,11 +199,7 @@ abac_engine = ABACEngine()
 
 
 def check_permission(
-    user: DetailedUser,
-    auth: AuthData,
-    action: Action,
-    resource: Resource,
-    **kwargs: Any
+    user: DetailedUser, auth: AuthData, action: Action, resource: Resource, **kwargs: Any
 ) -> bool:
     """
     Check if a user has permission to perform an action on a resource
@@ -213,23 +214,13 @@ def check_permission(
     Returns:
         True if permission is granted, False otherwise
     """
-    context = Context(
-        user=user,
-        auth=auth,
-        action=action,
-        resource=resource,
-        **kwargs
-    )
+    context = Context(user=user, auth=auth, action=action, resource=resource, **kwargs)
 
     return abac_engine.evaluate(context)
 
 
 def require_permission(
-    user: DetailedUser,
-    auth: AuthData,
-    action: Action,
-    resource: Resource,
-    **kwargs: Any
+    user: DetailedUser, auth: AuthData, action: Action, resource: Resource, **kwargs: Any
 ) -> None:
     """
     Require permission or raise HTTPException
@@ -247,7 +238,7 @@ def require_permission(
     if not check_permission(user, auth, action, resource, **kwargs):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Permission denied: {action.value} on {resource.value}"
+            detail=f"Permission denied: {action.value} on {resource.value}",
         )
 
 
@@ -270,9 +261,7 @@ ALL_CHECKPOINTS = AllCheckpoints()
 AccessibleCheckpoints = Union[AllCheckpoints, list[int]]
 
 
-def get_accessible_checkpoints(
-    user: DetailedUser, auth: AuthData
-) -> AccessibleCheckpoints:
+def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> AccessibleCheckpoints:
     """
     Get the checkpoints a user can access.
 

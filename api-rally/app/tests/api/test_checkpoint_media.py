@@ -3,6 +3,7 @@
 `validate_and_store` (R2/S3 upload) stays mocked — it's external I/O, out of
 scope for this migration; everything else (DB, ABAC, routing) is real.
 """
+
 import io
 from unittest.mock import AsyncMock, patch
 
@@ -168,10 +169,13 @@ async def test_update_media_with_new_image(pg_session, pg_client, as_admin):
         image_url="https://r2/cp/old.png",
     )
 
-    with patch(
-        "app.api.api_v1.checkpoint_media.validate_and_store",
-        new=AsyncMock(return_value="https://r2/cp/new.png"),
-    ), patch("app.crud.crud_checkpoint_media.storage_client.delete_image"):
+    with (
+        patch(
+            "app.api.api_v1.checkpoint_media.validate_and_store",
+            new=AsyncMock(return_value="https://r2/cp/new.png"),
+        ),
+        patch("app.crud.crud_checkpoint_media.storage_client.delete_image"),
+    ):
         resp = pg_client.put(
             f"/api/rally/v1/checkpoint/media/{media.id}",
             files={"image": ("new.png", io.BytesIO(_png_bytes()), "image/png")},

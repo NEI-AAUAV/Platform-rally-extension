@@ -1,4 +1,3 @@
-from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,11 +7,13 @@ from app.services.storage import storage_client
 
 
 class CRUDCheckpointMedia:
-    async def get(self, db: AsyncSession, *, id: int) -> Optional[CheckpointMedia]:
+    async def get(self, db: AsyncSession, *, id: int) -> CheckpointMedia | None:
         result = await db.execute(select(CheckpointMedia).where(CheckpointMedia.id == id))
         return result.scalars().first()
 
-    async def get_by_checkpoint(self, db: AsyncSession, *, checkpoint_id: int) -> List[CheckpointMedia]:
+    async def get_by_checkpoint(
+        self, db: AsyncSession, *, checkpoint_id: int
+    ) -> list[CheckpointMedia]:
         result = await db.execute(
             select(CheckpointMedia)
             .where(CheckpointMedia.checkpoint_id == checkpoint_id)
@@ -26,7 +27,7 @@ class CRUDCheckpointMedia:
         *,
         checkpoint_id: int,
         obj_in: CheckpointMediaCreate,
-        image_url: Optional[str] = None,
+        image_url: str | None = None,
     ) -> CheckpointMedia:
         db_obj = CheckpointMedia(
             checkpoint_id=checkpoint_id,
@@ -46,7 +47,7 @@ class CRUDCheckpointMedia:
         *,
         db_obj: CheckpointMedia,
         obj_in: CheckpointMediaUpdate,
-        image_url: Optional[str] = None,
+        image_url: str | None = None,
     ) -> CheckpointMedia:
         if obj_in.caption is not None:
             db_obj.caption = obj_in.caption
@@ -71,8 +72,8 @@ class CRUDCheckpointMedia:
         db: AsyncSession,
         *,
         checkpoint_id: int,
-        ordered_ids: List[int],
-    ) -> List[CheckpointMedia]:
+        ordered_ids: list[int],
+    ) -> list[CheckpointMedia]:
         items = await self.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
         id_to_item = {item.id: item for item in items}
         for position, media_id in enumerate(ordered_ids):

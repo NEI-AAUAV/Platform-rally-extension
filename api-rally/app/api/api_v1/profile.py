@@ -5,15 +5,17 @@ the events they took part in across editions. A name-only team member can be
 "claimed" by an OIDC login, which moves that team membership onto the caller's
 account and records a participation.
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.models.participation import EventParticipation
 from app.models.team import Team
 from app.models.user import User
@@ -24,7 +26,6 @@ from app.schemas.profile import (
     ProfileResponse,
 )
 from app.schemas.user import DetailedUser
-from sqlalchemy import select
 
 router = APIRouter()
 

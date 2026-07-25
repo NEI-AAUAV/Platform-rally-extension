@@ -13,7 +13,7 @@ this module only manages connections.
 """
 
 import logging
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
 
 import redis
 import redis.asyncio as aredis
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Global sync connection pool (initialised lazily on first use). The async
 # clients are intentionally pool-less — see get_async_redis_client.
-_sync_pool: Optional[redis.ConnectionPool] = None
+_sync_pool: redis.ConnectionPool | None = None
 
 
 def _get_sync_pool() -> redis.ConnectionPool:
@@ -39,9 +39,7 @@ def _get_sync_pool() -> redis.ConnectionPool:
             socket_connect_timeout=settings.REDIS_CONNECTION_TIMEOUT,
             socket_timeout=settings.REDIS_CONNECTION_TIMEOUT,
         )
-        logger.info(
-            "Redis sync pool created for %s:%s", settings.REDIS_HOST, settings.REDIS_PORT
-        )
+        logger.info("Redis sync pool created for %s:%s", settings.REDIS_HOST, settings.REDIS_PORT)
     return _sync_pool
 
 

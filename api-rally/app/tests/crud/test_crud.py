@@ -3,17 +3,19 @@
 Exercises actual SQL, constraints, and ARRAY columns instead of mocking the
 CRUD layer — see app/tests/conftest.py::pg_session.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
 from app.models.checkpoint import CheckPoint
 from app.schemas.rally_settings import RallySettingsUpdate
-from app.schemas.user import UserCreate
 from app.schemas.team import TeamCreate, TeamScoresUpdate, TeamUpdate
+from app.schemas.user import UserCreate
 from app.tests.conftest import make_event as _make_event
 
 
@@ -96,9 +98,7 @@ class TestTeamCRUD:
         assert result.name == "Test Team"
 
     async def test_get_team_not_found(self, pg_session):
-        from app.exception import NotFoundException
-
-        with pytest.raises(NotFoundException):
+        with pytest.raises(RallyNotFoundError):
             await crud_team.get(pg_session, id=999999)
 
     async def test_get_teams(self, pg_session):
@@ -111,8 +111,6 @@ class TestTeamCRUD:
         assert result[0].name == "Test Team"
 
     async def test_create_team_duplicate_name_in_event_raises(self, pg_session):
-        from app.core.exceptions import RallyValidationError
-
         await _make_event(pg_session)
         await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
@@ -131,20 +129,16 @@ class TestTeamCRUD:
         assert updated.name == "Renamed Team"
 
     async def test_delete_team(self, pg_session):
-        from app.exception import NotFoundException
-
         await _make_event(pg_session)
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
         removed = await crud_team.remove(pg_session, id=created.id)
 
         assert removed.id == created.id
-        with pytest.raises(NotFoundException):
+        with pytest.raises(RallyNotFoundError):
             await crud_team.get(pg_session, id=created.id)
 
     async def test_create_team_over_limit_raises(self, pg_session):
-        from app.core.exceptions import RallyValidationError
-
         await _make_event(pg_session)
         settings = await rally_settings.get_or_create(pg_session)
         await rally_settings.update(
@@ -157,13 +151,11 @@ class TestTeamCRUD:
             await crud_team.create(pg_session, obj_in=team_in)
 
     async def test_update_team_locked_array_size_mismatch_raises(self, pg_session):
-        from app.exception import APIException
-
         await _make_event(pg_session)
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
-        team_update = TeamUpdate(times=[datetime.now(timezone.utc)], question_scores=[])
-        with pytest.raises(APIException):
+        team_update = TeamUpdate(times=[datetime.now(UTC)], question_scores=[])
+        with pytest.raises(RallyValidationError):
             await crud_team.update(
                 pg_session,
                 id=created.id,
@@ -174,9 +166,12 @@ class TestTeamCRUD:
         event = await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _set_event_timing(
-            pg_session, event, start_time=now - timedelta(hours=1), end_time=now + timedelta(hours=1)
+            pg_session,
+            event,
+            start_time=now - timedelta(hours=1),
+            end_time=now + timedelta(hours=1),
         )
         await rally_settings.get_or_create(pg_session)
         checkpoint_data = TeamScoresUpdate(
@@ -253,9 +248,12 @@ class TestTeamCRUD:
 class TestTeamCheckpointLogic:
     async def _setup_active_rally(self, pg_session):
         event = await _make_event(pg_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _set_event_timing(
-            pg_session, event, start_time=now - timedelta(hours=1), end_time=now + timedelta(hours=1)
+            pg_session,
+            event,
+            start_time=now - timedelta(hours=1),
+            end_time=now + timedelta(hours=1),
         )
         settings = await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
@@ -277,12 +275,13 @@ class TestTeamCheckpointLogic:
         assert result.question_scores[0] is True
 
     async def test_add_checkpoint_before_rally_start_raises(self, pg_session):
-        from app.exception import APIException
-
         event = await _make_event(pg_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _set_event_timing(
-            pg_session, event, start_time=now + timedelta(hours=1), end_time=now + timedelta(hours=2)
+            pg_session,
+            event,
+            start_time=now + timedelta(hours=1),
+            end_time=now + timedelta(hours=2),
         )
         await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
@@ -291,18 +290,19 @@ class TestTeamCheckpointLogic:
             checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
         )
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
             )
 
     async def test_add_checkpoint_after_rally_end_raises(self, pg_session):
-        from app.exception import APIException
-
         event = await _make_event(pg_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await _set_event_timing(
-            pg_session, event, start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1)
+            pg_session,
+            event,
+            start_time=now - timedelta(hours=2),
+            end_time=now - timedelta(hours=1),
         )
         await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
@@ -311,27 +311,23 @@ class TestTeamCheckpointLogic:
             checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
         )
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
             )
 
     async def test_add_checkpoint_unknown_checkpoint_raises(self, pg_session):
-        from app.exception import APIException
-
         _, _, team, _ = await self._setup_active_rally(pg_session)
         checkpoint_data = TeamScoresUpdate(
             checkpoint_id=999999, question_score=1, time_score=20, pukes=0, skips=0
         )
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyNotFoundError):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=999999, obj_in=checkpoint_data
             )
 
     async def test_add_checkpoint_out_of_order_when_order_matters_raises(self, pg_session):
-        from app.exception import APIException
-
         event, settings, team, _cp1 = await self._setup_active_rally(pg_session)
         await rally_settings.update(
             pg_session,
@@ -343,7 +339,7 @@ class TestTeamCheckpointLogic:
             checkpoint_id=cp2.id, question_score=1, time_score=20, pukes=0, skips=0
         )
 
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=cp2.id, obj_in=checkpoint_data
             )
@@ -351,8 +347,6 @@ class TestTeamCheckpointLogic:
     async def test_add_checkpoint_already_visited_when_order_does_not_matter_raises(
         self, pg_session
     ):
-        from app.exception import APIException
-
         _, settings, team, cp1 = await self._setup_active_rally(pg_session)
         await rally_settings.update(
             pg_session,
@@ -368,7 +362,7 @@ class TestTeamCheckpointLogic:
 
         # Team has already visited cp1 (order 1); re-adding it should be
         # rejected even though order doesn't matter for this rally.
-        with pytest.raises(APIException):
+        with pytest.raises(RallyValidationError):
             await crud_team.add_checkpoint(
                 pg_session, id=team.id, checkpoint_id=cp1.id, obj_in=checkpoint_data
             )
@@ -408,11 +402,11 @@ class TestUserCRUD:
 class TestRallyDurationLogic:
     def test_rally_status_calculations(self):
         settings = {
-            "rally_start_time": datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
-            "rally_end_time": datetime(2024, 1, 15, 18, 0, 0, tzinfo=timezone.utc),
+            "rally_start_time": datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+            "rally_end_time": datetime(2024, 1, 15, 18, 0, 0, tzinfo=UTC),
         }
 
-        current_time = datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+        current_time = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
         if current_time < settings["rally_start_time"]:
             status = "not_started"
         elif current_time > settings["rally_end_time"]:
@@ -424,8 +418,8 @@ class TestRallyDurationLogic:
 
     def test_team_duration_calculation(self):
         times = [
-            datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
-            datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc),
+            datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+            datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
         ]
 
         duration = (times[1] - times[0]).total_seconds()
@@ -435,13 +429,13 @@ class TestRallyDurationLogic:
 
 class TestTimezoneHandling:
     def test_datetime_utc_handling(self):
-        utc_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        utc_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
 
         assert utc_time.tzinfo is not None
         assert utc_time.tzinfo.utcoffset(utc_time).total_seconds() == 0
 
     def test_checkpoint_time_utc(self):
-        checkpoint_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        checkpoint_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         assert checkpoint_time.tzinfo is not None
         assert checkpoint_time.tzinfo.utcoffset(checkpoint_time).total_seconds() == 0

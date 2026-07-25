@@ -7,6 +7,7 @@ can't cross event loops — reusing the real engine here breaks when this test
 runs alongside many other async tests each getting their own loop. A fake
 session/connection exercises the exact same code path deterministically.
 """
+
 import asyncio
 from unittest.mock import patch
 
@@ -54,7 +55,6 @@ async def test_check_db_health_returns_true_when_query_succeeds() -> None:
 
         async def execute(self, *args, **kwargs):
             await asyncio.sleep(0)
-            return None
 
     with patch.object(session_module, "SessionLocal", return_value=_WorkingSession()):
         result = await session_module.check_db_health()

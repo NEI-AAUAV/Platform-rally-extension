@@ -11,7 +11,8 @@ DynamicAward management:
   POST /dynamic-awards             — apply a one-off award to a team (admin)
   DELETE /dynamic-awards/{id}      — remove an award (admin)
 """
-from typing import Annotated, List, Optional
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -28,9 +29,10 @@ router = APIRouter()
 
 # ---------- Schemas ----------
 
+
 class DynamicRuleCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     rule_type: str = "bonus"
     points: float = 0.0
     is_active: bool = True
@@ -38,19 +40,19 @@ class DynamicRuleCreate(BaseModel):
 
 
 class DynamicRuleUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    rule_type: Optional[str] = None
-    points: Optional[float] = None
-    is_active: Optional[bool] = None
-    is_automatic: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    rule_type: str | None = None
+    points: float | None = None
+    is_active: bool | None = None
+    is_automatic: bool | None = None
 
 
 class DynamicRuleResponse(BaseModel):
     id: int
-    event_id: Optional[int] = None
+    event_id: int | None = None
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     rule_type: str
     points: float
     is_active: bool
@@ -62,17 +64,17 @@ class DynamicRuleResponse(BaseModel):
 class DynamicAwardCreate(BaseModel):
     team_id: int
     points: float
-    reason: Optional[str] = None
-    rule_id: Optional[int] = None
+    reason: str | None = None
+    rule_id: int | None = None
 
 
 class DynamicAwardResponse(BaseModel):
     id: int
     team_id: int
-    event_id: Optional[int] = None
-    rule_id: Optional[int] = None
+    event_id: int | None = None
+    rule_id: int | None = None
     points: float
-    reason: Optional[str] = None
+    reason: str | None = None
     is_active: bool
 
     model_config = {"from_attributes": True}
@@ -80,10 +82,11 @@ class DynamicAwardResponse(BaseModel):
 
 # ---------- DynamicRule endpoints ----------
 
+
 @router.get("/dynamic-rules")
 async def list_dynamic_rules(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
-) -> List[DynamicRuleResponse]:
+) -> list[DynamicRuleResponse]:
     event = await rally_event.get_current(db)
     event_id = event.id if event else None
     stmt = select(DynamicRule).where(
@@ -152,12 +155,13 @@ async def delete_dynamic_rule(
 
 # ---------- DynamicAward endpoints ----------
 
+
 @router.get("/dynamic-awards")
 async def list_dynamic_awards(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     _: Annotated[None, Depends(deps.get_admin)],
-    team_id: Optional[int] = None,
-) -> List[DynamicAwardResponse]:
+    team_id: int | None = None,
+) -> list[DynamicAwardResponse]:
     stmt = select(DynamicAward).where(DynamicAward.is_active.is_(True))
     if team_id is not None:
         stmt = stmt.where(DynamicAward.team_id == team_id)

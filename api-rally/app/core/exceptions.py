@@ -37,3 +37,15 @@ class RallyNotFoundError(RallyError):
     """A referenced resource does not exist (HTTP 404)."""
 
     status_code = 404
+
+
+class RallyUnauthorizedError(RallyError):
+    """The caller is not authenticated (HTTP 401)."""
+
+    status_code = 401
+
+
+class RallyConflictError(RallyError):
+    """The request conflicts with the current state of the resource (HTTP 409)."""
+
+    status_code = 409

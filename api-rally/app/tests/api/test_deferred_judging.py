@@ -3,6 +3,7 @@
 `validate_and_store` (R2 image upload) stays mocked — external I/O, out of
 scope; everything else (DB, ABAC, routing, scoring) runs for real.
 """
+
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
@@ -176,9 +177,7 @@ async def test_judge_result_succeeds_even_if_score_recalc_fails(
 async def test_judge_result_not_found(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
 
-    resp = pg_client.put(
-        "/api/rally/v1/activities/results/999999/judge", json={"points": 50}
-    )
+    resp = pg_client.put("/api/rally/v1/activities/results/999999/judge", json={"points": 50})
 
     assert resp.status_code == 404
 
@@ -246,9 +245,7 @@ async def _enable_photo_as_team_photo(pg_session):
 
 
 class TestSetTeamPhotoFromResult:
-    async def test_set_team_photo_disabled_by_default_403(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_set_team_photo_disabled_by_default_403(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
@@ -264,9 +261,7 @@ class TestSetTeamPhotoFromResult:
 
         assert resp.status_code == 403
 
-    async def test_set_team_photo_result_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_set_team_photo_result_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _enable_photo_as_team_photo(pg_session)
 
@@ -277,9 +272,7 @@ class TestSetTeamPhotoFromResult:
 
         assert resp.status_code == 404
 
-    async def test_set_team_photo_url_not_in_media_urls(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_set_team_photo_url_not_in_media_urls(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _enable_photo_as_team_photo(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
@@ -296,9 +289,7 @@ class TestSetTeamPhotoFromResult:
 
         assert resp.status_code == 400
 
-    async def test_set_team_photo_success(
-        self, pg_session, pg_client, as_admin, monkeypatch
-    ):
+    async def test_set_team_photo_success(self, pg_session, pg_client, as_admin, monkeypatch):
         import io
         from unittest.mock import AsyncMock
 

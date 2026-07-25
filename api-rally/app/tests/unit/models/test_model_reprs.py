@@ -1,4 +1,5 @@
 """Covers __repr__ methods on models with no dedicated test file."""
+
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.evaluation_history import EvaluationHistory
 from app.models.idempotency_key import IdempotencyKey

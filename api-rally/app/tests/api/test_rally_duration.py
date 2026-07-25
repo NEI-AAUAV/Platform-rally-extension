@@ -3,7 +3,8 @@
 `RallyDurationCalculator` unit tests (pure date-math logic) stay elsewhere —
 not migrated here, they don't touch DB/CRUD.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
@@ -18,7 +19,7 @@ async def _activate_rally(pg_session, event):
     settings row directly is silently reverted on the next read. Set the
     event's timing instead — that's the actual source of truth.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event.start_time = now - timedelta(hours=2)
     event.end_time = now + timedelta(hours=6)
     pg_session.add(event)
@@ -43,7 +44,7 @@ class TestRallyDurationAPI:
         await _activate_rally(pg_session, event)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
         # times is TIMESTAMP WITHOUT TIME ZONE — naive datetime required.
-        team.times = [(datetime.now(timezone.utc) - timedelta(minutes=30)).replace(tzinfo=None)]
+        team.times = [(datetime.now(UTC) - timedelta(minutes=30)).replace(tzinfo=None)]
         pg_session.add(team)
         await pg_session.commit()
 

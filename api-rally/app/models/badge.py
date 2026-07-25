@@ -9,9 +9,9 @@ Badges are permanent — once earned they are never revoked, even if the
 underlying result is later edited or deleted.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -64,17 +64,13 @@ class TeamBadge(Base):
     )
     badge_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     # The activity that earned the badge, when the badge is activity-scoped.
-    activity_id: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True, index=True
-    )
+    activity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     # The checkpoint that earned the badge, when the badge is checkpoint-scoped.
-    checkpoint_id: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True, index=True
-    )
+    checkpoint_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     # Free-form context for rendering (e.g. opponent team, completion time).
     meta: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     awarded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

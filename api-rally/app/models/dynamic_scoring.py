@@ -5,12 +5,14 @@ DynamicRule  — configurable per-event scoring rules (not yet auto-evaluated;
 DynamicAward — one-off manual bonus/penalty applied by admin to a team.
                Picked up by ScoringService.update_team_scores().
 """
-from typing import Any, Optional
+
+from typing import Any
+
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base
 from app.core.config import settings
+from app.models.base import Base
 
 
 class DynamicRule(Base):
@@ -20,18 +22,19 @@ class DynamicRule(Base):
     whether it fires automatically or requires a manual admin action. The
     ``rule_type`` is a free-form tag (e.g. "first_arrival", "bonus", "penalty").
     """
+
     __tablename__ = "dynamic_rules"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    event_id: Mapped[Optional[int]] = mapped_column(
+    event_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     rule_type: Mapped[str] = mapped_column(String(64), nullable=False, default="bonus")
     points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -45,6 +48,7 @@ class DynamicAward(Base):
     ScoringService folds all active awards into a team's total so they appear
     on the leaderboard without needing an ActivityResult row.
     """
+
     __tablename__ = "dynamic_awards"
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
@@ -55,17 +59,17 @@ class DynamicAward(Base):
         nullable=False,
         index=True,
     )
-    event_id: Mapped[Optional[int]] = mapped_column(
+    event_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
-    rule_id: Mapped[Optional[int]] = mapped_column(
+    rule_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.dynamic_rules.id", ondelete="SET NULL"),
         nullable=True,
     )
     points: Mapped[float] = mapped_column(Float, nullable=False)
-    reason: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(256), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

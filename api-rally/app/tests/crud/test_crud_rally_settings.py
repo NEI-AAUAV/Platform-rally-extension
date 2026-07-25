@@ -4,7 +4,8 @@ Covers the legacy unscoped-row adoption path, timing sync from the current
 event, home_layout/ticker_items self-healing, and the branding image field
 guard.
 """
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 
 import pytest
 
@@ -73,8 +74,8 @@ class TestGetOrCreate:
         settings = await rally_settings.get_or_create(pg_session)
         assert settings.rally_start_time is None
 
-        start = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc).replace(tzinfo=None)
-        end = datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc).replace(tzinfo=None)
+        start = datetime(2026, 1, 1, 10, 0, tzinfo=UTC).replace(tzinfo=None)
+        end = datetime(2026, 1, 1, 18, 0, tzinfo=UTC).replace(tzinfo=None)
         event.start_time = start
         event.end_time = end
         pg_session.add(event)

@@ -4,6 +4,7 @@ These exercise the layout/aggregation logic in isolation: the three DB reads
 (`_teams`, `_checkpoints`, `_results`) are stubbed so no database is needed,
 and the resulting workbook is parsed back with openpyxl.
 """
+
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -45,6 +46,7 @@ def _result(
 
 def _service(teams, checkpoints, results) -> ExportService:
     import asyncio
+
     svc = ExportService.__new__(ExportService)
 
     async def _t(_event_id):
@@ -121,7 +123,8 @@ async def test_checkpoint_sheet_columns():
     cps = [_cp(10, 1)]
     results = [
         _result(
-            1, 10,
+            1,
+            10,
             final_score=6.0,
             extra_shots=5,
             penalties={"vomit": 5, "not_drinking": 2},
@@ -132,8 +135,14 @@ async def test_checkpoint_sheet_columns():
     rows = _rows(wb["Checkpoint 1"])
 
     assert rows[0] == (
-        "Team", "Versus Pair", "Match Result", "Extra Shots",
-        "Vomit penalty (-)", "Not drinking penalty (-)", "Notes", "Total Checkpoint",
+        "Team",
+        "Versus Pair",
+        "Match Result",
+        "Extra Shots",
+        "Vomit penalty (-)",
+        "Not drinking penalty (-)",
+        "Notes",
+        "Total Checkpoint",
     )
     # Team A with a result row.
     assert rows[1] == ("A", "B", 6, 5, 5, 2, "Objeto: pasta", 6)

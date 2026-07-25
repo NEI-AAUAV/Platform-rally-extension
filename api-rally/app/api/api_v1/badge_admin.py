@@ -3,7 +3,8 @@
 BadgeDefinition CRUD + icon upload + manual award/revoke.
 All write operations require admin scope.
 """
-from typing import Annotated, List
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,13 +14,13 @@ from app.crud._deps import foreign_key_error_regex
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
 from app.models.badge import TeamBadge
+from app.schemas.badge import TeamBadgeRead
 from app.schemas.badge_definition import (
     BadgeDefinitionCreate,
     BadgeDefinitionResponse,
     BadgeDefinitionUpdate,
     ManualBadgeAwardCreate,
 )
-from app.schemas.badge import TeamBadgeRead
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 
 router = APIRouter()
@@ -42,7 +43,7 @@ async def require_badges_enabled(db: Annotated[AsyncSession, Depends(deps.get_db
 @router.get("/badge-definitions")
 async def list_badge_definitions(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
-) -> List[BadgeDefinitionResponse]:
+) -> list[BadgeDefinitionResponse]:
     items = await crud_def.get_all(db)
     return [BadgeDefinitionResponse.model_validate(item) for item in items]
 
@@ -99,7 +100,9 @@ async def upload_badge_icon(
         allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
         key_prefix=f"rally/badges/{id}",
     )
-    updated = await crud_def.update(db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url)
+    updated = await crud_def.update(
+        db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url
+    )
     return BadgeDefinitionResponse.model_validate(updated)
 
 
@@ -184,6 +187,7 @@ async def revoke_badge(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
     from sqlalchemy import select as sa_select
+
     result = await db.execute(sa_select(TeamBadge).where(TeamBadge.id == badge_id))
     badge = result.scalars().first()
     if not badge:

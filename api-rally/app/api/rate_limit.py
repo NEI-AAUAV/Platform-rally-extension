@@ -13,7 +13,8 @@ every client onto the proxy address.
 
 import hashlib
 import logging
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 
@@ -81,9 +82,7 @@ def rate_limit(
     return dependency
 
 
-async def check_login_rate_limit(
-    request: Request, access_code: str, settings: Settings
-) -> None:
+async def check_login_rate_limit(request: Request, access_code: str, settings: Settings) -> None:
     """Brute-force guard for team login.
 
     Enforces two independent fixed-window counters so neither a single IP

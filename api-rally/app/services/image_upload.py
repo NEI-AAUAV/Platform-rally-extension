@@ -5,6 +5,7 @@ image (branding, checkpoint media, badge icons, deferred-judging photos, team
 photos) validates and uploads the same way (DRY). Validation mirrors the
 original branding rules: a content-type allowlist and a 5MB size cap.
 """
+
 import uuid
 
 from fastapi import HTTPException, UploadFile

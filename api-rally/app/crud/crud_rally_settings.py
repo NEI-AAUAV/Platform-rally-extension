@@ -1,16 +1,18 @@
 from typing import TYPE_CHECKING
+
 from app.crud.base import CRUDBase
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
-    RallySettingsUpdate,
     DEFAULT_HOME_LAYOUT,
     DEFAULT_TICKER_ITEMS,
+    RallySettingsUpdate,
     normalize_home_layout,
     normalize_ticker_items,
 )
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettingsUpdate]):
     async def get_or_create(self, db: "AsyncSession") -> RallySettings:
@@ -22,21 +24,18 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         back a single RallySettings object for "the active rally".
         """
         from sqlalchemy import select
+
         from app.crud.crud_activity import rally_event
 
         event = await rally_event.ensure_current(db)
-        settings = await db.scalar(
-            select(RallySettings).where(RallySettings.event_id == event.id)
-        )
+        settings = await db.scalar(select(RallySettings).where(RallySettings.event_id == event.id))
         if settings is not None:
             settings = await self._normalize_home_fields(db, settings)
             return await self._sync_timing_from_event(db, settings, event)
 
         # Fall back to adopting a legacy unscoped row (event_id NULL) once, so
         # existing single-event deployments keep their configured values.
-        legacy = await db.scalar(
-            select(RallySettings).where(RallySettings.event_id.is_(None))
-        )
+        legacy = await db.scalar(select(RallySettings).where(RallySettings.event_id.is_(None)))
         if legacy is not None:
             legacy.event_id = event.id  # type: ignore[assignment]
             db.add(legacy)
@@ -124,9 +123,8 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             DEFAULT_TICKER_ITEMS
         )
 
-        changed = (
-            normalized_layout != (settings.home_layout or [])
-            or normalized_ticker != (settings.ticker_items or [])
+        changed = normalized_layout != (settings.home_layout or []) or normalized_ticker != (
+            settings.ticker_items or []
         )
         if changed:
             settings.home_layout = normalized_layout  # type: ignore[assignment]
@@ -136,9 +134,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             await db.refresh(settings)
         return settings
 
-    async def set_image_url(
-        self, db: "AsyncSession", *, field: str, url: str
-    ) -> RallySettings:
+    async def set_image_url(self, db: "AsyncSession", *, field: str, url: str) -> RallySettings:
         """Persist a single branding image URL column (banner_url/logo_url).
 
         Kept separate from update() so image URLs are only ever written by the
@@ -152,5 +148,6 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         await db.commit()
         await db.refresh(settings)
         return settings
+
 
 rally_settings = CRUDRallySettings(RallySettings)

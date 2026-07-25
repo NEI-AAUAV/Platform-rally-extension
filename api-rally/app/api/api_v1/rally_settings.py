@@ -3,28 +3,24 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Security, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import DetailedUser
-from app.schemas.rally_settings import RallySettingsUpdate, RallySettingsResponse
-
+from app.api.abac_deps import validate_settings_update_access, validate_settings_view_access
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
-from app.api.abac_deps import validate_settings_update_access, validate_settings_view_access
-
-from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_activity import rally_event
-from app.services.storage import storage_client
+from app.crud.crud_rally_settings import rally_settings
+from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+from app.schemas.user import DetailedUser
 from app.services.image_upload import (
     ALLOWED_FAVICON_CONTENT_TYPES,
     ALLOWED_PHOTO_CONTENT_TYPES,
     validate_and_store,
 )
+from app.services.storage import storage_client
 
 router = APIRouter()
 
 
-async def _settings_response(
-    db: AsyncSession, settings_row: object
-) -> RallySettingsResponse:
+async def _settings_response(db: AsyncSession, settings_row: object) -> RallySettingsResponse:
     """Build the settings response, resolving the current event's type.
 
     ``event_type`` lives on the event, not the per-event settings row, so we
@@ -33,6 +29,7 @@ async def _settings_response(
     event = await rally_event.ensure_current(db)
     response = RallySettingsResponse.model_validate(settings_row)
     return response.model_copy(update={"event_type": event.event_type})
+
 
 async def _upload_branding_image(
     *,
@@ -63,6 +60,7 @@ async def _upload_branding_image(
 
     updated = await rally_settings.set_image_url(db, field=field, url=url)
     return await _settings_response(db, updated)
+
 
 @router.put("/rally/settings", status_code=200)
 async def update_rally_settings(

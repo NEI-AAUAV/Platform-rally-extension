@@ -1,29 +1,28 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
 class RallyStaffAssignmentBase(BaseModel):
     user_id: int
-    checkpoint_id: Optional[int] = None
+    checkpoint_id: int | None = None
 
 
-class RallyStaffAssignmentCreate(RallyStaffAssignmentBase):
-    ...
+class RallyStaffAssignmentCreate(RallyStaffAssignmentBase): ...
 
 
 class RallyStaffAssignmentUpdate(BaseModel):
-    checkpoint_id: Optional[int] = None
+    checkpoint_id: int | None = None
 
 
 class RallyStaffAssignment(RallyStaffAssignmentBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
 
 
 class RallyStaffAssignmentWithCheckpoint(RallyStaffAssignment):
     """Staff assignment with checkpoint details"""
-    checkpoint_name: Optional[str] = None
-    checkpoint_description: Optional[str] = None
-    user_name: Optional[str] = None
-    user_email: Optional[str] = None
+
+    checkpoint_name: str | None = None
+    checkpoint_description: str | None = None
+    user_name: str | None = None
+    user_email: str | None = None

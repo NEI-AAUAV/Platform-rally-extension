@@ -1,22 +1,20 @@
-from typing import Optional, List, Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from collections import defaultdict
+from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.crud_rally_settings import rally_settings
 from app.core.exceptions import (
     RallyForbiddenError,
     RallyNotFoundError,
     RallyValidationError,
 )
+from app.crud.crud_rally_settings import rally_settings
 from app.models.team import Team
 
 
 class CRUDVersus:
-    async def create_versus_pair(
-        self, db: AsyncSession, *, team_a_id: int, team_b_id: int
-    ) -> int:
+    async def create_versus_pair(self, db: AsyncSession, *, team_a_id: int, team_b_id: int) -> int:
         """
         Manually pair two teams into a versus group.
 
@@ -61,7 +59,7 @@ class CRUDVersus:
         await db.commit()
         return group_id
 
-    async def get_opponent(self, db: AsyncSession, *, team_id: int) -> Optional[Team]:
+    async def get_opponent(self, db: AsyncSession, *, team_id: int) -> Team | None:
         """Get the opponent team in the same versus group"""
         team = await db.get(Team, team_id)
         if not team or team.versus_group_id is None:
@@ -74,19 +72,15 @@ class CRUDVersus:
         )
         return result.scalar_one_or_none()
 
-    async def get_all_versus_pairs(self, db: AsyncSession) -> List[Dict[str, Any]]:
-        teams = (
-            await db.scalars(select(Team).where(Team.versus_group_id.isnot(None)))
-        ).all()
+    async def get_all_versus_pairs(self, db: AsyncSession) -> list[dict[str, Any]]:
+        teams = (await db.scalars(select(Team).where(Team.versus_group_id.isnot(None)))).all()
 
         groups = defaultdict(list)
         for team in teams:
             groups[team.versus_group_id].append(team.id)
 
         return [
-            {"group_id": gid, "team_ids": tids}
-            for gid, tids in groups.items()
-            if len(tids) == 2
+            {"group_id": gid, "team_ids": tids} for gid, tids in groups.items() if len(tids) == 2
         ]
 
 

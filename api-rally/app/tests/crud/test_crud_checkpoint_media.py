@@ -3,6 +3,7 @@
 `storage_client.delete_image` is patched — real object storage deletion is
 out of scope here; everything else (DB writes) is real.
 """
+
 from unittest.mock import patch
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
@@ -62,9 +63,7 @@ async def test_update_image_url_deletes_old_image(pg_session) -> None:
     checkpoint = await _make_checkpoint(pg_session)
     media = await _make_media(pg_session, checkpoint.id)
 
-    with patch(
-        "app.crud.crud_checkpoint_media.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_checkpoint_media.storage_client.delete_image") as mock_delete:
         updated = await crud_media.update(
             pg_session,
             db_obj=media,
@@ -86,9 +85,7 @@ async def test_update_image_url_when_no_previous_image_skips_delete(pg_session) 
         image_url=None,
     )
 
-    with patch(
-        "app.crud.crud_checkpoint_media.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_checkpoint_media.storage_client.delete_image") as mock_delete:
         updated = await crud_media.update(
             pg_session,
             db_obj=media,
@@ -105,9 +102,7 @@ async def test_delete_removes_image_from_storage(pg_session) -> None:
     checkpoint = await _make_checkpoint(pg_session)
     media = await _make_media(pg_session, checkpoint.id)
 
-    with patch(
-        "app.crud.crud_checkpoint_media.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_checkpoint_media.storage_client.delete_image") as mock_delete:
         await crud_media.delete(pg_session, db_obj=media)
 
     mock_delete.assert_called_once_with("https://cdn.example.com/original.png")
@@ -119,9 +114,7 @@ async def test_update_with_no_changes_leaves_fields_untouched(pg_session) -> Non
     checkpoint = await _make_checkpoint(pg_session)
     media = await _make_media(pg_session, checkpoint.id)
 
-    updated = await crud_media.update(
-        pg_session, db_obj=media, obj_in=CheckpointMediaUpdate()
-    )
+    updated = await crud_media.update(pg_session, db_obj=media, obj_in=CheckpointMediaUpdate())
 
     assert updated.caption == "Original"
     assert updated.order == 0

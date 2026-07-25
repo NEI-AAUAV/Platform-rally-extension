@@ -4,7 +4,8 @@ Covers: BooleanActivity, DeferredJudgedActivity, TimeBasedActivity,
 ScoreBasedActivity, BaseActivity.apply_modifiers penalty branch, and the
 draw/lose branches of TeamVsActivity.get_score_breakdown.
 """
-from typing import Any, Dict, Optional
+
+from typing import Any
 
 import pytest
 
@@ -12,8 +13,8 @@ from app.models.activities.base import BaseActivity
 from app.models.activities.boolean import BooleanActivity
 from app.models.activities.deferred_judged import DeferredJudgedActivity
 from app.models.activities.score_based import ScoreBasedActivity
-from app.models.activities.time_based import TimeBasedActivity
 from app.models.activities.team_vs import TeamVsActivity
+from app.models.activities.time_based import TimeBasedActivity
 
 
 class TestBooleanActivity:
@@ -22,9 +23,7 @@ class TestBooleanActivity:
 
     def test_persisted_score_fields(self):
         activity = BooleanActivity({})
-        assert activity.persisted_score_fields({"success": True}) == {
-            "boolean_score": True
-        }
+        assert activity.persisted_score_fields({"success": True}) == {"boolean_score": True}
 
     def test_default_config(self):
         config = BooleanActivity.get_default_config()
@@ -59,9 +58,7 @@ class TestDeferredJudgedActivity:
 
     def test_persisted_score_fields(self):
         activity = DeferredJudgedActivity({})
-        assert activity.persisted_score_fields({"points": 42}) == {
-            "points_score": 42
-        }
+        assert activity.persisted_score_fields({"points": 42}) == {"points_score": 42}
 
     def test_default_config(self):
         config = DeferredJudgedActivity.get_default_config()
@@ -93,9 +90,9 @@ class TestTimeBasedActivityBasics:
 
     def test_persisted_score_fields(self):
         activity = TimeBasedActivity({})
-        assert activity.persisted_score_fields(
-            {"completion_time_seconds": 12.5}
-        ) == {"time_score": 12.5}
+        assert activity.persisted_score_fields({"completion_time_seconds": 12.5}) == {
+            "time_score": 12.5
+        }
 
     def test_default_config(self):
         config = TimeBasedActivity.get_default_config()
@@ -103,9 +100,7 @@ class TestTimeBasedActivityBasics:
 
     def test_calculate_score_returns_raw_time(self):
         activity = TimeBasedActivity({})
-        assert activity.calculate_score(
-            {"completion_time_seconds": 45.0}
-        ) == pytest.approx(45.0)
+        assert activity.calculate_score({"completion_time_seconds": 45.0}) == pytest.approx(45.0)
 
     def test_calculate_score_missing_time_returns_zero(self):
         activity = TimeBasedActivity({})
@@ -113,9 +108,7 @@ class TestTimeBasedActivityBasics:
 
     async def test_validate_result_true_when_present(self):
         activity = TimeBasedActivity({})
-        assert (
-            await activity.validate_result({"completion_time_seconds": 10}) is True
-        )
+        assert await activity.validate_result({"completion_time_seconds": 10}) is True
 
     async def test_validate_result_false_when_missing(self):
         activity = TimeBasedActivity({})
@@ -133,9 +126,7 @@ class TestScoreBasedActivity:
 
     def test_persisted_score_fields(self):
         activity = ScoreBasedActivity({})
-        assert activity.persisted_score_fields({"achieved_points": 80}) == {
-            "points_score": 80
-        }
+        assert activity.persisted_score_fields({"achieved_points": 80}) == {"points_score": 80}
 
     def test_default_config(self):
         config = ScoreBasedActivity.get_default_config()
@@ -170,16 +161,18 @@ class _MinimalActivity(BaseActivity):
         return "MinimalActivity"
 
     @classmethod
-    def get_default_config(cls) -> Dict[str, Any]:
+    def get_default_config(cls) -> dict[str, Any]:
         return {}
 
-    def calculate_score(self, result_data: Dict[str, Any], team_size: int = 1) -> float:
+    def calculate_score(self, result_data: dict[str, Any], team_size: int = 1) -> float:
         return 0.0
 
-    async def validate_result(self, result_data: Dict[str, Any], team_id: Optional[int] = None, db_session: Any = None) -> bool:
+    async def validate_result(
+        self, result_data: dict[str, Any], team_id: int | None = None, db_session: Any = None
+    ) -> bool:
         return True
 
-    def get_result_schema(self) -> Dict[str, Any]:
+    def get_result_schema(self) -> dict[str, Any]:
         return {}
 
 

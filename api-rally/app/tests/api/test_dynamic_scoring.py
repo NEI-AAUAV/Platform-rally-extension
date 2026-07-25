@@ -1,4 +1,5 @@
 """Tests for dynamic scoring endpoints (D4), against real Postgres."""
+
 import pytest
 from sqlalchemy import select
 

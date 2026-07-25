@@ -6,15 +6,14 @@ of the checkpoints they're accompanying teams through.
 
 Guides, staff, admins, and managers all have access. Public users do not.
 """
-from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
-from fastapi import HTTPException
 
 from app.api.deps import get_db, get_guide
 from app.crud.crud_activity import rally_event
@@ -29,8 +28,8 @@ router = APIRouter()
 class GuideMediaItem(BaseModel):
     id: int
     kind: str
-    url: Optional[str] = None
-    caption: Optional[str] = None
+    url: str | None = None
+    caption: str | None = None
     display_order: int
 
     model_config = {"from_attributes": True}
@@ -39,8 +38,8 @@ class GuideMediaItem(BaseModel):
 class GuideIndicationItem(BaseModel):
     id: int
     hint: str
-    question: Optional[str] = None
-    expected_answer: Optional[str] = None
+    question: str | None = None
+    expected_answer: str | None = None
     order: int
 
     model_config = {"from_attributes": True}
@@ -50,11 +49,11 @@ class GuideCheckpointResponse(BaseModel):
     id: int
     name: str
     order: int
-    description: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    media: List[GuideMediaItem]
-    indications: List[GuideIndicationItem]
+    description: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    media: list[GuideMediaItem]
+    indications: list[GuideIndicationItem]
 
     model_config = {"from_attributes": True}
 
@@ -66,7 +65,7 @@ class GuideCheckpointResponse(BaseModel):
 async def list_guide_checkpoints(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DetailedUser, Depends(get_guide)],
-) -> List[GuideCheckpointResponse]:
+) -> list[GuideCheckpointResponse]:
     """Return all checkpoints with their media gallery for the current event.
 
     Ordered by checkpoint order. Guide role, staff, and admins can access this.

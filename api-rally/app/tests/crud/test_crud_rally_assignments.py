@@ -1,6 +1,7 @@
 """DB-backed tests for CRUDRallyStaffAssignment / CRUDRallyGuideAssignment
 create_or_update, get_by_checkpoint_id, and get_multi_with_checkpoint paths
 that aren't yet exercised elsewhere."""
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_rally_guide_assignment import (
     rally_guide_assignment as crud_guide_assignment,

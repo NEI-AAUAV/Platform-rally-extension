@@ -10,9 +10,9 @@ underlying result cascades the history away (the result is gone, its audit
 trail no longer anchors anything).
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -44,9 +44,7 @@ class EvaluationHistory(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     result_id: Mapped[int] = mapped_column(
-        ForeignKey(
-            f"{settings.SCHEMA_NAME}.activity_results.id", ondelete="CASCADE"
-        ),
+        ForeignKey(f"{settings.SCHEMA_NAME}.activity_results.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
@@ -56,25 +54,24 @@ class EvaluationHistory(Base):
     # subject + display name; for team contests it is the team id + name. Kept
     # denormalized (name copied in) so the trail stays readable even if the
     # user/team is later renamed or removed.
-    editor_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    editor_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    editor_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    editor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Field-level diff: {field: {"before": <old>, "after": <new>}}. Empty for a
     # contest (no scoring fields changed) — the team's message goes in `note`.
     changes: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     # Free-form context: a team's contest reason, or an editor's note.
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         index=True,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
         return (
-            f"<EvaluationHistory(id={self.id}, result_id={self.result_id}, "
-            f"action='{self.action}')>"
+            f"<EvaluationHistory(id={self.id}, result_id={self.result_id}, action='{self.action}')>"
         )

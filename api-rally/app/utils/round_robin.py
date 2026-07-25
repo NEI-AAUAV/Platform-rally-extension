@@ -11,6 +11,7 @@ Algorithm:
 
 Returns a list of rounds; each round is a list of {team_id, checkpoint_id} pairs.
 """
+
 from typing import Any
 
 
@@ -36,9 +37,7 @@ def generate_schedule(
         round_assignments: list[dict[str, Any]] = []
         for team_pos, team_id in enumerate(team_ids):
             cp_idx = (team_pos + round_idx) % n_checkpoints
-            round_assignments.append(
-                {"team_id": team_id, "checkpoint_id": checkpoint_ids[cp_idx]}
-            )
+            round_assignments.append({"team_id": team_id, "checkpoint_id": checkpoint_ids[cp_idx]})
         schedule.append(round_assignments)
 
     return schedule

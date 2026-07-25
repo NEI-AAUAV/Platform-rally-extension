@@ -24,7 +24,9 @@ async def test_claim_nonce_first_claim_is_fresh(monkeypatch: pytest.MonkeyPatch,
     assert result is True
 
 
-async def test_claim_nonce_second_claim_is_rejected(monkeypatch: pytest.MonkeyPatch, settings) -> None:
+async def test_claim_nonce_second_claim_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, settings
+) -> None:
     fake = fakeredis.aioredis.FakeRedis(decode_responses=True)
     monkeypatch.setattr(checkin_api, "get_async_redis_client", lambda: fake)
 

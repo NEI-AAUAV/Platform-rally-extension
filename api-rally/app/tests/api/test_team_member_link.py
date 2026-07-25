@@ -1,4 +1,5 @@
 """API tests for admin OIDC-account search and placeholder linking, against real Postgres."""
+
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
 from app.schemas.team import TeamCreate
@@ -24,17 +25,13 @@ class TestUserSearch:
     async def test_search_falls_back_to_local_when_authentik_unconfigured(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):
-        from unittest.mock import AsyncMock
         from types import SimpleNamespace
+        from unittest.mock import AsyncMock
 
         await _make_event(pg_session)
         found = [SimpleNamespace(id=7, name="Ana", email="ana@nei.pt", authentik_sub="sub-ana")]
-        monkeypatch.setattr(
-            "app.api.authentik_client.search_users", AsyncMock(return_value=[])
-        )
-        monkeypatch.setattr(
-            "app.crud.user.search_oidc_users", AsyncMock(return_value=found)
-        )
+        monkeypatch.setattr("app.api.authentik_client.search_users", AsyncMock(return_value=[]))
+        monkeypatch.setattr("app.crud.user.search_oidc_users", AsyncMock(return_value=found))
 
         resp = pg_client.get("/api/rally/v1/user/search", params={"q": "ana"})
 
@@ -47,16 +44,15 @@ class TestUserSearch:
         self, pg_session, pg_client, as_admin, monkeypatch
     ):
         from unittest.mock import AsyncMock
+
         from app.api.authentik_client import AuthentikUser
 
         await _make_event(pg_session)
-        found = [AuthentikUser(authentik_sub="uuid-1", name="Bea", username="bea", email="bea@nei.pt")]
-        monkeypatch.setattr(
-            "app.api.authentik_client.search_users", AsyncMock(return_value=found)
-        )
-        monkeypatch.setattr(
-            "app.crud.user.get_by_authentik_subs", AsyncMock(return_value=[])
-        )
+        found = [
+            AuthentikUser(authentik_sub="uuid-1", name="Bea", username="bea", email="bea@nei.pt")
+        ]
+        monkeypatch.setattr("app.api.authentik_client.search_users", AsyncMock(return_value=found))
+        monkeypatch.setattr("app.crud.user.get_by_authentik_subs", AsyncMock(return_value=[]))
 
         resp = pg_client.get("/api/rally/v1/user/search", params={"q": "bea"})
 
@@ -131,7 +127,7 @@ class TestLinkTeamMember:
         await crud_user.create_for_oidc(
             pg_session, authentik_sub="sub-x", name="X", email=None, scopes=[]
         )
-        target = (await crud_user.get_by_authentik_sub(pg_session, authentik_sub="sub-x"))
+        target = await crud_user.get_by_authentik_sub(pg_session, authentik_sub="sub-x")
         target.team_id = other_team.id
         pg_session.add(target)
         await pg_session.commit()

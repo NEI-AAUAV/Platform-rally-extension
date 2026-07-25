@@ -63,7 +63,9 @@ async def test_publish_noop_when_disabled(monkeypatch: pytest.MonkeyPatch) -> No
         raise AssertionError("Redis must not be touched when events are disabled")
 
     monkeypatch.setattr(redis_module, "get_async_redis_client", _fail)
-    await publish_event(TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=5)))
+    await publish_event(
+        TeamScoreUpdatedEvent(payload=TeamScoreUpdatedPayload(team_id=1, total_score=5))
+    )
     assert called is False
 
 

@@ -2,6 +2,7 @@
 (against real Postgres). `storage_client.delete_image` is patched — real
 object storage deletion is out of scope; everything else is real.
 """
+
 from unittest.mock import patch
 
 from app.crud.crud_badge_definition import badge_definition as crud_def
@@ -90,9 +91,7 @@ async def test_update_icon_url_deletes_previous_icon(pg_session) -> None:
     pg_session.add(badge)
     await pg_session.commit()
 
-    with patch(
-        "app.crud.crud_badge_definition.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_badge_definition.storage_client.delete_image") as mock_delete:
         updated = await crud_def.update(
             pg_session,
             db_obj=badge,
@@ -110,9 +109,7 @@ async def test_delete_removes_icon_from_storage(pg_session) -> None:
     pg_session.add(badge)
     await pg_session.commit()
 
-    with patch(
-        "app.crud.crud_badge_definition.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_badge_definition.storage_client.delete_image") as mock_delete:
         await crud_def.delete(pg_session, db_obj=badge)
 
     mock_delete.assert_called_once_with("https://cdn.example.com/icon.png")
@@ -122,9 +119,7 @@ async def test_delete_removes_icon_from_storage(pg_session) -> None:
 async def test_delete_without_icon_skips_storage_call(pg_session) -> None:
     badge = await _make_badge(pg_session)
 
-    with patch(
-        "app.crud.crud_badge_definition.storage_client.delete_image"
-    ) as mock_delete:
+    with patch("app.crud.crud_badge_definition.storage_client.delete_image") as mock_delete:
         await crud_def.delete(pg_session, db_obj=badge)
 
     mock_delete.assert_not_called()

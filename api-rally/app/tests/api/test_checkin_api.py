@@ -4,9 +4,10 @@
 tracking are out of scope; everything else (DB, ABAC, routing, add_checkpoint)
 runs for real.
 """
+
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -35,7 +36,7 @@ async def _activate_rally(pg_session, event):
     settings row directly is silently reverted on the next read. Set the
     event's timing instead — that's the actual source of truth.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     event.start_time = now - timedelta(hours=1)
     event.end_time = now + timedelta(hours=1)
     pg_session.add(event)
@@ -96,7 +97,11 @@ async def test_check_in_success(pg_session, pg_client, as_checkin_team, monkeypa
         resp = pg_client.post(CHECK_IN_URL, json={"token": "whatever"})
 
     assert resp.status_code == 200, resp.text
-    assert resp.json() == {"team_id": team.id, "checkpoint_id": checkpoint.id, "checkpoint_order": 1}
+    assert resp.json() == {
+        "team_id": team.id,
+        "checkpoint_id": checkpoint.id,
+        "checkpoint_order": 1,
+    }
 
 
 async def test_check_in_disabled_returns_404(pg_session, pg_client, as_checkin_team):
@@ -124,7 +129,9 @@ async def test_check_in_bad_token_returns_400(pg_session, pg_client, as_checkin_
     assert resp.status_code == 400
 
 
-async def test_check_in_out_of_order_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
+async def test_check_in_out_of_order_returns_409(
+    pg_session, pg_client, as_checkin_team, monkeypatch
+):
     event = await _make_event(pg_session)
     await _activate_rally(pg_session, event)
     await _make_checkpoint(pg_session, order=1)
@@ -139,7 +146,9 @@ async def test_check_in_out_of_order_returns_409(pg_session, pg_client, as_check
     assert resp.status_code == 409
 
 
-async def test_check_in_replayed_token_returns_409(pg_session, pg_client, as_checkin_team, monkeypatch):
+async def test_check_in_replayed_token_returns_409(
+    pg_session, pg_client, as_checkin_team, monkeypatch
+):
     event = await _make_event(pg_session)
     await _activate_rally(pg_session, event)
     checkpoint = await _make_checkpoint(pg_session, order=1)
@@ -210,11 +219,15 @@ CHECKIN_TOKEN_URL = "/api/rally/v1/checkpoint/checkin-token"
 class TestGetCheckinToken:
     def _staff_override(self, checkpoint_id=None):
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
         from app.schemas.user import DetailedUser
 
         user = DetailedUser(
-            id=10, name="Staff", disabled=False, staff_checkpoint_id=checkpoint_id, scopes=["rally-staff"]
+            id=10,
+            name="Staff",
+            disabled=False,
+            staff_checkpoint_id=checkpoint_id,
+            scopes=["rally-staff"],
         )
         auth = AuthData(oidc_sub="staff-1", name="Staff", scopes=["rally-staff"])
         app.dependency_overrides[api_nei_auth] = lambda: auth
@@ -237,41 +250,31 @@ class TestGetCheckinToken:
 
         assert resp.status_code == 404
 
-    async def test_get_checkin_token_staff_own_checkpoint(
-        self, pg_session, pg_client
-    ):
+    async def test_get_checkin_token_staff_own_checkpoint(self, pg_session, pg_client):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         self._staff_override(checkpoint_id=checkpoint.id)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                resp = pg_client.get(
-                    "/api/rally/v1/checkpoint/checkin-token"
-                )
+                resp = pg_client.get("/api/rally/v1/checkpoint/checkin-token")
         finally:
             self._clear_staff_override()
 
         assert resp.status_code == 200, resp.text
         assert "token" in resp.json()
 
-    async def test_get_checkin_token_staff_no_checkpoint_403(
-        self, pg_session, pg_client
-    ):
+    async def test_get_checkin_token_staff_no_checkpoint_403(self, pg_session, pg_client):
         await _make_event(pg_session)
         self._staff_override(checkpoint_id=None)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                resp = pg_client.get(
-                    "/api/rally/v1/checkpoint/checkin-token"
-                )
+                resp = pg_client.get("/api/rally/v1/checkpoint/checkin-token")
         finally:
             self._clear_staff_override()
 
         assert resp.status_code == 403
 
-    async def test_get_checkin_token_staff_other_checkpoint_forbidden(
-        self, pg_session, pg_client
-    ):
+    async def test_get_checkin_token_staff_other_checkpoint_forbidden(self, pg_session, pg_client):
         await _make_event(pg_session)
         own_cp = await _make_checkpoint(pg_session, order=1)
         other_cp = await _make_checkpoint(pg_session, order=2)
@@ -301,15 +304,11 @@ class TestGetCheckinToken:
 
         assert resp.status_code == 200, resp.text
 
-    async def test_get_checkin_token_admin_no_checkpoint_403(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_checkin_token_admin_no_checkpoint_403(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
         with _override_settings(SELF_CHECKIN_ENABLED=True):
-            resp = pg_client.get(
-                "/api/rally/v1/checkpoint/checkin-token"
-            )
+            resp = pg_client.get("/api/rally/v1/checkpoint/checkin-token")
 
         assert resp.status_code == 403
 
@@ -317,11 +316,15 @@ class TestGetCheckinToken:
 class TestStaffCheckIn:
     def _staff_override(self, checkpoint_id=None):
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
         from app.schemas.user import DetailedUser
 
         user = DetailedUser(
-            id=11, name="Staff", disabled=False, staff_checkpoint_id=checkpoint_id, scopes=["rally-staff"]
+            id=11,
+            name="Staff",
+            disabled=False,
+            staff_checkpoint_id=checkpoint_id,
+            scopes=["rally-staff"],
         )
         auth = AuthData(oidc_sub="staff-2", name="Staff", scopes=["rally-staff"])
         app.dependency_overrides[api_nei_auth] = lambda: auth
@@ -351,9 +354,7 @@ class TestStaffCheckIn:
         self._staff_override(checkpoint_id=None)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                resp = pg_client.post(
-                    self.STAFF_CHECKIN_URL, json={"team_code": "X"}
-                )
+                resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": "X"})
         finally:
             self._clear_staff_override()
 
@@ -365,9 +366,7 @@ class TestStaffCheckIn:
         self._staff_override(checkpoint_id=checkpoint.id)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                resp = pg_client.post(
-                    self.STAFF_CHECKIN_URL, json={"team_code": "NOPE"}
-                )
+                resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": "NOPE"})
         finally:
             self._clear_staff_override()
 
@@ -414,9 +413,7 @@ class TestStaffCheckIn:
         self._staff_override(checkpoint_id=checkpoint.id)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                first = pg_client.post(
-                    self.STAFF_CHECKIN_URL, json={"team_code": team.access_code}
-                )
+                first = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": team.access_code})
                 assert first.status_code == 200, first.text
                 second = pg_client.post(
                     self.STAFF_CHECKIN_URL, json={"team_code": team.access_code}
@@ -435,18 +432,14 @@ class TestStaffCheckIn:
         self._staff_override(checkpoint_id=checkpoint_2.id)
         try:
             with _override_settings(SELF_CHECKIN_ENABLED=True):
-                resp = pg_client.post(
-                    self.STAFF_CHECKIN_URL, json={"team_code": team.access_code}
-                )
+                resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": team.access_code})
         finally:
             self._clear_staff_override()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["status"] == "ahead"
 
-    async def test_staff_check_in_admin_explicit_checkpoint(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_staff_check_in_admin_explicit_checkpoint(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)

@@ -4,10 +4,10 @@ Covers algorithm pinning (alg-confusion defence) and JWKS caching. Uses a
 locally generated RSA keypair so no real provider is contacted.
 """
 
-import anyio
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
 
+import anyio
 import pytest
 from authlib.jose import JsonWebKey, JsonWebToken
 from fastapi import HTTPException
@@ -49,10 +49,12 @@ def _wired_validator(jwks_calls: list[int] | None = None):
     client = AsyncMock()
     client.get = fake_get
     client.__aenter__.return_value = client
-    with patch.object(settings, "OIDC_CLIENT_ID", _CLIENT_ID), \
-         patch.object(settings, "OIDC_ALLOWED_ALGORITHMS", ["RS256"]), \
-         patch("app.api.oidc.httpx.AsyncClient", return_value=client), \
-         patch("app.api.oidc._jwt", JsonWebToken(["RS256"])):
+    with (
+        patch.object(settings, "OIDC_CLIENT_ID", _CLIENT_ID),
+        patch.object(settings, "OIDC_ALLOWED_ALGORITHMS", ["RS256"]),
+        patch("app.api.oidc.httpx.AsyncClient", return_value=client),
+        patch("app.api.oidc._jwt", JsonWebToken(["RS256"])),
+    ):
         yield v
 
 
@@ -105,9 +107,8 @@ async def test_wrong_issuer_rejected():
 @pytest.mark.asyncio
 async def test_audience_list_missing_client_id_rejected():
     token = _sign("RS256", sub="u1", aud=["other-client"])
-    with _wired_validator() as v:
-        with pytest.raises(HTTPException) as exc:
-            await v.validate_token(token, settings)
+    with _wired_validator() as v, pytest.raises(HTTPException) as exc:
+        await v.validate_token(token, settings)
     assert exc.value.status_code == 401
     assert "audience" in exc.value.detail.lower()
 
@@ -123,9 +124,8 @@ async def test_audience_list_with_client_id_accepted():
 @pytest.mark.asyncio
 async def test_scalar_audience_mismatch_rejected():
     token = _sign("RS256", sub="u1", aud="someone-else")
-    with _wired_validator() as v:
-        with pytest.raises(HTTPException) as exc:
-            await v.validate_token(token, settings)
+    with _wired_validator() as v, pytest.raises(HTTPException) as exc:
+        await v.validate_token(token, settings)
     assert exc.value.status_code == 401
     assert "audience" in exc.value.detail.lower()
 
@@ -157,9 +157,11 @@ async def test_get_oidc_config_success_populates_cache():
     client = AsyncMock()
     client.get = AsyncMock(return_value=resp)
     client.__aenter__.return_value = client
-    with patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"), \
-         patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"), \
-         patch("app.api.oidc.httpx.AsyncClient", return_value=client):
+    with (
+        patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"),
+        patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"),
+        patch("app.api.oidc.httpx.AsyncClient", return_value=client),
+    ):
         result = await v._get_oidc_config(settings)
 
     assert result["jwks_uri"] == discovery["jwks_uri"]
@@ -173,9 +175,11 @@ async def test_get_oidc_config_failure_raises_503():
     client = AsyncMock()
     client.get = AsyncMock(side_effect=RuntimeError("network down"))
     client.__aenter__.return_value = client
-    with patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"), \
-         patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"), \
-         patch("app.api.oidc.httpx.AsyncClient", return_value=client):
+    with (
+        patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"),
+        patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"),
+        patch("app.api.oidc.httpx.AsyncClient", return_value=client),
+    ):
         with pytest.raises(HTTPException) as exc:
             await v._get_oidc_config(settings)
     assert exc.value.status_code == 503

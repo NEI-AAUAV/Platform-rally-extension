@@ -5,6 +5,7 @@ Teams, checkpoints and activities belong to an event (``event_id``). The
 list/count/create operations can transparently restrict themselves to the
 active edition without every caller having to know about events.
 """
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

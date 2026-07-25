@@ -1,9 +1,8 @@
-from typing import Optional, List
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from .user import ListingUser
+from app.schemas.user import ListingUser
 
 
 class TeamBase(BaseModel):
@@ -13,7 +12,7 @@ class TeamBase(BaseModel):
     name: str
     total: int
     classification: int
-    versus_group_id: Optional[int] = None
+    versus_group_id: int | None = None
     photo_url: str = ""
 
 
@@ -23,27 +22,27 @@ class ListingTeam(TeamBase):
     """
 
     num_members: int
-    times: List[datetime] = []
+    times: list[datetime] = []
 
-    last_checkpoint_time: Optional[datetime]
-    last_checkpoint_score: Optional[int] = None
-    last_checkpoint_number: Optional[int] = None
-    last_checkpoint_name: Optional[str] = None
-    current_checkpoint_number: Optional[int] = None
+    last_checkpoint_time: datetime | None
+    last_checkpoint_score: int | None = None
+    last_checkpoint_number: int | None = None
+    last_checkpoint_name: str | None = None
+    current_checkpoint_number: int | None = None
 
 
 class DetailedTeam(TeamBase):
     access_code: str
-    times: List[datetime]
+    times: list[datetime]
 
-    score_per_checkpoint: List[int]
+    score_per_checkpoint: list[int]
 
-    members: List[ListingUser]
+    members: list[ListingUser]
 
     # Activity-based completion counters (more reliable than len(times))
-    last_checkpoint_number: Optional[int] = None
-    current_checkpoint_number: Optional[int] = None
-    total_checkpoints: Optional[int] = None
+    last_checkpoint_number: int | None = None
+    current_checkpoint_number: int | None = None
+    total_checkpoints: int | None = None
 
 
 class TeamCreate(BaseModel):
@@ -51,17 +50,18 @@ class TeamCreate(BaseModel):
 
 
 class TeamUpdate(BaseModel):
-    name: Optional[str] = None
-    times: Optional[List[datetime]] = None
-    score_per_checkpoint: Optional[List[int]] = None
-    question_scores: Optional[List[bool]] = None
-    time_scores: Optional[List[int]] = None
-    pukes: Optional[int] = None
-    skips: Optional[int] = None
+    name: str | None = None
+    times: list[datetime] | None = None
+    score_per_checkpoint: list[int] | None = None
+    question_scores: list[bool] | None = None
+    time_scores: list[int] | None = None
+    pukes: int | None = None
+    skips: int | None = None
+
 
 class AdminCheckPointSelect(BaseModel):
     # For admin's only
-    checkpoint_id: Optional[int] = None
+    checkpoint_id: int | None = None
 
 
 class TeamScoresUpdate(AdminCheckPointSelect):

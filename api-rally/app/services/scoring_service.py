@@ -1,26 +1,20 @@
 """
 Scoring system service for Rally activities
 """
-from dataclasses import dataclass
-from typing import Any, Optional
-from sqlalchemy.orm import joinedload, selectinload
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
 import copy
 import logging
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.config import get_settings
-from app.models.activity import ActivityResult, Activity
-from app.models.evaluation_history import EvaluationHistory, EvaluationAction
-from app.models.dynamic_scoring import DynamicAward
-from app.models.team import Team
-from app.models.rally_settings import RallySettings
-from app.schemas.activity_types import ActivityType
-from app.models.activity_factory import ActivityFactory
-from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
-from app.crud.crud_activity import activity_result as activity_result_crud
 from app.core.exceptions import RallyError, RallyValidationError
+from app.crud.crud_activity import activity_result as activity_result_crud
 from app.events import (
     ActivityResultChangedPayload,
     ActivityResultCreatedEvent,
@@ -30,6 +24,14 @@ from app.events import (
     TeamScoreUpdatedPayload,
     publish_event,
 )
+from app.models.activity import Activity, ActivityResult
+from app.models.activity_factory import ActivityFactory
+from app.models.dynamic_scoring import DynamicAward
+from app.models.evaluation_history import EvaluationAction, EvaluationHistory
+from app.models.rally_settings import RallySettings
+from app.models.team import Team
+from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
+from app.schemas.activity_types import ActivityType
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +65,10 @@ _AUDITED_FIELDS = (
 
 def _snapshot_result(result: ActivityResult) -> dict[str, Any]:
     """Deep-copy the audited fields of a result for later diffing."""
-    return {
-        field: copy.deepcopy(getattr(result, field)) for field in _AUDITED_FIELDS
-    }
+    return {field: copy.deepcopy(getattr(result, field)) for field in _AUDITED_FIELDS}
 
 
-def _diff_snapshots(
-    before: dict[str, Any], after: dict[str, Any]
-) -> dict[str, dict[str, Any]]:
+def _diff_snapshots(before: dict[str, Any], after: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Field-level {field: {"before", "after"}} for values that changed."""
     return {
         field: {"before": before[field], "after": after[field]}
@@ -98,21 +96,22 @@ class ScoringService:
         return settings.RECOMPUTE_OFF_PATH and settings.EVENTS_ENABLED
 
     async def _team_size(self, team_id: int) -> int:
-        """Number of members on a team (min 1 for scoring) """
+        """Number of members on a team (min 1 for scoring)"""
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
         )
         return len(team.members) if team and team.members else 1
 
-    async def _completed_times(self, activity_id: int, extra_time: float | None = None) -> list[float]:
-        """ All completion times for an activity's completed results
+    async def _completed_times(
+        self, activity_id: int, extra_time: float | None = None
+    ) -> list[float]:
+        """All completion times for an activity's completed results
 
-            Pass extra_time to include a result not yet persisted (create path)
+        Pass extra_time to include a result not yet persisted (create path)
         """
 
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.is_completed.is_(True)
+            ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
         )
 
         times = [
@@ -127,17 +126,17 @@ class ScoringService:
         return times
 
     async def compute_final_score(
-            self,
-            *,
-            activity_type: str,
-            config: dict[str, Any],
-            result_data: dict[str, Any],
-            team_size: int,
-            extra_shots: int = 0,
-            penalties: dict[str, Any] | None = None,
-            all_times: list[float] | None = None,
+        self,
+        *,
+        activity_type: str,
+        config: dict[str, Any],
+        result_data: dict[str, Any],
+        team_size: int,
+        extra_shots: int = 0,
+        penalties: dict[str, Any] | None = None,
+        all_times: list[float] | None = None,
     ) -> float:
-        """ Single source of truth for scoring a result.
+        """Single source of truth for scoring a result.
 
         For time-based games, pass all_times (full set to rank against, including this results own time)
         to use relative ranking; otherwise, base scoring.
@@ -149,7 +148,11 @@ class ScoringService:
         this_time = result_data.get("completion_time_seconds")
 
         if is_time_based and this_time is not None:
-            if all_times and len(all_times) > 1 and hasattr(instance, "calculate_relative_ranking_score"):
+            if (
+                all_times
+                and len(all_times) > 1
+                and hasattr(instance, "calculate_relative_ranking_score")
+            ):
                 # Rank this time against every other team's time
                 base_score = float(
                     instance.calculate_relative_ranking_score(all_times, float(this_time))
@@ -205,9 +208,11 @@ class ScoringService:
         The returned ``id -> order`` map lets the caller lay the scores out in
         the checkpoints' current visit order.
         """
-        stmt = select(ActivityResult).options(
-            joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
-        ).where(ActivityResult.team_id == team_id)
+        stmt = (
+            select(ActivityResult)
+            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
+            .where(ActivityResult.team_id == team_id)
+        )
         results = (await self.db.scalars(stmt)).all()
 
         checkpoint_scores: dict[int, float] = {}
@@ -257,9 +262,11 @@ class ScoringService:
         if not team:
             return False
 
-        checkpoint_scores, checkpoint_order_by_id, total_score = (
-            await self._checkpoint_scores_for_team(team_id)
-        )
+        (
+            checkpoint_scores,
+            checkpoint_order_by_id,
+            total_score,
+        ) = await self._checkpoint_scores_for_team(team_id)
         total_score += await self._active_award_points(team_id)
 
         # Update team scores (round, don't truncate: float sums like 99.999…
@@ -292,8 +299,7 @@ class ScoringService:
         ``team.times``).
         """
         scores_by_order = sorted(
-            (checkpoint_order_by_id[cid], score)
-            for cid, score in checkpoint_scores.items()
+            (checkpoint_order_by_id[cid], score) for cid, score in checkpoint_scores.items()
         )
         ordered_scores = [int(score) for _order, score in scores_by_order]
         num_visits = len(team.times)
@@ -353,24 +359,20 @@ class ScoringService:
 
         award_points_by_team: dict[int, float] = {}
         for award in awards:
-            award_points_by_team[award.team_id] = (
-                award_points_by_team.get(award.team_id, 0.0) + float(award.points)
-            )
+            award_points_by_team[award.team_id] = award_points_by_team.get(
+                award.team_id, 0.0
+            ) + float(award.points)
 
         for team in teams:
             checkpoint_scores, checkpoint_order_by_id, raw_total = per_team[team.id]
             total_score = raw_total + award_points_by_team.get(team.id, 0.0)
             team.total = round(total_score)
-            self._apply_checkpoint_layout(
-                team, checkpoint_scores, checkpoint_order_by_id
-            )
+            self._apply_checkpoint_layout(team, checkpoint_scores, checkpoint_order_by_id)
 
     async def _publish_result_change(
         self,
         event_cls: type[
-            ActivityResultCreatedEvent
-            | ActivityResultUpdatedEvent
-            | ActivityResultDeletedEvent
+            ActivityResultCreatedEvent | ActivityResultUpdatedEvent | ActivityResultDeletedEvent
         ],
         *,
         result_id: int,
@@ -391,7 +393,9 @@ class ScoringService:
             )
         )
 
-    async def apply_extra_shots_bonus(self, team_id: int, activity_id: int, extra_shots: int) -> bool:
+    async def apply_extra_shots_bonus(
+        self, team_id: int, activity_id: int, extra_shots: int
+    ) -> bool:
         """Apply extra shots bonus to a team's activity result"""
         # Get team size to validate limit
         team = await self.db.scalar(
@@ -410,8 +414,7 @@ class ScoringService:
 
         # Get or create activity result
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -429,11 +432,12 @@ class ScoringService:
             await self.update_team_scores(team_id)
         return True
 
-    async def apply_penalty(self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int) -> bool:
+    async def apply_penalty(
+        self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int
+    ) -> bool:
         """Apply penalty to a team's activity result"""
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -456,9 +460,13 @@ class ScoringService:
     async def apply_vomit_penalty(self, team_id: int, activity_id: int) -> bool:
         """Apply vomit penalty (configurable points)"""
         settings = await self._get_settings()
-        return await self.apply_penalty(team_id, activity_id, "vomit", abs(settings.penalty_per_puke))
+        return await self.apply_penalty(
+            team_id, activity_id, "vomit", abs(settings.penalty_per_puke)
+        )
 
-    async def apply_drink_penalty(self, team_id: int, activity_id: int, participants_not_drinking: int) -> bool:
+    async def apply_drink_penalty(
+        self, team_id: int, activity_id: int, participants_not_drinking: int
+    ) -> bool:
         """Apply penalty for not drinking (configurable points per participant)"""
         settings = await self._get_settings()
         penalty_value = participants_not_drinking * abs(settings.penalty_per_not_drinking)
@@ -494,7 +502,9 @@ class ScoringService:
     # dependency direction is Service -> CRUD and there is no import cycle.
     # =========================================================================
 
-    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]) -> None:
+    def _set_activity_specific_scores(
+        self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]
+    ) -> None:
         """Set the type-specific score column(s) from result_data.
 
         Each activity type declares which ActivityResult column(s) it populates
@@ -526,7 +536,7 @@ class ScoringService:
             raise ValueError("Invalid result data for activity type")
 
         is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
-        completion_time = obj_in.result_data.get('completion_time_seconds')
+        completion_time = obj_in.result_data.get("completion_time_seconds")
         extra_time = float(completion_time) if completion_time is not None else None
         all_times = (
             await self._completed_times(obj_in.activity_id, extra_time=extra_time)
@@ -551,7 +561,9 @@ class ScoringService:
         # When recompute is deferred, the scoring worker does this off-path;
         # the row keeps its own freshly-computed final_score in the meantime.
         if recalc and is_time_based and not self._defer_recompute:
-            await self._recalculate_all_results_for_activity(activity.id, exclude_result_id=db_obj.id)
+            await self._recalculate_all_results_for_activity(
+                activity.id, exclude_result_id=db_obj.id
+            )
 
         if update_team_scores and not self._defer_recompute:
             await self.update_team_scores(obj_in.team_id)
@@ -573,7 +585,7 @@ class ScoringService:
         db_obj: ActivityResult,
         obj_in: ActivityResultUpdate,
         *,
-        editor: Optional[EvaluationEditor] = None,
+        editor: EvaluationEditor | None = None,
     ) -> ActivityResult:
         """Apply an update to a result, rescoring when result_data changed.
 
@@ -585,7 +597,7 @@ class ScoringService:
 
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
-        if 'result_data' in update_data:
+        if "result_data" in update_data:
             activity = await self.db.get(Activity, db_obj.activity_id)
             if activity:
                 # Refresh the type-specific score column before rescoring; ranking
@@ -659,7 +671,9 @@ class ScoringService:
         )
         return db_obj
 
-    async def _recalculate_all_results_for_activity(self, activity_id: int, exclude_result_id: int | None = None, *, commit: bool = True) -> None:
+    async def _recalculate_all_results_for_activity(
+        self, activity_id: int, exclude_result_id: int | None = None, *, commit: bool = True
+    ) -> None:
         """Rescore every completed result of a time-based activity.
 
         Called when the set of times changed (a result was added/edited), since
@@ -673,8 +687,7 @@ class ScoringService:
             return
 
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.is_completed.is_(True)
+            ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
         )
         if exclude_result_id is not None:
             stmt = stmt.where(ActivityResult.id != exclude_result_id)
@@ -721,9 +734,11 @@ class ScoringService:
 
     async def _get_activity_ranking(self, activity_id: int) -> list[dict[str, Any]]:
         """Rank teams by final_score for one activity ("1224" competition ranking)."""
-        stmt = select(ActivityResult).options(
-            joinedload(ActivityResult.team)
-        ).where(ActivityResult.activity_id == activity_id)
+        stmt = (
+            select(ActivityResult)
+            .options(joinedload(ActivityResult.team))
+            .where(ActivityResult.activity_id == activity_id)
+        )
         results = (await self.db.scalars(stmt)).all()
         results = sorted(
             results, key=lambda r: (r.final_score is not None, r.final_score or 0), reverse=True
@@ -741,19 +756,21 @@ class ScoringService:
             if prev_score is None or score != prev_score:
                 rank = i
             prev_score = score
-            ranking.append({
-                'rank': rank,
-                'team_id': result.team.id,
-                'team_name': result.team.name,
-                'score': result.final_score or 0,
-                'activities_completed': completed_counts.get(result.team.id, 0),
-                'completed_at': result.completed_at
-            })
+            ranking.append(
+                {
+                    "rank": rank,
+                    "team_id": result.team.id,
+                    "team_name": result.team.name,
+                    "score": result.final_score or 0,
+                    "activities_completed": completed_counts.get(result.team.id, 0),
+                    "completed_at": result.completed_at,
+                }
+            )
         return ranking
 
     @staticmethod
     def _ranking_score(item: dict[str, Any]) -> float:
-        score = item.get('total_score', 0)
+        score = item.get("total_score", 0)
         return float(score) if score is not None else 0.0
 
     async def _get_global_ranking(self) -> list[dict[str, Any]]:
@@ -766,15 +783,15 @@ class ScoringService:
             # activity_results are eager-loaded via selectinload above; compute
             # the total from them instead of a per-team query (avoids N+1).
             completed = [r for r in team.activity_results if r.is_completed]
-            total_score = sum(
-                float(r.final_score) for r in completed if r.final_score is not None
+            total_score = sum(float(r.final_score) for r in completed if r.final_score is not None)
+            ranking.append(
+                {
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "total_score": total_score,
+                    "activities_completed": len(completed),
+                }
             )
-            ranking.append({
-                'team_id': team.id,
-                'team_name': team.name,
-                'total_score': total_score,
-                'activities_completed': len(completed)
-            })
 
         ranking.sort(key=self._ranking_score, reverse=True)
 
@@ -785,7 +802,7 @@ class ScoringService:
             if prev_total is None or total != prev_total:
                 rank = i
             prev_total = total
-            team_rank['rank'] = rank
+            team_rank["rank"] = rank
 
         return ranking
 
@@ -802,23 +819,23 @@ class ScoringService:
 
         if not results:
             return {
-                'total_participants': 0,
-                'average_score': 0,
-                'best_score': 0,
-                'worst_score': 0,
-                'completion_rate': 0
+                "total_participants": 0,
+                "average_score": 0,
+                "best_score": 0,
+                "worst_score": 0,
+                "completion_rate": 0,
             }
 
         completed_results = [r for r in results if r.is_completed and r.final_score is not None]
         scores = [float(r.final_score) for r in completed_results if r.final_score is not None]
 
         return {
-            'total_participants': len(results),
-            'completed_participants': len(completed_results),
-            'average_score': sum(scores) / len(scores) if scores else 0.0,
-            'best_score': max(scores) if scores else 0.0,
-            'worst_score': min(scores) if scores else 0.0,
-            'completion_rate': len(completed_results) / len(results) if results else 0.0
+            "total_participants": len(results),
+            "completed_participants": len(completed_results),
+            "average_score": sum(scores) / len(scores) if scores else 0.0,
+            "best_score": max(scores) if scores else 0.0,
+            "worst_score": min(scores) if scores else 0.0,
+            "completion_rate": len(completed_results) / len(results) if results else 0.0,
         }
 
     async def validate_team_vs_match(self, team1_id: int, team2_id: int, activity_id: int) -> bool:
@@ -832,14 +849,12 @@ class ScoringService:
 
         # Check if teams already have results for this activity
         stmt1 = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team1_id
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team1_id
         )
         result1 = (await self.db.scalars(stmt1)).first()
 
         stmt2 = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team2_id
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team2_id
         )
         result2 = (await self.db.scalars(stmt2)).first()
 
@@ -851,8 +866,14 @@ class ScoringService:
 
         return True
 
-    async def create_team_vs_result(self, team1_id: int, team2_id: int, activity_id: int,
-                             winner_id: int, match_data: dict[str, Any]) -> tuple[ActivityResult, ActivityResult]:
+    async def create_team_vs_result(
+        self,
+        team1_id: int,
+        team2_id: int,
+        activity_id: int,
+        winner_id: int,
+        match_data: dict[str, Any],
+    ) -> tuple[ActivityResult, ActivityResult]:
         """Create results for both teams in a team vs team activity.
 
         Returns the two persisted results. Raises RallyValidationError if the
@@ -872,36 +893,24 @@ class ScoringService:
         team2_result = outcome_for(team2_id)
 
         # Create result for team 1
-        result1_data = {
-            'result': team1_result,
-            'opponent_team_id': team2_id,
-            **match_data
-        }
+        result1_data = {"result": team1_result, "opponent_team_id": team2_id, **match_data}
 
         # Create result for team 2
-        result2_data = {
-            'result': team2_result,
-            'opponent_team_id': team1_id,
-            **match_data
-        }
+        result2_data = {"result": team2_result, "opponent_team_id": team1_id, **match_data}
 
         try:
             # Create both results
 
             result1_create = ActivityResultCreate(
-                activity_id=activity_id,
-                team_id=team1_id,
-                result_data=result1_data
+                activity_id=activity_id, team_id=team1_id, result_data=result1_data
             )
 
             result2_create = ActivityResultCreate(
-                activity_id=activity_id,
-                team_id=team2_id,
-                result_data=result2_data
+                activity_id=activity_id, team_id=team2_id, result_data=result2_data
             )
 
             # Use datetime.now(timezone.utc) instead of func.now() for proper datetime value
-            current_time = datetime.now(timezone.utc)
+            current_time = datetime.now(UTC)
 
             # Persist both results without committing so the whole match lands
             # in one transaction (a half-recorded head-to-head is invalid).

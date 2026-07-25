@@ -1,121 +1,47 @@
-from typing import Annotated, List, Tuple, Optional, Dict, Any
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
-from app.core.exceptions import RallyForbiddenError, RallyValidationError
-from app.core.abac import Action, Resource, check_permission
-from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
-from app.services.storage import storage_client
 
 from app import crud
 from app.api import deps
-from app.schemas.team_auth import TeamTokenData
-from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.api.abac_deps import (
     require_checkpoint_score_permission,
     require_team_management_permission,
-    validate_checkpoint_access
+    validate_checkpoint_access,
 )
+from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
+from app.core.abac import Action, Resource, check_permission
+from app.core.exceptions import RallyError, RallyForbiddenError, RallyValidationError
 from app.models.team import Team
-from app.schemas.user import DetailedUser
 from app.schemas.team import (
-    TeamCreate,
-    ListingTeam,
-    TeamUpdate,
     DetailedTeam,
+    ListingTeam,
+    TeamCreate,
     TeamScoresUpdate,
+    TeamUpdate,
 )
-
+from app.schemas.team_auth import TeamTokenData
+from app.schemas.user import DetailedUser
+from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.storage import storage_client
+from app.services.team_service import TeamService
 
 router = APIRouter()
 
 
-async def _compute_checkpoint_progress(db: AsyncSession, team_obj: Team) -> Tuple[int, int, Optional[str]]:
-    """Compute last fully completed checkpoint and current checkpoint.
-    A checkpoint is considered completed only when all its activities have a
-    completed result for this team.
-    Returns: (last_completed_order, current_order, last_checkpoint_name)
-    """
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-    from app.crud.crud_activity import activity
-    from app.crud.crud_activity import activity_result as activity_result_crud
-
-    checkpoints = await checkpoint_crud.get_all_ordered(db)
-    team_results = await activity_result_crud.get_by_team(db, team_id=team_obj.id)
-    completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
-    # Number of checkpoints the team has physically checked into (times grows by
-    # one per checkpoint reached, in order).
-    checked_in_count = len(team_obj.times)
-
-    last_completed_order = 0
-    last_completed_name: str | None = None
-    for cp in checkpoints:
-        cp_activities = await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
-        active_ids = [a.id for a in cp_activities if a.is_active]
-        if not active_ids:
-            # No activity to judge here: the post counts as done once the team
-            # has checked in (via GPS arrival auto-complete). Otherwise it is
-            # still their current, not-yet-reached post — stop here.
-            if checked_in_count >= cp.order:
-                last_completed_order = cp.order
-                last_completed_name = cp.name
-                continue
-            break
-        if all(aid in completed_activity_ids for aid in active_ids):
-            last_completed_order = cp.order
-            last_completed_name = cp.name
-        else:
-            break
-
-    max_order = checkpoints[-1].order if checkpoints else 0
-    current_order = last_completed_order + 1 if last_completed_order < max_order else last_completed_order
-    return last_completed_order, current_order, last_completed_name
-
-
-async def _build_team_data(db: AsyncSession, team: Team) -> ListingTeam:
-    """Build team data for listing using strict completion rules."""
-    last_checkpoint_number, current_checkpoint_number, last_checkpoint_name = await _compute_checkpoint_progress(db, team)
-
-    return ListingTeam(
-        id=team.id,
-        name=team.name,
-        total=team.total,
-        classification=team.classification,
-        versus_group_id=team.versus_group_id,
-        times=team.times,
-        last_checkpoint_time=team.times[-1] if len(team.times) > 0 else None,
-        last_checkpoint_score=(
-            team.score_per_checkpoint[-1]
-            if len(team.score_per_checkpoint) > 0
-            else None
-        ),
-        last_checkpoint_number=last_checkpoint_number,
-        last_checkpoint_name=last_checkpoint_name,
-        current_checkpoint_number=current_checkpoint_number,
-        num_members=len(team.members),
-    )
-
-
-async def _detailed_team(db: AsyncSession, team_obj: Team, *, with_progress: bool = False) -> DetailedTeam:
-    """Serialize a team to DetailedTeam, eager-loading the members relationship
-    (DetailedTeam includes members, which would otherwise lazy-load)."""
-    await db.refresh(team_obj, ["members"])
-    result = DetailedTeam.model_validate(team_obj)
-    if with_progress:
-        from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-        last_cp, current_cp, _ = await _compute_checkpoint_progress(db, team_obj)
-        result.last_checkpoint_number = last_cp
-        result.current_checkpoint_number = current_cp
-        result.total_checkpoints = len(await checkpoint_crud.get_all_ordered(db))
-    return result
+def _team_service(db: AsyncSession) -> TeamService:
+    return TeamService(db, crud.team)
 
 
 @router.get("/", status_code=200)
-async def get_teams(*, db: Annotated[AsyncSession, Depends(deps.get_db)]) -> List[ListingTeam]:
+async def get_teams(*, db: Annotated[AsyncSession, Depends(deps.get_db)]) -> list[ListingTeam]:
+    service = _team_service(db)
     teams = await crud.team.get_multi(db)
     for team in teams:
         await db.refresh(team, ["members"])
-    return [await _build_team_data(db, team) for team in teams]
+    return [await service.build_listing_team(team) for team in teams]
 
 
 @router.get("/me", status_code=200)
@@ -124,7 +50,7 @@ async def get_own_team(
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
 ) -> DetailedTeam:
     team_obj = await crud.team.get(db=db, id=curr_user.team_id)
-    return await _detailed_team(db, team_obj, with_progress=True)
+    return await _team_service(db).build_detailed_team(team_obj, with_progress=True)
 
 
 @router.get("/{id}", status_code=200)
@@ -134,7 +60,7 @@ async def get_team_by_id(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DetailedTeam:
     team_obj = await crud.team.get(db=db, id=id)
-    return await _detailed_team(db, team_obj, with_progress=True)
+    return await _team_service(db).build_detailed_team(team_obj, with_progress=True)
 
 
 @router.put("/{id}/checkpoint", status_code=201)
@@ -148,9 +74,7 @@ async def add_checkpoint(
 ) -> DetailedTeam:
     # Use ABAC to validate checkpoint access
     checkpoint_id = validate_checkpoint_access(
-        user=staff_user,
-        auth=auth,
-        requested_checkpoint_id=obj_in.checkpoint_id
+        user=staff_user, auth=auth, requested_checkpoint_id=obj_in.checkpoint_id
     )
 
     # Enforce ABAC permission for adding scores
@@ -168,7 +92,7 @@ async def add_checkpoint(
         checkpoint_id=checkpoint_id,
         obj_in=obj_in,
     )
-    return await _detailed_team(db, team_db)
+    return await _team_service(db).build_detailed_team(team_db)
 
 
 @router.post("/", status_code=201)
@@ -183,7 +107,7 @@ async def create_team(
     require_team_management_permission(auth=auth, curr_user=curr_user)
 
     team_db = await crud.team.create(db=db, obj_in=team_in)
-    return await _detailed_team(db, team_db)
+    return await _team_service(db).build_detailed_team(team_db)
 
 
 @router.put("/{id}", status_code=200)
@@ -195,7 +119,7 @@ async def update_team(
     _: Annotated[DetailedUser, Depends(deps.get_admin)],
 ) -> DetailedTeam:
     team_db = await crud.team.update(db=db, id=id, obj_in=team_in)
-    return await _detailed_team(db, team_db)
+    return await _team_service(db).build_detailed_team(team_db)
 
 
 @router.put(
@@ -231,7 +155,7 @@ async def upload_team_photo(
         key_prefix=f"rally/teams/{id}",
     )
     team_db = await crud.team.set_photo_url(db=db, id=id, url=url)
-    return await _detailed_team(db, team_db)
+    return await _team_service(db).build_detailed_team(team_db)
 
 
 @router.delete("/{id}", status_code=200)
@@ -240,7 +164,7 @@ async def delete_team(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     _: Annotated[DetailedUser, Depends(deps.get_admin)],
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Delete a team. Only admins can delete teams."""
     try:
         # Check if team has members before deleting
@@ -251,7 +175,7 @@ async def delete_team(
 
         await crud.team.remove(db=db, id=id)
         return {"message": "Team deleted successfully"}
-    except HTTPException:
+    except (HTTPException, RallyError):
         raise
     except Exception as e:
         raise RallyValidationError(f"Cannot delete team: {str(e)}")
@@ -263,10 +187,10 @@ async def get_team_evaluations(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     id: int,
     # Use optional auth to allow either NEI user or Team token
-    current_user: Annotated[Optional[DetailedUser], Depends(deps.get_current_user_optional)] = None,
-    auth: Annotated[Optional[AuthData], Depends(api_nei_auth_optional)] = None,
-    current_team: Annotated[Optional[TeamTokenData], Depends(deps.get_current_team_optional)] = None,
-) -> Dict[str, Any]:
+    current_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
+    auth: Annotated[AuthData | None, Depends(api_nei_auth_optional)] = None,
+    current_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)] = None,
+) -> dict[str, Any]:
     """
     Get evaluations for a specific team.
     Accessible by:
@@ -276,7 +200,9 @@ async def get_team_evaluations(
     # 1. Check if authenticated as staff/admin/manager via NEI Auth
     is_admin_or_staff = False
     if auth and auth.scopes:
-        is_admin_or_staff = any(scope in auth.scopes for scope in ["admin", "manager-rally", "rally-staff"])
+        is_admin_or_staff = any(
+            scope in auth.scopes for scope in ["admin", "manager-rally", "rally-staff"]
+        )
 
     # 2. Check if authenticated as the specific team
     is_own_team = False
@@ -293,17 +219,20 @@ async def get_team_evaluations(
         raise RallyForbiddenError("You do not have permission to view these evaluations")
 
     from sqlalchemy.orm import joinedload
-    from app.models.activity import ActivityResult
+
     from app.api.api_v1.staff_evaluation_utils import serialize_activity, serialize_team
+    from app.models.activity import ActivityResult
 
     # Fetch results (eager-load team.members for serialize_team)
-    stmt = select(ActivityResult).options(
-        joinedload(ActivityResult.activity),
-        joinedload(ActivityResult.team).selectinload(Team.members)
-    ).where(
-        ActivityResult.team_id == id,
-        ActivityResult.is_completed.is_(True)
-    ).order_by(ActivityResult.completed_at.desc())
+    stmt = (
+        select(ActivityResult)
+        .options(
+            joinedload(ActivityResult.activity),
+            joinedload(ActivityResult.team).selectinload(Team.members),
+        )
+        .where(ActivityResult.team_id == id, ActivityResult.is_completed.is_(True))
+        .order_by(ActivityResult.completed_at.desc())
+    )
 
     results = list((await db.scalars(stmt)).unique().all())
 
@@ -326,11 +255,8 @@ async def get_team_evaluations(
             "points_score": result.points_score,
             "boolean_score": result.boolean_score,
             "activity": serialize_activity(result) if result.activity else None,
-            "team": serialize_team(result) if result.team else None
+            "team": serialize_team(result) if result.team else None,
         }
         evaluations.append(evaluation_data)
 
-    return {
-        "evaluations": evaluations,
-        "total": len(evaluations)
-    }
+    return {"evaluations": evaluations, "total": len(evaluations)}

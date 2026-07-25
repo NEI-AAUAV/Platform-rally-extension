@@ -15,6 +15,7 @@ NOT for production. The guard below refuses to run unless DEMO_SEED_ALLOW=1 or
 the environment is non-production, so a stray `make demo` can't scribble over a
 live event.
 """
+
 import logging
 import os
 import random
@@ -174,9 +175,7 @@ async def _seed_badges(db: AsyncSession, activities: list[Activity]) -> None:
 
     teams = list(
         (
-            await db.scalars(
-                select(Team).where(Team.name.like(f"{DEMO_TEAM_PREFIX}%")).limit(3)
-            )
+            await db.scalars(select(Team).where(Team.name.like(f"{DEMO_TEAM_PREFIX}%")).limit(3))
         ).all()
     )
     if not teams or not activities:

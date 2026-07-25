@@ -1,4 +1,5 @@
 """Integration test for app.workers.session (real Postgres via test env)."""
+
 import pytest
 from sqlalchemy import text
 

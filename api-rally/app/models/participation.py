@@ -11,8 +11,9 @@ by "claiming" a name-only member). ``team_total``/``team_classification`` are
 snapshots taken at claim time; live values are preferred at read time while the
 team still exists.
 """
-from datetime import datetime, timezone
-from typing import Any, Optional
+
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -46,17 +47,17 @@ class EventParticipation(Base):
     )
     # The team they played in. Nullable + SET NULL so archiving/deleting a team
     # keeps the historical participation row.
-    team_id: Mapped[Optional[int]] = mapped_column(
+    team_id: Mapped[int | None] = mapped_column(
         ForeignKey(f"{settings.SCHEMA_NAME}.teams.id", ondelete="SET NULL"),
         nullable=True,
     )
     # Display snapshot of the team at claim time (kept for archived editions).
-    team_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    team_total: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    team_classification: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    team_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    team_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    team_classification: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     is_captain: Mapped[bool] = mapped_column(Boolean, default=False)
 
     joined_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

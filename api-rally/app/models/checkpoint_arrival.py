@@ -1,15 +1,16 @@
 from datetime import datetime
-from typing import Any, Optional, TYPE_CHECKING
-from sqlalchemy import ForeignKey, Integer, Float, DateTime, UniqueConstraint
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.models.base import Base
 from app.core.config import settings
+from app.models.base import Base
 
 if TYPE_CHECKING:
-    from app.models.team import Team
     from app.models.checkpoint import CheckPoint
+    from app.models.team import Team
 
 
 class CheckpointArrival(Base):
@@ -35,8 +36,8 @@ class CheckpointArrival(Base):
     arrived_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     team: Mapped["Team"] = relationship("Team")
     checkpoint: Mapped["CheckPoint"] = relationship("CheckPoint")

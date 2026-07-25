@@ -1,24 +1,24 @@
 import time
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from loguru import logger
 
-from app.db.init_db import init_db
-from app.db.session import check_db_health
 from app.api.api import api_v1_router
-from app.core.logging import init_logging
 from app.core.config import settings
 from app.core.exceptions import RallyError
+from app.core.logging import init_logging
 from app.core.observability import init_sentry
 from app.core.redis import check_redis_health, close_pools
+from app.db.init_db import init_db
+from app.db.session import check_db_health
 from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker, ScoringWorker
 
 # Background workers, started in the lifespan when EVENTS_ENABLED is set.
@@ -88,7 +88,9 @@ async def rally_error_handler(request: Request, exc: RallyError) -> JSONResponse
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Log validation errors for debugging.
 
     Logs only the field-level error list (which omits raw input values), never
@@ -97,14 +99,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Strip the offending input value (and ctx, which can echo it) so secrets
     # never reach the logs or the error response.
     safe_errors = [
-        {k: v for k, v in err.items() if k not in ("input", "ctx")}
-        for err in exc.errors()
+        {k: v for k, v in err.items() if k not in ("input", "ctx")} for err in exc.errors()
     ]
     logger.error(f"Validation error on {request.method} {request.url.path}: {safe_errors}")
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": safe_errors}
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content={"detail": safe_errors}
     )
+
+
 # CORSMiddleware works correctly at runtime, but mypy type stubs for Starlette 0.50 are outdated
 app.add_middleware(
     CORSMiddleware,
@@ -113,6 +115,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Registered last so it wraps every other middleware: the request ID and timing
 # cover the whole chain, including security_headers below.
@@ -202,9 +205,7 @@ async def readiness_check() -> JSONResponse:
 
         for worker in _workers:
             alive = worker.is_alive
-            workers.append(
-                {"name": worker.name, "alive": alive, "last_beat": worker.last_beat}
-            )
+            workers.append({"name": worker.name, "alive": alive, "last_beat": worker.last_beat})
             ready = ready and alive
     body["workers"] = workers
 

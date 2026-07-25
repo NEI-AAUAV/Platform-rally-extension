@@ -1,42 +1,38 @@
 """
 Critical ABAC (Access Control) tests
 """
+
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 from fastapi import HTTPException
-from unittest.mock import Mock, AsyncMock, patch
 
-from app.core.abac import (
-    ABACEngine,
-    Action,
-    Resource,
-    Context,
-    get_accessible_checkpoints,
-    ALL_CHECKPOINTS,
-)
 from app.api.abac_deps import (
-    require_permission,
     get_staff_with_checkpoint_access,
     require_checkpoint_score_permission,
     require_checkpoint_view_permission,
+    require_permission,
     require_view_team_members_permission,
     validate_checkpoint_access,
     validate_settings_update_access,
     validate_settings_view_access,
 )
-from app.core.abac import AllCheckpoints
+from app.core.abac import (
+    ALL_CHECKPOINTS,
+    ABACEngine,
+    Action,
+    AllCheckpoints,
+    Context,
+    Resource,
+    get_accessible_checkpoints,
+)
 from app.schemas.user import DetailedUser
 
 
 @pytest.fixture
 def mock_user():
     """Mock user for testing"""
-    return DetailedUser(
-        id=1,
-        name="Test User",
-        disabled=False,
-        is_captain=False,
-        team_id=1
-    )
+    return DetailedUser(id=1, name="Test User", disabled=False, is_captain=False, team_id=1)
 
 
 @pytest.fixture
@@ -60,7 +56,7 @@ def mock_staff_user():
         disabled=False,
         is_captain=False,
         team_id=None,
-        staff_checkpoint_id=1  # Staff user assigned to checkpoint 1
+        staff_checkpoint_id=1,  # Staff user assigned to checkpoint 1
     )
 
 
@@ -116,8 +112,11 @@ class TestABACStaffCheckpointScoping:
         engine = ABACEngine()
         user = Mock(staff_checkpoint_id=1)
         context = _context(
-            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
-            user=user, checkpoint_id=1,
+            Action.ADD_CHECKPOINT_SCORE,
+            Resource.SCORE,
+            ["rally-staff"],
+            user=user,
+            checkpoint_id=1,
         )
         assert engine.evaluate(context) is True
 
@@ -125,8 +124,11 @@ class TestABACStaffCheckpointScoping:
         engine = ABACEngine()
         user = Mock(staff_checkpoint_id=1)
         context = _context(
-            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
-            user=user, checkpoint_id=2,
+            Action.ADD_CHECKPOINT_SCORE,
+            Resource.SCORE,
+            ["rally-staff"],
+            user=user,
+            checkpoint_id=2,
         )
         assert engine.evaluate(context) is False
 
@@ -134,8 +136,11 @@ class TestABACStaffCheckpointScoping:
         engine = ABACEngine()
         user = Mock(staff_checkpoint_id=1)
         context = _context(
-            Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["rally-staff"],
-            user=user, checkpoint_id=None,
+            Action.ADD_CHECKPOINT_SCORE,
+            Resource.SCORE,
+            ["rally-staff"],
+            user=user,
+            checkpoint_id=None,
         )
         assert engine.evaluate(context) is False
 
@@ -144,8 +149,11 @@ class TestABACStaffCheckpointScoping:
         engine = ABACEngine()
         user = Mock(staff_checkpoint_id=1)
         context = _context(
-            Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT, ["rally-staff"],
-            user=user, checkpoint_id=None,
+            Action.VIEW_ACTIVITY_RESULT,
+            Resource.ACTIVITY_RESULT,
+            ["rally-staff"],
+            user=user,
+            checkpoint_id=None,
         )
         assert engine.evaluate(context) is True
 
@@ -153,7 +161,9 @@ class TestABACStaffCheckpointScoping:
         engine = ABACEngine()
         user = Mock(staff_checkpoint_id=None)
         context = _context(
-            Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT, ["rally-staff"],
+            Action.VIEW_ACTIVITY_RESULT,
+            Resource.ACTIVITY_RESULT,
+            ["rally-staff"],
             user=user,
         )
         assert engine.evaluate(context) is False
@@ -175,7 +185,7 @@ class TestABACDependencies:
 
     def test_require_permission_success(self, mock_user, mock_auth_data):
         """Test successful permission requirement"""
-        with patch('app.core.abac.abac_engine') as mock_engine:
+        with patch("app.core.abac.abac_engine") as mock_engine:
             mock_engine.evaluate.return_value = True
 
             # This should not raise an exception
@@ -183,14 +193,14 @@ class TestABACDependencies:
                 user=mock_user,
                 auth=mock_auth_data,
                 action=Action.VIEW_CHECKPOINT_TEAMS,
-                resource=Resource.TEAM
+                resource=Resource.TEAM,
             )
 
             mock_engine.evaluate.assert_called_once()
 
     def test_require_permission_denied(self, mock_user, mock_auth_data):
         """Test denied permission requirement"""
-        with patch('app.core.abac.abac_engine') as mock_engine:
+        with patch("app.core.abac.abac_engine") as mock_engine:
             mock_engine.evaluate.return_value = False
 
             with pytest.raises(HTTPException):
@@ -198,36 +208,36 @@ class TestABACDependencies:
                     user=mock_user,
                     auth=mock_auth_data,
                     action=Action.VIEW_CHECKPOINT_TEAMS,
-                    resource=Resource.TEAM
+                    resource=Resource.TEAM,
                 )
 
     @pytest.mark.asyncio
-    async def test_get_staff_with_checkpoint_access_staff_user(self, mock_staff_user, mock_staff_auth_data):
+    async def test_get_staff_with_checkpoint_access_staff_user(
+        self, mock_staff_user, mock_staff_auth_data
+    ):
         """Test staff user with checkpoint access"""
         mock_db = AsyncMock()
-        with patch('app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id') as mock_get_assignment:
+        with patch(
+            "app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id"
+        ) as mock_get_assignment:
             # get_by_user_id is an async function, so mock_get_assignment is an AsyncMock.
             # Its return value when awaited should be the mock assignment.
             mock_get_assignment.return_value = Mock(checkpoint_id=1)
- 
+
             result = await get_staff_with_checkpoint_access(
-                auth=mock_staff_auth_data,
-                curr_user=mock_staff_user,
-                db=mock_db
+                auth=mock_staff_auth_data, curr_user=mock_staff_user, db=mock_db
             )
- 
+
             assert result == mock_staff_user
- 
+
     @pytest.mark.asyncio
     async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
         mock_db = AsyncMock()
- 
+
         with pytest.raises(HTTPException):
             await get_staff_with_checkpoint_access(
-                auth=mock_auth_data,
-                curr_user=mock_user,
-                db=mock_db
+                auth=mock_auth_data, curr_user=mock_user, db=mock_db
             )
 
 
@@ -289,9 +299,7 @@ class TestAccessibleCheckpoints:
     """get_accessible_checkpoints must distinguish all-access from no-access."""
 
     def test_admin_gets_all_checkpoints_sentinel(self):
-        result = get_accessible_checkpoints(
-            Mock(staff_checkpoint_id=None), Mock(scopes=["admin"])
-        )
+        result = get_accessible_checkpoints(Mock(staff_checkpoint_id=None), Mock(scopes=["admin"]))
         assert result is ALL_CHECKPOINTS
 
     def test_manager_gets_all_checkpoints_sentinel(self):
@@ -326,7 +334,7 @@ class TestAccessibleCheckpoints:
 class TestRequireCheckpointScorePermission:
     """`require_checkpoint_score_permission`, against real Postgres for the
     team/checkpoint order lookups (crud.team.get / crud.checkpoint.get raise
-    NotFoundException rather than return None, so the function's own `if not
+    RallyNotFoundError rather than return None, so the function's own `if not
     team`/`if not checkpoint` guards are unreachable dead code -- not tested)."""
 
     async def _make_checkpoint(self, pg_session, order=1):
@@ -359,7 +367,9 @@ class TestRequireCheckpointScorePermission:
                 db=pg_session,
             )
 
-    async def test_staff_rejected_when_checkpoint_order_mismatched(self, pg_session, mock_staff_user):
+    async def test_staff_rejected_when_checkpoint_order_mismatched(
+        self, pg_session, mock_staff_user
+    ):
         await self._make_checkpoint(pg_session, order=1)
         cp2 = await self._make_checkpoint(pg_session, order=2)
         team = await self._make_team(pg_session)
@@ -413,9 +423,7 @@ class TestRequireCheckpointViewPermission:
 class TestRequireViewTeamMembersPermission:
     def test_admin_bypasses_permission_check(self, mock_user):
         with patch("app.core.abac.abac_engine") as mock_engine:
-            require_view_team_members_permission(
-                auth=Mock(scopes=["admin"]), curr_user=mock_user
-            )
+            require_view_team_members_permission(auth=Mock(scopes=["admin"]), curr_user=mock_user)
             mock_engine.evaluate.assert_not_called()
 
     def test_non_admin_goes_through_permission_check(self, mock_user):
@@ -431,12 +439,11 @@ class TestValidateCheckpointAccess:
     def test_all_checkpoints_requires_explicit_id(self):
         user = Mock(staff_checkpoint_id=None)
         auth = Mock(scopes=["admin"])
-        with patch(
-            "app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()
-        ):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=user, auth=auth,
+                    user=user,
+                    auth=auth,
                     requested_checkpoint_id=None,
                 )
             assert exc.value.status_code == 400
@@ -444,11 +451,10 @@ class TestValidateCheckpointAccess:
     def test_all_checkpoints_returns_requested_id(self):
         user = Mock(staff_checkpoint_id=None)
         auth = Mock(scopes=["admin"])
-        with patch(
-            "app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()
-        ):
+        with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=AllCheckpoints()):
             result = validate_checkpoint_access(
-                user=user, auth=auth,
+                user=user,
+                auth=auth,
                 requested_checkpoint_id=42,
             )
             assert result == 42
@@ -459,7 +465,8 @@ class TestValidateCheckpointAccess:
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[]):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=user, auth=auth,
+                    user=user,
+                    auth=auth,
                     requested_checkpoint_id=None,
                 )
             assert exc.value.status_code == 400
@@ -469,7 +476,8 @@ class TestValidateCheckpointAccess:
         auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             result = validate_checkpoint_access(
-                user=user, auth=auth,
+                user=user,
+                auth=auth,
                 requested_checkpoint_id=None,
             )
             assert result == 7
@@ -480,7 +488,8 @@ class TestValidateCheckpointAccess:
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             with pytest.raises(HTTPException) as exc:
                 validate_checkpoint_access(
-                    user=user, auth=auth,
+                    user=user,
+                    auth=auth,
                     requested_checkpoint_id=999,
                 )
             assert exc.value.status_code == 403
@@ -490,7 +499,8 @@ class TestValidateCheckpointAccess:
         auth = Mock(scopes=["rally-staff"])
         with patch("app.api.abac_deps.get_accessible_checkpoints", return_value=[7]):
             result = validate_checkpoint_access(
-                user=user, auth=auth,
+                user=user,
+                auth=auth,
                 requested_checkpoint_id=7,
             )
             assert result == 7

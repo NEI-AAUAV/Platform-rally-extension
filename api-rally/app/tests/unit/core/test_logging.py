@@ -1,4 +1,5 @@
 """Unit tests for app.core.logging (loguru/stdlib logging bridge)."""
+
 import logging
 
 import pytest
@@ -10,8 +11,13 @@ class TestInterceptHandler:
     def test_emit_forwards_known_level(self, capsys: pytest.CaptureFixture) -> None:
         handler = InterceptHandler()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname=__file__, lineno=1,
-            msg="hello world", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="hello world",
+            args=(),
+            exc_info=None,
         )
         handler.emit(record)
         # loguru writes to its configured sink; just assert no exception and
@@ -24,8 +30,13 @@ class TestInterceptHandler:
         raw numeric levelno instead of raising."""
         handler = InterceptHandler()
         record = logging.LogRecord(
-            name="test", level=99, pathname=__file__, lineno=1,
-            msg="custom level", args=(), exc_info=None,
+            name="test",
+            level=99,
+            pathname=__file__,
+            lineno=1,
+            msg="custom level",
+            args=(),
+            exc_info=None,
         )
         record.levelname = "TOTALLY_UNKNOWN_LEVEL"
         handler.emit(record)  # must not raise
@@ -38,8 +49,13 @@ class TestInterceptHandler:
             import sys
 
             record = logging.LogRecord(
-                name="test", level=logging.ERROR, pathname=__file__, lineno=1,
-                msg="failure", args=(), exc_info=sys.exc_info(),
+                name="test",
+                level=logging.ERROR,
+                pathname=__file__,
+                lineno=1,
+                msg="failure",
+                args=(),
+                exc_info=sys.exc_info(),
             )
             handler.emit(record)  # must not raise
 

@@ -7,8 +7,8 @@ it. Events are infrequent (one per scoring change), so the per-event cost is
 negligible and correctness beats pooling here.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

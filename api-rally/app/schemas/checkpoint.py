@@ -10,8 +10,7 @@ class CheckPointBase(BaseModel):
     arrival_radius_m: int = 50
 
 
-class CheckPointCreate(CheckPointBase):
-    ...
+class CheckPointCreate(CheckPointBase): ...
 
 
 class CheckPointUpdate(BaseModel):

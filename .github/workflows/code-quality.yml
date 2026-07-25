@@ -48,32 +48,27 @@ jobs:
         working-directory: api-rally
         run: poetry install --no-interaction --with dev
       
-      - name: Run black (formatting check)
+      - name: Run ruff format check - BLOCKING
         working-directory: api-rally
-        run: poetry run black --check app/
-        continue-on-error: true
-      
-      - name: Run isort (import sorting check)
+        run: poetry run ruff format --check app/
+
+      - name: Run ruff lint (includes import sorting/order) - BLOCKING
         working-directory: api-rally
-        run: poetry run isort --check-only app/
-        continue-on-error: true
-      
-      - name: Run flake8 (linting)
+        run: poetry run ruff check app/
+
+      - name: Run import-linter (layering contracts) - BLOCKING
         working-directory: api-rally
-        run: poetry run flake8 app/
-        continue-on-error: true
-      
+        run: poetry run lint-imports
+
       - name: Run mypy (type checking) - BLOCKING
         working-directory: api-rally
         run: poetry run mypy app/
-        # Removed continue-on-error: true - this is now a blocking check
-      
+
       - name: Summary
         if: always()
         run: |
           echo "✅ Code quality checks completed"
-          echo "⚠️  Formatting and linting warnings don't fail the build"
-          echo "❌ Type checking (mypy) failures will block the build"
+          echo "❌ ruff, import-linter, and mypy failures block the build"
 
   lint-typescript:
     name: TypeScript Linting & Type Checking

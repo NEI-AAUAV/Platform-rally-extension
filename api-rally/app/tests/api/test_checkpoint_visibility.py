@@ -2,6 +2,7 @@
 mode), against real Postgres. Progress is driven through the real GPS arrival
 endpoint rather than mocked, so `_compute_checkpoint_progress` runs for real.
 """
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
@@ -9,8 +10,7 @@ from app.models.activity import EventType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
-from app.tests.conftest import as_team
-from app.tests.conftest import make_event
+from app.tests.conftest import as_team, make_event
 
 
 async def _make_event(pg_session):
@@ -20,7 +20,9 @@ async def _make_event(pg_session):
 async def _make_checkpoint(pg_session, order, lat=41.0, lon=-8.0):
     return await crud_checkpoint.create(
         pg_session,
-        obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order, latitude=lat, longitude=lon),
+        obj_in=CheckPointCreate(
+            name=f"Checkpoint {order}", order=order, latitude=lat, longitude=lon
+        ),
     )
 
 
@@ -58,7 +60,10 @@ class TestCheckpointVisibility:
             pg_session,
             id=settings.id,
             obj_in=_settings_update(
-                settings, show_route_mode="focused", public_access_enabled=True, show_checkpoint_map=True
+                settings,
+                show_route_mode="focused",
+                public_access_enabled=True,
+                show_checkpoint_map=True,
             ),
         )
         await _make_checkpoint(pg_session, order=1)
@@ -79,7 +84,10 @@ class TestCheckpointVisibility:
             pg_session,
             id=settings.id,
             obj_in=_settings_update(
-                settings, show_route_mode="complete", public_access_enabled=True, show_checkpoint_map=True
+                settings,
+                show_route_mode="complete",
+                public_access_enabled=True,
+                show_checkpoint_map=True,
             ),
         )
         await _make_checkpoint(pg_session, order=1)
@@ -137,9 +145,7 @@ class TestCheckpointVisibility:
         assert response.status_code == 200
         assert len(response.json()) == 3
 
-    async def test_logged_in_user_with_team_complete_mode_sees_all(
-        self, pg_session, pg_client
-    ):
+    async def test_logged_in_user_with_team_complete_mode_sees_all(self, pg_session, pg_client):
         """A logged-in participant (not a team-token request) whose profile is
         linked to a team follows the same `_get_checkpoints_for_team` path as
         a team-token request (checkpoint.py lines 42/92-93)."""
@@ -170,7 +176,7 @@ class TestCheckpointVisibility:
 
     # NOTE: `_get_checkpoints_for_team`'s `if not team: return []` (line 46)
     # is unreachable through the API — `crud.team.get()` (CRUDBase.get) raises
-    # NotFoundException itself for a missing id rather than returning None, so
+    # RallyNotFoundError itself for a missing id rather than returning None, so
     # a linked team_id that no longer resolves 404s before this branch runs.
 
     async def test_public_access_disabled_but_map_shown(self, pg_session, pg_client):
@@ -192,9 +198,7 @@ class TestCheckpointVisibility:
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_public_focused_mode_no_checkpoints_returns_empty(
-        self, pg_session, pg_client
-    ):
+    async def test_public_focused_mode_no_checkpoints_returns_empty(self, pg_session, pg_client):
         """Focused public mode with zero checkpoints yields [] rather than
         indexing into an empty list (checkpoint.py line 67)."""
         await _make_event(pg_session)

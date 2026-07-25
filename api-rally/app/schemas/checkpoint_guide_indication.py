@@ -1,23 +1,21 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class CheckpointGuideIndicationBase(BaseModel):
     hint: str = Field(min_length=1)
-    question: Optional[str] = None
-    expected_answer: Optional[str] = None
+    question: str | None = None
+    expected_answer: str | None = None
     order: int = 0
 
 
-class CheckpointGuideIndicationCreate(CheckpointGuideIndicationBase):
-    ...
+class CheckpointGuideIndicationCreate(CheckpointGuideIndicationBase): ...
 
 
 class CheckpointGuideIndicationUpdate(BaseModel):
-    hint: Optional[str] = Field(default=None, min_length=1)
-    question: Optional[str] = None
-    expected_answer: Optional[str] = None
-    order: Optional[int] = None
+    hint: str | None = Field(default=None, min_length=1)
+    question: str | None = None
+    expected_answer: str | None = None
+    order: int | None = None
 
 
 class CheckpointGuideIndication(CheckpointGuideIndicationBase):

@@ -1,4 +1,5 @@
 """Unit tests for the pure validator/helper functions in app.core.config."""
+
 import pytest
 from pydantic import ValidationError
 

@@ -1,14 +1,15 @@
-from typing import Optional, Sequence
-from sqlalchemy import select, func
-from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Sequence
 
-from app.crud.base import CRUDBase
-from app.crud._event_scope import current_event_id
-from app.models.team import Team
-from app.models.checkpoint import CheckPoint
-from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
+
 from app.core.config import settings
+from app.crud._event_scope import current_event_id
+from app.crud.base import CRUDBase
+from app.models.checkpoint import CheckPoint
+from app.models.team import Team
+from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
 
 
 def _event_filter(event_id: int) -> "ColumnElement[bool]":
@@ -28,7 +29,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
-    async def get_next(self, db: AsyncSession, team_id: int) -> Optional[CheckPoint]:
+    async def get_next(self, db: AsyncSession, team_id: int) -> CheckPoint | None:
         """Get the next checkpoint a team should visit based on order."""
         team = await db.get(Team, team_id)
 
@@ -47,11 +48,11 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
 
         return None
 
-    async def get_by_order(self, db: AsyncSession, order: int) -> Optional[CheckPoint]:
+    async def get_by_order(self, db: AsyncSession, order: int) -> CheckPoint | None:
         """Get checkpoint by its order number (within the current event)."""
         event_id = await current_event_id(db)
         stmt = select(CheckPoint).where(CheckPoint.order == order, _event_filter(event_id))
-        result: Optional[CheckPoint] = await db.scalar(stmt)
+        result: CheckPoint | None = await db.scalar(stmt)
         return result
 
     async def get_all_ordered(self, db: AsyncSession) -> Sequence[CheckPoint]:
@@ -67,16 +68,20 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         result = await db.scalar(stmt)
         return int(result) if result is not None else 0
 
-    async def reorder_checkpoints(self, db: AsyncSession, checkpoint_orders: dict[int, int]) -> None:
+    async def reorder_checkpoints(
+        self, db: AsyncSession, checkpoint_orders: dict[int, int]
+    ) -> None:
         """Reorder checkpoints by updating their order values."""
         from sqlalchemy import text
 
         # Use raw SQL to avoid unique constraint violations
         # First, set all affected checkpoints to negative orders
-        for checkpoint_id in checkpoint_orders.keys():
+        for checkpoint_id in checkpoint_orders:
             await db.execute(
-                text(f"UPDATE {settings.SCHEMA_NAME}.checkpoints SET \"order\" = -:checkpoint_id WHERE id = :checkpoint_id"),
-                {"checkpoint_id": checkpoint_id}
+                text(
+                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = -:checkpoint_id WHERE id = :checkpoint_id'
+                ),
+                {"checkpoint_id": checkpoint_id},
             )
 
         await db.commit()
@@ -84,8 +89,10 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         # Then set the final orders
         for checkpoint_id, new_order in checkpoint_orders.items():
             await db.execute(
-                text(f"UPDATE {settings.SCHEMA_NAME}.checkpoints SET \"order\" = :new_order WHERE id = :checkpoint_id"),
-                {"new_order": new_order, "checkpoint_id": checkpoint_id}
+                text(
+                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = :new_order WHERE id = :checkpoint_id'
+                ),
+                {"new_order": new_order, "checkpoint_id": checkpoint_id},
             )
 
         await db.commit()

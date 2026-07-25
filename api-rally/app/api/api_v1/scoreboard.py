@@ -7,7 +7,8 @@ those signals so the SPA can refetch without polling.
 """
 
 import asyncio
-from typing import Annotated, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -99,9 +100,7 @@ def _decode(value: str | bytes) -> str:
 async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
     client = get_async_redis_client()
     pubsub = client.pubsub()
-    await pubsub.psubscribe(
-        Channels.ALL_ACTIVITY_RESULT_EVENTS, Channels.ALL_TEAM_EVENTS
-    )
+    await pubsub.psubscribe(Channels.ALL_ACTIVITY_RESULT_EVENTS, Channels.ALL_TEAM_EVENTS)
     try:
         yield ": connected\n\n"
         while True:

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.badges import BadgeAward, evaluate_result
+from app.crud.crud_rally_settings import rally_settings
 from app.events import (
     BadgeAwardedEvent,
     BadgeAwardedPayload,
@@ -21,7 +22,6 @@ from app.events import (
     EventType,
     publish_event,
 )
-from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import ActivityResult
 from app.services import badge_service
 from app.workers.base import BaseWorker
@@ -61,9 +61,7 @@ class BadgesWorker(BaseWorker):
             for award in awards:
                 await self._award(session, award)
 
-    async def _load_result(
-        self, session: AsyncSession, result_id: int
-    ) -> ActivityResult | None:
+    async def _load_result(self, session: AsyncSession, result_id: int) -> ActivityResult | None:
         stmt = (
             select(ActivityResult)
             .options(joinedload(ActivityResult.activity))
@@ -83,9 +81,7 @@ class BadgesWorker(BaseWorker):
         if badge is None:
             # Already held — idempotent no-op, no event.
             return
-        logger.info(
-            "[BadgesWorker] Team %s earned %s", award.team_id, award.badge_code
-        )
+        logger.info("[BadgesWorker] Team %s earned %s", award.team_id, award.badge_code)
         await publish_event(
             BadgeAwardedEvent(
                 payload=BadgeAwardedPayload(

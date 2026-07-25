@@ -9,7 +9,7 @@ Ported from the nei-gamification-system api-game auth module.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 from authlib.jose import JsonWebToken
@@ -32,10 +32,10 @@ class OIDCJWTValidator:
     def __init__(self) -> None:
         self._jwks_uri: str | None = None
         self._issuer: str | None = None
-        self._jwks: Dict[str, Any] | None = None
+        self._jwks: dict[str, Any] | None = None
         self._jwks_fetched_at: float = 0.0
 
-    async def _get_oidc_config(self, settings: Settings) -> Dict[str, Any]:
+    async def _get_oidc_config(self, settings: Settings) -> dict[str, Any]:
         """Fetch (and cache) the OIDC discovery document.
 
         The expected issuer is normalised once here (docker→localhost) so the
@@ -55,9 +55,7 @@ class OIDCJWTValidator:
                 oidc_config = response.json()
 
             self._jwks_uri = oidc_config["jwks_uri"]
-            self._issuer = oidc_config["issuer"].replace(
-                "host.docker.internal", "localhost"
-            )
+            self._issuer = oidc_config["issuer"].replace("host.docker.internal", "localhost")
             return dict(oidc_config)
         except Exception as e:
             raise HTTPException(
@@ -67,7 +65,7 @@ class OIDCJWTValidator:
 
     async def _get_jwks(
         self, jwks_uri: str, settings: Settings, force_refresh: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return the provider JWKS, cached for OIDC_JWKS_CACHE_TTL_SECONDS.
 
         Refetched when the cache is empty, expired, or a caller forces refresh
@@ -86,7 +84,7 @@ class OIDCJWTValidator:
         assert self._jwks is not None
         return self._jwks
 
-    async def validate_token(self, token: str, settings: Settings) -> Dict[str, Any]:
+    async def validate_token(self, token: str, settings: Settings) -> dict[str, Any]:
         """Validate a JWT access token and return its decoded claims.
 
         Verifies the signature against the (cached) provider JWKS using a
@@ -102,9 +100,7 @@ class OIDCJWTValidator:
                 claims = _jwt.decode(token, jwks)
             except JoseError:
                 # Possible key rotation: refresh JWKS once and retry.
-                jwks = await self._get_jwks(
-                    oidc_config["jwks_uri"], settings, force_refresh=True
-                )
+                jwks = await self._get_jwks(oidc_config["jwks_uri"], settings, force_refresh=True)
                 claims = _jwt.decode(token, jwks)
             claims.validate()
 

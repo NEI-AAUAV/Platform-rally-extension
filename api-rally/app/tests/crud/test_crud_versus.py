@@ -1,4 +1,5 @@
 """DB-backed tests for CRUDVersus (against real Postgres)."""
+
 import pytest
 
 from app.core.exceptions import (
@@ -62,7 +63,9 @@ async def test_create_versus_pair_team_a_already_paired_raises_validation(pg_ses
     team_c = await _make_team(pg_session, "C")
     await crud_versus.create_versus_pair(pg_session, team_a_id=team_a.id, team_b_id=team_b.id)
 
-    with pytest.raises(RallyValidationError, match=f"Team {team_a.id} is already in a versus group"):
+    with pytest.raises(
+        RallyValidationError, match=f"Team {team_a.id} is already in a versus group"
+    ):
         await crud_versus.create_versus_pair(pg_session, team_a_id=team_a.id, team_b_id=team_c.id)
 
 
@@ -73,7 +76,9 @@ async def test_create_versus_pair_team_b_already_paired_raises_validation(pg_ses
     team_c = await _make_team(pg_session, "C")
     await crud_versus.create_versus_pair(pg_session, team_a_id=team_a.id, team_b_id=team_b.id)
 
-    with pytest.raises(RallyValidationError, match=f"Team {team_b.id} is already in a versus group"):
+    with pytest.raises(
+        RallyValidationError, match=f"Team {team_b.id} is already in a versus group"
+    ):
         await crud_versus.create_versus_pair(pg_session, team_a_id=team_c.id, team_b_id=team_b.id)
 
 

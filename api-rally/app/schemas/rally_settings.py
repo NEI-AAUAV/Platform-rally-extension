@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict, field_validator
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # Canonical, ordered set of home page section keys. Any home_layout entry
 # with an unknown key is dropped; any missing key is appended (visible by
@@ -44,7 +45,9 @@ def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     for entry in value or []:
         key = entry.get("key") if isinstance(entry, dict) else getattr(entry, "key", None)
-        visible = entry.get("visible") if isinstance(entry, dict) else getattr(entry, "visible", True)
+        visible = (
+            entry.get("visible") if isinstance(entry, dict) else getattr(entry, "visible", True)
+        )
         if key not in HOME_SECTION_KEYS or key in seen:
             continue
         seen.add(key)
@@ -138,8 +141,9 @@ class RallySettingsBase(BaseModel):
     def _normalize_ticker_items(cls, value: list[Any]) -> list[str]:
         return normalize_ticker_items(value)
 
-class RallySettingsUpdate(RallySettingsBase):
-    ...
+
+class RallySettingsUpdate(RallySettingsBase): ...
+
 
 class RallySettingsResponse(RallySettingsBase):
     model_config = ConfigDict(from_attributes=True)
@@ -147,8 +151,8 @@ class RallySettingsResponse(RallySettingsBase):
     # Rally timing is read-only here: it mirrors the current event's
     # start_time/end_time (single source of truth), set via the events
     # endpoint instead of a settings PUT, so admins configure it once.
-    rally_start_time: Optional[datetime] = None
-    rally_end_time: Optional[datetime] = None
+    rally_start_time: datetime | None = None
+    rally_end_time: datetime | None = None
 
     # Kind of the current event ('rally_tascas' | 'peddy_paper' | 'generic').
     # Read-only: it lives on the event, not the settings row, and drives

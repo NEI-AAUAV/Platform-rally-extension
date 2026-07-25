@@ -1,4 +1,5 @@
 """API tests for the read-only badge endpoints, against real Postgres."""
+
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
@@ -72,7 +73,9 @@ async def test_team_badge_showcase(pg_session, pg_client):
     team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
     await _make_definition(pg_session, "won_duel")
     await _make_definition(pg_session, "locked_one")
-    await badge_service.award_badge(pg_session, team_id=team.id, badge_code="won_duel", activity_id=99)
+    await badge_service.award_badge(
+        pg_session, team_id=team.id, badge_code="won_duel", activity_id=99
+    )
 
     resp = pg_client.get(f"/api/rally/v1/teams/{team.id}/badge-showcase")
 
@@ -90,7 +93,9 @@ class TestKillSwitch:
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
-        await badge_service.award_badge(pg_session, team_id=team.id, badge_code="won_duel", activity_id=1)
+        await badge_service.award_badge(
+            pg_session, team_id=team.id, badge_code="won_duel", activity_id=1
+        )
 
         resp = pg_client.get("/api/rally/v1/badges")
 
@@ -101,7 +106,9 @@ class TestKillSwitch:
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
-        await badge_service.award_badge(pg_session, team_id=team.id, badge_code="won_duel", activity_id=1)
+        await badge_service.award_badge(
+            pg_session, team_id=team.id, badge_code="won_duel", activity_id=1
+        )
 
         resp = pg_client.get(f"/api/rally/v1/teams/{team.id}/badges")
 

@@ -128,9 +128,7 @@ async def test_guide_indication_crud_roundtrip_and_ordering(pg_session) -> None:
         ),
     )
 
-    listed = await checkpoint_guide_indication.get_by_checkpoint(
-        pg_session, checkpoint_id=cp.id
-    )
+    listed = await checkpoint_guide_indication.get_by_checkpoint(pg_session, checkpoint_id=cp.id)
     assert [i.hint for i in listed] == ["First", "Second"]
     assert listed[0].expected_answer == "Lisboa"
 
@@ -143,9 +141,7 @@ async def test_guide_indication_crud_roundtrip_and_ordering(pg_session) -> None:
     assert updated.order == 5
 
     await checkpoint_guide_indication.delete(pg_session, db_obj=second)
-    remaining = await checkpoint_guide_indication.get_by_checkpoint(
-        pg_session, checkpoint_id=cp.id
-    )
+    remaining = await checkpoint_guide_indication.get_by_checkpoint(pg_session, checkpoint_id=cp.id)
     assert [i.hint for i in remaining] == ["First v2"]
 
 

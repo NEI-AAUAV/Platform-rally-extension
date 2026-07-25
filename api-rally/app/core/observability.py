@@ -7,7 +7,7 @@ the process.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import settings
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 _SENSITIVE_HEADERS = frozenset({"authorization", "cookie", "x-request-id"})
 
 
-def _scrub_sensitive(event: dict[str, Any], _hint: dict[str, Any]) -> Optional[dict[str, Any]]:
+def _scrub_sensitive(event: dict[str, Any], _hint: dict[str, Any]) -> dict[str, Any] | None:
     """before_send hook: drop credential-bearing request headers."""
     headers = event.get("request", {}).get("headers")
     if isinstance(headers, dict):

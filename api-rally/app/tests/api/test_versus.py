@@ -1,4 +1,5 @@
 """API tests for Versus endpoints, against real Postgres."""
+
 from concurrent.futures import ThreadPoolExecutor
 
 from app.crud.crud_rally_settings import rally_settings
@@ -95,7 +96,9 @@ class TestConcurrentVersusPairing:
     already paired and is rejected — no cross-pairing.
     """
 
-    async def test_cross_pairing_race_on_shared_team(self, pg_session, pg_client, as_admin, _pg_engine):
+    async def test_cross_pairing_race_on_shared_team(
+        self, pg_session, pg_client, as_admin, _pg_engine
+    ):
         await _make_event(pg_session)
         team_a = await _make_team(pg_session, "Team A")
         team_b = await _make_team(pg_session, "Team B")
@@ -125,6 +128,7 @@ class TestConcurrentVersusPairing:
         # context tracking (MissingGreenlet).
         from sqlalchemy import select
         from sqlalchemy.ext.asyncio import async_sessionmaker
+
         from app.models.team import Team
 
         maker = async_sessionmaker(_pg_engine, expire_on_commit=False)

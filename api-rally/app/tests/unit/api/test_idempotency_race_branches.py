@@ -3,6 +3,7 @@ in `reserve_idempotency_key` and the no-op early return in
 `store_idempotent_response`, complementing the genuinely-concurrent
 Postgres-backed tests in app/tests/integration/test_idempotency_concurrency.py
 (which can't reliably force one specific race outcome every run)."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -53,9 +54,7 @@ async def test_reserve_reraises_when_race_loser_finds_nothing(monkeypatch):
     db = _make_db(existing_after_race=None)
 
     with pytest.raises(IntegrityError):
-        await reserve_idempotency_key(
-            db, endpoint="ep", key="k", fingerprint="fp-a"
-        )
+        await reserve_idempotency_key(db, endpoint="ep", key="k", fingerprint="fp-a")
 
 
 async def test_reserve_raises_conflict_when_race_winner_fingerprint_differs(monkeypatch):
@@ -67,9 +66,7 @@ async def test_reserve_raises_conflict_when_race_winner_fingerprint_differs(monk
     db = _make_db(existing_after_race=winner_row)
 
     with pytest.raises(HTTPException) as exc:
-        await reserve_idempotency_key(
-            db, endpoint="ep", key="k", fingerprint="fp-loser"
-        )
+        await reserve_idempotency_key(db, endpoint="ep", key="k", fingerprint="fp-loser")
     assert exc.value.status_code == 409
 
 
@@ -81,9 +78,7 @@ async def test_reserve_replays_when_race_winner_fingerprint_matches(monkeypatch)
     winner_row.response_body = {"cached": True}
     db = _make_db(existing_after_race=winner_row)
 
-    reservation = await reserve_idempotency_key(
-        db, endpoint="ep", key="k", fingerprint="fp-same"
-    )
+    reservation = await reserve_idempotency_key(db, endpoint="ep", key="k", fingerprint="fp-same")
     assert reservation.replay == {"cached": True}
     assert reservation.row is None
 

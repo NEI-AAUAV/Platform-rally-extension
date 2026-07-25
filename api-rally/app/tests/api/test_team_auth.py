@@ -1,6 +1,7 @@
 """Tests for Team Auth API endpoints (team login / token management), against
 real Postgres for the HTTP-layer tests. Token-helper unit tests need no DB."""
-from datetime import datetime, timezone, timedelta
+
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -47,16 +48,20 @@ class TestCreateTeamAccessToken:
     def test_expiry_matches_settings(self):
         from app.api.api_v1.team_auth import create_team_access_token
 
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         token = create_team_access_token(team_id=1, team_name="Test Team")
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         payload = jwt.decode(
             token, settings.TEAM_JWT_SECRET_KEY, algorithms=[settings.TEAM_JWT_ALGORITHM]
         )
         expire_delta = timedelta(hours=settings.TEAM_TOKEN_EXPIRE_HOURS)
-        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        assert before + expire_delta - timedelta(seconds=1) <= exp <= after + expire_delta + timedelta(seconds=5)
+        exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
+        assert (
+            before + expire_delta - timedelta(seconds=1)
+            <= exp
+            <= after + expire_delta + timedelta(seconds=5)
+        )
 
 
 class TestVerifyTeamToken:
@@ -77,7 +82,7 @@ class TestVerifyTeamToken:
                 "team_id": 1,
                 "team_name": "Test Team",
                 "type": "team_access",
-                "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
+                "exp": datetime.now(UTC) - timedelta(seconds=1),
             },
             settings.TEAM_JWT_SECRET_KEY,
             algorithm=settings.TEAM_JWT_ALGORITHM,
@@ -103,7 +108,7 @@ class TestVerifyTeamToken:
                 "team_id": 1,
                 "team_name": "Test Team",
                 "type": "not_team_access",
-                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+                "exp": datetime.now(UTC) + timedelta(hours=1),
             },
             settings.TEAM_JWT_SECRET_KEY,
             algorithm=settings.TEAM_JWT_ALGORITHM,
@@ -119,7 +124,7 @@ class TestVerifyTeamToken:
             {
                 "team_name": "Test Team",
                 "type": "team_access",
-                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+                "exp": datetime.now(UTC) + timedelta(hours=1),
             },
             settings.TEAM_JWT_SECRET_KEY,
             algorithm=settings.TEAM_JWT_ALGORITHM,
@@ -136,7 +141,7 @@ class TestVerifyTeamToken:
                 "team_id": 1,
                 "team_name": "Test Team",
                 "type": "team_access",
-                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+                "exp": datetime.now(UTC) + timedelta(hours=1),
             },
             "wrong-secret",
             algorithm=settings.TEAM_JWT_ALGORITHM,
@@ -184,9 +189,7 @@ class TestTeamAuthAPI:
         ["short", "abcd-1234", "ABCD1234", "ABCD-12345", "A" * 100, "ABCD-123!"],
     )
     def test_login_rejects_malformed_access_code(self, pg_client, bad_code):
-        response = pg_client.post(
-            "/api/rally/v1/team-auth/login", json={"access_code": bad_code}
-        )
+        response = pg_client.post("/api/rally/v1/team-auth/login", json={"access_code": bad_code})
         assert response.status_code == 422
 
     def test_refresh_with_valid_token(self, pg_client):
@@ -220,7 +223,7 @@ class TestTokenLifecycleHardening:
     def test_refresh_carries_original_login_time(self, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
-        orig = int((datetime.now(timezone.utc) - timedelta(hours=2)).timestamp())
+        orig = int((datetime.now(UTC) - timedelta(hours=2)).timestamp())
         token = create_team_access_token(team_id=1, team_name="T", orig_iat=orig)
 
         response = pg_client.post(
@@ -237,8 +240,7 @@ class TestTokenLifecycleHardening:
 
         too_old = int(
             (
-                datetime.now(timezone.utc)
-                - timedelta(hours=settings.TEAM_TOKEN_MAX_LIFETIME_HOURS + 1)
+                datetime.now(UTC) - timedelta(hours=settings.TEAM_TOKEN_MAX_LIFETIME_HOURS + 1)
             ).timestamp()
         )
         token = create_team_access_token(team_id=1, team_name="T", orig_iat=too_old)
@@ -264,7 +266,7 @@ class TestTokenLifecycleHardening:
                 "team_id": 7,
                 "team_name": "Sete",
                 "type": "team_access",
-                "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+                "exp": datetime.now(UTC) - timedelta(minutes=1),
             },
             settings.TEAM_JWT_SECRET_KEY,
             algorithm="HS256",
@@ -280,7 +282,7 @@ class TestTokenLifecycleHardening:
                 "team_id": 1,
                 "team_name": "Forjada",
                 "type": "team_access",
-                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+                "exp": datetime.now(UTC) + timedelta(hours=1),
             },
             "attacker-secret",
             algorithm="HS256",
@@ -314,7 +316,10 @@ class TestContestEvaluation:
         act = await crud_activity.create(
             pg_session,
             obj_in=ActivityCreate(
-                name="Act", activity_type=ActivityType.GENERAL, checkpoint_id=checkpoint.id, config={}
+                name="Act",
+                activity_type=ActivityType.GENERAL,
+                checkpoint_id=checkpoint.id,
+                config={},
             ),
         )
         resp = pg_client.post(

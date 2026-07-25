@@ -1,11 +1,13 @@
 """Tests for Team Members API endpoints, against real Postgres."""
+
+from app.api.auth import AuthData, api_nei_auth
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
+from app.main import app
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 from app.tests.conftest import make_event as _make_event
-from app.api.auth import api_nei_auth, AuthData
-from app.main import app
+
 
 def _settings_update(current, **overrides) -> RallySettingsUpdate:
     data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
@@ -204,9 +206,7 @@ class TestTeamMembersAPI:
         assert resp.status_code == 400
         assert "not a member" in resp.json()["detail"]
 
-    async def test_update_team_member_captain_already_exists(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_update_team_member_captain_already_exists(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         await _set_settings(pg_session, max_members_per_team=4)
         team = await _make_team(pg_session)
@@ -228,9 +228,7 @@ class TestTeamMembersAPI:
         assert resp.status_code == 400
         assert "already has a captain" in resp.json()["detail"]
 
-    async def test_update_team_member_promote_only_captain(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_update_team_member_promote_only_captain(self, pg_session, pg_client, as_admin):
         # Setting is_captain=True on the sole member (no existing captain)
         # should succeed instead of hitting the conflict branch.
         await _make_event(pg_session)
@@ -301,7 +299,6 @@ class TestLinkSelfTeamMember:
     """`link-self`: OIDC-authenticated caller claims their own placeholder slot."""
 
     def _oidc_override(self, oidc_sub="oidc-sub-1", name="Real Name", email="real@nei.pt"):
-
         auth = AuthData(oidc_sub=oidc_sub, name=name, email=email, scopes=[])
         app.dependency_overrides[api_nei_auth] = lambda: auth
         return app
@@ -348,9 +345,7 @@ class TestLinkSelfTeamMember:
 
         self._oidc_override()
         try:
-            resp = pg_client.post(
-                "/api/rally/v1/team/999999/members/1/link-self"
-            )
+            resp = pg_client.post("/api/rally/v1/team/999999/members/1/link-self")
         finally:
             self._clear_oidc_override()
 
@@ -362,9 +357,7 @@ class TestLinkSelfTeamMember:
 
         self._oidc_override()
         try:
-            resp = pg_client.post(
-                f"/api/rally/v1/team/{team.id}/members/999999/link-self"
-            )
+            resp = pg_client.post(f"/api/rally/v1/team/{team.id}/members/999999/link-self")
         finally:
             self._clear_oidc_override()
 
@@ -392,7 +385,7 @@ class TestStaffRegistrationGate:
 
     def _staff_override(self):
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
         from app.main import app
         from app.schemas.user import DetailedUser
 

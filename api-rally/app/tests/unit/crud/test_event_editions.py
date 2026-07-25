@@ -4,9 +4,10 @@ Covers the RallyEvent CRUD invariants (single current event, lazy bootstrap,
 slugging) and the per-event settings resolver, exercising real SQL instead of
 an AsyncMock session.
 """
+
 import pytest
 
-from app.crud.crud_activity import rally_event, _slugify
+from app.crud.crud_activity import _slugify, rally_event
 from app.models.activity import EventType
 from app.schemas.activity import RallyEventCreate, RallyEventUpdate
 

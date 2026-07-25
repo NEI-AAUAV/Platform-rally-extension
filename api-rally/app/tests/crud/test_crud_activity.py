@@ -1,9 +1,11 @@
 """DB-backed tests for CRUDActivity / CRUDActivityResult / CRUDRallyEvent
 gaps not already covered by test_event_editions.py (against real Postgres).
 """
+
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_activity import activity_result as crud_activity_result
 from app.crud.crud_activity import rally_event as crud_rally_event
+from app.crud.crud_team import team as crud_team
 from app.models.activity import EventType
 from app.schemas.activity import (
     ActivityCreate,
@@ -12,7 +14,6 @@ from app.schemas.activity import (
     RallyEventUpdate,
 )
 from app.schemas.activity_types import ActivityType
-from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
 
 
@@ -47,7 +48,9 @@ async def test_activity_result_get_by_activity_returns_results_ordered(pg_sessio
     act = await _make_activity(pg_session)
     team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Team A"))
     result = crud_activity_result.build(
-        ActivityResultCreate(activity_id=act.id, team_id=team.id, result_data={"assigned_points": 10}),
+        ActivityResultCreate(
+            activity_id=act.id, team_id=team.id, result_data={"assigned_points": 10}
+        ),
         final_score=10.0,
     )
     await crud_activity_result.persist(pg_session, result)
@@ -62,7 +65,9 @@ async def test_activity_result_get_by_team_returns_results_ordered(pg_session) -
     act = await _make_activity(pg_session)
     team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Team B"))
     result = crud_activity_result.build(
-        ActivityResultCreate(activity_id=act.id, team_id=team.id, result_data={"assigned_points": 5}),
+        ActivityResultCreate(
+            activity_id=act.id, team_id=team.id, result_data={"assigned_points": 5}
+        ),
         final_score=5.0,
     )
     await crud_activity_result.persist(pg_session, result)
@@ -77,7 +82,9 @@ async def test_activity_result_get_all_returns_every_result(pg_session) -> None:
     act = await _make_activity(pg_session)
     team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Team C"))
     result = crud_activity_result.build(
-        ActivityResultCreate(activity_id=act.id, team_id=team.id, result_data={"assigned_points": 1}),
+        ActivityResultCreate(
+            activity_id=act.id, team_id=team.id, result_data={"assigned_points": 1}
+        ),
         final_score=1.0,
     )
     await crud_activity_result.persist(pg_session, result)

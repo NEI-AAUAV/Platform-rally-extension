@@ -2,6 +2,7 @@
 `/me`), against real Postgres. `authentik_client.list_group_members` stays
 mocked — external I/O, out of scope.
 """
+
 from unittest.mock import AsyncMock, patch
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -58,9 +59,7 @@ class TestGetMe:
 
 
 class TestStaffAssignments:
-    async def test_get_staff_assignments_empty(
-        self, pg_session, pg_client, as_admin, monkeypatch
-    ):
+    async def test_get_staff_assignments_empty(self, pg_session, pg_client, as_admin, monkeypatch):
         _mock_no_group_members(monkeypatch)
         await _make_event(pg_session)
 
@@ -107,9 +106,7 @@ class TestStaffAssignments:
         assert body[0]["checkpoint_id"] == checkpoint.id
         assert body[0]["checkpoint_name"] == checkpoint.name
 
-    async def test_update_checkpoint_assignment_removed(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_update_checkpoint_assignment_removed(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         staff = await _make_staff_user(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
@@ -175,9 +172,7 @@ class TestStaffAssignments:
 
 
 class TestGuideAssignments:
-    async def test_get_guide_assignments_empty(
-        self, pg_session, pg_client, as_admin, monkeypatch
-    ):
+    async def test_get_guide_assignments_empty(self, pg_session, pg_client, as_admin, monkeypatch):
         _mock_no_group_members(monkeypatch)
         await _make_event(pg_session)
 

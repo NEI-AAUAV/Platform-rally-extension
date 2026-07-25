@@ -10,9 +10,10 @@ transaction) but invisible to a session that only sees committed data. This
 avoids driving `pg_session.rollback()` directly, which raced with asyncpg's
 greenlet bridge when combined with CRUDBase's own `begin_nested()` savepoints.
 """
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from pydantic import BaseModel
+
 import pytest
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.crud.base import CRUDBase
 from app.models.team import Team
@@ -48,10 +49,10 @@ class TestCreate:
         team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=False)
 
         assert team.id is not None  # flushed, so it has a PK within this session
-        from app.exception import NotFoundException
+        from app.core.exceptions import RallyNotFoundError
 
         async with other_session_maker() as other:
-            with pytest.raises(NotFoundException):
+            with pytest.raises(RallyNotFoundError):
                 await crud.get(other, id=team.id)
 
 
@@ -69,9 +70,7 @@ class TestUpdate:
     async def test_commits_by_default(self, pg_session, crud, other_session_maker):
         team = await crud.create(pg_session, obj_in=_CreateSchema())
 
-        updated = await crud.update(
-            pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed")
-        )
+        updated = await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"))
         assert updated.name == "Renamed"
 
         async with other_session_maker() as other:
@@ -81,9 +80,7 @@ class TestUpdate:
     async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):
         team = await crud.create(pg_session, obj_in=_CreateSchema())
 
-        await crud.update(
-            pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=False
-        )
+        await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=False)
 
         async with other_session_maker() as other:
             again = await crud.get(other, id=team.id)
@@ -96,10 +93,10 @@ class TestRemove:
 
         await crud.remove(pg_session, id=team.id)
 
-        from app.exception import NotFoundException
+        from app.core.exceptions import RallyNotFoundError
 
         async with other_session_maker() as other:
-            with pytest.raises(NotFoundException):
+            with pytest.raises(RallyNotFoundError):
                 await crud.get(other, id=team.id)
 
     async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):

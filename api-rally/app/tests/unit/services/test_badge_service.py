@@ -1,5 +1,6 @@
 """DB-backed tests for app.services.badge_service, none of which existed
 before (evaluator tests always mock badge_holder_exists/team_has_badge)."""
+
 from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
 from app.services import badge_service

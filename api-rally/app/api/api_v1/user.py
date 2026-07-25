@@ -1,21 +1,22 @@
-from typing import Annotated, Any, Dict, List, Type, TypeVar
+from typing import Annotated, Any, TypeVar
+
 from fastapi import APIRouter, Depends, Security
-from app.core.exceptions import RallyValidationError
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api import authentik_client
-from app.api.auth import AuthData, api_nei_auth
-from app.api.deps import get_db, get_admin, get_participant
 from app.api.abac_deps import require_team_management_permission
+from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_admin, get_db, get_participant
 from app.core.config import SettingsDep
-from app.schemas.user import DetailedUser
-from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
-from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
+from app.core.exceptions import RallyValidationError
 from app.models.user import User
+from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
+from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
+from app.schemas.user import DetailedUser
 
 AssignmentSchemaT = TypeVar("AssignmentSchemaT", bound=BaseModel)
 
@@ -26,8 +27,8 @@ async def _list_assignments(
     group: str,
     scope: str,
     assignment_crud: Any,
-    schema: Type[AssignmentSchemaT],
-) -> List[AssignmentSchemaT]:
+    schema: type[AssignmentSchemaT],
+) -> list[AssignmentSchemaT]:
     """Shared list/mirror logic behind /staff-assignments and
     /guide-assignments: mirrors the Authentik group live, then joins each
     mirrored user against their (possibly absent) checkpoint assignment.
@@ -59,7 +60,9 @@ async def _list_assignments(
                     user_email=user.email,
                     checkpoint_id=assignment.checkpoint_id,
                     checkpoint_name=assignment.checkpoint.name if assignment.checkpoint else None,
-                    checkpoint_description=assignment.checkpoint.description if assignment.checkpoint else None,
+                    checkpoint_description=assignment.checkpoint.description
+                    if assignment.checkpoint
+                    else None,
                 )
             )
         else:
@@ -83,7 +86,7 @@ async def _update_checkpoint_assignment(
     user_id: int,
     checkpoint_id: int | None,
     assignment_crud: Any,
-    schema: Type[AssignmentSchemaT],
+    schema: type[AssignmentSchemaT],
     error_message: str,
 ) -> AssignmentSchemaT:
     """Shared create/update logic behind the staff and guide
@@ -98,15 +101,23 @@ async def _update_checkpoint_assignment(
                 id=updated_assignment.id,
                 user_id=updated_assignment.user_id,
                 checkpoint_id=updated_assignment.checkpoint_id,
-                checkpoint_name=updated_assignment.checkpoint.name if updated_assignment.checkpoint else None,
-                checkpoint_description=updated_assignment.checkpoint.description if updated_assignment.checkpoint else None,
+                checkpoint_name=updated_assignment.checkpoint.name
+                if updated_assignment.checkpoint
+                else None,
+                checkpoint_description=updated_assignment.checkpoint.description
+                if updated_assignment.checkpoint
+                else None,
             )
         return schema(
-            id=0, user_id=user_id, checkpoint_id=None,
-            checkpoint_name=None, checkpoint_description=None,
+            id=0,
+            user_id=user_id,
+            checkpoint_id=None,
+            checkpoint_name=None,
+            checkpoint_description=None,
         )
     except SQLAlchemyError as e:
         raise RallyValidationError(f"{error_message}: {str(e)}")
+
 
 router = APIRouter()
 
@@ -134,7 +145,7 @@ async def search_oidc_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(get_participant)],
-) -> List[OidcUserSearchResult]:
+) -> list[OidcUserSearchResult]:
     """Search NEI accounts by name, username or email.
 
     When the Authentik management API is configured, searches *all* Authentik
@@ -165,9 +176,7 @@ async def search_oidc_users(
     # Fallback: locally-mirrored users only.
     users = await crud.user.search_oidc_users(db, q=term)
     return [
-        OidcUserSearchResult(
-            id=u.id, name=u.name, email=u.email, authentik_sub=u.authentik_sub
-        )
+        OidcUserSearchResult(id=u.id, name=u.name, email=u.email, authentik_sub=u.authentik_sub)
         for u in users
         if u.authentik_sub is not None
     ]
@@ -178,7 +187,7 @@ async def get_staff_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DetailedUser, Depends(get_admin)],
     settings: SettingsDep,
-) -> List[RallyStaffAssignmentWithCheckpoint]:
+) -> list[RallyStaffAssignmentWithCheckpoint]:
     """
     Get all rally-staff users and their checkpoint assignments.
 
@@ -198,7 +207,7 @@ async def get_staff_assignments(
 
 
 @router.get("/me")
-async def get_me(auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])]) -> Dict[str, Any]:
+async def get_me(auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])]) -> dict[str, Any]:
     """
     Get current user information from the validated authentik token.
     """
@@ -207,7 +216,7 @@ async def get_me(auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])]) -
         "name": auth.name,
         "email": auth.email,
         "scopes": auth.scopes,
-        "disabled": False
+        "disabled": False,
     }
 
 
@@ -237,7 +246,7 @@ async def get_guide_assignments(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DetailedUser, Depends(get_admin)],
     settings: SettingsDep,
-) -> List[RallyGuideAssignmentWithCheckpoint]:
+) -> list[RallyGuideAssignmentWithCheckpoint]:
     """
     Get all rally-guide users and their checkpoint assignments.
 

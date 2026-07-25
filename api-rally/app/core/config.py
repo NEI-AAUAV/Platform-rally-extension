@@ -1,12 +1,12 @@
 import os
 import pathlib
-from urllib.parse import urljoin
 from functools import lru_cache
+from typing import Annotated, Any, TypeAlias
+from urllib.parse import urljoin
 
 from fastapi import Depends
-from typing import Annotated, Any, Optional, TypeAlias
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, PostgresDsn, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Project Directories
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -26,10 +26,8 @@ class Settings(BaseSettings):
 
     # Error tracking (Sentry / GlitchTip — same SDK, self-host just swaps the
     # DSN). Optional: when unset, error tracking is a no-op and nothing is sent.
-    SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN") or None
-    SENTRY_TRACES_SAMPLE_RATE: float = float(
-        os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")
-    )
+    SENTRY_DSN: str | None = os.getenv("SENTRY_DSN") or None
+    SENTRY_TRACES_SAMPLE_RATE: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
 
     API_V1_STR: str = "/api/rally/v1"
     STATIC_STR: str = "/static/rally"
@@ -42,11 +40,11 @@ class Settings(BaseSettings):
     # Cloudflare R2 object storage (branding image uploads). Optional:
     # when unset, upload endpoints return 503 and the app falls back to
     # bundled defaults. Same contract as the gala/family extensions.
-    R2_ENDPOINT_URL: Optional[str] = os.getenv("R2_ENDPOINT_URL")
-    R2_ACCESS_KEY_ID: Optional[str] = os.getenv("R2_ACCESS_KEY_ID")
-    R2_SECRET_ACCESS_KEY: Optional[str] = os.getenv("R2_SECRET_ACCESS_KEY")
-    R2_BUCKET: Optional[str] = os.getenv("R2_BUCKET")
-    R2_PUBLIC_BASE_URL: Optional[str] = os.getenv("R2_PUBLIC_BASE_URL")
+    R2_ENDPOINT_URL: str | None = os.getenv("R2_ENDPOINT_URL")
+    R2_ACCESS_KEY_ID: str | None = os.getenv("R2_ACCESS_KEY_ID")
+    R2_SECRET_ACCESS_KEY: str | None = os.getenv("R2_SECRET_ACCESS_KEY")
+    R2_BUCKET: str | None = os.getenv("R2_BUCKET")
+    R2_PUBLIC_BASE_URL: str | None = os.getenv("R2_PUBLIC_BASE_URL")
 
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = [
@@ -58,7 +56,7 @@ class Settings(BaseSettings):
     def assemble_cors_origins(cls, v: Any) -> list[str] | str:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+        if isinstance(v, (list, str)):
             return v
         raise ValueError(v)
 
@@ -66,50 +64,42 @@ class Settings(BaseSettings):
     # scoreboard). Mirrors the NEI gamification system's config.
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD") or None
+    REDIS_PASSWORD: str | None = os.getenv("REDIS_PASSWORD") or None
     REDIS_CONNECTION_TIMEOUT: int = int(os.getenv("REDIS_CONNECTION_TIMEOUT", "5"))
     # Event/worker/realtime subsystem. On by default (uniform with the
     # gamification system); EVENTS_FAIL_SILENTLY keeps a Redis outage from
     # breaking requests — publishes are logged and swallowed instead of raised.
     EVENTS_ENABLED: bool = os.getenv("EVENTS_ENABLED", "true").lower() == "true"
-    EVENTS_FAIL_SILENTLY: bool = (
-        os.getenv("EVENTS_FAIL_SILENTLY", "true").lower() == "true"
-    )
+    EVENTS_FAIL_SILENTLY: bool = os.getenv("EVENTS_FAIL_SILENTLY", "true").lower() == "true"
     # When on, the expensive score recompute (activity-wide rescore +
     # per-team totals) is moved OFF the request path: write routes persist the
     # raw result and publish an activity_result.* event, and the scoring worker
     # recomputes in the background. Trades immediate staff-side consistency for
     # a faster write path, so it stays OFF by default and only takes effect
     # when EVENTS_ENABLED is also set (otherwise no worker would ever catch up).
-    RECOMPUTE_OFF_PATH: bool = (
-        os.getenv("RECOMPUTE_OFF_PATH", "false").lower() == "true"
-    )
+    RECOMPUTE_OFF_PATH: bool = os.getenv("RECOMPUTE_OFF_PATH", "false").lower() == "true"
 
     # Team QR self-check-in. A checkpoint shows a short-lived HMAC-signed QR;
     # a team scans it to check itself into that checkpoint (replacing staff
     # gating). Off by default — a rally opts in. The signing secret falls back
     # to TEAM_JWT_SECRET_KEY when unset, so no new mandatory env is required.
-    SELF_CHECKIN_ENABLED: bool = (
-        os.getenv("SELF_CHECKIN_ENABLED", "false").lower() == "true"
-    )
-    CHECKIN_HMAC_SECRET: Optional[str] = os.getenv("CHECKIN_HMAC_SECRET") or None
-    CHECKIN_TOKEN_TTL_SECONDS: int = int(
-        os.getenv("CHECKIN_TOKEN_TTL_SECONDS", "90")
-    )
+    SELF_CHECKIN_ENABLED: bool = os.getenv("SELF_CHECKIN_ENABLED", "false").lower() == "true"
+    CHECKIN_HMAC_SECRET: str | None = os.getenv("CHECKIN_HMAC_SECRET") or None
+    CHECKIN_TOKEN_TTL_SECONDS: int = int(os.getenv("CHECKIN_TOKEN_TTL_SECONDS", "90"))
 
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"
-    
+
     # Rally scoring penalties and bonuses
-    EXTRA_SHOT_BONUS: int = 1  # Points added per extra shot (fallback default; RallySettings is source of truth)
+    EXTRA_SHOT_BONUS: int = (
+        1  # Points added per extra shot (fallback default; RallySettings is source of truth)
+    )
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
     POSTGRES_URI: PostgresDsn = PostgresDsn(
-        f"postgresql://{POSTGRES_USER}"
-        f":{POSTGRES_PASSWORD}@{POSTGRES_SERVER}"
-        f":5432/{POSTGRES_DB}"
+        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:5432/{POSTGRES_DB}"
     )
     TEST_POSTGRES_URI: PostgresDsn = PostgresDsn(
         f"postgresql://{POSTGRES_USER}"
@@ -148,30 +138,22 @@ class Settings(BaseSettings):
 
     # Team authentication (independent: rally mints its own HS256 team tokens)
     ## Secret key for team JWT tokens
-    TEAM_JWT_SECRET_KEY: Optional[str] = os.getenv("TEAM_JWT_SECRET_KEY")
+    TEAM_JWT_SECRET_KEY: str | None = os.getenv("TEAM_JWT_SECRET_KEY")
     TEAM_JWT_ALGORITHM: str = "HS256"
     ## Token expiration time in hours (24 hours = 1 day)
     TEAM_TOKEN_EXPIRE_HOURS: int = 24
     ## Absolute session lifetime: /refresh cannot extend a token chain beyond
     ## this many hours after the original login (0 disables the cap).
-    TEAM_TOKEN_MAX_LIFETIME_HOURS: int = int(
-        os.getenv("TEAM_TOKEN_MAX_LIFETIME_HOURS", "168")
-    )
+    TEAM_TOKEN_MAX_LIFETIME_HOURS: int = int(os.getenv("TEAM_TOKEN_MAX_LIFETIME_HOURS", "168"))
     ## Team login brute-force guard: max attempts per client IP per window.
-    TEAM_LOGIN_RATE_LIMIT_ATTEMPTS: int = int(
-        os.getenv("TEAM_LOGIN_RATE_LIMIT_ATTEMPTS", "10")
-    )
+    TEAM_LOGIN_RATE_LIMIT_ATTEMPTS: int = int(os.getenv("TEAM_LOGIN_RATE_LIMIT_ATTEMPTS", "10"))
     TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = int(
         os.getenv("TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300")
     )
     ## Coarse rate limit for authenticated write/verify endpoints (per client,
     ## per window). Higher than login: legitimate teams check in repeatedly.
-    WRITE_RATE_LIMIT_ATTEMPTS: int = int(
-        os.getenv("WRITE_RATE_LIMIT_ATTEMPTS", "60")
-    )
-    WRITE_RATE_LIMIT_WINDOW_SECONDS: int = int(
-        os.getenv("WRITE_RATE_LIMIT_WINDOW_SECONDS", "60")
-    )
+    WRITE_RATE_LIMIT_ATTEMPTS: int = int(os.getenv("WRITE_RATE_LIMIT_ATTEMPTS", "60"))
+    WRITE_RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("WRITE_RATE_LIMIT_WINDOW_SECONDS", "60"))
 
     ## Reverse-proxy hops we trust to set X-Forwarded-For. Comma-separated list
     ## of proxy IPs (e.g. "10.0.0.1,10.0.0.2"). Empty (default) => never trust
@@ -187,9 +169,7 @@ class Settings(BaseSettings):
     ## OIDC JWKS cache TTL (seconds). The resource server caches the provider
     ## keyset instead of refetching it on every token validation; a cache miss
     ## on an unknown signing key forces a refresh to support key rotation.
-    OIDC_JWKS_CACHE_TTL_SECONDS: int = int(
-        os.getenv("OIDC_JWKS_CACHE_TTL_SECONDS", "600")
-    )
+    OIDC_JWKS_CACHE_TTL_SECONDS: int = int(os.getenv("OIDC_JWKS_CACHE_TTL_SECONDS", "600"))
     ## Algorithms the resource server accepts for provider tokens. Pinned so a
     ## token cannot dictate its own (alg-confusion / "none" defence).
     OIDC_ALLOWED_ALGORITHMS: list[str] = ["RS256"]
@@ -201,7 +181,7 @@ class Settings(BaseSettings):
 
     @field_validator("TEAM_JWT_SECRET_KEY")
     @classmethod
-    def validate_team_jwt_secret_key(cls, v: Optional[str]) -> str:
+    def validate_team_jwt_secret_key(cls, v: str | None) -> str:
         if not v:
             raise ValueError(
                 "TEAM_JWT_SECRET_KEY environment variable must be set to a non-empty value"

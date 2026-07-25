@@ -1,4 +1,5 @@
 """API tests for Activities endpoints, against real Postgres."""
+
 from unittest.mock import AsyncMock, patch
 
 from app.crud.crud_activity import activity as crud_activity
@@ -142,9 +143,7 @@ class TestActivitiesAPI:
     async def test_update_activity_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        resp = pg_client.put(
-            "/api/rally/v1/activities/999999", json={"name": "Nope"}
-        )
+        resp = pg_client.put("/api/rally/v1/activities/999999", json={"name": "Nope"})
 
         assert resp.status_code == 404
 
@@ -155,9 +154,7 @@ class TestActivitiesAPI:
 
         assert resp.status_code == 404
 
-    async def test_get_all_activity_results_lists_results(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_all_activity_results_lists_results(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
@@ -184,9 +181,7 @@ class TestActivityResultsCRUD:
         assert result["team_id"] == team.id
         assert result["activity_id"] == act.id
 
-    async def test_create_activity_result_duplicate_rejected(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_create_activity_result_duplicate_rejected(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
@@ -250,14 +245,10 @@ class TestActivityResultsCRUD:
 
 
 class TestExtraShotsAndPenalty:
-    async def test_apply_extra_shots_result_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_apply_extra_shots_result_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        resp = pg_client.post(
-            "/api/rally/v1/activities/results/999999/extra-shots?extra_shots=2"
-        )
+        resp = pg_client.post("/api/rally/v1/activities/results/999999/extra-shots?extra_shots=2")
 
         assert resp.status_code == 404
 
@@ -279,8 +270,7 @@ class TestExtraShotsAndPenalty:
         await _make_event(pg_session)
 
         resp = pg_client.post(
-            "/api/rally/v1/activities/results/999999/penalty"
-            "?penalty_type=vomit&penalty_value=1"
+            "/api/rally/v1/activities/results/999999/penalty?penalty_type=vomit&penalty_value=1"
         )
 
         assert resp.status_code == 404
@@ -300,9 +290,7 @@ class TestExtraShotsAndPenalty:
         assert resp.status_code == 200, resp.text
         assert "successfully" in resp.json()["message"]
 
-    async def test_apply_penalty_failure_returns_400(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_apply_penalty_failure_returns_400(self, pg_session, pg_client, as_admin):
         """`ScoringService.apply_penalty` returning False (e.g. a concurrent
         deletion race) surfaces as a 400, not a silent success."""
         await _make_event(pg_session)
@@ -323,9 +311,7 @@ class TestExtraShotsAndPenalty:
         assert resp.status_code == 400
         assert "Failed to apply penalty" in resp.json()["detail"]
 
-    async def test_apply_extra_shots_over_limit_rejected(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_apply_extra_shots_over_limit_rejected(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)
@@ -335,8 +321,7 @@ class TestExtraShotsAndPenalty:
         # Default max_extra_shots_per_member is 1 and this team has no
         # members recorded, so team_size falls back to 1 -> max_shots=1.
         resp = pg_client.post(
-            f"/api/rally/v1/activities/results/{result['id']}/extra-shots"
-            "?extra_shots=999"
+            f"/api/rally/v1/activities/results/{result['id']}/extra-shots?extra_shots=999"
         )
 
         assert resp.status_code == 400
@@ -348,8 +333,7 @@ class TestExtraShotsAndPenalty:
         await _make_event(pg_session)
 
         resp = pg_client.post(
-            "/api/rally/v1/activities/results/1/penalty"
-            "?penalty_type=invalid&penalty_value=1"
+            "/api/rally/v1/activities/results/1/penalty?penalty_type=invalid&penalty_value=1"
         )
 
         assert resp.status_code == 422
@@ -390,18 +374,14 @@ class TestActivityRankingAndStatistics:
         assert "rankings" in resp.json()
         assert "last_updated" in resp.json()
 
-    async def test_get_activity_statistics_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_activity_statistics_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
         resp = pg_client.get("/api/rally/v1/activities/999999/statistics")
 
         assert resp.status_code == 404
 
-    async def test_get_activity_statistics_success(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_activity_statistics_success(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session)
         act = await _make_activity(pg_session, checkpoint.id)

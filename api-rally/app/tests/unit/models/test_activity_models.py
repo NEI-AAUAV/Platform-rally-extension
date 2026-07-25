@@ -1,6 +1,7 @@
 """Unit tests for GeneralActivity (app.models.activities.general) — pure
 logic, no DB needed.
 """
+
 import pytest
 
 from app.models.activities.general import GeneralActivity

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
@@ -19,9 +19,9 @@ class ScopeEnum(str, Enum):
     DEFAULT = "default"
 
 
-def map_groups_to_scopes(groups: List[str], settings: SettingsDep) -> List[str]:
+def map_groups_to_scopes(groups: list[str], settings: SettingsDep) -> list[str]:
     """Map authentik group names (``groups`` claim) to rally scopes."""
-    scopes: List[str] = []
+    scopes: list[str] = []
     if settings.OIDC_ADMIN_GROUP in groups:
         scopes.append(ScopeEnum.ADMIN.value)
     if settings.OIDC_MANAGER_GROUP in groups:
@@ -37,11 +37,11 @@ class AuthData(BaseModel):
     # OIDC subject identifier from the provider (stable, unique per user).
     oidc_sub: str
     name: str
-    email: Optional[str] = None
-    scopes: List[str] = []
+    email: str | None = None
+    scopes: list[str] = []
 
 
-def _build_auth_data(claims: Dict[str, Any], settings: SettingsDep) -> AuthData:
+def _build_auth_data(claims: dict[str, Any], settings: SettingsDep) -> AuthData:
     groups = claims.get("groups", []) or []
     name = (
         claims.get("name")
@@ -66,7 +66,7 @@ oauth2_scheme_optional = HTTPBearer(auto_error=False)
 async def api_nei_auth(
     settings: SettingsDep,
     security_scopes: SecurityScopes,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(oauth2_scheme),
 ) -> AuthData:
     """Dependency for required user authentication (validates an authentik token)."""
     if security_scopes.scopes:
@@ -101,8 +101,8 @@ async def api_nei_auth(
 
 async def api_nei_auth_optional(
     settings: SettingsDep,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme_optional),
-) -> Optional[AuthData]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(oauth2_scheme_optional),
+) -> AuthData | None:
     """Dependency for optional user authentication. Returns None when no/invalid token."""
     if not credentials:
         return None
@@ -115,7 +115,7 @@ async def api_nei_auth_optional(
     return _build_auth_data(claims, settings)
 
 
-auth_responses: Dict[Union[int, str], Dict[str, Any]] = {
+auth_responses: dict[int | str, dict[str, Any]] = {
     401: {"description": "Not authenticated"},
     403: {"description": "Not enough permissions"},
 }

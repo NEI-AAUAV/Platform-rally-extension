@@ -1,7 +1,9 @@
-from typing import Annotated, Any, List
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crud
 from app.api import deps
 from app.api.abac_deps import require_checkpoint_management_permission
 from app.crud.crud_checkpoint_guide_indication import (
@@ -12,13 +14,12 @@ from app.schemas.checkpoint_guide_indication import (
     CheckpointGuideIndicationCreate,
     CheckpointGuideIndicationUpdate,
 )
-from app import crud
 
 router = APIRouter()
 
 
 async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
-    # CRUDBase.get() raises NotFoundException (mapped to a 404 response by the
+    # CRUDBase.get() raises RallyNotFoundError (mapped to a 404 response by the
     # global exception handler) rather than returning None, so this branch is
     # unreachable in practice; kept as a defensive guard.
     cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
@@ -37,7 +38,7 @@ async def _get_checkpoint_or_404(db: AsyncSession, checkpoint_id: int) -> Any:
 async def list_guide_indications(
     checkpoint_id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
-) -> List[CheckpointGuideIndication]:
+) -> list[CheckpointGuideIndication]:
     await _get_checkpoint_or_404(db, checkpoint_id)
     items = await crud_indication.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
     return [CheckpointGuideIndication.model_validate(item) for item in items]

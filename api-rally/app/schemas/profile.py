@@ -1,6 +1,6 @@
 """Schemas for the per-person profile / participation history."""
+
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -11,10 +11,10 @@ class ParticipationEntry(BaseModel):
     event_id: int
     event_name: str
     event_type: str
-    team_id: Optional[int] = None
-    team_name: Optional[str] = None
-    team_total: Optional[int] = None
-    team_classification: Optional[int] = None
+    team_id: int | None = None
+    team_name: str | None = None
+    team_total: int | None = None
+    team_classification: int | None = None
     is_captain: bool = False
     joined_at: datetime
 
@@ -42,8 +42,8 @@ class ProfileResponse(BaseModel):
     """A person's rally profile: identity + participation history."""
 
     authentik_sub: str
-    name: Optional[str] = None
-    email: Optional[str] = None
+    name: str | None = None
+    email: str | None = None
     scopes: list[str] = []
-    current_team_id: Optional[int] = None
+    current_team_id: int | None = None
     participations: list[ParticipationEntry] = []

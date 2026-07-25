@@ -11,18 +11,20 @@ Admin judge: PUT /activities/results/{result_id}/judge
 Admin list: GET /activities/deferred/pending
   - Lists all pending_judgment results for the judging panel
 """
-from datetime import datetime, timezone
-from typing import Annotated, List, Optional
+
+from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crud
 from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
-from app import crud
-from app.crud.crud_activity import activity_result as crud_result, activity as crud_activity
+from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_activity import activity_result as crud_result
 from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import ActivityResult
 from app.schemas.activity_types import ActivityType
@@ -34,7 +36,7 @@ router = APIRouter()
 
 class JudgeRequest(BaseModel):
     points: float
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class SetTeamPhotoRequest(BaseModel):
@@ -50,9 +52,9 @@ class DeferredResultResponse(BaseModel):
     id: int
     activity_id: int
     team_id: int
-    judgment_status: Optional[str] = None
-    media_urls: List[str]
-    final_score: Optional[float] = None
+    judgment_status: str | None = None
+    media_urls: list[str]
+    final_score: float | None = None
     is_completed: bool
 
 
@@ -68,7 +70,7 @@ async def capture_deferred_result(
     activity_id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
-    images: Annotated[List[UploadFile], File()] = None,
+    images: Annotated[list[UploadFile], File()] = None,
     team_id: int = 0,
 ) -> DeferredResultResponse:
     activity = await crud_activity.get(db, activity_id)
@@ -80,7 +82,7 @@ async def capture_deferred_result(
         raise HTTPException(status_code=400, detail="team_id is required")
 
     # Upload images
-    urls: List[str] = []
+    urls: list[str] = []
     for image in images or []:
         if image and image.filename:
             url = await validate_and_store(
@@ -154,7 +156,7 @@ async def judge_deferred_result(
     result.final_score = body.points
     result.judgment_status = "judged"
     result.is_completed = True
-    result.completed_at = datetime.now(timezone.utc)
+    result.completed_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(result)
 
@@ -219,7 +221,7 @@ async def set_team_photo_from_result(
 )
 async def list_pending_judgments(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
-) -> List[DeferredResultResponse]:
+) -> list[DeferredResultResponse]:
     result = await db.execute(
         select(ActivityResult).where(ActivityResult.judgment_status == "pending_judgment")
     )

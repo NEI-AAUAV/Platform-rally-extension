@@ -11,17 +11,18 @@ RECOMPUTE_OFF_PATH off (the default), _defer_recompute is False, so the
 synchronous scoring path is exercised end to end. The fixture auto-skips when
 Postgres is unreachable.
 """
+
 import pytest
 
+from app.core.exceptions import RallyError
+from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
-from app.models.team import Team
 from app.models.dynamic_scoring import DynamicAward
+from app.models.team import Team
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.schemas.activity_types import ActivityType
 from app.schemas.team import TeamCreate
-from app.crud.crud_team import team as crud_team
-from app.core.exceptions import RallyError
 from app.services.scoring_service import ScoringService
 
 
@@ -95,12 +96,18 @@ async def test_calculate_team_total_sums_completed_results(pg_session):
     activity_a = await _make_activity(pg_session)
     activity_b = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity_a,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity_a,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     await _make_result(
-        pg_session, team=team, activity=activity_b,
-        result_data={"assigned_points": 30}, final_score=30,
+        pg_session,
+        team=team,
+        activity=activity_b,
+        result_data={"assigned_points": 30},
+        final_score=30,
     )
 
     svc = ScoringService(pg_session)
@@ -114,13 +121,19 @@ async def test_calculate_team_total_ignores_incomplete(pg_session):
     activity_done = await _make_activity(pg_session)
     activity_pending = await _make_activity(pg_session)
     completed = await _make_result(
-        pg_session, team=team, activity=activity_done,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity_done,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     # an incomplete row with a score must not count
     pending = ActivityResult(
-        activity_id=activity_pending.id, team_id=team.id,
-        result_data={"assigned_points": 99}, final_score=99, is_completed=False,
+        activity_id=activity_pending.id,
+        team_id=team.id,
+        result_data={"assigned_points": 99},
+        final_score=99,
+        is_completed=False,
     )
     pg_session.add(pending)
     await pg_session.commit()
@@ -134,8 +147,11 @@ async def test_update_team_scores_rounds_and_includes_awards(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50.4,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50.4,
     )
     pg_session.add(DynamicAward(team_id=team.id, points=10, is_active=True))
     # an inactive award must be excluded
@@ -158,8 +174,9 @@ async def test_update_team_scores_missing_team_returns_false(pg_session):
 async def test_get_settings_creates_default_row_when_none_exists(pg_session):
     """Fresh DB with no RallySettings row: `_get_settings` must create and
     persist a default one instead of raising."""
-    from app.models.rally_settings import RallySettings
     from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
 
     existing = (await pg_session.scalars(sa_select(RallySettings))).first()
     assert existing is None  # sanity check: nothing seeded yet
@@ -191,8 +208,10 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
     checkpointed_activity = await _make_activity_on_checkpoint(pg_session, cp)
     another_checkpointed_activity = await _make_activity_on_checkpoint(pg_session, cp)
     global_activity = Activity(
-        name="Global", activity_type=ActivityType.GENERAL.value,
-        config={"min_points": 0, "max_points": 100}, checkpoint_id=None,
+        name="Global",
+        activity_type=ActivityType.GENERAL.value,
+        config={"min_points": 0, "max_points": 100},
+        checkpoint_id=None,
     )
     pg_session.add(global_activity)
     await pg_session.commit()
@@ -200,20 +219,29 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
 
     # Completed result on a checkpoint -- counted.
     await _make_result(
-        pg_session, team=team, activity=checkpointed_activity,
-        result_data={"assigned_points": 25}, final_score=25,
+        pg_session,
+        team=team,
+        activity=checkpointed_activity,
+        result_data={"assigned_points": 25},
+        final_score=25,
     )
     # Incomplete result (different activity to avoid the unique constraint) --
     # skipped (final_score present but is_completed False).
     incomplete = ActivityResult(
-        team_id=team.id, activity_id=another_checkpointed_activity.id, result_data={},
-        final_score=99, is_completed=False,
+        team_id=team.id,
+        activity_id=another_checkpointed_activity.id,
+        result_data={},
+        final_score=99,
+        is_completed=False,
     )
     pg_session.add(incomplete)
     # Completed result on a global (checkpoint-less) activity -- skipped too.
     await _make_result(
-        pg_session, team=team, activity=global_activity,
-        result_data={"assigned_points": 99}, final_score=99,
+        pg_session,
+        team=team,
+        activity=global_activity,
+        result_data={"assigned_points": 99},
+        final_score=99,
     )
     await pg_session.commit()
 
@@ -255,36 +283,55 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
 
     another_activity = await _make_activity_on_checkpoint(pg_session, cp)
     global_activity = Activity(
-        name="Global", activity_type=ActivityType.GENERAL.value,
-        config={"min_points": 0, "max_points": 100}, checkpoint_id=None,
+        name="Global",
+        activity_type=ActivityType.GENERAL.value,
+        config={"min_points": 0, "max_points": 100},
+        checkpoint_id=None,
     )
     pg_session.add(global_activity)
     await pg_session.commit()
     await pg_session.refresh(global_activity)
 
     await _make_result(
-        pg_session, team=team_a, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team_a,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     await _make_result(
-        pg_session, team=team_b, activity=activity,
-        result_data={"assigned_points": 20}, final_score=20,
+        pg_session,
+        team=team_b,
+        activity=activity,
+        result_data={"assigned_points": 20},
+        final_score=20,
     )
     # Incomplete result -- must be skipped by the bulk aggregation too.
-    pg_session.add(ActivityResult(
-        team_id=team_a.id, activity_id=another_activity.id, result_data={},
-        final_score=99, is_completed=False,
-    ))
+    pg_session.add(
+        ActivityResult(
+            team_id=team_a.id,
+            activity_id=another_activity.id,
+            result_data={},
+            final_score=99,
+            is_completed=False,
+        )
+    )
     # Completed result on a global (checkpoint-less) activity -- skipped too.
     await _make_result(
-        pg_session, team=team_a, activity=global_activity,
-        result_data={"assigned_points": 99}, final_score=99,
+        pg_session,
+        team=team_a,
+        activity=global_activity,
+        result_data={"assigned_points": 99},
+        final_score=99,
     )
     # A completed result for a team NOT included in the `teams` argument --
     # the per-team bucket lookup must skip it instead of KeyError-ing.
     await _make_result(
-        pg_session, team=team_c, activity=activity,
-        result_data={"assigned_points": 15}, final_score=15,
+        pg_session,
+        team=team_c,
+        activity=activity,
+        result_data={"assigned_points": 15},
+        final_score=15,
     )
     pg_session.add(DynamicAward(team_id=team_a.id, points=10, is_active=True, reason="bonus"))
     await pg_session.commit()
@@ -326,12 +373,18 @@ async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
     act_b = await _make_activity_on_checkpoint(pg_session, cp_b)
 
     await _make_result(
-        pg_session, team=team, activity=act_a,
-        result_data={"assigned_points": 30}, final_score=30,
+        pg_session,
+        team=team,
+        activity=act_a,
+        result_data={"assigned_points": 30},
+        final_score=30,
     )
     await _make_result(
-        pg_session, team=team, activity=act_b,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=act_b,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     # Two visits recorded -> two per-checkpoint slots.
     team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
@@ -359,12 +412,18 @@ async def test_score_per_checkpoint_ordered_by_current_order(pg_session):
     act2 = await _make_activity_on_checkpoint(pg_session, cp2)
 
     await _make_result(
-        pg_session, team=team, activity=act1,
-        result_data={"assigned_points": 15}, final_score=15,
+        pg_session,
+        team=team,
+        activity=act1,
+        result_data={"assigned_points": 15},
+        final_score=15,
     )
     await _make_result(
-        pg_session, team=team, activity=act2,
-        result_data={"assigned_points": 25}, final_score=25,
+        pg_session,
+        team=team,
+        activity=act2,
+        result_data={"assigned_points": 25},
+        final_score=25,
     )
     team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
     await pg_session.commit()
@@ -383,17 +442,18 @@ async def test_apply_extra_shots_bonus_increases_score(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
     )
 
     svc = ScoringService(pg_session)
     ok = await svc.apply_extra_shots_bonus(team.id, activity.id, extra_shots=2)
 
     assert ok is True
-    stmt_result = (await pg_session.scalars(
-        _select_result(activity.id, team.id)
-    )).first()
+    stmt_result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
     # 50 base + 2 shots * bonus_per_extra_shot(1) = 52
     assert stmt_result.extra_shots == 2
     assert stmt_result.final_score == pytest.approx(52)
@@ -403,8 +463,11 @@ async def test_apply_extra_shots_over_limit_rejected(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
     )
 
     svc = ScoringService(pg_session)
@@ -434,8 +497,11 @@ async def test_apply_penalty_reduces_score(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
     )
 
     svc = ScoringService(pg_session)
@@ -458,8 +524,11 @@ async def test_apply_vomit_penalty_uses_settings_default(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
     )
 
     svc = ScoringService(pg_session)
@@ -476,8 +545,11 @@ async def test_apply_drink_penalty_scales_with_participants(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 50}, final_score=50,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
     )
 
     svc = ScoringService(pg_session)
@@ -545,8 +617,11 @@ async def test_update_result_rescores_on_data_change(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     result = await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
 
     svc = ScoringService(pg_session)
@@ -560,15 +635,19 @@ async def test_update_result_rescores_on_data_change(pg_session):
 
 
 async def test_update_result_records_history_with_editor(pg_session):
-    from app.models.evaluation_history import EvaluationHistory, EvaluationAction
-    from app.services.scoring_service import EvaluationEditor
     from sqlalchemy import select
+
+    from app.models.evaluation_history import EvaluationAction, EvaluationHistory
+    from app.services.scoring_service import EvaluationEditor
 
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     result = await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
 
     svc = ScoringService(pg_session)
@@ -595,15 +674,19 @@ async def test_update_result_records_history_with_editor(pg_session):
 
 
 async def test_update_result_no_change_writes_no_history(pg_session):
+    from sqlalchemy import select
+
     from app.models.evaluation_history import EvaluationHistory
     from app.services.scoring_service import EvaluationEditor
-    from sqlalchemy import select
 
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     result = await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     # Seed the type-specific score so re-applying the same data is a true no-op;
     # otherwise the first rescore legitimately fills points_score (None -> 40).
@@ -628,20 +711,22 @@ async def test_update_result_no_change_writes_no_history(pg_session):
 
 async def test_update_result_without_editor_skips_history(pg_session):
     """Back-compat: callers that pass no editor still work and log no trail."""
-    from app.models.evaluation_history import EvaluationHistory
     from sqlalchemy import select
+
+    from app.models.evaluation_history import EvaluationHistory
 
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     result = await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
 
     svc = ScoringService(pg_session)
-    await svc.update_result(
-        result, ActivityResultUpdate(result_data={"assigned_points": 90})
-    )
+    await svc.update_result(result, ActivityResultUpdate(result_data={"assigned_points": 90}))
 
     rows = (
         await pg_session.scalars(
@@ -655,8 +740,11 @@ async def test_remove_result_deletes_and_updates_team(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     result = await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 40}, final_score=40,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
     )
     await ScoringService(pg_session).update_team_scores(team.id)
 
@@ -682,12 +770,18 @@ async def test_get_team_ranking_orders_by_score(pg_session):
     strong = await _make_team(pg_session, "Strong")
     weak = await _make_team(pg_session, "Weak")
     await _make_result(
-        pg_session, team=strong, activity=activity,
-        result_data={"assigned_points": 90}, final_score=90,
+        pg_session,
+        team=strong,
+        activity=activity,
+        result_data={"assigned_points": 90},
+        final_score=90,
     )
     await _make_result(
-        pg_session, team=weak, activity=activity,
-        result_data={"assigned_points": 20}, final_score=20,
+        pg_session,
+        team=weak,
+        activity=activity,
+        result_data={"assigned_points": 20},
+        final_score=20,
     )
 
     svc = ScoringService(pg_session)
@@ -702,8 +796,11 @@ async def test_get_activity_statistics_reports_participation(pg_session):
     activity = await _make_activity(pg_session)
     team = await _make_team(pg_session)
     await _make_result(
-        pg_session, team=team, activity=activity,
-        result_data={"assigned_points": 60}, final_score=60,
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 60},
+        final_score=60,
     )
 
     svc = ScoringService(pg_session)
@@ -718,12 +815,18 @@ async def test_get_global_ranking_orders_and_ranks(pg_session):
     strong = await _make_team(pg_session, "Strong")
     weak = await _make_team(pg_session, "Weak")
     await _make_result(
-        pg_session, team=strong, activity=activity,
-        result_data={"assigned_points": 80}, final_score=80,
+        pg_session,
+        team=strong,
+        activity=activity,
+        result_data={"assigned_points": 80},
+        final_score=80,
     )
     await _make_result(
-        pg_session, team=weak, activity=activity,
-        result_data={"assigned_points": 20}, final_score=20,
+        pg_session,
+        team=weak,
+        activity=activity,
+        result_data={"assigned_points": 20},
+        final_score=20,
     )
 
     svc = ScoringService(pg_session)
@@ -760,14 +863,18 @@ async def test_create_time_based_result_reranks_activity(pg_session):
     svc = ScoringService(pg_session)
     await svc.create_result(
         ActivityResultCreate(
-            activity_id=activity.id, team_id=slow.id,
-            result_data={"completion_time_seconds": 90}, is_completed=True,
+            activity_id=activity.id,
+            team_id=slow.id,
+            result_data={"completion_time_seconds": 90},
+            is_completed=True,
         )
     )
     await svc.create_result(
         ActivityResultCreate(
-            activity_id=activity.id, team_id=fast.id,
-            result_data={"completion_time_seconds": 30}, is_completed=True,
+            activity_id=activity.id,
+            team_id=fast.id,
+            result_data={"completion_time_seconds": 30},
+            is_completed=True,
         )
     )
 
@@ -784,7 +891,10 @@ async def test_recalculate_result_score_noop_when_activity_missing(pg_session):
     itself must tolerate a transient/detached result missing its activity)."""
     svc = ScoringService(pg_session)
     orphan_result = ActivityResult(
-        activity_id=999999, team_id=1, result_data={}, final_score=None,
+        activity_id=999999,
+        team_id=1,
+        result_data={},
+        final_score=None,
     )
 
     await svc._recalculate_result_score(orphan_result)
@@ -807,14 +917,18 @@ async def test_update_time_based_result_reranks_activity(pg_session):
     svc = ScoringService(pg_session)
     await svc.create_result(
         ActivityResultCreate(
-            activity_id=activity.id, team_id=slow.id,
-            result_data={"completion_time_seconds": 90}, is_completed=True,
+            activity_id=activity.id,
+            team_id=slow.id,
+            result_data={"completion_time_seconds": 90},
+            is_completed=True,
         )
     )
     fast_created = await svc.create_result(
         ActivityResultCreate(
-            activity_id=activity.id, team_id=fast.id,
-            result_data={"completion_time_seconds": 60}, is_completed=True,
+            activity_id=activity.id,
+            team_id=fast.id,
+            result_data={"completion_time_seconds": 60},
+            is_completed=True,
         )
     )
 
@@ -863,7 +977,11 @@ async def test_create_team_vs_result_win_lose(pg_session):
 
     svc = ScoringService(pg_session)
     r1, r2 = await svc.create_team_vs_result(
-        winner.id, loser.id, activity.id, winner_id=winner.id, match_data={},
+        winner.id,
+        loser.id,
+        activity.id,
+        winner_id=winner.id,
+        match_data={},
     )
 
     by_team = {r.team_id: r for r in (r1, r2)}
@@ -883,7 +1001,11 @@ async def test_create_team_vs_result_draw(pg_session):
 
     svc = ScoringService(pg_session)
     r1, r2 = await svc.create_team_vs_result(
-        t1.id, t2.id, activity.id, winner_id=0, match_data={},
+        t1.id,
+        t2.id,
+        activity.id,
+        winner_id=0,
+        match_data={},
     )
 
     assert r1.result_data["result"] == "draw"
@@ -901,6 +1023,7 @@ async def test_create_team_vs_result_rejects_completed_rematch(pg_session):
     await svc.create_team_vs_result(t1.id, t2.id, activity.id, winner_id=t1.id, match_data={})
 
     from app.core.exceptions import RallyValidationError
+
     with pytest.raises(RallyValidationError):
         await svc.create_team_vs_result(t1.id, t2.id, activity.id, winner_id=t2.id, match_data={})
 
@@ -940,6 +1063,7 @@ async def test_create_team_vs_result_rolls_back_on_unexpected_error(pg_session):
 # --------------------------------------------------------------------------- #
 def _select_result(activity_id: int, team_id: int):
     from sqlalchemy import select
+
     return select(ActivityResult).where(
         ActivityResult.activity_id == activity_id,
         ActivityResult.team_id == team_id,

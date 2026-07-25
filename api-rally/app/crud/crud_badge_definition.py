@@ -1,4 +1,3 @@
-from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,15 +8,15 @@ from app.services.storage import storage_client
 
 
 class CRUDBadgeDefinition:
-    async def get(self, db: AsyncSession, *, id: int) -> Optional[BadgeDefinition]:
+    async def get(self, db: AsyncSession, *, id: int) -> BadgeDefinition | None:
         result = await db.execute(select(BadgeDefinition).where(BadgeDefinition.id == id))
         return result.scalars().first()
 
-    async def get_by_code(self, db: AsyncSession, *, code: str) -> Optional[BadgeDefinition]:
+    async def get_by_code(self, db: AsyncSession, *, code: str) -> BadgeDefinition | None:
         result = await db.execute(select(BadgeDefinition).where(BadgeDefinition.code == code))
         return result.scalars().first()
 
-    async def get_all(self, db: AsyncSession) -> List[BadgeDefinition]:
+    async def get_all(self, db: AsyncSession) -> list[BadgeDefinition]:
         """List badges visible in the current event: event-stamped rows plus
         legacy/global (NULL event_id) ones, same pattern as Team/CheckPoint."""
         event_id = await current_event_id(db)
@@ -54,7 +53,7 @@ class CRUDBadgeDefinition:
         *,
         db_obj: BadgeDefinition,
         obj_in: BadgeDefinitionUpdate,
-        icon_url: Optional[str] = None,
+        icon_url: str | None = None,
     ) -> BadgeDefinition:
         if obj_in.name is not None:
             db_obj.name = obj_in.name

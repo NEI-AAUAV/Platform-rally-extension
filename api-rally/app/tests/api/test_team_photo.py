@@ -1,6 +1,7 @@
 """Tests for the team photo upload endpoint (PUT /team/{id}/photo), against
 real Postgres. `validate_and_store` (R2/S3 upload) stays mocked — external I/O.
 """
+
 import io
 from unittest.mock import AsyncMock, patch
 
@@ -19,17 +20,19 @@ async def _make_team(pg_session, name="T"):
 
 def _captain_override(app, team_id: int):
     from app.api import deps
-    from app.api.auth import api_nei_auth, AuthData
+    from app.api.auth import AuthData, api_nei_auth
     from app.schemas.user import DetailedUser
 
-    user = DetailedUser(id=5, name="Cap", disabled=False, team_id=team_id, is_captain=True, scopes=[])
+    user = DetailedUser(
+        id=5, name="Cap", disabled=False, team_id=team_id, is_captain=True, scopes=[]
+    )
     app.dependency_overrides[deps.get_participant] = lambda: user
     app.dependency_overrides[api_nei_auth] = lambda: AuthData(oidc_sub="cap", name="Cap", scopes=[])
 
 
 def _outsider_override(app):
     from app.api import deps
-    from app.api.auth import api_nei_auth, AuthData
+    from app.api.auth import AuthData, api_nei_auth
     from app.schemas.user import DetailedUser
 
     user = DetailedUser(id=6, name="Out", disabled=False, team_id=2, is_captain=False, scopes=[])
@@ -52,10 +55,13 @@ async def test_captain_can_upload_team_photo(pg_session, pg_client):
     team = await _make_team(pg_session)
     _captain_override(app, team.id)
     try:
-        with patch(
-            "app.api.api_v1.team.validate_and_store",
-            new=AsyncMock(return_value="https://r2/x.png"),
-        ), patch("app.api.api_v1.team.storage_client.delete_image"):
+        with (
+            patch(
+                "app.api.api_v1.team.validate_and_store",
+                new=AsyncMock(return_value="https://r2/x.png"),
+            ),
+            patch("app.api.api_v1.team.storage_client.delete_image"),
+        ):
             resp = pg_client.put(f"/api/rally/v1/team/{team.id}/photo", files=_png_upload())
     finally:
         _clear_overrides(app)

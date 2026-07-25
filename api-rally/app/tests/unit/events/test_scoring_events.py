@@ -12,9 +12,7 @@ from app.services.scoring_service import ScoringService
 def _mock_db_with_team() -> AsyncMock:
     db = AsyncMock()
     # A team with no checkpoints/results: total resolves to 0, no array work.
-    db.get.return_value = SimpleNamespace(
-        id=5, total=0, score_per_checkpoint=[], times=[]
-    )
+    db.get.return_value = SimpleNamespace(id=5, total=0, score_per_checkpoint=[], times=[])
     scalars_result = MagicMock()
     scalars_result.all.return_value = []
     db.scalars.return_value = scalars_result
@@ -68,9 +66,7 @@ async def test_publish_result_change_emits_typed_event(
     import app.services.scoring_service as svc
 
     published = []
-    monkeypatch.setattr(
-        svc, "publish_event", AsyncMock(side_effect=lambda e: published.append(e))
-    )
+    monkeypatch.setattr(svc, "publish_event", AsyncMock(side_effect=lambda e: published.append(e)))
 
     service = ScoringService(AsyncMock())
     await service._publish_result_change(
@@ -91,17 +87,13 @@ async def test_remove_result_publishes_deleted_after_commit(
     import app.services.scoring_service as svc
 
     published = []
-    monkeypatch.setattr(
-        svc, "publish_event", AsyncMock(side_effect=lambda e: published.append(e))
-    )
+    monkeypatch.setattr(svc, "publish_event", AsyncMock(side_effect=lambda e: published.append(e)))
 
     from app.crud import crud_activity
 
     db_obj = SimpleNamespace(id=11, team_id=3, activity_id=9)
     # scoring_service holds the same crud singleton, so patch it at the source.
-    monkeypatch.setattr(
-        crud_activity.activity_result, "get", AsyncMock(return_value=db_obj)
-    )
+    monkeypatch.setattr(crud_activity.activity_result, "get", AsyncMock(return_value=db_obj))
     monkeypatch.setattr(crud_activity.activity_result, "delete", AsyncMock())
 
     service = ScoringService(AsyncMock())

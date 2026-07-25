@@ -1,19 +1,20 @@
-from typing import Annotated, Any, AsyncGenerator, List, Optional
+from collections.abc import AsyncGenerator
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
 
 from app import crud
-from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-from app.crud.crud_rally_guide_assignment import rally_guide_assignment
-from app.db.session import SessionLocal
-from app.schemas.user import DetailedUser
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
 from app.core.config import SettingsDep
+from app.crud.crud_rally_guide_assignment import rally_guide_assignment
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.db.session import SessionLocal
 from app.schemas.team_auth import TeamTokenData
+from app.schemas.user import DetailedUser
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -21,9 +22,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db
 
 
-async def _adopt_email_placeholder(
-    db: AsyncSession, auth: AuthData
-) -> Optional[Any]:
+SessionDep = Annotated[AsyncSession, Depends(get_db)]
+
+
+async def _adopt_email_placeholder(db: AsyncSession, auth: AuthData) -> Any | None:
     """Backfill: an email-matched placeholder mirrored eagerly from an
     Authentik group (e.g. rally-staff) may exist before this first login."""
     if not auth.email:
@@ -50,7 +52,7 @@ async def _sync_scopes(db: AsyncSession, user: Any, auth: AuthData) -> None:
 
 
 async def _load_checkpoint_assignments(
-    db: AsyncSession, user_id: int, scopes: List[str], detailed_user: DetailedUser
+    db: AsyncSession, user_id: int, scopes: list[str], detailed_user: DetailedUser
 ) -> None:
     if "rally-staff" in scopes:
         staff_assignment = await rally_staff_assignment.get_by_user_id(db, user_id)
@@ -96,9 +98,9 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    auth: Annotated[Optional[AuthData], Security(api_nei_auth_optional, scopes=[])],
+    auth: Annotated[AuthData | None, Security(api_nei_auth_optional, scopes=[])],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> Optional[DetailedUser]:
+) -> DetailedUser | None:
     if not auth:
         return None
 
@@ -123,23 +125,23 @@ def get_participant(
     return curr_user
 
 
-def is_admin(scopes: List[str]) -> bool:
+def is_admin(scopes: list[str]) -> bool:
     return any(scope in [ScopeEnum.MANAGER_RALLY, ScopeEnum.ADMIN] for scope in scopes)
 
 
-def is_staff(scopes: List[str]) -> bool:
+def is_staff(scopes: list[str]) -> bool:
     return ScopeEnum.RALLY_STAFF in scopes
 
 
-def is_guide(scopes: List[str]) -> bool:
+def is_guide(scopes: list[str]) -> bool:
     return ScopeEnum.RALLY_GUIDE in scopes
 
 
-def is_admin_or_staff(scopes: List[str]) -> bool:
+def is_admin_or_staff(scopes: list[str]) -> bool:
     return is_admin(scopes) or is_staff(scopes)
 
 
-def is_admin_staff_or_guide(scopes: List[str]) -> bool:
+def is_admin_staff_or_guide(scopes: list[str]) -> bool:
     return is_admin(scopes) or is_staff(scopes) or is_guide(scopes)
 
 
@@ -174,9 +176,9 @@ team_security_optional = HTTPBearer(auto_error=False)
 
 
 def get_current_team_optional(
-    token: Annotated[Optional[HTTPAuthorizationCredentials], Depends(team_security_optional)],
+    token: Annotated[HTTPAuthorizationCredentials | None, Depends(team_security_optional)],
     settings: SettingsDep,
-) -> Optional[TeamTokenData]:
+) -> TeamTokenData | None:
     """Dependency for optional team authentication"""
     if not token:
         return None
@@ -184,31 +186,29 @@ def get_current_team_optional(
     try:
         if not settings.TEAM_JWT_SECRET_KEY:
             return None
-            
+
         payload = jwt.decode(
             token.credentials,
             settings.TEAM_JWT_SECRET_KEY,
             algorithms=[settings.TEAM_JWT_ALGORITHM],
         )
-        
+
         team_id = payload.get("team_id")
         team_name = payload.get("team_name")
         token_type = payload.get("type")
-        
+
         if team_id is None or team_name is None or token_type != "team_access":
             return None
-            
+
         return TeamTokenData(team_id=team_id, team_name=team_name)
     except JWTError:
         return None
 
 
 def get_current_team(
-    team: Annotated[Optional[TeamTokenData], Depends(get_current_team_optional)],
+    team: Annotated[TeamTokenData | None, Depends(get_current_team_optional)],
 ) -> TeamTokenData:
     """Dependency requiring a valid team token; 401 otherwise."""
     if team is None:
-        raise HTTPException(
-            status_code=401, detail="Team authentication required"
-        )
+        raise HTTPException(status_code=401, detail="Team authentication required")
     return team

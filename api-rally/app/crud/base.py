@@ -1,10 +1,12 @@
-from typing import Any, Generic, Optional, Sequence, Type, TypeVar
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar
+
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exception import NotFoundException
+from app.core.exceptions import RallyNotFoundError
 from app.models.base import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
@@ -17,7 +19,7 @@ DEFAULT_MAX_LIMIT = 500
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    def __init__(self, model: Type[ModelType]):
+    def __init__(self, model: type[ModelType]):
         """
         CRUD object with default methods to Create, Read, Update, Delete (CRUD).
         **Parameters**
@@ -29,15 +31,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def get(self, db: AsyncSession, *, id: Any, for_update: bool = False) -> ModelType:
         obj = await db.get(self.model, id, with_for_update=for_update)
         if obj is None:
-            raise NotFoundException(detail=f"{self.model.__name__} Not Found")
+            raise RallyNotFoundError(f"{self.model.__name__} Not Found")
         return obj
 
     async def get_multi(
         self,
         db: AsyncSession,
         *,
-        skip: Optional[int] = None,
-        limit: Optional[int] = None,
+        skip: int | None = None,
+        limit: int | None = None,
         for_update: bool = False,
     ) -> Sequence[ModelType]:
         effective_limit = DEFAULT_MAX_LIMIT if limit is None else limit
@@ -64,9 +66,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.refresh(db_obj)
         return db_obj
 
-    def update_unlocked(
-        self, *, db_obj: ModelType, obj_in: UpdateSchemaType
-    ) -> ModelType:
+    def update_unlocked(self, *, db_obj: ModelType, obj_in: UpdateSchemaType) -> ModelType:
         update_data = obj_in.model_dump(exclude_unset=True)
 
         for field in jsonable_encoder(db_obj):

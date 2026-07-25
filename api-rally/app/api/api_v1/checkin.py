@@ -16,19 +16,19 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.abac_deps import get_staff_with_checkpoint_access
-from app.api.auth import AuthData, api_nei_auth
-from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.api import deps
+from app.api.abac_deps import get_staff_with_checkpoint_access
+from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
+from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_current_team, get_db
+from app.core.config import Settings, SettingsDep
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
+from app.core.redis import get_async_redis_client
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
-from app.core.config import Settings, SettingsDep
-from app.core.redis import get_async_redis_client
 from app.events import (
     TeamCheckpointAdvancedEvent,
     TeamCheckpointAdvancedPayload,
@@ -88,9 +88,7 @@ async def _claim_nonce(nonce: str, team_id: int, settings: Settings) -> bool:
     key = f"rally:checkin:{nonce}:{team_id}"
     client = get_async_redis_client()
     try:
-        was_set = await client.set(
-            key, "1", nx=True, ex=settings.CHECKIN_TOKEN_TTL_SECONDS
-        )
+        was_set = await client.set(key, "1", nx=True, ex=settings.CHECKIN_TOKEN_TTL_SECONDS)
         return bool(was_set)
     except Exception as exc:  # noqa: BLE001 — replay guard is best-effort
         logger.warning("Check-in replay guard unavailable: %s", exc)
@@ -101,9 +99,7 @@ async def _claim_nonce(nonce: str, team_id: int, settings: Settings) -> bool:
 
 @router.get("/checkpoint/checkin-token")
 async def get_checkin_token(
-    current_user: Annotated[
-        DetailedUser, Depends(get_staff_with_checkpoint_access)
-    ],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
     settings: SettingsDep,
     checkpoint_id: int | None = None,
@@ -121,7 +117,11 @@ async def get_checkin_token(
         if checkpoint_id != current_user.staff_checkpoint_id:
             raise RallyForbiddenError("Staff may only mint QR for their own checkpoint")
 
-    target = checkpoint_id if (checkpoint_id is not None and is_privileged) else current_user.staff_checkpoint_id
+    target = (
+        checkpoint_id
+        if (checkpoint_id is not None and is_privileged)
+        else current_user.staff_checkpoint_id
+    )
     if target is None:
         raise RallyForbiddenError("No checkpoint assigned")
     return {"token": generate_checkin_token(target)}
@@ -156,9 +156,7 @@ class StaffCheckinResponse(BaseModel):
 @router.post("/checkpoint/staff-check-in")
 async def staff_check_in(
     body: StaffCheckinRequest,
-    current_user: Annotated[
-        DetailedUser, Depends(get_staff_with_checkpoint_access)
-    ],
+    current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
     auth: Annotated[AuthData, Depends(api_nei_auth)],
     db: Annotated[AsyncSession, Depends(get_db)],
     settings: SettingsDep,
@@ -187,7 +185,7 @@ async def staff_check_in(
     if team_obj is None:
         raise RallyNotFoundError("Equipa não encontrada para este código")
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself when the row is
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself when the row is
     # missing rather than returning None, so this branch is unreachable in
     # practice (defensive dead code kept for API/type-contract clarity — see
     # equivalent notes below on the `check_in` handler for the same pattern).
@@ -239,9 +237,7 @@ async def check_in(
     try:
         claims = verify_checkin_token(body.token)
     except CheckinTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not await _claim_nonce(claims.nonce, team.team_id, settings):
         raise HTTPException(
@@ -249,7 +245,7 @@ async def check_in(
             detail="This QR was already used by your team",
         )
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself instead of
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself instead of
     # returning None when the row is missing, so the `is None` branches below
     # are unreachable dead code in practice; kept as defensive documentation
     # of the contract in case `.get()`'s behavior ever changes.

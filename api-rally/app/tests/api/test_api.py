@@ -1,5 +1,6 @@
 """API integration tests for rally settings (public view), against real Postgres."""
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 
 from app.crud.crud_rally_settings import rally_settings
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
@@ -36,8 +37,8 @@ class TestRallySettingsAPI:
 
 class TestTimezoneHandling:
     def test_datetime_comparison_utc(self):
-        start_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
-        end_time = datetime(2024, 1, 15, 18, 0, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 15, 18, 0, 0, tzinfo=UTC)
 
         assert start_time < end_time
         assert (end_time - start_time).total_seconds() == 8 * 3600

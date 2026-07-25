@@ -4,16 +4,17 @@ Team app posts its current GPS coords; server checks distance vs
 checkpoint.arrival_radius_m and records idempotent arrival.
 Only available when the current event is PEDDY_PAPER.
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from loguru import logger
-
+from app import crud
 from app.api import deps
 from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.crud import crud_activity
@@ -21,7 +22,6 @@ from app.models.activity import EventType
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.schemas.team_auth import TeamTokenData
 from app.utils.geo import distance_m
-from app import crud
 
 router = APIRouter()
 
@@ -55,7 +55,7 @@ async def _auto_complete_if_no_activities(
     Posts that DO have activities are left untouched: those only advance once
     staff submits the activity result (handled by check_and_advance_team).
     """
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice
     # (the caller already validated the checkpoint exists); kept defensively.
     checkpoint_obj = await crud.checkpoint.get(db=db, id=checkpoint_id)
@@ -66,7 +66,7 @@ async def _auto_complete_if_no_activities(
     if any(a.is_active for a in activities):
         return False  # has activities → staff-driven advancement
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice
     # (a team with a valid arrival JWT necessarily still exists); kept as a
     # defensive guard.
@@ -94,7 +94,9 @@ async def _auto_complete_if_no_activities(
 @router.post(
     "/checkpoint/{checkpoint_id}/arrive",
     responses={
-        400: {"description": "GPS check-in unavailable, missing coordinates, or too far from checkpoint"},
+        400: {
+            "description": "GPS check-in unavailable, missing coordinates, or too far from checkpoint"
+        },
         404: {"description": "Checkpoint not found"},
     },
 )
@@ -106,9 +108,11 @@ async def arrive_at_checkpoint(
 ) -> ArriveResponse:
     event = await crud_activity.rally_event.get_current(db)
     if not event or event.event_type != EventType.PEDDY_PAPER.value:
-        raise HTTPException(status_code=400, detail="GPS check-in only available for Peddy Paper events")
+        raise HTTPException(
+            status_code=400, detail="GPS check-in only available for Peddy Paper events"
+        )
 
-    # NOTE: CRUDBase.get() raises NotFoundException itself for a missing id
+    # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # (mapped to 404 by the app's exception handler), so this branch is
     # unreachable in practice; kept as a defensive guard.
     checkpoint = await crud.checkpoint.get(db=db, id=checkpoint_id)

@@ -8,6 +8,7 @@ These functions have clean algebraic invariants, so property tests catch
 edge cases (ties, single competitor, large penalty) that example-based
 tests tend to miss.
 """
+
 from typing import Any
 
 import pytest
@@ -36,9 +37,7 @@ def test_faster_time_never_scores_less(times: list[float]) -> None:
     activity = _make_time_activity()
     sorted_times = sorted(times)
 
-    scores = [
-        activity.calculate_relative_ranking_score(times, t) for t in sorted_times
-    ]
+    scores = [activity.calculate_relative_ranking_score(times, t) for t in sorted_times]
 
     # Scores must be non-increasing as time increases (faster => same or higher score)
     for earlier, later in zip(scores, scores[1:]):
@@ -105,21 +104,15 @@ nonneg_float = st.floats(min_value=0.0, max_value=100_000.0, allow_nan=False, al
 
 @given(
     base_score=nonneg_float,
-    penalties=st.dictionaries(
-        st.text(min_size=1, max_size=10), nonneg_int, max_size=5
-    ),
+    penalties=st.dictionaries(st.text(min_size=1, max_size=10), nonneg_int, max_size=5),
 )
 @settings(max_examples=200)
-def test_penalties_never_increase_score(
-    base_score: float, penalties: dict[str, int]
-) -> None:
+def test_penalties_never_increase_score(base_score: float, penalties: dict[str, int]) -> None:
     """Applying any set of non-negative penalties never raises the score above
     the unpenalized result, and the score is never negative."""
     activity = ScoreBasedActivity({})
     unpenalized = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
-    penalized = activity.apply_modifiers(
-        base_score, {"extra_shots": 0, "penalties": penalties}
-    )
+    penalized = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": penalties})
 
     assert penalized <= unpenalized
     assert penalized >= 0
@@ -128,7 +121,9 @@ def test_penalties_never_increase_score(
 @given(
     base_score=nonneg_float,
     extra_shots=nonneg_int,
-    bonus_per_shot=st.floats(min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+    bonus_per_shot=st.floats(
+        min_value=0.0, max_value=1000.0, allow_nan=False, allow_infinity=False
+    ),
 )
 @settings(max_examples=200)
 def test_extra_shots_never_decrease_score(

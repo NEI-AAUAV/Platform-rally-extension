@@ -1,12 +1,12 @@
-from .crud_team import team, CRUDTeam
-from .crud_checkpoint import checkpoint
-from .crud_user import user
-from .crud_rally_staff_assignment import rally_staff_assignment
-from .crud_rally_guide_assignment import rally_guide_assignment
-from .crud_activity import activity, activity_result, rally_event
-from .crud_participation import participation
-from .crud_checkpoint_media import checkpoint_media
-from .crud_checkpoint_guide_indication import checkpoint_guide_indication
+from app.crud.crud_activity import activity, activity_result, rally_event
+from app.crud.crud_checkpoint import checkpoint
+from app.crud.crud_checkpoint_guide_indication import checkpoint_guide_indication
+from app.crud.crud_checkpoint_media import checkpoint_media
+from app.crud.crud_participation import participation
+from app.crud.crud_rally_guide_assignment import rally_guide_assignment
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.crud.crud_team import CRUDTeam, team
+from app.crud.crud_user import user
 from app.models.team import Team
 
 __all__ = [

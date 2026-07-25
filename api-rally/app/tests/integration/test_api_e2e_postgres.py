@@ -31,9 +31,7 @@ SCHEMA = app_settings.SCHEMA_NAME
 
 
 def _async_test_url() -> str:
-    return str(app_settings.TEST_POSTGRES_URI).replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    return str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
 async def _create_schema_and_seed() -> None:
@@ -140,9 +138,7 @@ def test_team_journey_login_verify_arrive_and_advance(e2e_client: TestClient) ->
     assert verify.json()["team_name"] == "Equipa E2E"
 
     # Wrong access code stays out.
-    bad = e2e_client.post(
-        "/api/rally/v1/team-auth/login", json={"access_code": "XXXX-0000"}
-    )
+    bad = e2e_client.post("/api/rally/v1/team-auth/login", json={"access_code": "XXXX-0000"})
     assert bad.status_code == 401
 
     # GPS arrival at CP1 (exactly at the coordinates): recorded and, since the

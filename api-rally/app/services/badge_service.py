@@ -7,7 +7,7 @@ are never revoked here.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,8 +24,8 @@ async def team_has_badge(
     db: AsyncSession,
     team_id: int,
     badge_code: str,
-    activity_id: Optional[int],
-    checkpoint_id: Optional[int] = None,
+    activity_id: int | None,
+    checkpoint_id: int | None = None,
 ) -> bool:
     """True when this team already holds this badge for this scope."""
     stmt = select(TeamBadge.id).where(
@@ -40,8 +40,8 @@ async def team_has_badge(
 async def badge_holder_exists(
     db: AsyncSession,
     badge_code: str,
-    activity_id: Optional[int],
-    checkpoint_id: Optional[int] = None,
+    activity_id: int | None,
+    checkpoint_id: int | None = None,
 ) -> bool:
     """True when *any* team already holds this badge for this scope.
 
@@ -61,10 +61,10 @@ async def award_badge(
     *,
     team_id: int,
     badge_code: str,
-    activity_id: Optional[int] = None,
-    checkpoint_id: Optional[int] = None,
-    meta: Optional[dict[str, Any]] = None,
-) -> Optional[TeamBadge]:
+    activity_id: int | None = None,
+    checkpoint_id: int | None = None,
+    meta: dict[str, Any] | None = None,
+) -> TeamBadge | None:
     """Award a badge, committing the row. No-op (returns None) if already held.
 
     ``badge_code`` is the BadgeDefinition.code (also what is stored in
@@ -96,9 +96,7 @@ async def award_badge(
 async def list_team_badges(db: AsyncSession, team_id: int) -> list[TeamBadge]:
     """All badges a team holds, newest first."""
     stmt = (
-        select(TeamBadge)
-        .where(TeamBadge.team_id == team_id)
-        .order_by(TeamBadge.awarded_at.desc())
+        select(TeamBadge).where(TeamBadge.team_id == team_id).order_by(TeamBadge.awarded_at.desc())
     )
     return list((await db.scalars(stmt)).all())
 

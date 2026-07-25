@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -10,7 +10,7 @@ _CODE_RE = re.compile(r"^[a-z0-9_]+$")
 _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
 
-def _validate_trigger(value: Optional[str]) -> Optional[str]:
+def _validate_trigger(value: str | None) -> str | None:
     if value is None:
         return None
     try:
@@ -28,12 +28,12 @@ def _validate_color(value: str) -> str:
 
 class BadgeDefinitionBase(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_active: bool = True
     is_auto: bool = False
     color: str = DEFAULT_BADGE_COLOR
-    glyph: Optional[str] = None
-    trigger_type: Optional[str] = None
+    glyph: str | None = None
+    trigger_type: str | None = None
     criteria: dict[str, Any] = {}
 
     _check_trigger = field_validator("trigger_type")(_validate_trigger)
@@ -53,23 +53,23 @@ class BadgeDefinitionCreate(BadgeDefinitionBase):
 
 
 class BadgeDefinitionUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-    is_auto: Optional[bool] = None
-    color: Optional[str] = None
-    glyph: Optional[str] = None
-    trigger_type: Optional[str] = None
-    criteria: Optional[dict[str, Any]] = None
+    name: str | None = None
+    description: str | None = None
+    is_active: bool | None = None
+    is_auto: bool | None = None
+    color: str | None = None
+    glyph: str | None = None
+    trigger_type: str | None = None
+    criteria: dict[str, Any] | None = None
 
     @field_validator("trigger_type")
     @classmethod
-    def _check_trigger(cls, value: Optional[str]) -> Optional[str]:
+    def _check_trigger(cls, value: str | None) -> str | None:
         return _validate_trigger(value)
 
     @field_validator("color")
     @classmethod
-    def _check_color(cls, value: Optional[str]) -> Optional[str]:
+    def _check_color(cls, value: str | None) -> str | None:
         return None if value is None else _validate_color(value)
 
 
@@ -78,11 +78,11 @@ class BadgeDefinitionResponse(BadgeDefinitionBase):
 
     id: int
     code: str
-    icon_url: Optional[str] = None
+    icon_url: str | None = None
 
 
 class ManualBadgeAwardCreate(BaseModel):
     team_id: int
     badge_code: str
-    activity_id: Optional[int] = None
-    checkpoint_id: Optional[int] = None
+    activity_id: int | None = None
+    checkpoint_id: int | None = None

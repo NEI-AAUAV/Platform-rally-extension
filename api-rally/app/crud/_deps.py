@@ -6,6 +6,4 @@ def unique_key_error_regex(column: str) -> re.Pattern[str]:
 
 
 def foreign_key_error_regex(column: str) -> re.Pattern[str]:
-    return re.compile(
-        f"Key \\({re.escape(column)}\\)=\\([^\\)]*\\) is not present in table"
-    )
+    return re.compile(f"Key \\({re.escape(column)}\\)=\\([^\\)]*\\) is not present in table")

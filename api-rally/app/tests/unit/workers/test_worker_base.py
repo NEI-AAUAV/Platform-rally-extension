@@ -1,4 +1,5 @@
 """Unit tests for BaseWorker: dispatch, lifecycle (start/stop), signal handling."""
+
 import json
 import signal
 import time
@@ -42,16 +43,12 @@ class TestDispatch:
 
     def test_dispatches_message_with_json_string_data(self) -> None:
         worker = _RecordingWorker()
-        worker._dispatch(
-            {"type": "message", "channel": "test.chan", "data": json.dumps({"a": 1})}
-        )
+        worker._dispatch({"type": "message", "channel": "test.chan", "data": json.dumps({"a": 1})})
         assert worker.events == [("test.chan", {"a": 1})]
 
     def test_dispatches_pmessage_using_pattern_as_channel_fallback(self) -> None:
         worker = _RecordingWorker()
-        worker._dispatch(
-            {"type": "pmessage", "pattern": "test.*", "data": json.dumps({"b": 2})}
-        )
+        worker._dispatch({"type": "pmessage", "pattern": "test.*", "data": json.dumps({"b": 2})})
         assert worker.events == [("test.*", {"b": 2})]
 
     def test_passes_through_non_string_data_unchanged(self) -> None:
@@ -86,9 +83,7 @@ class TestStartStop:
             worker.start(background=False)
         mock_run_loop.assert_not_called()
 
-    def test_start_background_spawns_daemon_thread(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_start_background_spawns_daemon_thread(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(base.settings, "EVENTS_ENABLED", True)
         worker = _RecordingWorker()
         with patch.object(worker, "_run_loop") as mock_run_loop:
@@ -107,9 +102,10 @@ class TestStartStop:
     ) -> None:
         monkeypatch.setattr(base.settings, "EVENTS_ENABLED", True)
         worker = _RecordingWorker()
-        with patch.object(worker, "_run_loop") as mock_run_loop, patch(
-            "app.workers.base.signal.signal"
-        ) as mock_signal:
+        with (
+            patch.object(worker, "_run_loop") as mock_run_loop,
+            patch("app.workers.base.signal.signal") as mock_signal,
+        ):
             worker.start(background=False)
 
         mock_run_loop.assert_called_once()
@@ -121,9 +117,7 @@ class TestStartStop:
         worker.stop()  # should not raise
         assert worker._running is False
 
-    def test_stop_joins_thread_and_resets_state(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_stop_joins_thread_and_resets_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(base.settings, "EVENTS_ENABLED", True)
         worker = _RecordingWorker()
         with patch.object(worker, "_run_loop"):

@@ -1,4 +1,5 @@
 """API tests for the event results export endpoint, against real Postgres."""
+
 from io import BytesIO
 
 import openpyxl
@@ -10,9 +11,7 @@ from app.models.team import Team
 
 pytestmark = pytest.mark.asyncio
 
-_XLSX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+_XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 async def _seed_event(pg_session) -> dict:
@@ -31,29 +30,57 @@ async def _seed_event(pg_session) -> dict:
     for obj in (cp1, cp2, team_a, team_b):
         await pg_session.refresh(obj)
 
-    act1 = Activity(name="Match CP1", activity_type="TeamVsActivity", checkpoint_id=cp1.id, event_id=event.id, config={})
-    act2 = Activity(name="Match CP2", activity_type="TeamVsActivity", checkpoint_id=cp2.id, event_id=event.id, config={})
+    act1 = Activity(
+        name="Match CP1",
+        activity_type="TeamVsActivity",
+        checkpoint_id=cp1.id,
+        event_id=event.id,
+        config={},
+    )
+    act2 = Activity(
+        name="Match CP2",
+        activity_type="TeamVsActivity",
+        checkpoint_id=cp2.id,
+        event_id=event.id,
+        config={},
+    )
     pg_session.add_all([act1, act2])
     await pg_session.commit()
     for obj in (act1, act2):
         await pg_session.refresh(obj)
 
-    pg_session.add_all([
-        ActivityResult(
-            activity_id=act1.id, team_id=team_a.id, is_completed=True, final_score=6.0,
-            extra_shots=5, penalties={"not_drinking": 1},
-            result_data={"result": "win", "notes": "Objeto: pasta"}, team_vs_result="win",
-        ),
-        ActivityResult(
-            activity_id=act1.id, team_id=team_b.id, is_completed=True, final_score=3.0,
-            extra_shots=0, penalties={"vomit": 5},
-            result_data={"result": "lose"}, team_vs_result="lose",
-        ),
-        ActivityResult(
-            activity_id=act2.id, team_id=team_a.id, is_completed=True, final_score=3.0,
-            result_data={"result": "lose"}, team_vs_result="lose",
-        ),
-    ])
+    pg_session.add_all(
+        [
+            ActivityResult(
+                activity_id=act1.id,
+                team_id=team_a.id,
+                is_completed=True,
+                final_score=6.0,
+                extra_shots=5,
+                penalties={"not_drinking": 1},
+                result_data={"result": "win", "notes": "Objeto: pasta"},
+                team_vs_result="win",
+            ),
+            ActivityResult(
+                activity_id=act1.id,
+                team_id=team_b.id,
+                is_completed=True,
+                final_score=3.0,
+                extra_shots=0,
+                penalties={"vomit": 5},
+                result_data={"result": "lose"},
+                team_vs_result="lose",
+            ),
+            ActivityResult(
+                activity_id=act2.id,
+                team_id=team_a.id,
+                is_completed=True,
+                final_score=3.0,
+                result_data={"result": "lose"},
+                team_vs_result="lose",
+            ),
+        ]
+    )
     await pg_session.commit()
 
     return {"event": event, "team_a": team_a, "team_b": team_b}
@@ -105,8 +132,14 @@ async def test_export_checkpoint_detail_columns(pg_session, pg_client, as_admin)
     rows = list(wb["Checkpoint 1"].iter_rows(values_only=True))
 
     assert rows[0] == (
-        "Team", "Versus Pair", "Match Result", "Extra Shots",
-        "Vomit penalty (-)", "Not drinking penalty (-)", "Notes", "Total Checkpoint",
+        "Team",
+        "Versus Pair",
+        "Match Result",
+        "Extra Shots",
+        "Vomit penalty (-)",
+        "Not drinking penalty (-)",
+        "Notes",
+        "Total Checkpoint",
     )
     assert rows[1] == ("Alpha", "Bravo", 6, 5, 0, 1, "Objeto: pasta", 6)
     assert rows[2] == ("Bravo", "Alpha", 3, 0, 5, 0, None, 3)

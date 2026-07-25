@@ -16,7 +16,7 @@ import signal
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 import redis
 
@@ -44,8 +44,8 @@ class BaseWorker(ABC):
 
     def __init__(self) -> None:
         self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._pubsub: Optional[redis.client.PubSub] = None
+        self._thread: threading.Thread | None = None
+        self._pubsub: redis.client.PubSub | None = None
         self._stop_event = threading.Event()
         # monotonic timestamp of the last successful pub/sub heartbeat; 0.0
         # means "never beaten". Read by `is_alive` for /health/ready.
@@ -119,7 +119,9 @@ class BaseWorker(ABC):
                 delay += random.uniform(0, delay * 0.1)  # jitter
                 logger.exception(
                     "[%s] Redis error (attempt %d), reconnecting in %.1fs",
-                    self.name, attempt, delay,
+                    self.name,
+                    attempt,
+                    delay,
                 )
                 # Interruptible sleep: a stop during backoff exits immediately.
                 if self._stop_event.wait(timeout=delay):
@@ -138,7 +140,9 @@ class BaseWorker(ABC):
                 pubsub.psubscribe(*self.patterns)
             logger.info(
                 "[%s] Subscribed channels=%s patterns=%s",
-                self.name, self.channels, self.patterns,
+                self.name,
+                self.channels,
+                self.patterns,
             )
             self._beat()  # subscribed successfully — mark alive
             while not self._stop_event.is_set():

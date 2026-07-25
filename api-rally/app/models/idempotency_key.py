@@ -14,7 +14,7 @@ Keys are scoped by ``endpoint`` so a client key reused across two different
 routes can't replay the wrong response.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, Integer, String, UniqueConstraint
@@ -30,9 +30,7 @@ class IdempotencyKey(Base):
 
     __tablename__ = "idempotency_keys"
     __table_args__ = (
-        UniqueConstraint(
-            "endpoint", "idempotency_key", name="uq_idempotency_keys_endpoint_key"
-        ),
+        UniqueConstraint("endpoint", "idempotency_key", name="uq_idempotency_keys_endpoint_key"),
         {"schema": settings.SCHEMA_NAME},
     )
 
@@ -40,9 +38,7 @@ class IdempotencyKey(Base):
     # Logical route this key belongs to (e.g. "evaluate_team_activity").
     endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
     # Client-supplied key; unique per endpoint.
-    idempotency_key: Mapped[str] = mapped_column(
-        String(255), nullable=False, index=True
-    )
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     # sha256 hex of the normalized request (path params + body). A replay whose
     # fingerprint differs from the stored one is a key-reuse bug → 409.
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -52,11 +48,8 @@ class IdempotencyKey(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<IdempotencyKey(endpoint='{self.endpoint}', "
-            f"key='{self.idempotency_key}')>"
-        )
+        return f"<IdempotencyKey(endpoint='{self.endpoint}', key='{self.idempotency_key}')>"

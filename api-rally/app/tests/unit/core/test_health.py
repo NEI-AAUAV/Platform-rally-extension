@@ -85,5 +85,6 @@ def test_ready_skips_redis_and_workers_when_events_disabled(
 
 async def _async(value: bool) -> bool:
     import asyncio
+
     await asyncio.sleep(0)
     return value

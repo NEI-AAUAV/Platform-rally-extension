@@ -1,37 +1,31 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
+
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import or_, select
-
 
 from app.core.exceptions import RallyNotFoundError
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
-from ._deps import foreign_key_error_regex
+from app.crud._deps import foreign_key_error_regex
 
 _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def create(
-        self, db: AsyncSession, *, obj_in: UserCreate, commit: bool = True
-    ) -> User:
+    async def create(self, db: AsyncSession, *, obj_in: UserCreate, commit: bool = True) -> User:
         """
         Override default create to keep consistent error handling.
         """
         return await self._create_internal(db, obj_in=obj_in)
 
-    async def get_by_authentik_sub(
-        self, db: AsyncSession, *, authentik_sub: str
-    ) -> Optional[User]:
+    async def get_by_authentik_sub(self, db: AsyncSession, *, authentik_sub: str) -> User | None:
         """Look up a staff/manager/admin user by their OIDC subject."""
 
-        result = await db.scalars(
-            select(User).where(User.authentik_sub == authentik_sub)
-        )
+        result = await db.scalars(select(User).where(User.authentik_sub == authentik_sub))
         return result.first()
 
     async def get_by_authentik_subs(
@@ -69,7 +63,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         *,
         authentik_sub: str,
         name: str,
-        email: Optional[str],
+        email: str | None,
         scopes: list[str],
     ) -> User:
         """Create a local user mirroring an authentik identity on first login."""
@@ -84,7 +78,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         await db.refresh(db_obj)
         return db_obj
 
-    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
         result = await db.scalars(select(User).where(User.email == email))
         return result.first()
 
@@ -93,7 +87,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         db: AsyncSession,
         *,
         name: str,
-        email: Optional[str],
+        email: str | None,
         scope: str,
     ) -> User:
         """Get the local mirror for an Authentik account, creating or

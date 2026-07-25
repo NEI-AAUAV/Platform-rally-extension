@@ -1,4 +1,3 @@
-from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +9,7 @@ from app.schemas.checkpoint_guide_indication import (
 
 
 class CRUDCheckpointGuideIndication:
-    async def get(self, db: AsyncSession, *, id: int) -> Optional[CheckpointGuideIndication]:
+    async def get(self, db: AsyncSession, *, id: int) -> CheckpointGuideIndication | None:
         result = await db.execute(
             select(CheckpointGuideIndication).where(CheckpointGuideIndication.id == id)
         )
@@ -18,7 +17,7 @@ class CRUDCheckpointGuideIndication:
 
     async def get_by_checkpoint(
         self, db: AsyncSession, *, checkpoint_id: int
-    ) -> List[CheckpointGuideIndication]:
+    ) -> list[CheckpointGuideIndication]:
         result = await db.execute(
             select(CheckpointGuideIndication)
             .where(CheckpointGuideIndication.checkpoint_id == checkpoint_id)

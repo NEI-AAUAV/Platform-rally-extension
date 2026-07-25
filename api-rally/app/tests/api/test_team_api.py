@@ -1,15 +1,17 @@
 """API tests for the core Team CRUD/listing endpoints (`app/api/api_v1/team.py`),
 against real Postgres.
 """
-from app.crud.crud_team import team as crud_team
-from app.schemas.team import TeamCreate
-from app.tests.conftest import make_event as _make_event
+
+from app.api.auth import api_nei_auth, api_nei_auth_optional
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_team import team as crud_team
+from app.main import app
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
-from app.main import app
-from app.api.auth import api_nei_auth_optional, api_nei_auth
+from app.schemas.team import TeamCreate
+from app.tests.conftest import make_event as _make_event
+
 
 async def _make_team(pg_session, name="Test Team"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
@@ -38,9 +40,9 @@ class TestGetTeams:
 
 class TestGetOwnTeam:
     async def test_get_own_team_success(self, pg_session, pg_client):
-        from app.main import app
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
+        from app.main import app
         from app.schemas.user import DetailedUser
 
         await _make_event(pg_session)
@@ -86,12 +88,8 @@ class TestGetTeamById:
         """
 
         await _make_event(pg_session)
-        cp1 = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
-        )
-        cp2 = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP2", order=2)
-        )
+        cp1 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP1", order=1))
+        cp2 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP2", order=2))
         team = await _make_team(pg_session, "Progressing")
         activity1 = await crud_activity.create(
             pg_session,
@@ -118,9 +116,7 @@ class TestGetTeamById:
         # through ScoringService, which sets is_completed and auto-checks the
         # team into cp1, so `team.times` gets one entry here).
         as_admin.staff_checkpoint_id = cp1.id
-        eval_url = (
-            f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
-        )
+        eval_url = f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
         resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 10}})
         assert resp.status_code == 200, resp.text
 
@@ -135,9 +131,7 @@ class TestGetTeamById:
         assert body["last_checkpoint_number"] == 2
         assert body["current_checkpoint_number"] == 2
 
-    async def test_get_team_by_id_checkpoint_progress_all_completed(
-        self, pg_session, pg_client
-    ):
+    async def test_get_team_by_id_checkpoint_progress_all_completed(self, pg_session, pg_client):
         """When every checkpoint counts as done, current == last (no +1)."""
         import datetime as dt
 
@@ -145,9 +139,7 @@ class TestGetTeamById:
         from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
-        await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1)
-        )
+        await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1))
         team = await _make_team(pg_session, "Finisher")
         team.times = [dt.datetime(2026, 1, 1)]
         pg_session.add(team)
@@ -159,7 +151,6 @@ class TestGetTeamById:
         body = resp.json()
         assert body["last_checkpoint_number"] == 1
         assert body["current_checkpoint_number"] == 1
-
 
     async def test_get_team_by_id_checkpoint_progress_stops_at_incomplete_activity(
         self, pg_session, pg_client, as_admin
@@ -173,9 +164,7 @@ class TestGetTeamById:
         from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
-        cp1 = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
-        )
+        cp1 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP1", order=1))
         team = await _make_team(pg_session, "PartiallyDone")
         activity1 = await crud_activity.create(
             pg_session,
@@ -191,9 +180,7 @@ class TestGetTeamById:
         )
 
         as_admin.staff_checkpoint_id = cp1.id
-        eval_url = (
-            f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
-        )
+        eval_url = f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
         resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 10}})
         assert resp.status_code == 200, resp.text
 
@@ -232,9 +219,7 @@ class TestAddCheckpoint:
         body = resp.json()
         assert len(body["times"]) == 1
 
-    async def test_add_checkpoint_missing_id_admin_400(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_add_checkpoint_missing_id_admin_400(self, pg_session, pg_client, as_admin):
         # Admin/manager must specify a checkpoint_id explicitly (they have
         # access to all, so there is no "assigned" checkpoint to default to).
         await _make_event(pg_session)
@@ -262,12 +247,10 @@ class TestCreateTeam:
         assert resp.status_code == 201, resp.text
         assert resp.json()["name"] == "New Team"
 
-    async def test_create_team_forbidden_for_non_admin_participant(
-        self, pg_session, pg_client
-    ):
-        from app.main import app
+    async def test_create_team_forbidden_for_non_admin_participant(self, pg_session, pg_client):
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
+        from app.main import app
         from app.schemas.user import DetailedUser
 
         await _make_event(pg_session)
@@ -290,9 +273,7 @@ class TestUpdateTeam:
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Old Name")
 
-        resp = pg_client.put(
-            f"/api/rally/v1/team/{team.id}", json={"name": "New Name"}
-        )
+        resp = pg_client.put(f"/api/rally/v1/team/{team.id}", json={"name": "New Name"})
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["name"] == "New Name"
@@ -300,16 +281,15 @@ class TestUpdateTeam:
     async def test_update_team_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        resp = pg_client.put(
-            "/api/rally/v1/team/999999", json={"name": "Whatever"}
-        )
+        resp = pg_client.put("/api/rally/v1/team/999999", json={"name": "Whatever"})
 
         assert resp.status_code == 404
 
     async def test_update_team_forbidden_for_non_admin(self, pg_session, pg_client):
         from fastapi import HTTPException
-        from app.main import app
+
         from app.api import deps
+        from app.main import app
 
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Protected")
@@ -319,9 +299,7 @@ class TestUpdateTeam:
 
         app.dependency_overrides[deps.get_admin] = _raise_forbidden
         try:
-            resp = pg_client.put(
-                f"/api/rally/v1/team/{team.id}", json={"name": "Hacked"}
-            )
+            resp = pg_client.put(f"/api/rally/v1/team/{team.id}", json={"name": "Hacked"})
         finally:
             app.dependency_overrides.pop(deps.get_admin, None)
 
@@ -345,9 +323,7 @@ class TestDeleteTeam:
 
         assert resp.status_code == 404
 
-    async def test_delete_team_with_members_rejected(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_delete_team_with_members_rejected(self, pg_session, pg_client, as_admin):
         from app.crud.crud_user import user as crud_user
         from app.schemas.user import UserCreate
 
@@ -365,9 +341,7 @@ class TestDeleteTeam:
 
 
 class TestGetTeamEvaluations:
-    async def test_evaluations_forbidden_without_permission(
-        self, pg_session, pg_client
-    ):
+    async def test_evaluations_forbidden_without_permission(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Private")
 
@@ -375,19 +349,14 @@ class TestGetTeamEvaluations:
 
         assert resp.status_code == 403
 
-    async def test_evaluations_accessible_by_admin(
-        self, pg_session, pg_client, as_admin
-    ):
-
+    async def test_evaluations_accessible_by_admin(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Visible")
 
         # `get_team_evaluations` uses the *optional* auth dependency, which
         # `as_admin` does not override (it only overrides the required
         # `api_nei_auth`); wire it explicitly for this test.
-        app.dependency_overrides[api_nei_auth_optional] = app.dependency_overrides[
-            api_nei_auth
-        ]
+        app.dependency_overrides[api_nei_auth_optional] = app.dependency_overrides[api_nei_auth]
         try:
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}/evaluations")
         finally:
@@ -398,12 +367,10 @@ class TestGetTeamEvaluations:
         assert body["evaluations"] == []
         assert body["total"] == 0
 
-    async def test_evaluations_accessible_by_own_nei_user(
-        self, pg_session, pg_client
-    ):
-        from app.main import app
+    async def test_evaluations_accessible_by_own_nei_user(self, pg_session, pg_client):
         from app.api import deps
-        from app.api.auth import api_nei_auth, AuthData
+        from app.api.auth import AuthData, api_nei_auth
+        from app.main import app
         from app.schemas.user import DetailedUser
 
         await _make_event(pg_session)
@@ -421,9 +388,7 @@ class TestGetTeamEvaluations:
 
         assert resp.status_code == 200, resp.text
 
-    async def test_evaluations_accessible_by_team_token(
-        self, pg_session, pg_client
-    ):
+    async def test_evaluations_accessible_by_team_token(self, pg_session, pg_client):
         from app.tests.conftest import as_team
 
         await _make_event(pg_session)
@@ -456,20 +421,15 @@ class TestGetTeamEvaluations:
                 config={},
             ),
         )
-        eval_url = (
-            f"/api/rally/v1/staff/teams/{team.id}/activities/"
-            f"{activity_obj.id}/evaluate"
-        )
+        eval_url = f"/api/rally/v1/staff/teams/{team.id}/activities/{activity_obj.id}/evaluate"
         as_admin.staff_checkpoint_id = checkpoint.id
         resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 42}})
         assert resp.status_code == 200, resp.text
 
+        from app.api.auth import api_nei_auth, api_nei_auth_optional
         from app.main import app
-        from app.api.auth import api_nei_auth_optional, api_nei_auth
 
-        app.dependency_overrides[api_nei_auth_optional] = app.dependency_overrides[
-            api_nei_auth
-        ]
+        app.dependency_overrides[api_nei_auth_optional] = app.dependency_overrides[api_nei_auth]
         try:
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}/evaluations")
         finally:

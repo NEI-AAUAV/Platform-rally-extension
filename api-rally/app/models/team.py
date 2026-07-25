@@ -1,13 +1,14 @@
-from typing import Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, Boolean, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, relationship, mapped_column
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import settings
 from app.models.base import Base
 from app.models.user import User
-from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.models.activity import ActivityResult
@@ -30,40 +31,66 @@ class Team(Base):
     # and team cards. Empty string when unset (falls back to a placeholder).
     photo_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     # Event scoping: nullable so existing single-event rows remain valid.
-    event_id: Mapped[Optional[int]] = mapped_column(
+    event_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
     )
 
     # All arrays are wrapped in MutableList so in-place .append() (e.g. in
     # crud_team.add_checkpoint) marks the column dirty; plain ARRAY columns
     # silently lose in-place mutations.
-    times: Mapped[List[datetime]] = mapped_column(
+    times: Mapped[list[datetime]] = mapped_column(
         MutableList.as_mutable(ARRAY(DateTime(timezone=False))), default=list
     )
 
-    score_per_checkpoint: Mapped[List[int]] = mapped_column(
+    score_per_checkpoint: Mapped[list[int]] = mapped_column(
         MutableList.as_mutable(ARRAY(Integer)), default=list
     )
 
     # Additional arrays needed for Rally functionality
-    question_scores: Mapped[List[bool]] = mapped_column(
+    question_scores: Mapped[list[bool]] = mapped_column(
         MutableList.as_mutable(ARRAY(Boolean)), default=list
     )
-    time_scores: Mapped[List[int]] = mapped_column(
+    time_scores: Mapped[list[int]] = mapped_column(
         MutableList.as_mutable(ARRAY(Integer)), default=list
     )
-    pukes: Mapped[List[int]] = mapped_column(
-        MutableList.as_mutable(ARRAY(Integer)), default=list
-    )
-    skips: Mapped[List[int]] = mapped_column(
-        MutableList.as_mutable(ARRAY(Integer)), default=list
-    )
+    pukes: Mapped[list[int]] = mapped_column(MutableList.as_mutable(ARRAY(Integer)), default=list)
+    skips: Mapped[list[int]] = mapped_column(MutableList.as_mutable(ARRAY(Integer)), default=list)
 
     total: Mapped[int] = mapped_column(default=0)
     classification: Mapped[int] = mapped_column(default=-1)
 
-    members: Mapped[List[User]] = relationship()
-    versus_group_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
-    
+    members: Mapped[list[User]] = relationship()
+    versus_group_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+
     # Activity relationships
-    activity_results: Mapped[List["ActivityResult"]] = relationship("ActivityResult", back_populates="team")
+    activity_results: Mapped[list["ActivityResult"]] = relationship(
+        "ActivityResult", back_populates="team"
+    )
+
+    @property
+    def num_members(self) -> int:
+        """Requires ``members`` to be eager-loaded (e.g. via selectinload)."""
+        return len(self.members)
+
+    @property
+    def last_checkpoint_time(self) -> datetime | None:
+        return self.times[-1] if self.times else None
+
+    @property
+    def last_checkpoint_score(self) -> int | None:
+        return self.score_per_checkpoint[-1] if self.score_per_checkpoint else None
+
+    def record_checkpoint(
+        self, *, question_score: bool, time_score: int, pukes: int, skips: int, at: datetime
+    ) -> None:
+        """Append this checkpoint's results.
+
+        Arrays are wrapped in ``MutableList`` (see above) so these in-place
+        appends mark the column dirty. The only writer of these arrays —
+        callers must not append to them directly.
+        """
+        self.question_scores.append(question_score)
+        self.time_scores.append(time_score)
+        self.pukes.append(pukes)
+        self.skips.append(skips)
+        self.times.append(at)

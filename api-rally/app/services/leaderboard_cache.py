@@ -11,7 +11,7 @@ free of global state.
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as aredis
 
@@ -20,16 +20,14 @@ logger = logging.getLogger(__name__)
 GLOBAL_LEADERBOARD_KEY = "rally:leaderboard:global"
 
 
-async def write_global_leaderboard(
-    client: aredis.Redis, ranking: list[dict[str, Any]]
-) -> None:
+async def write_global_leaderboard(client: aredis.Redis, ranking: list[dict[str, Any]]) -> None:
     """Store the rendered global ranking as a JSON blob."""
     await client.set(GLOBAL_LEADERBOARD_KEY, json.dumps(ranking))
 
 
 async def read_global_leaderboard(
     client: aredis.Redis,
-) -> Optional[list[dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Return the cached global ranking, or None when nothing is cached."""
     raw = await client.get(GLOBAL_LEADERBOARD_KEY)
     if raw is None:

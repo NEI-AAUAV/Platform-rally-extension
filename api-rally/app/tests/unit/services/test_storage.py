@@ -1,4 +1,5 @@
 """Unit tests for the R2 storage client (app.services.storage)."""
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -31,9 +32,10 @@ class TestStorageClientInit:
         assert client.public_base_url is None
 
     def test_enabled_when_fully_configured(self) -> None:
-        with patch(
-            "app.services.storage.get_settings", return_value=_settings()
-        ), patch("app.services.storage.boto3.client") as mock_boto:
+        with (
+            patch("app.services.storage.get_settings", return_value=_settings()),
+            patch("app.services.storage.boto3.client") as mock_boto,
+        ):
             mock_boto.return_value = MagicMock()
             client = StorageClient()
 
@@ -43,10 +45,9 @@ class TestStorageClientInit:
         assert client.public_base_url == "https://cdn.example.com"
 
     def test_disabled_when_boto_init_raises(self) -> None:
-        with patch(
-            "app.services.storage.get_settings", return_value=_settings()
-        ), patch(
-            "app.services.storage.boto3.client", side_effect=RuntimeError("boom")
+        with (
+            patch("app.services.storage.get_settings", return_value=_settings()),
+            patch("app.services.storage.boto3.client", side_effect=RuntimeError("boom")),
         ):
             client = StorageClient()
 
@@ -65,9 +66,10 @@ class TestUploadImage:
             return StorageClient()
 
     def _enabled_client(self) -> StorageClient:
-        with patch(
-            "app.services.storage.get_settings", return_value=_settings()
-        ), patch("app.services.storage.boto3.client") as mock_boto:
+        with (
+            patch("app.services.storage.get_settings", return_value=_settings()),
+            patch("app.services.storage.boto3.client") as mock_boto,
+        ):
             mock_boto.return_value = MagicMock()
             return StorageClient()
 
@@ -104,9 +106,10 @@ class TestDeleteImage:
             return StorageClient()
 
     def _enabled_client(self) -> StorageClient:
-        with patch(
-            "app.services.storage.get_settings", return_value=_settings()
-        ), patch("app.services.storage.boto3.client") as mock_boto:
+        with (
+            patch("app.services.storage.get_settings", return_value=_settings()),
+            patch("app.services.storage.boto3.client") as mock_boto,
+        ):
             mock_boto.return_value = MagicMock()
             return StorageClient()
 

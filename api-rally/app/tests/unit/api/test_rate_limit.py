@@ -18,6 +18,7 @@ def _request(peer: str = "192.0.2.1", headers: dict | None = None) -> Mock:
 
 # --- client IP resolution ---------------------------------------------------
 
+
 def test_resolve_client_ip_uses_peer_by_default():
     assert rl.resolve_client_ip(_request("198.51.100.1"), settings) == "198.51.100.1"
 
@@ -34,6 +35,7 @@ def test_resolve_client_ip_trusts_xff_from_trusted_proxy():
 
 
 # --- fixed-window enforcement ----------------------------------------------
+
 
 def _fake_redis(count: int, ttl: int = 30) -> Mock:
     client = Mock()

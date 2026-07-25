@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _read_json(path: Path) -> list[dict[str, Any]]:
-    return cast(
-        "list[dict[str, Any]]", json.loads(await anyio.Path(path).read_text())
-    )
+    return cast("list[dict[str, Any]]", json.loads(await anyio.Path(path).read_text()))
 
 
 async def _seed_checkpoints(db: AsyncSession, data_dir: Path, event: "RallyEvent") -> None:
@@ -41,9 +39,7 @@ async def _seed_checkpoints(db: AsyncSession, data_dir: Path, event: "RallyEvent
     await db.commit()
 
 
-async def _upsert_activity(
-    db: AsyncSession, act_data: dict[str, Any], event: "RallyEvent"
-) -> None:
+async def _upsert_activity(db: AsyncSession, act_data: dict[str, Any], event: "RallyEvent") -> None:
     cp_id = act_data.get("checkpoint_id")
     checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.order == cp_id))
     if not checkpoint:
@@ -51,9 +47,7 @@ async def _upsert_activity(
         return
 
     act_data["checkpoint_id"] = checkpoint.id
-    existing_activity = await db.scalar(
-        select(Activity).where(Activity.name == act_data["name"])
-    )
+    existing_activity = await db.scalar(select(Activity).where(Activity.name == act_data["name"]))
     if not existing_activity:
         db.add(Activity(**act_data, event_id=event.id))
         return
@@ -87,6 +81,7 @@ async def seed_data(db: AsyncSession) -> None:
 
 if __name__ == "__main__":
     import asyncio
+
     from app.db.session import SessionLocal
 
     async def _main() -> None:

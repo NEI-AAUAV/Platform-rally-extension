@@ -15,9 +15,7 @@ from app.services.export_service import ExportService
 
 router = APIRouter()
 
-_XLSX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+_XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _safe_filename(name: str) -> str:

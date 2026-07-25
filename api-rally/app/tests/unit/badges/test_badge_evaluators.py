@@ -1,6 +1,6 @@
 """Unit tests for the data-driven badge rule evaluators."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -36,9 +36,7 @@ def _vs_result(*, completed: bool = True, outcome: str = "win") -> Any:
         activity_id=99,
         is_completed=completed,
         result_data={"result": outcome, "opponent_team_id": 20},
-        activity=SimpleNamespace(
-            activity_type=ActivityType.TEAM_VS.value, checkpoint_id=7
-        ),
+        activity=SimpleNamespace(activity_type=ActivityType.TEAM_VS.value, checkpoint_id=7),
     )
 
 
@@ -57,9 +55,7 @@ async def test_win_activity_awards_on_win() -> None:
 
 
 async def test_win_activity_skips_loss() -> None:
-    awards = await evaluators._handle_win_activity(
-        AsyncMock(), _vs_result(outcome="lose"), _defn()
-    )
+    awards = await evaluators._handle_win_activity(AsyncMock(), _vs_result(outcome="lose"), _defn())
     assert awards == []
 
 
@@ -72,9 +68,7 @@ async def test_win_activity_skips_incomplete() -> None:
 
 async def test_win_activity_skips_non_versus_activity() -> None:
     result = _vs_result()
-    result.activity = SimpleNamespace(
-        activity_type=ActivityType.TIME_BASED.value, checkpoint_id=7
-    )
+    result.activity = SimpleNamespace(activity_type=ActivityType.TIME_BASED.value, checkpoint_id=7)
     awards = await evaluators._handle_win_activity(AsyncMock(), result, _defn())
     assert awards == []
 
@@ -124,9 +118,7 @@ async def test_first_complete_activity_awards_earliest_team(
     scalars.first.return_value = earliest
     db.scalars.return_value = scalars
 
-    triggering: Any = SimpleNamespace(
-        id=2, team_id=8, activity_id=99, is_completed=True
-    )
+    triggering: Any = SimpleNamespace(id=2, team_id=8, activity_id=99, is_completed=True)
     awards = await evaluators._handle_first_complete_activity(
         db, triggering, _defn(trigger=BadgeTrigger.FIRST_COMPLETE_ACTIVITY)
     )
@@ -182,9 +174,7 @@ async def test_first_complete_activity_skips_when_already_held(
         "app.services.badge_service.badge_holder_exists",
         AsyncMock(return_value=True),
     )
-    triggering: Any = SimpleNamespace(
-        id=2, team_id=8, activity_id=99, is_completed=True
-    )
+    triggering: Any = SimpleNamespace(id=2, team_id=8, activity_id=99, is_completed=True)
     awards = await evaluators._handle_first_complete_activity(
         AsyncMock(), triggering, _defn(trigger=BadgeTrigger.FIRST_COMPLETE_ACTIVITY)
     )
@@ -217,9 +207,9 @@ async def test_first_complete_checkpoint_awards_earliest_full_team(
         "app.services.badge_service.badge_holder_exists",
         AsyncMock(return_value=False),
     )
-    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-    t2 = datetime(2026, 1, 1, 12, 5, 0, tzinfo=timezone.utc)
-    t3 = datetime(2026, 1, 1, 12, 9, 0, tzinfo=timezone.utc)
+    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    t2 = datetime(2026, 1, 1, 12, 5, 0, tzinfo=UTC)
+    t3 = datetime(2026, 1, 1, 12, 9, 0, tzinfo=UTC)
 
     # Checkpoint has activities {1, 2}. Team 5 finished both (last at t3);
     # team 6 finished only activity 1 -> not a finisher.
@@ -317,7 +307,7 @@ async def test_first_complete_checkpoint_skips_when_no_team_finished_all(
         "app.services.badge_service.badge_holder_exists",
         AsyncMock(return_value=False),
     )
-    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
     # Activities {1, 2} but only activity 1 has any completion.
     db = AsyncMock()
     db.scalars.side_effect = [
@@ -334,9 +324,7 @@ async def test_first_complete_checkpoint_skips_when_no_team_finished_all(
 
 
 def _milestone_result(team_id: int = 10) -> Any:
-    return SimpleNamespace(
-        id=4, team_id=team_id, activity_id=99, is_completed=True
-    )
+    return SimpleNamespace(id=4, team_id=team_id, activity_id=99, is_completed=True)
 
 
 async def test_complete_n_activities_awards_at_threshold() -> None:
@@ -512,7 +500,7 @@ async def test_score_threshold_skips_invalid_min_score_type() -> None:
 
 
 def _timed_result(*, seconds: float, team_id: int = 10, activity_id: int = 99) -> Any:
-    start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
     return SimpleNamespace(
         id=5,
         team_id=team_id,
@@ -547,7 +535,9 @@ async def test_fast_complete_skips_incomplete_or_missing_timestamps() -> None:
     result = _timed_result(seconds=10)
     result.is_completed = False
     awards = await evaluators._handle_fast_complete(
-        AsyncMock(), result, _defn(trigger=BadgeTrigger.FAST_COMPLETE, criteria={"max_seconds": 120})
+        AsyncMock(),
+        result,
+        _defn(trigger=BadgeTrigger.FAST_COMPLETE, criteria={"max_seconds": 120}),
     )
     assert awards == []
 
@@ -662,9 +652,7 @@ async def test_evaluate_result_skips_unknown_trigger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     bad = SimpleNamespace(code="x", trigger_type="not_a_trigger", criteria={})
-    monkeypatch.setattr(
-        evaluators, "_load_auto_definitions", AsyncMock(return_value=[bad])
-    )
+    monkeypatch.setattr(evaluators, "_load_auto_definitions", AsyncMock(return_value=[bad]))
     assert await evaluators.evaluate_result(AsyncMock(), _vs_result()) == []
 
 
@@ -677,20 +665,36 @@ async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session
     from app.models.badge_definition import BadgeDefinition
 
     matching = BadgeDefinition(
-        code="auto_win", name="Auto Win", is_active=True, is_auto=True,
-        trigger_type=BadgeTrigger.WIN_ACTIVITY.value, color="#fff",
+        code="auto_win",
+        name="Auto Win",
+        is_active=True,
+        is_auto=True,
+        trigger_type=BadgeTrigger.WIN_ACTIVITY.value,
+        color="#fff",
     )
     inactive = BadgeDefinition(
-        code="inactive_auto", name="Inactive", is_active=False, is_auto=True,
-        trigger_type=BadgeTrigger.WIN_ACTIVITY.value, color="#fff",
+        code="inactive_auto",
+        name="Inactive",
+        is_active=False,
+        is_auto=True,
+        trigger_type=BadgeTrigger.WIN_ACTIVITY.value,
+        color="#fff",
     )
     manual = BadgeDefinition(
-        code="manual", name="Manual", is_active=True, is_auto=False,
-        trigger_type=None, color="#fff",
+        code="manual",
+        name="Manual",
+        is_active=True,
+        is_auto=False,
+        trigger_type=None,
+        color="#fff",
     )
     no_trigger = BadgeDefinition(
-        code="no_trigger", name="NoTrigger", is_active=True, is_auto=True,
-        trigger_type=None, color="#fff",
+        code="no_trigger",
+        name="NoTrigger",
+        is_active=True,
+        is_auto=True,
+        trigger_type=None,
+        color="#fff",
     )
     pg_session.add_all([matching, inactive, manual, no_trigger])
     await pg_session.commit()

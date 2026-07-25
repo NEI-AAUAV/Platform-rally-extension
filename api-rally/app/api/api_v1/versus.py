@@ -1,23 +1,24 @@
-from fastapi import APIRouter, Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from collections import defaultdict
 
+from fastapi import APIRouter, Depends, Security
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.abac_deps import Action, Resource, require_permission
+from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_db, get_participant
 from app.crud.crud_versus import versus
 from app.models.team import Team
-from app.api.deps import get_db, get_participant
-from app.api.abac_deps import require_permission, Action, Resource
+from app.schemas.user import DetailedUser
 from app.schemas.versus import (
+    VersusGroupListResponse,
+    VersusOpponentResponse,
     VersusPairCreate,
     VersusPairResponse,
-    VersusGroupListResponse,
-    VersusOpponentResponse
 )
 
-from app.api.auth import AuthData, api_nei_auth
-from app.schemas.user import DetailedUser
-
 router = APIRouter()
+
 
 @router.post("/versus/pair", response_model=VersusPairResponse)
 async def create_versus_pair(
@@ -28,10 +29,7 @@ async def create_versus_pair(
 ) -> VersusPairResponse:
     """Create versus pair"""
     require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.CREATE_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
+        user=curr_user, auth=auth, action=Action.CREATE_VERSUS_GROUP, resource=Resource.VERSUS_GROUP
     )
 
     group_id = await versus.create_versus_pair(
@@ -39,10 +37,9 @@ async def create_versus_pair(
     )
 
     return VersusPairResponse(
-        group_id=group_id,
-        team_a_id=pair_in.team_a_id,
-        team_b_id=pair_in.team_b_id
+        group_id=group_id, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id
     )
+
 
 @router.get("/versus/team/{team_id}/opponent", response_model=VersusOpponentResponse)
 async def get_team_opponent(
@@ -53,10 +50,7 @@ async def get_team_opponent(
 ) -> VersusOpponentResponse:
     """Get a team's opponent"""
     require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.VIEW_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
+        user=curr_user, auth=auth, action=Action.VIEW_VERSUS_GROUP, resource=Resource.VERSUS_GROUP
     )
 
     opp = await versus.get_opponent(db, team_id=team_id)
@@ -64,10 +58,8 @@ async def get_team_opponent(
     if opp is None:
         return VersusOpponentResponse(opponent_id=None, opponent_name=None)
 
-    return VersusOpponentResponse(
-        opponent_id=opp.id,
-        opponent_name=opp.name
-    )
+    return VersusOpponentResponse(opponent_id=opp.id, opponent_name=opp.name)
+
 
 @router.get("/versus/groups", response_model=VersusGroupListResponse)
 async def list_versus_groups(
@@ -77,17 +69,16 @@ async def list_versus_groups(
 ) -> VersusGroupListResponse:
     """Get all versus groups"""
     require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.VIEW_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
+        user=curr_user, auth=auth, action=Action.VIEW_VERSUS_GROUP, resource=Resource.VERSUS_GROUP
     )
 
-    teams = (await db.scalars(
-        select(Team)
-        .where(Team.versus_group_id.isnot(None))
-        .order_by(Team.versus_group_id, Team.id)
-    )).all()
+    teams = (
+        await db.scalars(
+            select(Team)
+            .where(Team.versus_group_id.isnot(None))
+            .order_by(Team.versus_group_id, Team.id)
+        )
+    ).all()
 
     groups = defaultdict(list)
     for team in teams:
@@ -96,12 +87,6 @@ async def list_versus_groups(
     pairs = []
     for gid, tl in groups.items():
         if len(tl) == 2 and gid is not None:
-            pairs.append(
-                VersusPairResponse(
-                    group_id=gid,
-                    team_a_id=tl[0].id,
-                    team_b_id=tl[1].id
-                )
-            )
+            pairs.append(VersusPairResponse(group_id=gid, team_a_id=tl[0].id, team_b_id=tl[1].id))
 
     return VersusGroupListResponse(groups=pairs)

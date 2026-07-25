@@ -32,12 +32,12 @@ botocore = "^1.43.55"
 
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^7.3.0"
+ruff = "^0.14.0"
+import-linter = "^2.5"
 mypy = "^2.3.0"
 uvicorn = "^0.51.0"
 types-python-jose = "^3.5.0.20260408"
 types-passlib = "^1.7.7.20260211"
-black = "^26.5.1"
 safety = "^3.2.0"
 
 
@@ -56,6 +56,61 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 concurrency = ["greenlet", "thread"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "N", "UP", "B", "SIM", "RET", "ARG",
+    "TID252",   # ban relative imports
+    "PLC0415",  # ban imports inside functions (circular-import workarounds)
+    "PLR0913",  # too many constructor/function arguments
+    "C90",      # mccabe complexity
+]
+ignore = [
+    "PLR0913",  # many-argument constructors are expected with constructor injection
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Function-local imports remain common in api/, crud/ and services/ until the
+# domain repackaging (Part B) removes the circular-import pressure that causes
+# them; re-enable PLC0415 there as each domain is repackaged.
+"app/api/**" = ["PLC0415"]
+"app/crud/**" = ["PLC0415"]
+"app/services/**" = ["PLC0415"]
+"app/db/**" = ["PLC0415"]
+"app/tests/**" = ["PLC0415", "ARG001", "ARG002"]  # tests use scoped local imports and fixture args freely
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.importlinter]
+root_package = "app"
+
+# Phase 0: permissive baseline. app.db legitimately reaches into crud/models/
+# schemas to bootstrap and seed the schema (entity registration, demo data) —
+# it is excluded from this contract rather than exempted import-by-import.
+# app.core and app.utils are meant to be dependency-free of every domain
+# package; two pre-existing violations are allowlisted below and should be
+# fixed (not widened) as each domain is repackaged in later phases.
+[[tool.importlinter.contracts]]
+name = "core/utils are dependency-free of domain packages"
+type = "forbidden"
+source_modules = ["app.core", "app.utils"]
+forbidden_modules = [
+    "app.api", "app.crud", "app.models", "app.schemas", "app.services",
+]
+ignore_imports = [
+    "app.core.abac -> app.api.auth",
+    "app.core.abac -> app.schemas.user",
+    "app.utils.rally_duration -> app.crud.crud_rally_settings",
+    "app.utils.rally_duration -> app.models.rally_settings",
+]
 
 [tool.mypy]
 exclude = ["app/tests"]

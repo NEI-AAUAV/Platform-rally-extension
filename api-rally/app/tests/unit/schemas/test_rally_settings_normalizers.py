@@ -1,6 +1,7 @@
 """Unit tests for the pure normalize_home_layout/normalize_ticker_items
 helpers in app.schemas.rally_settings — no test file previously covered
 these branches directly."""
+
 from app.schemas.rally_settings import (
     HOME_SECTION_KEYS,
     MAX_TICKER_ITEMS,

@@ -1,6 +1,7 @@
 """Direct unit test for ListingUser._derive_is_linked's ORM-object branch
 (model_validate from a non-dict source), which API-level tests exercise only
 indirectly through the team-members endpoint."""
+
 from types import SimpleNamespace
 
 from app.schemas.user import ListingUser

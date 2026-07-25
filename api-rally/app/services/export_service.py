@@ -84,28 +84,18 @@ class ExportService:
         self.db = db
 
     async def _teams(self, event_id: int) -> list[Team]:
-        stmt = (
-            select(Team)
-            .where(Team.event_id == event_id)
-            .order_by(Team.name)
-        )
+        stmt = select(Team).where(Team.event_id == event_id).order_by(Team.name)
         return list((await self.db.scalars(stmt)).all())
 
     async def _checkpoints(self, event_id: int) -> list[CheckPoint]:
-        stmt = (
-            select(CheckPoint)
-            .where(CheckPoint.event_id == event_id)
-            .order_by(CheckPoint.order)
-        )
+        stmt = select(CheckPoint).where(CheckPoint.event_id == event_id).order_by(CheckPoint.order)
         return list((await self.db.scalars(stmt)).all())
 
     async def _results(self, event_id: int) -> list[ActivityResult]:
         """All results whose checkpoint belongs to this event."""
         stmt = (
             select(ActivityResult)
-            .options(
-                joinedload(ActivityResult.activity).joinedload(Activity.checkpoint)
-            )
+            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
             .join(ActivityResult.activity)
             .join(Activity.checkpoint)
             .where(CheckPoint.event_id == event_id)
@@ -148,13 +138,9 @@ class ExportService:
             cp_result[key] = r
 
         wb = Workbook()
-        self._build_overall_sheet(
-            wb, teams, checkpoints, opponent_of, cp_score
-        )
+        self._build_overall_sheet(wb, teams, checkpoints, opponent_of, cp_score)
         for idx, cp in enumerate(checkpoints, start=1):
-            self._build_checkpoint_sheet(
-                wb, cp, idx, teams, opponent_of, cp_result, cp_score
-            )
+            self._build_checkpoint_sheet(wb, cp, idx, teams, opponent_of, cp_result, cp_score)
 
         buffer = BytesIO()
         wb.save(buffer)
@@ -171,9 +157,11 @@ class ExportService:
         ws = wb.active
         ws.title = "Overall"
 
-        headers = ["Team", "Versus Pair"] + [
-            f"Checkpoint {i}" for i in range(1, len(checkpoints) + 1)
-        ] + ["Total Points"]
+        headers = (
+            ["Team", "Versus Pair"]
+            + [f"Checkpoint {i}" for i in range(1, len(checkpoints) + 1)]
+            + ["Total Points"]
+        )
         ws.append(headers)
 
         for team in teams:
@@ -219,16 +207,18 @@ class ExportService:
                 # Team never recorded a result at this checkpoint.
                 ws.append([team.name, opponent_of.get(team.id, ""), "", 0, 0, 0, "", total])
                 continue
-            ws.append([
-                team.name,
-                opponent_of.get(team.id, ""),
-                total,  # Match Result mirrors the final checkpoint points.
-                int(result.extra_shots or 0),
-                self._penalty(result, _VOMIT_KEY),
-                self._penalty(result, _NOT_DRINKING_KEY),
-                self._notes(result),
-                total,
-            ])
+            ws.append(
+                [
+                    team.name,
+                    opponent_of.get(team.id, ""),
+                    total,  # Match Result mirrors the final checkpoint points.
+                    int(result.extra_shots or 0),
+                    self._penalty(result, _VOMIT_KEY),
+                    self._penalty(result, _NOT_DRINKING_KEY),
+                    self._notes(result),
+                    total,
+                ]
+            )
 
         self._finalize(ws, len(headers), body_center_from_col=3, skip_center_cols={7})
 

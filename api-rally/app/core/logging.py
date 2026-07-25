@@ -1,12 +1,13 @@
 """
 Source : https://gist.github.com/nkhitrov/a3e31cfcc1b19cba8e1b626276148c49
 Configure handlers and formats for application loggers."""
+
+import logging
 import sys
 import typing
-import logging
 from pprint import pformat
 from types import FrameType
-from typing import Any, Optional
+from typing import Any
 
 # if you dont like imports of private modules
 # you can move it to typing.py module
@@ -37,15 +38,13 @@ class InterceptHandler(logging.Handler):
             level = record.levelno
 
         # Find caller from where originated the logged message
-        frame: Optional[FrameType] = logging.currentframe()
+        frame: FrameType | None = logging.currentframe()
         depth = 0
         while frame and (depth == 0 or frame.f_code.co_filename == logging.__file__):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
-        )
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
 def format_record(record: dict[Any, Any]) -> str:

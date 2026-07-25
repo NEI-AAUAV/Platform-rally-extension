@@ -1,5 +1,6 @@
 """Unit tests for ActivityType.is_valid and BadgeDefinition color validation,
 neither previously covered."""
+
 import pytest
 from pydantic import ValidationError
 

@@ -1,8 +1,9 @@
 """Unit tests for the BadgesWorker orchestration."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
-from typing import Any, AsyncIterator
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -32,15 +33,9 @@ def _created_event(result_id: int = 5) -> dict[str, Any]:
 async def test_awards_and_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_session(monkeypatch)
     result = SimpleNamespace(id=5, team_id=10, activity_id=99)
-    monkeypatch.setattr(
-        BadgesWorker, "_load_result", AsyncMock(return_value=result)
-    )
-    award = BadgeAward(
-        team_id=10, badge_code="head_to_head_win", activity_id=99
-    )
-    monkeypatch.setattr(
-        worker_badges, "evaluate_result", AsyncMock(return_value=[award])
-    )
+    monkeypatch.setattr(BadgesWorker, "_load_result", AsyncMock(return_value=result))
+    award = BadgeAward(team_id=10, badge_code="head_to_head_win", activity_id=99)
+    monkeypatch.setattr(worker_badges, "evaluate_result", AsyncMock(return_value=[award]))
     monkeypatch.setattr(
         "app.services.badge_service.award_badge",
         AsyncMock(return_value=SimpleNamespace(id=1)),
@@ -61,22 +56,14 @@ async def test_awards_and_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_no_publish_when_already_held(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_session(monkeypatch)
-    monkeypatch.setattr(
-        BadgesWorker, "_load_result", AsyncMock(return_value=SimpleNamespace())
-    )
+    monkeypatch.setattr(BadgesWorker, "_load_result", AsyncMock(return_value=SimpleNamespace()))
     monkeypatch.setattr(
         worker_badges,
         "evaluate_result",
-        AsyncMock(
-            return_value=[
-                BadgeAward(team_id=1, badge_code="head_to_head_win")
-            ]
-        ),
+        AsyncMock(return_value=[BadgeAward(team_id=1, badge_code="head_to_head_win")]),
     )
     # award_badge returns None => badge already held.
-    monkeypatch.setattr(
-        "app.services.badge_service.award_badge", AsyncMock(return_value=None)
-    )
+    monkeypatch.setattr("app.services.badge_service.award_badge", AsyncMock(return_value=None))
     published = []
     monkeypatch.setattr(
         worker_badges,

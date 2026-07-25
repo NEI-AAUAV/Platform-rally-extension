@@ -1,19 +1,27 @@
-from fastapi import APIRouter, Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Annotated, List, Dict
+from typing import Annotated
 
-from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from app.api import deps
-from app.api.auth import AuthData, api_nei_auth
-from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
-from app.core.exceptions import RallyForbiddenError
-from app.schemas.user import DetailedUser, UserCreate
-from app.schemas.team_members import TeamMemberAdd, TeamMemberLink, TeamMemberResponse, TeamMemberUpdate
+from fastapi import APIRouter, Depends, Security
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app import crud
-from app.models.user import User
-from app.models.team import Team
+from app.api import deps
+from app.api.abac_deps import (
+    require_team_management_permission,
+    require_view_team_members_permission,
+)
+from app.api.auth import AuthData, api_nei_auth
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_rally_settings import rally_settings
+from app.models.team import Team
+from app.models.user import User
+from app.schemas.team_members import (
+    TeamMemberAdd,
+    TeamMemberLink,
+    TeamMemberResponse,
+    TeamMemberUpdate,
+)
+from app.schemas.user import DetailedUser, UserCreate
 
 router = APIRouter()
 
@@ -101,14 +109,13 @@ async def add_team_member(
     current_member_count = await db.scalar(count_stmt) or 0
 
     if current_member_count >= settings.max_members_per_team:
-        raise RallyValidationError(f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team.")
+        raise RallyValidationError(
+            f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team."
+        )
 
     # If setting as captain, check if team already has a captain
     if member_data.is_captain:
-        captain_stmt = select(User).where(
-            User.team_id == team_id,
-            User.is_captain.is_(True)
-        )
+        captain_stmt = select(User).where(User.team_id == team_id, User.is_captain.is_(True))
         existing_captain = (await db.scalars(captain_stmt)).first()
         if existing_captain:
             raise RallyValidationError("Team already has a captain. Remove current captain first.")
@@ -118,15 +125,12 @@ async def add_team_member(
         name=member_data.name,
         email=member_data.email,
         team_id=team_id,
-        is_captain=member_data.is_captain
+        is_captain=member_data.is_captain,
     )
     user = await crud.user.create(db, obj_in=user_data)
 
     return TeamMemberResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        is_captain=user.is_captain
+        id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
     )
 
 
@@ -233,7 +237,7 @@ async def remove_team_member(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Remove a member from a team.
     """
@@ -289,10 +293,9 @@ async def update_team_member(
     # If setting as captain, check if team already has a captain
     if member_data.is_captain is True:
         from sqlalchemy import select
+
         stmt = select(User).where(
-            User.team_id == team_id,
-            User.is_captain.is_(True),
-            User.id != user_id
+            User.team_id == team_id, User.is_captain.is_(True), User.id != user_id
         )
         existing_captain = (await db.scalars(stmt)).first()
         if existing_captain:
@@ -310,10 +313,7 @@ async def update_team_member(
     await db.refresh(user)
 
     return TeamMemberResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        is_captain=user.is_captain
+        id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
     )
 
 
@@ -323,7 +323,7 @@ async def get_team_members(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
-) -> List[TeamMemberResponse]:
+) -> list[TeamMemberResponse]:
     """
     Get all members of a team.
     """
@@ -336,6 +336,7 @@ async def get_team_members(
 
     # Get team members
     from sqlalchemy import select
+
     stmt = select(User).where(User.team_id == team_id)
     members = list((await db.scalars(stmt)).all())
 

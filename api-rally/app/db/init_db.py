@@ -2,21 +2,23 @@ import importlib.util
 import sys
 from pathlib import Path
 
-import alembic as _alembic_pkg
-from alembic import command
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy.schema import CreateSchema
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.schema import CreateSchema
 
+import alembic as _alembic_pkg
+from alembic import command
 from app.core.config import settings
 from app.models.base import Base
-from .session import engine
+
+from app.db.session import engine
 
 # Repo layout: api-rally/app/db/init_db.py -> api-rally/alembic.ini
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"
+
 
 # Migration files under alembic/versions/ do `from alembic.migration_utils
 # import ...` — but this repo's local alembic/ directory (script_location in
@@ -50,19 +52,19 @@ _install_local_migration_utils_shim()
 # IMPORTANT: Import all models here so they're registered with Base.metadata
 # before create_all() is called. Otherwise tables will be missing columns!
 from app.models import (  # noqa: F401
-    User,
-    Team,
-    CheckPoint,
-    RallyStaffAssignment,
-    RallyGuideAssignment,
-    CheckpointMedia,
-    CheckpointGuideIndication,
     Activity,
     ActivityResult,
-    RallyEvent,
-    RallySettings,
-    TeamBadge,
+    CheckPoint,
+    CheckpointGuideIndication,
+    CheckpointMedia,
     EventParticipation,
+    RallyEvent,
+    RallyGuideAssignment,
+    RallySettings,
+    RallyStaffAssignment,
+    Team,
+    TeamBadge,
+    User,
 )
 
 # For more details: https://github.com/tiangolo/full-stack-fastapi-postgresql/issues/28
@@ -154,8 +156,8 @@ async def init_db() -> None:
     async with engine.begin() as connection:
         await connection.run_sync(_run_migrations)
 
-    from app.db.session import SessionLocal
     from app.db.seed_data import seed_data
+    from app.db.session import SessionLocal
 
     async with SessionLocal() as db:
         await seed_data(db)

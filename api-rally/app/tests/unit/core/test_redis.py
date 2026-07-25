@@ -5,6 +5,7 @@ Redis, so they need no running Redis server.
 """
 
 import asyncio
+
 import fakeredis.aioredis
 import pytest
 

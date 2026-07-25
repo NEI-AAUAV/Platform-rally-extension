@@ -1,4 +1,5 @@
 """Tests for participation recording (per-person event history), against real Postgres."""
+
 from app.crud.crud_participation import CRUDParticipation
 from app.crud.crud_team import team as crud_team
 from app.schemas.team import TeamCreate
@@ -21,9 +22,7 @@ async def test_record_creates_with_team_snapshot(pg_session):
     assert row.team_total == team.total
     assert row.is_captain is True
 
-    again = await crud.get_for_sub_and_event(
-        pg_session, authentik_sub="sub-1", event_id=event.id
-    )
+    again = await crud.get_for_sub_and_event(pg_session, authentik_sub="sub-1", event_id=event.id)
     assert again is not None
     assert again.id == row.id
 

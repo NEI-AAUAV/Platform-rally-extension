@@ -31,14 +31,16 @@ class TestTeamVsActivity:
 
     def test_calculate_score_win(self):
         """Test score calculation for a win"""
-        activity = TeamVsActivity(config={
-            "base_points": 10,
-            "completion_points": 20,
-            "win_points": 30,
-            "draw_points": 15,
-            "lose_points": 5
-        })
-        
+        activity = TeamVsActivity(
+            config={
+                "base_points": 10,
+                "completion_points": 20,
+                "win_points": 30,
+                "draw_points": 15,
+                "lose_points": 5,
+            }
+        )
+
         # Test basic win
         score = activity.calculate_score({"result": "win", "completed": False})
         assert score == pytest.approx(40.0)  # 10 + 30
@@ -49,38 +51,38 @@ class TestTeamVsActivity:
 
     def test_calculate_score_draw(self):
         """Test score calculation for a draw"""
-        activity = TeamVsActivity(config={
-            "base_points": 10,
-            "completion_points": 20,
-            "win_points": 30,
-            "draw_points": 15,
-            "lose_points": 5
-        })
-        
+        activity = TeamVsActivity(
+            config={
+                "base_points": 10,
+                "completion_points": 20,
+                "win_points": 30,
+                "draw_points": 15,
+                "lose_points": 5,
+            }
+        )
+
         score = activity.calculate_score({"result": "draw", "completed": True})
         assert score == pytest.approx(45.0)  # 10 + 20 + 15
 
     def test_calculate_score_lose(self):
         """Test score calculation for a loss"""
-        activity = TeamVsActivity(config={
-            "base_points": 10,
-            "completion_points": 20,
-            "win_points": 30,
-            "draw_points": 15,
-            "lose_points": 5
-        })
-        
+        activity = TeamVsActivity(
+            config={
+                "base_points": 10,
+                "completion_points": 20,
+                "win_points": 30,
+                "draw_points": 15,
+                "lose_points": 5,
+            }
+        )
+
         score = activity.calculate_score({"result": "lose", "completed": True})
         assert score == pytest.approx(35.0)  # 10 + 20 + 5
 
     def test_backwards_compatibility(self):
         """Test that old configs (missing base/completion points) still work"""
-        activity = TeamVsActivity(config={
-            "win_points": 100,
-            "draw_points": 50,
-            "lose_points": 0
-        })
-        
+        activity = TeamVsActivity(config={"win_points": 100, "draw_points": 50, "lose_points": 0})
+
         # Should default to 0 for missing fields
         score = activity.calculate_score({"result": "win"})
         assert score == pytest.approx(100.0)
@@ -90,21 +92,23 @@ class TestTeamVsActivity:
 
     def test_get_score_breakdown(self):
         """Test the score breakdown method"""
-        activity = TeamVsActivity(config={
-            "base_points": 10,
-            "completion_points": 20,
-            "win_points": 30,
-            "draw_points": 15,
-            "lose_points": 5
-        })
-        
+        activity = TeamVsActivity(
+            config={
+                "base_points": 10,
+                "completion_points": 20,
+                "win_points": 30,
+                "draw_points": 15,
+                "lose_points": 5,
+            }
+        )
+
         breakdown = activity.get_score_breakdown({"result": "win", "completed": True})
-        
+
         assert breakdown["base_points"] == 10
         assert breakdown["completion_points"] == 20
         assert breakdown["outcome_points"] == 30
         assert breakdown["total"] == 60
-        
+
         # Test with completed=False
         breakdown = activity.get_score_breakdown({"result": "win", "completed": False})
         assert breakdown["completion_points"] == 0
@@ -136,9 +140,7 @@ class TestTeamVsValidateResult:
 
     async def test_validate_result_requires_opponent_when_team_context_given(self):
         activity = TeamVsActivity(config={})
-        result = await activity.validate_result(
-            {"result": "win"}, team_id=1, db_session=object()
-        )
+        result = await activity.validate_result({"result": "win"}, team_id=1, db_session=object())
         assert result is False
 
     async def test_validate_result_delegates_to_versus_group_check(self):
@@ -199,9 +201,7 @@ class TestValidateVersusGroup:
 class TestGetOpponentForTeam:
     async def test_returns_opponent_info_when_found(self):
         activity = TeamVsActivity(config={})
-        opponent = type(
-            "Opp", (), {"id": 2, "name": "Rivals", "versus_group_id": 7}
-        )()
+        opponent = type("Opp", (), {"id": 2, "name": "Rivals", "versus_group_id": 7})()
         with patch(
             "app.crud.crud_versus.versus.get_opponent",
             new=AsyncMock(return_value=opponent),
@@ -251,10 +251,8 @@ class TestCreateResultForVersusGroup:
 
     async def test_raises_when_team_not_in_versus_group(self):
         activity = TeamVsActivity(config={})
-        with patch.object(
-            activity, "get_opponent_for_team", new=AsyncMock(return_value=None)
+        with (
+            patch.object(activity, "get_opponent_for_team", new=AsyncMock(return_value=None)),
+            pytest.raises(ValueError),
         ):
-            with pytest.raises(ValueError):
-                await activity.create_result_for_versus_group(
-                    1, "win", {}, object()
-                )
+            await activity.create_result_for_versus_group(1, "win", {}, object())

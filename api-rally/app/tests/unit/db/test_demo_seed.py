@@ -1,4 +1,5 @@
 """DB-backed tests for the demo seed (real Postgres via pg_session)."""
+
 import random
 
 import pytest
@@ -57,7 +58,9 @@ def test_result_data_for_unknown_activity_type_returns_empty_dict():
     assert demo_seed_module._result_data_for(activity, rng) == {}
 
 
-async def test_seed_demo_refuses_in_production_without_override(monkeypatch: pytest.MonkeyPatch, pg_session):
+async def test_seed_demo_refuses_in_production_without_override(
+    monkeypatch: pytest.MonkeyPatch, pg_session
+):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.delenv("DEMO_SEED_ALLOW", raising=False)
 
@@ -65,7 +68,9 @@ async def test_seed_demo_refuses_in_production_without_override(monkeypatch: pyt
         await seed_demo(pg_session, force=False)
 
 
-async def test_seed_demo_allowed_in_production_with_override(monkeypatch: pytest.MonkeyPatch, pg_session):
+async def test_seed_demo_allowed_in_production_with_override(
+    monkeypatch: pytest.MonkeyPatch, pg_session
+):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DEMO_SEED_ALLOW", "1")
 

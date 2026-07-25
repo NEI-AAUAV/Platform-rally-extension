@@ -1,10 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional
 
 
 class TeamMemberAdd(BaseModel):
     name: str
-    email: Optional[str] = None
+    email: str | None = None
     is_captain: bool = False
 
 
@@ -15,7 +14,7 @@ class TeamMemberRemove(BaseModel):
 class TeamMemberResponse(BaseModel):
     id: int
     name: str
-    email: Optional[str] = None
+    email: str | None = None
     is_captain: bool = False
     is_linked: bool = False
 
@@ -24,9 +23,9 @@ class TeamMemberResponse(BaseModel):
 
 
 class TeamMemberUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    is_captain: Optional[bool] = None
+    name: str | None = None
+    email: str | None = None
+    is_captain: bool | None = None
 
 
 class TeamMemberLink(BaseModel):
@@ -37,5 +36,5 @@ class TeamMemberLink(BaseModel):
     """
 
     authentik_sub: str
-    name: Optional[str] = None
-    email: Optional[str] = None
+    name: str | None = None
+    email: str | None = None

@@ -44,9 +44,7 @@ async def _reserve_in_own_session(maker, *, key: str, fingerprint: str):
         )
         if reservation.row is not None:
             # Winner: finalize its row exactly like the endpoint would.
-            await store_idempotent_response(
-                session, reservation, response_body={"ok": True}
-            )
+            await store_idempotent_response(session, reservation, response_body={"ok": True})
             return "reserved"
         return "replayed"
 
@@ -91,10 +89,7 @@ async def test_high_fanout_same_key_reserves_exactly_once(_pg_engine):
     key = "concurrent-key-burst"
 
     outcomes = await asyncio.gather(
-        *(
-            _reserve_in_own_session(maker, key=key, fingerprint=fp)
-            for _ in range(8)
-        )
+        *(_reserve_in_own_session(maker, key=key, fingerprint=fp) for _ in range(8))
     )
 
     assert outcomes.count("reserved") == 1, (
@@ -126,9 +121,7 @@ async def test_concurrent_same_key_different_payload_conflicts(_pg_engine):
 
     async def _attempt(fingerprint: str):
         try:
-            return await _reserve_in_own_session(
-                maker, key=key, fingerprint=fingerprint
-            )
+            return await _reserve_in_own_session(maker, key=key, fingerprint=fingerprint)
         except HTTPException as exc:
             return exc.status_code
 

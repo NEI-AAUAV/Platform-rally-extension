@@ -1,24 +1,32 @@
 """
 API endpoints for activities management
 """
-from typing import Annotated, List, Optional, Dict, Any
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query
-from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import desc, select
 
+from datetime import UTC, datetime
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.abac_deps import Action, Resource, require
 from app.api.deps import get_db
-from app.api.abac_deps import require, Action, Resource
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity, activity_result
 from app.models.activity import ActivityResult
+from app.models.activity_factory import ActivityFactory
 from app.schemas.activity import (
-    ActivityCreate, ActivityUpdate, ActivityResponse, ActivityListResponse,
-    ActivityResultCreate, ActivityResultUpdate, ActivityResultResponse,
-    ActivityRanking, GlobalRanking
+    ActivityCreate,
+    ActivityListResponse,
+    ActivityRanking,
+    ActivityResponse,
+    ActivityResultCreate,
+    ActivityResultResponse,
+    ActivityResultUpdate,
+    ActivityUpdate,
+    GlobalRanking,
 )
 from app.services.scoring_service import ScoringService
-from app.models.activity_factory import ActivityFactory
 
 # Error message constants
 ACTIVITY_NOT_FOUND = "Activity not found"
@@ -61,7 +69,7 @@ async def get_activities(
     _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY, Resource.ACTIVITY))],
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    checkpoint_id: Optional[int] = Query(None, gt=0),
+    checkpoint_id: int | None = Query(None, gt=0),
 ) -> ActivityListResponse:
     """Get activities list"""
     if checkpoint_id:
@@ -75,7 +83,7 @@ async def get_activities(
         activities=[ActivityResponse.model_validate(a) for a in activities],
         total=total,
         page=skip // limit + 1,
-        size=limit
+        size=limit,
     )
 
 
@@ -84,14 +92,16 @@ async def get_all_activity_results(
     *,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
-) -> List[ActivityResultResponse]:
+) -> list[ActivityResultResponse]:
     """Get all activity results (evaluations) with team and activity details"""
     # Get all activity results with related data
     from sqlalchemy.orm import joinedload
-    stmt = select(ActivityResult).options(
-        joinedload(ActivityResult.activity),
-        joinedload(ActivityResult.team)
-    ).order_by(desc(ActivityResult.completed_at))
+
+    stmt = (
+        select(ActivityResult)
+        .options(joinedload(ActivityResult.activity), joinedload(ActivityResult.team))
+        .order_by(desc(ActivityResult.completed_at))
+    )
     results = list((await db.scalars(stmt)).all())
 
     return [ActivityResultResponse.model_validate(r) for r in results]
@@ -135,7 +145,7 @@ async def delete_activity(
     db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
     _: Annotated[None, Depends(require(Action.DELETE_ACTIVITY, Resource.ACTIVITY))],
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Delete an activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:
@@ -203,7 +213,7 @@ async def apply_extra_shots(
     result_id: int,
     _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
     extra_shots: int = Query(..., ge=0),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Apply extra shots bonus to activity result"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
@@ -228,7 +238,7 @@ async def apply_penalty(
     _: Annotated[None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
     penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
     penalty_value: int = Query(..., ge=1),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Apply penalty to activity result"""
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
@@ -261,22 +271,21 @@ async def get_activity_ranking(
     rankings_dict = await scoring_service.get_team_ranking(activity_id)
 
     from app.schemas.activity import TeamRanking
+
     # Normalize dict keys to match TeamRanking schema
     rankings = [
         TeamRanking(
-            team_id=r.get('team_id', 0),
-            team_name=r.get('team_name', ''),
-            total_score=r.get('score', r.get('total_score', 0.0)),
-            activities_completed=r.get('activities_completed', 0),
-            rank=r.get('rank', 0)
+            team_id=r.get("team_id", 0),
+            team_name=r.get("team_name", ""),
+            total_score=r.get("score", r.get("total_score", 0.0)),
+            activities_completed=r.get("activities_completed", 0),
+            rank=r.get("rank", 0),
         )
         for r in rankings_dict
     ]
 
     return ActivityRanking(
-        activity_id=activity_id,
-        activity_name=db_activity.name,
-        rankings=rankings
+        activity_id=activity_id, activity_name=db_activity.name, rankings=rankings
     )
 
 
@@ -291,12 +300,10 @@ async def get_global_ranking(
     rankings_dict = await scoring_service.get_team_ranking()
 
     from app.schemas.activity import TeamRanking
+
     rankings = [TeamRanking(**r) for r in rankings_dict]
 
-    return GlobalRanking(
-        rankings=rankings,
-        last_updated=datetime.now(timezone.utc)
-    )
+    return GlobalRanking(rankings=rankings, last_updated=datetime.now(UTC))
 
 
 @router.post("/team-vs/{activity_id}")
@@ -307,9 +314,9 @@ async def create_team_vs_result(
     team1_id: int,
     team2_id: int,
     winner_id: int,  # 0 for draw
-    match_data: Dict[str, Any],
+    match_data: dict[str, Any],
     _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Create team vs team activity results"""
     scoring_service = ScoringService(db)
     await scoring_service.create_team_vs_result(
@@ -324,7 +331,7 @@ async def get_activity_statistics(
     db: Annotated[AsyncSession, Depends(get_db)],
     activity_id: int,
     _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get statistics for a specific activity"""
     db_activity = await activity.get(db, id=activity_id)
     if not db_activity:

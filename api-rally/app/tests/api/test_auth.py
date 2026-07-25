@@ -5,6 +5,7 @@ Rally validates authentik-issued access tokens (no token minting). These tests
 exercise the claim→AuthData mapping, group→scope mapping, admin bypass and
 scope enforcement, with the JWKS/token validator mocked.
 """
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

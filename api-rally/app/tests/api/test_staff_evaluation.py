@@ -5,23 +5,26 @@ progression, and progress calculation now lives in
 `test_staff_evaluation_utils.py` (migrated to real Postgres) — not duplicated
 here.
 """
+
 from concurrent.futures import ThreadPoolExecutor
-from sqlalchemy import select
 from unittest.mock import AsyncMock
 
-from app.main import app
+from sqlalchemy import select
+
+import app.api.api_v1.staff_evaluation as staff_evaluation_module
+from app.api.auth import api_nei_auth
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.main import app
+from app.models.activity import ActivityResult
+from app.models.idempotency_key import IdempotencyKey
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
-from app.api.auth import api_nei_auth
 from app.tests.conftest import _fake_auth_data, as_team
-from app.models.activity import ActivityResult
-import app.api.api_v1.staff_evaluation as staff_evaluation_module
-from app.models.idempotency_key import IdempotencyKey
 from app.tests.conftest import make_event as _make_event
+
 
 async def _make_checkpoint(pg_session, order=1):
     return await crud_checkpoint.create(
@@ -37,7 +40,10 @@ async def _make_activity(pg_session, checkpoint_id):
     return await crud_activity.create(
         pg_session,
         obj_in=ActivityCreate(
-            name="Activity", activity_type=ActivityType.GENERAL, checkpoint_id=checkpoint_id, config={}
+            name="Activity",
+            activity_type=ActivityType.GENERAL,
+            checkpoint_id=checkpoint_id,
+            config={},
         ),
     )
 
@@ -56,7 +62,9 @@ class TestStaffEvaluationAPI:
         assert len(body) == 1
         assert body[0]["name"] == "Team1"
 
-    async def test_get_teams_for_evaluation_no_checkpoint_assigned(self, pg_session, pg_client, as_admin):
+    async def test_get_teams_for_evaluation_no_checkpoint_assigned(
+        self, pg_session, pg_client, as_admin
+    ):
         await _make_event(pg_session)
         as_admin.staff_checkpoint_id = None
 
@@ -86,9 +94,7 @@ class TestMyCheckpointAPI:
         assert resp.status_code == 200, resp.text
         assert resp.json()["id"] == checkpoint.id
 
-    def test_get_my_checkpoint_no_checkpoint_assigned(
-        self, pg_session, pg_client, as_admin
-    ):
+    def test_get_my_checkpoint_no_checkpoint_assigned(self, pg_session, pg_client, as_admin):
         as_admin.staff_checkpoint_id = None
 
         resp = pg_client.get("/api/rally/v1/staff/my-checkpoint")
@@ -110,15 +116,11 @@ class TestTeamActivitiesForEvaluationAPI:
         team_obj = await _make_team(pg_session, "TeamA")
         as_admin.staff_checkpoint_id = None
 
-        resp = pg_client.get(
-            f"/api/rally/v1/staff/teams/{team_obj.id}/activities"
-        )
+        resp = pg_client.get(f"/api/rally/v1/staff/teams/{team_obj.id}/activities")
 
         assert resp.status_code == 404
 
-    async def test_get_team_activities_team_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_team_activities_team_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         as_admin.staff_checkpoint_id = checkpoint.id
 
@@ -126,9 +128,7 @@ class TestTeamActivitiesForEvaluationAPI:
 
         assert resp.status_code == 404
 
-    async def test_get_team_activities_pending_and_completed(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_team_activities_pending_and_completed(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         as_admin.staff_checkpoint_id = checkpoint.id
         team_obj = await _make_team(pg_session, "TeamA")
@@ -136,16 +136,11 @@ class TestTeamActivitiesForEvaluationAPI:
         activity2 = await _make_activity(pg_session, checkpoint.id)
 
         # Evaluate one of the two activities so the team has partial completion.
-        eval_url = (
-            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
-            f"{activity1.id}/evaluate"
-        )
+        eval_url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity1.id}/evaluate"
         resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 50}})
         assert resp.status_code == 200, resp.text
 
-        resp = pg_client.get(
-            f"/api/rally/v1/staff/teams/{team_obj.id}/activities"
-        )
+        resp = pg_client.get(f"/api/rally/v1/staff/teams/{team_obj.id}/activities")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["team"]["id"] == team_obj.id
@@ -167,55 +162,41 @@ class TestEvaluateTeamActivityAuthzAPI:
     # own `validate_rally_permissions` check ever runs, so that in-body
     # branch is unreachable through the API and not exercised here.
 
-    async def test_evaluate_staff_wrong_checkpoint_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
-
+    async def test_evaluate_staff_wrong_checkpoint_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         other_checkpoint = await _make_checkpoint(pg_session, order=2)
         as_admin.staff_checkpoint_id = other_checkpoint.id
         team_obj = await _make_team(pg_session, "TeamA")
         activity_obj = await _make_activity(pg_session, checkpoint.id)
 
-        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-            scopes=["rally-staff"]
-        )
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
         try:
             resp = pg_client.post(
-                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
-                f"{activity_obj.id}/evaluate",
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
                 json={"result_data": {"assigned_points": 50}},
             )
         finally:
-            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-                scopes=["admin"]
-            )
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
         assert resp.status_code == 404
 
-    async def test_evaluate_admin_team_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_evaluate_admin_team_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         as_admin.staff_checkpoint_id = checkpoint.id
         activity_obj = await _make_activity(pg_session, checkpoint.id)
 
         resp = pg_client.post(
-            f"/api/rally/v1/staff/teams/999999/activities/"
-            f"{activity_obj.id}/evaluate",
+            f"/api/rally/v1/staff/teams/999999/activities/{activity_obj.id}/evaluate",
             json={"result_data": {"assigned_points": 50}},
         )
         assert resp.status_code == 404
 
-    async def test_evaluate_admin_activity_not_found(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_evaluate_admin_activity_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         as_admin.staff_checkpoint_id = checkpoint.id
         team_obj = await _make_team(pg_session, "TeamA")
 
         resp = pg_client.post(
-            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
-            f"999999/evaluate",
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/999999/evaluate",
             json={"result_data": {"assigned_points": 50}},
         )
         assert resp.status_code == 404
@@ -268,7 +249,6 @@ class TestEvaluationSideEffectResilience:
     async def test_evaluate_succeeds_when_mirror_versus_result_raises(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):
-
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         as_admin.staff_checkpoint_id = checkpoint.id
@@ -342,15 +322,10 @@ class TestEvaluationIdempotency:
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team_obj = await _make_team(pg_session, "TeamA")
         activity_obj = await _make_activity(pg_session, checkpoint.id)
-        url = (
-            f"/api/rally/v1/staff/teams/{team_obj.id}"
-            f"/activities/{activity_obj.id}/evaluate"
-        )
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
         return team_obj, activity_obj, url
 
-    async def test_same_key_replays_without_reapplying(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_same_key_replays_without_reapplying(self, pg_session, pg_client, as_admin):
         team_obj, activity_obj, url = await self._seed(pg_session)
         payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
         headers = {"Idempotency-Key": "abc-123"}
@@ -376,16 +351,12 @@ class TestEvaluationIdempotency:
 
         keys = (
             await pg_session.scalars(
-                select(IdempotencyKey).where(
-                    IdempotencyKey.idempotency_key == "abc-123"
-                )
+                select(IdempotencyKey).where(IdempotencyKey.idempotency_key == "abc-123")
             )
         ).all()
         assert len(keys) == 1
 
-    async def test_same_key_different_payload_conflicts(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)
         headers = {"Idempotency-Key": "dup-key"}
 
@@ -430,12 +401,8 @@ async def _seed_result(pg_session, pg_client, as_admin):
 
 
 class TestEvaluationHistoryAPI:
-    async def test_edit_records_history_and_lists_it(
-        self, pg_session, pg_client, as_admin
-    ):
-        team_obj, activity_obj, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_edit_records_history_and_lists_it(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
 
         # Edit the score -> should append one UPDATED history row.
         put_url = (
@@ -454,36 +421,22 @@ class TestEvaluationHistoryAPI:
         assert rows[0]["editor_name"]  # editor recorded
         assert rows[0]["changes"]["final_score"]["after"] == 80
 
-    async def test_history_forbidden_for_plain_staff(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_history_forbidden_for_plain_staff(self, pg_session, pg_client, as_admin):
         # Seed as admin, then demote auth to plain staff (no manager scope) and
         # confirm the history view is 403 — the trail is a managers-only tool.
-        _team, _activity, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+        _team, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
 
-        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-            scopes=["rally-staff"]
-        )
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
         try:
-            resp = pg_client.get(
-                f"/api/rally/v1/staff/evaluations/{result_id}/history"
-            )
+            resp = pg_client.get(f"/api/rally/v1/staff/evaluations/{result_id}/history")
         finally:
-            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-                scopes=["admin"]
-            )
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
         assert resp.status_code == 403
 
-    async def test_team_can_contest_own_result(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_team_can_contest_own_result(self, pg_session, pg_client, as_admin):
         from app.tests.conftest import as_team
 
-        team_obj, _activity, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+        team_obj, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
 
         with as_team(team_obj.id, team_obj.name):
             resp = pg_client.post(
@@ -500,13 +453,8 @@ class TestEvaluationHistoryAPI:
         assert resp.status_code == 200
         assert any(r["action"] == "contested" for r in resp.json())
 
-    async def test_team_cannot_contest_other_teams_result(
-        self, pg_session, pg_client, as_admin
-    ):
-
-        _team, _activity, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_team_cannot_contest_other_teams_result(self, pg_session, pg_client, as_admin):
+        _team, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
         other = await _make_team(pg_session, "OtherTeam")
 
         with as_team(other.id, other.name):
@@ -525,18 +473,12 @@ class TestUpdateTeamActivityEvaluationAPI:
     # unreachable through the API because `get_staff_with_checkpoint_access`
     # already gates on the same conditions before the route body runs.
 
-    async def test_update_staff_activity_not_at_checkpoint(
-        self, pg_session, pg_client, as_admin
-    ):
-        team_obj, activity_obj, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_update_staff_activity_not_at_checkpoint(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
         other_checkpoint = await _make_checkpoint(pg_session, order=2)
         as_admin.staff_checkpoint_id = other_checkpoint.id
 
-        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-            scopes=["rally-staff"]
-        )
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
         try:
             resp = pg_client.put(
                 f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
@@ -544,9 +486,7 @@ class TestUpdateTeamActivityEvaluationAPI:
                 json={"result_data": {"assigned_points": 80}},
             )
         finally:
-            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-                scopes=["admin"]
-            )
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
         assert resp.status_code == 404
 
     async def test_update_team_not_found(self, pg_session, pg_client, as_admin):
@@ -555,30 +495,22 @@ class TestUpdateTeamActivityEvaluationAPI:
         activity_obj = await _make_activity(pg_session, checkpoint.id)
 
         resp = pg_client.put(
-            f"/api/rally/v1/staff/teams/999999/activities/"
-            f"{activity_obj.id}/evaluate/1",
+            f"/api/rally/v1/staff/teams/999999/activities/{activity_obj.id}/evaluate/1",
             json={"result_data": {"assigned_points": 80}},
         )
         assert resp.status_code == 404
 
     async def test_update_result_not_found(self, pg_session, pg_client, as_admin):
-        team_obj, activity_obj, _result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+        team_obj, activity_obj, _result_id = await _seed_result(pg_session, pg_client, as_admin)
 
         resp = pg_client.put(
-            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
-            f"{activity_obj.id}/evaluate/999999",
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate/999999",
             json={"result_data": {"assigned_points": 80}},
         )
         assert resp.status_code == 404
 
-    async def test_update_result_wrong_team_or_activity(
-        self, pg_session, pg_client, as_admin
-    ):
-        _, activity_obj, result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_update_result_wrong_team_or_activity(self, pg_session, pg_client, as_admin):
+        _, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
         other_team = await _make_team(pg_session, "OtherTeam")
 
         resp = pg_client.put(
@@ -610,49 +542,33 @@ class TestAllEvaluationsAPI:
         # staff without a checkpoint assignment (403) before the endpoint's
         # own body-level checkpoint check ever runs.
         as_admin.staff_checkpoint_id = None
-        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-            scopes=["rally-staff"]
-        )
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
         try:
             resp = pg_client.get("/api/rally/v1/staff/all-evaluations")
         finally:
-            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-                scopes=["admin"]
-            )
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
         assert resp.status_code == 403
 
     async def test_all_evaluations_staff_restricted_to_own_checkpoint(
         self, pg_session, pg_client, as_admin
     ):
-        _team, _activity, _result_id = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+        _team, _activity, _result_id = await _seed_result(pg_session, pg_client, as_admin)
         checkpoint_id = as_admin.staff_checkpoint_id
 
-        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-            scopes=["rally-staff"]
-        )
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
         try:
             resp = pg_client.get("/api/rally/v1/staff/all-evaluations")
         finally:
-            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(
-                scopes=["admin"]
-            )
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["total"] == len(body["evaluations"])
         assert checkpoint_id is not None
 
-    async def test_all_evaluations_filter_by_team_id(
-        self, pg_session, pg_client, as_admin
-    ):
-        team_obj, activity_obj, _ = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_all_evaluations_filter_by_team_id(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, _ = await _seed_result(pg_session, pg_client, as_admin)
 
-        resp = pg_client.get(
-            f"/api/rally/v1/staff/all-evaluations?team_id={team_obj.id}"
-        )
+        resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?team_id={team_obj.id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["total"] == 1
@@ -660,17 +576,11 @@ class TestAllEvaluationsAPI:
         assert body["evaluations"][0]["team"]["id"] == team_obj.id
         assert body["evaluations"][0]["activity"]["id"] == activity_obj.id
 
-    async def test_all_evaluations_filter_by_checkpoint_id(
-        self, pg_session, pg_client, as_admin
-    ):
-        team_obj, _, _ = await _seed_result(
-            pg_session, pg_client, as_admin
-        )
+    async def test_all_evaluations_filter_by_checkpoint_id(self, pg_session, pg_client, as_admin):
+        team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
         checkpoint_id = as_admin.staff_checkpoint_id
 
-        resp = pg_client.get(
-            f"/api/rally/v1/staff/all-evaluations?checkpoint_id={checkpoint_id}"
-        )
+        resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?checkpoint_id={checkpoint_id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["total"] >= 1

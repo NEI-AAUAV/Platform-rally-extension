@@ -1,4 +1,5 @@
 """Tests for checkpoint guide indication endpoints, against real Postgres."""
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_checkpoint_guide_indication import (
     checkpoint_guide_indication as crud_indication,

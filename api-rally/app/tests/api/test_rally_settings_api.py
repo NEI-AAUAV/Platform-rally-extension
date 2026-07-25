@@ -1,6 +1,7 @@
 """API tests for the rally settings endpoints (view/update/branding uploads),
 against real Postgres. R2 upload I/O (`validate_and_store`) stays mocked.
 """
+
 import io
 from unittest.mock import AsyncMock, patch
 
@@ -80,13 +81,14 @@ class TestBrandingUploads:
     async def test_admin_can_upload_banner(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        with patch(
-            "app.api.api_v1.rally_settings.validate_and_store",
-            new=AsyncMock(return_value="https://r2/banner.png"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image"):
-            resp = pg_client.put(
-                "/api/rally/v1/rally/settings/banner", files=_png_upload()
-            )
+        with (
+            patch(
+                "app.api.api_v1.rally_settings.validate_and_store",
+                new=AsyncMock(return_value="https://r2/banner.png"),
+            ),
+            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+        ):
+            resp = pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["banner_url"] == "https://r2/banner.png"
@@ -94,13 +96,14 @@ class TestBrandingUploads:
     async def test_admin_can_upload_logo(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        with patch(
-            "app.api.api_v1.rally_settings.validate_and_store",
-            new=AsyncMock(return_value="https://r2/logo.png"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image"):
-            resp = pg_client.put(
-                "/api/rally/v1/rally/settings/logo", files=_png_upload()
-            )
+        with (
+            patch(
+                "app.api.api_v1.rally_settings.validate_and_store",
+                new=AsyncMock(return_value="https://r2/logo.png"),
+            ),
+            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+        ):
+            resp = pg_client.put("/api/rally/v1/rally/settings/logo", files=_png_upload())
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["logo_url"] == "https://r2/logo.png"
@@ -108,13 +111,14 @@ class TestBrandingUploads:
     async def test_admin_can_upload_favicon(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
-        with patch(
-            "app.api.api_v1.rally_settings.validate_and_store",
-            new=AsyncMock(return_value="https://r2/favicon.ico"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image"):
-            resp = pg_client.put(
-                "/api/rally/v1/rally/settings/favicon", files=_png_upload()
-            )
+        with (
+            patch(
+                "app.api.api_v1.rally_settings.validate_and_store",
+                new=AsyncMock(return_value="https://r2/favicon.ico"),
+            ),
+            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+        ):
+            resp = pg_client.put("/api/rally/v1/rally/settings/favicon", files=_png_upload())
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["favicon_url"] == "https://r2/favicon.ico"
@@ -132,16 +136,22 @@ class TestBrandingUploads:
         call against the existing `banner_url`, not an empty string)."""
         await _make_event(pg_session)
 
-        with patch(
-            "app.api.api_v1.rally_settings.validate_and_store",
-            new=AsyncMock(return_value="https://r2/banner-1.png"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image"):
+        with (
+            patch(
+                "app.api.api_v1.rally_settings.validate_and_store",
+                new=AsyncMock(return_value="https://r2/banner-1.png"),
+            ),
+            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+        ):
             pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
-        with patch(
-            "app.api.api_v1.rally_settings.validate_and_store",
-            new=AsyncMock(return_value="https://r2/banner-2.png"),
-        ), patch("app.api.api_v1.rally_settings.storage_client.delete_image") as delete_mock_2:
+        with (
+            patch(
+                "app.api.api_v1.rally_settings.validate_and_store",
+                new=AsyncMock(return_value="https://r2/banner-2.png"),
+            ),
+            patch("app.api.api_v1.rally_settings.storage_client.delete_image") as delete_mock_2,
+        ):
             resp = pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
         assert resp.status_code == 200, resp.text

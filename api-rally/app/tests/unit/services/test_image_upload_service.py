@@ -1,4 +1,5 @@
 """Unit tests for the shared image upload/validation service."""
+
 import asyncio
 from unittest.mock import Mock, patch
 
@@ -26,7 +27,7 @@ class _FakeUpload:
     async def read(self, size: int = -1) -> bytes:
         await asyncio.sleep(0)
         if size is None or size < 0:
-            chunk, self._pos = self._data[self._pos:], len(self._data)
+            chunk, self._pos = self._data[self._pos :], len(self._data)
             return chunk
         chunk = self._data[self._pos : self._pos + size]
         self._pos += len(chunk)

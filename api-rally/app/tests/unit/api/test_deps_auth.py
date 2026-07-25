@@ -3,7 +3,8 @@
 Covers the OIDC user-mirroring paths (create, placeholder backfill, scope
 sync, concurrent-creation race) and the team-token dependencies.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -73,8 +74,10 @@ async def test_get_db_yields_a_session_and_closes():
 async def test_get_current_user_returns_existing_user():
     db = AsyncMock()
     user = _user()
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
+    ):
         result = await deps.get_current_user(_auth(), db)
     assert result.id == 1
 
@@ -83,10 +86,12 @@ async def test_get_current_user_creates_on_first_login():
     db = AsyncMock()
     created = _user(id=9)
     create_mock = AsyncMock(return_value=created)
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.create_for_oidc", new=create_mock), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(created)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.create_for_oidc", new=create_mock),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
+    ):
         result = await deps.get_current_user(_auth(), db)
     assert result.id == 9
     create_mock.assert_awaited_once()
@@ -97,10 +102,12 @@ async def test_get_current_user_backfills_email_placeholder():
     adopted on first login instead of creating a duplicate."""
     db = AsyncMock()
     placeholder = _user(id=5, sub=None)
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)), \
-         patch("app.crud.user.create_for_oidc", new=AsyncMock()) as create_mock, \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock()) as create_mock,
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)),
+    ):
         result = await deps.get_current_user(_auth(sub="new-sub"), db)
     assert result.id == 5
     assert placeholder.authentik_sub == "new-sub"
@@ -113,13 +120,15 @@ async def test_get_current_user_survives_creation_race():
     db = AsyncMock()
     winner = _user(id=3)
     get_by_sub = AsyncMock(side_effect=[None, winner])  # miss, then re-fetch hit
-    with patch("app.crud.user.get_by_authentik_sub", new=get_by_sub), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)), \
-         patch(
-             "app.crud.user.create_for_oidc",
-             new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
-         ), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(winner)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=get_by_sub),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)),
+        patch(
+            "app.crud.user.create_for_oidc",
+            new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
+        ),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(winner)),
+    ):
         result = await deps.get_current_user(_auth(), db)
     assert result.id == 3
     db.rollback.assert_awaited()
@@ -131,10 +140,12 @@ async def test_get_current_user_skips_email_backfill_without_email():
     db = AsyncMock()
     created = _user(id=11)
     get_by_email = AsyncMock()
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.get_by_email", new=get_by_email), \
-         patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=created)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(created)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=get_by_email),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=created)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
+    ):
         result = await deps.get_current_user(_auth(email=None), db)
     assert result.id == 11
     get_by_email.assert_not_awaited()
@@ -147,14 +158,16 @@ async def test_get_current_user_raises_500_when_race_loser_finds_nothing():
     db = AsyncMock()
     get_by_sub = AsyncMock(side_effect=[None, None])
     auth_data = _auth()
-    with patch("app.crud.user.get_by_authentik_sub", new=get_by_sub), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)), \
-         patch(
-             "app.crud.user.create_for_oidc",
-             new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
-         ):
-        with pytest.raises(HTTPException) as exc:
-            await deps.get_current_user(auth_data, db)
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=get_by_sub),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)),
+        patch(
+            "app.crud.user.create_for_oidc",
+            new=AsyncMock(side_effect=IntegrityError("dup", None, RuntimeError("duplicate key"))),
+        ),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await deps.get_current_user(auth_data, db)
     assert exc.value.status_code == 500
 
 
@@ -162,12 +175,14 @@ async def test_get_current_user_loads_guide_checkpoint_assignment():
     db = AsyncMock()
     user = _user(scopes=["rally-guide"])
     guide_assignment = Mock(checkpoint_id=42)
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)), \
-         patch(
-             "app.crud.crud_rally_guide_assignment.rally_guide_assignment.get_by_user_id",
-             new=AsyncMock(return_value=guide_assignment),
-         ):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
+        patch(
+            "app.crud.crud_rally_guide_assignment.rally_guide_assignment.get_by_user_id",
+            new=AsyncMock(return_value=guide_assignment),
+        ),
+    ):
         result = await deps.get_current_user(_auth(scopes=["rally-guide"]), db)
     assert result.guide_checkpoint_id == 42
 
@@ -175,8 +190,10 @@ async def test_get_current_user_loads_guide_checkpoint_assignment():
 async def test_get_current_user_syncs_scopes_from_provider():
     db = AsyncMock()
     user = _user(scopes=["old-scope"])
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
+    ):
         await deps.get_current_user(_auth(scopes=["rally-staff"]), db)
     assert user.scopes == ["rally-staff"]
 
@@ -193,8 +210,10 @@ async def test_get_current_user_optional_none_when_no_matching_user():
     """No existing user and no adoptable placeholder: returns None instead of
     creating a row (unlike the mandatory get_current_user)."""
     db = AsyncMock()
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)),
+    ):
         result = await deps.get_current_user_optional(_auth(), db)
     assert result is None
 
@@ -202,8 +221,10 @@ async def test_get_current_user_optional_none_when_no_matching_user():
 async def test_get_current_user_optional_returns_existing_user():
     db = AsyncMock()
     user = _user()
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
+    ):
         result = await deps.get_current_user_optional(_auth(), db)
     assert result.id == 1
 
@@ -211,9 +232,11 @@ async def test_get_current_user_optional_returns_existing_user():
 async def test_get_current_user_optional_backfills_email_placeholder():
     db = AsyncMock()
     placeholder = _user(id=6, sub=None)
-    with patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)), \
-         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)), \
-         patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)):
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)),
+    ):
         result = await deps.get_current_user_optional(_auth(sub="new-sub"), db)
     assert result.id == 6
     assert placeholder.authentik_sub == "new-sub"
@@ -272,8 +295,13 @@ def test_get_admin_or_staff_allows_staff_with_checkpoint():
     auth = Mock()
     auth.scopes = ["rally-staff"]
     user = DetailedUser(
-        id=1, name="U", disabled=False, team_id=None, is_captain=False,
-        scopes=["rally-staff"], staff_checkpoint_id=3,
+        id=1,
+        name="U",
+        disabled=False,
+        team_id=None,
+        is_captain=False,
+        scopes=["rally-staff"],
+        staff_checkpoint_id=3,
     )
     assert deps.get_admin_or_staff(auth, user) is user
 
@@ -286,9 +314,7 @@ def test_get_admin_allows_admin():
 
 
 def test_get_participant_rejects_disabled_user():
-    user = DetailedUser(
-        id=1, name="U", disabled=True, team_id=None, is_captain=False, scopes=[]
-    )
+    user = DetailedUser(id=1, name="U", disabled=True, team_id=None, is_captain=False, scopes=[])
     with pytest.raises(HTTPException) as exc:
         deps.get_participant(user)
     assert exc.value.status_code == 400
@@ -302,7 +328,7 @@ def _team_token(**overrides):
         "team_id": 12,
         "team_name": "Equipa",
         "type": "team_access",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "exp": datetime.now(UTC) + timedelta(hours=1),
     }
     payload.update(overrides)
     return jwt.encode(payload, settings.TEAM_JWT_SECRET_KEY, algorithm="HS256")
@@ -324,7 +350,7 @@ def test_team_optional_valid_token():
 
 
 def test_team_optional_rejects_expired_token():
-    token = _team_token(exp=datetime.now(timezone.utc) - timedelta(minutes=1))
+    token = _team_token(exp=datetime.now(UTC) - timedelta(minutes=1))
     assert deps.get_current_team_optional(_creds(token), settings) is None
 
 
@@ -344,7 +370,7 @@ def test_team_optional_rejects_tampered_signature():
             "team_id": 12,
             "team_name": "Equipa",
             "type": "team_access",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
         },
         "wrong-secret",
         algorithm="HS256",

@@ -1,4 +1,5 @@
 """Tests for the guide checkpoints endpoint, against real Postgres."""
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_checkpoint_guide_indication import (
     checkpoint_guide_indication as crud_indication,
@@ -35,7 +36,9 @@ async def _make_checkpoint(pg_session, order=1):
     )
 
 
-async def test_guide_checkpoints_403_when_mode_off_and_not_peddy_paper(pg_session, pg_client, as_admin):
+async def test_guide_checkpoints_403_when_mode_off_and_not_peddy_paper(
+    pg_session, pg_client, as_admin
+):
     await _make_event(pg_session, event_type=EventType.GENERIC.value)
     await _set_guide_mode(pg_session, enabled=False, active=False)
 
@@ -84,7 +87,9 @@ async def test_guide_checkpoints_maps_media_and_indications(pg_session, pg_clien
     assert cp_data["indications"][0]["question"] == "Q?"
 
 
-async def test_guide_checkpoints_allowed_for_peddy_paper_even_if_mode_off(pg_session, pg_client, as_admin):
+async def test_guide_checkpoints_allowed_for_peddy_paper_even_if_mode_off(
+    pg_session, pg_client, as_admin
+):
     await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
     await _set_guide_mode(pg_session, enabled=False, active=False)
 

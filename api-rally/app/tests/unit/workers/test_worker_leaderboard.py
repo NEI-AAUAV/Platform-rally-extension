@@ -22,7 +22,13 @@ class _FakeScoringService:
     async def get_team_ranking(self) -> list[dict[str, Any]]:
         await asyncio.sleep(0)
         return [
-            {"rank": 1, "team_id": 9, "team_name": "Z", "total_score": 99.0, "activities_completed": 5},
+            {
+                "rank": 1,
+                "team_id": 9,
+                "team_name": "Z",
+                "total_score": 99.0,
+                "activities_completed": 5,
+            },
         ]
 
 
@@ -30,9 +36,7 @@ async def test_rebuild_writes_cache_and_signals(monkeypatch: pytest.MonkeyPatch)
     fake = fakeredis.aioredis.FakeRedis(decode_responses=True)
     monkeypatch.setattr("app.workers.worker_leaderboard.worker_session", _fake_session)
     monkeypatch.setattr("app.workers.worker_leaderboard.ScoringService", _FakeScoringService)
-    monkeypatch.setattr(
-        "app.workers.worker_leaderboard.get_async_redis_client", lambda: fake
-    )
+    monkeypatch.setattr("app.workers.worker_leaderboard.get_async_redis_client", lambda: fake)
 
     pubsub = fake.pubsub()
     await pubsub.subscribe(Channels.LEADERBOARD_REFRESHED)

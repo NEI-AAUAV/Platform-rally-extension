@@ -7,19 +7,26 @@ This module contains helper functions for:
 - Team checkpoint progression and advancement
 - Checkpoint progress calculation
 """
-from typing import Optional, Dict, Any, Tuple, List, Sequence
-from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
+
+from collections.abc import Sequence
+from typing import Any
+
+from loguru import logger
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from loguru import logger
 
-from app.models.activity import ActivityResult, Activity
-from app.models.team import Team
-from app.schemas.user import DetailedUser
-from app.schemas.activity import ActivityResultCreate, ActivityResultEvaluation, ActivityResultUpdate
 from app.api.auth import AuthData
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity_result
 from app.crud.crud_team import team
+from app.models.activity import Activity, ActivityResult
+from app.models.team import Team
+from app.schemas.activity import (
+    ActivityResultCreate,
+    ActivityResultEvaluation,
+    ActivityResultUpdate,
+)
+from app.schemas.user import DetailedUser
 from app.services.scoring_service import ScoringService
 
 # Error message constants
@@ -31,7 +38,8 @@ TEAM_NOT_FOUND = "Team not found"
 # Serialization Functions
 # =============================================================================
 
-def serialize_activity(result: ActivityResult) -> Optional[Dict[str, Any]]:
+
+def serialize_activity(result: ActivityResult) -> dict[str, Any] | None:
     """Helper function to serialize activity information.
 
     Expects result.activity to be eager-loaded by the caller's query.
@@ -49,7 +57,7 @@ def serialize_activity(result: ActivityResult) -> Optional[Dict[str, Any]]:
     return None
 
 
-def serialize_team(result: ActivityResult) -> Optional[Dict[str, Any]]:
+def serialize_team(result: ActivityResult) -> dict[str, Any] | None:
     """Helper function to serialize team information including member count.
 
     Expects result.team and result.team.members to be eager-loaded by the
@@ -84,7 +92,7 @@ def is_admin_or_manager(auth: AuthData) -> bool:
 
 async def validate_staff_checkpoint_access(
     db: AsyncSession, current_user: DetailedUser, team_id: int, activity_id: int
-) -> Tuple[Team, Activity]:
+) -> tuple[Team, Activity]:
     """Validate staff checkpoint access and return team and activity objects"""
     logger.info(
         f"Validating staff access: user_id={current_user.id}, "
@@ -97,7 +105,7 @@ async def validate_staff_checkpoint_access(
         raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
     # Verify team exists
-    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
     # this branch is unreachable in practice; kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
@@ -115,6 +123,7 @@ async def validate_staff_checkpoint_access(
 
     # Verify activity is at the same checkpoint
     from app.crud.crud_activity import activity
+
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         logger.error(f"Activity {activity_id} not found")
@@ -133,15 +142,18 @@ async def validate_staff_checkpoint_access(
     return team_obj, activity_obj
 
 
-async def validate_admin_access(db: AsyncSession, team_id: int, activity_id: int) -> Tuple[Team, Activity]:
+async def validate_admin_access(
+    db: AsyncSession, team_id: int, activity_id: int
+) -> tuple[Team, Activity]:
     """Validate admin access and return team and activity objects"""
-    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
     # this branch is unreachable in practice; kept as a defensive guard.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     from app.crud.crud_activity import activity
+
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         raise RallyNotFoundError("Activity not found")
@@ -152,6 +164,7 @@ async def validate_admin_access(db: AsyncSession, team_id: int, activity_id: int
 # =============================================================================
 # Activity Result Management
 # =============================================================================
+
 
 async def check_existing_result(db: AsyncSession, activity_id: int, team_id: int) -> None:
     """Check if result already exists for this team and activity"""
@@ -169,7 +182,7 @@ async def create_activity_result(
         activity_id=activity_id,
         result_data=result_in.result_data,
         extra_shots=result_in.extra_shots,
-        penalties=result_in.penalties
+        penalties=result_in.penalties,
     )
     return await ScoringService(db).create_result(result_create)
 
@@ -221,7 +234,7 @@ _OPPOSITE_TEAM_VS_RESULT = {"win": "lose", "lose": "win", "draw": "draw"}
 
 
 async def mirror_team_vs_result(
-    db: AsyncSession, activity_obj: Activity, team_id: int, result_data: Dict[str, Any]
+    db: AsyncSession, activity_obj: Activity, team_id: int, result_data: dict[str, Any]
 ) -> None:
     """Keep the opponent's TeamVsActivity result in sync.
 
@@ -256,6 +269,7 @@ async def mirror_team_vs_result(
 # Team Checkpoint Progression
 # =============================================================================
 
+
 async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: Activity) -> None:
     """Advance the team past this checkpoint once ALL its activities are scored.
 
@@ -271,9 +285,10 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     if current_checkpoint_id is None:
         return
 
-    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
     # these two guards are unreachable in practice; kept as defensive checks.
     from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+
     checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
     if not checkpoint_obj:
         return
@@ -292,19 +307,26 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
         return
 
     # Only advance once every activity at this checkpoint has a scored result.
-    from sqlalchemy.orm import joinedload
     from sqlalchemy import select
-    stmt = select(ActivityResult).options(
-        joinedload(ActivityResult.activity)
-    ).where(ActivityResult.team_id == team_id)
+    from sqlalchemy.orm import joinedload
+
+    stmt = (
+        select(ActivityResult)
+        .options(joinedload(ActivityResult.activity))
+        .where(ActivityResult.team_id == team_id)
+    )
     team_results = list((await db.scalars(stmt)).unique().all())
 
     scored_activity_ids = {
-        r.activity_id for r in team_results
-        if r.activity and r.activity.checkpoint_id == current_checkpoint_id and r.final_score is not None
+        r.activity_id
+        for r in team_results
+        if r.activity
+        and r.activity.checkpoint_id == current_checkpoint_id
+        and r.final_score is not None
     }
 
     from app.crud.crud_activity import activity as activity_crud
+
     checkpoint_activities = await activity_crud.get_by_checkpoint(
         db, checkpoint_id=current_checkpoint_id
     )
@@ -323,9 +345,11 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
         )
 
 
-async def ensure_team_checkpoint_and_advance(db: AsyncSession, team_id: int, current_checkpoint_id: int) -> None:
+async def ensure_team_checkpoint_and_advance(
+    db: AsyncSession, team_id: int, current_checkpoint_id: int
+) -> None:
     """Ensure team is checked into current checkpoint and advance to next"""
-    # CRUDBase.get() raises NotFoundException rather than returning None, so
+    # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
     # these two guards are unreachable in practice; kept as defensive checks.
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
@@ -334,6 +358,7 @@ async def ensure_team_checkpoint_and_advance(db: AsyncSession, team_id: int, cur
 
     # Convert checkpoint ID to order for comparison
     from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+
     checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
     if not checkpoint_obj:
         return
@@ -350,19 +375,21 @@ async def ensure_team_checkpoint_and_advance(db: AsyncSession, team_id: int, cur
 
 async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_id: int) -> None:
     """Check team into checkpoint with default scores"""
-    from app.schemas.team import TeamScoresUpdate
     from app.crud.crud_team import team as team_crud
+    from app.schemas.team import TeamScoresUpdate
 
     checkin_scores = TeamScoresUpdate(
         checkpoint_id=checkpoint_id,
         question_score=0,  # Default score
-        time_score=0,     # Default score
-        pukes=0,          # Default
-        skips=0           # Default
+        time_score=0,  # Default score
+        pukes=0,  # Default
+        skips=0,  # Default
     )
 
     try:
-        await team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores)
+        await team_crud.add_checkpoint(
+            db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores
+        )
         logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
     except Exception as e:
         # Log error and propagate - checkpoint advancement is critical
@@ -373,25 +400,30 @@ async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_
 async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> None:
     """Advance team to next checkpoint with default scores"""
     from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+
     next_checkpoint = await checkpoint_crud.get_next(db, team_id=team_id)
     if next_checkpoint:
-        from app.schemas.team import TeamScoresUpdate
         from app.crud.crud_team import team as team_crud
+        from app.schemas.team import TeamScoresUpdate
 
         advance_scores = TeamScoresUpdate(
             checkpoint_id=next_checkpoint.id,
             question_score=0,  # Default score
-            time_score=0,     # Default score
-            pukes=0,          # Default
-            skips=0           # Default
+            time_score=0,  # Default score
+            pukes=0,  # Default
+            skips=0,  # Default
         )
 
         try:
-            await team_crud.add_checkpoint(db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores)
+            await team_crud.add_checkpoint(
+                db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores
+            )
             logger.info(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
         except Exception as e:
             # Log error and propagate - checkpoint advancement failure should be visible
-            logger.error(f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}")
+            logger.error(
+                f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}"
+            )
             raise
 
 
@@ -399,16 +431,21 @@ async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> Non
 # Checkpoint Progress Calculation
 # =============================================================================
 
-async def compute_checkpoint_progress(db: AsyncSession, team_obj: Team) -> Tuple[int, int, List[int]]:
+
+async def compute_checkpoint_progress(
+    db: AsyncSession, team_obj: Team
+) -> tuple[int, int, list[int]]:
     """
     Calculate last and current checkpoint numbers plus completed orders for a team.
     """
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
     from app.crud.crud_activity import activity_result as activity_result_crud
+    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 
     checkpoints = await checkpoint_crud.get_all_ordered(db)
     team_results = await activity_result_crud.get_by_team(db, team_id=team_obj.id)
-    completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_completed", False)}
+    completed_activity_ids = {
+        r.activity_id for r in team_results if getattr(r, "is_completed", False)
+    }
 
     last_completed_order = 0
     completed_orders: list[int] = []
@@ -434,7 +471,9 @@ async def checkpoint_has_activities(db: AsyncSession, checkpoint_id: int) -> boo
     return bool(await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id))
 
 
-async def is_checkpoint_completed(db: AsyncSession, checkpoint_id: int, completed_activity_ids: set[int]) -> bool:
+async def is_checkpoint_completed(
+    db: AsyncSession, checkpoint_id: int, completed_activity_ids: set[int]
+) -> bool:
     from app.crud.crud_activity import activity
 
     checkpoint_activities = await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
@@ -453,14 +492,18 @@ def determine_current_order(checkpoints: Sequence[Any], last_completed_order: in
 
 
 async def build_team_for_staff(
-    db: AsyncSession, team_obj: Team, staff_checkpoint_order: Optional[int] = None
-) -> Dict[str, Any]:
+    db: AsyncSession, team_obj: Team, staff_checkpoint_order: int | None = None
+) -> dict[str, Any]:
     """Build team data for staff evaluation.
 
     The caller must eager-load team_obj.members (accessed below).
     """
 
-    last_checkpoint_number, current_checkpoint_number, completed_orders = await compute_checkpoint_progress(db, team_obj)
+    (
+        last_checkpoint_number,
+        current_checkpoint_number,
+        completed_orders,
+    ) = await compute_checkpoint_progress(db, team_obj)
 
     return {
         "id": team_obj.id,
@@ -470,7 +513,9 @@ async def build_team_for_staff(
         "versus_group_id": team_obj.versus_group_id,
         "num_members": len(team_obj.members) if team_obj.members else 0,
         "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
-        "last_checkpoint_score": team_obj.score_per_checkpoint[-1] if team_obj.score_per_checkpoint else None,
+        "last_checkpoint_score": team_obj.score_per_checkpoint[-1]
+        if team_obj.score_per_checkpoint
+        else None,
         "last_checkpoint_number": last_checkpoint_number,
         "current_checkpoint_number": current_checkpoint_number,
         "completed_checkpoint_numbers": completed_orders,

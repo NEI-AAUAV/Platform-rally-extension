@@ -1,11 +1,12 @@
-from typing import Annotated, Dict, Any
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import DetailedUser
+from app.api.abac_deps import validate_settings_view_access
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
-from app.api.abac_deps import validate_settings_view_access
+from app.schemas.user import DetailedUser
 from app.utils.rally_duration import get_rally_duration_info, get_team_duration_info
 
 router = APIRouter()
@@ -16,7 +17,7 @@ async def get_rally_duration(
     db: Annotated[AsyncSession, Depends(get_db)],
     curr_user: Annotated[DetailedUser, Depends(get_participant)],
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get rally duration and timing information.
 
@@ -34,7 +35,7 @@ async def get_team_rally_duration(
     db: Annotated[AsyncSession, Depends(get_db)],
     curr_user: Annotated[DetailedUser, Depends(get_participant)],
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get rally duration information for a specific team.
 
@@ -47,8 +48,8 @@ async def get_team_rally_duration(
     validate_settings_view_access(curr_user, auth)
 
     # Get team's first checkpoint time as start time
-    from app.crud.crud_team import team
     from app.core.exceptions import RallyNotFoundError
+    from app.crud.crud_team import team
 
     team_obj = await team.get(db=db, id=team_id)
 

@@ -1,4 +1,5 @@
 """DB-backed tests for app.db.seed_data (real Postgres via pg_session)."""
+
 import json
 from pathlib import Path
 
@@ -32,9 +33,7 @@ async def test_seed_checkpoints_creates_new_checkpoint(pg_session, tmp_path):
 
     await _seed_checkpoints(pg_session, tmp_path, event)
 
-    checkpoint = await pg_session.scalar(
-        select(CheckPoint).where(CheckPoint.name == "CP Seed A")
-    )
+    checkpoint = await pg_session.scalar(select(CheckPoint).where(CheckPoint.name == "CP Seed A"))
     assert checkpoint is not None
     assert checkpoint.event_id == event.id
     assert checkpoint.order == 101
@@ -54,9 +53,7 @@ async def test_seed_checkpoints_updates_existing_checkpoint(pg_session, tmp_path
     )
     await _seed_checkpoints(pg_session, tmp_path, event)
 
-    checkpoint = await pg_session.scalar(
-        select(CheckPoint).where(CheckPoint.name == "CP Seed B")
-    )
+    checkpoint = await pg_session.scalar(select(CheckPoint).where(CheckPoint.name == "CP Seed B"))
     assert checkpoint.arrival_radius_m == 75
 
 
@@ -99,9 +96,7 @@ async def test_seed_activities_creates_activities_from_file(pg_session, tmp_path
 
     await _seed_activities(pg_session, tmp_path, event)
 
-    activity = await pg_session.scalar(
-        select(Activity).where(Activity.name == "Seeded Activity A")
-    )
+    activity = await pg_session.scalar(select(Activity).where(Activity.name == "Seeded Activity A"))
     assert activity is not None
     assert activity.checkpoint_id == checkpoint.id
     assert activity.event_id == event.id
@@ -122,9 +117,7 @@ async def test_upsert_activity_skips_when_checkpoint_missing(pg_session):
 
 async def test_upsert_activity_creates_and_updates(pg_session):
     event = await rally_event.ensure_current(pg_session)
-    checkpoint = CheckPoint(
-        name="CP Seed C", order=103, arrival_radius_m=50, event_id=event.id
-    )
+    checkpoint = CheckPoint(name="CP Seed C", order=103, arrival_radius_m=50, event_id=event.id)
     pg_session.add(checkpoint)
     await pg_session.flush()
 
@@ -139,9 +132,7 @@ async def test_upsert_activity_creates_and_updates(pg_session):
     )
     await pg_session.commit()
 
-    activity = await pg_session.scalar(
-        select(Activity).where(Activity.name == "Activity Seed A")
-    )
+    activity = await pg_session.scalar(select(Activity).where(Activity.name == "Activity Seed A"))
     assert activity is not None
     assert activity.checkpoint_id == checkpoint.id
 
@@ -156,19 +147,21 @@ async def test_upsert_activity_creates_and_updates(pg_session):
     )
     await pg_session.commit()
 
-    refreshed = await pg_session.scalar(
-        select(Activity).where(Activity.name == "Activity Seed A")
-    )
+    refreshed = await pg_session.scalar(select(Activity).where(Activity.name == "Activity Seed A"))
     assert refreshed.activity_type == "score_based"
 
 
 async def test_seed_data_end_to_end(pg_session, monkeypatch):
     calls = {}
 
-    async def _fake_seed_checkpoints(db, data_dir, event):  # NOSONAR: must stay async, awaited by seed_data
+    async def _fake_seed_checkpoints(
+        db, data_dir, event
+    ):  # NOSONAR: must stay async, awaited by seed_data
         calls["checkpoints"] = (data_dir, event.id)
 
-    async def _fake_seed_activities(db, data_dir, event):  # NOSONAR: must stay async, awaited by seed_data
+    async def _fake_seed_activities(
+        db, data_dir, event
+    ):  # NOSONAR: must stay async, awaited by seed_data
         calls["activities"] = (data_dir, event.id)
 
     monkeypatch.setattr("app.db.seed_data._seed_checkpoints", _fake_seed_checkpoints)

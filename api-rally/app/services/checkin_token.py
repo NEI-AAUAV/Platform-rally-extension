@@ -85,6 +85,4 @@ def verify_checkin_token(token: str, *, now: int | None = None) -> CheckinClaims
     if current - issued_at > settings.CHECKIN_TOKEN_TTL_SECONDS:
         raise CheckinTokenError("Check-in token has expired")
 
-    return CheckinClaims(
-        checkpoint_id=checkpoint_id, issued_at=issued_at, nonce=_nonce
-    )
+    return CheckinClaims(checkpoint_id=checkpoint_id, issued_at=issued_at, nonce=_nonce)

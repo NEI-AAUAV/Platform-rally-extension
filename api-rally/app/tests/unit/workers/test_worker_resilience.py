@@ -21,7 +21,9 @@ class _NoopWorker(BaseWorker):
 
     channels = ["test.chan"]
 
-    async def handle_event(self, channel: str, data: dict[str, Any]) -> None:  # pragma: no cover - unused
+    async def handle_event(
+        self, channel: str, data: dict[str, Any]
+    ) -> None:  # pragma: no cover - unused
         return None
 
 
@@ -45,7 +47,6 @@ class _FlakyPubSub:
         # Once subscribed successfully, idle until told to stop, then let the
         # loop observe the stop event.
         self._stop_event.wait(timeout=0.01)
-        return None
 
     def close(self) -> None:
         return None

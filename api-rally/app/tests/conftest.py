@@ -1,45 +1,44 @@
+import tempfile as _tempfile
 from collections.abc import AsyncIterator
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
+from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
-    create_async_engine,
     async_sessionmaker,
+    create_async_engine,
 )
 from sqlalchemy.pool import NullPool
-from fastapi.testclient import TestClient
-from unittest.mock import patch
 
-import tempfile as _tempfile
-
+from app.api.deps import get_db
 
 # Rally is an OIDC resource server: it validates authentik-issued tokens via
 # JWKS discovery and no longer reads a local signing key, so there is nothing to
 # mock at import time.
 from app.core.config import settings as app_settings
-from app.models.base import Base
 from app.main import app
-from app.api.deps import get_db
 
 # Import every model so Base.metadata is complete before create_all in pg_session.
 from app.models import (  # noqa: F401
-    User,
-    Team,
-    CheckPoint,
-    RallyStaffAssignment,
     Activity,
     ActivityResult,
+    BadgeDefinition,
+    CheckPoint,
+    DynamicAward,
+    DynamicRule,
+    EvaluationHistory,
+    EventParticipation,
     RallyEvent,
     RallySettings,
+    RallyStaffAssignment,
+    Team,
     TeamBadge,
-    BadgeDefinition,
-    DynamicRule,
-    DynamicAward,
-    EventParticipation,
-    EvaluationHistory,
+    User,
 )
+from app.models.base import Base
 
 # Test database setup — async SQLite (aiosqlite). A single shared file lets the
 # get_db override and the db fixtures see each other's committed data.
@@ -54,12 +53,12 @@ TestingSessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_comm
 Session = TestingSessionLocal
 
 
-async def override_get_db():
+async def sqlite_override_get_db():
     async with TestingSessionLocal() as db:
         yield db
 
 
-app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_db] = sqlite_override_get_db
 
 
 # NOTE: the ORM models use PostgreSQL-only column types (ARRAY), so the schema
@@ -91,8 +90,8 @@ def client():
 @pytest.fixture
 def mock_auth():
     """Mock authentication for tests"""
-    with patch('app.api.api_v1.team_members.require_team_management_permission'):
-        with patch('app.api.api_v1.rally_settings.validate_settings_update_access'):
+    with patch("app.api.api_v1.team_members.require_team_management_permission"):
+        with patch("app.api.api_v1.rally_settings.validate_settings_update_access"):
             yield
 
 
@@ -119,9 +118,7 @@ _PG_SCHEMA = app_settings.SCHEMA_NAME
 
 def _async_test_pg_url() -> str:
     """Test Postgres URI with the asyncpg driver."""
-    return str(app_settings.TEST_POSTGRES_URI).replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    return str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
 @pytest_asyncio.fixture
@@ -195,7 +192,9 @@ def pg_client(_pg_engine) -> TestClient:
     try:
         yield TestClient(app)
     finally:
-        app.dependency_overrides[get_db] = override_get_db  # restore the module-level SQLite override
+        app.dependency_overrides[get_db] = (
+            sqlite_override_get_db  # restore the module-level SQLite override
+        )
 
 
 async def make_event(pg_session, **overrides):

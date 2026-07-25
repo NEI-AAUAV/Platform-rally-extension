@@ -1,5 +1,6 @@
 """CRUD for per-person event participation history."""
-from typing import Optional, Sequence
+
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +10,9 @@ from app.models.team import Team
 
 
 class CRUDParticipation:
-    async def get_for_sub(self, db: AsyncSession, *, authentik_sub: str) -> Sequence[EventParticipation]:
+    async def get_for_sub(
+        self, db: AsyncSession, *, authentik_sub: str
+    ) -> Sequence[EventParticipation]:
         """All participations for a person, newest first."""
         stmt = (
             select(EventParticipation)
@@ -20,7 +23,7 @@ class CRUDParticipation:
 
     async def get_for_sub_and_event(
         self, db: AsyncSession, *, authentik_sub: str, event_id: int
-    ) -> Optional[EventParticipation]:
+    ) -> EventParticipation | None:
         stmt = select(EventParticipation).where(
             EventParticipation.authentik_sub == authentik_sub,
             EventParticipation.event_id == event_id,
@@ -33,7 +36,7 @@ class CRUDParticipation:
         *,
         authentik_sub: str,
         event_id: int,
-        team: Optional[Team],
+        team: Team | None,
         is_captain: bool = False,
         commit: bool = True,
     ) -> EventParticipation:

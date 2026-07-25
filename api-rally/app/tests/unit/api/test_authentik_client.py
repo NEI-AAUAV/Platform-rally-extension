@@ -2,6 +2,7 @@
 
 Uses httpx.MockTransport so no network is involved.
 """
+
 from unittest.mock import patch
 
 import httpx

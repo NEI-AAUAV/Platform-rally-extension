@@ -1,12 +1,21 @@
 """
 CRUD operations for activities
 """
-from typing import Any
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import desc, func, select
 
-from app.models.activity import Activity, ActivityResult, RallyEvent, EventType
-from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
+from typing import Any
+
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
+from app.schemas.activity import (
+    ActivityCreate,
+    ActivityResultCreate,
+    ActivityResultUpdate,
+    ActivityUpdate,
+    RallyEventCreate,
+    RallyEventUpdate,
+)
 
 
 class CRUDActivity:
@@ -34,25 +43,31 @@ class CRUDActivity:
         """Get activity by ID"""
         return await db.get(Activity, id)
 
-    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Activity]:
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> list[Activity]:
         """Get the current event's activities (legacy NULL rows included)."""
         from app.crud._event_scope import current_event_id
 
         event_id = await current_event_id(db)
-        stmt = select(Activity).where(
-            (Activity.event_id == event_id) | (Activity.event_id.is_(None))
-        ).offset(skip).limit(limit)
+        stmt = (
+            select(Activity)
+            .where((Activity.event_id == event_id) | (Activity.event_id.is_(None)))
+            .offset(skip)
+            .limit(limit)
+        )
         return list((await db.scalars(stmt)).all())
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> list[Activity]:
         """Get activities by checkpoint"""
         stmt = select(Activity).where(
-            Activity.checkpoint_id == checkpoint_id,
-            Activity.is_active.is_(True)
+            Activity.checkpoint_id == checkpoint_id, Activity.is_active.is_(True)
         )
         return list((await db.scalars(stmt)).all())
 
-    async def update(self, db: AsyncSession, *, db_obj: Activity, obj_in: ActivityUpdate) -> Activity:
+    async def update(
+        self, db: AsyncSession, *, db_obj: Activity, obj_in: ActivityUpdate
+    ) -> Activity:
         """Update an activity"""
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -91,10 +106,12 @@ class CRUDActivityResult:
             penalties=obj_in.penalties,
             final_score=final_score,
             is_completed=True,
-            completed_at=func.now()
+            completed_at=func.now(),
         )
 
-    async def persist(self, db: AsyncSession, db_obj: ActivityResult, *, commit: bool = True) -> ActivityResult:
+    async def persist(
+        self, db: AsyncSession, db_obj: ActivityResult, *, commit: bool = True
+    ) -> ActivityResult:
         """Add and refresh an ActivityResult.
 
         Commits by default. Pass commit=False to only flush, so the caller can
@@ -124,26 +141,31 @@ class CRUDActivityResult:
         """Get activity result by ID"""
         return await db.get(ActivityResult, id)
 
-    async def get_by_activity_and_team(self, db: AsyncSession, activity_id: int, team_id: int) -> ActivityResult | None:
+    async def get_by_activity_and_team(
+        self, db: AsyncSession, activity_id: int, team_id: int
+    ) -> ActivityResult | None:
         """Get activity result by activity and team"""
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
         return (await db.scalars(stmt)).first()
 
     async def get_by_activity(self, db: AsyncSession, activity_id: int) -> list[ActivityResult]:
         """Get all results for an activity"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id
-        ).order_by(desc(ActivityResult.final_score))
+        stmt = (
+            select(ActivityResult)
+            .where(ActivityResult.activity_id == activity_id)
+            .order_by(desc(ActivityResult.final_score))
+        )
         return list((await db.scalars(stmt)).all())
 
     async def get_by_team(self, db: AsyncSession, team_id: int) -> list[ActivityResult]:
         """Get all results for a team"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.team_id == team_id
-        ).order_by(desc(ActivityResult.final_score))
+        stmt = (
+            select(ActivityResult)
+            .where(ActivityResult.team_id == team_id)
+            .order_by(desc(ActivityResult.final_score))
+        )
         return list((await db.scalars(stmt)).all())
 
     async def get_all(self, db: AsyncSession) -> list[ActivityResult]:
@@ -199,7 +221,9 @@ class CRUDRallyEvent:
             name=obj_in.name,
             slug=slug,
             description=obj_in.description,
-            event_type=obj_in.event_type.value if isinstance(obj_in.event_type, EventType) else obj_in.event_type,
+            event_type=obj_in.event_type.value
+            if isinstance(obj_in.event_type, EventType)
+            else obj_in.event_type,
             config=obj_in.config,
             is_active=obj_in.is_active,
             is_current=obj_in.is_current,
@@ -256,7 +280,9 @@ class CRUDRallyEvent:
 
     async def _demote_all(self, db: AsyncSession) -> None:
         """Clear is_current on every event (call before promoting one)."""
-        for ev in (await db.scalars(select(RallyEvent).where(RallyEvent.is_current.is_(True)))).all():
+        for ev in (
+            await db.scalars(select(RallyEvent).where(RallyEvent.is_current.is_(True)))
+        ).all():
             ev.is_current = False
             db.add(ev)
 
@@ -272,12 +298,16 @@ class CRUDRallyEvent:
         await db.refresh(target)
         return target
 
-    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[RallyEvent]:
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> list[RallyEvent]:
         """Get multiple rally events (newest first)."""
         stmt = select(RallyEvent).order_by(desc(RallyEvent.created_at)).offset(skip).limit(limit)
         return list((await db.scalars(stmt)).all())
 
-    async def update(self, db: AsyncSession, *, db_obj: RallyEvent, obj_in: RallyEventUpdate) -> RallyEvent:
+    async def update(
+        self, db: AsyncSession, *, db_obj: RallyEvent, obj_in: RallyEventUpdate
+    ) -> RallyEvent:
         """Update a rally event; promoting to current demotes the others."""
         update_data = obj_in.model_dump(exclude_unset=True)
         if update_data.get("is_current") is True and not db_obj.is_current:

@@ -4,7 +4,8 @@ Mirrors the gala/family extensions: a single module-level client that
 no-ops gracefully when R2 is not configured (dev without credentials),
 so the rally app stays runnable and falls back to bundled defaults.
 """
-from typing import Any, Optional
+
+from typing import Any
 
 import boto3
 from botocore.config import Config
@@ -16,16 +17,18 @@ from app.core.config import get_settings
 class StorageClient:
     def __init__(self) -> None:
         settings = get_settings()
-        self.enabled: bool = all([
-            settings.R2_ENDPOINT_URL,
-            settings.R2_ACCESS_KEY_ID,
-            settings.R2_SECRET_ACCESS_KEY,
-            settings.R2_BUCKET,
-            settings.R2_PUBLIC_BASE_URL,
-        ])
+        self.enabled: bool = all(
+            [
+                settings.R2_ENDPOINT_URL,
+                settings.R2_ACCESS_KEY_ID,
+                settings.R2_SECRET_ACCESS_KEY,
+                settings.R2_BUCKET,
+                settings.R2_PUBLIC_BASE_URL,
+            ]
+        )
         self.client: Any = None
-        self.bucket: Optional[str] = None
-        self.public_base_url: Optional[str] = None
+        self.bucket: str | None = None
+        self.public_base_url: str | None = None
 
         if not self.enabled:
             return
@@ -51,7 +54,7 @@ class StorageClient:
             self.bucket = None
             self.public_base_url = None
 
-    def upload_image(self, key: str, data: bytes, content_type: str) -> Optional[str]:
+    def upload_image(self, key: str, data: bytes, content_type: str) -> str | None:
         """Upload bytes to R2. Returns public URL, or None if disabled/failed."""
         if not self.enabled or self.public_base_url is None:
             logger.warning("R2 storage not configured; skipping upload")
@@ -73,7 +76,7 @@ class StorageClient:
             logger.error(f"Failed to upload to R2: {e}")
             return None
 
-    def delete_image(self, image_url: Optional[str]) -> bool:
+    def delete_image(self, image_url: str | None) -> bool:
         """Delete an image from R2 by URL.
 
         Returns True if deleted or the URL is not an R2 URL (nothing to do),
@@ -87,7 +90,7 @@ class StorageClient:
             return True
 
         try:
-            key = image_url[len(r2_base) + 1:]
+            key = image_url[len(r2_base) + 1 :]
             logger.info(f"Deleting image from R2: {key}")
             self.client.delete_object(Bucket=self.bucket, Key=key)
             logger.info(f"Successfully deleted from R2: {key}")

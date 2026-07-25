@@ -1,4 +1,5 @@
 """Unit tests for round-robin schedule generator (D2)."""
+
 from app.utils.round_robin import generate_schedule
 
 

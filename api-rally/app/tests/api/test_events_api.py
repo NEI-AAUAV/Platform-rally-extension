@@ -1,4 +1,5 @@
 """API tests for the event (edition) endpoints, against real Postgres."""
+
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin
 from app.crud.crud_activity import rally_event
@@ -63,9 +64,7 @@ def test_get_event_not_found(pg_client):
 def test_create_event(pg_client):
     _override_admin()
     try:
-        resp = pg_client.post(
-            "/api/rally/v1/events", json={"name": "New Edition"}
-        )
+        resp = pg_client.post("/api/rally/v1/events", json={"name": "New Edition"})
     finally:
         _pop_admin_overrides()
 
@@ -78,9 +77,7 @@ async def test_update_event(pg_session, pg_client):
 
     _override_admin()
     try:
-        resp = pg_client.put(
-            f"/api/rally/v1/events/{created.id}", json={"name": "Renamed"}
-        )
+        resp = pg_client.put(f"/api/rally/v1/events/{created.id}", json={"name": "Renamed"})
     finally:
         _pop_admin_overrides()
 
@@ -91,9 +88,7 @@ async def test_update_event(pg_session, pg_client):
 def test_update_event_not_found(pg_client):
     _override_admin()
     try:
-        resp = pg_client.put(
-            "/api/rally/v1/events/999999", json={"name": "Nope"}
-        )
+        resp = pg_client.put("/api/rally/v1/events/999999", json={"name": "Nope"})
     finally:
         _pop_admin_overrides()
 

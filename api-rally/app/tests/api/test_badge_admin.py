@@ -1,5 +1,5 @@
-
 """Tests for badge catalogue admin endpoints (A3), against real Postgres."""
+
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
@@ -38,20 +38,29 @@ async def _make_team(pg_session):
 
 
 class TestKillSwitch:
-    async def test_write_endpoints_blocked_when_badges_disabled(self, pg_session, pg_client, as_admin):
+    async def test_write_endpoints_blocked_when_badges_disabled(
+        self, pg_session, pg_client, as_admin
+    ):
         await _make_event(pg_session)
         await _disable_badges(pg_session)
 
-        assert pg_client.post(
-            "/api/rally/v1/badge-definitions", json={"code": "x", "name": "X"}
-        ).status_code == 403
-        assert pg_client.put(
-            "/api/rally/v1/badge-definitions/1", json={"name": "X"}
-        ).status_code == 403
+        assert (
+            pg_client.post(
+                "/api/rally/v1/badge-definitions", json={"code": "x", "name": "X"}
+            ).status_code
+            == 403
+        )
+        assert (
+            pg_client.put("/api/rally/v1/badge-definitions/1", json={"name": "X"}).status_code
+            == 403
+        )
         assert pg_client.delete("/api/rally/v1/badge-definitions/1").status_code == 403
-        assert pg_client.post(
-            "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "x"}
-        ).status_code == 403
+        assert (
+            pg_client.post(
+                "/api/rally/v1/badges/award", json={"team_id": 1, "badge_code": "x"}
+            ).status_code
+            == 403
+        )
         assert pg_client.delete("/api/rally/v1/badges/5").status_code == 403
 
     async def test_list_reachable_when_badges_disabled(self, pg_session, pg_client, as_admin):
@@ -110,7 +119,9 @@ class TestCreate:
         assert body["trigger_type"] == "first_complete_activity"
         assert body["criteria"] == {"activity_id": 7}
 
-    async def test_create_badge_definition_rejects_bad_trigger(self, pg_session, pg_client, as_admin):
+    async def test_create_badge_definition_rejects_bad_trigger(
+        self, pg_session, pg_client, as_admin
+    ):
         await _make_event(pg_session)
 
         resp = pg_client.post(
@@ -225,7 +236,9 @@ class TestManualAwardRevoke:
         assert resp.json()["team_id"] == team.id
         assert resp.json()["badge_type"] == "test_badge"
 
-    async def test_manual_award_badge_missing_team_is_not_found(self, pg_session, pg_client, as_admin):
+    async def test_manual_award_badge_missing_team_is_not_found(
+        self, pg_session, pg_client, as_admin
+    ):
         await _make_event(pg_session)
         await _make_definition(pg_session)
 
