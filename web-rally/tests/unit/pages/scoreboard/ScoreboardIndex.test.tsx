@@ -81,10 +81,10 @@ describe('Scoreboard index', () => {
     mockGetCheckpoints.mockResolvedValue({ data: [] });
   });
 
-  it('redirects to /postos when score mode hidden for unprivileged users', () => {
+  it('redirects to /checkpoints when score mode hidden for unprivileged users', () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } });
     renderWithClient(<Scoreboard />);
-    expect(screen.getByText('Navigate to /postos')).toBeInTheDocument();
+    expect(screen.getByText('Navigate to /checkpoints')).toBeInTheDocument();
   });
 
   it('shows restricted notice for individual mode without team auth', () => {

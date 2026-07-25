@@ -52,13 +52,42 @@ vi.mock('@/pages/team-members/components', () => ({
       ))}
     </ul>
   ),
-  ErrorBanner: ({ title, error }: { title: string; error: Error }) => (
-    <div>
-      <h3>{title}</h3>
-      <p>{error.message}</p>
-    </div>
+  TeamMembersErrorBanners: ({
+    teamsError,
+    membersError,
+  }: {
+    teamsError?: Error | null;
+    membersError?: Error | null;
+  }) => (
+    <>
+      {teamsError && (
+        <div>
+          <h3>Erro ao carregar equipas:</h3>
+          <p>{teamsError.message}</p>
+        </div>
+      )}
+      {membersError && (
+        <div>
+          <h3>Erro ao carregar membros:</h3>
+          <p>{membersError.message}</p>
+        </div>
+      )}
+    </>
   ),
-  NoTeamsMessage: () => <div>Nenhuma equipa encontrada</div>,
+  TeamsLoadingBanner: ({ teamsLoading }: { teamsLoading?: boolean }) =>
+    teamsLoading ? <div>A carregar equipas...</div> : null,
+  MembersLoadingBanner: ({ membersLoading }: { membersLoading?: boolean }) =>
+    membersLoading ? <div>A carregar membros da equipa...</div> : null,
+  NoTeamsBanner: ({
+    teamsLoading,
+    teamsError,
+    hasTeams,
+  }: {
+    teamsLoading?: boolean;
+    teamsError?: Error | null;
+    hasTeams: boolean;
+  }) =>
+    teamsLoading || teamsError || hasTeams ? null : <div>Nenhuma equipa encontrada</div>,
   StaffTeamRoster: () => <div data-testid="staff-roster" />,
 }));
 
