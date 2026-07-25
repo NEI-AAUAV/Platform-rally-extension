@@ -24,7 +24,9 @@ from app.schemas.team import ListingTeam
 class CheckpointService:
     """Checkpoint visibility rules, team roster lookups, and lifecycle."""
 
-    def __init__(self, db: AsyncSession, checkpoint_crud: CRUDCheckPoint, team_crud: CRUDTeam) -> None:
+    def __init__(
+        self, db: AsyncSession, checkpoint_crud: CRUDCheckPoint, team_crud: CRUDTeam
+    ) -> None:
         self._db = db
         self._checkpoint_crud = checkpoint_crud
         self._team_crud = team_crud
@@ -60,7 +62,9 @@ class CheckpointService:
         ).compute_checkpoint_progress(team)
         return self._validate_list([cp for cp in all_checkpoints if cp.order <= current_order])
 
-    async def visible_checkpoints_for_public(self, settings: Any) -> list[DetailedCheckPoint] | None:
+    async def visible_checkpoints_for_public(
+        self, settings: Any
+    ) -> list[DetailedCheckPoint] | None:
         """Return visible checkpoints for unauthenticated / public access.
 
         Returns *None* when access should be denied.
@@ -77,7 +81,7 @@ class CheckpointService:
         return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
 
     async def list_teams_at_checkpoint(
-        self, *, checkpoint_id: int | None, is_admin_unfiltered: bool
+        self, *, checkpoint_id: int, is_admin_unfiltered: bool
     ) -> list[ListingTeam]:
         """Teams currently at (or having passed through) a checkpoint.
 
@@ -85,11 +89,11 @@ class CheckpointService:
         when an admin passed no ``checkpoint_id`` filter.
         """
         if is_admin_unfiltered:
-            teams = (
-                await self._db.scalars(select(Team).options(selectinload(Team.members)))
-            ).all()
+            teams = (await self._db.scalars(select(Team).options(selectinload(Team.members)))).all()
         else:
-            teams = await self._team_crud.get_by_checkpoint(db=self._db, checkpoint_id=checkpoint_id)
+            teams = await self._team_crud.get_by_checkpoint(
+                db=self._db, checkpoint_id=checkpoint_id
+            )
 
         return [
             ListingTeam(
@@ -113,14 +117,10 @@ class CheckpointService:
         """Delete a checkpoint and everything that references it: staff/guide
         assignments, and staff members' assigned-checkpoint pointer."""
         await self._db.execute(
-            delete(RallyStaffAssignment).where(
-                RallyStaffAssignment.checkpoint_id == checkpoint_id
-            )
+            delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == checkpoint_id)
         )
         await self._db.execute(
-            delete(RallyGuideAssignment).where(
-                RallyGuideAssignment.checkpoint_id == checkpoint_id
-            )
+            delete(RallyGuideAssignment).where(RallyGuideAssignment.checkpoint_id == checkpoint_id)
         )
         await self._db.execute(
             update(User)
