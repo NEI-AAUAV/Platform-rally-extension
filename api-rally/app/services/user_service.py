@@ -1,8 +1,4 @@
 """Business rules for user/staff/guide checkpoint assignments.
-
-Moved out of app.api.api_v1.user, which used to hold this logic inline as
-private, prefixed module functions shared between the staff- and
-guide-assignment endpoints.
 """
 
 from typing import Any, TypeVar

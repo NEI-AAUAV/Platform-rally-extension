@@ -1,8 +1,4 @@
 """Cloudflare R2 object storage for branding image uploads.
-
-Mirrors the gala/family extensions: a single module-level client that
-no-ops gracefully when R2 is not configured (dev without credentials),
-so the rally app stays runnable and falls back to bundled defaults.
 """
 
 from typing import Any

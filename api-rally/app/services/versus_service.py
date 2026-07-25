@@ -1,5 +1,4 @@
-"""Presentation shaping for versus pairs. Moved out of app.api.api_v1.versus,
-which used to hold the group-by logic inline in the router handler.
+"""Presentation shaping for versus pairs.
 """
 
 from collections import defaultdict

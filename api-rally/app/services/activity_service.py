@@ -1,7 +1,6 @@
 """Business rules for the activity lifecycle: default-config merging on
-create, and ranking DTO normalization. Moved out of app.api.api_v1.activities,
-which used to hold this logic inline in the router handlers. Activity
-*scoring* (results, penalties, rankings computation) stays in
+create, and ranking DTO normalization. Activity
+*scoring* (results, penalties, ranking computation) stays in
 ScoringService — this service only owns activity definitions and the
 presentation-shaping around them.
 """
