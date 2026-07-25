@@ -7,7 +7,7 @@ editions and switch the current one without wiping the database.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, Security
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,11 +21,10 @@ from app.schemas.activity import (
     RallyEventUpdate,
 )
 from app.schemas.user import DetailedUser
-from app.utils.round_robin import generate_schedule
+from app.services.event_service import EVENT_NOT_FOUND, EventService
 
 router = APIRouter()
 
-EVENT_NOT_FOUND = "Event not found"
 EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {404: {"description": EVENT_NOT_FOUND}}
 
 
@@ -129,33 +128,5 @@ async def generate_rotation_schedule(
     Reads the event's current teams and checkpoints, runs the generator, and
     stores the result in RallyEvent.rotation_schedule. Returns the schedule.
     """
-    from sqlalchemy import select
-
-    from app.models.activity import EventType
-    from app.models.checkpoint import CheckPoint
-    from app.models.team import Team
-
-    event = await crud.rally_event.get(db, event_id)
-    if event is None:
-        raise RallyNotFoundError(EVENT_NOT_FOUND)
-    if event.event_type != EventType.OLYMPIC.value:
-        raise HTTPException(
-            status_code=400, detail="Rotation schedule only available for Olympic events"
-        )
-
-    teams = list((await db.scalars(select(Team).where(Team.event_id == event_id))).all())
-    checkpoints = list(
-        (await db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id))).all()
-    )
-
-    if not teams or not checkpoints:
-        raise HTTPException(status_code=400, detail="Event has no teams or checkpoints")
-
-    team_ids = [t.id for t in teams]
-    checkpoint_ids = [c.id for c in checkpoints]
-    schedule = generate_schedule(team_ids, checkpoint_ids)
-
-    event.rotation_schedule = schedule
-    await db.commit()
-
+    schedule = await EventService(db).generate_rotation_schedule(event_id)
     return RotationScheduleResponse(event_id=event_id, rounds=schedule)

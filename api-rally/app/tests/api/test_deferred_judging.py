@@ -161,7 +161,7 @@ async def test_judge_result_succeeds_even_if_score_recalc_fails(
     ).json()
 
     monkeypatch.setattr(
-        "app.api.api_v1.deferred_judging.ScoringService.update_team_scores",
+        "app.services.deferred_judging_service.ScoringService.update_team_scores",
         AsyncMock(side_effect=RuntimeError("boom")),
     )
 

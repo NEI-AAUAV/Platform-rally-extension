@@ -1,6 +1,6 @@
 """API tests for the team self-check-in endpoint, against real Postgres.
 
-`verify_checkin_token`/`_claim_nonce` stay mocked — QR crypto and Redis nonce
+`verify_checkin_token`/`CheckinService.claim_nonce` stay mocked — QR crypto and Redis nonce
 tracking are out of scope; everything else (DB, ABAC, routing, add_checkpoint)
 runs for real.
 """
@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.api.api_v1 import checkin as checkin_api
+from app.services.checkin_service import CheckinService
 from app.api.deps import get_current_team
 from app.core.config import get_settings
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
@@ -82,7 +83,7 @@ def _wire_token(monkeypatch: pytest.MonkeyPatch, checkpoint_id: int, *, nonce_fr
         "verify_checkin_token",
         MagicMock(return_value=CheckinClaims(checkpoint_id=checkpoint_id, issued_at=0, nonce="n1")),
     )
-    monkeypatch.setattr(checkin_api, "_claim_nonce", AsyncMock(return_value=nonce_fresh))
+    monkeypatch.setattr(CheckinService, "claim_nonce", AsyncMock(return_value=nonce_fresh))
 
 
 async def test_check_in_success(pg_session, pg_client, as_checkin_team, monkeypatch):

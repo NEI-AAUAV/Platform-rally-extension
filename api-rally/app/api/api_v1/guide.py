@@ -9,18 +9,13 @@ Guides, staff, admins, and managers all have access. Public users do not.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db, get_guide
-from app.crud.crud_activity import rally_event
-from app.crud.crud_rally_settings import rally_settings
-from app.models.activity import EventType
-from app.models.checkpoint import CheckPoint
 from app.schemas.user import DetailedUser
+from app.services.guide_service import GuideService
 
 router = APIRouter()
 
@@ -70,26 +65,7 @@ async def list_guide_checkpoints(
 
     Ordered by checkpoint order. Guide role, staff, and admins can access this.
     """
-    event = await rally_event.get_current(db)
-
-    settings = await rally_settings.get_or_create(db)
-    guide_mode_on = settings.guide_mode_enabled and settings.guide_mode_active
-    is_peddy_paper = event is not None and event.event_type == EventType.PEDDY_PAPER.value
-    if not guide_mode_on and not is_peddy_paper:
-        raise HTTPException(status_code=403, detail="Guide mode is not active for this event")
-
-    event_filter = CheckPoint.event_id == event.id if event else CheckPoint.event_id.is_(None)
-
-    stmt = (
-        select(CheckPoint)
-        .where(event_filter)
-        .options(
-            selectinload(CheckPoint.media),
-            selectinload(CheckPoint.guide_indications),
-        )
-        .order_by(CheckPoint.order)
-    )
-    checkpoints = list((await db.scalars(stmt)).all())
+    checkpoints = await GuideService(db).list_checkpoints_with_gallery()
 
     return [
         GuideCheckpointResponse(

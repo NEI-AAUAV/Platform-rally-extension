@@ -9,46 +9,15 @@ account and records a participation.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
-from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from app.models.participation import EventParticipation
-from app.models.team import Team
-from app.models.user import User
-from app.schemas.profile import (
-    ClaimableMember,
-    ClaimableTeam,
-    ParticipationEntry,
-    ProfileResponse,
-)
+from app.schemas.profile import ClaimableTeam, ParticipationEntry, ProfileResponse
 from app.schemas.user import DetailedUser
+from app.services.profile_service import ProfileService
 
 router = APIRouter()
-
-
-async def _entry(db: AsyncSession, row: EventParticipation) -> ParticipationEntry:
-    """Build a participation entry, preferring live team values over snapshots."""
-    event = await crud.rally_event.get(db, row.event_id)
-    team = await db.get(Team, row.team_id) if row.team_id is not None else None
-    return ParticipationEntry(
-        event_id=row.event_id,
-        event_name=event.name if event else (row.team_name or "Evento"),
-        event_type=event.event_type if event else "generic",
-        team_id=row.team_id,
-        team_name=team.name if team else row.team_name,
-        team_total=team.total if team else row.team_total,
-        team_classification=team.classification if team else row.team_classification,
-        is_captain=row.is_captain,
-        joined_at=row.joined_at,
-    )
-
-
-async def _self_user(db: AsyncSession, auth: AuthData) -> User | None:
-    return await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
 
 
 @router.get("/profile/me")
@@ -62,22 +31,10 @@ async def get_my_profile(
     If the caller is themselves currently on a team, their participation in the
     current event is recorded lazily so the active edition always shows.
     """
-    me = await _self_user(db, auth)
-
-    # Lazily record current participation when the caller is directly on a team.
-    if me is not None and me.team_id is not None:
-        team = await db.get(Team, me.team_id)
-        if team is not None:
-            await crud.participation.record(
-                db,
-                authentik_sub=auth.oidc_sub,
-                event_id=team.event_id or (await crud.rally_event.ensure_current(db)).id,
-                team=team,
-                is_captain=bool(me.is_captain),
-            )
-
-    rows = await crud.participation.get_for_sub(db, authentik_sub=auth.oidc_sub)
-    participations = [await _entry(db, r) for r in rows]
+    service = ProfileService(db)
+    me = await service.get_self(auth)
+    await service.record_current_participation_if_on_team(me, auth)
+    participations = await service.get_participation_history(auth)
 
     return ProfileResponse(
         authentik_sub=auth.oidc_sub,
@@ -96,8 +53,7 @@ async def get_my_history(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
 ) -> list[ParticipationEntry]:
     """List the caller's past participations (newest first)."""
-    rows = await crud.participation.get_for_sub(db, authentik_sub=auth.oidc_sub)
-    return [await _entry(db, r) for r in rows]
+    return await ProfileService(db).get_participation_history(auth)
 
 
 @router.get("/profile/claimable")
@@ -112,20 +68,7 @@ async def get_claimable_members(
     The caller enters their team's access code; this returns the placeholder
     members (no linked account) so they can pick which one is them and claim it.
     """
-    team = await crud.team.get_by_access_code(db, access_code=access_code.strip())
-    if team is None:
-        raise RallyNotFoundError("Team not found")
-
-    stmt = select(User).where(
-        User.team_id == team.id,
-        User.authentik_sub.is_(None),
-    )
-    members = list((await db.scalars(stmt)).all())
-    return ClaimableTeam(
-        team_id=team.id,
-        team_name=team.name,
-        members=[ClaimableMember.model_validate(m) for m in members],
-    )
+    return await ProfileService(db).get_claimable_team(access_code)
 
 
 @router.post("/profile/claim/{member_user_id}", status_code=201)
@@ -141,44 +84,4 @@ async def claim_membership(
     the caller's account: its team membership moves to the caller and the
     placeholder is removed. A participation row is recorded for the event.
     """
-    member = await db.get(User, member_user_id)
-    if member is None:
-        raise RallyNotFoundError("Member not found")
-    if member.authentik_sub is not None:
-        raise RallyValidationError("This member is already linked to an account")
-    if member.team_id is None:
-        raise RallyValidationError("This member is not on a team")
-
-    team = await db.get(Team, member.team_id)
-    if team is None:
-        raise RallyNotFoundError("Team not found")
-
-    me = await _self_user(db, auth)
-    if me is None:
-        # First login may not have created the row yet; create it now.
-        me = await crud.user.create_for_oidc(
-            db,
-            authentik_sub=auth.oidc_sub,
-            name=auth.name,
-            email=auth.email,
-            scopes=auth.scopes,
-        )
-
-    # Move the team membership onto the caller, drop the placeholder.
-    me.team_id = member.team_id
-    me.is_captain = bool(member.is_captain)
-    db.add(me)
-    await db.delete(member)
-    await db.flush()
-
-    row = await crud.participation.record(
-        db,
-        authentik_sub=auth.oidc_sub,
-        event_id=team.event_id or (await crud.rally_event.ensure_current(db)).id,
-        team=team,
-        is_captain=bool(me.is_captain),
-        commit=False,
-    )
-    await db.commit()
-    await db.refresh(row)
-    return await _entry(db, row)
+    return await ProfileService(db).claim_membership(member_user_id, auth)
