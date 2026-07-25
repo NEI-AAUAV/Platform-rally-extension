@@ -10,14 +10,19 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import RallyConflictError, RallyNotFoundError
+from app.crud._deps import foreign_key_error_regex
 from app.models.badge import TeamBadge
 
 if TYPE_CHECKING:
     from app.models.badge_definition import BadgeDefinition
 
 logger = logging.getLogger(__name__)
+
+_team_foreign_error_regex = foreign_key_error_regex("team_id")
 
 
 async def team_has_badge(
@@ -90,6 +95,44 @@ async def award_badge(
         team_id,
         activity_id,
     )
+    return badge
+
+
+async def manual_award_badge(
+    db: AsyncSession,
+    *,
+    team_id: int,
+    badge_code: str,
+    activity_id: int | None,
+    checkpoint_id: int | None,
+) -> TeamBadge:
+    """Admin-initiated award, bypassing the automatic evaluators.
+
+    Distinct from ``award_badge``: raises rather than no-oping on a duplicate
+    (RallyConflictError, 409) so the admin sees the conflict, and maps a
+    missing-team foreign-key violation to RallyNotFoundError (404) instead of
+    surfacing the raw IntegrityError. The caller is responsible for verifying
+    the badge definition exists and is active before calling this.
+    """
+    if await team_has_badge(db, team_id, badge_code, activity_id, checkpoint_id):
+        raise RallyConflictError("Team already holds this badge")
+
+    badge = TeamBadge(
+        team_id=team_id,
+        badge_type=badge_code,
+        activity_id=activity_id,
+        checkpoint_id=checkpoint_id,
+        meta={"manual": True},
+    )
+    db.add(badge)
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        if e.orig is not None and _team_foreign_error_regex.search(str(e.orig)):
+            raise RallyNotFoundError("Team not found") from e
+        raise RallyConflictError("Team already holds this badge") from e
+    await db.refresh(badge)
     return badge
 
 

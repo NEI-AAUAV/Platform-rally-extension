@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.crud._deps import foreign_key_error_regex
 from app.crud.crud_badge_definition import badge_definition as crud_def
 from app.crud.crud_rally_settings import rally_settings
 from app.models.badge import TeamBadge
@@ -21,12 +20,12 @@ from app.schemas.badge_definition import (
     BadgeDefinitionUpdate,
     ManualBadgeAwardCreate,
 )
+from app.services import badge_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 
 router = APIRouter()
 
 BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
-_team_foreign_error_regex = foreign_key_error_regex("team_id")
 
 
 async def require_badges_enabled(db: Annotated[AsyncSession, Depends(deps.get_db)]) -> None:
@@ -142,37 +141,13 @@ async def manual_award_badge(
     if not defn.is_active:
         raise HTTPException(status_code=400, detail="Badge is inactive")
 
-    from sqlalchemy import select as sa_select
-    from sqlalchemy.exc import IntegrityError
-
-    # Check idempotency
-    existing_check = await db.execute(
-        sa_select(TeamBadge).where(
-            TeamBadge.team_id == obj_in.team_id,
-            TeamBadge.badge_type == obj_in.badge_code,
-            TeamBadge.activity_id == obj_in.activity_id,
-            TeamBadge.checkpoint_id == obj_in.checkpoint_id,
-        )
-    )
-    if existing_check.scalars().first():
-        raise HTTPException(status_code=409, detail="Team already holds this badge")
-
-    badge = TeamBadge(
+    badge = await badge_service.manual_award_badge(
+        db,
         team_id=obj_in.team_id,
-        badge_type=obj_in.badge_code,
+        badge_code=obj_in.badge_code,
         activity_id=obj_in.activity_id,
         checkpoint_id=obj_in.checkpoint_id,
-        meta={"manual": True},
     )
-    db.add(badge)
-    try:
-        await db.commit()
-    except IntegrityError as e:
-        await db.rollback()
-        if e.orig is not None and _team_foreign_error_regex.search(str(e.orig)):
-            raise HTTPException(status_code=404, detail="Team not found")
-        raise HTTPException(status_code=409, detail="Team already holds this badge")
-    await db.refresh(badge)
     return TeamBadgeRead.model_validate(badge)
 
 
