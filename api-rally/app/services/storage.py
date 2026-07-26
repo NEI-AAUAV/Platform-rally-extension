@@ -1,5 +1,4 @@
-"""Cloudflare R2 object storage for branding image uploads.
-"""
+"""Cloudflare R2 object storage for branding image uploads."""
 
 from typing import Any
 

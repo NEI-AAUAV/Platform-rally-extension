@@ -144,11 +144,11 @@ else:
 
 ```python
 # Fórmula de resultado
-if result == 'win':
+if result == "win":
     score = win_points
-elif result == 'draw':
+elif result == "draw":
     score = draw_points
-elif result == 'lose':
+elif result == "lose":
     score = lose_points
 ```
 
@@ -184,7 +184,7 @@ elif result == 'lose':
 
 ```python
 # Fórmula de atribuição
-assigned_points = result_data.get('assigned_points', 0)
+assigned_points = result_data.get("assigned_points", 0)
 
 # Validação de range
 if assigned_points < min_points:
@@ -220,7 +220,7 @@ Após o cálculo da pontuação base, os seguintes modificadores são aplicados:
 
 **Fórmula:**
 ```python
-extra_shots = modifiers.get('extra_shots', 0)
+extra_shots = modifiers.get("extra_shots", 0)
 if extra_shots > 0:
     bonus = extra_shots * bonus_per_extra_shot
     final_score += bonus
@@ -235,7 +235,7 @@ if extra_shots > 0:
 
 **Fórmula:**
 ```python
-if 'vomit' in penalties:
+if "vomit" in penalties:
     final_score -= abs(penalty_per_puke)
 ```
 
@@ -246,7 +246,7 @@ if 'vomit' in penalties:
 
 **Fórmula:**
 ```python
-if 'not_drinking' in penalties:
+if "not_drinking" in penalties:
     penalty_value = participants_not_drinking * abs(penalty_per_not_drinking)
     final_score -= penalty_value
 ```

@@ -1,5 +1,4 @@
-"""Presentation shaping for versus pairs.
-"""
+"""Presentation shaping for versus pairs."""
 
 from collections import defaultdict
 

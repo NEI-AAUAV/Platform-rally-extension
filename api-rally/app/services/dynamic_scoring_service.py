@@ -1,5 +1,4 @@
-"""Business rules and persistence for dynamic scoring rules and awards.
-"""
+"""Business rules and persistence for dynamic scoring rules and awards."""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -6,11 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError
+from app.crud._deps import foreign_key_error_regex
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
-
-from app.crud._deps import foreign_key_error_regex
 
 _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 

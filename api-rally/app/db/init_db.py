@@ -12,9 +12,8 @@ from sqlalchemy.schema import CreateSchema
 import alembic as _alembic_pkg
 from alembic import command
 from app.core.config import settings
-from app.models.base import Base
-
 from app.db.session import engine
+from app.models.base import Base
 
 # Repo layout: api-rally/app/db/init_db.py -> api-rally/alembic.ini
 ALEMBIC_INI = Path(__file__).resolve().parents[2] / "alembic.ini"

@@ -1,5 +1,4 @@
-"""Business rules for user/staff/guide checkpoint assignments.
-"""
+"""Business rules for user/staff/guide checkpoint assignments."""
 
 from typing import Any, TypeVar
 

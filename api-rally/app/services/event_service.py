@@ -1,5 +1,5 @@
 """Business rules for event editions: rotation-schedule generation for
-Olympic events. 
+Olympic events.
 """
 
 from typing import Any

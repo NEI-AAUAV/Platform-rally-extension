@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.api.api_v1 import checkin as checkin_api
-from app.services.checkin_service import CheckinService
 from app.api.deps import get_current_team
 from app.core.config import get_settings
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
@@ -24,6 +23,7 @@ from app.main import app
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 from app.schemas.team_auth import TeamTokenData
+from app.services.checkin_service import CheckinService
 from app.services.checkin_token import CheckinClaims, CheckinTokenError
 from app.tests.conftest import make_event as _make_event
 

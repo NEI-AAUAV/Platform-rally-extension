@@ -4,8 +4,6 @@ Activity factory for Rally extension
 
 from typing import Any
 
-from app.schemas.activity_types import ActivityType
-
 from app.models.activities import (
     BooleanActivity,
     DeferredJudgedActivity,
@@ -14,6 +12,7 @@ from app.models.activities import (
     TeamVsActivity,
     TimeBasedActivity,
 )
+from app.schemas.activity_types import ActivityType
 
 
 class ActivityFactory:
