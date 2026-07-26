@@ -75,7 +75,7 @@ async def test_create_media_photo_with_image(pg_session, pg_client, as_admin):
     checkpoint = await _make_checkpoint(pg_session)
 
     with patch(
-        "app.api.api_v1.checkpoint_media.validate_and_store",
+        "app.services.checkpoint_media_service.validate_and_store",
         new=AsyncMock(return_value="https://r2/cp/photo.png"),
     ):
         resp = pg_client.post(
@@ -171,7 +171,7 @@ async def test_update_media_with_new_image(pg_session, pg_client, as_admin):
 
     with (
         patch(
-            "app.api.api_v1.checkpoint_media.validate_and_store",
+            "app.services.checkpoint_media_service.validate_and_store",
             new=AsyncMock(return_value="https://r2/cp/new.png"),
         ),
         patch("app.crud.crud_checkpoint_media.storage_client.delete_image"),

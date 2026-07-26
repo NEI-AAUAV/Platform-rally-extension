@@ -13,7 +13,7 @@ from app.schemas.checkpoint_media import (
     CheckpointMediaResponse,
     CheckpointMediaUpdate,
 )
-from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.checkpoint_media_service import CheckpointMediaService
 
 router = APIRouter()
 
@@ -57,13 +57,9 @@ async def create_checkpoint_media(
     image: Annotated[UploadFile | None, File()] = None,
 ) -> CheckpointMediaResponse:
     await _get_checkpoint_or_404(db, checkpoint_id)
-    image_url: str | None = None
-    if image and image.filename:
-        image_url = await validate_and_store(
-            image=image,
-            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-            key_prefix=f"rally/checkpoints/{checkpoint_id}/media",
-        )
+    image_url = await CheckpointMediaService.upload_image_if_provided(
+        image, checkpoint_id=checkpoint_id
+    )
     obj_in = CheckpointMediaCreate(kind=kind, caption=caption, order=order)
     created = await crud_media.create(
         db, checkpoint_id=checkpoint_id, obj_in=obj_in, image_url=image_url
@@ -86,13 +82,9 @@ async def update_checkpoint_media(
     db_obj = await crud_media.get(db, id=media_id)
     if not db_obj:
         raise HTTPException(status_code=404, detail="Media not found")
-    image_url: str | None = None
-    if image and image.filename:
-        image_url = await validate_and_store(
-            image=image,
-            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-            key_prefix=f"rally/checkpoints/{db_obj.checkpoint_id}/media",
-        )
+    image_url = await CheckpointMediaService.upload_image_if_provided(
+        image, checkpoint_id=db_obj.checkpoint_id
+    )
     obj_in = CheckpointMediaUpdate(caption=caption, order=order)
     updated = await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
     return CheckpointMediaResponse.model_validate(updated)
