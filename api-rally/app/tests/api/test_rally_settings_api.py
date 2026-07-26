@@ -83,10 +83,10 @@ class TestBrandingUploads:
 
         with (
             patch(
-                "app.api.api_v1.rally_settings.validate_and_store",
+                "app.services.rally_settings_service.validate_and_store",
                 new=AsyncMock(return_value="https://r2/banner.png"),
             ),
-            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+            patch("app.services.rally_settings_service.storage_client.delete_image"),
         ):
             resp = pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
@@ -98,10 +98,10 @@ class TestBrandingUploads:
 
         with (
             patch(
-                "app.api.api_v1.rally_settings.validate_and_store",
+                "app.services.rally_settings_service.validate_and_store",
                 new=AsyncMock(return_value="https://r2/logo.png"),
             ),
-            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+            patch("app.services.rally_settings_service.storage_client.delete_image"),
         ):
             resp = pg_client.put("/api/rally/v1/rally/settings/logo", files=_png_upload())
 
@@ -113,10 +113,10 @@ class TestBrandingUploads:
 
         with (
             patch(
-                "app.api.api_v1.rally_settings.validate_and_store",
+                "app.services.rally_settings_service.validate_and_store",
                 new=AsyncMock(return_value="https://r2/favicon.ico"),
             ),
-            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+            patch("app.services.rally_settings_service.storage_client.delete_image"),
         ):
             resp = pg_client.put("/api/rally/v1/rally/settings/favicon", files=_png_upload())
 
@@ -138,19 +138,19 @@ class TestBrandingUploads:
 
         with (
             patch(
-                "app.api.api_v1.rally_settings.validate_and_store",
+                "app.services.rally_settings_service.validate_and_store",
                 new=AsyncMock(return_value="https://r2/banner-1.png"),
             ),
-            patch("app.api.api_v1.rally_settings.storage_client.delete_image"),
+            patch("app.services.rally_settings_service.storage_client.delete_image"),
         ):
             pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 
         with (
             patch(
-                "app.api.api_v1.rally_settings.validate_and_store",
+                "app.services.rally_settings_service.validate_and_store",
                 new=AsyncMock(return_value="https://r2/banner-2.png"),
             ),
-            patch("app.api.api_v1.rally_settings.storage_client.delete_image") as delete_mock_2,
+            patch("app.services.rally_settings_service.storage_client.delete_image") as delete_mock_2,
         ):
             resp = pg_client.put("/api/rally/v1/rally/settings/banner", files=_png_upload())
 

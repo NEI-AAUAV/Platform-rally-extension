@@ -14,15 +14,12 @@ DynamicAward management:
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.crud.crud_activity import rally_event
-from app.models.dynamic_scoring import DynamicAward, DynamicRule
-from app.services.scoring_service import ScoringService
+from app.services.dynamic_scoring_service import DynamicScoringService
 
 router = APIRouter()
 
@@ -80,6 +77,10 @@ class DynamicAwardResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+def _service(db: AsyncSession) -> DynamicScoringService:
+    return DynamicScoringService(db)
+
+
 # ---------- DynamicRule endpoints ----------
 
 
@@ -87,13 +88,8 @@ class DynamicAwardResponse(BaseModel):
 async def list_dynamic_rules(
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> list[DynamicRuleResponse]:
-    event = await rally_event.get_current(db)
-    event_id = event.id if event else None
-    stmt = select(DynamicRule).where(
-        (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))
-    )
-    rows = (await db.scalars(stmt)).all()
-    return [DynamicRuleResponse.model_validate(r) for r in rows]
+    rules = await _service(db).list_rules()
+    return [DynamicRuleResponse.model_validate(r) for r in rules]
 
 
 @router.post(
@@ -105,14 +101,7 @@ async def create_dynamic_rule(
     obj_in: DynamicRuleCreate,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicRuleResponse:
-    event = await rally_event.get_current(db)
-    rule = DynamicRule(
-        event_id=event.id if event else None,
-        **obj_in.model_dump(),
-    )
-    db.add(rule)
-    await db.commit()
-    await db.refresh(rule)
+    rule = await _service(db).create_rule(**obj_in.model_dump())
     return DynamicRuleResponse.model_validate(rule)
 
 
@@ -126,13 +115,7 @@ async def update_dynamic_rule(
     obj_in: DynamicRuleUpdate,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicRuleResponse:
-    rule = await db.get(DynamicRule, rule_id)
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    for field, value in obj_in.model_dump(exclude_none=True).items():
-        setattr(rule, field, value)
-    await db.commit()
-    await db.refresh(rule)
+    rule = await _service(db).update_rule(rule_id, **obj_in.model_dump(exclude_none=True))
     return DynamicRuleResponse.model_validate(rule)
 
 
@@ -146,11 +129,7 @@ async def delete_dynamic_rule(
     rule_id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
-    rule = await db.get(DynamicRule, rule_id)
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    await db.delete(rule)
-    await db.commit()
+    await _service(db).delete_rule(rule_id)
 
 
 # ---------- DynamicAward endpoints ----------
@@ -162,11 +141,8 @@ async def list_dynamic_awards(
     _: Annotated[None, Depends(deps.get_admin)],
     team_id: int | None = None,
 ) -> list[DynamicAwardResponse]:
-    stmt = select(DynamicAward).where(DynamicAward.is_active.is_(True))
-    if team_id is not None:
-        stmt = stmt.where(DynamicAward.team_id == team_id)
-    rows = (await db.scalars(stmt)).all()
-    return [DynamicAwardResponse.model_validate(r) for r in rows]
+    awards = await _service(db).list_awards(team_id=team_id)
+    return [DynamicAwardResponse.model_validate(a) for a in awards]
 
 
 @router.post(
@@ -178,20 +154,12 @@ async def create_dynamic_award(
     obj_in: DynamicAwardCreate,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> DynamicAwardResponse:
-    event = await rally_event.get_current(db)
-    award = DynamicAward(
+    award = await _service(db).create_award(
         team_id=obj_in.team_id,
-        event_id=event.id if event else None,
         rule_id=obj_in.rule_id,
         points=obj_in.points,
         reason=obj_in.reason,
-        is_active=True,
     )
-    db.add(award)
-    await db.commit()
-    await db.refresh(award)
-    # Trigger score recalculation so leaderboard reflects immediately
-    await ScoringService(db).update_team_scores(obj_in.team_id)
     return DynamicAwardResponse.model_validate(award)
 
 
@@ -205,11 +173,4 @@ async def delete_dynamic_award(
     award_id: int,
     db: Annotated[AsyncSession, Depends(deps.get_db)],
 ) -> None:
-    award = await db.get(DynamicAward, award_id)
-    if not award:
-        raise HTTPException(status_code=404, detail="Award not found")
-    team_id = award.team_id
-    award.is_active = False
-    await db.commit()
-    # Recompute score now that the award is gone
-    await ScoringService(db).update_team_scores(team_id)
+    await _service(db).delete_award(award_id)
