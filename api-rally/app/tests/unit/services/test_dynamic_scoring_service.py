@@ -4,6 +4,7 @@ legacy/global rules (event_id=None) must still surface alongside the current
 event's own rules, since list_rules ORs the two.
 """
 
+from app.models.activity import RallyEvent
 from app.models.dynamic_scoring import DynamicRule
 from app.services.dynamic_scoring_service import DynamicScoringService
 from app.tests.conftest import make_event as _make_event
@@ -29,9 +30,14 @@ class TestListRules:
         assert names == {"Global Bonus", "Event Bonus"}
 
     async def test_rule_scoped_to_a_different_event_is_excluded(self, pg_session) -> None:
-        # given: a rule belonging to some other event id, not the current one
+        # given: a rule belonging to a real, but non-current, event
         await _make_event(pg_session)
-        other_event_rule = DynamicRule(name="Other Event Bonus", event_id=999999)
+        other_event = RallyEvent(name="Other Event", is_current=False)
+        pg_session.add(other_event)
+        await pg_session.commit()
+        await pg_session.refresh(other_event)
+
+        other_event_rule = DynamicRule(name="Other Event Bonus", event_id=other_event.id)
         pg_session.add(other_event_rule)
         await pg_session.commit()
 
