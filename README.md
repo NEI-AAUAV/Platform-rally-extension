@@ -11,10 +11,11 @@ Rally is the NEI Platform’s competition module. It handles team rosters, check
 rally/
 ├── api-rally/
 │   └── app/
-│       ├── api/        # FastAPI routers
-│       ├── crud/       # DB helpers
-│       ├── models/     # SQLAlchemy models
-│       └── services/   # Scoring + business logic
+│       ├── api/        # FastAPI routers (thin controllers), auth deps
+│       ├── crud/       # Repositories — data access only
+│       ├── models/     # SQLAlchemy entities
+│       ├── schemas/    # Pydantic DTOs
+│       └── services/   # Business logic, one class per domain (see api-rally/README.md)
 └── web-rally/
     └── src/
         ├── components/ # UI + themed parts
@@ -63,7 +64,9 @@ poetry run pytest
 cd web-rally
 pnpm test
 ```
-The backend test suite mocks the JWT verifier and spins up a temporary DB. Frontend tests run under Vitest/jsdom.
+The backend test suite runs against a real Postgres schema (dropped/recreated per test) and bypasses
+OIDC by overriding FastAPI dependencies rather than mocking a JWT verifier — see `api-rally/README.md`
+and `TESTING.md` for the `RALLY_TEST_PG` modes. Frontend tests run under Vitest/jsdom.
 
 ## API at a Glance
 

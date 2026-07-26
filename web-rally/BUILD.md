@@ -11,7 +11,7 @@ There are two primary ways to build the Rally web assets.
 The `build-local.sh` script is the fastest way to build the assets. It handles OpenAPI schema generation, dependency installation, and client generation.
 
 ```bash
-# From Platform/extensions/rally/web-rally
+# From web-rally/
 ./build-local.sh
 ```
 

@@ -42,11 +42,11 @@ We recommend running tests locally to catch issues early.
 
 ```bash
 # Run backend tests
-cd Platform/extensions/rally/api-rally
+cd api-rally
 poetry run pytest
 
 # Run frontend tests
-cd Platform/extensions/rally/web-rally
+cd web-rally
 pnpm test
 ```
 
