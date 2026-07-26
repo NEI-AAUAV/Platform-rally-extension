@@ -194,7 +194,9 @@ def test_stream_rally_events_returns_streaming_response_when_enabled(
 
     async def _run() -> None:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
-        response = await scoreboard_module.stream_rally_events(_FakeRequest(), settings)
+        response = await scoreboard_module.ScoreboardController().stream_rally_events(
+            _FakeRequest(), settings
+        )
         assert response.media_type == "text/event-stream"
         assert response.headers["Cache-Control"] == "no-cache"
 
@@ -214,7 +216,7 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
-        response = await scoreboard_module.stream_scoreboard(
+        response = await scoreboard_module.ScoreboardController().stream_scoreboard(
             _FakeRequest(disconnect_after=2), settings
         )
         events = []
@@ -242,7 +244,7 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
         # Stay connected for the first check (so a ping is emitted), then
         # report disconnected to end the generator.
-        response = await scoreboard_module.stream_scoreboard(
+        response = await scoreboard_module.ScoreboardController().stream_scoreboard(
             _FakeRequest(disconnect_after=1), settings
         )
         events = []

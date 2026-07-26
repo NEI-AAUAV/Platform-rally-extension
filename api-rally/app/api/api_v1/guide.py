@@ -17,8 +17,6 @@ from app.api.deps import get_db, get_guide
 from app.schemas.user import DetailedUser
 from app.services.guide_service import GuideService
 
-router = APIRouter()
-
 
 class GuideMediaItem(BaseModel):
     id: int
@@ -53,48 +51,64 @@ class GuideCheckpointResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get(
-    "/guide/checkpoints",
-    responses={403: {"description": "Guide mode is not active for this event"}},
-)
-async def list_guide_checkpoints(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    _: Annotated[DetailedUser, Depends(get_guide)],
-) -> list[GuideCheckpointResponse]:
-    """Return all checkpoints with their media gallery for the current event.
+class GuideController:
+    """REST controller for rally guide read-only checkpoint views."""
 
-    Ordered by checkpoint order. Guide role, staff, and admins can access this.
-    """
-    checkpoints = await GuideService(db).list_checkpoints_with_gallery()
+    def __init__(self) -> None:
+        self.router = APIRouter()
+        self._register_routes()
 
-    return [
-        GuideCheckpointResponse(
-            id=cp.id,
-            name=cp.name,
-            order=cp.order,
-            description=cp.description,
-            latitude=cp.latitude,
-            longitude=cp.longitude,
-            media=[
-                GuideMediaItem(
-                    id=m.id,
-                    kind=m.kind.value if hasattr(m.kind, "value") else m.kind,
-                    url=m.image_url,
-                    caption=m.caption,
-                    display_order=m.order,
-                )
-                for m in sorted(cp.media, key=lambda m: m.order)
-            ],
-            indications=[
-                GuideIndicationItem(
-                    id=i.id,
-                    hint=i.hint,
-                    question=i.question,
-                    expected_answer=i.expected_answer,
-                    order=i.order,
-                )
-                for i in sorted(cp.guide_indications, key=lambda i: i.order)
-            ],
+    def _register_routes(self) -> None:
+        self.router.add_api_route(
+            "/guide/checkpoints",
+            self.list_guide_checkpoints,
+            methods=["GET"],
+            name="list_guide_checkpoints",
+            responses={403: {"description": "Guide mode is not active for this event"}},
         )
-        for cp in checkpoints
-    ]
+
+    async def list_guide_checkpoints(
+        self,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        _: Annotated[DetailedUser, Depends(get_guide)],
+    ) -> list[GuideCheckpointResponse]:
+        """Return all checkpoints with their media gallery for the current event.
+
+        Ordered by checkpoint order. Guide role, staff, and admins can access this.
+        """
+        checkpoints = await GuideService(db).list_checkpoints_with_gallery()
+
+        return [
+            GuideCheckpointResponse(
+                id=cp.id,
+                name=cp.name,
+                order=cp.order,
+                description=cp.description,
+                latitude=cp.latitude,
+                longitude=cp.longitude,
+                media=[
+                    GuideMediaItem(
+                        id=m.id,
+                        kind=m.kind.value if hasattr(m.kind, "value") else m.kind,
+                        url=m.image_url,
+                        caption=m.caption,
+                        display_order=m.order,
+                    )
+                    for m in sorted(cp.media, key=lambda m: m.order)
+                ],
+                indications=[
+                    GuideIndicationItem(
+                        id=i.id,
+                        hint=i.hint,
+                        question=i.question,
+                        expected_answer=i.expected_answer,
+                        order=i.order,
+                    )
+                    for i in sorted(cp.guide_indications, key=lambda i: i.order)
+                ],
+            )
+            for cp in checkpoints
+        ]
+
+
+router = GuideController().router
