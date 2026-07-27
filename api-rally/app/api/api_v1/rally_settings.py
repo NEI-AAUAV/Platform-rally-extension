@@ -15,6 +15,7 @@ from app.services.rally_settings_service import RallySettingsService
 
 INVALID_FILE_ERROR = "Invalid file"
 NOT_AUTHORIZED_ERROR = "Not authorized"
+R2_UPLOAD_ERROR = "R2 storage not configured or upload failed"
 
 class RallySettingsController:
     """REST controller for /rally/settings."""
@@ -54,7 +55,7 @@ class RallySettingsController:
             responses={
                 400: {"description": INVALID_FILE_ERROR},
                 403: {"description": NOT_AUTHORIZED_ERROR},
-                503: {"description": "R2 storage not configured or upload failed"},
+                503: {"description": R2_UPLOAD_ERROR},
             },
         )
         self.router.add_api_route(
@@ -66,7 +67,7 @@ class RallySettingsController:
             responses={
                 400: {"description": INVALID_FILE_ERROR},
                 403: {"description": NOT_AUTHORIZED_ERROR},
-                503: {"description": "R2 storage not configured or upload failed"},
+                503: {"description": R2_UPLOAD_ERROR},
             },
         )
         self.router.add_api_route(
@@ -78,7 +79,7 @@ class RallySettingsController:
             responses={
                 400: {"description": INVALID_FILE_ERROR},
                 403: {"description": NOT_AUTHORIZED_ERROR},
-                503: {"description": "R2 storage not configured or upload failed"},
+                503: {"description": R2_UPLOAD_ERROR},
             },
         )
 
