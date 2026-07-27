@@ -61,12 +61,18 @@ function ImageUploadField({
     event.target.value = "";
   };
 
-  const isSafeImageUrl = (url: string) =>
-    url.startsWith("blob:") ||
-    /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i.test(url) ||
-    url.startsWith("/") ||
-    url.startsWith("http://") ||
-    url.startsWith("https://");
+  const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:", "blob:"]);
+  const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(png|jpe?g|gif|webp|avif);base64,[a-z0-9+/]+=*$/i;
+
+  const isSafeImageUrl = (url: string): boolean => {
+    if (url.startsWith("/") && !url.startsWith("//")) return true;
+    if (SAFE_DATA_IMAGE_PATTERN.test(url)) return true;
+    try {
+      return ALLOWED_IMAGE_PROTOCOLS.has(new URL(url, window.location.origin).protocol);
+    } catch {
+      return false;
+    }
+  };
 
   const candidate = preview ?? currentUrl ?? null;
   const shown = candidate && isSafeImageUrl(candidate) ? candidate : null;
