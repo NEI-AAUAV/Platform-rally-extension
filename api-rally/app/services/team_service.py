@@ -17,9 +17,15 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
+from app.crud.crud_activity import activity
+from app.crud.crud_activity import activity_result as activity_result_crud
+from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.models.checkpoint import CheckPoint
 from app.models.team import Team
 from app.schemas.team import DetailedTeam, ListingTeam, TeamScoresUpdate
+from app.services.scoring_service import ScoringService
 
 
 class TeamService:
@@ -76,8 +82,6 @@ class TeamService:
 
     async def update_classification_unlocked(self) -> None:
         """Update team classifications based on activity results."""
-        from app.services.scoring_service import ScoringService
-
         teams = list(await self._team_crud.get_multi(db=self._db, for_update=True))
         scoring_service = ScoringService(self._db)
 
@@ -114,8 +118,6 @@ class TeamService:
         self, team: Team, checkpoint_id: int, settings: Any
     ) -> None:
         """Validate checkpoint order constraints."""
-        from app.models.checkpoint import CheckPoint
-
         checkpoint_obj = await self._db.get(CheckPoint, checkpoint_id)
         if not checkpoint_obj:
             raise RallyNotFoundError("Checkpoint not found")
@@ -144,8 +146,6 @@ class TeamService:
         close the outer transaction), scores are appended inside the
         savepoint, then the whole thing commits and classification recomputes.
         """
-        from app.crud.crud_rally_settings import rally_settings
-
         settings = await rally_settings.get_or_create(self._db)
         async with self._db.begin_nested():
             team = await self._team_crud.get(db=self._db, id=id, for_update=True)
@@ -174,10 +174,6 @@ class TeamService:
         a completed result for this team.
         Returns: (last_completed_order, current_order, last_checkpoint_name)
         """
-        from app.crud.crud_activity import activity
-        from app.crud.crud_activity import activity_result as activity_result_crud
-        from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
         checkpoints = await checkpoint_crud.get_all_ordered(self._db)
         team_results = await activity_result_crud.get_by_team(self._db, team_id=team_obj.id)
         completed_activity_ids = {
@@ -245,8 +241,6 @@ class TeamService:
         await self._db.refresh(team_obj, ["members"])
         result = DetailedTeam.model_validate(team_obj)
         if with_progress:
-            from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
             last_cp, current_cp, _ = await self.compute_checkpoint_progress(team_obj)
             result.last_checkpoint_number = last_cp
             result.current_checkpoint_number = current_cp

@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def current_event_id(db: AsyncSession) -> int:
     """Return the id of the current event, creating a default if none exists."""
+    # Local import: avoids circular import with app.crud.crud_activity
+    # (crud_activity imports current_event_id at module level; rally_event
+    # lives in crud_activity, so this side of the cycle must stay lazy).
     from app.crud.crud_activity import rally_event
 
     event = await rally_event.ensure_current(db)

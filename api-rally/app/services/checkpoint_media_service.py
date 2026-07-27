@@ -1,5 +1,5 @@
 """Business rules for checkpoint media: the shared upload-if-provided
-pattern used by both create and update. 
+pattern used by both create and update.
 """
 
 from fastapi import UploadFile

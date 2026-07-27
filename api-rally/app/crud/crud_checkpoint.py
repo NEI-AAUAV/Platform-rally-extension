@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -72,8 +72,6 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         self, db: AsyncSession, checkpoint_orders: dict[int, int]
     ) -> None:
         """Reorder checkpoints by updating their order values."""
-        from sqlalchemy import text
-
         # Use raw SQL to avoid unique constraint violations
         # First, set all affected checkpoints to negative orders
         for checkpoint_id in checkpoint_orders:

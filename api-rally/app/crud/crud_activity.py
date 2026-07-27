@@ -2,11 +2,13 @@
 CRUD operations for activities
 """
 
+import re
 from typing import Any
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.crud._event_scope import current_event_id
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.schemas.activity import (
     ActivityCreate,
@@ -23,8 +25,6 @@ class CRUDActivity:
 
     async def create(self, db: AsyncSession, *, obj_in: ActivityCreate) -> Activity:
         """Create a new activity, stamped with the current event id."""
-        from app.crud._event_scope import current_event_id
-
         db_obj = Activity(
             name=obj_in.name,
             description=obj_in.description,
@@ -47,8 +47,6 @@ class CRUDActivity:
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> list[Activity]:
         """Get the current event's activities (legacy NULL rows included)."""
-        from app.crud._event_scope import current_event_id
-
         event_id = await current_event_id(db)
         stmt = (
             select(Activity)
@@ -182,8 +180,6 @@ class CRUDActivityResult:
 
 def _slugify(value: str) -> str:
     """Lowercase, hyphenated, ascii-ish slug from an event name."""
-    import re
-
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "event"
 

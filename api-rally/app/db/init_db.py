@@ -12,7 +12,8 @@ from sqlalchemy.schema import CreateSchema
 import alembic as _alembic_pkg
 from alembic import command
 from app.core.config import settings
-from app.db.session import engine
+from app.db.seed_data import seed_data
+from app.db.session import SessionLocal, engine
 from app.models.base import Base
 
 # Repo layout: api-rally/app/db/init_db.py -> api-rally/alembic.ini
@@ -154,9 +155,6 @@ async def init_db() -> None:
     # new revisions ship via `alembic upgrade head` semantics on every boot.
     async with engine.begin() as connection:
         await connection.run_sync(_run_migrations)
-
-    from app.db.seed_data import seed_data
-    from app.db.session import SessionLocal
 
     async with SessionLocal() as db:
         await seed_data(db)

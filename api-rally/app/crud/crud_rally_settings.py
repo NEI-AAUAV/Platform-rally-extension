@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from app.crud.base import CRUDBase
+from app.crud.crud_activity import rally_event
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -23,10 +26,6 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         created with sensible defaults. Callers are unchanged — they still get
         back a single RallySettings object for "the active rally".
         """
-        from sqlalchemy import select
-
-        from app.crud.crud_activity import rally_event
-
         event = await rally_event.ensure_current(db)
         settings = await db.scalar(select(RallySettings).where(RallySettings.event_id == event.id))
         if settings is not None:

@@ -16,6 +16,7 @@ the environment is non-production, so a stray `make demo` can't scribble over a
 live event.
 """
 
+import asyncio
 import logging
 import os
 import random
@@ -26,12 +27,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_activity import rally_event
 from app.crud.crud_team import team as crud_team
+from app.db.session import SessionLocal
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
-from app.schemas.activity import ActivityResultCreate
+from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.schemas.activity_types import ActivityType
 from app.schemas.team import TeamCreate
+from app.services.badge_service import award_badge
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
 logger = logging.getLogger(__name__)
@@ -151,8 +154,6 @@ async def _seed_audit_trail_demo(db: AsyncSession, rng: random.Random) -> None:
     )
     if result is None:
         return
-    from app.schemas.activity import ActivityResultUpdate
-
     # activity_id is a NOT NULL FK, so this is effectively unreachable outside
     # of a concurrent delete race; kept as a defensive guard.
     activity = await db.get(Activity, result.activity_id)
@@ -171,8 +172,6 @@ async def _seed_audit_trail_demo(db: AsyncSession, rng: random.Random) -> None:
 
 
 async def _seed_badges(db: AsyncSession, activities: list[Activity]) -> None:
-    from app.services.badge_service import award_badge
-
     teams = list(
         (
             await db.scalars(select(Team).where(Team.name.like(f"{DEMO_TEAM_PREFIX}%")).limit(3))
@@ -227,9 +226,6 @@ async def seed_demo(db: AsyncSession, *, force: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    from app.db.session import SessionLocal
 
     async def _main() -> None:
         async with SessionLocal() as db:

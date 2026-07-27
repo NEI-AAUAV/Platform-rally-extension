@@ -6,9 +6,9 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.api.api_v1.idempotency import (
@@ -35,10 +35,12 @@ from app.api.api_v1.staff_evaluation_utils import (
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
-from app.crud.crud_activity import activity_result
+from app.crud._event_scope import current_event_id
+from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint
 from app.crud.crud_team import team
 from app.models.activity import Activity, ActivityResult
+from app.models.evaluation_history import EvaluationHistory
 from app.models.team import Team
 from app.schemas.activity import (
     ActivityResultEvaluation,
@@ -48,7 +50,7 @@ from app.schemas.activity import (
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.user import DetailedUser
-from app.services.scoring_service import ScoringService
+from app.services.scoring_service import EvaluationEditor, ScoringService
 
 _EVALUATE_ENDPOINT = "evaluate_team_activity"
 
@@ -92,9 +94,6 @@ async def get_teams_at_my_checkpoint(
         raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
 
     # Fetch the checkpoint's order (not the FK id) for correct comparison
-    from sqlalchemy import func, select
-    from sqlalchemy.orm import selectinload
-
     # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
     # rather than returning None, so this branch is unreachable in practice;
     # kept as a defensive guard.
@@ -106,8 +105,6 @@ async def get_teams_at_my_checkpoint(
     # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints).
     # Eager-load members (build_team_for_staff reads team.members).
     # Scoped to the current event (legacy NULL rows count as current).
-    from app.crud._event_scope import current_event_id
-
     event_id = await current_event_id(db)
     teams_stmt = (
         select(Team)
@@ -146,8 +143,6 @@ async def _resolve_admin_checkpoint_id(db: AsyncSession, team_checkpoint_number:
     advanced past it, and fall back one order to show what was just
     evaluated instead of an empty list.
     """
-    from app.crud.crud_activity import activity
-
     checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
     resolved_checkpoint_id = checkpoint_obj.id if checkpoint_obj else None
 
@@ -218,17 +213,12 @@ async def get_team_activities_for_evaluation(
 ) -> dict[str, Any]:
     """Get activities for a specific team that can be evaluated by this staff member"""
     # Load team with members
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-
     stmt = select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
     team_obj: Team | None = (await db.scalars(stmt)).first()
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
 
     team_checkpoint_number = len(team_obj.times)
-
-    from app.crud.crud_activity import activity
 
     # Admins/managers aren't tied to a single checkpoint (staff_checkpoint_id is
     # only ever populated for rally-staff scope, mirroring evaluate_team_activity's
@@ -408,8 +398,6 @@ async def _load_activity_and_team_for_update(
     may update any team's activity. Raises the appropriate RallyForbidden/NotFound
     error when the target activity or team is not accessible.
     """
-    from app.crud.crud_activity import activity as activity_crud
-
     # NOTE: the only caller, `update_team_activity_evaluation`, depends on
     # `get_staff_with_checkpoint_access`, which already 403s a staff user with
     # no assigned checkpoint — so this branch is unreachable in practice;
@@ -417,7 +405,7 @@ async def _load_activity_and_team_for_update(
     if not is_manager and not current_user.staff_checkpoint_id:
         raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
-    activity_obj = await activity_crud.get(db, id=activity_id)
+    activity_obj = await activity.get(db, id=activity_id)
     if not is_manager and (
         not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id
     ):
@@ -467,8 +455,6 @@ async def update_team_activity_evaluation(
         raise RallyNotFoundError("Activity result not found")
 
     # Update the result, tagging the audit trail with who made the change.
-    from app.services.scoring_service import EvaluationEditor
-
     editor = EvaluationEditor(id=str(current_user.id), name=current_user.name)
     db_result = await ScoringService(db).update_result(db_result, result_in, editor=editor)
 
@@ -510,10 +496,6 @@ async def get_evaluation_history(
     db_result = await activity_result.get(db, id=result_id)
     if not db_result:
         raise RallyNotFoundError("Activity result not found")
-
-    from sqlalchemy import select
-
-    from app.models.evaluation_history import EvaluationHistory
 
     stmt = (
         select(EvaluationHistory)

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity_result as crud_result
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.activity import ActivityResult
 from app.models.team import Team
@@ -77,8 +78,6 @@ class DeferredJudgingService:
         the result's own media_urls (already stored in R2) to prevent staff
         from pointing a team's photo at an arbitrary URL.
         """
-        from app.crud.crud_rally_settings import rally_settings
-
         settings = await rally_settings.get_or_create(self._db)
         if not settings.allow_photo_as_team_photo:
             raise RallyForbiddenError("Setting a team photo from an activity photo is disabled")

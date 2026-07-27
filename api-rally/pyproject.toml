@@ -74,13 +74,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Function-local imports remain common in api/, crud/ and services/ until the
-# domain repackaging (Part B) removes the circular-import pressure that causes
-# them; re-enable PLC0415 there as each domain is repackaged.
-"app/api/**" = ["PLC0415"]
+# Domain repackaging (Part B) removed the circular-import pressure that used
+# to require function-local imports across api/, crud/, services/ and db/.
+# app/crud/** keeps a small, deliberate PLC0415 exemption: a couple of
+# genuine circular-import survivors (app.crud.crud_team <-> app.services
+# .team_service, app.crud._event_scope <-> app.crud.crud_activity) are
+# commented in place rather than hoisted.
 "app/crud/**" = ["PLC0415"]
-"app/services/**" = ["PLC0415"]
-"app/db/**" = ["PLC0415"]
 "app/tests/**" = ["PLC0415", "ARG001", "ARG002"]  # tests use scoped local imports and fixture args freely
 
 [tool.ruff.lint.flake8-tidy-imports]

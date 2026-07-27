@@ -7,7 +7,7 @@ are never revoked here.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,9 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import RallyConflictError, RallyNotFoundError
 from app.crud._deps import foreign_key_error_regex
 from app.models.badge import TeamBadge
-
-if TYPE_CHECKING:
-    from app.models.badge_definition import BadgeDefinition
+from app.models.badge_definition import BadgeDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -152,15 +150,13 @@ async def list_all_badges(db: AsyncSession) -> list[TeamBadge]:
 
 async def get_showcase(
     db: AsyncSession, team_id: int
-) -> tuple[list["BadgeDefinition"], list[TeamBadge]]:
+) -> tuple[list[BadgeDefinition], list[TeamBadge]]:
     """Return (active definitions, this team's awards) for the showcase board.
 
     Two selects, no join: the caller zips them by code so locked (unearned)
     badges still render. Only the earliest award per code matters for display,
     but we return all of the team's rows and let the schema layer collapse them.
     """
-    from app.models.badge_definition import BadgeDefinition  # local: avoid cycle
-
     defs_stmt = (
         select(BadgeDefinition)
         .where(BadgeDefinition.is_active.is_(True))

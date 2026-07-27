@@ -13,7 +13,7 @@ from app.crud.crud_team import CRUDTeam
 from app.models.participation import EventParticipation
 from app.models.team import Team
 from app.models.user import User
-from app.schemas.profile import ClaimableTeam, ParticipationEntry
+from app.schemas.profile import ClaimableMember, ClaimableTeam, ParticipationEntry
 
 
 class ProfileService:
@@ -66,8 +66,6 @@ class ProfileService:
 
     async def get_claimable_team(self, access_code: str) -> ClaimableTeam:
         """List a team's name-only members (by access code) the caller can claim."""
-        from app.schemas.profile import ClaimableMember
-
         team = await self._team_crud.get_by_access_code(self._db, access_code=access_code.strip())
         if team is None:
             raise RallyNotFoundError("Team not found")

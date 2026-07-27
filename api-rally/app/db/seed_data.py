@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -8,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_activity import rally_event
+from app.db.session import SessionLocal
 from app.models.activity import Activity, RallyEvent
 from app.models.checkpoint import CheckPoint
 
@@ -80,9 +82,6 @@ async def seed_data(db: AsyncSession) -> None:
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    from app.db.session import SessionLocal
 
     async def _main() -> None:
         async with SessionLocal() as db:

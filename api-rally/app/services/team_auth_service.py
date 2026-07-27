@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import RallyNotFoundError, RallyUnauthorizedError
+from app.crud.crud_activity import activity_result as activity_result_crud
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.team_auth import TeamTokenData
@@ -103,8 +104,6 @@ async def contest_evaluation(
     change the score — it flags the result for an organizer to review. A team
     may only contest results belonging to itself.
     """
-    from app.crud.crud_activity import activity_result as activity_result_crud
-
     db_result = await activity_result_crud.get(db, id=result_id)
     if not db_result or db_result.team_id != current_team.team_id:
         # Don't leak existence of other teams' results — same 404 either way.

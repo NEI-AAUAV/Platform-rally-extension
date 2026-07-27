@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
+from app.crud.crud_rally_settings import rally_settings
 from app.models.team import Team
 from app.models.user import User
 from app.schemas.team_members import TeamMemberAdd, TeamMemberUpdate
@@ -50,8 +51,6 @@ class TeamMemberService:
     ) -> User:
         """Add a new member to a team, enforcing the member cap, walk-up
         registration gating, and single-captain rule."""
-        from app.crud.crud_rally_settings import rally_settings
-
         await self.get_team_or_raise(team_id)
         settings = await rally_settings.get_or_create(self._db)
 

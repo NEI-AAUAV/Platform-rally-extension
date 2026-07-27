@@ -13,6 +13,7 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
+from app.models.checkpoint import CheckPoint
 from app.models.team import Team
 from app.schemas.team import (
     TeamCreate,
@@ -52,6 +53,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     def calculate_min_time_scores(self, teams: Sequence[Team]) -> list[float]:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service just for pure math."""
+        # Local import: avoids circular import with app.services.team_service
         from app.services.team_service import TeamService
 
         return TeamService.calculate_min_time_scores(teams)
@@ -65,6 +67,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         penalty_per_puke: int = -20,
     ) -> int:
         """Delegates to TeamService (see calculate_min_time_scores)."""
+        # Local import: avoids circular import with app.services.team_service
         from app.services.team_service import TeamService
 
         return TeamService.calculate_checkpoint_score(
@@ -117,12 +120,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service directly."""
+        # Local import: avoids circular import with app.services.team_service
         from app.services.team_service import TeamService
 
         await TeamService(db, self).update_classification_unlocked()
 
     async def update_classification(self, db: AsyncSession) -> None:
         """Delegates to TeamService (see update_classification_unlocked)."""
+        # Local import: avoids circular import with app.services.team_service
         from app.services.team_service import TeamService
 
         await TeamService(db, self).update_classification()
@@ -217,6 +222,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     ) -> Team:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service directly."""
+        # Local import: avoids circular import with app.services.team_service
         from app.services.team_service import TeamService
 
         return await TeamService(db, self).add_checkpoint(
@@ -229,8 +235,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         Since team.times is order-based, we need to convert checkpoint_id to order first.
         Teams are "at" a checkpoint if they've completed that many checkpoints.
         """
-        from app.models.checkpoint import CheckPoint
-
         # Get the checkpoint to find its order
         checkpoint_obj = await db.get(CheckPoint, checkpoint_id)
         if not checkpoint_obj:

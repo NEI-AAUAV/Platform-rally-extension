@@ -19,6 +19,7 @@ from app.models.team import Team
 from app.models.user import User
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.schemas.team import ListingTeam
+from app.services.team_service import TeamService
 
 
 class CheckpointService:
@@ -44,8 +45,6 @@ class CheckpointService:
         self, team_id: int, settings: Any
     ) -> list[DetailedCheckPoint]:
         """Return visible checkpoints for a team member."""
-        from app.services.team_service import TeamService
-
         if settings.show_route_mode == "complete":
             return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
 
