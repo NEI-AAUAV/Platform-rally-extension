@@ -26,6 +26,7 @@ from app.schemas.activity import (
     GlobalRanking,
 )
 from app.services.activity_service import ActivityService
+from app.services.deps import get_activity_service, get_scoring_service
 from app.services.scoring_service import ScoringService
 
 # Error message constants
@@ -118,12 +119,12 @@ class ActivityController:
     async def create_activity(
         self,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         activity_in: ActivityCreate,
         _: Annotated[None, Depends(require(Action.CREATE_ACTIVITY, Resource.ACTIVITY))],
+        service: Annotated[ActivityService, Depends(get_activity_service)],
     ) -> ActivityResponse:
         """Create a new activity"""
-        db_activity = await ActivityService(db, activity).create_activity(activity_in)
+        db_activity = await service.create_activity(activity_in)
         return ActivityResponse.model_validate(db_activity)
 
     async def get_activities(
@@ -222,6 +223,7 @@ class ActivityController:
         _: Annotated[
             None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
         ],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> ActivityResultResponse:
         """Create a new activity result"""
         # Check if result already exists
@@ -231,7 +233,7 @@ class ActivityController:
         if existing_result:
             raise RallyValidationError("Result already exists for this team and activity")
 
-        db_result = await ScoringService(db).create_result(result_in)
+        db_result = await service.create_result(result_in)
         return ActivityResultResponse.model_validate(db_result)
 
     async def get_activity_result(
@@ -257,13 +259,14 @@ class ActivityController:
         _: Annotated[
             None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
         ],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> ActivityResultResponse:
         """Update an activity result"""
         db_result = await activity_result.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
-        db_result = await ScoringService(db).update_result(db_result, result_in)
+        db_result = await service.update_result(db_result, result_in)
         return ActivityResultResponse.model_validate(db_result)
 
     async def apply_extra_shots(
@@ -274,6 +277,7 @@ class ActivityController:
         _: Annotated[
             None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
         ],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
         extra_shots: int = Query(..., ge=0),
     ) -> dict[str, str]:
         """Apply extra shots bonus to activity result"""
@@ -281,8 +285,7 @@ class ActivityController:
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
-        scoring_service = ScoringService(db)
-        success = await scoring_service.apply_extra_shots_bonus(
+        success = await service.apply_extra_shots_bonus(
             db_result.team_id, db_result.activity_id, extra_shots
         )
 
@@ -299,6 +302,7 @@ class ActivityController:
         _: Annotated[
             None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
         ],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
         penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
         penalty_value: int = Query(..., ge=1),
     ) -> dict[str, str]:
@@ -307,8 +311,7 @@ class ActivityController:
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
 
-        scoring_service = ScoringService(db)
-        success = await scoring_service.apply_penalty(
+        success = await service.apply_penalty(
             db_result.team_id, db_result.activity_id, penalty_type, penalty_value
         )
 
@@ -323,14 +326,14 @@ class ActivityController:
         db: Annotated[AsyncSession, Depends(get_db)],
         activity_id: int,
         _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> ActivityRanking:
         """Get ranking for a specific activity"""
         db_activity = await activity.get(db, id=activity_id)
         if not db_activity:
             raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
-        scoring_service = ScoringService(db)
-        rankings_dict = await scoring_service.get_team_ranking(activity_id)
+        rankings_dict = await service.get_team_ranking(activity_id)
 
         return ActivityService.build_activity_ranking(
             activity_id=activity_id, activity_name=db_activity.name, rankings_dict=rankings_dict
@@ -339,12 +342,11 @@ class ActivityController:
     async def get_global_ranking(
         self,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> GlobalRanking:
         """Get global team ranking"""
-        scoring_service = ScoringService(db)
-        rankings_dict = await scoring_service.get_team_ranking()
+        rankings_dict = await service.get_team_ranking()
 
         from app.schemas.activity import TeamRanking
 
@@ -355,7 +357,6 @@ class ActivityController:
     async def create_team_vs_result(
         self,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         activity_id: int,
         team1_id: int,
         team2_id: int,
@@ -364,12 +365,10 @@ class ActivityController:
         _: Annotated[
             None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
         ],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> dict[str, str]:
         """Create team vs team activity results"""
-        scoring_service = ScoringService(db)
-        await scoring_service.create_team_vs_result(
-            team1_id, team2_id, activity_id, winner_id, match_data
-        )
+        await service.create_team_vs_result(team1_id, team2_id, activity_id, winner_id, match_data)
         return {"message": "Team vs team results created successfully"}
 
     async def get_activity_statistics(
@@ -378,14 +377,14 @@ class ActivityController:
         db: Annotated[AsyncSession, Depends(get_db)],
         activity_id: int,
         _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> dict[str, Any]:
         """Get statistics for a specific activity"""
         db_activity = await activity.get(db, id=activity_id)
         if not db_activity:
             raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
-        scoring_service = ScoringService(db)
-        statistics = await scoring_service.get_activity_statistics(activity_id)
+        statistics = await service.get_activity_statistics(activity_id)
 
         return statistics
 

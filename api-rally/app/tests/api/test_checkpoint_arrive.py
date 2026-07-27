@@ -180,6 +180,7 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
     from app.api.api_v1.checkpoint_arrive import ArriveRequest, CheckpointArriveController
     from app.models.checkpoint_arrival import CheckpointArrival
     from app.schemas.team_auth import TeamTokenData
+    from app.services.checkpoint_arrival_service import CheckpointArrivalService
 
     await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1)
@@ -222,6 +223,7 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
             body=ArriveRequest(latitude=41.000045, longitude=-8.0),
             db=pg_session,
             team=TeamTokenData(team_id=team.id, team_name="TeamA"),
+            service=CheckpointArrivalService(pg_session),
         )
 
     assert response.already_registered is True

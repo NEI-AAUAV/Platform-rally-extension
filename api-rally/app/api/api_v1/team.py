@@ -24,6 +24,7 @@ from app.schemas.team import (
 )
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
@@ -78,13 +79,12 @@ class TeamController:
             name="get_team_evaluations",
         )
 
-    def _team_service(self, db: AsyncSession) -> TeamService:
-        return TeamService(db, crud.team)
-
     async def get_teams(
-        self, *, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self,
+        *,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> list[ListingTeam]:
-        service = self._team_service(db)
         teams = await crud.team.get_multi(db)
         for team in teams:
             await db.refresh(team, ["members"])
@@ -94,18 +94,20 @@ class TeamController:
         self,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         team_obj = await crud.team.get(db=db, id=curr_user.team_id)
-        return await self._team_service(db).build_detailed_team(team_obj, with_progress=True)
+        return await service.build_detailed_team(team_obj, with_progress=True)
 
     async def get_team_by_id(
         self,
         *,
         id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         team_obj = await crud.team.get(db=db, id=id)
-        return await self._team_service(db).build_detailed_team(team_obj, with_progress=True)
+        return await service.build_detailed_team(team_obj, with_progress=True)
 
     async def add_checkpoint(
         self,
@@ -115,6 +117,7 @@ class TeamController:
         obj_in: TeamScoresUpdate,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         # Use ABAC to validate checkpoint access
         checkpoint_id = validate_checkpoint_access(
@@ -136,7 +139,7 @@ class TeamController:
             checkpoint_id=checkpoint_id,
             obj_in=obj_in,
         )
-        return await self._team_service(db).build_detailed_team(team_db)
+        return await service.build_detailed_team(team_db)
 
     async def create_team(
         self,
@@ -145,12 +148,13 @@ class TeamController:
         team_in: TeamCreate,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         # Enforce ABAC permission for team creation
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
         team_db = await crud.team.create(db=db, obj_in=team_in)
-        return await self._team_service(db).build_detailed_team(team_db)
+        return await service.build_detailed_team(team_db)
 
     async def update_team(
         self,
@@ -159,9 +163,10 @@ class TeamController:
         id: int,
         team_in: TeamUpdate,
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         team_db = await crud.team.update(db=db, id=id, obj_in=team_in)
-        return await self._team_service(db).build_detailed_team(team_db)
+        return await service.build_detailed_team(team_db)
 
     async def upload_team_photo(
         self,
@@ -171,6 +176,7 @@ class TeamController:
         image: Annotated[UploadFile, File(...)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamService, Depends(get_team_service)],
     ) -> DetailedTeam:
         """Upload the team's official photo to R2 and persist its URL.
 
@@ -192,7 +198,7 @@ class TeamController:
             key_prefix=f"rally/teams/{id}",
         )
         team_db = await crud.team.set_photo_url(db=db, id=id, url=url)
-        return await self._team_service(db).build_detailed_team(team_db)
+        return await service.build_detailed_team(team_db)
 
     async def delete_team(
         self,

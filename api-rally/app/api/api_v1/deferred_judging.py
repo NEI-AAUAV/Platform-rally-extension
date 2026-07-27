@@ -25,6 +25,7 @@ from app.crud.crud_activity import activity as crud_activity
 from app.models.activity import ActivityResult
 from app.schemas.activity_types import ActivityType
 from app.services.deferred_judging_service import DeferredJudgingService
+from app.services.deps import get_deferred_judging_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 
 
@@ -118,6 +119,7 @@ class DeferredJudgingController:
         activity_id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
+        service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
         images: Annotated[list[UploadFile], File()] = None,
         team_id: int = 0,
     ) -> DeferredResultResponse:
@@ -140,7 +142,7 @@ class DeferredJudgingController:
                 )
                 urls.append(url)
 
-        result = await DeferredJudgingService(db).capture_result(
+        result = await service.capture_result(
             activity_id=activity_id, team_id=team_id, media_urls=urls
         )
         return DeferredResultResponse.from_result(result)
@@ -149,19 +151,17 @@ class DeferredJudgingController:
         self,
         result_id: int,
         body: JudgeRequest,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
     ) -> DeferredResultResponse:
-        result = await DeferredJudgingService(db).judge_result(
-            result_id, points=body.points, notes=body.notes
-        )
+        result = await service.judge_result(result_id, points=body.points, notes=body.notes)
         return DeferredResultResponse.from_result(result)
 
     async def set_team_photo_from_result(
         self,
         result_id: int,
         body: SetTeamPhotoRequest,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
+        service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
     ) -> SetTeamPhotoResponse:
         """Promote one of a deferred-judging result's submitted photos to the team's official photo.
 
@@ -170,9 +170,7 @@ class DeferredJudgingController:
         the result's own media_urls (already stored in R2) to prevent staff
         from pointing a team's photo at an arbitrary URL.
         """
-        team_db = await DeferredJudgingService(db).set_team_photo_from_result(
-            result_id, image_url=body.image_url
-        )
+        team_db = await service.set_team_photo_from_result(result_id, image_url=body.image_url)
         return SetTeamPhotoResponse(team_id=team_db.id, photo_url=team_db.photo_url)
 
     async def list_pending_judgments(

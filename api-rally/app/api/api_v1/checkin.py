@@ -33,6 +33,7 @@ from app.services.checkin_token import (
     generate_checkin_token,
     verify_checkin_token,
 )
+from app.services.deps import get_checkin_service
 
 
 class CheckinRequest(BaseModel):
@@ -135,6 +136,7 @@ class CheckinController:
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         db: Annotated[AsyncSession, Depends(get_db)],
         settings: SettingsDep,
+        service: Annotated[CheckinService, Depends(get_checkin_service)],
     ) -> StaffCheckinResponse:
         """Staff scans an arriving team's QR (its access code).
 
@@ -154,8 +156,6 @@ class CheckinController:
         )
         if checkpoint_id is None:
             raise RallyForbiddenError("No checkpoint assigned")
-
-        service = CheckinService(db)
 
         code = body.team_code.strip().upper()
         team_obj = await team_crud.get_by_access_code(db, access_code=code)
@@ -184,13 +184,11 @@ class CheckinController:
         body: CheckinRequest,
         *,
         team: Annotated[TeamTokenData, Depends(get_current_team)],
-        db: Annotated[AsyncSession, Depends(get_db)],
         settings: SettingsDep,
+        service: Annotated[CheckinService, Depends(get_checkin_service)],
     ) -> CheckinResponse:
         """Check the calling team into the checkpoint encoded in the scanned token."""
         self._require_enabled(settings)
-
-        service = CheckinService(db)
 
         try:
             claims = verify_checkin_token(body.token)

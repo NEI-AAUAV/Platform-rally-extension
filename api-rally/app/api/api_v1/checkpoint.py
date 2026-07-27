@@ -23,6 +23,7 @@ from app.schemas.team import AdminCheckPointSelect, ListingTeam
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_service import CheckpointService
+from app.services.deps import get_checkpoint_service
 
 _team_bearer = HTTPBearer(auto_error=False)
 
@@ -94,21 +95,18 @@ class CheckpointController:
             name="delete_checkpoint",
         )
 
-    def _checkpoint_service(self, db: AsyncSession) -> CheckpointService:
-        return CheckpointService(db, crud.checkpoint, crud.team)
-
     async def get_checkpoints(
         self,
         *,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
         curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
     ) -> list[DetailedCheckPoint]:
         """Return visible checkpoints based on settings and the requesting user's role."""
         from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
 
         settings = await rally_settings.get_or_create(db)
-        service = self._checkpoint_service(db)
 
         if curr_user:
             scopes = getattr(curr_user, "scopes", [])
@@ -169,10 +167,10 @@ class CheckpointController:
     async def get_checkpoint_teams(
         self,
         *,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         select_in: Annotated[AdminCheckPointSelect, Depends()],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         admin_or_staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
     ) -> list[ListingTeam]:
         """
         If a staff is authenticated, returned all teams that just passed
@@ -190,7 +188,7 @@ class CheckpointController:
         )
 
         is_admin_unfiltered = deps.is_admin(auth.scopes) and select_in.checkpoint_id is None
-        return await self._checkpoint_service(db).list_teams_at_checkpoint(
+        return await service.list_teams_at_checkpoint(
             checkpoint_id=checkpoint_id, is_admin_unfiltered=is_admin_unfiltered
         )
 
@@ -245,10 +243,11 @@ class CheckpointController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         id: int,
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
     ) -> dict[str, str]:
         """Delete a checkpoint. Only admins can delete checkpoints."""
         try:
-            await self._checkpoint_service(db).delete_checkpoint(id)
+            await service.delete_checkpoint(id)
             return {"message": "Checkpoint deleted successfully"}
         except Exception as e:
             await db.rollback()

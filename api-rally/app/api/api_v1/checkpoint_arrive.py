@@ -16,6 +16,7 @@ from app.crud import crud_activity
 from app.models.activity import EventType
 from app.schemas.team_auth import TeamTokenData
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
+from app.services.deps import get_checkpoint_arrival_service
 
 
 class ArriveRequest(BaseModel):
@@ -62,6 +63,7 @@ class CheckpointArriveController:
         body: ArriveRequest,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+        service: Annotated[CheckpointArrivalService, Depends(get_checkpoint_arrival_service)],
     ) -> ArriveResponse:
         event = await crud_activity.rally_event.get_current(db)
         if not event or event.event_type != EventType.PEDDY_PAPER.value:
@@ -69,7 +71,6 @@ class CheckpointArriveController:
                 status_code=400, detail="GPS check-in only available for Peddy Paper events"
             )
 
-        service = CheckpointArrivalService(db)
         dist, already_registered = await service.record_arrival(
             team_id=team.team_id,
             checkpoint_id=checkpoint_id,
