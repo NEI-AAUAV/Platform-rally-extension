@@ -58,7 +58,7 @@ function PhaseChip({
 function CheckpointBarShape({
   totalTeams,
   ...props
-}: Readonly<BarShapeProps & { totalTeams: number }>) {
+}: Readonly<Partial<BarShapeProps> & { totalTeams: number }>) {
   const reached = (props.payload as { reached?: number } | undefined)?.reached ?? 0;
   return (
     <Rectangle {...props} fill={ACCENT} fillOpacity={0.2 + (reached / (totalTeams || 1)) * 0.8} />
@@ -210,9 +210,7 @@ export default function LiveDashboard() {
                 dataKey="reached"
                 radius={[0, 4, 4, 0]}
                 fill={ACCENT}
-                shape={(props: BarShapeProps) => (
-                  <CheckpointBarShape {...props} totalTeams={teamList.length} />
-                )}
+                shape={<CheckpointBarShape totalTeams={teamList.length} />}
               />
             </BarChart>
           </ResponsiveContainer>

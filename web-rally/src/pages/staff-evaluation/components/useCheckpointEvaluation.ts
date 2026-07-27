@@ -356,14 +356,23 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       // Invalidate + actively refetch so the UI reflects the new evaluation
       // status immediately instead of waiting for the next mount/focus event.
       const invalidations = [
-        await queryClient.invalidateQueries({queryKey: ["teamActivities"], refetchType: "active"}),
+        await queryClient.invalidateQueries({
+          queryKey: ["teamActivities"],
+          refetchType: "active",
+        }),
         await queryClient.invalidateQueries({
           queryKey: ["teamEvaluationStatus"],
           refetchType: "active",
         }),
-        await queryClient.invalidateQueries({queryKey: ["checkpointTeams"], refetchType: "active"}),
-        await queryClient.invalidateQueries({queryKey: ["allTeams"], refetchType: "active"}),
-        await queryClient.invalidateQueries({queryKey: ["allEvaluations"], refetchType: "active"}),
+        await queryClient.invalidateQueries({
+          queryKey: ["checkpointTeams"],
+          refetchType: "active",
+        }),
+        await queryClient.invalidateQueries({ queryKey: ["allTeams"], refetchType: "active" }),
+        await queryClient.invalidateQueries({
+          queryKey: ["allEvaluations"],
+          refetchType: "active",
+        }),
       ];
 
       if (variables?.teamId != null) {
@@ -374,14 +383,17 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
 
         if (numericKey !== undefined) {
           invalidations.push(
-              await queryClient.invalidateQueries({
-                queryKey: ["team", numericKey],
-                refetchType: "active",
-              }),
+            await queryClient.invalidateQueries({
+              queryKey: ["team", numericKey],
+              refetchType: "active",
+            }),
           );
         }
         invalidations.push(
-          await queryClient.invalidateQueries({queryKey: ["team", stringKey], refetchType: "active"}),
+          await queryClient.invalidateQueries({
+            queryKey: ["team", stringKey],
+            refetchType: "active",
+          }),
         );
       }
 
