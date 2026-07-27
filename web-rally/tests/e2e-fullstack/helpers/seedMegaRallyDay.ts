@@ -140,7 +140,7 @@ export async function seedMegaRallyDay(): Promise<MegaRallyDay> {
   const badgeDefinition = await apiCall<{ id: number }>("POST", "/badge-definitions", {
     token: admin.accessToken,
     body: {
-      code: `e2e_mega_first_checkpoint_${runId.replace(/-/g, "_")}`,
+      code: `e2e_mega_first_checkpoint_${runId.replaceAll("-", "_")}`,
       name: `E2E Mega Primeiro Posto ${runId}`,
       description: "Concluiu o primeiro checkpoint",
       is_auto: true,

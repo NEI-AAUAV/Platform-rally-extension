@@ -89,14 +89,14 @@ test.describe('Olympic rotation schedule against the real backend', () => {
     expect(body.event_id).toBe(event.id);
 
     // round_robin.py: n_rounds = max(n_teams, n_checkpoints).
-    expect(body.rounds.length).toBe(Math.max(teamCount, checkpointCount));
+    expect(body.rounds).toHaveLength(Math.max(teamCount, checkpointCount));
 
     const teamIdSet = new Set(teamIds);
     const checkpointIdSet = new Set(checkpointIds);
     const pairsSeen = new Set<string>();
     for (const round of body.rounds) {
       // Every team appears exactly once per round — no double-booking.
-      expect(round.length).toBe(teamCount);
+      expect(round).toHaveLength(teamCount);
       const teamsInRound = new Set(round.map((r) => r.team_id));
       expect(teamsInRound.size).toBe(teamCount);
       for (const { team_id, checkpoint_id } of round) {
@@ -122,7 +122,7 @@ test.describe('Olympic rotation schedule against the real backend', () => {
     });
     expect(regenerateResponse.status).toBe(200);
     const regenerated = (await regenerateResponse.json()) as { rounds: RotationRound[][] };
-    expect(regenerated.rounds.length).toBe(body.rounds.length);
+    expect(regenerated.rounds).toHaveLength(body.rounds.length);
   });
 
   test('is rejected for a non-olympic event', async () => {
