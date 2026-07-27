@@ -153,6 +153,25 @@ class ActivityResult(Base):
     activity = relationship("Activity", back_populates="results")
     team = relationship("Team", back_populates="activity_results")
 
+    def append_capture(self, media_urls: list[str]) -> None:
+        """Append newly-uploaded media to an existing pending-judgment capture."""
+        self.media_urls = self.media_urls + media_urls
+        self.judgment_status = "pending_judgment"
+        self.is_completed = True
+
+    def mark_judged(self, *, points: float, notes: str | None) -> None:
+        """Score a pending-judgment result and close out the judging lifecycle.
+
+        The only writer of these fields for a deferred-judged result — callers
+        must not set them directly.
+        """
+        self.result_data = {"points": points, "notes": notes or ""}
+        self.points_score = int(points)
+        self.final_score = points
+        self.judgment_status = "judged"
+        self.is_completed = True
+        self.completed_at = datetime.now(UTC)
+
     def __repr__(self) -> str:
         return f"<ActivityResult(id={self.id}, activity_id={self.activity_id}, team_id={self.team_id})>"
 

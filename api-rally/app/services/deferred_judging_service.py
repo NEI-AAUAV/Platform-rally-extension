@@ -3,7 +3,6 @@ lifecycle, and the team-photo promotion gate.
 """
 
 import contextlib
-from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,9 +28,7 @@ class DeferredJudgingService:
         capture, or create a fresh one."""
         existing = await crud_result.get_by_activity_and_team(self._db, activity_id, team_id)
         if existing:
-            existing.media_urls = existing.media_urls + media_urls
-            existing.judgment_status = "pending_judgment"
-            existing.is_completed = True
+            existing.append_capture(media_urls)
             await self._db.commit()
             await self._db.refresh(existing)
             return existing
@@ -63,12 +60,7 @@ class DeferredJudgingService:
         if result.judgment_status != "pending_judgment":
             raise RallyValidationError("Result is not pending judgment")
 
-        result.result_data = {"points": points, "notes": notes or ""}
-        result.points_score = int(points)
-        result.final_score = points
-        result.judgment_status = "judged"
-        result.is_completed = True
-        result.completed_at = datetime.now(UTC)
+        result.mark_judged(points=points, notes=notes)
         await self._db.commit()
         await self._db.refresh(result)
 
