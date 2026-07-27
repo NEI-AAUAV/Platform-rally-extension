@@ -15,6 +15,8 @@ from app.schemas.checkpoint_media import (
 )
 from app.services.checkpoint_media_service import CheckpointMediaService
 
+CHECKPOINT_NOT_FOUND = "Checkpoint not found"
+MEDIA_NOT_FOUND = "Media not found"
 
 class CheckpointMediaController:
     """REST controller for checkpoint media (photos, fun facts)."""
@@ -29,7 +31,7 @@ class CheckpointMediaController:
             self.list_checkpoint_media,
             methods=["GET"],
             name="list_checkpoint_media",
-            responses={404: {"description": "Checkpoint not found"}},
+            responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/{checkpoint_id}/media",
@@ -38,7 +40,7 @@ class CheckpointMediaController:
             status_code=201,
             name="create_checkpoint_media",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Checkpoint not found"}},
+            responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/media/{media_id}",
@@ -46,7 +48,7 @@ class CheckpointMediaController:
             methods=["PUT"],
             name="update_checkpoint_media",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Media not found"}},
+            responses={404: {"description": MEDIA_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/media/{media_id}",
@@ -55,7 +57,7 @@ class CheckpointMediaController:
             status_code=204,
             name="delete_checkpoint_media",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Media not found"}},
+            responses={404: {"description": MEDIA_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/{checkpoint_id}/media/reorder",
@@ -63,7 +65,7 @@ class CheckpointMediaController:
             methods=["POST"],
             name="reorder_checkpoint_media",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Checkpoint not found"}},
+            responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
 
     async def _get_checkpoint_or_404(self, db: AsyncSession, checkpoint_id: int) -> Any:
