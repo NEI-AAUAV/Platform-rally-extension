@@ -62,7 +62,11 @@ function ImageUploadField({
   };
 
   const isSafeImageUrl = (url: string) =>
-    url.startsWith("blob:") || url.startsWith("data:image/") || url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://");
+    url.startsWith("blob:") ||
+    /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i.test(url) ||
+    url.startsWith("/") ||
+    url.startsWith("http://") ||
+    url.startsWith("https://");
 
   const candidate = preview ?? currentUrl ?? null;
   const shown = candidate && isSafeImageUrl(candidate) ? candidate : null;
