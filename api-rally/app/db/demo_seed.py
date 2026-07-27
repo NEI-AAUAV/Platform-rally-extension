@@ -16,7 +16,6 @@ the environment is non-production, so a stray `make demo` can't scribble over a
 live event.
 """
 
-import asyncio
 import logging
 import os
 import random
@@ -27,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_activity import rally_event
 from app.crud.crud_team import team as crud_team
-from app.db.session import SessionLocal
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
@@ -226,6 +224,15 @@ async def seed_demo(db: AsyncSession, *, force: bool = False) -> None:
 
 
 if __name__ == "__main__":
+    # Local imports: app.db.session creates a real async engine/connection
+    # pool as a module-level side effect. Hoisting these to the top of the
+    # file made that pool spin up on every import of app.db.demo_seed
+    # (including in tests), starving the test DB pool. Keep lazy so importing
+    # this module has no DB side effect. See app/db/seed_data.py for the
+    # same issue.
+    import asyncio
+
+    from app.db.session import SessionLocal
 
     async def _main() -> None:
         async with SessionLocal() as db:

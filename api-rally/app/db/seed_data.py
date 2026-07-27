@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from pathlib import Path
@@ -9,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_activity import rally_event
-from app.db.session import SessionLocal
 from app.models.activity import Activity, RallyEvent
 from app.models.checkpoint import CheckPoint
 
@@ -82,6 +80,15 @@ async def seed_data(db: AsyncSession) -> None:
 
 
 if __name__ == "__main__":
+    # Local imports: app.db.session creates a real async engine/connection
+    # pool as a module-level side effect. Hoisting these to the top of the
+    # file made that pool spin up on every import of app.db.seed_data
+    # (including in tests that only exercise the pure seeding functions),
+    # which starved the test DB pool and hung test_seed_data.py under the
+    # full suite. Keep lazy so importing this module has no DB side effect.
+    import asyncio
+
+    from app.db.session import SessionLocal
 
     async def _main() -> None:
         async with SessionLocal() as db:
