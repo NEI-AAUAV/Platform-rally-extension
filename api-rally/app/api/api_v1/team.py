@@ -35,6 +35,9 @@ from app.services.storage import storage_client
 from app.services.team_service import TeamService
 
 
+_TEAM_ID_PATH = "/{id}"
+
+
 class TeamController:
     """REST controller for /team."""
 
@@ -50,10 +53,10 @@ class TeamController:
             "/me", self.get_own_team, methods=["GET"], status_code=200, name="get_own_team"
         )
         self.router.add_api_route(
-            "/{id}", self.get_team_by_id, methods=["GET"], status_code=200, name="get_team_by_id"
+            _TEAM_ID_PATH, self.get_team_by_id, methods=["GET"], status_code=200, name="get_team_by_id"
         )
         self.router.add_api_route(
-            "/{id}/checkpoint",
+            f"{_TEAM_ID_PATH}/checkpoint",
             self.add_checkpoint,
             methods=["PUT"],
             status_code=201,
@@ -63,10 +66,10 @@ class TeamController:
             "/", self.create_team, methods=["POST"], status_code=201, name="create_team"
         )
         self.router.add_api_route(
-            "/{id}", self.update_team, methods=["PUT"], status_code=200, name="update_team"
+            _TEAM_ID_PATH, self.update_team, methods=["PUT"], status_code=200, name="update_team"
         )
         self.router.add_api_route(
-            "/{id}/photo",
+            f"{_TEAM_ID_PATH}/photo",
             self.upload_team_photo,
             methods=["PUT"],
             status_code=200,
@@ -74,10 +77,10 @@ class TeamController:
             responses={403: {"description": "Not allowed to change this team's photo"}},
         )
         self.router.add_api_route(
-            "/{id}", self.delete_team, methods=["DELETE"], status_code=200, name="delete_team"
+            _TEAM_ID_PATH, self.delete_team, methods=["DELETE"], status_code=200, name="delete_team"
         )
         self.router.add_api_route(
-            "/{id}/evaluations",
+            f"{_TEAM_ID_PATH}/evaluations",
             self.get_team_evaluations,
             methods=["GET"],
             status_code=200,

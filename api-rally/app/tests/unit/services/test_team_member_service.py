@@ -116,11 +116,12 @@ class TestAddMember:
         assert captain.is_captain is True
 
         service = TeamMemberService(pg_session)
+        member_add = TeamMemberAdd(name="Second Captain", is_captain=True)
 
         # when / then
         with pytest.raises(RallyValidationError, match="already has a captain"):
             await service.add_member(
                 team.id,
-                TeamMemberAdd(name="Second Captain", is_captain=True),
+                member_add,
                 is_privileged=True,
             )

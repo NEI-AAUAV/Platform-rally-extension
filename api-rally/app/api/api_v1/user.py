@@ -137,7 +137,7 @@ class UserController:
             schema=RallyStaffAssignmentWithCheckpoint,
         )
 
-    async def get_me(
+    def get_me(
         self, auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])]
     ) -> dict[str, Any]:
         """
