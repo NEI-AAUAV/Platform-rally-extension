@@ -101,7 +101,7 @@ class CheckinController:
         if not settings.SELF_CHECKIN_ENABLED:
             raise RallyNotFoundError("Self check-in is disabled")
 
-    async def get_checkin_token(
+    def get_checkin_token(
         self,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
