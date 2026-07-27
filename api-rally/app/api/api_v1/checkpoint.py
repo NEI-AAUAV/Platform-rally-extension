@@ -28,6 +28,8 @@ from app.services.deps import get_checkpoint_service
 
 _team_bearer = HTTPBearer(auto_error=False)
 
+AUTH_REQUIRED = "Authentication required"
+
 
 class CheckpointController:
     """REST controller for /checkpoint."""
@@ -51,7 +53,7 @@ class CheckpointController:
             methods=["GET"],
             status_code=200,
             name="get_checkpoints_count",
-            responses={401: {"description": "Authentication required"}},
+            responses={401: {"description": AUTH_REQUIRED}},
         )
         self.router.add_api_route(
             "/me",
@@ -59,9 +61,7 @@ class CheckpointController:
             methods=["GET"],
             status_code=200,
             name="get_next_checkpoint",
-            responses={
-                401: {"description": "Authentication required (User with Team or Team Token)"}
-            },
+            responses={401: {"description": f"{AUTH_REQUIRED} (User with Team or Team Token)"}},
         )
         self.router.add_api_route(
             "/teams",
@@ -69,7 +69,7 @@ class CheckpointController:
             methods=["GET"],
             status_code=200,
             name="get_checkpoint_teams",
-            responses={401: {"description": "Authentication required"}},
+            responses={401: {"description": AUTH_REQUIRED}},
         )
         self.router.add_api_route(
             "/", self.create_checkpoint, methods=["POST"], status_code=201, name="create_checkpoint"
@@ -133,7 +133,7 @@ class CheckpointController:
             # Optional: Allow public access if settings permit, otherwise 401
             settings = await rally_settings.get_or_create(db)
             if not settings.public_access_enabled:
-                raise RallyUnauthorizedError("Authentication required")
+                raise RallyUnauthorizedError(AUTH_REQUIRED)
 
         return await crud.checkpoint.count(db=db)
 
@@ -152,7 +152,7 @@ class CheckpointController:
             team_id = curr_team.team_id
 
         if not team_id:
-            raise RallyUnauthorizedError("Authentication required (User with Team or Team Token)")
+            raise RallyUnauthorizedError(f"{AUTH_REQUIRED} (User with Team or Team Token)")
 
         checkpoint = await crud.checkpoint.get_next(db=db, team_id=team_id)
 
