@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir --only-binary :all: poetry-plugin-export==1.9.0 p
 
 # Copy API source and generate schema
 COPY api-rally/app ./app
+COPY api-rally/alembic ./alembic
+COPY api-rally/alembic.ini ./alembic.ini
 
 # Create static directory (required by app startup)
 RUN mkdir -p static
