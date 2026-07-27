@@ -15,6 +15,8 @@ from app.schemas.checkpoint_guide_indication import (
     CheckpointGuideIndicationUpdate,
 )
 
+CHECKPOINT_NOT_FOUND = "Checkpoint not found"
+GUIDE_INDICATION_NOT_FOUND = "Guide indication not found"
 
 class CheckpointGuideIndicationController:
     """REST controller for checkpoint guide indications (hints for guides)."""
@@ -32,7 +34,7 @@ class CheckpointGuideIndicationController:
             # Indications include expected answers, so they must never be readable by
             # participants — only guides, staff, and admins.
             dependencies=[Depends(deps.get_guide)],
-            responses={404: {"description": "Checkpoint not found"}},
+            responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/{checkpoint_id}/guide-indications",
@@ -41,7 +43,7 @@ class CheckpointGuideIndicationController:
             status_code=201,
             name="create_guide_indication",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Checkpoint not found"}},
+            responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/guide-indications/{indication_id}",
@@ -49,7 +51,7 @@ class CheckpointGuideIndicationController:
             methods=["PUT"],
             name="update_guide_indication",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Guide indication not found"}},
+            responses={404: {"description": GUIDE_INDICATION_NOT_FOUND}},
         )
         self.router.add_api_route(
             "/checkpoint/guide-indications/{indication_id}",
@@ -58,7 +60,7 @@ class CheckpointGuideIndicationController:
             status_code=204,
             name="delete_guide_indication",
             dependencies=[Depends(require_checkpoint_management_permission)],
-            responses={404: {"description": "Guide indication not found"}},
+            responses={404: {"description": GUIDE_INDICATION_NOT_FOUND}},
         )
 
     async def _get_checkpoint_or_404(self, db: AsyncSession, checkpoint_id: int) -> Any:
@@ -67,7 +69,7 @@ class CheckpointGuideIndicationController:
         # unreachable in practice; kept as a defensive guard.
         cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
         if not cp:
-            raise HTTPException(status_code=404, detail="Checkpoint not found")
+            raise HTTPException(status_code=404, detail=CHECKPOINT_NOT_FOUND)
         return cp
 
     async def list_guide_indications(
@@ -97,7 +99,7 @@ class CheckpointGuideIndicationController:
     ) -> CheckpointGuideIndication:
         db_obj = await crud_indication.get(db, id=indication_id)
         if not db_obj:
-            raise HTTPException(status_code=404, detail="Guide indication not found")
+            raise HTTPException(status_code=404, detail=GUIDE_INDICATION_NOT_FOUND)
         updated = await crud_indication.update(db, db_obj=db_obj, obj_in=obj_in)
         return CheckpointGuideIndication.model_validate(updated)
 
