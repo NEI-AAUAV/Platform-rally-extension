@@ -3,19 +3,19 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings, _split_comma_list
+from app.core.config import Settings, split_comma_list
 
 
 def test_split_comma_list_splits_and_strips():
-    assert _split_comma_list("a, b ,c") == ["a", "b", "c"]
+    assert split_comma_list("a, b ,c") == ["a", "b", "c"]
 
 
 def test_split_comma_list_ignores_empty_segments():
-    assert _split_comma_list("a,,b,") == ["a", "b"]
+    assert split_comma_list("a,,b,") == ["a", "b"]
 
 
 def test_split_comma_list_passes_through_non_str():
-    assert _split_comma_list(["already", "a", "list"]) == ["already", "a", "list"]
+    assert split_comma_list(["already", "a", "list"]) == ["already", "a", "list"]
 
 
 def test_assemble_cors_origins_splits_comma_string():

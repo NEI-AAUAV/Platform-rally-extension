@@ -41,7 +41,7 @@ class AuthData(BaseModel):
     scopes: list[str] = []
 
 
-def _build_auth_data(claims: dict[str, Any], settings: SettingsDep) -> AuthData:
+def build_auth_data(claims: dict[str, Any], settings: SettingsDep) -> AuthData:
     groups = claims.get("groups", []) or []
     name = (
         claims.get("name")
@@ -82,7 +82,7 @@ async def api_nei_auth(
         )
 
     claims = await jwt_validator.validate_token(credentials.credentials, settings)
-    auth_data = _build_auth_data(claims, settings)
+    auth_data = build_auth_data(claims, settings)
 
     # Bypass scope checks for admins.
     if ScopeEnum.ADMIN.value in auth_data.scopes:
@@ -112,7 +112,7 @@ async def api_nei_auth_optional(
     except HTTPException:
         return None
 
-    return _build_auth_data(claims, settings)
+    return build_auth_data(claims, settings)
 
 
 auth_responses: dict[int | str, dict[str, Any]] = {

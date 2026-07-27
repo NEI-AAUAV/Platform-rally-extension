@@ -44,7 +44,7 @@ def _install_local_migration_utils_shim() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     sys.modules["alembic.migration_utils"] = module
-    _alembic_pkg.migration_utils = module
+    setattr(_alembic_pkg, "migration_utils", module)
 
 
 _install_local_migration_utils_shim()
@@ -78,7 +78,8 @@ def _create_schema_and_tables(connection: Connection) -> None:
     no alembic version yet (see :func:`_run_migrations`).
     """
     existing_schemas = set(inspect(connection).get_schema_names())
-    for schema in Base.metadata._schemas:
+    schemas = {table.schema for table in Base.metadata.tables.values() if table.schema}
+    for schema in schemas:
         if schema not in existing_schemas:
             connection.execute(CreateSchema(schema))
 

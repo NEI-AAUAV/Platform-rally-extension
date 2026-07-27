@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyConflictError, RallyNotFoundError
-from app.crud._deps import foreign_key_error_regex
+from app.crud import foreign_key_error_regex
 from app.models.badge import TeamBadge
 from app.models.badge_definition import BadgeDefinition
 

@@ -39,6 +39,7 @@ __all__ = [
     "require",
     "validate_checkpoint_access",
     "validate_settings_update_access",
+    "validate_settings_view_access",
     "require_permission",
     "Action",
     "Resource",

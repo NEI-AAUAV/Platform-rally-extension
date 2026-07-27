@@ -24,7 +24,7 @@ from app.services.scoring_service import ScoringService
 _HEARTBEAT_SECONDS = 15.0
 
 
-def _decode(value: str | bytes) -> str:
+def decode_value(value: str | bytes) -> str:
     return value.decode() if isinstance(value, bytes) else value
 
 
@@ -43,8 +43,8 @@ async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
             except TimeoutError:
                 message = None
             if message and message.get("type") == "pmessage":
-                channel = _decode(message["channel"])
-                data = _decode(message["data"])
+                channel = decode_value(message["channel"])
+                data = decode_value(message["data"])
                 yield f"event: {channel}\ndata: {data}\n\n"
             else:
                 yield ": ping\n\n"

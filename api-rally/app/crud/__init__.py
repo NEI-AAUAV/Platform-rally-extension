@@ -1,3 +1,5 @@
+from app.crud._deps import foreign_key_error_regex, unique_key_error_regex
+from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity, activity_result, rally_event
 from app.crud.crud_checkpoint import checkpoint
 from app.crud.crud_checkpoint_guide_indication import checkpoint_guide_indication
@@ -10,6 +12,9 @@ from app.crud.crud_user import user
 from app.models.team import Team
 
 __all__ = [
+    "current_event_id",
+    "foreign_key_error_regex",
+    "unique_key_error_regex",
     "team",
     "checkpoint",
     "user",
@@ -24,3 +29,4 @@ __all__ = [
     "Team",
     "CRUDTeam",
 ]
+

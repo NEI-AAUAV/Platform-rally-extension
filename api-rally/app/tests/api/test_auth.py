@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.api.auth import (
     AuthData,
     ScopeEnum,
-    _build_auth_data,
+    build_auth_data,
     api_nei_auth,
     api_nei_auth_optional,
     map_groups_to_scopes,
@@ -88,14 +88,14 @@ class TestGroupToScopeMapping:
             "email": "jane@example.com",
             "groups": ["rally-staff"],
         }
-        auth = _build_auth_data(claims, settings)
+        auth = build_auth_data(claims, settings)
         assert auth.oidc_sub == "uuid-1"
         assert auth.name == "Jane"
         assert auth.scopes == [ScopeEnum.RALLY_STAFF.value]
 
     def test_build_auth_data_name_fallback(self, settings):
         claims = {"sub": "uuid-2", "preferred_username": "jdoe", "groups": []}
-        auth = _build_auth_data(claims, settings)
+        auth = build_auth_data(claims, settings)
         assert auth.name == "jdoe"
 
 

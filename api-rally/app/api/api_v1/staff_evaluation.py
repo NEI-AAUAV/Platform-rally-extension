@@ -35,7 +35,7 @@ from app.api.api_v1.staff_evaluation_utils import (
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
-from app.crud._event_scope import current_event_id
+from app.crud import current_event_id
 from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint
 from app.crud.crud_team import team

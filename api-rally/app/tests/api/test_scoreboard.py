@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.api_v1 import scoreboard as scoreboard_module
-from app.api.api_v1.scoreboard import _decode
+from app.api.api_v1.scoreboard import decode_value
 from app.core.config import get_settings
 from app.main import app
 from app.services import leaderboard_cache
@@ -306,5 +306,5 @@ def test_pmessage_event_stream_forwards_activity_events(
 
 
 def test_decode_handles_str_and_bytes() -> None:
-    assert _decode("already-str") == "already-str"
-    assert _decode(b"bytes-value") == "bytes-value"
+    assert decode_value("already-str") == "already-str"
+    assert decode_value(b"bytes-value") == "bytes-value"
