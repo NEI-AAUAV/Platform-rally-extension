@@ -35,6 +35,8 @@ from app.services.scoring_service import ScoringService
 ACTIVITY_NOT_FOUND = "Activity not found"
 ACTIVITY_RESULT_NOT_FOUND = "Activity result not found"
 
+ACTIVITY_ID_PATH = "/{activity_id}"
+
 
 class ActivityController:
     """REST controller for /activities."""
@@ -55,13 +57,13 @@ class ActivityController:
             name="get_all_activity_results",
         )
         self.router.add_api_route(
-            "/{activity_id}", self.get_activity, methods=["GET"], name="get_activity"
+            ACTIVITY_ID_PATH, self.get_activity, methods=["GET"], name="get_activity"
         )
         self.router.add_api_route(
-            "/{activity_id}", self.update_activity, methods=["PUT"], name="update_activity"
+            ACTIVITY_ID_PATH, self.update_activity, methods=["PUT"], name="update_activity"
         )
         self.router.add_api_route(
-            "/{activity_id}", self.delete_activity, methods=["DELETE"], name="delete_activity"
+            ACTIVITY_ID_PATH, self.delete_activity, methods=["DELETE"], name="delete_activity"
         )
         self.router.add_api_route(
             "/results/",
