@@ -13,6 +13,8 @@ from app.services.deps import get_rally_settings_service
 from app.services.image_upload import ALLOWED_FAVICON_CONTENT_TYPES, ALLOWED_PHOTO_CONTENT_TYPES
 from app.services.rally_settings_service import RallySettingsService
 
+INVALID_FILE_ERROR = "Invalid file"
+NOT_AUTHORIZED_ERROR = "Not authorized"
 
 class RallySettingsController:
     """REST controller for /rally/settings."""
@@ -50,8 +52,8 @@ class RallySettingsController:
             status_code=200,
             name="upload_rally_banner",
             responses={
-                400: {"description": "Invalid file"},
-                403: {"description": "Not authorized"},
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
                 503: {"description": "R2 storage not configured or upload failed"},
             },
         )
@@ -62,8 +64,8 @@ class RallySettingsController:
             status_code=200,
             name="upload_rally_logo",
             responses={
-                400: {"description": "Invalid file"},
-                403: {"description": "Not authorized"},
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
                 503: {"description": "R2 storage not configured or upload failed"},
             },
         )
@@ -74,8 +76,8 @@ class RallySettingsController:
             status_code=200,
             name="upload_rally_favicon",
             responses={
-                400: {"description": "Invalid file"},
-                403: {"description": "Not authorized"},
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
                 503: {"description": "R2 storage not configured or upload failed"},
             },
         )
