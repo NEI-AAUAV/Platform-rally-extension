@@ -131,4 +131,4 @@ async def test_update_raises_not_found_for_invalid_team(pg_session):
     obj_in = UserUpdate(team_id=999999)
 
     with pytest.raises(RallyNotFoundError):
-        await crud_user.update(pg_session, id=created.id, obj_in=obj_in)
+        await crud_user.update(pg_session, id=created.id, obj_in=obj_in, commit=True)

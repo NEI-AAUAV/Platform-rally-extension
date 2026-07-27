@@ -240,7 +240,7 @@ async def _enable_photo_as_team_photo(pg_session):
     data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
     data["allow_photo_as_team_photo"] = True
     return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data)
+        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
     )
 
 

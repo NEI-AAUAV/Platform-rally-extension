@@ -18,7 +18,9 @@ async def _make_event(pg_session):
     settings = await rally_settings.get_or_create(pg_session)
     data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
     data.update(enable_versus=True)
-    await rally_settings.update(pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data))
+    await rally_settings.update(
+        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+    )
     return event
 
 

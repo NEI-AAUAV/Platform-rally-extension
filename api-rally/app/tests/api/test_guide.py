@@ -27,6 +27,7 @@ async def _set_guide_mode(pg_session, *, enabled: bool, active: bool):
         pg_session,
         id=settings.id,
         obj_in=_settings_update(settings, guide_mode_enabled=enabled, guide_mode_active=active),
+        commit=True,
     )
 
 

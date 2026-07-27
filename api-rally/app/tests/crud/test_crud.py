@@ -72,7 +72,10 @@ class TestRallySettingsCRUD:
         current = await rally_settings.get_or_create(pg_session)
 
         updated = await rally_settings.update(
-            pg_session, id=current.id, obj_in=_settings_update(current, max_members_per_team=6)
+            pg_session,
+            id=current.id,
+            obj_in=_settings_update(current, max_members_per_team=6),
+            commit=True,
         )
 
         assert updated.max_members_per_team == 6
@@ -132,7 +135,7 @@ class TestTeamCRUD:
         await _make_event(pg_session)
         created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
 
-        removed = await crud_team.remove(pg_session, id=created.id)
+        removed = await crud_team.remove(pg_session, id=created.id, commit=True)
 
         assert removed.id == created.id
         with pytest.raises(RallyNotFoundError):
@@ -142,7 +145,10 @@ class TestTeamCRUD:
         await _make_event(pg_session)
         settings = await rally_settings.get_or_create(pg_session)
         await rally_settings.update(
-            pg_session, id=settings.id, obj_in=_settings_update(settings, max_teams=1)
+            pg_session,
+            id=settings.id,
+            obj_in=_settings_update(settings, max_teams=1),
+            commit=True,
         )
         await crud_team.create(pg_session, obj_in=TeamCreate(name="First"))
 
@@ -333,6 +339,7 @@ class TestTeamCheckpointLogic:
             pg_session,
             id=settings.id,
             obj_in=_settings_update(settings, checkpoint_order_matters=True),
+            commit=True,
         )
         cp2 = await _make_checkpoint(pg_session, event_id=event.id, order=2)
         checkpoint_data = TeamScoresUpdate(
@@ -352,6 +359,7 @@ class TestTeamCheckpointLogic:
             pg_session,
             id=settings.id,
             obj_in=_settings_update(settings, checkpoint_order_matters=False),
+            commit=True,
         )
         checkpoint_data = TeamScoresUpdate(
             checkpoint_id=cp1.id, question_score=1, time_score=20, pukes=0, skips=0

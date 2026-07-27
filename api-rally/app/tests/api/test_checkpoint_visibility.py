@@ -37,7 +37,10 @@ def _settings_update(current, **overrides) -> RallySettingsUpdate:
 async def _set_show_route_mode(pg_session, mode: str):
     settings = await rally_settings.get_or_create(pg_session)
     return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=_settings_update(settings, show_route_mode=mode)
+        pg_session,
+        id=settings.id,
+        obj_in=_settings_update(settings, show_route_mode=mode),
+        commit=True,
     )
 
 
@@ -65,6 +68,7 @@ class TestCheckpointVisibility:
                 public_access_enabled=True,
                 show_checkpoint_map=True,
             ),
+            commit=True,
         )
         await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0)
@@ -89,6 +93,7 @@ class TestCheckpointVisibility:
                 public_access_enabled=True,
                 show_checkpoint_map=True,
             ),
+            commit=True,
         )
         await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0)
@@ -190,6 +195,7 @@ class TestCheckpointVisibility:
             obj_in=_settings_update(
                 settings, public_access_enabled=False, show_checkpoint_map=True
             ),
+            commit=True,
         )
         await _make_checkpoint(pg_session, order=1)
 
@@ -212,6 +218,7 @@ class TestCheckpointVisibility:
                 public_access_enabled=True,
                 show_checkpoint_map=True,
             ),
+            commit=True,
         )
 
         response = pg_client.get("/api/rally/v1/checkpoint/")

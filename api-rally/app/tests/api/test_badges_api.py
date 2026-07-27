@@ -19,7 +19,10 @@ def _settings_update(current, **overrides) -> RallySettingsUpdate:
 async def _set_badges_enabled(pg_session, enabled: bool):
     settings = await rally_settings.get_or_create(pg_session)
     return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=_settings_update(settings, badges_enabled=enabled)
+        pg_session,
+        id=settings.id,
+        obj_in=_settings_update(settings, badges_enabled=enabled),
+        commit=True,
     )
 
 

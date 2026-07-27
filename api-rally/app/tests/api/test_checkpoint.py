@@ -58,7 +58,9 @@ class TestCheckpointListing:
         settings = await rally_settings.get_or_create(pg_session)
         data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
         data["public_access_enabled"] = False
-        await rally_settings.update(pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data))
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
 
         response = pg_client.get("/api/rally/v1/checkpoint/count")
 
@@ -77,7 +79,9 @@ class TestCheckpointListing:
         settings = await rally_settings.get_or_create(pg_session)
         data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
         data["public_access_enabled"] = True
-        await rally_settings.update(pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data))
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
         await _make_checkpoint(pg_session, order=1)
 
         response = pg_client.get("/api/rally/v1/checkpoint/count")
@@ -97,7 +101,9 @@ class TestCheckpointListing:
         data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
         data["public_access_enabled"] = False
         data["show_checkpoint_map"] = False
-        await rally_settings.update(pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data))
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
 
         response = pg_client.get("/api/rally/v1/checkpoint/")
 

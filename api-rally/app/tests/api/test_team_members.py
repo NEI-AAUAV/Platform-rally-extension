@@ -18,7 +18,7 @@ def _settings_update(current, **overrides) -> RallySettingsUpdate:
 async def _set_settings(pg_session, **overrides):
     settings = await rally_settings.get_or_create(pg_session)
     return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=_settings_update(settings, **overrides)
+        pg_session, id=settings.id, obj_in=_settings_update(settings, **overrides), commit=True
     )
 
 

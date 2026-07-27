@@ -23,7 +23,10 @@ def _settings_update(current, **overrides) -> RallySettingsUpdate:
 async def _set_enable_versus(pg_session, enabled: bool):
     settings = await rally_settings.get_or_create(pg_session)
     return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=_settings_update(settings, enable_versus=enabled)
+        pg_session,
+        id=settings.id,
+        obj_in=_settings_update(settings, enable_versus=enabled),
+        commit=True,
     )
 
 
