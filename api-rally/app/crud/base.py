@@ -49,12 +49,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return (await db.scalars(stmt)).all()
 
     async def create(
-        self, db: AsyncSession, *, obj_in: CreateSchemaType, commit: bool = True
+        self, db: AsyncSession, *, obj_in: CreateSchemaType, commit: bool = False
     ) -> ModelType:
         """Create and persist a new row.
 
-        Commits by default. Pass commit=False to only flush, so the caller
-        can batch this write with others into a single atomic transaction.
+        Flushes only by default, so the caller can batch this write with
+        others into a single atomic transaction. Pass commit=True for a
+        standalone write that should commit immediately.
         """
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)
@@ -76,12 +77,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     async def update(
-        self, db: AsyncSession, *, id: int, obj_in: UpdateSchemaType, commit: bool = True
+        self, db: AsyncSession, *, id: int, obj_in: UpdateSchemaType, commit: bool = False
     ) -> ModelType:
         """Update a row by id.
 
-        Commits by default. Pass commit=False to only flush, so the caller
-        can batch this write with others into a single atomic transaction.
+        Flushes only by default, so the caller can batch this write with
+        others into a single atomic transaction. Pass commit=True for a
+        standalone write that should commit immediately.
         """
         async with db.begin_nested():
             db_obj = await self.get(db, id=id, for_update=True)
@@ -92,11 +94,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             await db.flush()
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: int, commit: bool = True) -> ModelType:
+    async def remove(self, db: AsyncSession, *, id: int, commit: bool = False) -> ModelType:
         """Delete a row by id.
 
-        Commits by default. Pass commit=False to only flush, so the caller
-        can batch this write with others into a single atomic transaction.
+        Flushes only by default, so the caller can batch this write with
+        others into a single atomic transaction. Pass commit=True for a
+        standalone write that should commit immediately.
         """
         db_obj = await self.get(db, id=id)
         await db.delete(db_obj)

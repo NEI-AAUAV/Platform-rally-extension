@@ -230,7 +230,7 @@ class TeamController:
                     "Cannot delete team with members. Remove all members first."
                 )
 
-            await team_crud.remove(db=db, id=id)
+            await team_crud.remove(db=db, id=id, commit=True)
             return {"message": "Team deleted successfully"}
         except (HTTPException, RallyError):
             raise

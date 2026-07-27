@@ -127,5 +127,5 @@ class CheckpointService:
             .where(User.staff_checkpoint_id == checkpoint_id)
             .values(staff_checkpoint_id=None)
         )
-        await self._checkpoint_crud.remove(db=self._db, id=checkpoint_id)
+        await self._checkpoint_crud.remove(db=self._db, id=checkpoint_id, commit=False)
         await self._db.commit()

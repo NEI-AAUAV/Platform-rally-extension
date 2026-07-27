@@ -139,7 +139,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             raise
 
     async def update(
-        self, db: AsyncSession, *, id: int, obj_in: UserUpdate, commit: bool = True
+        self, db: AsyncSession, *, id: int, obj_in: UserUpdate, commit: bool = False
     ) -> User:
         try:
             return await super().update(db, id=id, obj_in=obj_in, commit=commit)

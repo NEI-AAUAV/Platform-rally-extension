@@ -234,7 +234,7 @@ class CheckpointController:
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
     ) -> DetailedCheckPoint:
         await crud.checkpoint.get(db=db, id=id, for_update=True)
-        updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in)
+        updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in, commit=True)
         return DetailedCheckPoint.model_validate(updated)
 
     async def delete_checkpoint(

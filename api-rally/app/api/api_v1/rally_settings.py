@@ -103,7 +103,7 @@ class RallySettingsController:
         validate_settings_update_access(curr_user, auth)
         # Resolve the current event's settings row (per-event, no more id=1 singleton).
         current = await rally_settings.get_or_create(db)
-        updated = await rally_settings.update(db, id=current.id, obj_in=settings_in)  # type: ignore[arg-type]
+        updated = await rally_settings.update(db, id=current.id, obj_in=settings_in, commit=True)  # type: ignore[arg-type]
         return await service.build_response(updated)
 
     async def view_rally_settings(
