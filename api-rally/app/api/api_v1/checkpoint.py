@@ -18,6 +18,7 @@ from app.core.exceptions import (
     RallyUnauthorizedError,
     RallyValidationError,
 )
+from app.crud.crud_rally_settings import rally_settings
 from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate, DetailedCheckPoint
 from app.schemas.team import AdminCheckPointSelect, ListingTeam
 from app.schemas.team_auth import TeamTokenData
@@ -104,8 +105,6 @@ class CheckpointController:
         service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
     ) -> list[DetailedCheckPoint]:
         """Return visible checkpoints based on settings and the requesting user's role."""
-        from app.crud.crud_rally_settings import rally_settings  # noqa: PLC0415
-
         settings = await rally_settings.get_or_create(db)
 
         if curr_user:
@@ -132,8 +131,6 @@ class CheckpointController:
         """Return the total number of checkpoints."""
         if not curr_user and not curr_team:
             # Optional: Allow public access if settings permit, otherwise 401
-            from app.crud.crud_rally_settings import rally_settings
-
             settings = await rally_settings.get_or_create(db)
             if not settings.public_access_enabled:
                 raise RallyUnauthorizedError("Authentication required")

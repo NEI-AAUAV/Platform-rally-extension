@@ -8,6 +8,7 @@ for Rally checkpoint and team management.
 from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -22,6 +23,7 @@ from app.core.abac import (
     require_permission,
 )
 from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.schemas.user import DetailedUser
@@ -78,8 +80,6 @@ async def get_staff_with_checkpoint_access(
     - Rally manager (full access)
     - Rally staff with assigned checkpoint
     """
-    from loguru import logger
-
     # Log authentication data for debugging
     logger.info(
         f"get_staff_with_checkpoint_access: auth.oidc_sub={auth.oidc_sub}, scopes={auth.scopes}"
@@ -98,8 +98,6 @@ async def get_staff_with_checkpoint_access(
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
         if not curr_user.staff_checkpoint_id:
-            from app.crud.crud_rally_staff_assignment import rally_staff_assignment
-
             logger.info(f"Checking staff assignment for user_id={curr_user.id}")
             staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
             if not staff_assignment or not staff_assignment.checkpoint_id:

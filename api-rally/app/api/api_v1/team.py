@@ -3,6 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.api import deps
 from app.api.abac_deps import (
@@ -10,12 +11,14 @@ from app.api.abac_deps import (
     require_team_management_permission,
     validate_checkpoint_access,
 )
+from app.api.api_v1.staff_evaluation_utils import serialize_activity, serialize_team
 from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.core.abac import Action, Resource, check_permission
 from app.core.exceptions import RallyError, RallyForbiddenError, RallyValidationError
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_checkpoint_crud, get_team_crud
+from app.models.activity import ActivityResult
 from app.models.team import Team
 from app.schemas.team import (
     DetailedTeam,
@@ -277,11 +280,6 @@ class TeamController:
 
         if not (is_admin_or_staff or is_own_team):
             raise RallyForbiddenError("You do not have permission to view these evaluations")
-
-        from sqlalchemy.orm import joinedload
-
-        from app.api.api_v1.staff_evaluation_utils import serialize_activity, serialize_team
-        from app.models.activity import ActivityResult
 
         # Fetch results (eager-load team.members for serialize_team)
         stmt = (

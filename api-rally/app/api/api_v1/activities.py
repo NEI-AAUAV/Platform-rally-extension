@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.api.abac_deps import Action, Resource, require
 from app.api.deps import get_db
@@ -24,6 +25,7 @@ from app.schemas.activity import (
     ActivityResultUpdate,
     ActivityUpdate,
     GlobalRanking,
+    TeamRanking,
 )
 from app.services.activity_service import ActivityService
 from app.services.deps import get_activity_service, get_scoring_service
@@ -159,8 +161,6 @@ class ActivityController:
     ) -> list[ActivityResultResponse]:
         """Get all activity results (evaluations) with team and activity details"""
         # Get all activity results with related data
-        from sqlalchemy.orm import joinedload
-
         stmt = (
             select(ActivityResult)
             .options(joinedload(ActivityResult.activity), joinedload(ActivityResult.team))
@@ -347,8 +347,6 @@ class ActivityController:
     ) -> GlobalRanking:
         """Get global team ranking"""
         rankings_dict = await service.get_team_ranking()
-
-        from app.schemas.activity import TeamRanking
 
         rankings = [TeamRanking(**r) for r in rankings_dict]
 

@@ -37,16 +37,16 @@ def other_session_maker(_pg_engine):
 
 
 class TestCreate:
-    async def test_commits_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
 
         assert team.id is not None
         async with other_session_maker() as other:
             again = await crud.get(other, id=team.id)
             assert again.id == team.id
 
-    async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=False)
+    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema())
 
         assert team.id is not None  # flushed, so it has a PK within this session
         from app.core.exceptions import RallyNotFoundError
@@ -67,20 +67,22 @@ class TestGetMulti:
 
 
 class TestUpdate:
-    async def test_commits_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
 
-        updated = await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"))
+        updated = await crud.update(
+            pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=True
+        )
         assert updated.name == "Renamed"
 
         async with other_session_maker() as other:
             again = await crud.get(other, id=team.id)
             assert again.name == "Renamed"
 
-    async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
 
-        await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=False)
+        await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"))
 
         async with other_session_maker() as other:
             again = await crud.get(other, id=team.id)
@@ -88,10 +90,10 @@ class TestUpdate:
 
 
 class TestRemove:
-    async def test_commits_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
 
-        await crud.remove(pg_session, id=team.id)
+        await crud.remove(pg_session, id=team.id, commit=True)
 
         from app.core.exceptions import RallyNotFoundError
 
@@ -99,10 +101,10 @@ class TestRemove:
             with pytest.raises(RallyNotFoundError):
                 await crud.get(other, id=team.id)
 
-    async def test_commit_false_only_flushes(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
 
-        await crud.remove(pg_session, id=team.id, commit=False)
+        await crud.remove(pg_session, id=team.id)
 
         async with other_session_maker() as other:
             # Removal was never committed — row still visible elsewhere.

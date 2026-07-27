@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.abac_deps import validate_settings_view_access
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
+from app.core.exceptions import RallyNotFoundError
+from app.crud.crud_team import team
 from app.schemas.user import DetailedUser
 from app.utils.rally_duration import get_rally_duration_info, get_team_duration_info
 
@@ -68,9 +70,6 @@ class RallyDurationController:
         validate_settings_view_access(curr_user, auth)
 
         # Get team's first checkpoint time as start time
-        from app.core.exceptions import RallyNotFoundError
-        from app.crud.crud_team import team
-
         team_obj = await team.get(db=db, id=team_id)
 
         if not team_obj or not team_obj.times:

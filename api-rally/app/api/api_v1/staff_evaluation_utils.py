@@ -12,12 +12,15 @@ from collections.abc import Sequence
 from typing import Any
 
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.api.auth import AuthData
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
-from app.crud.crud_activity import activity_result
+from app.crud.crud_activity import activity, activity_result
+from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team
 from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
@@ -26,6 +29,7 @@ from app.schemas.activity import (
     ActivityResultEvaluation,
     ActivityResultUpdate,
 )
+from app.schemas.team import TeamScoresUpdate
 from app.schemas.user import DetailedUser
 from app.services.scoring_service import ScoringService
 
@@ -122,8 +126,6 @@ async def validate_staff_checkpoint_access(
     )
 
     # Verify activity is at the same checkpoint
-    from app.crud.crud_activity import activity
-
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         logger.error(f"Activity {activity_id} not found")
@@ -151,8 +153,6 @@ async def validate_admin_access(
     team_obj = await team.get(db, id=team_id)
     if not team_obj:
         raise RallyNotFoundError(TEAM_NOT_FOUND)
-
-    from app.crud.crud_activity import activity
 
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
@@ -287,8 +287,6 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
 
     # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
     # these two guards are unreachable in practice; kept as defensive checks.
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
     checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
     if not checkpoint_obj:
         return
@@ -307,9 +305,6 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
         return
 
     # Only advance once every activity at this checkpoint has a scored result.
-    from sqlalchemy import select
-    from sqlalchemy.orm import joinedload
-
     stmt = (
         select(ActivityResult)
         .options(joinedload(ActivityResult.activity))
@@ -325,9 +320,7 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
         and r.final_score is not None
     }
 
-    from app.crud.crud_activity import activity as activity_crud
-
-    checkpoint_activities = await activity_crud.get_by_checkpoint(
+    checkpoint_activities = await activity.get_by_checkpoint(
         db, checkpoint_id=current_checkpoint_id
     )
     pending = [a for a in checkpoint_activities if a.is_active and a.id not in scored_activity_ids]
@@ -357,8 +350,6 @@ async def ensure_team_checkpoint_and_advance(
     current_checkpoint_order = len(team_obj.times)
 
     # Convert checkpoint ID to order for comparison
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
     checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
     if not checkpoint_obj:
         return
@@ -375,9 +366,6 @@ async def ensure_team_checkpoint_and_advance(
 
 async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_id: int) -> None:
     """Check team into checkpoint with default scores"""
-    from app.crud.crud_team import team as team_crud
-    from app.schemas.team import TeamScoresUpdate
-
     checkin_scores = TeamScoresUpdate(
         checkpoint_id=checkpoint_id,
         question_score=0,  # Default score
@@ -387,7 +375,7 @@ async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_
     )
 
     try:
-        await team_crud.add_checkpoint(
+        await team.add_checkpoint(
             db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores
         )
         logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
@@ -399,13 +387,8 @@ async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_
 
 async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> None:
     """Advance team to next checkpoint with default scores"""
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
     next_checkpoint = await checkpoint_crud.get_next(db, team_id=team_id)
     if next_checkpoint:
-        from app.crud.crud_team import team as team_crud
-        from app.schemas.team import TeamScoresUpdate
-
         advance_scores = TeamScoresUpdate(
             checkpoint_id=next_checkpoint.id,
             question_score=0,  # Default score
@@ -415,7 +398,7 @@ async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> Non
         )
 
         try:
-            await team_crud.add_checkpoint(
+            await team.add_checkpoint(
                 db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores
             )
             logger.info(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
@@ -438,11 +421,8 @@ async def compute_checkpoint_progress(
     """
     Calculate last and current checkpoint numbers plus completed orders for a team.
     """
-    from app.crud.crud_activity import activity_result as activity_result_crud
-    from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-
     checkpoints = await checkpoint_crud.get_all_ordered(db)
-    team_results = await activity_result_crud.get_by_team(db, team_id=team_obj.id)
+    team_results = await activity_result.get_by_team(db, team_id=team_obj.id)
     completed_activity_ids = {
         r.activity_id for r in team_results if getattr(r, "is_completed", False)
     }
@@ -466,16 +446,12 @@ async def compute_checkpoint_progress(
 
 
 async def checkpoint_has_activities(db: AsyncSession, checkpoint_id: int) -> bool:
-    from app.crud.crud_activity import activity
-
     return bool(await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id))
 
 
 async def is_checkpoint_completed(
     db: AsyncSession, checkpoint_id: int, completed_activity_ids: set[int]
 ) -> bool:
-    from app.crud.crud_activity import activity
-
     checkpoint_activities = await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
     if not checkpoint_activities:
         return False

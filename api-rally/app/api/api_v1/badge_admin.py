@@ -7,6 +7,7 @@ All write operations require admin scope.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -188,9 +189,7 @@ class BadgeAdminController:
     async def revoke_badge(
         self, badge_id: int, db: Annotated[AsyncSession, Depends(deps.get_db)]
     ) -> None:
-        from sqlalchemy import select as sa_select
-
-        result = await db.execute(sa_select(TeamBadge).where(TeamBadge.id == badge_id))
+        result = await db.execute(select(TeamBadge).where(TeamBadge.id == badge_id))
         badge = result.scalars().first()
         if not badge:
             raise HTTPException(status_code=404, detail="Badge not found")
