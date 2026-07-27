@@ -177,6 +177,7 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
     instead of failing the request. Simulated directly by calling the route
     function with a mocked `already_registered` SELECT (real DB unique
     constraint then raises IntegrityError on the real INSERT/commit)."""
+    from app import crud
     from app.api.api_v1.checkpoint_arrive import ArriveRequest, CheckpointArriveController
     from app.models.checkpoint_arrival import CheckpointArrival
     from app.schemas.team_auth import TeamTokenData
@@ -223,7 +224,7 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
             body=ArriveRequest(latitude=41.000045, longitude=-8.0),
             db=pg_session,
             team=TeamTokenData(team_id=team.id, team_name="TeamA"),
-            service=CheckpointArrivalService(pg_session),
+            service=CheckpointArrivalService(pg_session, crud.checkpoint, crud.team),
         )
 
     assert response.already_registered is True

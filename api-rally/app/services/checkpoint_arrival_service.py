@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import crud_activity
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.utils.geo import distance_m
 
@@ -18,8 +19,12 @@ from app.utils.geo import distance_m
 class CheckpointArrivalService:
     """GPS geofence check-in: distance validation, idempotent recording, auto-advance."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self, db: AsyncSession, checkpoint_crud: CRUDCheckPoint, team_crud: CRUDTeam
+    ) -> None:
         self._db = db
+        self._checkpoint_crud = checkpoint_crud
+        self._team_crud = team_crud
 
     async def record_arrival(
         self, *, team_id: int, checkpoint_id: int, latitude: float, longitude: float
@@ -32,7 +37,7 @@ class CheckpointArrivalService:
         # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
         # (mapped to 404 by the app's exception handler), so this branch is
         # unreachable in practice; kept as a defensive guard.
-        checkpoint = await crud.checkpoint.get(db=self._db, id=checkpoint_id)
+        checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if not checkpoint:
             raise RallyNotFoundError("Checkpoint not found")
 
@@ -84,7 +89,7 @@ class CheckpointArrivalService:
         # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
         # rather than returning None, so this branch is unreachable in practice
         # (the caller already validated the checkpoint exists); kept defensively.
-        checkpoint_obj = await crud.checkpoint.get(db=self._db, id=checkpoint_id)
+        checkpoint_obj = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if not checkpoint_obj:
             return False
 
@@ -98,7 +103,7 @@ class CheckpointArrivalService:
         # rather than returning None, so this branch is unreachable in practice
         # (a team with a valid arrival JWT necessarily still exists); kept as a
         # defensive guard.
-        team_obj = await crud.team.get(db=self._db, id=team_id)
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
         if not team_obj:
             return False
 

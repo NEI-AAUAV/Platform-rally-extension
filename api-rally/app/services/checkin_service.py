@@ -10,8 +10,8 @@ from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.config import Settings
 from app.core.exceptions import RallyNotFoundError
 from app.core.redis import get_async_redis_client
-from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-from app.crud.crud_team import team as team_crud
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_team import CRUDTeam
 from app.events import TeamCheckpointAdvancedEvent, TeamCheckpointAdvancedPayload, publish_event
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
@@ -38,8 +38,12 @@ def require_same_event(team_event_id: int | None, checkpoint_event_id: int | Non
 class CheckinService:
     """Team QR self-check-in and staff-scan identification lifecycle."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self, db: AsyncSession, checkpoint_crud: CRUDCheckPoint, team_crud: CRUDTeam
+    ) -> None:
         self._db = db
+        self._checkpoint_crud = checkpoint_crud
+        self._team_crud = team_crud
 
     async def claim_nonce(self, nonce: str, team_id: int, settings: Settings) -> bool:
         """Best-effort single-use guard for one (token, team) pair.
@@ -65,13 +69,13 @@ class CheckinService:
         # returning None when the row is missing, so the `is None` guard below
         # is unreachable dead code in practice; kept as defensive documentation
         # of the contract in case `.get()`'s behavior ever changes.
-        checkpoint = await checkpoint_crud.get(self._db, id=checkpoint_id)
+        checkpoint = await self._checkpoint_crud.get(self._db, id=checkpoint_id)
         if checkpoint is None:
             raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
         return checkpoint
 
     async def get_team_or_raise(self, team_id: int) -> Team:
-        team_obj = await team_crud.get(self._db, id=team_id)
+        team_obj = await self._team_crud.get(self._db, id=team_id)
         if team_obj is None:
             raise RallyNotFoundError("Team not found")
         return team_obj

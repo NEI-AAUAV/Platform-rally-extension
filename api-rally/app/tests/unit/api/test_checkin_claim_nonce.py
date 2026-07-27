@@ -18,7 +18,7 @@ def settings():
 
 @pytest.fixture
 def service():
-    return CheckinService(db=None)
+    return CheckinService(db=None, checkpoint_crud=None, team_crud=None)
 
 
 async def test_claim_nonce_first_claim_is_fresh(

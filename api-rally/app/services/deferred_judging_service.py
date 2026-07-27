@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity_result as crud_result
+from app.crud.crud_team import CRUDTeam
 from app.models.activity import ActivityResult
 from app.models.team import Team
 from app.services.scoring_service import ScoringService
@@ -18,8 +18,9 @@ from app.services.scoring_service import ScoringService
 class DeferredJudgingService:
     """Capture, judging, and team-photo-promotion lifecycle for deferred-judged results."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, team_crud: CRUDTeam) -> None:
         self._db = db
+        self._team_crud = team_crud
 
     async def capture_result(
         self, *, activity_id: int, team_id: int, media_urls: list[str]
@@ -96,4 +97,4 @@ class DeferredJudgingService:
         if image_url not in (result.media_urls or []):
             raise RallyValidationError("Photo does not belong to this result")
 
-        return await crud.team.set_photo_url(db=self._db, id=result.team_id, url=image_url)
+        return await self._team_crud.set_photo_url(db=self._db, id=result.team_id, url=image_url)

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.api.auth import AuthData
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
+from app.crud.crud_team import CRUDTeam
 from app.models.participation import EventParticipation
 from app.models.team import Team
 from app.models.user import User
@@ -18,8 +19,9 @@ from app.schemas.profile import ClaimableTeam, ParticipationEntry
 class ProfileService:
     """Participation history, lazy recording, and member-claim lifecycle."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, team_crud: CRUDTeam) -> None:
         self._db = db
+        self._team_crud = team_crud
 
     async def build_entry(self, row: EventParticipation) -> ParticipationEntry:
         """Build a participation entry, preferring live team values over snapshots."""
@@ -66,7 +68,7 @@ class ProfileService:
         """List a team's name-only members (by access code) the caller can claim."""
         from app.schemas.profile import ClaimableMember
 
-        team = await crud.team.get_by_access_code(self._db, access_code=access_code.strip())
+        team = await self._team_crud.get_by_access_code(self._db, access_code=access_code.strip())
         if team is None:
             raise RallyNotFoundError("Team not found")
 

@@ -39,15 +39,15 @@ def get_scoring_service(db: SessionDep) -> ScoringService:
 
 
 def get_checkin_service(db: SessionDep) -> CheckinService:
-    return CheckinService(db)
+    return CheckinService(db, crud.checkpoint, crud.team)
 
 
 def get_checkpoint_arrival_service(db: SessionDep) -> CheckpointArrivalService:
-    return CheckpointArrivalService(db)
+    return CheckpointArrivalService(db, crud.checkpoint, crud.team)
 
 
 def get_deferred_judging_service(db: SessionDep) -> DeferredJudgingService:
-    return DeferredJudgingService(db)
+    return DeferredJudgingService(db, crud.team)
 
 
 def get_dynamic_scoring_service(db: SessionDep) -> DynamicScoringService:
@@ -67,7 +67,7 @@ def get_guide_service(db: SessionDep) -> GuideService:
 
 
 def get_profile_service(db: SessionDep) -> ProfileService:
-    return ProfileService(db)
+    return ProfileService(db, crud.team)
 
 
 def get_rally_settings_service(db: SessionDep) -> RallySettingsService:
