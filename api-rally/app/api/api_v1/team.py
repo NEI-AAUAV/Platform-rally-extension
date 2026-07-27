@@ -34,7 +34,6 @@ from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
 
-
 _TEAM_ID_PATH = "/{id}"
 
 

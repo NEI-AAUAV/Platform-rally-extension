@@ -5,8 +5,8 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from sqlalchemy import inspect
 from sqlalchemy.engine import Connection
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import CreateSchema
 
 import alembic as _alembic_pkg
@@ -77,27 +77,10 @@ def _create_schema_and_tables(connection: Connection) -> None:
     alembic baseline revision 0001 produces. Only called when the database has
     no alembic version yet (see :func:`_run_migrations`).
     """
-    # Even CREATE SCHEMA IF NOT EXISTS isn't race-free under true concurrent
-    # DDL (this API image runs 4 uvicorn workers, each independently reaching
-    # this path against a fresh database): two workers can both pass
-    # Postgres's own existence check in the same instant and one still gets
-    # a UniqueViolationError on pg_namespace. That's fine — the schema exists
-    # either way — but the whole outer transaction (see init_db's
-    # engine.begin()) is otherwise left aborted by Postgres once any
-    # statement inside it errors, taking the rest of this bootstrap down
-    # with it. A SAVEPOINT scopes the failure to just this statement so a
-    # losing worker can roll back to it and continue in the same
-    # transaction instead of poisoning it.
-    schemas = {table.schema for table in Base.metadata.tables.values() if table.schema}
-    for schema in schemas:
-        savepoint = connection.begin_nested()
-        try:
-            connection.execute(CreateSchema(schema, if_not_exists=True))
-            savepoint.commit()
-        except IntegrityError as exc:
-            savepoint.rollback()
-            if "UniqueViolationError" not in str(exc.orig):
-                raise
+    existing_schemas = set(inspect(connection).get_schema_names())
+    for schema in Base.metadata._schemas:
+        if schema not in existing_schemas:
+            connection.execute(CreateSchema(schema))
 
     Base.metadata.reflect(bind=connection, schema=settings.SCHEMA_NAME)
     Base.metadata.create_all(bind=connection, checkfirst=True)

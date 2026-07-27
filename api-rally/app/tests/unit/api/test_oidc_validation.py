@@ -43,7 +43,7 @@ def _wired_validator(jwks_calls: list[int] | None = None):
         resp = AsyncMock()
         resp.raise_for_status = lambda: None
         resp.json = lambda: _jwks
-        async with anyio.fail_after(10.0):
+        with anyio.fail_after(10.0):
             return resp
 
     client = AsyncMock()

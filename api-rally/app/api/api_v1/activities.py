@@ -384,9 +384,7 @@ class ActivityController:
         if not db_activity:
             raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
-        statistics = await service.get_activity_statistics(activity_id)
-
-        return statistics
+        return await service.get_activity_statistics(activity_id)
 
 
 router = ActivityController().router
