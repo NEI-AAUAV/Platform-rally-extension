@@ -21,6 +21,9 @@ from app.core.abac import (
     get_accessible_checkpoints,
     require_permission,
 )
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.schemas.user import DetailedUser
 
 # Explicit exports for mypy
@@ -123,6 +126,8 @@ async def require_checkpoint_score_permission(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
     db: AsyncSession = Depends(get_db),
+    team_crud: CRUDTeam = Depends(get_team_crud),
+    checkpoint_crud: CRUDCheckPoint = Depends(get_checkpoint_crud),
 ) -> None:
     """
     Require permission to add checkpoint scores
@@ -135,15 +140,13 @@ async def require_checkpoint_score_permission(
     """
     # For staff users, validate checkpoint order
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
-        from app import crud
-
         # Get team to check their progress
-        team = await crud.team.get(db=db, id=team_id)
+        team = await team_crud.get(db=db, id=team_id)
         if not team:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
 
         # Get checkpoint to check its order
-        checkpoint = await crud.checkpoint.get(db=db, id=checkpoint_id)
+        checkpoint = await checkpoint_crud.get(db=db, id=checkpoint_id)
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Checkpoint not found"

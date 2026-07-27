@@ -353,6 +353,9 @@ class TestRequireCheckpointScorePermission:
 
     async def test_admin_bypasses_order_check(self, pg_session, mock_user):
         """Admins skip the staff-only order validation entirely."""
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.crud.crud_team import team as crud_team
+
         cp = await self._make_checkpoint(pg_session, order=5)
         team = await self._make_team(pg_session)
 
@@ -365,6 +368,8 @@ class TestRequireCheckpointScorePermission:
                 auth=Mock(scopes=["admin"]),
                 curr_user=mock_user,
                 db=pg_session,
+                team_crud=crud_team,
+                checkpoint_crud=crud_checkpoint,
             )
 
     async def test_staff_rejected_when_checkpoint_order_mismatched(
@@ -380,6 +385,9 @@ class TestRequireCheckpointScorePermission:
         team_id = team.id
         auth = Mock(scopes=["rally-staff"])
 
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.crud.crud_team import team as crud_team
+
         with pytest.raises(HTTPException) as exc:
             await require_checkpoint_score_permission(
                 checkpoint_id=checkpoint_id,
@@ -387,10 +395,15 @@ class TestRequireCheckpointScorePermission:
                 auth=auth,
                 curr_user=mock_staff_user,
                 db=pg_session,
+                team_crud=crud_team,
+                checkpoint_crud=crud_checkpoint,
             )
         assert exc.value.status_code == 400
 
     async def test_staff_allowed_when_checkpoint_order_matches(self, pg_session, mock_staff_user):
+        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.crud.crud_team import team as crud_team
+
         cp1 = await self._make_checkpoint(pg_session, order=1)
         team = await self._make_team(pg_session)
 
@@ -402,6 +415,8 @@ class TestRequireCheckpointScorePermission:
                 auth=Mock(scopes=["rally-staff"]),
                 curr_user=mock_staff_user,
                 db=pg_session,
+                team_crud=crud_team,
+                checkpoint_crud=crud_checkpoint,
             )
             mock_engine.evaluate.assert_called_once()
 

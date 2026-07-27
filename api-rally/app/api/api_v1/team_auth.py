@@ -7,7 +7,8 @@ from app.api import deps
 from app.api.rate_limit import check_login_rate_limit, rate_limit
 from app.core.config import SettingsDep, settings
 from app.core.exceptions import RallyUnauthorizedError
-from app.crud.crud_team import team as crud_team
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import get_team_crud
 from app.schemas.evaluation_history import ContestRequest, EvaluationHistoryEntry
 from app.schemas.team_auth import TeamLoginRequest, TeamLoginResponse, TeamTokenData
 from app.services.team_auth_service import (
@@ -67,6 +68,7 @@ class TeamAuthController:
         request: Request,
         db: deps.SessionDep,
         settings: SettingsDep,
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> TeamLoginResponse:
         """
         Authenticate a team using their access code.
@@ -74,7 +76,7 @@ class TeamAuthController:
         """
         await check_login_rate_limit(request, login_data.access_code, settings)
 
-        team = await crud_team.get_by_access_code(db, access_code=login_data.access_code)
+        team = await team_crud.get_by_access_code(db, access_code=login_data.access_code)
         if not team:
             raise RallyUnauthorizedError("Invalid access code")
 

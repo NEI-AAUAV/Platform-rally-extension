@@ -24,7 +24,8 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_current_team, get_db
 from app.core.config import Settings, SettingsDep
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
-from app.crud.crud_team import team as team_crud
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import get_team_crud
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.checkin_service import CheckinService, require_same_event
@@ -137,6 +138,7 @@ class CheckinController:
         db: Annotated[AsyncSession, Depends(get_db)],
         settings: SettingsDep,
         service: Annotated[CheckinService, Depends(get_checkin_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> StaffCheckinResponse:
         """Staff scans an arriving team's QR (its access code).
 
@@ -159,6 +161,7 @@ class CheckinController:
 
         code = body.team_code.strip().upper()
         team_obj = await team_crud.get_by_access_code(db, access_code=code)
+
         if team_obj is None:
             raise RallyNotFoundError("Equipa não encontrada para este código")
 

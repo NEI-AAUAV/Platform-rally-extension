@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFil
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api import deps
 from app.api.abac_deps import (
     require_checkpoint_score_permission,
@@ -14,6 +13,9 @@ from app.api.abac_deps import (
 from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.core.abac import Action, Resource, check_permission
 from app.core.exceptions import RallyError, RallyForbiddenError, RallyValidationError
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.models.team import Team
 from app.schemas.team import (
     DetailedTeam,
@@ -84,8 +86,9 @@ class TeamController:
         *,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> list[ListingTeam]:
-        teams = await crud.team.get_multi(db)
+        teams = await team_crud.get_multi(db)
         for team in teams:
             await db.refresh(team, ["members"])
         return [await service.build_listing_team(team) for team in teams]
@@ -95,8 +98,9 @@ class TeamController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
-        team_obj = await crud.team.get(db=db, id=curr_user.team_id)
+        team_obj = await team_crud.get(db=db, id=curr_user.team_id)
         return await service.build_detailed_team(team_obj, with_progress=True)
 
     async def get_team_by_id(
@@ -105,8 +109,9 @@ class TeamController:
         id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
-        team_obj = await crud.team.get(db=db, id=id)
+        team_obj = await team_crud.get(db=db, id=id)
         return await service.build_detailed_team(team_obj, with_progress=True)
 
     async def add_checkpoint(
@@ -118,6 +123,8 @@ class TeamController:
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
+        checkpoint_crud: Annotated[CRUDCheckPoint, Depends(get_checkpoint_crud)],
     ) -> DetailedTeam:
         # Use ABAC to validate checkpoint access
         checkpoint_id = validate_checkpoint_access(
@@ -131,9 +138,11 @@ class TeamController:
             auth=auth,
             curr_user=staff_user,
             db=db,
+            team_crud=team_crud,
+            checkpoint_crud=checkpoint_crud,
         )
 
-        team_db = await crud.team.add_checkpoint(
+        team_db = await team_crud.add_checkpoint(
             db=db,
             id=id,
             checkpoint_id=checkpoint_id,
@@ -149,11 +158,12 @@ class TeamController:
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
         # Enforce ABAC permission for team creation
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        team_db = await crud.team.create(db=db, obj_in=team_in)
+        team_db = await team_crud.create(db=db, obj_in=team_in)
         return await service.build_detailed_team(team_db)
 
     async def update_team(
@@ -164,8 +174,9 @@ class TeamController:
         team_in: TeamUpdate,
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
-        team_db = await crud.team.update(db=db, id=id, obj_in=team_in)
+        team_db = await team_crud.update(db=db, id=id, obj_in=team_in)
         return await service.build_detailed_team(team_db)
 
     async def upload_team_photo(
@@ -177,6 +188,7 @@ class TeamController:
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
         """Upload the team's official photo to R2 and persist its URL.
 
@@ -189,7 +201,7 @@ class TeamController:
         ):
             raise RallyForbiddenError("Not allowed to change this team's photo.")
 
-        team = await crud.team.get(db=db, id=id)
+        team = await team_crud.get(db=db, id=id)
         storage_client.delete_image(team.photo_url)
 
         url = await validate_and_store(
@@ -197,7 +209,7 @@ class TeamController:
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
             key_prefix=f"rally/teams/{id}",
         )
-        team_db = await crud.team.set_photo_url(db=db, id=id, url=url)
+        team_db = await team_crud.set_photo_url(db=db, id=id, url=url)
         return await service.build_detailed_team(team_db)
 
     async def delete_team(
@@ -206,18 +218,19 @@ class TeamController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         id: int,
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> dict[str, str]:
         """Delete a team. Only admins can delete teams."""
         try:
             # Check if team has members before deleting
-            team = await crud.team.get(db=db, id=id)
+            team = await team_crud.get(db=db, id=id)
             await db.refresh(team, ["members"])
             if team and len(team.members) > 0:
                 raise RallyValidationError(
                     "Cannot delete team with members. Remove all members first."
                 )
 
-            await crud.team.remove(db=db, id=id)
+            await team_crud.remove(db=db, id=id)
             return {"message": "Team deleted successfully"}
         except (HTTPException, RallyError):
             raise
