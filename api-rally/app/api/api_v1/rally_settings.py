@@ -9,6 +9,7 @@ from app.api.deps import get_db, get_participant
 from app.crud.crud_rally_settings import rally_settings
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.user import DetailedUser
+from app.services.deps import get_rally_settings_service
 from app.services.image_upload import ALLOWED_FAVICON_CONTENT_TYPES, ALLOWED_PHOTO_CONTENT_TYPES
 from app.services.rally_settings_service import RallySettingsService
 
@@ -85,6 +86,7 @@ class RallySettingsController:
         db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """
         Update global rally configuration (admin only).
@@ -102,35 +104,38 @@ class RallySettingsController:
         # Resolve the current event's settings row (per-event, no more id=1 singleton).
         current = await rally_settings.get_or_create(db)
         updated = await rally_settings.update(db, id=current.id, obj_in=settings_in)  # type: ignore[arg-type]
-        return await RallySettingsService(db).build_response(updated)
+        return await service.build_response(updated)
 
     async def view_rally_settings(
         self,
         db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """View rally settings"""
         validate_settings_view_access(curr_user, auth)
         settings = await rally_settings.get_or_create(db)
-        return await RallySettingsService(db).build_response(settings)
+        return await service.build_response(settings)
 
     async def view_rally_settings_public(
-        self, db: Annotated[AsyncSession, Depends(get_db)]
+        self,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """View rally settings (public access - no authentication required)"""
         settings = await rally_settings.get_or_create(db)
-        return await RallySettingsService(db).build_response(settings)
+        return await service.build_response(settings)
 
     async def upload_rally_banner(
         self,
         image: Annotated[UploadFile, File(...)],
-        db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """Upload the event banner image to Cloudflare R2 (admin only)."""
-        return await RallySettingsService(db).upload_branding_image(
+        return await service.upload_branding_image(
             field="banner_url",
             image=image,
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
@@ -141,12 +146,12 @@ class RallySettingsController:
     async def upload_rally_logo(
         self,
         image: Annotated[UploadFile, File(...)],
-        db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """Upload the event logo image to Cloudflare R2 (admin only)."""
-        return await RallySettingsService(db).upload_branding_image(
+        return await service.upload_branding_image(
             field="logo_url",
             image=image,
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
@@ -157,12 +162,12 @@ class RallySettingsController:
     async def upload_rally_favicon(
         self,
         image: Annotated[UploadFile, File(...)],
-        db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
     ) -> RallySettingsResponse:
         """Upload the browser-tab favicon to Cloudflare R2 (admin only). Accepts png/ico/svg."""
-        return await RallySettingsService(db).upload_branding_image(
+        return await service.upload_branding_image(
             field="favicon_url",
             image=image,
             allowed_content_types=ALLOWED_FAVICON_CONTENT_TYPES,

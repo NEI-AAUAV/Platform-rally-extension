@@ -21,6 +21,7 @@ from app.schemas.activity import (
     RallyEventUpdate,
 )
 from app.schemas.user import DetailedUser
+from app.services.deps import get_event_service
 from app.services.event_service import EVENT_NOT_FOUND, EventService
 
 EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {404: {"description": EVENT_NOT_FOUND}}
@@ -159,16 +160,16 @@ class EventController:
     async def generate_rotation_schedule(
         self,
         event_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _admin: Annotated[DetailedUser, Depends(get_admin)],
         _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[EventService, Depends(get_event_service)],
     ) -> RotationScheduleResponse:
         """Generate and persist a round-robin rotation schedule for an Olympic event.
 
         Reads the event's current teams and checkpoints, runs the generator, and
         stores the result in RallyEvent.rotation_schedule. Returns the schedule.
         """
-        schedule = await EventService(db).generate_rotation_schedule(event_id)
+        schedule = await service.generate_rotation_schedule(event_id)
         return RotationScheduleResponse(event_id=event_id, rounds=schedule)
 
 

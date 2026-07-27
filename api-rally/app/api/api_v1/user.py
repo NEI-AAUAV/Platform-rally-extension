@@ -13,6 +13,7 @@ from app.core.config import SettingsDep
 from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.user import DetailedUser
+from app.services.deps import get_user_service
 from app.services.user_service import UserService
 
 
@@ -116,9 +117,9 @@ class UserController:
 
     async def get_staff_assignments(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[DetailedUser, Depends(get_admin)],
         settings: SettingsDep,
+        service: Annotated[UserService, Depends(get_user_service)],
     ) -> list[RallyStaffAssignmentWithCheckpoint]:
         """
         Get all rally-staff users and their checkpoint assignments.
@@ -129,7 +130,7 @@ class UserController:
         prior login required. Otherwise falls back to users already mirrored
         locally (i.e. who have logged in at least once with the staff scope).
         """
-        return await UserService(db).list_checkpoint_assignments(
+        return await service.list_checkpoint_assignments(
             group=settings.OIDC_STAFF_GROUP,
             scope="rally-staff",
             assignment_crud=crud.rally_staff_assignment,
@@ -154,14 +155,14 @@ class UserController:
         self,
         user_id: int,
         assignment: CheckpointAssignmentUpdate,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[DetailedUser, Depends(get_admin)],
+        service: Annotated[UserService, Depends(get_user_service)],
     ) -> RallyStaffAssignmentWithCheckpoint:
         """
         Update a user's checkpoint assignment.
         This creates/updates Rally-specific staff assignments.
         """
-        return await UserService(db).update_checkpoint_assignment(
+        return await service.update_checkpoint_assignment(
             user_id=user_id,
             checkpoint_id=assignment.checkpoint_id,
             assignment_crud=crud.rally_staff_assignment,
@@ -171,9 +172,9 @@ class UserController:
 
     async def get_guide_assignments(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[DetailedUser, Depends(get_admin)],
         settings: SettingsDep,
+        service: Annotated[UserService, Depends(get_user_service)],
     ) -> list[RallyGuideAssignmentWithCheckpoint]:
         """
         Get all rally-guide users and their checkpoint assignments.
@@ -182,7 +183,7 @@ class UserController:
         are fetched live and mirrored locally, so an account shows up as soon as
         it is added to the group, with no prior login required.
         """
-        return await UserService(db).list_checkpoint_assignments(
+        return await service.list_checkpoint_assignments(
             group=settings.OIDC_GUIDE_GROUP,
             scope="rally-guide",
             assignment_crud=crud.rally_guide_assignment,
@@ -193,11 +194,11 @@ class UserController:
         self,
         user_id: int,
         assignment: CheckpointAssignmentUpdate,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[DetailedUser, Depends(get_admin)],
+        service: Annotated[UserService, Depends(get_user_service)],
     ) -> RallyGuideAssignmentWithCheckpoint:
         """Update a guide user's checkpoint assignment."""
-        return await UserService(db).update_checkpoint_assignment(
+        return await service.update_checkpoint_assignment(
             user_id=user_id,
             checkpoint_id=assignment.checkpoint_id,
             assignment_crud=crud.rally_guide_assignment,

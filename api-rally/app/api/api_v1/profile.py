@@ -9,12 +9,12 @@ account and records a participation.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import AuthData, api_nei_auth
-from app.api.deps import get_db, get_participant
+from app.api.deps import get_participant
 from app.schemas.profile import ClaimableTeam, ParticipationEntry, ProfileResponse
 from app.schemas.user import DetailedUser
+from app.services.deps import get_profile_service
 from app.services.profile_service import ProfileService
 
 
@@ -48,16 +48,15 @@ class ProfileController:
 
     async def get_my_profile(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _curr: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[ProfileService, Depends(get_profile_service)],
     ) -> ProfileResponse:
         """Return the caller's profile and participation history.
 
         If the caller is themselves currently on a team, their participation in the
         current event is recorded lazily so the active edition always shows.
         """
-        service = ProfileService(db)
         me = await service.get_self(auth)
         await service.record_current_participation_if_on_team(me, auth)
         participations = await service.get_participation_history(auth)
@@ -73,33 +72,33 @@ class ProfileController:
 
     async def get_my_history(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _curr: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[ProfileService, Depends(get_profile_service)],
     ) -> list[ParticipationEntry]:
         """List the caller's past participations (newest first)."""
-        return await ProfileService(db).get_participation_history(auth)
+        return await service.get_participation_history(auth)
 
     async def get_claimable_members(
         self,
         access_code: str,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _curr: Annotated[DetailedUser, Depends(get_participant)],
         _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[ProfileService, Depends(get_profile_service)],
     ) -> ClaimableTeam:
         """List a team's name-only members (by access code) the caller can claim.
 
         The caller enters their team's access code; this returns the placeholder
         members (no linked account) so they can pick which one is them and claim it.
         """
-        return await ProfileService(db).get_claimable_team(access_code)
+        return await service.get_claimable_team(access_code)
 
     async def claim_membership(
         self,
         member_user_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _curr: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[ProfileService, Depends(get_profile_service)],
     ) -> ParticipationEntry:
         """Claim a name-only team member as the caller's own participation.
 
@@ -107,7 +106,7 @@ class ProfileController:
         the caller's account: its team membership moves to the caller and the
         placeholder is removed. A participation row is recorded for the event.
         """
-        return await ProfileService(db).claim_membership(member_user_id, auth)
+        return await service.claim_membership(member_user_id, auth)
 
 
 router = ProfileController().router

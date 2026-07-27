@@ -12,13 +12,12 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
 from app.core.config import SettingsDep
 from app.core.redis import get_async_redis_client
 from app.events.channels import Channels
 from app.services import leaderboard_cache
+from app.services.deps import get_scoring_service
 from app.services.scoring_service import ScoringService
 
 # Seconds between SSE heartbeats; keeps proxies from dropping an idle connection.
@@ -83,8 +82,8 @@ class ScoreboardController:
 
     async def get_live_scoreboard(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         settings: SettingsDep,
+        service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> list[dict[str, Any]]:
         """Return the cached global ranking, recomputing on a cache miss.
 
@@ -93,7 +92,7 @@ class ScoreboardController:
         serve it directly from Postgres instead of failing the public view.
         """
         if not settings.EVENTS_ENABLED:
-            return await ScoringService(db).get_team_ranking()
+            return await service.get_team_ranking()
 
         client = get_async_redis_client()
         try:
@@ -101,7 +100,7 @@ class ScoreboardController:
             if cached is not None:
                 return cached
             # Cold cache: compute once, warm the cache, then serve.
-            ranking = await ScoringService(db).get_team_ranking()
+            ranking = await service.get_team_ranking()
             await leaderboard_cache.write_global_leaderboard(client, ranking)
             return ranking
         finally:

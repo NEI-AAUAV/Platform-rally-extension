@@ -16,9 +16,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.services.deps import get_dynamic_scoring_service
 from app.services.dynamic_scoring_service import DynamicScoringService
 
 # ---------- Schemas ----------
@@ -134,52 +134,51 @@ class DynamicScoringController:
             responses={404: {"description": "Award not found"}},
         )
 
-    def _service(self, db: AsyncSession) -> DynamicScoringService:
-        return DynamicScoringService(db)
-
     async def list_dynamic_rules(
-        self, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self, service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)]
     ) -> list[DynamicRuleResponse]:
-        rules = await self._service(db).list_rules()
+        rules = await service.list_rules()
         return [DynamicRuleResponse.model_validate(r) for r in rules]
 
     async def create_dynamic_rule(
         self,
         obj_in: DynamicRuleCreate,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> DynamicRuleResponse:
-        rule = await self._service(db).create_rule(**obj_in.model_dump())
+        rule = await service.create_rule(**obj_in.model_dump())
         return DynamicRuleResponse.model_validate(rule)
 
     async def update_dynamic_rule(
         self,
         rule_id: int,
         obj_in: DynamicRuleUpdate,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> DynamicRuleResponse:
-        rule = await self._service(db).update_rule(rule_id, **obj_in.model_dump(exclude_none=True))
+        rule = await service.update_rule(rule_id, **obj_in.model_dump(exclude_none=True))
         return DynamicRuleResponse.model_validate(rule)
 
     async def delete_dynamic_rule(
-        self, rule_id: int, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self,
+        rule_id: int,
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> None:
-        await self._service(db).delete_rule(rule_id)
+        await service.delete_rule(rule_id)
 
     async def list_dynamic_awards(
         self,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         _: Annotated[None, Depends(deps.get_admin)],
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
         team_id: int | None = None,
     ) -> list[DynamicAwardResponse]:
-        awards = await self._service(db).list_awards(team_id=team_id)
+        awards = await service.list_awards(team_id=team_id)
         return [DynamicAwardResponse.model_validate(a) for a in awards]
 
     async def create_dynamic_award(
         self,
         obj_in: DynamicAwardCreate,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> DynamicAwardResponse:
-        award = await self._service(db).create_award(
+        award = await service.create_award(
             team_id=obj_in.team_id,
             rule_id=obj_in.rule_id,
             points=obj_in.points,
@@ -188,9 +187,11 @@ class DynamicScoringController:
         return DynamicAwardResponse.model_validate(award)
 
     async def delete_dynamic_award(
-        self, award_id: int, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self,
+        award_id: int,
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> None:
-        await self._service(db).delete_award(award_id)
+        await service.delete_award(award_id)
 
 
 router = DynamicScoringController().router

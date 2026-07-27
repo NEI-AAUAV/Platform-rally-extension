@@ -11,6 +11,7 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin, get_db
 from app.core.exceptions import RallyNotFoundError
 from app.schemas.user import DetailedUser
+from app.services.deps import get_export_service
 from app.services.export_service import ExportService
 
 _XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -45,13 +46,14 @@ class ExportController:
         db: Annotated[AsyncSession, Depends(get_db)],
         _admin: Annotated[DetailedUser, Depends(get_admin)],
         _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[ExportService, Depends(get_export_service)],
     ) -> Response:
         """Return an .xlsx workbook of the event's results (admin/manager only)."""
         event = await crud.rally_event.get(db, event_id)
         if event is None:
             raise RallyNotFoundError("Event not found")
 
-        content = await ExportService(db).build_workbook(event_id)
+        content = await service.build_workbook(event_id)
         filename = f"{_safe_filename(event.name)}_results.xlsx"
         return Response(
             content=content,

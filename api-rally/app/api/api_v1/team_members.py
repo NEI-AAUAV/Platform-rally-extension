@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.abac_deps import (
@@ -16,6 +15,7 @@ from app.schemas.team_members import (
     TeamMemberUpdate,
 )
 from app.schemas.user import DetailedUser
+from app.services.deps import get_team_member_service
 from app.services.team_member_service import TeamMemberService
 
 
@@ -74,14 +74,14 @@ class TeamMembersController:
         self,
         team_id: int,
         member_data: TeamMemberAdd,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Add a member to a team."""
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        user = await TeamMemberService(db).add_member(
+        user = await service.add_member(
             team_id, member_data, is_privileged=deps.is_admin(auth.scopes)
         )
         return TeamMemberResponse(
@@ -93,9 +93,9 @@ class TeamMembersController:
         team_id: int,
         user_id: int,
         link_data: TeamMemberLink,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Link a name-only placeholder member to a real NEI (OIDC) account.
 
@@ -108,7 +108,6 @@ class TeamMembersController:
         """
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        service = TeamMemberService(db)
         team = await service.get_team_or_raise(team_id)
         placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
@@ -132,8 +131,8 @@ class TeamMembersController:
         self,
         team_id: int,
         user_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Self-serve variant of ``link_team_member``.
 
@@ -148,7 +147,6 @@ class TeamMembersController:
         must both belong to that team *and* have no ``authentik_sub`` yet
         (enforced below), so a caller can only ever claim an actually-open slot.
         """
-        service = TeamMemberService(db)
         team_obj = await service.get_team_or_raise(team_id)
         placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
@@ -172,14 +170,14 @@ class TeamMembersController:
         self,
         team_id: int,
         user_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> dict[str, str]:
         """Remove a member from a team."""
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        await TeamMemberService(db).remove_member(team_id, user_id)
+        await service.remove_member(team_id, user_id)
         return {"message": "Member removed from team successfully"}
 
     async def update_team_member(
@@ -187,14 +185,14 @@ class TeamMembersController:
         team_id: int,
         user_id: int,
         member_data: TeamMemberUpdate,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Update a team member's information."""
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        user = await TeamMemberService(db).update_member(team_id, user_id, member_data)
+        user = await service.update_member(team_id, user_id, member_data)
         return TeamMemberResponse(
             id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
         )
@@ -202,14 +200,14 @@ class TeamMembersController:
     async def get_team_members(
         self,
         team_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> list[TeamMemberResponse]:
         """Get all members of a team."""
         require_view_team_members_permission(auth=auth, curr_user=curr_user)
 
-        members = await TeamMemberService(db).list_members(team_id)
+        members = await service.list_members(team_id)
         return [
             TeamMemberResponse(
                 id=member.id,

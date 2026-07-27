@@ -11,10 +11,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_guide
+from app.api.deps import get_guide
 from app.schemas.user import DetailedUser
+from app.services.deps import get_guide_service
 from app.services.guide_service import GuideService
 
 
@@ -69,14 +69,14 @@ class GuideController:
 
     async def list_guide_checkpoints(
         self,
-        db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[DetailedUser, Depends(get_guide)],
+        service: Annotated[GuideService, Depends(get_guide_service)],
     ) -> list[GuideCheckpointResponse]:
         """Return all checkpoints with their media gallery for the current event.
 
         Ordered by checkpoint order. Guide role, staff, and admins can access this.
         """
-        checkpoints = await GuideService(db).list_checkpoints_with_gallery()
+        checkpoints = await service.list_checkpoints_with_gallery()
 
         return [
             GuideCheckpointResponse(
