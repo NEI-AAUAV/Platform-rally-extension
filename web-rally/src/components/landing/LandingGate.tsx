@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ShieldCheck, Users } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import type { Branding } from "@/lib/branding";
 
 interface LandingGateProps {
@@ -81,21 +82,22 @@ export default function LandingGate({
             <div className="rally-bg-accent mx-auto my-6 h-px w-16 opacity-70" />
 
             <div className="grid gap-3">
-              <button
+              <RallyButton
                 type="button"
+                variant="primary"
+                size="lg"
                 onClick={onStaffLogin}
-                className="rally-bg-accent rally-shadow-accent flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
+                className="rally-shadow-accent hover:-translate-y-0.5"
               >
                 <ShieldCheck className="h-4 w-4" />
                 Login Staff
-              </button>
-              <a
-                href={teamLoginHref}
-                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted px-6 py-3 font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-border"
-              >
-                <Users className="h-4 w-4" />
-                Login Equipa
-              </a>
+              </RallyButton>
+              <RallyButton asChild variant="outline" size="lg" className="hover:-translate-y-0.5">
+                <a href={teamLoginHref}>
+                  <Users className="h-4 w-4" />
+                  Login Equipa
+                </a>
+              </RallyButton>
             </div>
           </div>
         </div>

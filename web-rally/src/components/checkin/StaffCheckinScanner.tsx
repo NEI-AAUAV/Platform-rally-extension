@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera, QrCode, Check } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import { CheckinService, type StaffCheckinResponse } from "@/services/CheckinService";
 import { useAppToast } from "@/hooks/use-toast";
@@ -113,15 +114,16 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
         equipa mostra o código em <span className="font-semibold text-foreground">Progresso</span>.
       </p>
 
-      <button
+      <RallyButton
         type="button"
+        variant="primary"
+        size="lg"
         onClick={() => setOpen(true)}
         disabled={isPending}
-        className="rally-bg-accent inline-flex items-center gap-2 rounded-[12px] px-5 py-3 text-[15px] font-bold text-white disabled:opacity-60"
       >
         <Camera className="h-5 w-5" />
         {isPending ? "A identificar..." : "Ler QR da equipa"}
-      </button>
+      </RallyButton>
 
       {recent.length > 0 && (
         <ul className="mt-4 space-y-2">

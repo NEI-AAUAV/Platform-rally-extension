@@ -9,6 +9,7 @@ import useEventTerms from "@/hooks/useEventTerms";
 import { getCheckpoints, getTeams, type ListingTeam, type RallySettingsResponse } from "@/client";
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
+import { RallyButton } from "@/components/themes/rally";
 import { useCountdown } from "@/pages/home/useCountdown";
 import React from "react";
 
@@ -204,12 +205,9 @@ export default function Scoreboard() {
                   <p className="mt-3 font-bold leading-snug text-foreground">
                     Entra com a tua equipa para veres a tua posição e progresso ao vivo.
                   </p>
-                  <Link
-                    to="/team-login"
-                    className="rally-bg-accent mt-4 block w-full rounded-[12px] py-3 text-center text-sm font-bold text-white"
-                  >
-                    Entrar com a Equipa
-                  </Link>
+                  <RallyButton asChild variant="primary" size="lg" className="mt-4 w-full">
+                    <Link to="/team-login">Entrar com a Equipa</Link>
+                  </RallyButton>
                 </div>
               </div>
             )}
@@ -259,12 +257,9 @@ export default function Scoreboard() {
                           No pódio! Mantém a posição.
                         </p>
                       )}
-                      <Link
-                        to="/team-progress"
-                        className="rally-bg-accent mt-4 block w-full rounded-[12px] py-3 text-center text-sm font-bold text-white"
-                      >
-                        Ver progresso
-                      </Link>
+                      <RallyButton asChild variant="primary" size="lg" className="mt-4 w-full">
+                        <Link to="/team-progress">Ver progresso</Link>
+                      </RallyButton>
                     </div>
                   </div>
                 );

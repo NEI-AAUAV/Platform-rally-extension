@@ -1,4 +1,5 @@
 import { Trophy, Crown, CalendarDays, ShieldCheck, LogIn } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import { PageHeader, LoadingState } from "@/components/shared";
 import { useUserStore } from "@/stores/useUserStore";
 import useStaffLogin from "@/hooks/useLoginLink";
@@ -99,14 +100,16 @@ export default function Profile() {
           <p className="mt-2 text-sm text-muted-foreground">
             O perfil mostra os rallys em que participaste. Entra com a tua conta NEI.
           </p>
-          <button
+          <RallyButton
             type="button"
+            variant="primary"
+            size="lg"
             onClick={() => onStaffLogin()}
-            className="rally-bg-accent rally-press mx-auto mt-5 flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white"
+            className="mx-auto mt-5"
           >
             <LogIn className="h-4 w-4" />
             Login NEI
-          </button>
+          </RallyButton>
         </div>
       </div>
     );

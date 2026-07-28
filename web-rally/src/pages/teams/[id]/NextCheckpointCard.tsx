@@ -1,4 +1,5 @@
 import { Target, MapPin, Navigation } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import type { DetailedTeam, DetailedCheckPoint, RallySettingsResponse } from "@/client";
 
 type NextCheckpointCardProps = Readonly<{
@@ -46,15 +47,16 @@ export function NextCheckpointCard({
                       {nextCheckpoint.latitude?.toFixed(6)}, {nextCheckpoint.longitude?.toFixed(6)}
                     </span>
                   </div>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rally-bg-accent rally-press inline-flex items-center gap-2 rounded-lg px-4 py-2.5 font-semibold text-white"
-                  >
-                    <Navigation className="h-4 w-4" />
-                    Abrir no Google Maps
-                  </a>
+                  <RallyButton asChild variant="primary" size="md">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Navigation className="h-4 w-4" />
+                      Abrir no Google Maps
+                    </a>
+                  </RallyButton>
                 </div>
               )}
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
+import { RallyButton } from "@/components/themes/rally";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { LogIn, Loader2, Camera, ShieldCheck } from "lucide-react";
@@ -149,9 +150,10 @@ export default function TeamLogin() {
               )}
 
               <div className="flex gap-2">
-                <Button
+                <RallyButton
                   type="submit"
-                  className="rally-bg-accent rally-press h-12 flex-1 text-lg font-bold text-white"
+                  variant="primary"
+                  className="h-12 flex-1 text-lg font-bold"
                   disabled={isLoggingIn || !accessCode.trim()}
                 >
                   {isLoggingIn ? (
@@ -164,7 +166,7 @@ export default function TeamLogin() {
                       <LogIn className="h-5 w-5" />
                     </span>
                   )}
-                </Button>
+                </RallyButton>
 
                 <Button
                   type="button"

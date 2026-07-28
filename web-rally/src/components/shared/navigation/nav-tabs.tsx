@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useRef } from "react";
@@ -308,17 +309,19 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
                   <UserPlus className="h-4 w-4" />
                   Registar
                 </button>
-                <button
+                <RallyButton
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
                     onStaffLogin({ mode: "login" });
                   }}
-                  className="rally-bg-accent flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90"
+                  className="w-full rounded-md px-3 py-2.5 text-xs font-bold uppercase tracking-wider"
                 >
                   <LogIn className="h-4 w-4" />
                   Iniciar sessão
-                </button>
+                </RallyButton>
                 <Link
                   to="/team-login"
                   onClick={() => setIsMobileMenuOpen(false)}

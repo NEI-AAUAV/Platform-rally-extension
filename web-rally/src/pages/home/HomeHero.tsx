@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Trophy, Users } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import type { Branding } from "@/lib/branding";
 import type { RallySettingsResponse } from "@/client";
 import { useCountdown, type CountdownState } from "./useCountdown";
@@ -140,20 +141,18 @@ export function HomeHero({ branding, settings }: HomeHeroProps) {
           transition={{ delay: 0.5, duration: 0.55, ease: EASE }}
           className="flex flex-wrap items-center justify-center gap-3"
         >
-          <Link
-            to="/team-login"
-            className="rally-bg-accent rally-press inline-flex items-center gap-2 rounded-[14px] px-7 py-3.5 text-[15px] font-bold text-white"
-          >
-            <Users className="h-4 w-4" />
-            Entrar com a Equipa
-          </Link>
-          <Link
-            to="/scoreboard"
-            className="rally-press inline-flex items-center gap-2 rounded-[14px] border border-border bg-card px-7 py-3.5 text-[15px] font-bold text-foreground transition-colors hover:bg-muted/50"
-          >
-            <Trophy className="h-4 w-4" />
-            Ver Pontuação
-          </Link>
+          <RallyButton asChild variant="primary" size="xl">
+            <Link to="/team-login">
+              <Users className="h-4 w-4" />
+              Entrar com a Equipa
+            </Link>
+          </RallyButton>
+          <RallyButton asChild variant="outline" size="xl">
+            <Link to="/scoreboard">
+              <Trophy className="h-4 w-4" />
+              Ver Pontuação
+            </Link>
+          </RallyButton>
         </motion.div>
       </div>
     </section>

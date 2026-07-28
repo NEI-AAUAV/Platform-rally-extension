@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Crown, LogIn, Search } from "lucide-react";
+import { RallyButton } from "@/components/themes/rally";
 import { ProfileService } from "@/services/ProfileService";
 import type { ClaimableMember } from "@/types/profile";
 
@@ -64,14 +65,10 @@ export default function JoinTeamCard() {
           className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[color:var(--rally-accent,theme(colors.primary.DEFAULT))]"
           aria-label="Código da equipa"
         />
-        <button
-          type="submit"
-          disabled={trimmed.length === 0}
-          className="rally-bg-accent rally-press flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
+        <RallyButton type="submit" variant="primary" size="md" disabled={trimmed.length === 0}>
           <Search className="h-4 w-4" />
           Procurar
-        </button>
+        </RallyButton>
       </form>
 
       {claimable.isError && (
