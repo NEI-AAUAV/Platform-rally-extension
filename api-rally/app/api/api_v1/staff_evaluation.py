@@ -428,10 +428,11 @@ class StaffEvaluationController:
         # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
         try:
             await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
-        except Exception as e:
-            logger.error(
-                f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}",
-                exc_info=True,
+        except Exception:
+            # loguru's `.error(..., exc_info=True)` does NOT attach a
+            # traceback (exc_info is stdlib-only); `.exception()` does.
+            logger.exception(
+                f"Failed to mirror versus result for team {team_id}, activity {activity_id}"
             )
             # Don't fail the evaluation if mirroring fails - it's a side effect
 
@@ -439,8 +440,8 @@ class StaffEvaluationController:
         try:
             logger.debug(f"Checking if team {team_id} can advance after activity {activity_id}")
             await check_and_advance_team(db, team_id, activity_obj)
-        except Exception as e:
-            logger.error(f"Failed to check/advance team: {str(e)}", exc_info=True)
+        except Exception:
+            logger.exception(f"Failed to check/advance team {team_id}")
             # Don't fail the evaluation if advancement fails - advancement is a side effect
 
         response = ActivityResultResponse.model_validate(db_result)
@@ -538,10 +539,9 @@ class StaffEvaluationController:
         try:
             if activity_obj:
                 await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
-        except Exception as e:
-            logger.error(
-                f"Failed to mirror versus result for team {team_id}, activity {activity_id}: {e}",
-                exc_info=True,
+        except Exception:
+            logger.exception(
+                f"Failed to mirror versus result for team {team_id}, activity {activity_id}"
             )
 
         return ActivityResultResponse.model_validate(db_result)

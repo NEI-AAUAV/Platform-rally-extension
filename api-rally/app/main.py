@@ -14,7 +14,7 @@ from loguru import logger
 from app.api.api import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import RallyError
-from app.core.logging import init_logging
+from app.core.logging import bind_request_context, init_logging
 from app.core.observability import init_sentry
 from app.core.redis import check_redis_health, close_pools
 from app.db.init_db import init_db
@@ -129,18 +129,19 @@ async def request_id_and_timing(request: Request, call_next):  # type: ignore[no
     """
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     start = time.perf_counter()
-    response = await call_next(request)
-    elapsed_ms = (time.perf_counter() - start) * 1000
-    response.headers["X-Request-ID"] = request_id
-    response.headers["X-Process-Time-ms"] = f"{elapsed_ms:.1f}"
-    logger.info(
-        "{method} {path} {status} {dur:.1f}ms rid={rid}",
-        method=request.method,
-        path=request.url.path,
-        status=response.status_code,
-        dur=elapsed_ms,
-        rid=request_id,
-    )
+    with bind_request_context(request_id=request_id):
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Process-Time-ms"] = f"{elapsed_ms:.1f}"
+        logger.info(
+            "{method} {path} {status} {dur:.1f}ms rid={rid}",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            dur=elapsed_ms,
+            rid=request_id,
+        )
     return response
 
 

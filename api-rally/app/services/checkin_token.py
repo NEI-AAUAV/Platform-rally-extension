@@ -75,14 +75,18 @@ def verify_checkin_token(token: str, *, now: int | None = None) -> CheckinClaims
         issued_at = int(issued_str)
     except ValueError as exc:
         # Covers bad base64, bad unicode, wrong field count and non-int fields.
+        logger.warning("Check-in token rejected: malformed")
         raise CheckinTokenError("Malformed check-in token") from exc
 
     if not hmac.compare_digest(_sign(message), signature):
+        logger.warning("Check-in token rejected: bad signature for checkpoint=%s", checkpoint_id)
         raise CheckinTokenError("Invalid check-in token signature")
 
     if issued_at > current + _CLOCK_SKEW_SECONDS:
+        logger.warning("Check-in token rejected: not yet valid for checkpoint=%s", checkpoint_id)
         raise CheckinTokenError("Check-in token is not yet valid")
     if current - issued_at > settings.CHECKIN_TOKEN_TTL_SECONDS:
+        logger.warning("Check-in token rejected: expired for checkpoint=%s", checkpoint_id)
         raise CheckinTokenError("Check-in token has expired")
 
     return CheckinClaims(checkpoint_id=checkpoint_id, issued_at=issued_at, nonce=_nonce)

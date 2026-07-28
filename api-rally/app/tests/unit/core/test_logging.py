@@ -86,6 +86,27 @@ class TestInitLogging:
         init_logging()
 
         assert stray_logger.handlers == []
+        # uvicorn's own handlers are cleared too; it now inherits the root
+        # handler via propagation instead of holding its own copy.
         uvicorn_logger = logging.getLogger("uvicorn")
-        assert len(uvicorn_logger.handlers) == 1
-        assert isinstance(uvicorn_logger.handlers[0], InterceptHandler)
+        assert uvicorn_logger.handlers == []
+
+    def test_init_logging_installs_intercept_handler_on_root(self) -> None:
+        """Every `logging.getLogger(__name__)` call site (workers, event
+        publisher, rate limiter, ...) propagates to root. Before this fix the
+        root logger had no handler, so their INFO/DEBUG logs were silently
+        dropped and WARNING+ fell through to `logging.lastResort` with no
+        loguru formatting/sink."""
+        init_logging()
+
+        assert len(logging.root.handlers) == 1
+        assert isinstance(logging.root.handlers[0], InterceptHandler)
+
+    def test_init_logging_bridges_arbitrary_module_logger(self) -> None:
+        """A stdlib logger unrelated to uvicorn must still reach loguru."""
+        init_logging()
+
+        module_logger = logging.getLogger("app.workers.base")
+        # No exception means it propagated through the root InterceptHandler
+        # into loguru's configured sink.
+        module_logger.info("worker started")

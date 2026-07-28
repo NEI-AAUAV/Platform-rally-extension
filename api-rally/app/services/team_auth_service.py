@@ -5,6 +5,7 @@ functions. Kept as module-level free functions here too (not a class) so the
 existing direct-import call sites (tests, deps) keep working unchanged.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,6 +19,8 @@ from app.crud.crud_activity import activity_result as activity_result_crud
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.team_auth import TeamTokenData
+
+logger = logging.getLogger(__name__)
 
 
 def create_team_access_token(team_id: int, team_name: str, orig_iat: int | None = None) -> str:
@@ -53,10 +56,12 @@ def decode_team_token(token: str) -> dict[str, Any]:
         token_type = payload.get("type")
 
         if team_id is None or team_name is None or token_type != "team_access":
+            logger.warning("Team token rejected: missing/invalid claims")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
         return payload
     except JWTError as exc:
+        logger.warning("Team token rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
         ) from exc
@@ -83,11 +88,13 @@ def refresh_team_access_token(token: str) -> dict[str, Any]:
 
     max_lifetime_hours = settings.TEAM_TOKEN_MAX_LIFETIME_HOURS
     if max_lifetime_hours > 0 and now - orig_iat > max_lifetime_hours * 3600:
+        logger.info("Team %s session expired at refresh (absolute lifetime)", payload["team_id"])
         raise RallyUnauthorizedError("Session expired, please log in again")
 
     new_access_token = create_team_access_token(
         team_id=payload["team_id"], team_name=payload["team_name"], orig_iat=orig_iat
     )
+    logger.info("Team %s token refreshed", payload["team_id"])
     return {
         "access_token": new_access_token,
         "team_id": payload["team_id"],

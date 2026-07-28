@@ -57,6 +57,7 @@ def test_scrub_removes_sensitive_headers() -> None:
                 "Authorization": "Bearer secret",
                 "Cookie": "session=abc",
                 "X-Request-ID": "trace-1",
+                "X-Api-Key": "sk-1",
                 "User-Agent": "pytest",
             }
         }
@@ -65,10 +66,34 @@ def test_scrub_removes_sensitive_headers() -> None:
     headers = scrubbed["request"]["headers"]
     assert headers["Authorization"] == "[scrubbed]"
     assert headers["Cookie"] == "[scrubbed]"
-    assert headers["X-Request-ID"] == "[scrubbed]"
+    assert headers["X-Api-Key"] == "[scrubbed]"
+    # X-Request-ID is a correlation ID, not a credential — it must survive so
+    # a Sentry event can be tied back to a backend log line.
+    assert headers["X-Request-ID"] == "trace-1"
     # Non-sensitive headers pass through untouched.
     assert headers["User-Agent"] == "pytest"
 
 
 def test_scrub_handles_missing_headers() -> None:
     assert observability._scrub_sensitive({}, {}) == {}
+
+
+def test_scrub_redacts_access_code_query_string() -> None:
+    event = {"request": {"query_string": "access_code=SECRET123&other=1"}}
+    scrubbed = observability._scrub_sensitive(event, {})
+    query_string = scrubbed["request"]["query_string"]
+    assert "SECRET123" not in query_string
+    assert "access_code=[scrubbed]" in query_string
+    assert "other=1" in query_string
+
+
+def test_scrub_strips_access_code_from_url() -> None:
+    event = {"request": {"url": "https://rally.example/api/rally/v1/profile/claimable?access_code=SECRET123"}}
+    scrubbed = observability._scrub_sensitive(event, {})
+    assert "SECRET123" not in scrubbed["request"]["url"]
+
+
+def test_scrub_leaves_non_sensitive_query_string_untouched() -> None:
+    event = {"request": {"query_string": "team_id=1"}}
+    scrubbed = observability._scrub_sensitive(event, {})
+    assert scrubbed["request"]["query_string"] == "team_id=1"

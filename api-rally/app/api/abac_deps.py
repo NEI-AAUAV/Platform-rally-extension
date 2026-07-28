@@ -81,10 +81,9 @@ async def get_staff_with_checkpoint_access(
     - Rally manager (full access)
     - Rally staff with assigned checkpoint
     """
-    # Log authentication data for debugging
-    logger.info(
-        f"get_staff_with_checkpoint_access: auth.oidc_sub={auth.oidc_sub}, scopes={auth.scopes}"
-    )
+    # DEBUG only, and never the oidc_sub — this dependency runs on every
+    # staff request and oidc_sub is PII, not an operational signal.
+    logger.debug(f"get_staff_with_checkpoint_access: user_id={curr_user.id}, scopes={auth.scopes}")
 
     # Check if user has any Rally permissions
     has_rally_access = any(
@@ -99,7 +98,7 @@ async def get_staff_with_checkpoint_access(
     # For staff users, ensure they have a checkpoint assignment
     if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
         if not curr_user.staff_checkpoint_id:
-            logger.info(f"Checking staff assignment for user_id={curr_user.id}")
+            logger.debug(f"Checking staff assignment for user_id={curr_user.id}")
             staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
             if not staff_assignment or not staff_assignment.checkpoint_id:
                 logger.warning(f"No staff assignment found for user_id={curr_user.id}")
@@ -109,13 +108,10 @@ async def get_staff_with_checkpoint_access(
                 )
             # Add checkpoint_id to user for easy access
             curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-            logger.info(
+            logger.debug(
                 f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}"
             )
 
-    logger.info(
-        f"Returning DetailedUser: id={curr_user.id}, staff_checkpoint_id={curr_user.staff_checkpoint_id}"
-    )
     return curr_user
 
 

@@ -5,6 +5,8 @@ Configure handlers and formats for application loggers."""
 import logging
 import sys
 import typing
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pprint import pformat
 from types import FrameType
 from typing import Any
@@ -96,13 +98,25 @@ def init_logging() -> None:
     )
     for uvicorn_logger in loggers:
         uvicorn_logger.handlers = []
+    logging.getLogger("uvicorn").handlers = []
 
-    # change handler for default uvicorn logger
+    # Install the intercept handler on the root logger (not just "uvicorn").
+    # Every stdlib `logging.getLogger(__name__)` call site in the app —
+    # workers, event publisher, rate limiter, badge evaluators, scoring
+    # service, leaderboard cache, check-in — propagates to root. Without this,
+    # those modules log against a handler-less root logger at level WARNING:
+    # all INFO/DEBUG is silently dropped and WARNING+ falls through to
+    # `logging.lastResort` with no timestamp, level, or module name.
     intercept_handler = InterceptHandler()
-    logging.getLogger("uvicorn").handlers = [intercept_handler]
-
-    # set logs output, level and format
+    logging.root.handlers = [intercept_handler]
     level_log = logging.INFO if settings.PRODUCTION else logging.DEBUG
+    logging.root.setLevel(level_log)
+
+    # Silence known-noisy third-party loggers now that they all route through
+    # the root handler instead of being dropped by default.
+    for noisy in ("uvicorn.access", "httpx", "botocore", "boto3", "asyncio"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     logger.configure(
         handlers=[
             typing.cast(
@@ -111,3 +125,15 @@ def init_logging() -> None:
             )
         ]
     )
+
+
+@contextmanager
+def bind_request_context(**kwargs: Any) -> Iterator[None]:
+    """Bind fields (e.g. request_id) onto every loguru record emitted within.
+
+    Thin wrapper around ``logger.contextualize`` so call sites don't need to
+    import loguru directly. Also covers stdlib ``logging`` call sites bridged
+    by ``InterceptHandler``, since they route through the same loguru core.
+    """
+    with logger.contextualize(**kwargs):
+        yield

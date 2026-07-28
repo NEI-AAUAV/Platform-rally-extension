@@ -52,6 +52,15 @@ async def _enforce(key: str, limit: int, window_seconds: int) -> None:
                 # re-arm so the block cannot last forever.
                 await client.expire(key, window_seconds)
                 ttl = window_seconds
+            # Log the prefix, not the full key — for the login-code counter
+            # the key already carries only a truncated hash, but keep the
+            # prefix-only convention uniform across all rate-limited keys.
+            logger.warning(
+                "Rate limit exceeded for %s (attempt %d/%d)",
+                key.rsplit(":", 1)[0],
+                attempts,
+                limit,
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests, try again later",

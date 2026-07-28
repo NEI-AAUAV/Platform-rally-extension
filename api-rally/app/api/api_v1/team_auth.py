@@ -1,10 +1,11 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.api import deps
-from app.api.rate_limit import check_login_rate_limit, rate_limit
+from app.api.rate_limit import check_login_rate_limit, rate_limit, resolve_client_ip
 from app.core.config import SettingsDep, settings
 from app.core.exceptions import RallyUnauthorizedError
 from app.crud.crud_team import CRUDTeam
@@ -19,6 +20,8 @@ from app.services.team_auth_service import (
     refresh_team_access_token,
     verify_team_token,
 )
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
@@ -78,9 +81,13 @@ class TeamAuthController:
 
         team = await team_crud.get_by_access_code(db, access_code=login_data.access_code)
         if not team:
+            # Never log the submitted access code — only the resolved client IP.
+            ip = resolve_client_ip(request, settings)
+            logger.warning("Team login failed: invalid access code from ip=%s", ip)
             raise RallyUnauthorizedError("Invalid access code")
 
         access_token = create_team_access_token(team_id=team.id, team_name=team.name)
+        logger.info("Team %s (%s) logged in", team.id, team.name)
         return TeamLoginResponse(access_token=access_token, team_id=team.id, team_name=team.name)
 
     def verify_token(
