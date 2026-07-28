@@ -98,7 +98,7 @@ export default function RealMap({ checkpoints, selectedCheckpoint, onSelect }: R
     [checkpoints],
   );
 
-  const center = coords[0]?.pos ?? ([40.2056, -8.4196] as [number, number]); // Coimbra fallback
+  const center = coords[0]?.pos ?? ([40.6304, -8.6574] as [number, number]); // UA Campus de Santiago
   const accent = useMemo(resolveAccent, []);
 
   return (
