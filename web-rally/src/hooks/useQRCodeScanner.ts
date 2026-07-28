@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
+import { logger } from "@/lib/logger";
 
 /**
  * Custom hook for QR code scanning
@@ -47,7 +48,7 @@ export function useQRCodeScanner(
       // Continue scanning
       scanIntervalRef.current = globalThis.requestAnimationFrame(scan);
     } catch (err) {
-      console.error("Scanning error:", err);
+      logger.error("Scanning error", err);
       setError("Erro ao processar câmara");
     }
   }, [videoRef, canvasRef, isActive, onDetectCode]);

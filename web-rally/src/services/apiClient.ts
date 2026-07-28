@@ -15,12 +15,16 @@ function extractMessage(body: unknown): string {
 export class ApiError extends Error {
   status: number;
   body: unknown;
+  /** Server's X-Request-ID for this failed request, when present — ties a
+   * browser error report back to a backend log line. */
+  requestId?: string;
 
-  constructor(status: number, body: unknown) {
+  constructor(status: number, body: unknown, requestId?: string) {
     super(extractMessage(body));
     this.name = "ApiError";
     this.status = status;
     this.body = body;
+    this.requestId = requestId;
   }
 }
 
@@ -34,9 +38,14 @@ client.interceptors.request.use(async (request) => {
   if (token) {
     request.headers.set("Authorization", `Bearer ${token}`);
   }
+  request.headers.set("X-Request-ID", crypto.randomUUID());
   return request;
 });
 
 client.interceptors.error.use((error, response) => {
-  return new ApiError(response?.status ?? 0, error);
+  return new ApiError(
+    response?.status ?? 0,
+    error,
+    response?.headers.get("X-Request-ID") ?? undefined,
+  );
 });

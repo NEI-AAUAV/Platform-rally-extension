@@ -12,6 +12,7 @@ import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider } from "@/components/theme";
 import { initSentry } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 import { registerSW } from "virtual:pwa-register";
 
 // Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
@@ -27,11 +28,26 @@ void refreshTeamToken();
  * re-authenticate. Only staff sessions redirect — team 401s are not handled
  * here (a team session has no IdP to bounce through). Centralised on the query
  * cache so the single generated client drives this, with no per-call wiring.
+ *
+ * Also the single choke point for reporting API failures: 5xx and network
+ * errors are captured (they're unexpected); 4xx are left unreported as
+ * expected validation noise, except 401/403 which become breadcrumbs so
+ * they show up as context on a later captured error.
  */
 function handleApiError(error: unknown): void {
   const isStaff = Boolean(useUserStore.getState().token);
   if (isStaff && error instanceof ApiError && error.status === 401) {
     notifyUnauthorized();
+  }
+
+  if (!(error instanceof ApiError)) {
+    logger.error("Network error", error);
+    return;
+  }
+  if (error.status === 0 || error.status >= 500) {
+    logger.error("API request failed", error, { status: error.status, requestId: error.requestId });
+  } else if (error.status === 401 || error.status === 403) {
+    logger.warn("API auth error", { status: error.status, requestId: error.requestId });
   }
 }
 

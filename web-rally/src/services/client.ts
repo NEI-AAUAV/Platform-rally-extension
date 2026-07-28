@@ -1,4 +1,5 @@
 import { getTeamToken, setTeamToken, clearTeamAuth } from "@/lib/auth/tokenStore";
+import { logger } from "@/lib/logger";
 
 /**
  * HTTP auth glue for the generated OpenAPI client.
@@ -52,9 +53,7 @@ export async function refreshTeamToken(): Promise<string | undefined> {
       headers: { Authorization: `Bearer ${teamToken}` },
     });
     if (!response.ok) {
-      if (process.env.NODE_ENV === "development") {
-        console.error(`Team token refresh failed: ${response.status}`);
-      }
+      logger.warn("Team token refresh failed", { status: response.status });
       clearTeamAuth();
       return undefined;
     }
@@ -62,9 +61,7 @@ export async function refreshTeamToken(): Promise<string | undefined> {
     setTeamToken(access_token);
     return access_token;
   } catch (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Team token refresh failed:", error);
-    }
+    logger.warn("Team token refresh failed", { error: String(error) });
     clearTeamAuth();
     return undefined;
   }

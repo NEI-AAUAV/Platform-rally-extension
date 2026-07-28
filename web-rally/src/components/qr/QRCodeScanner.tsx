@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
+import { logger } from "@/lib/logger";
 
 type QRCodeScannerProps = Readonly<{
   onScan: (data: string) => void;
@@ -64,7 +65,7 @@ export default function QRCodeScanner({
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play().catch((err) => {
-              console.error("Error playing video:", err);
+              logger.error("Error playing video", err);
               setCameraError("Erro ao iniciar câmara");
             });
             // Start scanning after video is ready
@@ -82,7 +83,7 @@ export default function QRCodeScanner({
         } else {
           setCameraError("Não foi possível aceder à câmara. Tente novamente.");
         }
-        console.error("Camera error:", err);
+        logger.error("Camera error", err);
       }
     };
 

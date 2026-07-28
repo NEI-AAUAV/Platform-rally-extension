@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { getTeamOpponent, getTeams } from "@/client";
+import { logger } from "@/lib/logger";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
 import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
@@ -30,7 +31,10 @@ async function fetchPreselectedOpponent(
       return { id: opponent.opponent_id, name: opponent.opponent_name || "" };
     }
   } catch (error) {
-    console.warn("Failed to fetch preselected opponent, falling back to manual selection", error);
+    logger.warn("Failed to fetch preselected opponent, falling back to manual selection", {
+      teamId,
+      error: String(error),
+    });
   }
   return null;
 }

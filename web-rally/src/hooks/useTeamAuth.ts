@@ -8,6 +8,7 @@ import {
   type DetailedTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
+import { setSentryUser, clearSentryUser } from "@/lib/sentry";
 import {
   getTeamToken,
   setTeamToken,
@@ -43,6 +44,7 @@ export default function useTeamAuth() {
     if (token && data) {
       setCurrentTeamData(data);
       setIsAuthenticated(true);
+      setSentryUser(data.team_id);
     } else if (token && hasTeamData()) {
       // Token present and a data entry exists but is corrupt — clear stale storage.
       clearTeamAuth();
@@ -89,6 +91,7 @@ export default function useTeamAuth() {
 
       setCurrentTeamData(teamTokenData);
       setIsAuthenticated(true);
+      setSentryUser(data.team_id);
     },
   });
 
@@ -127,6 +130,7 @@ export default function useTeamAuth() {
     clearTeamAuth();
     setIsAuthenticated(false);
     setCurrentTeamData(null);
+    clearSentryUser();
     void queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 

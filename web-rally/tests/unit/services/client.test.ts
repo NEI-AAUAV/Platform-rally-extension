@@ -4,101 +4,100 @@
  * module only owns the explicit team-token refresh (via fetch) and the staff
  * 401 handler. Staff auth is owned by react-oidc-context.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: {
     getState: () => ({ token: null as string | null }),
   },
-}))
+}));
 
-vi.mock('@/config', () => ({
+vi.mock("@/config", () => ({
   default: {
-    BASE_URL: 'http://localhost:8000',
+    BASE_URL: "http://localhost:8000",
   },
-}))
+}));
 
-describe('client.ts', () => {
+const loggerMock = vi.hoisted(() => ({ warn: vi.fn() }));
+vi.mock("@/lib/logger", () => ({ logger: loggerMock }));
+
+describe("client.ts", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    localStorage.clear()
-  })
+    vi.clearAllMocks();
+    loggerMock.warn.mockClear();
+    localStorage.clear();
+  });
 
   afterEach(() => {
-    localStorage.clear()
-    vi.unstubAllGlobals()
-  })
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
 
-  describe('refreshTeamToken', () => {
-    it('refreshes via the team-auth endpoint when a team token exists', async () => {
-      localStorage.setItem('rally_team_token', 'team-jwt')
+  describe("refreshTeamToken", () => {
+    it("refreshes via the team-auth endpoint when a team token exists", async () => {
+      localStorage.setItem("rally_team_token", "team-jwt");
 
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ access_token: 'new-team-token' }),
-      })
-      vi.stubGlobal('fetch', fetchMock)
+        json: async () => ({ access_token: "new-team-token" }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
 
-      const { refreshTeamToken } = await import('@/services/client')
-      const result = await refreshTeamToken()
+      const { refreshTeamToken } = await import("@/services/client");
+      const result = await refreshTeamToken();
 
-      expect(result).toBe('new-team-token')
+      expect(result).toBe("new-team-token");
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/rally/v1/team-auth/refresh',
+        "/api/rally/v1/team-auth/refresh",
         expect.objectContaining({
-          method: 'POST',
-          headers: { Authorization: 'Bearer team-jwt' },
+          method: "POST",
+          headers: { Authorization: "Bearer team-jwt" },
         }),
-      )
-      expect(localStorage.getItem('rally_team_token')).toBe('new-team-token')
-    })
+      );
+      expect(localStorage.getItem("rally_team_token")).toBe("new-team-token");
+    });
 
-    it('clears team tokens when the refresh fails', async () => {
-      localStorage.setItem('rally_team_token', 'expired-team-jwt')
-      localStorage.setItem('rally_team_data', '{"team_id":1}')
+    it("clears team tokens when the refresh fails", async () => {
+      localStorage.setItem("rally_team_token", "expired-team-jwt");
+      localStorage.setItem("rally_team_data", '{"team_id":1}');
 
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
 
-      const { refreshTeamToken } = await import('@/services/client')
-      const result = await refreshTeamToken()
+      const { refreshTeamToken } = await import("@/services/client");
+      const result = await refreshTeamToken();
 
-      expect(result).toBeUndefined()
-      expect(localStorage.getItem('rally_team_token')).toBeNull()
-      expect(localStorage.getItem('rally_team_data')).toBeNull()
-    })
+      expect(result).toBeUndefined();
+      expect(localStorage.getItem("rally_team_token")).toBeNull();
+      expect(localStorage.getItem("rally_team_data")).toBeNull();
+    });
 
-    it('returns undefined when there is no team token', async () => {
-      const { refreshTeamToken } = await import('@/services/client')
-      const result = await refreshTeamToken()
-      expect(result).toBeUndefined()
-    })
+    it("returns undefined when there is no team token", async () => {
+      const { refreshTeamToken } = await import("@/services/client");
+      const result = await refreshTeamToken();
+      expect(result).toBeUndefined();
+    });
 
-    it('logs the status in development mode when refresh fails', async () => {
-      const originalEnv = process.env.NODE_ENV
-      process.env.NODE_ENV = 'development'
-      localStorage.setItem('rally_team_token', 'expired-team-jwt')
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+    it("logs a warning with the status when refresh fails", async () => {
+      localStorage.setItem("rally_team_token", "expired-team-jwt");
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
 
-      const { refreshTeamToken } = await import('@/services/client')
-      await refreshTeamToken()
+      const { refreshTeamToken } = await import("@/services/client");
+      await refreshTeamToken();
 
-      expect(consoleSpy).toHaveBeenCalledWith('Team token refresh failed: 401')
-      consoleSpy.mockRestore()
-      process.env.NODE_ENV = originalEnv
-    })
-  })
+      expect(loggerMock.warn).toHaveBeenCalledWith("Team token refresh failed", { status: 401 });
+    });
+  });
 
-  describe('setOnUnauthorized / notifyUnauthorized', () => {
-    it('invokes the registered handler on notify', async () => {
-      const { setOnUnauthorized, notifyUnauthorized } = await import('@/services/client')
-      const handler = vi.fn()
-      setOnUnauthorized(handler)
-      notifyUnauthorized()
-      expect(handler).toHaveBeenCalledOnce()
-      setOnUnauthorized(null)
-      notifyUnauthorized()
-      expect(handler).toHaveBeenCalledOnce()
-    })
-  })
-})
+  describe("setOnUnauthorized / notifyUnauthorized", () => {
+    it("invokes the registered handler on notify", async () => {
+      const { setOnUnauthorized, notifyUnauthorized } = await import("@/services/client");
+      const handler = vi.fn();
+      setOnUnauthorized(handler);
+      notifyUnauthorized();
+      expect(handler).toHaveBeenCalledOnce();
+      setOnUnauthorized(null);
+      notifyUnauthorized();
+      expect(handler).toHaveBeenCalledOnce();
+    });
+  });
+});

@@ -14,6 +14,7 @@ import {
   type ListingTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
+import { logger } from "@/lib/logger";
 import { enqueue } from "@/offline/evalQueue";
 import type { ActivityResultData } from "@/types/forms";
 import { useUserStore } from "@/stores/useUserStore";
@@ -344,8 +345,11 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         // already handle ({ detail }).
         if (error instanceof ApiError) {
           if (error.status === 422) {
-            console.error("Validation error:", (error.body as { detail?: unknown })?.detail);
-            console.error("Request payload:", resultData);
+            logger.error("Evaluation validation error", error, {
+              detail: JSON.stringify((error.body as { detail?: unknown })?.detail),
+              teamId,
+              activityId,
+            });
           }
           throw error.body ?? { detail: error.message };
         }
