@@ -16,7 +16,7 @@ function MainLayoutContent() {
   // The skin's themeName still drives the accent fallback (data-rally-theme)
   // until every page is migrated off the dual-skin system; the surface itself
   // now uses the dual light/dark design tokens, not the skin background.
-  const { themeName } = useTheme();
+  const { themeName, buttonStyle } = useTheme();
 
   const { sub, sessionLoading } = useUserStore((state) => state);
   const onStaffLogin = useStaffLogin();
@@ -49,7 +49,7 @@ function MainLayoutContent() {
     return (
       <div
         className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased"
-        data-rally-theme={themeName}
+        data-rally-theme={themeName} data-rally-buttons={buttonStyle}
       >
         <div className="relative z-10">
           <LandingGate branding={branding} onStaffLogin={onStaffLogin} />
@@ -63,7 +63,7 @@ function MainLayoutContent() {
     return (
       <div
         className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased"
-        data-rally-theme={themeName}
+        data-rally-theme={themeName} data-rally-buttons={buttonStyle}
       >
         <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4">
           <span className="rally-border-accent h-10 w-10 animate-spin rounded-full border-2 border-border border-t-current" />
@@ -78,7 +78,7 @@ function MainLayoutContent() {
   return (
     <div
       className="rally-grain flex min-h-screen flex-col bg-background font-inter text-foreground antialiased"
-      data-rally-theme={themeName}
+      data-rally-theme={themeName} data-rally-buttons={buttonStyle}
     >
       {/* Ambient accent atmosphere — fixed, behind all content. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">

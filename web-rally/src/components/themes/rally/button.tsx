@@ -1,32 +1,44 @@
 import { type ComponentProps } from "react";
-import { Button } from "../../ui/button";
+import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 import { type VariantProps } from "class-variance-authority";
 import { rallyButtonVariants } from "./button.variants";
-import RallyBlood from "./blood";
 
 type RallyButtonProps = VariantProps<typeof rallyButtonVariants> &
-  Omit<ComponentProps<typeof Button>, "variant" | "size"> & {
-    /** Renders the blood-drip accent; visible only on the bloody theme (via [data-rally-theme] CSS). */
+  ComponentProps<"button"> & {
+    /** Render as the single child element (e.g. a router <Link>) instead of a <button>. */
+    readonly asChild?: boolean;
+    /** Force the blood-drip on/off. Defaults on for filled variants; the drip
+     * only shows when the button axis is "blood" (via [data-rally-buttons] CSS). */
     readonly blood?: boolean;
   };
 
-const BLOOD_VARIANT_BY_BUTTON_VARIANT: Record<string, "primary" | "neutral" | "default"> = {
-  primary: "primary",
-  neutral: "neutral",
-};
-
-/** Accent-driven themed button; grows a blood drip on the bloody theme. */
-function RallyButton({ className, variant, blood, children, ...props }: RallyButtonProps) {
-  const bloodVariant = BLOOD_VARIANT_BY_BUTTON_VARIANT[variant ?? ""] ?? "default";
+/**
+ * The app's canonical action button. Renders a <button>, or — with `asChild` —
+ * any single element (e.g. a router <Link>), so navigation CTAs use the same
+ * primitive and pick up variants, sizes, and the theme's button-style axis.
+ */
+function RallyButton({
+  className,
+  variant,
+  size,
+  blood,
+  asChild = false,
+  children,
+  ...props
+}: RallyButtonProps) {
+  const Comp = asChild ? Slot : "button";
+  // Blood is drawn by CSS on the filled action variants (default/primary) only,
+  // and only under [data-rally-buttons="blood"]; secondary/outline stay clean.
+  // An explicit `blood` prop overrides.
+  const showBlood = blood ?? (variant == null || variant === "default" || variant === "primary");
   return (
-    <Button
-      className={cn(rallyButtonVariants({ variant }), blood && "rally-blood-button", className)}
+    <Comp
+      className={cn(rallyButtonVariants({ variant, size }), showBlood && "rally-blood-button", className)}
       {...props}
     >
       {children}
-      {blood && <RallyBlood className="rally-blood-drip" variant={bloodVariant} />}
-    </Button>
+    </Comp>
   );
 }
 

@@ -147,22 +147,37 @@
     box-shadow: 0 18px 48px -18px var(--rally-accent, var(--rally-accent-fallback));
   }
 
-  /* --- Bloody theme: drippy blood-soaked buttons --- */
-  .rally-blood-drip {
-    display: none;
-  }
-  [data-rally-theme="bloody"] .rally-blood-button {
+  /* --- Blood button style: an even row of drips along the bottom edge ---
+     Reusable + composable: add `.rally-blood-button` to ANY button or link and
+     it grows blood drips when the button axis is "blood" (data-rally-buttons),
+     independent of the colour theme. No shape morph — the button keeps its
+     radius; a repeating masked pseudo-element hangs evenly-spaced rounded drops
+     off the bottom, tinted with the per-event accent, so it reads as the button
+     dripping on any colour. */
+  .rally-blood-button {
     position: relative;
-    overflow: visible;
-    border-radius: 0.75rem 0.75rem 40% 40% / 0.75rem 0.75rem 65% 65%;
   }
-  [data-rally-theme="bloody"] .rally-blood-drip {
-    display: block;
+  [data-rally-buttons="blood"] .rally-blood-button {
+    overflow: visible;
+  }
+  [data-rally-buttons="blood"] .rally-blood-button::after {
+    content: "";
     position: absolute;
-    left: 50%;
-    bottom: -4px;
-    transform: translateX(-50%);
+    right: 10px;
+    bottom: -22px;
+    width: 52px;
+    height: 34px;
     pointer-events: none;
+    color: var(--rally-accent, var(--rally-accent-fallback));
+    /* A connecting bar at the top (overlaps the button) + three elongated drop
+       blobs at different depths; #rally-goo melts them into smooth liquid drips
+       that stay attached to the button edge. */
+    filter: url(#rally-goo);
+    background:
+      linear-gradient(currentColor, currentColor) top center / 100% 12px no-repeat,
+      radial-gradient(6px 13px at 18% 42%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(7px 19px at 50% 55%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
   }
 
   /* --- Soft-depth surfaces (the rally design language) --- */

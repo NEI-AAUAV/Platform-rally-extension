@@ -4,10 +4,14 @@ import { createContext, useContext, useState, useEffect, useMemo, type ReactNode
 import { getThemeComponents, type ThemeName, type ThemeComponents } from "@/components";
 import useRallySettings from "@/hooks/useRallySettings";
 
+type ButtonStyle = "plain" | "blood";
+
 interface ThemeContextType {
   themeName: ThemeName;
   setTheme: (theme: ThemeName) => void;
   components: ThemeComponents;
+  /** Visual-identity button axis, applied via data-rally-buttons on the shell. */
+  buttonStyle: ButtonStyle;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,7 +22,8 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { settings } = useRallySettings();
-  const [themeName, setThemeName] = useState<ThemeName>("bloody");
+  const [themeName, setThemeName] = useState<ThemeName>("nei");
+  const buttonStyle: ButtonStyle = settings?.button_style === "blood" ? "blood" : "plain";
 
   // Update theme based on rally settings
   useEffect(() => {
@@ -45,11 +50,32 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       themeName,
       setTheme,
       components,
+      buttonStyle,
     }),
-    [themeName, components],
+    [themeName, components, buttonStyle],
   );
 
-  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={contextValue}>
+      {/* Gooey filter: merges the blurred blob-gradients of the blood button
+          drips into smooth, organic liquid (see .rally-blood-button::after). */}
+      <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+        <defs>
+          <filter id="rally-goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
+              result="goo"
+            />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextType {

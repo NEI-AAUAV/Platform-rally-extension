@@ -13,10 +13,30 @@ import {
   uploadRallyFavicon,
   type RallySettingsResponse,
   type RallySettingsUpdate,
+  type VisualPreset,
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { LoadingState } from "@/components/shared";
+import { cn } from "@/lib/utils";
+
+type ButtonStyle = "plain" | "blood";
+
+// Quick-pick accent colours for the Colour axis (custom hex still available).
+const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "NEI Verde", value: "#008542" },
+  { label: "Rally Vermelho", value: "#dc2625" },
+  { label: "Laranja", value: "#ff7800" },
+  { label: "Azul", value: "#2563eb" },
+  { label: "Roxo", value: "#7c3aed" },
+  { label: "Rosa", value: "#db2777" },
+];
+
+// Button axis options.
+const BUTTON_STYLE_OPTIONS: ReadonlyArray<{ value: ButtonStyle; label: string; hint: string }> = [
+  { value: "plain", label: "Simples", hint: "Botões limpos com a cor de destaque" },
+  { value: "blood", label: "Sangue", hint: "Gota de sangue nos botões principais" },
+];
 
 type UploadFn = (file: File) => Promise<RallySettingsResponse>;
 
@@ -136,12 +156,16 @@ export default function BrandingSettings() {
   const [eventName, setEventName] = useState("");
   const [eventSubtitle, setEventSubtitle] = useState("");
   const [accentColor, setAccentColor] = useState("");
+  const [buttonStyle, setButtonStyle] = useState<ButtonStyle>("plain");
+  const [visualPresets, setVisualPresets] = useState<VisualPreset[]>([]);
 
   useEffect(() => {
     if (!settings) return;
     setEventName(settings.event_name ?? "");
     setEventSubtitle(settings.event_subtitle ?? "");
     setAccentColor(settings.accent_color ?? "");
+    setButtonStyle(settings.button_style === "blood" ? "blood" : "plain");
+    setVisualPresets(settings.visual_presets ?? []);
   }, [settings]);
 
   const invalidateBranding = () => {
@@ -149,16 +173,20 @@ export default function BrandingSettings() {
     void queryClient.invalidateQueries({ queryKey: ["rallySettings-public"] });
   };
 
-  const { mutate: save, isPending: isSaving } = useMutation({
-    mutationFn: async () => {
+  const { mutate: persist, isPending: isSaving } = useMutation({
+    // Echo the full config back with only the identity fields changed, so the
+    // single settings PUT never drops other values. `overrides` lets callers
+    // (apply/save-preset) persist a value that hasn't settled into state yet.
+    mutationFn: async (overrides: Partial<RallySettingsUpdate> = {}) => {
       if (!settings) throw new Error("Settings not loaded");
-      // Echo the full config back with only the branding text fields changed,
-      // so the single settings PUT never drops other values.
       const payload: RallySettingsUpdate = {
         ...settings,
         event_name: eventName,
         event_subtitle: eventSubtitle,
         accent_color: accentColor,
+        button_style: buttonStyle,
+        visual_presets: visualPresets,
+        ...overrides,
       };
       return (await updateRallySettings({ body: payload })).data;
     },
@@ -170,6 +198,35 @@ export default function BrandingSettings() {
       toast.error(getErrorMessage(error, "Erro ao guardar identidade visual"));
     },
   });
+
+  // Apply a saved preset's axis values live (and persist immediately).
+  const applyPreset = (preset: VisualPreset) => {
+    const style: ButtonStyle = preset.button_style === "blood" ? "blood" : "plain";
+    setAccentColor(preset.accent_color ?? "");
+    setButtonStyle(style);
+    persist({ accent_color: preset.accent_color ?? "", button_style: style });
+  };
+
+  // Snapshot the current axis mix as a new named preset.
+  const saveAsPreset = () => {
+    const name = globalThis.prompt("Nome do preset?")?.trim();
+    if (!name) return;
+    const preset: VisualPreset = {
+      id: globalThis.crypto.randomUUID(),
+      name,
+      accent_color: accentColor,
+      button_style: buttonStyle,
+    };
+    const next = [...visualPresets, preset];
+    setVisualPresets(next);
+    persist({ visual_presets: next });
+  };
+
+  const removePreset = (id: string) => {
+    const next = visualPresets.filter((p) => p.id !== id);
+    setVisualPresets(next);
+    persist({ visual_presets: next });
+  };
 
   if (isLoading) return <LoadingState message="A carregar identidade visual..." />;
 
@@ -230,16 +287,113 @@ export default function BrandingSettings() {
               className="h-10 w-11 cursor-pointer rounded-lg border border-border bg-transparent"
             />
           </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {COLOR_PRESETS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setAccentColor(c.value)}
+                title={c.label}
+                aria-label={c.label}
+                className={cn(
+                  "h-8 w-8 rounded-full border-2 transition",
+                  accentColor.toLowerCase() === c.value.toLowerCase()
+                    ? "border-foreground ring-2 ring-foreground/30"
+                    : "border-border hover:scale-110",
+                )}
+                style={{ backgroundColor: c.value }}
+              />
+            ))}
+          </div>
           <p className="text-xs text-muted-foreground">
             Define o destaque de toda a aplicação (botões, barras, realces).
           </p>
         </div>
 
+        {/* Button axis */}
+        <div className="space-y-2">
+          <Label>Estilo dos botões</Label>
+          <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+            {BUTTON_STYLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setButtonStyle(opt.value)}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  buttonStyle === opt.value
+                    ? "border-foreground bg-muted ring-2 ring-foreground/20"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                <span className="block text-sm font-semibold">{opt.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex justify-end">
-          <Button type="button" onClick={() => save()} disabled={isSaving || !settings}>
+          <Button type="button" onClick={() => persist({})} disabled={isSaving || !settings}>
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? "A guardar..." : "Guardar identidade"}
           </Button>
+        </div>
+
+        {/* Saved identity presets */}
+        <div className="space-y-3 rounded-xl border border-border bg-muted p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Presets guardados
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={saveAsPreset}
+              disabled={isSaving || !settings}
+            >
+              Guardar mistura atual
+            </Button>
+          </div>
+          {visualPresets.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Escolhe uma cor e um estilo de botões e guarda a mistura como preset para reutilizar.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {visualPresets.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className="flex items-center gap-2"
+                    title={`Aplicar ${p.name}`}
+                  >
+                    <span
+                      className="h-5 w-5 rounded-full border border-border"
+                      style={{ backgroundColor: p.accent_color || "#888888" }}
+                    />
+                    <span className="text-xs font-medium">{p.name}</span>
+                    <span className="text-[10px] uppercase text-muted-foreground">
+                      {p.button_style === "blood" ? "sangue" : "simples"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removePreset(p.id)}
+                    aria-label={`Remover ${p.name}`}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-muted p-4">
