@@ -116,7 +116,7 @@ class CheckpointMediaController:
     ) -> CheckpointMediaResponse:
         db_obj = await crud_media.get(db, id=media_id)
         if not db_obj:
-            raise HTTPException(status_code=404, detail="Media not found")
+            raise HTTPException(status_code=404, detail=MEDIA_NOT_FOUND)
         image_url = await CheckpointMediaService.upload_image_if_provided(
             image, checkpoint_id=db_obj.checkpoint_id
         )
@@ -129,7 +129,7 @@ class CheckpointMediaController:
     ) -> None:
         db_obj = await crud_media.get(db, id=media_id)
         if not db_obj:
-            raise HTTPException(status_code=404, detail="Media not found")
+            raise HTTPException(status_code=404, detail=MEDIA_NOT_FOUND)
         await crud_media.delete(db, db_obj=db_obj)
 
     async def reorder_checkpoint_media(
