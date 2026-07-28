@@ -23,7 +23,7 @@ async def _set_settings(pg_session, **overrides):
 
 
 async def _make_team(pg_session, name="Test Team"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 class TestTeamMembersAPI:

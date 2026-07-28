@@ -6,6 +6,7 @@ circular imports.
 """
 
 from app import crud
+from app.crud.crud_activity import CRUDActivity, CRUDActivityResult
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
 
@@ -16,3 +17,11 @@ def get_team_crud() -> CRUDTeam:
 
 def get_checkpoint_crud() -> CRUDCheckPoint:
     return crud.checkpoint
+
+
+def get_activity_crud() -> CRUDActivity:
+    return crud.activity
+
+
+def get_activity_result_crud() -> CRUDActivityResult:
+    return crud.activity_result

@@ -64,7 +64,7 @@ class TestRallyDurationAPI:
 
     async def test_get_team_rally_duration_no_times(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NoTimes"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NoTimes"), commit=True)
 
         resp = pg_client.get(f"/api/rally/v1/rally/team-duration/{team.id}")
 

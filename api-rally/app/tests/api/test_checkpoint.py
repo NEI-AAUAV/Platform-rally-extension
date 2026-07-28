@@ -9,6 +9,7 @@ async def _make_checkpoint(pg_session, order: int = 1):
     return await crud_checkpoint.create(
         pg_session,
         obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order),
+        commit=True,
     )
 
 
@@ -125,7 +126,7 @@ class TestNextCheckpoint:
 
         await _make_event(pg_session)
         await _make_checkpoint(pg_session, order=1)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NextTeam"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NextTeam"), commit=True)
 
         with as_team(team.id, "NextTeam"):
             response = pg_client.get("/api/rally/v1/checkpoint/me")
@@ -146,7 +147,7 @@ class TestNextCheckpoint:
 
         await _make_event(pg_session)
         await _make_checkpoint(pg_session, order=1)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="LinkedTeam"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="LinkedTeam"), commit=True)
 
         user = DetailedUser(id=99, name="Linked", disabled=False, team_id=team.id, scopes=[])
         auth_data = _fake_auth_data(scopes=[])

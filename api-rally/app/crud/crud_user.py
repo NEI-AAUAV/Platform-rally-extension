@@ -15,11 +15,11 @@ _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-    async def create(self, db: AsyncSession, *, obj_in: UserCreate, commit: bool = True) -> User:
+    async def create(self, db: AsyncSession, *, obj_in: UserCreate, commit: bool = False) -> User:
         """
         Override default create to keep consistent error handling.
         """
-        return await self._create_internal(db, obj_in=obj_in)
+        return await self._create_internal(db, obj_in=obj_in, commit=commit)
 
     async def get_by_authentik_sub(self, db: AsyncSession, *, authentik_sub: str) -> User | None:
         """Look up a staff/manager/admin user by their OIDC subject."""
@@ -119,12 +119,16 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         db: AsyncSession,
         *,
         obj_in: UserCreate,
+        commit: bool = False,
     ) -> User:
         try:
             obj_in_data = jsonable_encoder(obj_in)
             db_obj = self.model(**obj_in_data)
             db.add(db_obj)
-            await db.commit()
+            if commit:
+                await db.commit()
+            else:
+                await db.flush()
             await db.refresh(db_obj)
             return db_obj
         except IntegrityError as e:

@@ -205,7 +205,7 @@ class CheckpointController:
         if existing_checkpoint:
             raise RallyValidationError(f"Checkpoint with order {cp_in.order} already exists")
 
-        cp = await crud.checkpoint.create(db=db, obj_in=cp_in)
+        cp = await crud.checkpoint.create(db=db, obj_in=cp_in, commit=True)
         return DetailedCheckPoint.model_validate(cp)
 
     async def reorder_checkpoints(

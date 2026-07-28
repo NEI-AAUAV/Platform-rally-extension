@@ -109,8 +109,7 @@ class ProfileService:
             )
 
         # Move the team membership onto the caller, drop the placeholder.
-        me.team_id = member.team_id
-        me.is_captain = bool(member.is_captain)
+        me.link_to_team(team_id=member.team_id, is_captain=bool(member.is_captain))
         self._db.add(me)
         await self._db.delete(member)
         await self._db.flush()

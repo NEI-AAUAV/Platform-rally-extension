@@ -15,7 +15,7 @@ def _png_upload() -> dict:
 
 
 async def _make_team(pg_session, name="T"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 def _captain_override(app, team_id: int):

@@ -21,7 +21,7 @@ def _png_bytes() -> bytes:
 
 async def _make_checkpoint(pg_session, order=1):
     return await crud_checkpoint.create(
-        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order), commit=True
     )
 
 

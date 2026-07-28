@@ -52,7 +52,11 @@ class TeamController:
             "/me", self.get_own_team, methods=["GET"], status_code=200, name="get_own_team"
         )
         self.router.add_api_route(
-            _TEAM_ID_PATH, self.get_team_by_id, methods=["GET"], status_code=200, name="get_team_by_id"
+            _TEAM_ID_PATH,
+            self.get_team_by_id,
+            methods=["GET"],
+            status_code=200,
+            name="get_team_by_id",
         )
         self.router.add_api_route(
             f"{_TEAM_ID_PATH}/checkpoint",
@@ -168,7 +172,7 @@ class TeamController:
         # Enforce ABAC permission for team creation
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
-        team_db = await team_crud.create(db=db, obj_in=team_in)
+        team_db = await team_crud.create(db=db, obj_in=team_in, commit=True)
         return await service.build_detailed_team(team_db)
 
     async def update_team(
@@ -181,7 +185,7 @@ class TeamController:
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> DetailedTeam:
-        team_db = await team_crud.update(db=db, id=id, obj_in=team_in)
+        team_db = await team_crud.update(db=db, id=id, obj_in=team_in, commit=True)
         return await service.build_detailed_team(team_db)
 
     async def upload_team_photo(

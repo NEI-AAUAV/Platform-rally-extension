@@ -8,7 +8,7 @@ from app.tests.conftest import make_event as _make_event
 
 
 async def _make_team(pg_session, name="Os Bons"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 async def _make_placeholder(pg_session, team_id, name="João", is_captain=False):

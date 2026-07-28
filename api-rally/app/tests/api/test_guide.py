@@ -33,7 +33,7 @@ async def _set_guide_mode(pg_session, *, enabled: bool, active: bool):
 
 async def _make_checkpoint(pg_session, order=1):
     return await crud_checkpoint.create(
-        pg_session, obj_in=CheckPointCreate(name=f"Posto {order}", order=order)
+        pg_session, obj_in=CheckPointCreate(name=f"Posto {order}", order=order), commit=True
     )
 
 

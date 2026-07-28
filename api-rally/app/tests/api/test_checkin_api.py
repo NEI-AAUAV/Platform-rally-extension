@@ -46,12 +46,12 @@ async def _activate_rally(pg_session, event):
 
 
 async def _make_team(pg_session, name="Alpha"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 async def _make_checkpoint(pg_session, order=1):
     return await crud_checkpoint.create(
-        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order), commit=True
     )
 
 

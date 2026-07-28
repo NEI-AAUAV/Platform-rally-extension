@@ -23,6 +23,7 @@ async def _make_checkpoint(pg_session, order, lat=41.0, lon=-8.0):
         obj_in=CheckPointCreate(
             name=f"Checkpoint {order}", order=order, latitude=lat, longitude=lon
         ),
+        commit=True,
     )
 
 
@@ -45,7 +46,7 @@ async def _set_show_route_mode(pg_session, mode: str):
 
 
 async def _make_team(pg_session):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
 
 
 def _arrive(pg_client, checkpoint, lat, lon):

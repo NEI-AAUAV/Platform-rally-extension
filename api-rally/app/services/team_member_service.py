@@ -76,7 +76,7 @@ class TeamMemberService:
             team_id=team_id,
             is_captain=member_data.is_captain,
         )
-        return await crud.user.create(self._db, obj_in=user_data)
+        return await crud.user.create(self._db, obj_in=user_data, commit=True)
 
     async def update_member(
         self, team_id: int, user_id: int, member_data: TeamMemberUpdate
@@ -89,12 +89,7 @@ class TeamMemberService:
         ):
             raise RallyValidationError("Team already has a captain. Remove current captain first.")
 
-        if member_data.name is not None:
-            user.name = member_data.name
-        if member_data.email is not None:
-            user.email = member_data.email
-        if member_data.is_captain is not None:
-            user.is_captain = member_data.is_captain
+        user.apply_update(member_data)
 
         await self._db.commit()
         await self._db.refresh(user)
@@ -102,7 +97,7 @@ class TeamMemberService:
 
     async def remove_member(self, team_id: int, user_id: int) -> None:
         user = await self.get_team_member_or_raise(team_id, user_id)
-        user.team_id = None
+        user.leave_team()
         await self._db.commit()
 
     async def list_members(self, team_id: int) -> list[User]:
@@ -139,8 +134,7 @@ class TeamMemberService:
         if target.team_id is not None:
             raise RallyValidationError("Target account is already on a team")
 
-        target.team_id = placeholder.team_id
-        target.is_captain = bool(placeholder.is_captain)
+        target.link_to_team(team_id=placeholder.team_id, is_captain=bool(placeholder.is_captain))
         self._db.add(target)
         await self._db.delete(placeholder)
         await self._db.flush()

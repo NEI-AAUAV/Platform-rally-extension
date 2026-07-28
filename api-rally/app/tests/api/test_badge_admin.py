@@ -37,7 +37,7 @@ async def _make_definition(pg_session, code="test_badge", active=True):
 
 
 async def _make_team(pg_session):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
 
 
 class TestKillSwitch:

@@ -36,9 +36,15 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
 from app.crud import current_event_id
-from app.crud.crud_activity import activity, activity_result
-from app.crud.crud_checkpoint import checkpoint
-from app.crud.crud_team import team
+from app.crud.crud_activity import CRUDActivity, CRUDActivityResult
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import (
+    get_activity_crud,
+    get_activity_result_crud,
+    get_checkpoint_crud,
+    get_team_crud,
+)
 from app.models.activity import Activity, ActivityResult
 from app.models.evaluation_history import EvaluationHistory
 from app.models.team import Team
@@ -150,6 +156,7 @@ class StaffEvaluationController:
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        checkpoint_crud: Annotated[CRUDCheckPoint, Depends(get_checkpoint_crud)],
     ) -> DetailedCheckPoint:
         """Get the checkpoint assigned to the current staff member"""
         if not current_user.staff_checkpoint_id:
@@ -158,7 +165,7 @@ class StaffEvaluationController:
         # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
         # rather than returning None, so this branch is unreachable in practice;
         # kept as a defensive guard.
-        checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
+        checkpoint_obj = await checkpoint_crud.get(db, id=current_user.staff_checkpoint_id)
         if not checkpoint_obj:
             raise RallyNotFoundError("Assigned checkpoint not found")
 
@@ -170,6 +177,7 @@ class StaffEvaluationController:
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        checkpoint_crud: Annotated[CRUDCheckPoint, Depends(get_checkpoint_crud)],
     ) -> list[dict[str, Any]]:
         """Get all teams at the staff member's assigned checkpoint"""
         if not current_user.staff_checkpoint_id:
@@ -179,7 +187,7 @@ class StaffEvaluationController:
         # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
         # rather than returning None, so this branch is unreachable in practice;
         # kept as a defensive guard.
-        checkpoint_obj = await checkpoint.get(db, id=current_user.staff_checkpoint_id)
+        checkpoint_obj = await checkpoint_crud.get(db, id=current_user.staff_checkpoint_id)
         if not checkpoint_obj:
             raise RallyNotFoundError("Assigned checkpoint not found")
         staff_checkpoint_order = checkpoint_obj.order
@@ -204,7 +212,12 @@ class StaffEvaluationController:
         ]
 
     async def _resolve_admin_checkpoint_id(
-        self, db: AsyncSession, team_checkpoint_number: int
+        self,
+        db: AsyncSession,
+        team_checkpoint_number: int,
+        *,
+        checkpoint_crud: CRUDCheckPoint,
+        activity_crud: CRUDActivity,
     ) -> int:
         """Resolve the checkpoint an admin/manager should see activities for.
 
@@ -226,11 +239,13 @@ class StaffEvaluationController:
         advanced past it, and fall back one order to show what was just
         evaluated instead of an empty list.
         """
-        checkpoint_obj = await checkpoint.get_by_order(db, order=max(team_checkpoint_number, 1))
+        checkpoint_obj = await checkpoint_crud.get_by_order(
+            db, order=max(team_checkpoint_number, 1)
+        )
         resolved_checkpoint_id = checkpoint_obj.id if checkpoint_obj else None
 
         checkpoint_activities_preview = (
-            await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
+            await activity_crud.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
             if resolved_checkpoint_id is not None
             else []
         )
@@ -239,7 +254,7 @@ class StaffEvaluationController:
         # checkpoint in this event (e.g. a single-checkpoint event), so fall back
         # one order to show what was just evaluated instead of 404ing.
         if (not checkpoint_obj or not checkpoint_activities_preview) and team_checkpoint_number > 1:
-            previous_checkpoint = await checkpoint.get_by_order(
+            previous_checkpoint = await checkpoint_crud.get_by_order(
                 db, order=team_checkpoint_number - 1
             )
             if previous_checkpoint:
@@ -257,6 +272,9 @@ class StaffEvaluationController:
         team_id: int,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        checkpoint_crud: Annotated[CRUDCheckPoint, Depends(get_checkpoint_crud)],
+        activity_crud: Annotated[CRUDActivity, Depends(get_activity_crud)],
+        activity_result_crud: Annotated[CRUDActivityResult, Depends(get_activity_result_crud)],
     ) -> dict[str, Any]:
         """Get activities for a specific team that can be evaluated by this staff member"""
         # Load team with members
@@ -273,7 +291,10 @@ class StaffEvaluationController:
         # checkpoint from its progress instead of requiring a staff assignment.
         if is_admin_or_manager(auth):
             resolved_checkpoint_id = await self._resolve_admin_checkpoint_id(
-                db, team_checkpoint_number
+                db,
+                team_checkpoint_number,
+                checkpoint_crud=checkpoint_crud,
+                activity_crud=activity_crud,
             )
         else:
             if not current_user.staff_checkpoint_id:
@@ -285,10 +306,10 @@ class StaffEvaluationController:
         )
 
         # Always show activities for the resolved checkpoint
-        activities = await activity.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
+        activities = await activity_crud.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
 
         # Get existing results for this team
-        existing_results = await activity_result.get_by_team(db, team_id=team_id)
+        existing_results = await activity_result_crud.get_by_team(db, team_id=team_id)
         result_map = {result.activity_id: result for result in existing_results}
 
         total_activities = len(activities)
@@ -440,6 +461,8 @@ class StaffEvaluationController:
         activity_id: int,
         current_user: DetailedUser,
         is_manager: bool,
+        activity_crud: CRUDActivity,
+        team_crud: CRUDTeam,
     ) -> tuple[Any, Team]:
         """Resolve+authorize the activity/team pair for an evaluation update.
 
@@ -454,7 +477,7 @@ class StaffEvaluationController:
         if not is_manager and not current_user.staff_checkpoint_id:
             raise RallyForbiddenError(NO_CHECKPOINT_ASSIGNED)
 
-        activity_obj = await activity.get(db, id=activity_id)
+        activity_obj = await activity_crud.get(db, id=activity_id)
         if not is_manager and (
             not activity_obj or activity_obj.checkpoint_id != current_user.staff_checkpoint_id
         ):
@@ -463,7 +486,7 @@ class StaffEvaluationController:
         # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
         # rather than returning None, so this branch is unreachable in practice;
         # kept as a defensive guard.
-        team_obj = await team.get(db, id=team_id)
+        team_obj = await team_crud.get(db, id=team_id)
         if not team_obj:
             raise RallyNotFoundError(TEAM_NOT_FOUND)
 
@@ -479,6 +502,9 @@ class StaffEvaluationController:
         result_in: ActivityResultUpdate,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        activity_crud: Annotated[CRUDActivity, Depends(get_activity_crud)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
+        activity_result_crud: Annotated[CRUDActivityResult, Depends(get_activity_result_crud)],
     ) -> ActivityResultResponse:
         """Update a team's activity evaluation"""
         # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
@@ -495,10 +521,12 @@ class StaffEvaluationController:
             activity_id=activity_id,
             current_user=current_user,
             is_manager=is_manager,
+            activity_crud=activity_crud,
+            team_crud=team_crud,
         )
 
         # Get the result
-        db_result = await activity_result.get(db, id=result_id)
+        db_result = await activity_result_crud.get(db, id=result_id)
         if not db_result or db_result.activity_id != activity_id or db_result.team_id != team_id:
             raise RallyNotFoundError("Activity result not found")
 
@@ -525,6 +553,7 @@ class StaffEvaluationController:
         result_id: int,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        activity_result_crud: Annotated[CRUDActivityResult, Depends(get_activity_result_crud)],
     ) -> list[EvaluationHistoryEntry]:
         """Audit trail for a single result: every edit and contest, newest first.
 
@@ -540,7 +569,7 @@ class StaffEvaluationController:
         if not is_admin_or_manager(auth):
             raise RallyForbiddenError("Only managers can view evaluation history")
 
-        db_result = await activity_result.get(db, id=result_id)
+        db_result = await activity_result_crud.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError("Activity result not found")
 
@@ -560,6 +589,7 @@ class StaffEvaluationController:
         team_id: Annotated[int | None, Query()] = None,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> dict[str, Any]:
         """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
         # Check if user has rally permissions
@@ -597,7 +627,7 @@ class StaffEvaluationController:
             stmt = stmt.where(ActivityResult.team_id == team_id)
         elif checkpoint_id:
             # Get teams at specific checkpoint
-            teams = await team.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+            teams = await team_crud.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
             team_ids = [t.id for t in teams]
 
             # Get results for these teams

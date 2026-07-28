@@ -22,7 +22,7 @@ async def _make_event(pg_session):
 
 
 async def _make_team(pg_session, name="Os Bons"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 class TestProfileMe:
@@ -152,7 +152,9 @@ class TestClaimMembership:
         )
 
     async def test_claim_membership_not_on_team(self, pg_session, pg_client, as_admin):
-        placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="NoTeam"))
+        placeholder = await crud_user.create(
+            pg_session, obj_in=UserCreate(name="NoTeam"), commit=True
+        )
 
         resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder.id}")
 

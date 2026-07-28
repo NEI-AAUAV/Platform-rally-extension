@@ -13,7 +13,7 @@ from app.schemas.team import TeamCreate
 
 
 async def _make_team(pg_session, name="Test Team"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ class TestContestEvaluation:
         from app.schemas.checkpoint import CheckPointCreate
 
         checkpoint = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
         )
         team = await _make_team(pg_session, "Contester")
         act = await crud_activity.create(

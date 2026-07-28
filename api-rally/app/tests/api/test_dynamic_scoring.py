@@ -19,7 +19,7 @@ async def _reread_team(pg_session, team_id: int) -> Team:
 
 
 async def _make_team(pg_session, name="Team A"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 # ---------- DynamicRule ----------

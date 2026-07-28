@@ -43,11 +43,12 @@ async def _make_checkpoint(pg_session, order=1, lat=41.0, lon=-8.0, radius=50):
             longitude=lon,
             arrival_radius_m=radius,
         ),
+        commit=True,
     )
 
 
 async def _make_team(pg_session):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
 
 
 async def _make_activity(pg_session, checkpoint_id, is_active=True):

@@ -35,7 +35,7 @@ async def _make_definition(pg_session, code: str, active=True):
 async def test_list_all_badges(pg_session, pg_client):
     await _make_event(pg_session)
     await _set_badges_enabled(pg_session, True)
-    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
     await badge_service.award_badge(
         pg_session, team_id=team.id, badge_code="head_to_head_win", activity_id=99
     )
@@ -53,8 +53,8 @@ async def test_list_all_badges(pg_session, pg_client):
 async def test_list_team_badges(pg_session, pg_client):
     await _make_event(pg_session)
     await _set_badges_enabled(pg_session, True)
-    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
-    other = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamB"))
+    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
+    other = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamB"), commit=True)
     await badge_service.award_badge(
         pg_session, team_id=team.id, badge_code="first_to_complete_activity", activity_id=5
     )
@@ -73,7 +73,7 @@ async def test_list_team_badges(pg_session, pg_client):
 async def test_team_badge_showcase(pg_session, pg_client):
     await _make_event(pg_session)
     await _set_badges_enabled(pg_session, True)
-    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
     await _make_definition(pg_session, "won_duel")
     await _make_definition(pg_session, "locked_one")
     await badge_service.award_badge(
@@ -95,7 +95,7 @@ class TestKillSwitch:
     async def test_list_all_badges_empty_when_disabled(self, pg_session, pg_client):
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
         await badge_service.award_badge(
             pg_session, team_id=team.id, badge_code="won_duel", activity_id=1
         )
@@ -108,7 +108,7 @@ class TestKillSwitch:
     async def test_list_team_badges_empty_when_disabled(self, pg_session, pg_client):
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
         await badge_service.award_badge(
             pg_session, team_id=team.id, badge_code="won_duel", activity_id=1
         )
@@ -121,7 +121,7 @@ class TestKillSwitch:
     async def test_showcase_empty_when_disabled(self, pg_session, pg_client):
         await _make_event(pg_session)
         await _set_badges_enabled(pg_session, False)
-        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
         await _make_definition(pg_session, "won_duel")
 
         resp = pg_client.get(f"/api/rally/v1/teams/{team.id}/badge-showcase")

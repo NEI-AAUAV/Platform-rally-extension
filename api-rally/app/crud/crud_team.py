@@ -132,7 +132,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         await TeamService(db, self).update_classification()
 
-    async def create(self, db: AsyncSession, *, obj_in: TeamCreate, commit: bool = True) -> Team:
+    async def create(self, db: AsyncSession, *, obj_in: TeamCreate, commit: bool = False) -> Team:
         settings = await rally_settings.get_or_create(db)
         event_id = await current_event_id(db)
         # Count teams in the current event only, so max_teams is per-edition.
@@ -151,9 +151,14 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         team = self.model(**obj_in_data)
 
+        # Flushed (not committed) here regardless of the caller's commit=
+        # intent: a duplicate access_code/name is only detectable once
+        # Postgres evaluates the unique constraints, and the retry logic
+        # below depends on that failing atomically within its own savepoint
+        # rather than the caller's outer transaction.
         try:
             db.add(team)
-            await db.commit()
+            await db.flush()
         except IntegrityError as e:
             await db.rollback()
 
@@ -168,16 +173,20 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         # Only update classification if there are existing teams
         # This prevents errors when creating the first team
         try:
-            await self.update_classification(db=db)
+            await self.update_classification_unlocked(db=db)
         except Exception as e:
             # Log the error but don't fail team creation
             logger.warning(f"Failed to update classification during team creation: {e}")
 
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(team)
         return team
 
     async def update(
-        self, db: AsyncSession, *, id: int, obj_in: TeamUpdate, commit: bool = True
+        self, db: AsyncSession, *, id: int, obj_in: TeamUpdate, commit: bool = False
     ) -> Team:
         async with db.begin_nested():
             team = await self.get(db=db, id=id, for_update=True)
@@ -199,9 +208,13 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                     last_size = size
 
             team = super().update_unlocked(db_obj=team, obj_in=obj_in)
-        await db.commit()
 
-        await self.update_classification(db=db)
+        await self.update_classification_unlocked(db=db)
+
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(team)
         return team
 

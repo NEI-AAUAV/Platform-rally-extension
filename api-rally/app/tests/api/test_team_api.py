@@ -14,7 +14,7 @@ from app.tests.conftest import make_event as _make_event
 
 
 async def _make_team(pg_session, name="Test Team"):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 class TestGetTeams:
@@ -88,8 +88,12 @@ class TestGetTeamById:
         """
 
         await _make_event(pg_session)
-        cp1 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP1", order=1))
-        cp2 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP2", order=2))
+        cp1 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
+        )
+        cp2 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP2", order=2), commit=True
+        )
         team = await _make_team(pg_session, "Progressing")
         activity1 = await crud_activity.create(
             pg_session,
@@ -164,7 +168,9 @@ class TestGetTeamById:
         from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
-        cp1 = await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="CP1", order=1))
+        cp1 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
+        )
         team = await _make_team(pg_session, "PartiallyDone")
         activity1 = await crud_activity.create(
             pg_session,
@@ -200,7 +206,7 @@ class TestAddCheckpoint:
 
         await _make_event(pg_session)
         checkpoint = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
         )
         team = await _make_team(pg_session, "Racing")
 
@@ -409,7 +415,7 @@ class TestGetTeamEvaluations:
 
         await _make_event(pg_session)
         checkpoint = await crud_checkpoint.create(
-            pg_session, obj_in=CheckPointCreate(name="CP1", order=1)
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
         )
         team = await _make_team(pg_session, "Scored")
         activity_obj = await crud_activity.create(

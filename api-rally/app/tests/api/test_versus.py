@@ -25,7 +25,7 @@ async def _make_event(pg_session):
 
 
 async def _make_team(pg_session, name):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
 class TestVersusAPI:
