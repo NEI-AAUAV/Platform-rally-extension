@@ -16,6 +16,8 @@ import {
   Gavel,
   Trophy,
   Zap,
+  History,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import useUser from "@/hooks/useUser";
@@ -30,6 +32,8 @@ import {
   DeferredJudgingTab,
   BadgeAdminTab,
   DynamicScoringTab,
+  AuditLogTab,
+  MetricsTab,
 } from "./components";
 import { getCheckpoints } from "@/client";
 import RallySettings from "@/pages/settings";
@@ -64,6 +68,8 @@ const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> =
   { id: "branding", label: "Identidade", icon: Palette },
   { id: "events", label: "Edições", icon: CalendarRange },
   { id: "settings", label: "Configurações", icon: Settings2 },
+  { id: "audit", label: "Auditoria", icon: History },
+  { id: "metrics", label: "Métricas", icon: Gauge },
 ];
 
 export default function Admin() {
@@ -145,6 +151,8 @@ export default function Admin() {
           {activeTab === "badges" && <BadgeAdminTab />}
           {activeTab === "scoring" && <DynamicScoringTab />}
           {activeTab === "settings" && <RallySettings embedded />}
+          {activeTab === "audit" && <AuditLogTab />}
+          {activeTab === "metrics" && <MetricsTab />}
         </div>
       </div>
     </div>

@@ -75,6 +75,8 @@ const ADMIN_TAB_IDS = [
   "branding",
   "events",
   "settings",
+  "audit",
+  "metrics",
 ] as const;
 
 export type AdminTabId = (typeof ADMIN_TAB_IDS)[number];

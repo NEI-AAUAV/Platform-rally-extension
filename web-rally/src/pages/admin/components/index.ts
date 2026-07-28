@@ -7,3 +7,5 @@ export { default as EventsManagement } from "./events/EventsManagement";
 export { default as DeferredJudgingTab } from "./judging/DeferredJudgingTab";
 export { default as BadgeAdminTab } from "./badges/BadgeAdminTab";
 export { default as DynamicScoringTab } from "./judging/DynamicScoringTab";
+export { default as AuditLogTab } from "./audit/AuditLogTab";
+export { default as MetricsTab } from "./audit/MetricsTab";
