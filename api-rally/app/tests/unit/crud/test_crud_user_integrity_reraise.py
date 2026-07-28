@@ -19,7 +19,7 @@ async def test_create_reraises_when_orig_is_none(pg_session):
         ),
         pytest.raises(IntegrityError),
     ):
-        await crud_user.create(pg_session, obj_in=obj_in)
+        await crud_user.create(pg_session, obj_in=obj_in, commit=True)
 
 
 async def test_create_reraises_when_error_does_not_match_team_fk(pg_session):
@@ -27,7 +27,7 @@ async def test_create_reraises_when_error_does_not_match_team_fk(pg_session):
     unrelated = IntegrityError("x", None, RuntimeError("some other constraint violation"))
     with patch.object(pg_session, "commit", new=AsyncMock(side_effect=unrelated)):
         with pytest.raises(IntegrityError):
-            await crud_user.create(pg_session, obj_in=obj_in)
+            await crud_user.create(pg_session, obj_in=obj_in, commit=True)
 
 
 async def test_update_reraises_when_orig_is_none(pg_session):
