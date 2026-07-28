@@ -13,7 +13,7 @@ export const oidcConfig: AuthProviderProps = {
   client_id: config.OIDC_CLIENT_ID,
   redirect_uri: config.OIDC_REDIRECT_URI,
   post_logout_redirect_uri: config.OIDC_POST_LOGOUT_REDIRECT_URI,
-  scope: "openid profile email offline_access",
+  scope: "openid profile email offline_access groups",
   automaticSilentRenew: true,
   // Persist the session across reloads so a refresh does not bounce the user
   // back through the identity provider.
