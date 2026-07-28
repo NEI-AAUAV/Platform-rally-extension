@@ -13,7 +13,7 @@ loguru = "^0.7.2"
 python-multipart = "^0.0.20"
 fastapi = "0.121.3"
 python-jose = "^3.5.0"
-psycopg2-binary = "^2.9.5"
+psycopg2-binary = "^2.9.11"
 pydantic-settings = "^2.2.1"
 orjson = "^3.11.4"
 aiocache = "^0.12.3"
@@ -36,7 +36,7 @@ pytest-cov = "^7.0.0"
 pytest-asyncio = "^1.0.0"
 httpx = "0.28.1"
 requests = "^2.31.0"
-psycopg2-binary = "^2.9.5"
+psycopg2-binary = "^2.9.11"
 
 [tool.mypy]
 exclude = ["app/tests"]
