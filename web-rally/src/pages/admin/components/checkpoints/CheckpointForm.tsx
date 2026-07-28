@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
-import type { CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
+import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
 
 const fieldClassName = "bg-muted border-border";
@@ -20,6 +20,8 @@ type CheckpointFormProps = Readonly<{
   isSubmitting: boolean;
   onSubmit: (data: CheckpointFormValues) => void;
   onCancel: () => void;
+  checkpoints?: ReadonlyArray<Checkpoint>;
+  currentId?: number | null;
 }>;
 
 export default function CheckpointForm({
@@ -28,6 +30,8 @@ export default function CheckpointForm({
   isSubmitting,
   onSubmit,
   onCancel,
+  checkpoints,
+  currentId,
 }: CheckpointFormProps) {
   return (
     <div className="rally-surface rounded-2xl p-6">
@@ -109,6 +113,9 @@ export default function CheckpointForm({
               form.setValue("latitude", lat.toFixed(6), { shouldValidate: true });
               form.setValue("longitude", lng.toFixed(6), { shouldValidate: true });
             }}
+            checkpoints={checkpoints}
+            currentId={currentId}
+            radiusM={form.watch("arrival_radius_m")}
           />
           <FormField
             control={form.control}

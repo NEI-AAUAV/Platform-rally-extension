@@ -37,6 +37,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         isSubmitting={isCreatingCheckpoint || isUpdatingCheckpoint}
         onSubmit={handleCheckpointSubmit}
         onCancel={cancelEdit}
+        checkpoints={sortedCheckpoints}
+        currentId={editingCheckpoint?.id ?? null}
       />
 
       <div className="rally-surface rounded-2xl p-6">
