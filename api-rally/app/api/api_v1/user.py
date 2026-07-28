@@ -13,6 +13,7 @@ from app.core.config import SettingsDep
 from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.user import DetailedUser
+from app.services.audit_service import AuditActor, record_audit
 from app.services.deps import get_user_service
 from app.services.user_service import UserService
 
@@ -155,20 +156,38 @@ class UserController:
         self,
         user_id: int,
         assignment: CheckpointAssignmentUpdate,
-        _: Annotated[DetailedUser, Depends(get_admin)],
+        curr_user: Annotated[DetailedUser, Depends(get_admin)],
         service: Annotated[UserService, Depends(get_user_service)],
+        db: Annotated[AsyncSession, Depends(get_db)],
     ) -> RallyStaffAssignmentWithCheckpoint:
         """
         Update a user's checkpoint assignment.
         This creates/updates Rally-specific staff assignments.
         """
-        return await service.update_checkpoint_assignment(
+        before = await crud.rally_staff_assignment.get_by_user_id(db, user_id)
+        before_checkpoint_id = before.checkpoint_id if before else None
+        result = await service.update_checkpoint_assignment(
             user_id=user_id,
             checkpoint_id=assignment.checkpoint_id,
             assignment_crud=crud.rally_staff_assignment,
             schema=RallyStaffAssignmentWithCheckpoint,
             error_message="Failed to update checkpoint assignment",
         )
+        if before_checkpoint_id != assignment.checkpoint_id:
+            await record_audit(
+                db,
+                action="staff_assignment.updated",
+                actor=AuditActor(id=str(curr_user.id), name=curr_user.name, kind="staff"),
+                target_type="user",
+                target_id=str(user_id),
+                changes={
+                    "checkpoint_id": {
+                        "before": before_checkpoint_id,
+                        "after": assignment.checkpoint_id,
+                    }
+                },
+            )
+        return result
 
     async def get_guide_assignments(
         self,

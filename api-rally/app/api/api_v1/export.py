@@ -11,6 +11,7 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin, get_db
 from app.core.exceptions import RallyNotFoundError
 from app.schemas.user import DetailedUser
+from app.services.audit_service import AuditActor, record_audit
 from app.services.deps import get_export_service
 from app.services.export_service import ExportService
 
@@ -44,7 +45,7 @@ class ExportController:
         self,
         event_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
-        _admin: Annotated[DetailedUser, Depends(get_admin)],
+        admin: Annotated[DetailedUser, Depends(get_admin)],
         _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         service: Annotated[ExportService, Depends(get_export_service)],
     ) -> Response:
@@ -55,6 +56,14 @@ class ExportController:
 
         content = await service.build_workbook(event_id)
         filename = f"{_safe_filename(event.name)}_results.xlsx"
+        await record_audit(
+            db,
+            action="export.leaderboard",
+            actor=AuditActor(id=str(admin.id), name=admin.name, kind="staff"),
+            target_type="rally_event",
+            target_id=str(event_id),
+            event_id=event_id,
+        )
         return Response(
             content=content,
             media_type=_XLSX_MEDIA_TYPE,

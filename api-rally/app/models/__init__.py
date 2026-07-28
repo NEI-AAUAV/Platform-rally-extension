@@ -1,4 +1,5 @@
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
+from app.models.audit_log import AuditLog
 from app.models.badge import BadgeType, TeamBadge
 from app.models.badge_definition import BadgeDefinition
 from app.models.base import Base
@@ -39,4 +40,5 @@ __all__ = [
     "EvaluationHistory",
     "EvaluationAction",
     "IdempotencyKey",
+    "AuditLog",
 ]

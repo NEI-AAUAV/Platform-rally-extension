@@ -15,6 +15,7 @@ from app.api import deps
 from app.crud import crud_activity
 from app.models.activity import EventType
 from app.schemas.team_auth import TeamTokenData
+from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
 from app.services.deps import get_checkpoint_arrival_service
 
@@ -77,6 +78,16 @@ class CheckpointArriveController:
             latitude=body.latitude,
             longitude=body.longitude,
         )
+        if not already_registered:
+            await record_audit(
+                db,
+                action="checkin.gps_arrival",
+                actor=AuditActor(id=str(team.team_id), name=team.team_name, kind="team"),
+                target_type="team",
+                target_id=str(team.team_id),
+                event_id=event.id,
+                note=f"checkpoint_id={checkpoint_id} distance_m={round(dist, 1)}",
+            )
 
         # No-activity posts complete immediately on arrival; posts with activities
         # wait for staff to submit the result before the team advances. Run this on

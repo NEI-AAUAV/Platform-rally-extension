@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.api_v1 import (
     activities,
+    audit,
     badge_admin,
     badges,
     checkin,
@@ -53,3 +54,4 @@ api_v1_router.include_router(deferred_judging.router, prefix="", tags=["Deferred
 api_v1_router.include_router(dynamic_scoring.router, prefix="", tags=["Dynamic Scoring"])
 api_v1_router.include_router(guide.router, prefix="", tags=["Guide"])
 api_v1_router.include_router(export.router, prefix="", tags=["Export"])
+api_v1_router.include_router(audit.router, prefix="", tags=["Audit"])

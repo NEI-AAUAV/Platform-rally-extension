@@ -2,7 +2,6 @@
 Scoring system service for Rally activities
 """
 
-import copy
 import logging
 import time
 from dataclasses import dataclass
@@ -17,6 +16,7 @@ from app.core.config import get_settings
 from app.core.exceptions import RallyError, RallyValidationError
 from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
+from app.services._diff import diff_snapshots, snapshot_fields
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.events import (
     ActivityResultChangedPayload,
@@ -68,16 +68,12 @@ _AUDITED_FIELDS = (
 
 def _snapshot_result(result: ActivityResult) -> dict[str, Any]:
     """Deep-copy the audited fields of a result for later diffing."""
-    return {field: copy.deepcopy(getattr(result, field)) for field in _AUDITED_FIELDS}
+    return snapshot_fields(result, _AUDITED_FIELDS)
 
 
 def _diff_snapshots(before: dict[str, Any], after: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Field-level {field: {"before", "after"}} for values that changed."""
-    return {
-        field: {"before": before[field], "after": after[field]}
-        for field in _AUDITED_FIELDS
-        if before.get(field) != after.get(field)
-    }
+    return diff_snapshots(before, after, _AUDITED_FIELDS)
 
 
 class ScoringService:

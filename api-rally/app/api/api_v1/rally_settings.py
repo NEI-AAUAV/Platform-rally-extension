@@ -9,13 +9,53 @@ from app.api.deps import get_db, get_participant
 from app.crud.crud_rally_settings import rally_settings
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.user import DetailedUser
+from app.services.audit_service import AuditActor, record_field_changes
 from app.services.deps import get_rally_settings_service
+from app.services._diff import snapshot_fields
 from app.services.image_upload import ALLOWED_FAVICON_CONTENT_TYPES, ALLOWED_PHOTO_CONTENT_TYPES
 from app.services.rally_settings_service import RallySettingsService
 
 INVALID_FILE_ERROR = "Invalid file"
 NOT_AUTHORIZED_ERROR = "Not authorized"
 R2_UPLOAD_ERROR = "R2 storage not configured or upload failed"
+
+# The highest-leverage change an admin can make (scoring weights, penalties,
+# visibility toggles) — every mutable settings field except identity
+# (id, event_id, which never change via this endpoint).
+_SETTINGS_AUDITED_FIELDS = (
+    "max_teams",
+    "max_members_per_team",
+    "enable_versus",
+    "rally_start_time",
+    "rally_end_time",
+    "penalty_per_puke",
+    "penalty_per_not_drinking",
+    "bonus_per_extra_shot",
+    "max_extra_shots_per_member",
+    "checkpoint_order_matters",
+    "enable_staff_scoring",
+    "show_live_leaderboard",
+    "show_team_details",
+    "show_checkpoint_map",
+    "participant_view_enabled",
+    "show_route_mode",
+    "show_score_mode",
+    "rally_theme",
+    "event_name",
+    "event_subtitle",
+    "accent_color",
+    "banner_url",
+    "logo_url",
+    "favicon_url",
+    "public_access_enabled",
+    "allow_staff_registration",
+    "allow_photo_as_team_photo",
+    "guide_mode_enabled",
+    "guide_mode_active",
+    "badges_enabled",
+    "home_layout",
+    "ticker_items",
+)
 
 class RallySettingsController:
     """REST controller for /rally/settings."""
@@ -106,7 +146,19 @@ class RallySettingsController:
         validate_settings_update_access(curr_user, auth)
         # Resolve the current event's settings row (per-event, no more id=1 singleton).
         current = await rally_settings.get_or_create(db)
+        before = snapshot_fields(current, _SETTINGS_AUDITED_FIELDS)
         updated = await rally_settings.update(db, id=current.id, obj_in=settings_in, commit=True)  # type: ignore[arg-type]
+        await record_field_changes(
+            db,
+            before=before,
+            after=updated,
+            fields=_SETTINGS_AUDITED_FIELDS,
+            action="rally_settings.updated",
+            actor=AuditActor(id=str(curr_user.id), name=curr_user.name, kind="staff"),
+            target_type="rally_settings",
+            target_id=str(updated.id),
+            event_id=updated.event_id,  # type: ignore[arg-type]
+        )
         return await service.build_response(updated)
 
     async def view_rally_settings(

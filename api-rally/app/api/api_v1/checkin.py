@@ -28,6 +28,7 @@ from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_team_crud
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.audit_service import AuditActor, record_audit
 from app.services.checkin_service import CheckinService, require_same_event
 from app.services.checkin_token import (
     CheckinTokenError,
@@ -173,6 +174,15 @@ class CheckinController:
         )
         if arrival_status == "checked_in":
             await service.check_in_and_publish(team_obj.id, checkpoint)
+            await record_audit(
+                db,
+                action="checkin.staff_scan",
+                actor=AuditActor(id=str(current_user.id), name=current_user.name, kind="staff"),
+                target_type="team",
+                target_id=str(team_obj.id),
+                event_id=checkpoint.event_id,
+                note=f"checkpoint_id={checkpoint.id} checkpoint_order={checkpoint.order}",
+            )
 
         return StaffCheckinResponse(
             team_id=team_obj.id,
@@ -187,6 +197,7 @@ class CheckinController:
         body: CheckinRequest,
         *,
         team: Annotated[TeamTokenData, Depends(get_current_team)],
+        db: Annotated[AsyncSession, Depends(get_db)],
         settings: SettingsDep,
         service: Annotated[CheckinService, Depends(get_checkin_service)],
     ) -> CheckinResponse:
@@ -222,6 +233,15 @@ class CheckinController:
             )
 
         await service.check_in_and_publish(team.team_id, checkpoint)
+        await record_audit(
+            db,
+            action="checkin.self_checkin",
+            actor=AuditActor(id=str(team.team_id), name=team.team_name, kind="team"),
+            target_type="team",
+            target_id=str(team.team_id),
+            event_id=checkpoint.event_id,
+            note=f"checkpoint_id={checkpoint.id} checkpoint_order={checkpoint.order}",
+        )
 
         return CheckinResponse(
             team_id=team.team_id,

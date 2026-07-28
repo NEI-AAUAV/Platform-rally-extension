@@ -21,7 +21,9 @@ from app.schemas.badge_definition import (
     BadgeDefinitionUpdate,
     ManualBadgeAwardCreate,
 )
+from app.schemas.user import DetailedUser
 from app.services import badge_service
+from app.services.audit_service import AuditActor, record_audit
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 
 BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
@@ -170,6 +172,7 @@ class BadgeAdminController:
         self,
         obj_in: ManualBadgeAwardCreate,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_admin)],
     ) -> TeamBadgeRead:
         defn = await crud_def.get_by_code(db, code=obj_in.badge_code)
         if not defn:
@@ -184,17 +187,37 @@ class BadgeAdminController:
             activity_id=obj_in.activity_id,
             checkpoint_id=obj_in.checkpoint_id,
         )
+        await record_audit(
+            db,
+            action="badge.granted",
+            actor=AuditActor(id=str(curr_user.id), name=curr_user.name, kind="staff"),
+            target_type="team_badge",
+            target_id=str(badge.id),
+            note=f"badge_code={obj_in.badge_code} team_id={obj_in.team_id}",
+        )
         return TeamBadgeRead.model_validate(badge)
 
     async def revoke_badge(
-        self, badge_id: int, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self,
+        badge_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_admin)],
     ) -> None:
         result = await db.execute(select(TeamBadge).where(TeamBadge.id == badge_id))
         badge = result.scalars().first()
         if not badge:
             raise HTTPException(status_code=404, detail="Badge not found")
+        note = f"badge_type={badge.badge_type} team_id={badge.team_id}"
         await db.delete(badge)
         await db.commit()
+        await record_audit(
+            db,
+            action="badge.revoked",
+            actor=AuditActor(id=str(curr_user.id), name=curr_user.name, kind="staff"),
+            target_type="team_badge",
+            target_id=str(badge_id),
+            note=note,
+        )
 
 
 router = BadgeAdminController().router
