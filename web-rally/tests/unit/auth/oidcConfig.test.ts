@@ -4,7 +4,7 @@ import { oidcConfig } from '@/auth/oidcConfig'
 describe('oidcConfig', () => {
   it('configures the PKCE scope and OIDC endpoints from config', () => {
     const cfg = oidcConfig as any;
-    expect(cfg.scope).toBe('openid profile email offline_access')
+    expect(cfg.scope).toBe('openid profile email offline_access groups')
     expect(cfg.automaticSilentRenew).toBe(true)
     expect(typeof cfg.authority).toBe('string')
     expect(typeof cfg.client_id).toBe('string')
