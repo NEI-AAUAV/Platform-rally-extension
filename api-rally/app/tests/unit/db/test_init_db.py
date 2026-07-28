@@ -17,9 +17,11 @@ def test_create_schema_and_tables_creates_missing_schema() -> None:
     fake_inspector = MagicMock()
     fake_inspector.get_schema_names.return_value = ["public"]
 
+    fake_table = MagicMock(schema="rally")
+
     with (
         patch.object(init_db, "inspect", return_value=fake_inspector) as mock_inspect,
-        patch.object(init_db.Base.metadata, "_schemas", {"rally"}),
+        patch.object(init_db.Base.metadata, "tables", {"rally.foo": fake_table}),
         patch.object(init_db.Base.metadata, "reflect") as mock_reflect,
         patch.object(init_db.Base.metadata, "create_all") as mock_create_all,
         patch("app.db.init_db.CreateSchema") as mock_create_schema,
@@ -39,9 +41,11 @@ def test_create_schema_and_tables_skips_existing_schema() -> None:
     fake_inspector = MagicMock()
     fake_inspector.get_schema_names.return_value = ["rally"]
 
+    fake_table = MagicMock(schema="rally")
+
     with (
         patch.object(init_db, "inspect", return_value=fake_inspector),
-        patch.object(init_db.Base.metadata, "_schemas", {"rally"}),
+        patch.object(init_db.Base.metadata, "tables", {"rally.foo": fake_table}),
         patch.object(init_db.Base.metadata, "reflect"),
         patch.object(init_db.Base.metadata, "create_all"),
         patch("app.db.init_db.CreateSchema") as mock_create_schema,

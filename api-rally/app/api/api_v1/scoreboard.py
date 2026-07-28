@@ -106,7 +106,7 @@ class ScoreboardController:
         finally:
             await client.aclose()
 
-    def stream_scoreboard(self, request: Request, settings: SettingsDep) -> StreamingResponse:
+    async def stream_scoreboard(self, request: Request, settings: SettingsDep) -> StreamingResponse:
         """Server-Sent Events stream that emits a 'refresh' on each leaderboard update."""
         if not settings.EVENTS_ENABLED:
             raise HTTPException(
@@ -143,7 +143,7 @@ class ScoreboardController:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    def stream_rally_events(
+    async def stream_rally_events(
         self, request: Request, settings: SettingsDep
     ) -> StreamingResponse:
         """Server-Sent Events stream that forwards raw activity_result/team events.
