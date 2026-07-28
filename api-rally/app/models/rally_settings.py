@@ -65,6 +65,14 @@ class RallySettings(Base):
     logo_url = Column(String(500), nullable=False, default="")
     favicon_url = Column(String(500), nullable=False, default="")
 
+    # Visual-identity axes (applied live). Presettable independently of the
+    # accent so identities compose (e.g. green accent + blood buttons).
+    button_style = Column(String(20), nullable=False, default="plain")  # 'plain' | 'blood'
+    # Saved named identity presets, each a bundle of the axis values:
+    # [{"id","name","accent_color","button_style"}]. Free-form JSON, admin-
+    # editable via the settings PUT; normalized on read (see crud_rally_settings).
+    visual_presets = Column(JSON, nullable=False, default=list)
+
     # Access control
     public_access_enabled = Column(Boolean, nullable=False, default=False)
 

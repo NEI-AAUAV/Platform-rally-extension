@@ -35,6 +35,19 @@ class HomeSection(BaseModel):
     visible: bool = True
 
 
+# Visual-identity axes. Each axis is applied live and can be mixed freely; a
+# saved VisualPreset bundles a chosen value per axis under a name.
+BUTTON_STYLES = ("plain", "blood")
+MAX_VISUAL_PRESETS = 24
+
+
+class VisualPreset(BaseModel):
+    id: str
+    name: str
+    accent_color: str = ""
+    button_style: str = "plain"
+
+
 def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
     """Drop unknown keys, dedupe, and append any missing known section keys.
 
@@ -107,6 +120,11 @@ class RallySettingsBase(BaseModel):
     event_subtitle: str = ""
     accent_color: str = ""  # CSS color, e.g. "#c81d25"
 
+    # Visual-identity axes (applied live), presettable independently of accent.
+    button_style: str = "plain"  # 'plain' | 'blood'
+    # Saved named identity presets (bundles of the axis values).
+    visual_presets: list[VisualPreset] = []
+
     # Access control
     public_access_enabled: bool
 
@@ -140,6 +158,20 @@ class RallySettingsBase(BaseModel):
     @classmethod
     def _normalize_ticker_items(cls, value: list[Any]) -> list[str]:
         return normalize_ticker_items(value)
+
+    @field_validator("button_style", mode="before")
+    @classmethod
+    def _normalize_button_style(cls, value: Any) -> str:
+        return value if value in BUTTON_STYLES else "plain"
+
+    @field_validator("visual_presets", mode="before")
+    @classmethod
+    def _cap_visual_presets(cls, value: Any) -> Any:
+        # Free-form JSON on read; only guard the length here (item shape is
+        # validated by the VisualPreset model).
+        if isinstance(value, list):
+            return value[:MAX_VISUAL_PRESETS]
+        return []
 
 
 class RallySettingsUpdate(RallySettingsBase): ...

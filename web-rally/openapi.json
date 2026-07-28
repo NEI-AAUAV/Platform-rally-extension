@@ -9148,6 +9148,19 @@
             "title": "Accent Color",
             "default": ""
           },
+          "button_style": {
+            "type": "string",
+            "title": "Button Style",
+            "default": "plain"
+          },
+          "visual_presets": {
+            "items": {
+              "$ref": "#/components/schemas/VisualPreset"
+            },
+            "type": "array",
+            "title": "Visual Presets",
+            "default": []
+          },
           "public_access_enabled": {
             "type": "boolean",
             "title": "Public Access Enabled"
@@ -9375,6 +9388,19 @@
             "type": "string",
             "title": "Accent Color",
             "default": ""
+          },
+          "button_style": {
+            "type": "string",
+            "title": "Button Style",
+            "default": "plain"
+          },
+          "visual_presets": {
+            "items": {
+              "$ref": "#/components/schemas/VisualPreset"
+            },
+            "type": "array",
+            "title": "Visual Presets",
+            "default": []
           },
           "public_access_enabled": {
             "type": "boolean",
@@ -10242,6 +10268,34 @@
           "team_b_id"
         ],
         "title": "VersusPairResponse"
+      },
+      "VisualPreset": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "accent_color": {
+            "type": "string",
+            "title": "Accent Color",
+            "default": ""
+          },
+          "button_style": {
+            "type": "string",
+            "title": "Button Style",
+            "default": "plain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VisualPreset"
       }
     },
     "securitySchemes": {
