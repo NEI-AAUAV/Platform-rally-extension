@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import HTTPException, Request, status
 
 from app.core.config import Settings, SettingsDep
+from app.core.metrics import record_rate_limit_rejection
 from app.core.redis import get_async_redis_client
 
 logger = logging.getLogger(__name__)
@@ -55,12 +56,9 @@ async def _enforce(key: str, limit: int, window_seconds: int) -> None:
             # Log the prefix, not the full key — for the login-code counter
             # the key already carries only a truncated hash, but keep the
             # prefix-only convention uniform across all rate-limited keys.
-            logger.warning(
-                "Rate limit exceeded for %s (attempt %d/%d)",
-                key.rsplit(":", 1)[0],
-                attempts,
-                limit,
-            )
+            prefix = key.rsplit(":", 1)[0]
+            logger.warning("Rate limit exceeded for %s (attempt %d/%d)", prefix, attempts, limit)
+            record_rate_limit_rejection(prefix=prefix)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests, try again later",

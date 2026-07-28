@@ -21,6 +21,7 @@ from typing import Any
 import redis
 
 from app.core.config import settings
+from app.core.metrics import set_worker_last_beat_age
 from app.core.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ class BaseWorker(ABC):
 
     def _beat(self) -> None:
         self._last_beat = time.monotonic()
+        set_worker_last_beat_age(worker=self.name, age_seconds=0.0)
 
     @abstractmethod
     async def handle_event(self, channel: str, data: dict[str, Any]) -> None:

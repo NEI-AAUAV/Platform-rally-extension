@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.badges.triggers import BadgeTrigger
+from app.core.observability import traced
 from app.models.activity import Activity, ActivityResult
 from app.models.badge_definition import BadgeDefinition
 from app.schemas.activity_types import ActivityType
@@ -423,21 +424,22 @@ async def evaluate_result(db: AsyncSession, result: ActivityResult) -> list[Badg
     others.
     """
     awards: list[BadgeAward] = []
-    for defn in await _load_auto_definitions(db):
-        try:
-            trigger = BadgeTrigger(defn.trigger_type)
-        except ValueError:
-            logger.warning(
-                "Badge %s has unknown trigger_type %r; skipping",
-                defn.code,
-                defn.trigger_type,
-            )
-            continue
-        handler = _TRIGGER_HANDLERS.get(trigger)
-        if handler is None:
-            continue
-        try:
-            awards.extend(await handler(db, result, defn))
-        except Exception:  # noqa: BLE001 — one rule must not break the rest
-            logger.exception("Badge rule %s (%s) failed", defn.code, trigger.value)
+    with traced("badges.evaluate_result"):
+        for defn in await _load_auto_definitions(db):
+            try:
+                trigger = BadgeTrigger(defn.trigger_type)
+            except ValueError:
+                logger.warning(
+                    "Badge %s has unknown trigger_type %r; skipping",
+                    defn.code,
+                    defn.trigger_type,
+                )
+                continue
+            handler = _TRIGGER_HANDLERS.get(trigger)
+            if handler is None:
+                continue
+            try:
+                awards.extend(await handler(db, result, defn))
+            except Exception:  # noqa: BLE001 — one rule must not break the rest
+                logger.exception("Badge rule %s (%s) failed", defn.code, trigger.value)
     return awards

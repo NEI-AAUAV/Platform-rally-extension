@@ -28,6 +28,21 @@ class Settings(BaseSettings):
     # DSN). Optional: when unset, error tracking is a no-op and nothing is sent.
     SENTRY_DSN: str | None = os.getenv("SENTRY_DSN") or None
     SENTRY_TRACES_SAMPLE_RATE: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    SENTRY_PROFILES_SAMPLE_RATE: float = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.0"))
+
+    # Logging. LOG_JSON switches the loguru sink from the human-readable
+    # colored format to one-JSON-object-per-line (serialize=True) so a log
+    # shipper (Loki/ELK) can index it; LOG_LEVEL overrides the PRODUCTION-based
+    # default. RELEASE tags both logs and Sentry events with a build
+    # identifier (CI should set it to the git sha) so an event/log line can be
+    # attributed to the deploy that produced it.
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO" if PRODUCTION else "DEBUG")
+    LOG_JSON: bool = os.getenv("LOG_JSON", "true" if PRODUCTION else "false").lower() == "true"
+    RELEASE: str = os.getenv("RELEASE", "dev")
+
+    # Prometheus /metrics endpoint. On by default; must be blocked at the
+    # reverse proxy in production (it is not itself access-controlled).
+    METRICS_ENABLED: bool = os.getenv("METRICS_ENABLED", "true").lower() == "true"
 
     API_V1_STR: str = "/api/rally/v1"
     STATIC_STR: str = "/static/rally"

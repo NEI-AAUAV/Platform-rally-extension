@@ -109,7 +109,7 @@ def init_logging() -> None:
     # `logging.lastResort` with no timestamp, level, or module name.
     intercept_handler = InterceptHandler()
     logging.root.handlers = [intercept_handler]
-    level_log = logging.INFO if settings.PRODUCTION else logging.DEBUG
+    level_log = settings.LOG_LEVEL
     logging.root.setLevel(level_log)
 
     # Silence known-noisy third-party loggers now that they all route through
@@ -117,14 +117,17 @@ def init_logging() -> None:
     for noisy in ("uvicorn.access", "httpx", "botocore", "boto3", "asyncio"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    logger.configure(
-        handlers=[
-            typing.cast(
-                Any,
-                {"sink": sys.stdout, "level": level_log, "format": format_record},
-            )
-        ]
-    )
+    # LOG_JSON emits one JSON object per line (loguru's serialize=True) so a
+    # log shipper (Loki/ELK) can index it, including the `extra` dict — which
+    # is where request_id (bound via bind_request_context) lands. The
+    # human/dev format is unaffected.
+    handler: dict[str, Any] = {"sink": sys.stdout, "level": level_log}
+    if settings.LOG_JSON:
+        handler["serialize"] = True
+    else:
+        handler["format"] = format_record
+
+    logger.configure(handlers=[typing.cast(Any, handler)])
 
 
 @contextmanager

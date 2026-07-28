@@ -4,6 +4,7 @@ Scoring system service for Rally activities
 
 import copy
 import logging
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -14,6 +15,8 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.config import get_settings
 from app.core.exceptions import RallyError, RallyValidationError
+from app.core.metrics import observe_scoring_recompute
+from app.core.observability import traced
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.events import (
     ActivityResultChangedPayload,
@@ -682,45 +685,48 @@ class ScoringService:
         Pass commit=False to defer persistence to the caller, so this rescore
         can be batched into a single atomic transaction.
         """
-        activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
-            return
+        start = time.perf_counter()
+        with traced("scoring.recalculate_all_results_for_activity"):
+            activity = await self.db.get(Activity, activity_id)
+            if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
+                return
 
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
-        )
-        if exclude_result_id is not None:
-            stmt = stmt.where(ActivityResult.id != exclude_result_id)
-
-        all_results = list((await self.db.scalars(stmt)).all())
-        if not all_results:
-            return
-
-        all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
-        if exclude_result_id is not None:
-            excluded = await self.db.get(ActivityResult, exclude_result_id)
-            # `is not None`, not truthiness: a 0.0 time must still rank.
-            if excluded and excluded.time_score is not None:
-                all_times.append(float(excluded.time_score))
-
-        team_size_cache: dict[int, int] = {}
-        for result in all_results:
-            if result.team_id not in team_size_cache:
-                team_size_cache[result.team_id] = await self._team_size(result.team_id)
-            result.final_score = await self.compute_final_score(
-                activity_type=activity.activity_type,
-                config=activity.config,
-                result_data=result.result_data,
-                team_size=team_size_cache[result.team_id],
-                extra_shots=result.extra_shots,
-                penalties=result.penalties,
-                all_times=all_times,
+            stmt = select(ActivityResult).where(
+                ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
             )
+            if exclude_result_id is not None:
+                stmt = stmt.where(ActivityResult.id != exclude_result_id)
 
-        if commit:
-            await self.db.commit()
-        for team_id in {r.team_id for r in all_results}:
-            await self.update_team_scores(team_id, should_commit=commit)
+            all_results = list((await self.db.scalars(stmt)).all())
+            if not all_results:
+                return
+
+            all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
+            if exclude_result_id is not None:
+                excluded = await self.db.get(ActivityResult, exclude_result_id)
+                # `is not None`, not truthiness: a 0.0 time must still rank.
+                if excluded and excluded.time_score is not None:
+                    all_times.append(float(excluded.time_score))
+
+            team_size_cache: dict[int, int] = {}
+            for result in all_results:
+                if result.team_id not in team_size_cache:
+                    team_size_cache[result.team_id] = await self._team_size(result.team_id)
+                result.final_score = await self.compute_final_score(
+                    activity_type=activity.activity_type,
+                    config=activity.config,
+                    result_data=result.result_data,
+                    team_size=team_size_cache[result.team_id],
+                    extra_shots=result.extra_shots,
+                    penalties=result.penalties,
+                    all_times=all_times,
+                )
+
+            if commit:
+                await self.db.commit()
+            for team_id in {r.team_id for r in all_results}:
+                await self.update_team_scores(team_id, should_commit=commit)
+        observe_scoring_recompute(time.perf_counter() - start)
 
     async def _completed_counts_by_team(self) -> dict[int, int]:
         """Completed-activity count per team, in one grouped query (avoids N+1)."""

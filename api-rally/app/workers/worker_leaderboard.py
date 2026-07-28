@@ -8,6 +8,7 @@ refresh signal so connected SSE clients can push the update.
 import logging
 from typing import Any
 
+from app.core.observability import traced
 from app.core.redis import get_async_redis_client
 from app.events.channels import Channels
 from app.services import leaderboard_cache
@@ -31,12 +32,13 @@ class LeaderboardWorker(BaseWorker):
         await self._rebuild()
 
     async def _rebuild(self) -> None:
-        async with worker_session() as session:
-            ranking = await ScoringService(session).get_team_ranking()
+        with traced("leaderboard.rebuild"):
+            async with worker_session() as session:
+                ranking = await ScoringService(session).get_team_ranking()
 
-        client = get_async_redis_client()
-        try:
-            await leaderboard_cache.write_global_leaderboard(client, ranking)
-            await client.publish(Channels.LEADERBOARD_REFRESHED, "1")
-        finally:
-            await client.aclose()
+            client = get_async_redis_client()
+            try:
+                await leaderboard_cache.write_global_leaderboard(client, ranking)
+                await client.publish(Channels.LEADERBOARD_REFRESHED, "1")
+            finally:
+                await client.aclose()

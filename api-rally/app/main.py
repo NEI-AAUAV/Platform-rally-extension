@@ -3,18 +3,20 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.api.api import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.logging import bind_request_context, init_logging
+from app.core.metrics import record_request, registry, set_worker_last_beat_age
 from app.core.observability import init_sentry
 from app.core.redis import check_redis_health, close_pools
 from app.db.init_db import init_db
@@ -142,6 +144,17 @@ async def request_id_and_timing(request: Request, call_next):  # type: ignore[no
             dur=elapsed_ms,
             rid=request_id,
         )
+        # Route template, not the raw path — raw paths carry team/activity
+        # IDs and would blow up label cardinality. Falls back to the raw path
+        # for unmatched routes (404s), which are low-cardinality by nature.
+        route = request.scope.get("route")
+        path_template = route.path if route is not None else request.url.path
+        record_request(
+            method=request.method,
+            path_template=path_template,
+            status=response.status_code,
+            duration_seconds=elapsed_ms / 1000,
+        )
     return response
 
 
@@ -208,6 +221,8 @@ async def readiness_check() -> JSONResponse:
             alive = worker.is_alive
             workers.append({"name": worker.name, "alive": alive, "last_beat": worker.last_beat})
             ready = ready and alive
+            age = 0.0 if worker.last_beat == 0.0 else time.monotonic() - worker.last_beat
+            set_worker_last_beat_age(worker=worker.name, age_seconds=age)
     body["workers"] = workers
 
     body["status"] = "ready" if ready else "not_ready"
@@ -215,6 +230,19 @@ async def readiness_check() -> JSONResponse:
         status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
         content=body,
     )
+
+
+@app.get("/metrics", tags=["health"], include_in_schema=False)
+async def metrics() -> Response:
+    """Prometheus scrape endpoint.
+
+    Gated on ``settings.METRICS_ENABLED``; MUST additionally be blocked at
+    the reverse proxy in production — this flag alone does not restrict
+    access to the endpoint.
+    """
+    if not settings.METRICS_ENABLED:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Not Found"})
+    return Response(content=generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

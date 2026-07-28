@@ -89,3 +89,5 @@ jobs:
             VITE_OIDC_STAFF_GROUP=${{ vars.OIDC_STAFF_GROUP }}
             VITE_EVENTS_ENABLED=${{ vars.EVENTS_ENABLED }}
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
+            VITE_SENTRY_TRACES_SAMPLE_RATE=${{ vars.VITE_SENTRY_TRACES_SAMPLE_RATE }}
+            VITE_RELEASE=${{ github.ref_name }}

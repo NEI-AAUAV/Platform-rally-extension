@@ -74,10 +74,31 @@ def init_sentry() -> None:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         environment=settings.ENV,
+        release=settings.RELEASE,
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=settings.SENTRY_PROFILES_SAMPLE_RATE,
         send_default_pii=False,
         # Sentry types before_send as (Event, Hint) -> Event | None; Event is a
         # TypedDict, so our dict-based scrubber is runtime-correct here.
         before_send=_scrub_sensitive,  # type: ignore[arg-type]
     )
-    logger.info("Sentry initialised for environment=%s", settings.ENV)
+    logger.info("Sentry initialised for environment=%s release=%s", settings.ENV, settings.RELEASE)
+
+
+def traced(name: str) -> Any:
+    """Wrap the expensive-path spans (scoring recompute, leaderboard rebuild,
+    badge evaluation) so call sites stay clean regardless of whether Sentry is
+    configured. No-op span when no DSN is set."""
+    if not settings.SENTRY_DSN:
+        return _nullcontext()
+    import sentry_sdk
+
+    return sentry_sdk.start_span(name=name)
+
+
+class _nullcontext:
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, *exc_info: object) -> None:
+        return None
