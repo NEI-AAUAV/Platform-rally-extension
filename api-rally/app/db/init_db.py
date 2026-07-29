@@ -5,7 +5,6 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import inspect
 from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
@@ -77,11 +76,13 @@ def _create_schema_and_tables(connection: Connection) -> None:
     alembic baseline revision 0001 produces. Only called when the database has
     no alembic version yet (see :func:`_run_migrations`).
     """
-    existing_schemas = set(inspect(connection).get_schema_names())
     schemas = {table.schema for table in Base.metadata.tables.values() if table.schema}
     for schema in schemas:
-        if schema not in existing_schemas:
-            connection.execute(CreateSchema(schema))
+        # IF NOT EXISTS instead of a check-then-create: with multiple app
+        # workers booting against the same fresh DB, two can both see the
+        # schema absent and race to create it, and the loser gets a
+        # duplicate-key crash on pg_namespace that kills startup entirely.
+        connection.execute(CreateSchema(schema, if_not_exists=True))
 
     Base.metadata.reflect(bind=connection, schema=settings.SCHEMA_NAME)
     Base.metadata.create_all(bind=connection, checkfirst=True)
