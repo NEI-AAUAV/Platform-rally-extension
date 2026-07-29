@@ -45,8 +45,16 @@ const ACTOR_KIND_LABELS: Record<string, string> = {
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint" ||
+    typeof value === "symbol"
+  ) {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
 
 function ChangesSummary({ changes }: Readonly<{ changes: Record<string, unknown> }>) {
@@ -126,6 +134,33 @@ export default function AuditLogTab() {
 
   const entries = data ?? [];
   const resetPage = () => setOffset(0);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />A carregar…
+        </div>
+      );
+    }
+    if (isError) {
+      return (
+        <p className="py-6 text-sm text-red-400">Não foi possível carregar a auditoria.</p>
+      );
+    }
+    if (entries.length === 0) {
+      return (
+        <p className="py-6 text-sm text-muted-foreground">Sem registos para os filtros atuais.</p>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {entries.map((entry) => (
+          <AuditRow key={entry.id} entry={entry} />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -214,21 +249,7 @@ export default function AuditLogTab() {
       </div>
 
       {/* Results */}
-      {isLoading ? (
-        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />A carregar…
-        </div>
-      ) : isError ? (
-        <p className="py-6 text-sm text-red-400">Não foi possível carregar a auditoria.</p>
-      ) : entries.length === 0 ? (
-        <p className="py-6 text-sm text-muted-foreground">Sem registos para os filtros atuais.</p>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry) => (
-            <AuditRow key={entry.id} entry={entry} />
-          ))}
-        </div>
-      )}
+      {renderContent()}
 
       {/* Pagination */}
       <div className="flex items-center justify-between border-t border-border pt-3">
