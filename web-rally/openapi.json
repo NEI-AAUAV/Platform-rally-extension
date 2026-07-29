@@ -9153,6 +9153,11 @@
             "title": "Button Style",
             "default": "plain"
           },
+          "background_style": {
+            "type": "string",
+            "title": "Background Style",
+            "default": "plain"
+          },
           "visual_presets": {
             "items": {
               "$ref": "#/components/schemas/VisualPreset"
@@ -9392,6 +9397,11 @@
           "button_style": {
             "type": "string",
             "title": "Button Style",
+            "default": "plain"
+          },
+          "background_style": {
+            "type": "string",
+            "title": "Background Style",
             "default": "plain"
           },
           "visual_presets": {
@@ -10287,6 +10297,11 @@
           "button_style": {
             "type": "string",
             "title": "Button Style",
+            "default": "plain"
+          },
+          "background_style": {
+            "type": "string",
+            "title": "Background Style",
             "default": "plain"
           }
         },

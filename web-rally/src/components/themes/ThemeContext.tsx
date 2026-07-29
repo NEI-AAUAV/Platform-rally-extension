@@ -4,7 +4,19 @@ import { createContext, useContext, useState, useEffect, useMemo, type ReactNode
 import { getThemeComponents, type ThemeName, type ThemeComponents } from "@/components";
 import useRallySettings from "@/hooks/useRallySettings";
 
-type ButtonStyle = "plain" | "blood";
+type ButtonStyle = "plain" | "blood" | "glow" | "sharp" | "shine";
+const BUTTON_STYLES: readonly ButtonStyle[] = ["plain", "blood", "glow", "sharp", "shine"];
+
+type BackgroundStyle = "plain" | "dots" | "grid" | "glow" | "stripes" | "confetti" | "halloween";
+const BACKGROUND_STYLES: readonly BackgroundStyle[] = [
+  "plain",
+  "dots",
+  "grid",
+  "glow",
+  "stripes",
+  "confetti",
+  "halloween",
+];
 
 interface ThemeContextType {
   themeName: ThemeName;
@@ -12,6 +24,8 @@ interface ThemeContextType {
   components: ThemeComponents;
   /** Visual-identity button axis, applied via data-rally-buttons on the shell. */
   buttonStyle: ButtonStyle;
+  /** Background pattern axis, applied via data-rally-bg on the shell. */
+  backgroundStyle: BackgroundStyle;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -23,7 +37,14 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { settings } = useRallySettings();
   const [themeName, setThemeName] = useState<ThemeName>("nei");
-  const buttonStyle: ButtonStyle = settings?.button_style === "blood" ? "blood" : "plain";
+  const buttonStyle: ButtonStyle = BUTTON_STYLES.includes(settings?.button_style as ButtonStyle)
+    ? (settings!.button_style as ButtonStyle)
+    : "plain";
+  const backgroundStyle: BackgroundStyle = BACKGROUND_STYLES.includes(
+    settings?.background_style as BackgroundStyle,
+  )
+    ? (settings!.background_style as BackgroundStyle)
+    : "plain";
 
   // Update theme based on rally settings
   useEffect(() => {
@@ -51,8 +72,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       setTheme,
       components,
       buttonStyle,
+      backgroundStyle,
     }),
-    [themeName, components, buttonStyle],
+    [themeName, components, buttonStyle, backgroundStyle],
   );
 
   return (

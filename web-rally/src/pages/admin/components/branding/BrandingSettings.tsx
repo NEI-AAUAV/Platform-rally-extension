@@ -19,8 +19,10 @@ import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { LoadingState } from "@/components/shared";
 import { cn } from "@/lib/utils";
+import { RallyButton } from "@/components/themes/rally";
+import type { CSSProperties } from "react";
 
-type ButtonStyle = "plain" | "blood";
+type ButtonStyle = "plain" | "blood" | "glow" | "sharp" | "shine";
 
 // Quick-pick accent colours for the Colour axis (custom hex still available).
 const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
@@ -35,8 +37,101 @@ const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
 // Button axis options.
 const BUTTON_STYLE_OPTIONS: ReadonlyArray<{ value: ButtonStyle; label: string; hint: string }> = [
   { value: "plain", label: "Simples", hint: "Botões limpos com a cor de destaque" },
-  { value: "blood", label: "Sangue", hint: "Gota de sangue nos botões principais" },
+  { value: "blood", label: "Sangue", hint: "Gotas de sangue nos botões principais" },
+  { value: "glow", label: "Brilho", hint: "Halo luminoso à volta dos botões" },
+  { value: "sharp", label: "Angular", hint: "Cantos direitos, estilo brutalista" },
+  { value: "shine", label: "Reflexo", hint: "Brilho gloss sobre o preenchimento" },
 ];
+
+const asButtonStyle = (value: unknown): ButtonStyle =>
+  BUTTON_STYLE_OPTIONS.some((o) => o.value === value) ? (value as ButtonStyle) : "plain";
+
+type BackgroundStyle = "plain" | "dots" | "grid" | "glow" | "stripes" | "confetti" | "halloween";
+
+// Background pattern axis options.
+const BACKGROUND_STYLE_OPTIONS: ReadonlyArray<{
+  value: BackgroundStyle;
+  label: string;
+  hint: string;
+}> = [
+  { value: "plain", label: "Simples", hint: "Fundo limpo com o brilho de destaque" },
+  { value: "dots", label: "Pontos", hint: "Grelha de pontos subtil" },
+  { value: "grid", label: "Grelha", hint: "Linhas finas em grelha" },
+  { value: "glow", label: "Brilho", hint: "Halos suaves da cor de destaque" },
+  { value: "stripes", label: "Riscas", hint: "Riscas diagonais festivas" },
+  { value: "confetti", label: "Confetti", hint: "Confetti colorido — Carnaval" },
+  { value: "halloween", label: "Halloween", hint: "Ambiente escuro com morcegos" },
+];
+
+const asBackgroundStyle = (value: unknown): BackgroundStyle =>
+  BACKGROUND_STYLE_OPTIONS.some((o) => o.value === value) ? (value as BackgroundStyle) : "plain";
+
+const hexToRgba = (hex: string, alpha: number): string | null => {
+  const hex6 = /^#([0-9a-f]{6})$/i.exec(hex)?.[1];
+  if (!hex6) return null;
+  const n = Number.parseInt(hex6, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+};
+
+type IdentityPreviewProps = Readonly<{
+  accentColor: string;
+  buttonStyle: ButtonStyle;
+  eventName: string;
+  eventSubtitle: string;
+  /** Placeholder for the future background axis; already threaded through so
+   * adding background presets only needs the CSS + a real value here. */
+  backgroundStyle?: string;
+}>;
+
+/**
+ * Live preview of the draft identity. Scopes the chosen accent (--rally-accent)
+ * and button style (data-rally-buttons) to this panel so it reflects unsaved
+ * edits, without changing the rest of the app.
+ */
+function IdentityPreview({
+  accentColor,
+  buttonStyle,
+  eventName,
+  eventSubtitle,
+  backgroundStyle = "plain",
+}: IdentityPreviewProps) {
+  const vars: Record<string, string> = {};
+  if (/^#[0-9a-f]{6}$/i.test(accentColor)) {
+    vars["--rally-accent"] = accentColor;
+    vars["--rally-accent-contrast"] = accentColor;
+    const soft = hexToRgba(accentColor, 0.16);
+    if (soft) vars["--rally-accent-soft"] = soft;
+  }
+  return (
+    <div className="space-y-2">
+      <Label>Pré-visualização</Label>
+      <div
+        className="rally-identity-preview overflow-hidden rounded-xl border border-border bg-background p-5"
+        data-rally-buttons={buttonStyle}
+        data-rally-bg={backgroundStyle}
+        style={vars as CSSProperties}
+      >
+        <p className="font-display text-lg font-bold leading-tight">
+          {eventName || "Rally Tascas"}
+        </p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {eventSubtitle || "Identidade visual do evento"}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <RallyButton variant="primary" size="lg">
+            Ação principal
+          </RallyButton>
+          <RallyButton variant="outline" size="lg">
+            Secundário
+          </RallyButton>
+          <span className="rally-bg-accent-soft rounded-full px-3 py-1 text-xs font-semibold text-foreground">
+            Destaque
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type UploadFn = (file: File) => Promise<RallySettingsResponse>;
 
@@ -157,6 +252,7 @@ export default function BrandingSettings() {
   const [eventSubtitle, setEventSubtitle] = useState("");
   const [accentColor, setAccentColor] = useState("");
   const [buttonStyle, setButtonStyle] = useState<ButtonStyle>("plain");
+  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>("plain");
   const [visualPresets, setVisualPresets] = useState<VisualPreset[]>([]);
 
   useEffect(() => {
@@ -164,7 +260,8 @@ export default function BrandingSettings() {
     setEventName(settings.event_name ?? "");
     setEventSubtitle(settings.event_subtitle ?? "");
     setAccentColor(settings.accent_color ?? "");
-    setButtonStyle(settings.button_style === "blood" ? "blood" : "plain");
+    setButtonStyle(asButtonStyle(settings.button_style));
+    setBackgroundStyle(asBackgroundStyle(settings.background_style));
     setVisualPresets(settings.visual_presets ?? []);
   }, [settings]);
 
@@ -185,6 +282,7 @@ export default function BrandingSettings() {
         event_subtitle: eventSubtitle,
         accent_color: accentColor,
         button_style: buttonStyle,
+        background_style: backgroundStyle,
         visual_presets: visualPresets,
         ...overrides,
       };
@@ -201,10 +299,12 @@ export default function BrandingSettings() {
 
   // Apply a saved preset's axis values live (and persist immediately).
   const applyPreset = (preset: VisualPreset) => {
-    const style: ButtonStyle = preset.button_style === "blood" ? "blood" : "plain";
+    const style = asButtonStyle(preset.button_style);
+    const bg = asBackgroundStyle(preset.background_style);
     setAccentColor(preset.accent_color ?? "");
     setButtonStyle(style);
-    persist({ accent_color: preset.accent_color ?? "", button_style: style });
+    setBackgroundStyle(bg);
+    persist({ accent_color: preset.accent_color ?? "", button_style: style, background_style: bg });
   };
 
   // Snapshot the current axis mix as a new named preset.
@@ -216,6 +316,7 @@ export default function BrandingSettings() {
       name,
       accent_color: accentColor,
       button_style: buttonStyle,
+      background_style: backgroundStyle,
     };
     const next = [...visualPresets, preset];
     setVisualPresets(next);
@@ -242,6 +343,14 @@ export default function BrandingSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <IdentityPreview
+          accentColor={accentColor}
+          buttonStyle={buttonStyle}
+          backgroundStyle={backgroundStyle}
+          eventName={eventName}
+          eventSubtitle={eventSubtitle}
+        />
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="event_name">Nome do evento</Label>
@@ -313,7 +422,7 @@ export default function BrandingSettings() {
         {/* Button axis */}
         <div className="space-y-2">
           <Label>Estilo dos botões</Label>
-          <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {BUTTON_STYLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -322,6 +431,29 @@ export default function BrandingSettings() {
                 className={cn(
                   "rounded-xl border p-3 text-left transition",
                   buttonStyle === opt.value
+                    ? "border-foreground bg-muted ring-2 ring-foreground/20"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                <span className="block text-sm font-semibold">{opt.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Background axis */}
+        <div className="space-y-2">
+          <Label>Fundo</Label>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {BACKGROUND_STYLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setBackgroundStyle(opt.value)}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  backgroundStyle === opt.value
                     ? "border-foreground bg-muted ring-2 ring-foreground/20"
                     : "border-border hover:bg-muted",
                 )}

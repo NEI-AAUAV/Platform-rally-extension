@@ -180,6 +180,63 @@
       radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
   }
 
+  /* --- Glow button style: accent halo around the button --- */
+  [data-rally-buttons="glow"] .rally-blood-button {
+    box-shadow:
+      0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+      0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
+  }
+
+  /* --- Sharp button style: squared, brutalist corners --- */
+  [data-rally-buttons="sharp"] .rally-blood-button {
+    border-radius: 3px;
+  }
+
+  /* --- Shine button style: a glossy sheen over the fill --- */
+  [data-rally-buttons="shine"] .rally-blood-button {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
+  }
+
+  /* --- Identity preview isolation ---
+     The preview panel carries its own data-rally-buttons for the *draft* style.
+     The app shell's data-rally-buttons also matches descendants, so reset the
+     inherited effects here (higher specificity) and re-apply only the draft. */
+  .rally-identity-preview[data-rally-buttons] .rally-blood-button {
+    box-shadow: none;
+    background-image: none;
+    border-radius: 0.75rem;
+  }
+  .rally-identity-preview[data-rally-buttons] .rally-blood-button::after {
+    content: none;
+  }
+  .rally-identity-preview[data-rally-buttons="glow"] .rally-blood-button {
+    box-shadow:
+      0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+      0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-blood-button {
+    border-radius: 3px;
+  }
+  .rally-identity-preview[data-rally-buttons="shine"] .rally-blood-button {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
+  }
+  .rally-identity-preview[data-rally-buttons="blood"] .rally-blood-button::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    bottom: -22px;
+    width: 52px;
+    height: 34px;
+    pointer-events: none;
+    color: var(--rally-accent, var(--rally-accent-fallback));
+    filter: url(#rally-goo);
+    background:
+      linear-gradient(currentColor, currentColor) top center / 100% 12px no-repeat,
+      radial-gradient(6px 13px at 18% 42%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(7px 19px at 50% 55%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
+  }
+
   /* --- Soft-depth surfaces (the rally design language) --- */
   .rally-surface {
     background-color: hsl(var(--card));
@@ -259,6 +316,90 @@
     opacity: 0.025;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
+  /* --- Background pattern axis (data-rally-bg) ---
+     Each value sets --rally-bg-image (+ size). Custom props inherit, so the
+     nearest data-rally-bg wins: the app shell paints it as a fixed full-screen
+     layer (.rally-grain::after) and the identity preview paints it contained —
+     no duplication, no bleed between the two. */
+  [data-rally-bg="dots"] {
+    --rally-bg-image: radial-gradient(
+      var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1.6px,
+      transparent 1.7px
+    );
+    --rally-bg-size: 22px 22px;
+  }
+  [data-rally-bg="grid"] {
+    --rally-bg-image: linear-gradient(
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1px,
+        transparent 1px
+      );
+    --rally-bg-size: 34px 34px;
+  }
+  [data-rally-bg="glow"] {
+    --rally-bg-image: radial-gradient(
+        42% 42% at 12% 12%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      ),
+      radial-gradient(
+        46% 46% at 88% 64%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      );
+    --rally-bg-size: cover;
+  }
+  [data-rally-bg="stripes"] {
+    --rally-bg-image: repeating-linear-gradient(
+      45deg,
+      var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 0 10px,
+      transparent 10px 28px
+    );
+    --rally-bg-size: auto;
+  }
+  [data-rally-bg="confetti"] {
+    --rally-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect x='16' y='20' width='9' height='9' rx='2' fill='%23ff5a5f' transform='rotate(20 20 24)'/%3E%3Ccircle cx='62' cy='30' r='5' fill='%23ffd23f'/%3E%3Crect x='104' y='16' width='8' height='8' rx='2' fill='%234ea8de' transform='rotate(-22 108 20)'/%3E%3Crect x='128' y='64' width='9' height='9' rx='2' fill='%2306d6a0' transform='rotate(35 132 68)'/%3E%3Ccircle cx='32' cy='78' r='4.5' fill='%23ef476f'/%3E%3Crect x='70' y='90' width='8' height='8' rx='2' fill='%23c77dff' transform='rotate(-14 74 94)'/%3E%3Ccircle cx='112' cy='112' r='5' fill='%23ffd23f'/%3E%3Crect x='18' y='120' width='9' height='9' rx='2' fill='%234ea8de' transform='rotate(28 22 124)'/%3E%3Ccircle cx='138' cy='34' r='4' fill='%2306d6a0'/%3E%3Crect x='86' y='54' width='7' height='7' rx='2' fill='%23ff5a5f' transform='rotate(40 89 57)'/%3E%3C/svg%3E");
+    --rally-bg-size: 150px 150px;
+  }
+  [data-rally-bg="halloween"] {
+    --rally-bg-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='%238b5cf6' opacity='0.16'%3E%3Cpath d='M14 12 C12 10 9 10 8 12 C7 10 4 11 4 13 C6 13 8 14 9 16 C11 14 13 13 14 15 C15 13 17 14 19 16 C20 14 22 13 24 13 C24 11 21 10 20 12 C19 10 16 10 14 12 Z'/%3E%3Cpath d='M58 50 C56 48 53 48 52 50 C51 48 48 49 48 51 C50 51 52 52 53 54 C55 52 57 51 58 53 C59 51 61 52 63 54 C64 52 66 51 68 51 C68 49 65 48 64 50 C63 48 60 48 58 50 Z'/%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(
+        55% 45% at 12% 8%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 70%
+      ),
+      radial-gradient(
+        50% 45% at 88% 26%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      );
+    --rally-bg-size: 90px 90px, cover, cover;
+  }
+
+  /* Shell: fixed full-screen pattern layer (skips 'plain'). */
+  .rally-grain[data-rally-bg]:not([data-rally-bg="plain"])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--rally-bg-image);
+    background-size: var(--rally-bg-size, auto);
+    background-position: center;
+  }
+
+  /* Identity preview: the same pattern, contained to the panel. */
+  .rally-identity-preview[data-rally-bg]:not([data-rally-bg="plain"]) {
+    background-image: var(--rally-bg-image);
+    background-size: var(--rally-bg-size, auto);
+    background-position: center;
+  }
+
   .rally-marquee {
     mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   }

@@ -33,34 +33,6 @@ export default function DisplaySettings({
         <CardDescription>Controlar o que é visível para os utilizadores</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="rally_theme">Tema do Rally</Label>
-          <Controller
-            name="rally_theme"
-            control={control}
-            defaultValue="bloody"
-            render={({ field }) => (
-              <Select
-                value={field.value || "bloody"}
-                onValueChange={field.onChange}
-                disabled={disabled}
-              >
-                <SelectTrigger id="rally_theme" className="border-border bg-muted">
-                  <SelectValue placeholder="Selecione um tema" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nei">NEI Rally (Verde)</SelectItem>
-                  <SelectItem value="bloody">Halloween (Bloody)</SelectItem>
-                  <SelectItem value="default">Rally Tascas (Legacy)</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          <p className="text-xs text-muted-foreground">
-            O tema controla as cores e estilo visual da aplicação
-          </p>
-        </div>
-
         <div className="flex items-center space-x-2">
           <Controller
             name="show_live_leaderboard"

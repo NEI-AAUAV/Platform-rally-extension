@@ -37,7 +37,8 @@ class HomeSection(BaseModel):
 
 # Visual-identity axes. Each axis is applied live and can be mixed freely; a
 # saved VisualPreset bundles a chosen value per axis under a name.
-BUTTON_STYLES = ("plain", "blood")
+BUTTON_STYLES = ("plain", "blood", "glow", "sharp", "shine")
+BACKGROUND_STYLES = ("plain", "dots", "grid", "glow", "stripes", "confetti", "halloween")
 MAX_VISUAL_PRESETS = 24
 
 
@@ -46,6 +47,7 @@ class VisualPreset(BaseModel):
     name: str
     accent_color: str = ""
     button_style: str = "plain"
+    background_style: str = "plain"
 
 
 def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
@@ -121,7 +123,8 @@ class RallySettingsBase(BaseModel):
     accent_color: str = ""  # CSS color, e.g. "#c81d25"
 
     # Visual-identity axes (applied live), presettable independently of accent.
-    button_style: str = "plain"  # 'plain' | 'blood'
+    button_style: str = "plain"  # 'plain' | 'blood' | 'glow' | 'sharp' | 'shine'
+    background_style: str = "plain"  # pattern axis; see BACKGROUND_STYLES
     # Saved named identity presets (bundles of the axis values).
     visual_presets: list[VisualPreset] = []
 
@@ -163,6 +166,11 @@ class RallySettingsBase(BaseModel):
     @classmethod
     def _normalize_button_style(cls, value: Any) -> str:
         return value if value in BUTTON_STYLES else "plain"
+
+    @field_validator("background_style", mode="before")
+    @classmethod
+    def _normalize_background_style(cls, value: Any) -> str:
+        return value if value in BACKGROUND_STYLES else "plain"
 
     @field_validator("visual_presets", mode="before")
     @classmethod

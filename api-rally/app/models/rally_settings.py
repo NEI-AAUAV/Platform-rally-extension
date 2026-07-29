@@ -68,6 +68,9 @@ class RallySettings(Base):
     # Visual-identity axes (applied live). Presettable independently of the
     # accent so identities compose (e.g. green accent + blood buttons).
     button_style = Column(String(20), nullable=False, default="plain")  # 'plain' | 'blood'
+    # Background pattern axis: 'plain' | 'dots' | 'grid' | 'glow' | 'stripes' |
+    # 'confetti' | 'halloween'. Themed patterns for seasonal editions.
+    background_style = Column(String(20), nullable=False, default="plain")
     # Saved named identity presets, each a bundle of the axis values:
     # [{"id","name","accent_color","button_style"}]. Free-form JSON, admin-
     # editable via the settings PUT; normalized on read (see crud_rally_settings).
