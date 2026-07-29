@@ -221,7 +221,7 @@ async def readiness_check() -> JSONResponse:
             alive = worker.is_alive
             workers.append({"name": worker.name, "alive": alive, "last_beat": worker.last_beat})
             ready = ready and alive
-            age = 0.0 if worker.last_beat == 0.0 else time.monotonic() - worker.last_beat
+            age = 0.0 if not worker.last_beat else time.monotonic() - worker.last_beat
             set_worker_last_beat_age(worker=worker.name, age_seconds=age)
     body["workers"] = workers
 
