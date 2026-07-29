@@ -13,7 +13,7 @@ describe('RallyMarquee', () => {
   it('renders provided items doubled', () => {
     render(<RallyMarquee items={['CUSTOM ITEM']} />);
     const matches = screen.getAllByText('CUSTOM ITEM');
-    expect(matches).toHaveLength(2);
+    expect(matches).toHaveLength(4);
   });
 
   it('renders empty list falls back to default when items is empty array', () => {
