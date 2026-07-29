@@ -422,7 +422,11 @@ class TestStaffRegistrationGate:
         from app.main import app
         from app.schemas.user import DetailedUser
 
-        user = DetailedUser(id=99, name="Staff", disabled=False, scopes=["rally-staff"])
+        # ADD_TEAM_MEMBER is staff-allowed only with an actual checkpoint
+        # assignment (_staff_has_checkpoint), so the override must carry one.
+        user = DetailedUser(
+            id=99, name="Staff", disabled=False, scopes=["rally-staff"], staff_checkpoint_id=1
+        )
         auth = AuthData(oidc_sub="u1", name="Staff", scopes=["rally-staff"])
         app.dependency_overrides[api_nei_auth] = lambda: auth
         app.dependency_overrides[deps.get_participant] = lambda: user

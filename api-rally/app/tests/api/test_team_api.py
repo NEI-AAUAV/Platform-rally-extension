@@ -238,7 +238,11 @@ class TestGetTeamById:
         pg_session.add(team)
         await pg_session.commit()
 
-        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        self._as_participant(team.id)
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
