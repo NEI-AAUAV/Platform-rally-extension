@@ -32,7 +32,8 @@ export default function JoinTeamCard() {
   });
 
   const claim = useMutation({
-    mutationFn: (memberId: number) => ProfileService.claimMembership(memberId),
+    mutationFn: (memberId: number) =>
+      ProfileService.claimMembership(memberId, submittedCode as string),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
     },

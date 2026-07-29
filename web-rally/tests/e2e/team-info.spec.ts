@@ -31,6 +31,7 @@ async function mockTeam(page: Page, members: unknown[], teamId = 3) {
       body: JSON.stringify({
         id: teamId,
         name: 'Os Fixes',
+        access_code: 'CODE99',
         total: 0,
         times: [],
         members,

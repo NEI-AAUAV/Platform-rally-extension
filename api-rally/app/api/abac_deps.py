@@ -7,6 +7,8 @@ for Rally checkpoint and team management.
 
 from collections.abc import Callable
 
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -167,7 +169,7 @@ async def require_checkpoint_score_permission(
 
 
 def require_checkpoint_view_permission(
-    checkpoint_id: int | None,
+    checkpoint_id: Optional[int] = None,
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
 ) -> None:

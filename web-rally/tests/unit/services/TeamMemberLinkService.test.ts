@@ -73,17 +73,18 @@ describe('TeamMemberLinkService', () => {
     )
   })
 
-  it('linkSelf links the caller to a placeholder slot via OIDC bearer alone', async () => {
+  it('linkSelf sends the team access code that proves membership', async () => {
     const linked = { id: 5, name: 'Jane', is_captain: true }
     postMock.mockResolvedValue({ data: linked })
     const { TeamMemberLinkService } = await import('@/services/TeamMemberLinkService')
 
-    const result = await TeamMemberLinkService.linkSelf(1, 2)
+    const result = await TeamMemberLinkService.linkSelf(1, 2, 'CODE99')
 
     expect(result).toEqual(linked)
     expect(postMock).toHaveBeenCalledWith({
       url: '/api/rally/v1/team/{team_id}/members/{user_id}/link-self',
       path: { team_id: 1, user_id: 2 },
+      body: { access_code: 'CODE99' },
     })
   })
 })

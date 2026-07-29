@@ -124,7 +124,7 @@ describe('JoinTeamCard', () => {
     await user.click(await screen.findByText('Carla'));
 
     await waitFor(() => {
-      expect(ProfileService.claimMembership).toHaveBeenCalledWith(5);
+      expect(ProfileService.claimMembership).toHaveBeenCalledWith(5, 'ABCD-1234');
     });
   });
 

@@ -3,12 +3,18 @@ lazy participation recording, and claiming a placeholder team member onto
 the caller's OIDC account.
 """
 
+import hmac
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api.auth import AuthData
-from app.core.exceptions import RallyNotFoundError, RallyValidationError
+from app.core.exceptions import (
+    RallyForbiddenError,
+    RallyNotFoundError,
+    RallyValidationError,
+)
 from app.crud.crud_team import CRUDTeam
 from app.models.participation import EventParticipation
 from app.models.team import Team
@@ -78,12 +84,18 @@ class ProfileService:
             members=[ClaimableMember.model_validate(m) for m in members],
         )
 
-    async def claim_membership(self, member_user_id: int, auth: AuthData) -> ParticipationEntry:
+    async def claim_membership(
+        self, member_user_id: int, access_code: str, auth: AuthData
+    ) -> ParticipationEntry:
         """Claim a name-only team member as the caller's own participation.
 
         The placeholder member (a ``user`` row with no authentik_sub) is merged
         into the caller's account: its team membership moves to the caller and
         the placeholder is removed. A participation row is recorded for the event.
+
+        ``access_code`` is what binds the caller to the placeholder's team — the
+        OIDC bearer only identifies the person. Without it, any authenticated
+        user could claim (and irreversibly delete) any team's open slots.
         """
         member = await self._db.get(User, member_user_id)
         if member is None:
@@ -96,6 +108,8 @@ class ProfileService:
         team = await self._db.get(Team, member.team_id)
         if team is None:
             raise RallyNotFoundError("Team not found")
+        if not hmac.compare_digest((team.access_code or "").strip(), access_code.strip()):
+            raise RallyForbiddenError("Invalid team access code")
 
         me = await self.get_self(auth)
         if me is None:

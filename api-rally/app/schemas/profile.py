@@ -47,3 +47,14 @@ class ProfileResponse(BaseModel):
     scopes: list[str] = []
     current_team_id: int | None = None
     participations: list[ParticipationEntry] = []
+
+
+class ClaimMembershipRequest(BaseModel):
+    """Proof that the claimer belongs to the placeholder member's team.
+
+    The OIDC bearer identifies the caller but not their team, so the team's
+    access code (the same secret ``/profile/claimable`` requires) must be
+    presented again when acting on a placeholder.
+    """
+
+    access_code: str

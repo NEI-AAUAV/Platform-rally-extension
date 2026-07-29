@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import TeamHeaderCard from '@/pages/team-progress/TeamHeaderCard';
-import type { DetailedTeam } from '@/client';
+import type { PrivilegedDetailedTeam } from '@/client';
 
 const baseTeam = {
   name: 'Team Alpha',
   access_code: 'ABC123',
   classification: 2,
   total: 150,
-} as DetailedTeam;
+} as PrivilegedDetailedTeam;
 
 describe('TeamHeaderCard', () => {
   it('renders team name, initials, and access code', () => {
@@ -56,7 +56,7 @@ describe('TeamHeaderCard', () => {
   });
 
   it('does not render access code when absent', () => {
-    const teamNoCode = { ...baseTeam, access_code: undefined } as unknown as DetailedTeam;
+    const teamNoCode = { ...baseTeam, access_code: undefined } as unknown as PrivilegedDetailedTeam;
     render(
       <TeamHeaderCard
         team={teamNoCode}

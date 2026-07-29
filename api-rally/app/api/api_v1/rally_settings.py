@@ -9,9 +9,8 @@ from app.api.deps import get_db, get_participant
 from app.crud.crud_rally_settings import rally_settings
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.user import DetailedUser
-from app.services.audit_service import AuditActor, record_field_changes
+from app.services.audit_service import AuditActor, record_field_changes, snapshot_fields
 from app.services.deps import get_rally_settings_service
-from app.services._diff import snapshot_fields
 from app.services.image_upload import ALLOWED_FAVICON_CONTENT_TYPES, ALLOWED_PHOTO_CONTENT_TYPES
 from app.services.rally_settings_service import RallySettingsService
 

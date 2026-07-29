@@ -4,6 +4,8 @@ Moved out of app.api.api_v1.team_members, which used to hold this logic
 inline in the router handlers.
 """
 
+import hmac
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,7 @@ from app.schemas.user import UserCreate
 TEAM_NOT_FOUND_MESSAGE = "Team not found"
 USER_NOT_FOUND_MESSAGE = "User not found"
 USER_NOT_TEAM_MEMBER_MESSAGE = "User is not a member of this team"
+INVALID_ACCESS_CODE_MESSAGE = "Invalid team access code"
 
 
 class TeamMemberService:
@@ -31,6 +34,15 @@ class TeamMemberService:
         if not team:
             raise RallyNotFoundError(TEAM_NOT_FOUND_MESSAGE)
         return team
+
+    def assert_team_access_code(self, team: Team, access_code: str) -> None:
+        """Verify the caller holds ``team``'s access code.
+
+        Used by self-serve flows where the bearer token identifies the person
+        but not the team, so nothing else binds the caller to this roster.
+        """
+        if not hmac.compare_digest((team.access_code or "").strip(), access_code.strip()):
+            raise RallyForbiddenError(INVALID_ACCESS_CODE_MESSAGE)
 
     async def get_team_member_or_raise(self, team_id: int, user_id: int) -> User:
         user = await self._db.get(User, user_id)

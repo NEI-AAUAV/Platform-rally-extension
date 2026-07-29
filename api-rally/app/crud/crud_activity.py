@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud._event_scope import current_event_id
+from app.crud import current_event_id
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.schemas.activity import (
     ActivityCreate,

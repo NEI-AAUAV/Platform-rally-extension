@@ -329,7 +329,8 @@ class TestLinkSelfTeamMember:
         self._oidc_override()
         try:
             resp = pg_client.post(
-                f"/api/rally/v1/team/{team.id}/members/{placeholder.id}/link-self"
+                f"/api/rally/v1/team/{team.id}/members/{placeholder.id}/link-self",
+                json={"access_code": team.access_code},
             )
         finally:
             self._clear_oidc_override()
@@ -345,7 +346,10 @@ class TestLinkSelfTeamMember:
 
         self._oidc_override()
         try:
-            resp = pg_client.post("/api/rally/v1/team/999999/members/1/link-self")
+            resp = pg_client.post(
+                "/api/rally/v1/team/999999/members/1/link-self",
+                json={"access_code": "ANY-0000"},
+            )
         finally:
             self._clear_oidc_override()
 
@@ -357,7 +361,10 @@ class TestLinkSelfTeamMember:
 
         self._oidc_override()
         try:
-            resp = pg_client.post(f"/api/rally/v1/team/{team.id}/members/999999/link-self")
+            resp = pg_client.post(
+                f"/api/rally/v1/team/{team.id}/members/999999/link-self",
+                json={"access_code": team.access_code},
+            )
         finally:
             self._clear_oidc_override()
 
@@ -372,12 +379,38 @@ class TestLinkSelfTeamMember:
         self._oidc_override()
         try:
             resp = pg_client.post(
-                f"/api/rally/v1/team/{team.id}/members/{placeholder.id}/link-self"
+                f"/api/rally/v1/team/{team.id}/members/{placeholder.id}/link-self",
+                json={"access_code": team.access_code},
             )
         finally:
             self._clear_oidc_override()
 
         assert resp.status_code == 400
+
+    async def test_link_self_wrong_access_code_is_forbidden(self, pg_session, pg_client, as_admin):
+        """Placeholder state is not authorization: without the team's access code
+        any authenticated caller could take over an open slot."""
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        placeholder = await self._make_placeholder(pg_session, team.id, is_captain=True)
+        placeholder_id = placeholder.id
+
+        self._oidc_override()
+        try:
+            resp = pg_client.post(
+                f"/api/rally/v1/team/{team.id}/members/{placeholder_id}/link-self",
+                json={"access_code": "WRONG-0000"},
+            )
+        finally:
+            self._clear_oidc_override()
+
+        assert resp.status_code == 403, resp.text
+        pg_session.expire_all()
+        from app.models.user import User
+
+        survivor = await pg_session.get(User, placeholder_id)
+        assert survivor is not None
+        assert survivor.authentik_sub is None
 
 
 class TestStaffRegistrationGate:

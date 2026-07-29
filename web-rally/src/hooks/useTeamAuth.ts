@@ -5,7 +5,7 @@ import {
   addTeamMember,
   removeTeamMember,
   teamLogin,
-  type DetailedTeam,
+  type PrivilegedDetailedTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
 import { setSentryUser, clearSentryUser } from "@/lib/sentry";
@@ -53,7 +53,7 @@ export default function useTeamAuth() {
   }, []);
 
   // Fetch team members data when authenticated
-  const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
+  const { data: team, isLoading: isLoadingTeam } = useQuery<PrivilegedDetailedTeam>({
     queryKey: ["team", currentTeamData?.team_id],
     queryFn: async () => {
       if (!currentTeamData) {

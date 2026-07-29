@@ -12,7 +12,12 @@ from fastapi import APIRouter, Depends, Security
 
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_participant
-from app.schemas.profile import ClaimableTeam, ParticipationEntry, ProfileResponse
+from app.schemas.profile import (
+    ClaimableTeam,
+    ClaimMembershipRequest,
+    ParticipationEntry,
+    ProfileResponse,
+)
 from app.schemas.user import DetailedUser
 from app.services.deps import get_profile_service
 from app.services.profile_service import ProfileService
@@ -96,6 +101,7 @@ class ProfileController:
     async def claim_membership(
         self,
         member_user_id: int,
+        claim_data: ClaimMembershipRequest,
         _curr: Annotated[DetailedUser, Depends(get_participant)],
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         service: Annotated[ProfileService, Depends(get_profile_service)],
@@ -105,8 +111,12 @@ class ProfileController:
         The placeholder member (a ``user`` row with no authentik_sub) is merged into
         the caller's account: its team membership moves to the caller and the
         placeholder is removed. A participation row is recorded for the event.
+
+        The team's access code must be re-presented: it is the only thing tying
+        the caller to that roster, since the OIDC bearer proves identity but not
+        team membership.
         """
-        return await service.claim_membership(member_user_id, auth)
+        return await service.claim_membership(member_user_id, claim_data.access_code, auth)
 
 
 router = ProfileController().router

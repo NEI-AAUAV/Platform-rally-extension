@@ -130,7 +130,9 @@ class TestClaimable:
 
 class TestClaimMembership:
     def test_claim_membership_not_found(self, pg_session, pg_client, as_admin):
-        resp = pg_client.post("/api/rally/v1/profile/claim/999999")
+        resp = pg_client.post(
+            "/api/rally/v1/profile/claim/999999", json={"access_code": "ANY-0000"}
+        )
 
         assert resp.status_code == 404
 
@@ -144,7 +146,9 @@ class TestClaimMembership:
         pg_session.add(linked)
         await pg_session.commit()
 
-        resp = pg_client.post(f"/api/rally/v1/profile/claim/{linked.id}")
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{linked.id}", json={"access_code": team.access_code}
+        )
 
         assert resp.status_code == 400
         assert "already linked" in resp.json()["detail"].lower() or "already linked" in str(
@@ -156,7 +160,9 @@ class TestClaimMembership:
             pg_session, obj_in=UserCreate(name="NoTeam"), commit=True
         )
 
-        resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder.id}")
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{placeholder.id}", json={"access_code": "ANY-0000"}
+        )
 
         assert resp.status_code == 400
 
@@ -184,7 +190,10 @@ class TestClaimMembership:
 
         monkeypatch.setattr(AsyncSession, "get", _fake_get)
 
-        resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder.id}")
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{placeholder.id}",
+            json={"access_code": team.access_code},
+        )
 
         assert resp.status_code == 404
 
@@ -201,7 +210,10 @@ class TestClaimMembership:
         await pg_session.commit()
         placeholder_id = placeholder.id
 
-        resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder_id}")
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{placeholder_id}",
+            json={"access_code": team.access_code},
+        )
 
         assert resp.status_code == 201, resp.text
         body = resp.json()
@@ -214,6 +226,29 @@ class TestClaimMembership:
 
         pg_session.expire_all()
         assert await pg_session.get(User, placeholder_id) is None
+
+    async def test_claim_membership_wrong_access_code_is_forbidden(
+        self, pg_session, pg_client, as_admin
+    ):
+        """The access code is the only thing binding the caller to the team, so a
+        wrong one must block the claim (and leave the placeholder intact)."""
+        team = await _make_team(pg_session)
+        placeholder = await crud_user.create(pg_session, obj_in=UserCreate(name="Vitima"))
+        placeholder.team_id = team.id
+        pg_session.add(placeholder)
+        await pg_session.commit()
+        placeholder_id = placeholder.id
+
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{placeholder_id}",
+            json={"access_code": "WRONG-0000"},
+        )
+
+        assert resp.status_code == 403, resp.text
+        pg_session.expire_all()
+        survivor = await pg_session.get(User, placeholder_id)
+        assert survivor is not None
+        assert survivor.authentik_sub is None
 
     async def test_claim_membership_success_existing_caller_account(
         self, pg_session, pg_client, as_admin
@@ -234,7 +269,10 @@ class TestClaimMembership:
         await pg_session.commit()
         placeholder_id = placeholder.id
 
-        resp = pg_client.post(f"/api/rally/v1/profile/claim/{placeholder_id}")
+        resp = pg_client.post(
+            f"/api/rally/v1/profile/claim/{placeholder_id}",
+            json={"access_code": team.access_code},
+        )
 
         assert resp.status_code == 201, resp.text
         me = await crud_user.get_by_authentik_sub(pg_session, authentik_sub="test-admin-sub")

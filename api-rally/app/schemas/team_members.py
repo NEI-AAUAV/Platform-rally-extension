@@ -38,3 +38,14 @@ class TeamMemberLink(BaseModel):
     authentik_sub: str
     name: str | None = None
     email: str | None = None
+
+
+class TeamMemberLinkSelf(BaseModel):
+    """Self-serve claim of a placeholder member by the caller's OIDC account.
+
+    The access code is the proof that the caller belongs to the team: the OIDC
+    bearer identifies *who* is calling but says nothing about *which* team they
+    may claim a slot in, so it must be presented explicitly here.
+    """
+
+    access_code: str

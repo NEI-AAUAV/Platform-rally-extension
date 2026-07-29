@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TeamMembersCard from '@/pages/team-progress/TeamMembersCard';
-import type { DetailedTeam } from '@/client';
+import type { PrivilegedDetailedTeam } from '@/client';
 
 const {
   mockUseUserStore,
@@ -47,11 +47,12 @@ vi.mock('@tanstack/react-query', async () => {
 });
 
 const team = {
+  access_code: 'CODE99',
   members: [
     { id: 1, name: 'Alice Smith' },
     { id: 2, name: 'Bob Jones' },
   ],
-} as DetailedTeam;
+} as PrivilegedDetailedTeam;
 
 const createWrapper = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -92,7 +93,10 @@ describe('TeamMembersCard', () => {
     const button = screen.getByRole('button', { name: /Alice Smith/ });
     await user.click(button);
 
-    expect(mockClaimMembership).toHaveBeenCalledWith({ path: { member_user_id: 1 } });
+    expect(mockClaimMembership).toHaveBeenCalledWith({
+      path: { member_user_id: 1 },
+      body: { access_code: 'CODE99' },
+    });
   });
 
   it('does not offer claiming when profile already has a team', () => {

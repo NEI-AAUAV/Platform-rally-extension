@@ -51,7 +51,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailedTeam"
+                  "$ref": "#/components/schemas/PrivilegedDetailedTeam"
                 }
               }
             }
@@ -87,7 +87,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailedTeam"
+                  "$ref": "#/components/schemas/PrivilegedDetailedTeam"
                 }
               }
             }
@@ -107,6 +107,11 @@
         ],
         "summary": "Get Team By Id",
         "operationId": "get_team_by_id",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -124,7 +129,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailedTeam"
+                  "$ref": "#/components/schemas/PrivilegedDetailedTeam"
                 }
               }
             }
@@ -1602,7 +1607,7 @@
           "Team Members"
         ],
         "summary": "Link Self Team Member",
-        "description": "Self-serve variant of ``link_team_member``.\n\nLets whoever holds a team access-code session claim a placeholder slot in\nthat team using the NEI (OIDC) account they just logged in with.\n\nThe client can only send a single bearer token per request, and it\nswitches to the OIDC token as soon as this NEI login completes \u2014 so\n``team_id`` cannot be proven via the (now unavailable) team token here.\nInstead the frontend captures ``team_id`` right before the OIDC redirect\nand passes it explicitly; this is safe because the target placeholder\nmust both belong to that team *and* have no ``authentik_sub`` yet\n(enforced below), so a caller can only ever claim an actually-open slot.",
+        "description": "Self-serve variant of ``link_team_member``.\n\nLets whoever holds a team's access code claim a placeholder slot in that\nteam using the NEI (OIDC) account they just logged in with.\n\nThe client can only send a single bearer token per request, and it\nswitches to the OIDC token as soon as this NEI login completes \u2014 so\nteam membership cannot be proven via the (now unavailable) team token\nhere. The caller therefore re-presents the team access code, which is\nwhat binds them to ``team_id``; the OIDC bearer only says *who* they are.\nPlaceholder state alone is not authorization: without the code check any\nauthenticated user could claim any team's open slot.",
         "operationId": "link_self_team_member",
         "security": [
           {
@@ -1629,6 +1634,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamMemberLinkSelf"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4006,7 +4021,7 @@
           "Profile"
         ],
         "summary": "Claim Membership",
-        "description": "Claim a name-only team member as the caller's own participation.\n\nThe placeholder member (a ``user`` row with no authentik_sub) is merged into\nthe caller's account: its team membership moves to the caller and the\nplaceholder is removed. A participation row is recorded for the event.",
+        "description": "Claim a name-only team member as the caller's own participation.\n\nThe placeholder member (a ``user`` row with no authentik_sub) is merged into\nthe caller's account: its team membership moves to the caller and the\nplaceholder is removed. A participation row is recorded for the event.\n\nThe team's access code must be re-presented: it is the only thing tying\nthe caller to that roster, since the OIDC bearer proves identity but not\nteam membership.",
         "operationId": "claim_membership",
         "security": [
           {
@@ -4024,6 +4039,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimMembershipRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Successful Response",
@@ -7393,6 +7418,20 @@
         ],
         "title": "CheckpointMediaResponse"
       },
+      "ClaimMembershipRequest": {
+        "properties": {
+          "access_code": {
+            "type": "string",
+            "title": "Access Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_code"
+        ],
+        "title": "ClaimMembershipRequest",
+        "description": "Proof that the claimer belongs to the placeholder member's team.\n\nThe OIDC bearer identifies the caller but not their team, so the team's\naccess code (the same secret ``/profile/claimable`` requires) must be\npresented again when acting on a placeholder."
+      },
       "ClaimableMember": {
         "properties": {
           "id": {
@@ -7613,10 +7652,6 @@
             "title": "Photo Url",
             "default": ""
           },
-          "access_code": {
-            "type": "string",
-            "title": "Access Code"
-          },
           "times": {
             "items": {
               "type": "string",
@@ -7679,7 +7714,6 @@
           "name",
           "total",
           "classification",
-          "access_code",
           "times",
           "score_per_checkpoint",
           "members"
@@ -8637,6 +8671,120 @@
         ],
         "title": "ParticipationEntry",
         "description": "One event a person took part in, with their team and result."
+      },
+      "PrivilegedDetailedTeam": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "classification": {
+            "type": "integer",
+            "title": "Classification"
+          },
+          "versus_group_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versus Group Id"
+          },
+          "photo_url": {
+            "type": "string",
+            "title": "Photo Url",
+            "default": ""
+          },
+          "times": {
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "array",
+            "title": "Times"
+          },
+          "score_per_checkpoint": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Score Per Checkpoint"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ListingUser"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "last_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checkpoint Number"
+          },
+          "current_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Checkpoint Number"
+          },
+          "total_checkpoints": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Checkpoints"
+          },
+          "access_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "total",
+          "classification",
+          "times",
+          "score_per_checkpoint",
+          "members"
+        ],
+        "title": "PrivilegedDetailedTeam",
+        "description": "DetailedTeam plus the team's access code.\n\nThe access code is the sole authentication factor for team login, so it is\nonly ever exposed to the team itself or to admin/staff-scoped callers.\nIt is None whenever the caller is not entitled to see it."
       },
       "ProfileResponse": {
         "properties": {
@@ -9883,6 +10031,20 @@
         ],
         "title": "TeamMemberLink",
         "description": "Link a name-only placeholder member to a real NEI (OIDC) account.\n\nIdentified by the account's Authentik subject. ``name``/``email`` are used to\npopulate the local mirror when the account has never logged in yet."
+      },
+      "TeamMemberLinkSelf": {
+        "properties": {
+          "access_code": {
+            "type": "string",
+            "title": "Access Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_code"
+        ],
+        "title": "TeamMemberLinkSelf",
+        "description": "Self-serve claim of a placeholder member by the caller's OIDC account.\n\nThe access code is the proof that the caller belongs to the team: the OIDC\nbearer identifies *who* is calling but says nothing about *which* team they\nmay claim a slot in, so it must be presented explicitly here."
       },
       "TeamMemberResponse": {
         "properties": {

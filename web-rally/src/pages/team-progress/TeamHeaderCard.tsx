@@ -1,7 +1,7 @@
-import type { DetailedTeam } from "@/client";
+import type { PrivilegedDetailedTeam } from "@/client";
 
 type TeamHeaderCardProps = Readonly<{
-  team: DetailedTeam;
+  team: PrivilegedDetailedTeam;
   showScore: boolean;
   showRanking: boolean;
   completedCount: number;

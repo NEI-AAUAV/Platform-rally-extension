@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserCheck } from "lucide-react";
-import type { DetailedTeam } from "@/client";
+import type { PrivilegedDetailedTeam } from "@/client";
 import { claimMembership } from "@/client";
 import { useUserStore } from "@/stores/useUserStore";
 import { useProfile } from "@/hooks/useProfile";
 import { useAppToast } from "@/hooks/use-toast";
 
 type TeamMembersCardProps = Readonly<{
-  team: DetailedTeam;
+  team: PrivilegedDetailedTeam;
 }>;
 
 function initialsOf(name: string): string {
@@ -34,11 +34,18 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   const queryClient = useQueryClient();
   const toast = useAppToast();
 
-  // Only offer "this is me" when logged in with NEI and not yet on a team.
-  const canClaim = isAuthenticated && profile != null && profile.current_team_id == null;
+  // Only offer "this is me" when logged in with NEI, not yet on a team, and we
+  // actually hold the team's access code (the server's proof of membership).
+  const accessCode = team.access_code;
+  const canClaim =
+    isAuthenticated && profile != null && profile.current_team_id == null && !!accessCode;
 
   const claim = useMutation({
-    mutationFn: (memberId: number) => claimMembership({ path: { member_user_id: memberId } }),
+    mutationFn: (memberId: number) =>
+      claimMembership({
+        path: { member_user_id: memberId },
+        body: { access_code: accessCode ?? "" },
+      }),
     onSuccess: () => {
       toast.success("Conta associada! O teu histórico foi atualizado.");
       void queryClient.invalidateQueries({ queryKey: ["profile", "me"] });

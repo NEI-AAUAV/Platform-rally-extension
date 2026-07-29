@@ -61,6 +61,7 @@ describe('TeamInfo page', () => {
     mockUseTeamAuth.mockReturnValue({
       team: {
         name: 'Team A',
+        access_code: 'CODE99',
         members: [
           { id: 1, name: 'Alice', is_captain: true, is_linked: true },
           { id: 2, name: 'Bob', is_captain: false, is_linked: false },
@@ -82,6 +83,7 @@ describe('TeamInfo page', () => {
     mockUseTeamAuth.mockReturnValue({
       team: {
         name: 'Team A',
+        access_code: 'CODE99',
         members: [{ id: 2, name: 'Bob', is_captain: false, is_linked: false }],
       },
       teamData: { team_id: 1 },
@@ -93,7 +95,7 @@ describe('TeamInfo page', () => {
     await user.click(screen.getByRole('button', { name: /Associar a mim/i }));
 
     await waitFor(() => {
-      expect(TeamMemberLinkService.linkSelf).toHaveBeenCalledWith(1, 2);
+      expect(TeamMemberLinkService.linkSelf).toHaveBeenCalledWith(1, 2, 'CODE99');
     });
     await waitFor(() => expect(mockToast.success).toHaveBeenCalled());
     expect(reloadSpy).toHaveBeenCalled();
@@ -105,6 +107,7 @@ describe('TeamInfo page', () => {
     mockUseTeamAuth.mockReturnValue({
       team: {
         name: 'Team A',
+        access_code: 'CODE99',
         members: [{ id: 2, name: 'Bob', is_captain: false, is_linked: false }],
       },
       teamData: { team_id: 1 },
@@ -118,15 +121,17 @@ describe('TeamInfo page', () => {
     expect(onStaffLogin).toHaveBeenCalled();
     expect(sessionStorage.getItem('rally_pending_link_user_id')).toBe('2');
     expect(sessionStorage.getItem('rally_pending_link_team_id')).toBe('1');
+    expect(sessionStorage.getItem('rally_pending_link_access_code')).toBe('CODE99');
   });
 
   it('resumes a pending link automatically once authenticated', async () => {
     sessionStorage.setItem('rally_pending_link_user_id', '2');
     sessionStorage.setItem('rally_pending_link_team_id', '1');
+    sessionStorage.setItem('rally_pending_link_access_code', 'CODE99');
     mockUseAuth.mockReturnValue({ isAuthenticated: true });
     vi.mocked(TeamMemberLinkService.linkSelf).mockResolvedValue(undefined as never);
     mockUseTeamAuth.mockReturnValue({
-      team: { name: 'Team A', members: [] },
+      team: { name: 'Team A', access_code: 'CODE99', members: [] },
       teamData: { team_id: 1 },
       isLoading: false,
     });
@@ -134,7 +139,7 @@ describe('TeamInfo page', () => {
     render(<TeamInfo />);
 
     await waitFor(() => {
-      expect(TeamMemberLinkService.linkSelf).toHaveBeenCalledWith(1, 2);
+      expect(TeamMemberLinkService.linkSelf).toHaveBeenCalledWith(1, 2, 'CODE99');
     });
   });
 
@@ -144,6 +149,7 @@ describe('TeamInfo page', () => {
     mockUseTeamAuth.mockReturnValue({
       team: {
         name: 'Team A',
+        access_code: 'CODE99',
         members: [{ id: 2, name: 'Bob', is_captain: false, is_linked: false }],
       },
       teamData: { team_id: 1 },

@@ -32,11 +32,18 @@ export class ProfileService {
     return data as ClaimableTeam;
   }
 
-  /** Claim a name-only team member as the caller's own participation. */
-  public static async claimMembership(memberUserId: number): Promise<ParticipationEntry> {
+  /**
+   * Claim a name-only team member as the caller's own participation. The team's
+   * access code is re-sent because it is what ties the caller to that roster.
+   */
+  public static async claimMembership(
+    memberUserId: number,
+    accessCode: string,
+  ): Promise<ParticipationEntry> {
     const { data } = await client.post<ParticipationEntry>({
       url: "/api/rally/v1/profile/claim/{member_user_id}",
       path: { member_user_id: memberUserId },
+      body: { access_code: accessCode },
     });
     return data as ParticipationEntry;
   }

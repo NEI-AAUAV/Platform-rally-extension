@@ -50,19 +50,21 @@ export class TeamMemberLinkService {
   }
 
   /**
-   * Self-serve link: whoever is holding the team access-code session claims
-   * a placeholder slot in that team using the NEI account they just logged
-   * in with. Authenticated by the OIDC bearer alone (the team token is no
-   * longer sent once the OIDC login completes), so `teamId` must be passed
-   * explicitly — captured by the caller before the OIDC redirect.
+   * Self-serve link: whoever holds the team's access code claims a placeholder
+   * slot in that team using the NEI account they just logged in with. The team
+   * token is no longer sent once the OIDC login completes, so the access code
+   * is what proves the caller belongs to `teamId` — both must be captured by
+   * the caller before the OIDC redirect.
    */
   public static async linkSelf(
     teamId: number,
     placeholderUserId: number,
+    accessCode: string,
   ): Promise<LinkedMemberResponse> {
     const { data } = await client.post<LinkedMemberResponse>({
       url: "/api/rally/v1/team/{team_id}/members/{user_id}/link-self",
       path: { team_id: teamId, user_id: placeholderUserId },
+      body: { access_code: accessCode },
     });
     return data as LinkedMemberResponse;
   }

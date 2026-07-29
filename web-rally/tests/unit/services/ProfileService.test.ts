@@ -61,12 +61,13 @@ describe('ProfileService', () => {
     postMock.mockResolvedValue({ data: entry })
     const { ProfileService } = await import('@/services/ProfileService')
 
-    const result = await ProfileService.claimMembership(42)
+    const result = await ProfileService.claimMembership(42, 'CODE99')
 
     expect(result).toEqual(entry)
     expect(postMock).toHaveBeenCalledWith({
       url: '/api/rally/v1/profile/claim/{member_user_id}',
       path: { member_user_id: 42 },
+      body: { access_code: 'CODE99' },
     })
   })
 })

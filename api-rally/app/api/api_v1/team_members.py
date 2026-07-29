@@ -12,6 +12,7 @@ from app.api.auth import AuthData, api_nei_auth
 from app.schemas.team_members import (
     TeamMemberAdd,
     TeamMemberLink,
+    TeamMemberLinkSelf,
     TeamMemberResponse,
     TeamMemberUpdate,
 )
@@ -132,23 +133,25 @@ class TeamMembersController:
         self,
         team_id: int,
         user_id: int,
+        link_data: TeamMemberLinkSelf,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Self-serve variant of ``link_team_member``.
 
-        Lets whoever holds a team access-code session claim a placeholder slot in
-        that team using the NEI (OIDC) account they just logged in with.
+        Lets whoever holds a team's access code claim a placeholder slot in that
+        team using the NEI (OIDC) account they just logged in with.
 
         The client can only send a single bearer token per request, and it
         switches to the OIDC token as soon as this NEI login completes — so
-        ``team_id`` cannot be proven via the (now unavailable) team token here.
-        Instead the frontend captures ``team_id`` right before the OIDC redirect
-        and passes it explicitly; this is safe because the target placeholder
-        must both belong to that team *and* have no ``authentik_sub`` yet
-        (enforced below), so a caller can only ever claim an actually-open slot.
+        team membership cannot be proven via the (now unavailable) team token
+        here. The caller therefore re-presents the team access code, which is
+        what binds them to ``team_id``; the OIDC bearer only says *who* they are.
+        Placeholder state alone is not authorization: without the code check any
+        authenticated user could claim any team's open slot.
         """
         team_obj = await service.get_team_or_raise(team_id)
+        service.assert_team_access_code(team_obj, link_data.access_code)
         placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
         target = await service.link_placeholder_to_authentik_account(
