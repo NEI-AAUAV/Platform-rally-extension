@@ -56,39 +56,27 @@ def test_record_request_is_noop_when_metrics_disabled(monkeypatch: pytest.Monkey
     assert before == after
 
 
-def test_record_event_published_increments_counter() -> None:
-    monkeypatch_enabled = settings.METRICS_ENABLED
-    settings.METRICS_ENABLED = True
-    try:
-        before = _counter_value(metrics.events_published_total, event_type="x", outcome="success")
-        metrics.record_event_published(event_type="x", outcome="success")
-        after = _counter_value(metrics.events_published_total, event_type="x", outcome="success")
-        assert after == before + 1
-    finally:
-        settings.METRICS_ENABLED = monkeypatch_enabled
+def test_record_event_published_increments_counter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "METRICS_ENABLED", True)
+    before = _counter_value(metrics.events_published_total, event_type="x", outcome="success")
+    metrics.record_event_published(event_type="x", outcome="success")
+    after = _counter_value(metrics.events_published_total, event_type="x", outcome="success")
+    assert after == before + 1
 
 
-def test_record_rate_limit_rejection_increments_counter() -> None:
-    monkeypatch_enabled = settings.METRICS_ENABLED
-    settings.METRICS_ENABLED = True
-    try:
-        before = _counter_value(metrics.rate_limit_rejections_total, prefix="rally:ratelimit:x")
-        metrics.record_rate_limit_rejection(prefix="rally:ratelimit:x")
-        after = _counter_value(metrics.rate_limit_rejections_total, prefix="rally:ratelimit:x")
-        assert after == before + 1
-    finally:
-        settings.METRICS_ENABLED = monkeypatch_enabled
+def test_record_rate_limit_rejection_increments_counter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "METRICS_ENABLED", True)
+    before = _counter_value(metrics.rate_limit_rejections_total, prefix="rally:ratelimit:x")
+    metrics.record_rate_limit_rejection(prefix="rally:ratelimit:x")
+    after = _counter_value(metrics.rate_limit_rejections_total, prefix="rally:ratelimit:x")
+    assert after == before + 1
 
 
-def test_set_worker_last_beat_age_sets_gauge() -> None:
-    monkeypatch_enabled = settings.METRICS_ENABLED
-    settings.METRICS_ENABLED = True
-    try:
-        metrics.set_worker_last_beat_age(worker="TestWorker", age_seconds=5.0)
-        value = metrics.worker_last_beat_age_seconds.labels(worker="TestWorker")._value.get()
-        assert value == 5.0
-    finally:
-        settings.METRICS_ENABLED = monkeypatch_enabled
+def test_set_worker_last_beat_age_sets_gauge(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "METRICS_ENABLED", True)
+    metrics.set_worker_last_beat_age(worker="TestWorker", age_seconds=5.0)
+    value = metrics.worker_last_beat_age_seconds.labels(worker="TestWorker")._value.get()
+    assert value == 5.0
 
 
 def _counter_value(counter, **labels) -> float:  # type: ignore[no-untyped-def]
