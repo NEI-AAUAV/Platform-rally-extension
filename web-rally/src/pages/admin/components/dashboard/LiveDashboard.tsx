@@ -185,14 +185,14 @@ export default function LiveDashboard() {
               <XAxis
                 type="number"
                 domain={[0, teamList.length || 1]}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                 tickLine={false}
                 axisLine={false}
                 width={90}
@@ -200,11 +200,14 @@ export default function LiveDashboard() {
               <Tooltip
                 formatter={(val: unknown) => [`${val} equipas`, "Chegaram"]}
                 contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
+                  background: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                   fontSize: 12,
+                  color: "hsl(var(--popover-foreground))",
                 }}
+                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
               />
               <Bar
                 dataKey="reached"

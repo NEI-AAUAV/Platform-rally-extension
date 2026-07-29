@@ -35,7 +35,7 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
             type="category"
             dataKey="name"
             width={110}
-            tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
@@ -43,7 +43,7 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
             <LabelList
               dataKey="total"
               position="right"
-              fill="rgba(255,255,255,0.85)"
+              fill="hsl(var(--foreground))"
               fontSize={12}
               fontWeight={700}
             />
