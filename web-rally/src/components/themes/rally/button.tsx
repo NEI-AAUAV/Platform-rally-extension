@@ -8,8 +8,9 @@ type RallyButtonProps = VariantProps<typeof rallyButtonVariants> &
   ComponentProps<"button"> & {
     /** Render as the single child element (e.g. a router <Link>) instead of a <button>. */
     readonly asChild?: boolean;
-    /** Force the blood-drip on/off. Defaults on for filled variants; the drip
-     * only shows when the button axis is "blood" (via [data-rally-buttons] CSS). */
+    /** Force the primary decoration hook (`.rally-blood-button`) on/off. Defaults
+     * on for filled variants; it's what carries the loud per-style effects (e.g.
+     * the halloween drip/glow) via [data-rally-buttons] CSS. */
     readonly blood?: boolean;
   };
 
@@ -28,9 +29,9 @@ function RallyButton({
   ...props
 }: RallyButtonProps) {
   const Comp = asChild ? Slot : "button";
-  // Blood is drawn by CSS on the filled action variants (default/primary) only,
-  // and only under [data-rally-buttons="blood"]; secondary/outline stay clean.
-  // An explicit `blood` prop overrides.
+  // The primary decoration hook goes on the filled action variants (default/
+  // primary) only; secondary/outline get the restrained echo instead. An
+  // explicit `blood` prop overrides.
   const showBlood = blood ?? (variant == null || variant === "default" || variant === "primary");
   return (
     <Comp

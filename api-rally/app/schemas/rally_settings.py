@@ -37,7 +37,7 @@ class HomeSection(BaseModel):
 
 # Visual-identity axes. Each axis is applied live and can be mixed freely; a
 # saved VisualPreset bundles a chosen value per axis under a name.
-BUTTON_STYLES = ("plain", "blood", "glow", "sharp", "shine")
+BUTTON_STYLES = ("plain", "glow", "sharp", "shine", "halloween")
 BACKGROUND_STYLES = ("plain", "dots", "grid", "glow", "stripes", "confetti", "halloween")
 MAX_VISUAL_PRESETS = 24
 
@@ -123,7 +123,7 @@ class RallySettingsBase(BaseModel):
     accent_color: str = ""  # CSS color, e.g. "#c81d25"
 
     # Visual-identity axes (applied live), presettable independently of accent.
-    button_style: str = "plain"  # 'plain' | 'blood' | 'glow' | 'sharp' | 'shine'
+    button_style: str = "plain"  # see BUTTON_STYLES
     background_style: str = "plain"  # pattern axis; see BACKGROUND_STYLES
     # Saved named identity presets (bundles of the axis values).
     visual_presets: list[VisualPreset] = []

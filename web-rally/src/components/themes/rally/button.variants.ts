@@ -14,11 +14,11 @@ import { cva } from "class-variance-authority";
  * and the nav config continue to work unchanged.
  */
 export const rallyButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold rally-press transition-[color,background-color,filter,transform] duration-200 disabled:pointer-events-none disabled:opacity-60",
+  "rally-btn inline-flex items-center justify-center gap-2 rounded-xl font-semibold rally-press transition-[color,background-color,filter,transform] duration-200 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "rally-bg-accent text-white hover:brightness-110",
         primary: "rally-bg-accent text-white hover:brightness-110",
         neutral: "bg-secondary text-secondary-foreground hover:bg-accent",
         outline: "border border-border bg-card text-foreground hover:bg-muted/50",

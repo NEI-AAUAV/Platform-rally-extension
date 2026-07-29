@@ -147,20 +147,37 @@
     box-shadow: 0 18px 48px -18px var(--rally-accent, var(--rally-accent-fallback));
   }
 
-  /* --- Blood button style: an even row of drips along the bottom edge ---
-     Reusable + composable: add `.rally-blood-button` to ANY button or link and
-     it grows blood drips when the button axis is "blood" (data-rally-buttons),
-     independent of the colour theme. No shape morph — the button keeps its
-     radius; a repeating masked pseudo-element hangs evenly-spaced rounded drops
-     off the bottom, tinted with the per-event accent, so it reads as the button
-     dripping on any colour. */
+  /* === Button-style axis ==================================================
+     Every RallyButton carries `.rally-btn`; the filled action variants also
+     carry `.rally-blood-button` (the "primary" hook). The axis is applied via
+     [data-rally-buttons] on the shell — and, for the unsaved draft, on the
+     identity preview.
+
+     Hierarchy is deliberate: STRUCTURAL styles (sharp) reshape ALL buttons,
+     while DECORATIVE styles (blood/glow/shine/halloween) are loud on primary
+     and only a restrained echo on secondary/outline — two buttons never carry
+     the same emphasis weight. */
+
+  /* Drip flag lives on the *scope* so the nearest [data-rally-buttons] (shell
+     or preview) wins by inheritance; the preview isolates itself for free.
+     (`.rally-blood-button` is just the historical name of the primary hook —
+     the drip now belongs to the halloween style.) */
+  [data-rally-buttons] {
+    --rally-btn-drip: 0;
+  }
+  [data-rally-buttons="halloween"] {
+    --rally-btn-drip: 1;
+  }
+
+  /* The drip (primary only): a connecting bar + three elongated blobs melted by
+     #rally-goo into liquid drops that hang off the bottom edge, tinted by the
+     per-event accent. scaleY(var(--rally-btn-drip)) collapses it to nothing when
+     the active style has no drip, so a primary under glow/sharp/shine stays
+     clean without any per-style reset. */
   .rally-blood-button {
     position: relative;
   }
-  [data-rally-buttons="blood"] .rally-blood-button {
-    overflow: visible;
-  }
-  [data-rally-buttons="blood"] .rally-blood-button::after {
+  .rally-blood-button::after {
     content: "";
     position: absolute;
     right: 10px;
@@ -169,72 +186,107 @@
     height: 34px;
     pointer-events: none;
     color: var(--rally-accent, var(--rally-accent-fallback));
-    /* A connecting bar at the top (overlaps the button) + three elongated drop
-       blobs at different depths; #rally-goo melts them into smooth liquid drips
-       that stay attached to the button edge. */
     filter: url(#rally-goo);
     background:
       linear-gradient(currentColor, currentColor) top center / 100% 12px no-repeat,
       radial-gradient(6px 13px at 18% 42%, currentColor 62%, transparent 63%) no-repeat,
       radial-gradient(7px 19px at 50% 55%, currentColor 62%, transparent 63%) no-repeat,
       radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
+    transform-origin: top center;
+    transform: scaleY(var(--rally-btn-drip, 0));
+    opacity: var(--rally-btn-drip, 0);
+    transition: transform 0.18s ease, opacity 0.18s ease;
   }
 
-  /* --- Glow button style: accent halo around the button --- */
+  /* --- Glow: neon accent halo on primary; a quiet accent ring on secondary --- */
   [data-rally-buttons="glow"] .rally-blood-button {
     box-shadow:
       0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
       0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
   }
-
-  /* --- Sharp button style: squared, brutalist corners --- */
-  [data-rally-buttons="sharp"] .rally-blood-button {
-    border-radius: 3px;
+  [data-rally-buttons="glow"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 0 0 0 1px var(--rally-accent, var(--rally-accent-fallback));
   }
 
-  /* --- Shine button style: a glossy sheen over the fill --- */
+  /* --- Sharp: brutalist squared corners on ALL buttons (structural) + a hard
+         offset shadow, accent-coloured on primary, muted on secondary. --- */
+  [data-rally-buttons="sharp"] .rally-btn {
+    border-radius: 2px;
+  }
+  [data-rally-buttons="sharp"] .rally-blood-button {
+    box-shadow: 3px 3px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  [data-rally-buttons="sharp"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground) / 0.35);
+  }
+
+  /* --- Shine: glossy sheen over the fill; a fainter sheen on secondary --- */
   [data-rally-buttons="shine"] .rally-blood-button {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
   }
+  [data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
+  }
+
+  /* --- Halloween: oozing drip + a flickering candle-lit glow that follows the
+         accent (pumpkin-orange or witch-purple depending on the chosen colour);
+         secondary gets a steady accent ring + soft glow, no drip. --- */
+  [data-rally-buttons="halloween"] .rally-blood-button {
+    box-shadow: 0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker 2.6s ease-in-out infinite;
+  }
+  [data-rally-buttons="halloween"] .rally-btn:not(.rally-blood-button) {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker-soft 3.4s ease-in-out infinite;
+  }
 
   /* --- Identity preview isolation ---
-     The preview panel carries its own data-rally-buttons for the *draft* style.
-     The app shell's data-rally-buttons also matches descendants, so reset the
-     inherited effects here (higher specificity) and re-apply only the draft. */
-  .rally-identity-preview[data-rally-buttons] .rally-blood-button {
+     The shell's [data-rally-buttons] also matches the preview's sample buttons
+     (they are descendants), so reset the box-shadow / sheen / radius / animation
+     the shell applied, then re-apply only the *draft* style. The drip needs no
+     reset: it is driven by --rally-btn-drip, which the preview's own scope sets. */
+  .rally-identity-preview[data-rally-buttons] .rally-btn {
     box-shadow: none;
     background-image: none;
     border-radius: 0.75rem;
-  }
-  .rally-identity-preview[data-rally-buttons] .rally-blood-button::after {
-    content: none;
+    animation: none;
   }
   .rally-identity-preview[data-rally-buttons="glow"] .rally-blood-button {
     box-shadow:
       0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
       0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
   }
+  .rally-identity-preview[data-rally-buttons="glow"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 0 0 0 1px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-btn {
+    border-radius: 2px;
+  }
   .rally-identity-preview[data-rally-buttons="sharp"] .rally-blood-button {
-    border-radius: 3px;
+    box-shadow: 3px 3px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground) / 0.35);
   }
   .rally-identity-preview[data-rally-buttons="shine"] .rally-blood-button {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
   }
-  .rally-identity-preview[data-rally-buttons="blood"] .rally-blood-button::after {
-    content: "";
-    position: absolute;
-    right: 10px;
-    bottom: -22px;
-    width: 52px;
-    height: 34px;
-    pointer-events: none;
-    color: var(--rally-accent, var(--rally-accent-fallback));
-    filter: url(#rally-goo);
-    background:
-      linear-gradient(currentColor, currentColor) top center / 100% 12px no-repeat,
-      radial-gradient(6px 13px at 18% 42%, currentColor 62%, transparent 63%) no-repeat,
-      radial-gradient(7px 19px at 50% 55%, currentColor 62%, transparent 63%) no-repeat,
-      radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
+  .rally-identity-preview[data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
+  }
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-blood-button {
+    box-shadow: 0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker 2.6s ease-in-out infinite;
+  }
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-btn:not(.rally-blood-button) {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker-soft 3.4s ease-in-out infinite;
   }
 
   /* --- Soft-depth surfaces (the rally design language) --- */
@@ -415,6 +467,41 @@
   }
 }
 
+/* Halloween button glow: an irregular candle-lit flicker of the accent halo. */
+@keyframes rally-flicker {
+  0%,
+  100% {
+    box-shadow: 0 0 16px -3px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  20% {
+    box-shadow: 0 0 26px 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  35% {
+    box-shadow: 0 0 12px -5px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  55% {
+    box-shadow: 0 0 24px -1px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  75% {
+    box-shadow: 0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+  }
+}
+
+/* Halloween secondary: a calmer breathing glow around a steady accent ring. */
+@keyframes rally-flicker-soft {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 12px -5px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+  }
+}
+
 /* View Transition: circular reveal for light/dark toggle */
 ::view-transition-new(root) {
   animation: rally-reveal-in 0.6s ease-in-out forwards;
@@ -441,6 +528,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rally-marquee-track {
+    animation: none;
+  }
+  [data-rally-buttons="halloween"] .rally-btn,
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-btn {
     animation: none;
   }
   .rally-press,
