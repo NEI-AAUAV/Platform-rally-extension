@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Palette, Upload, ImageIcon, Save } from "lucide-react";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,6 @@ import { getErrorMessage } from "@/utils/errorHandling";
 import { LoadingState } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { RallyButton } from "@/components/themes/rally";
-import type { CSSProperties } from "react";
 
 type ButtonStyle = "plain" | "blood" | "glow" | "sharp" | "shine";
 

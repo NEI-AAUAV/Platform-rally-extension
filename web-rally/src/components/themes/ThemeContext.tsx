@@ -5,10 +5,16 @@ import { getThemeComponents, type ThemeName, type ThemeComponents } from "@/comp
 import useRallySettings from "@/hooks/useRallySettings";
 
 type ButtonStyle = "plain" | "blood" | "glow" | "sharp" | "shine";
-const BUTTON_STYLES: readonly ButtonStyle[] = ["plain", "blood", "glow", "sharp", "shine"];
+const BUTTON_STYLES: ReadonlySet<ButtonStyle> = new Set<ButtonStyle>([
+  "plain",
+  "blood",
+  "glow",
+  "sharp",
+  "shine",
+]);
 
 type BackgroundStyle = "plain" | "dots" | "grid" | "glow" | "stripes" | "confetti" | "halloween";
-const BACKGROUND_STYLES: readonly BackgroundStyle[] = [
+const BACKGROUND_STYLES: ReadonlySet<BackgroundStyle> = new Set<BackgroundStyle>([
   "plain",
   "dots",
   "grid",
@@ -16,7 +22,7 @@ const BACKGROUND_STYLES: readonly BackgroundStyle[] = [
   "stripes",
   "confetti",
   "halloween",
-];
+]);
 
 interface ThemeContextType {
   themeName: ThemeName;
@@ -37,10 +43,10 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { settings } = useRallySettings();
   const [themeName, setThemeName] = useState<ThemeName>("nei");
-  const buttonStyle: ButtonStyle = BUTTON_STYLES.includes(settings?.button_style as ButtonStyle)
+  const buttonStyle: ButtonStyle = BUTTON_STYLES.has(settings?.button_style as ButtonStyle)
     ? (settings!.button_style as ButtonStyle)
     : "plain";
-  const backgroundStyle: BackgroundStyle = BACKGROUND_STYLES.includes(
+  const backgroundStyle: BackgroundStyle = BACKGROUND_STYLES.has(
     settings?.background_style as BackgroundStyle,
   )
     ? (settings!.background_style as BackgroundStyle)
