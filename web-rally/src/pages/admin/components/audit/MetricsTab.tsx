@@ -31,12 +31,12 @@ function StatCard({
   label: string;
   tone?: "danger" | "warning";
 }>) {
-  const toneClass =
-    tone === "danger"
-      ? "bg-red-500/10 text-red-500"
-      : tone === "warning"
-        ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-        : "bg-secondary text-muted-foreground";
+  let toneClass = "bg-secondary text-muted-foreground";
+  if (tone === "danger") {
+    toneClass = "bg-red-500/10 text-red-500";
+  } else if (tone === "warning") {
+    toneClass = "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+  }
   return (
     <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
       <div className={`rounded-lg p-2 ${toneClass}`}>
@@ -120,6 +120,13 @@ export default function MetricsTab() {
 
   const avgLatencyMs = durationCount > 0 ? (durationSum / durationCount) * 1000 : 0;
 
+  let redisStatus = "—";
+  if (readiness?.redis === "up") {
+    redisStatus = "OK";
+  } else if (readiness?.redis) {
+    redisStatus = "Em baixo";
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -146,7 +153,7 @@ export default function MetricsTab() {
         />
         <StatCard
           icon={Server}
-          value={readiness?.redis ? (readiness.redis === "up" ? "OK" : "Em baixo") : "—"}
+          value={redisStatus}
           label="Redis"
           tone={readiness?.redis === "down" ? "danger" : undefined}
         />
