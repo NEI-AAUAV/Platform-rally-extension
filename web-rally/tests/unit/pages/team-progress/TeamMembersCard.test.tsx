@@ -135,7 +135,7 @@ describe('TeamMembersCard', () => {
 
   it('renders nothing crashy when there are no members', () => {
     const Wrapper = createWrapper();
-    const emptyTeam = { members: [] } as unknown as DetailedTeam;
+    const emptyTeam = { members: [] } as unknown as PrivilegedDetailedTeam;
     render(<TeamMembersCard team={emptyTeam} />, { wrapper: Wrapper });
     expect(screen.getByText('Membros')).toBeInTheDocument();
   });
