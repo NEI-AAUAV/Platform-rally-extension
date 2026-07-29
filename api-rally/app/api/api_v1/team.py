@@ -23,6 +23,7 @@ from app.models.team import Team
 from app.schemas.team import (
     DetailedTeam,
     ListingTeam,
+    PrivilegedDetailedTeam,
     TeamCreate,
     TeamScoresUpdate,
     TeamUpdate,
@@ -108,20 +109,31 @@ class TeamController:
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
-    ) -> DetailedTeam:
+    ) -> PrivilegedDetailedTeam:
         team_obj = await team_crud.get(db=db, id=curr_user.team_id)
-        return await service.build_detailed_team(team_obj, with_progress=True)
+        return await service.build_detailed_team(
+            team_obj, with_progress=True, with_access_code=True
+        )
 
     async def get_team_by_id(
         self,
         *,
         id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
-    ) -> DetailedTeam:
+    ) -> PrivilegedDetailedTeam:
+        # The access code is a login credential: only the team's own members and
+        # callers who may manage teams (admin/staff) get it back.
+        may_see_access_code = curr_user.team_id == id or check_permission(
+            curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM
+        )
         team_obj = await team_crud.get(db=db, id=id)
-        return await service.build_detailed_team(team_obj, with_progress=True)
+        return await service.build_detailed_team(
+            team_obj, with_progress=True, with_access_code=may_see_access_code
+        )
 
     async def add_checkpoint(
         self,
@@ -168,12 +180,13 @@ class TeamController:
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
-    ) -> DetailedTeam:
+    ) -> PrivilegedDetailedTeam:
         # Enforce ABAC permission for team creation
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
         team_db = await team_crud.create(db=db, obj_in=team_in, commit=True)
-        return await service.build_detailed_team(team_db)
+        # The creator needs the generated access code to hand it to the team.
+        return await service.build_detailed_team(team_db, with_access_code=True)
 
     async def update_team(
         self,

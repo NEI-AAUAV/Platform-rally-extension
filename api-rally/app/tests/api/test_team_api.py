@@ -62,20 +62,109 @@ class TestGetOwnTeam:
         assert resp.json()["id"] == team.id
 
 
+class TestGetOwnTeamAccessCode:
+    async def test_get_own_team_exposes_access_code(self, pg_session, pg_client):
+        from app.api import deps
+        from app.api.auth import AuthData
+        from app.schemas.user import DetailedUser
+
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Mine")
+        user = DetailedUser(id=1, name="P", disabled=False, team_id=team.id, scopes=[])
+        app.dependency_overrides[deps.get_participant] = lambda: user
+        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
+            oidc_sub="p1", name="P", scopes=[]
+        )
+        try:
+            resp = pg_client.get("/api/rally/v1/team/me")
+        finally:
+            app.dependency_overrides.pop(deps.get_participant, None)
+            app.dependency_overrides.pop(api_nei_auth, None)
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["access_code"] == team.access_code
+
+
 class TestGetTeamById:
+    @staticmethod
+    def _as_participant(team_id):
+        from app.api import deps
+        from app.api.auth import AuthData
+        from app.schemas.user import DetailedUser
+
+        user = DetailedUser(id=1, name="P", disabled=False, team_id=team_id, scopes=[])
+        app.dependency_overrides[deps.get_participant] = lambda: user
+        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
+            oidc_sub="p1", name="P", scopes=[]
+        )
+
+    @staticmethod
+    def _clear_overrides():
+        from app.api import deps
+
+        app.dependency_overrides.pop(deps.get_participant, None)
+        app.dependency_overrides.pop(api_nei_auth, None)
+
     async def test_get_team_by_id_success(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Findable")
-
-        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        self._as_participant(team.id)
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["name"] == "Findable"
 
+    async def test_get_team_by_id_requires_authentication(self, pg_session, pg_client):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Private")
+
+        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+
+        assert resp.status_code in (401, 403), resp.text
+
+    async def test_get_team_by_id_never_leaks_access_code(self, pg_session, pg_client):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Other")
+        self._as_participant(team_id=999)
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["access_code"] is None
+        assert team.access_code not in resp.text
+
+    async def test_get_team_by_id_returns_access_code_to_admin(self, pg_session, pg_client):
+        from app.api import deps
+        from app.api.auth import AuthData
+        from app.schemas.user import DetailedUser
+
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Managed")
+        admin = DetailedUser(id=2, name="A", disabled=False, team_id=None, scopes=["admin"])
+        app.dependency_overrides[deps.get_participant] = lambda: admin
+        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
+            oidc_sub="a1", name="A", scopes=["admin"]
+        )
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["access_code"] == team.access_code
+
     async def test_get_team_by_id_not_found(self, pg_session, pg_client):
         await _make_event(pg_session)
-
-        resp = pg_client.get("/api/rally/v1/team/999999")
+        self._as_participant(1)
+        try:
+            resp = pg_client.get("/api/rally/v1/team/999999")
+        finally:
+            self._clear_overrides()
 
         assert resp.status_code == 404
 

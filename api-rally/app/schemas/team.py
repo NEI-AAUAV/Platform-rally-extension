@@ -32,7 +32,6 @@ class ListingTeam(TeamBase):
 
 
 class DetailedTeam(TeamBase):
-    access_code: str
     times: list[datetime]
 
     score_per_checkpoint: list[int]
@@ -43,6 +42,17 @@ class DetailedTeam(TeamBase):
     last_checkpoint_number: int | None = None
     current_checkpoint_number: int | None = None
     total_checkpoints: int | None = None
+
+
+class PrivilegedDetailedTeam(DetailedTeam):
+    """DetailedTeam plus the team's access code.
+
+    The access code is the sole authentication factor for team login, so it is
+    only ever exposed to the team itself or to admin/staff-scoped callers.
+    It is None whenever the caller is not entitled to see it.
+    """
+
+    access_code: str | None = None
 
 
 class TeamCreate(BaseModel):

@@ -24,7 +24,11 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
-from app.schemas.team import DetailedTeam, ListingTeam, TeamScoresUpdate
+from app.schemas.team import (
+    ListingTeam,
+    PrivilegedDetailedTeam,
+    TeamScoresUpdate,
+)
 from app.services.scoring_service import ScoringService
 
 
@@ -234,12 +238,19 @@ class TeamService:
         )
 
     async def build_detailed_team(
-        self, team_obj: Team, *, with_progress: bool = False
-    ) -> DetailedTeam:
-        """Serialize a team to DetailedTeam, eager-loading the members relationship
-        (DetailedTeam includes members, which would otherwise lazy-load)."""
+        self, team_obj: Team, *, with_progress: bool = False, with_access_code: bool = False
+    ) -> PrivilegedDetailedTeam:
+        """Serialize a team, eager-loading the members relationship (the schema
+        includes members, which would otherwise lazy-load).
+
+        access_code is a login credential, so it is only populated when
+        with_access_code is set — pass it only on routes restricted to the team
+        itself or to admin/staff callers. Routes annotated with plain
+        DetailedTeam drop the field entirely via the response model."""
         await self._db.refresh(team_obj, ["members"])
-        result = DetailedTeam.model_validate(team_obj)
+        result = PrivilegedDetailedTeam.model_validate(team_obj)
+        if not with_access_code:
+            result.access_code = None
         if with_progress:
             last_cp, current_cp, _ = await self.compute_checkpoint_progress(team_obj)
             result.last_checkpoint_number = last_cp
