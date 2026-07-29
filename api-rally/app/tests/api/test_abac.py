@@ -173,6 +173,31 @@ class TestABACStaffCheckpointScoping:
         context = _context(Action.VIEW_ACTIVITY, Resource.ACTIVITY, ["rally-staff"])
         assert engine.evaluate(context) is True
 
+    def test_staff_can_add_team_member_with_assignment(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(Action.ADD_TEAM_MEMBER, Resource.TEAM, ["rally-staff"], user=user)
+        assert engine.evaluate(context) is True
+
+    def test_staff_without_checkpoint_cannot_add_team_member(self):
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=None)
+        context = _context(Action.ADD_TEAM_MEMBER, Resource.TEAM, ["rally-staff"], user=user)
+        assert engine.evaluate(context) is False
+
+    def test_staff_cannot_manage_teams(self):
+        """CREATE_TEAM covers team creation, member mutation/removal and OIDC
+        directory search — staff get ADD_TEAM_MEMBER only."""
+        engine = ABACEngine()
+        user = Mock(staff_checkpoint_id=1)
+        context = _context(Action.CREATE_TEAM, Resource.TEAM, ["rally-staff"], user=user)
+        assert engine.evaluate(context) is False
+
+    def test_manager_can_add_team_member(self):
+        engine = ABACEngine()
+        context = _context(Action.ADD_TEAM_MEMBER, Resource.TEAM, ["manager-rally"])
+        assert engine.evaluate(context) is True
+
     def test_staff_denied_action_outside_table(self):
         """Actions not in the staff table are denied (replaces old default-deny policy)"""
         engine = ABACEngine()

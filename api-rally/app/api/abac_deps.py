@@ -35,6 +35,7 @@ __all__ = [
     "require_checkpoint_view_permission",
     "require_checkpoint_management_permission",
     "require_team_management_permission",
+    "require_add_team_member_permission",
     "require_view_team_members_permission",
     "require",
     "validate_checkpoint_access",
@@ -209,6 +210,20 @@ def require_team_management_permission(
     Require permission to create/update teams
     """
     require_permission(user=curr_user, auth=auth, action=Action.CREATE_TEAM, resource=Resource.TEAM)
+
+
+def require_add_team_member_permission(
+    auth: AuthData = Depends(api_nei_auth), curr_user: DetailedUser = Depends(deps.get_participant)
+) -> None:
+    """Require permission to add a member to a team.
+
+    Separate from require_team_management_permission because rally staff are
+    granted this one action (walk-up registration) but must not be able to
+    create teams, mutate/remove members, or search the account directory.
+    """
+    require_permission(
+        user=curr_user, auth=auth, action=Action.ADD_TEAM_MEMBER, resource=Resource.TEAM
+    )
 
 
 def require_view_team_members_permission(

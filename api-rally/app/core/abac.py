@@ -26,6 +26,7 @@ class Action(Enum):
     CREATE_CHECKPOINT = "create_checkpoint"
     UPDATE_CHECKPOINT = "update_checkpoint"
     CREATE_TEAM = "create_team"
+    ADD_TEAM_MEMBER = "add_team_member"
     UPDATE_TEAM = "update_team"
     VIEW_RALLY_SETTINGS = "view_rally_settings"
     UPDATE_RALLY_SETTINGS = "update_rally_settings"
@@ -118,6 +119,7 @@ _MANAGER_ACTIONS: dict[Action, Rule] = {
     Action.CREATE_CHECKPOINT: _allow,
     Action.UPDATE_CHECKPOINT: _allow,
     Action.CREATE_TEAM: _allow,
+    Action.ADD_TEAM_MEMBER: _allow,
     Action.UPDATE_TEAM: _allow,
     Action.VIEW_CHECKPOINT_TEAMS: _allow,
     Action.CREATE_ACTIVITY: _allow,
@@ -149,11 +151,13 @@ _STAFF_ACTIONS: dict[Action, Rule] = {
     Action.UPDATE_ACTIVITY_RESULT: _staff_own_checkpoint,
     Action.VIEW_ACTIVITY: _allow,
     Action.VIEW_VERSUS_GROUP: _allow,
-    # B4 walk-up registration: staff may pass the ABAC gate for CREATE_TEAM
-    # (adding a team member) unconditionally here — the actual
-    # allow_staff_registration on/off decision is made by add_team_member
-    # itself after this check, per-event, since ABAC context has no DB access.
-    Action.CREATE_TEAM: _allow,
+    # B4 walk-up registration: staff may add members to a team, but nothing
+    # else in the team-management family (creating teams, mutating/removing
+    # members, directory search stay manager/admin-only). Requires an actual
+    # checkpoint assignment; the per-event allow_staff_registration on/off
+    # decision is made by add_team_member itself after this check, since the
+    # ABAC context has no DB access.
+    Action.ADD_TEAM_MEMBER: _staff_has_checkpoint,
 }
 
 

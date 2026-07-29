@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Security
 
 from app.api import deps
 from app.api.abac_deps import (
+    require_add_team_member_permission,
     require_team_management_permission,
     require_view_team_members_permission,
 )
@@ -79,7 +80,7 @@ class TeamMembersController:
         service: Annotated[TeamMemberService, Depends(get_team_member_service)],
     ) -> TeamMemberResponse:
         """Add a member to a team."""
-        require_team_management_permission(auth=auth, curr_user=curr_user)
+        require_add_team_member_permission(auth=auth, curr_user=curr_user)
 
         user = await service.add_member(
             team_id, member_data, is_privileged=deps.is_admin(auth.scopes)

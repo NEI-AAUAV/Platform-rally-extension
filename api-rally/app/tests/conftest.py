@@ -91,8 +91,9 @@ def client():
 def mock_auth():
     """Mock authentication for tests"""
     with patch("app.api.api_v1.team_members.require_team_management_permission"):
-        with patch("app.api.api_v1.rally_settings.validate_settings_update_access"):
-            yield
+        with patch("app.api.api_v1.team_members.require_add_team_member_permission"):
+            with patch("app.api.api_v1.rally_settings.validate_settings_update_access"):
+                yield
 
 
 # NOTE: --require-pg is registered in the rootdir conftest (api-rally/conftest.py)
