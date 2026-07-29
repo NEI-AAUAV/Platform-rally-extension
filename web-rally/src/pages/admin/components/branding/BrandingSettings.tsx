@@ -21,7 +21,7 @@ import { LoadingState } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import { RallyButton } from "@/components/themes/rally";
 
-type ButtonStyle = "plain" | "blood" | "glow" | "sharp" | "shine";
+type ButtonStyle = "plain" | "glow" | "sharp" | "shine" | "halloween";
 
 // Quick-pick accent colours for the Colour axis (custom hex still available).
 const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
@@ -36,10 +36,10 @@ const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
 // Button axis options.
 const BUTTON_STYLE_OPTIONS: ReadonlyArray<{ value: ButtonStyle; label: string; hint: string }> = [
   { value: "plain", label: "Simples", hint: "Botões limpos com a cor de destaque" },
-  { value: "blood", label: "Sangue", hint: "Gotas de sangue nos botões principais" },
   { value: "glow", label: "Brilho", hint: "Halo luminoso à volta dos botões" },
-  { value: "sharp", label: "Angular", hint: "Cantos direitos, estilo brutalista" },
+  { value: "sharp", label: "Angular", hint: "Cantos direitos + sombra dura, estilo brutalista" },
   { value: "shine", label: "Reflexo", hint: "Brilho gloss sobre o preenchimento" },
+  { value: "halloween", label: "Halloween", hint: "Gotas a escorrer + brilho tremeluzente" },
 ];
 
 const asButtonStyle = (value: unknown): ButtonStyle =>
@@ -510,7 +510,8 @@ export default function BrandingSettings() {
                     />
                     <span className="text-xs font-medium">{p.name}</span>
                     <span className="text-[10px] uppercase text-muted-foreground">
-                      {p.button_style === "blood" ? "sangue" : "simples"}
+                      {BUTTON_STYLE_OPTIONS.find((o) => o.value === p.button_style)?.label ??
+                        "Simples"}
                     </span>
                   </button>
                   <button
