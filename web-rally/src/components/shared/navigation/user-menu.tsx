@@ -93,26 +93,31 @@ export function UserMenu() {
           {displayName}
         </span>
 
-        {/* Dropdown Menu na vista Desktop (Hover) */}
-        <div className="rally-elevate absolute right-0 top-full z-50 mt-2 hidden w-52 flex-col overflow-hidden rounded-lg border border-border bg-popover group-hover:flex">
-          <div className="border-b border-border px-4 py-3">
-            <p className="truncate text-sm font-semibold text-popover-foreground">{displayName}</p>
-            {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
+        {/* Dropdown Menu na vista Desktop (Hover). The outer wrapper's pt-2 is a
+            transparent hover bridge: it keeps the 8px visual gap but makes that
+            gap part of the group, so moving the pointer into the menu never
+            leaves :hover (which would close it before it could be reached). */}
+        <div className="absolute right-0 top-full z-50 hidden w-52 pt-2 group-hover:block">
+          <div className="rally-elevate flex flex-col overflow-hidden rounded-lg border border-border bg-popover">
+            <div className="border-b border-border px-4 py-3">
+              <p className="truncate text-sm font-semibold text-popover-foreground">{displayName}</p>
+              {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
+            </div>
+            <Link
+              to="/profile"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
+            >
+              <User className="h-4 w-4" />O meu perfil
+            </Link>
+            <button
+              type={"button"}
+              onClick={logout}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              Terminar Sessão
+            </button>
           </div>
-          <Link
-            to="/profile"
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
-          >
-            <User className="h-4 w-4" />O meu perfil
-          </Link>
-          <button
-            type={"button"}
-            onClick={logout}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            Terminar Sessão
-          </button>
         </div>
       </div>
     </div>
