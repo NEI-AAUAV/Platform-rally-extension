@@ -11,8 +11,8 @@ export interface MetricSample {
   value: number;
 }
 
-const LINE_RE = /^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{([^}]*)\})?\s+(\S+)$/;
-const LABEL_RE = /([a-zA-Z_][a-zA-Z0-9_]*)="((?:[^"\\]|\\.)*)"/g;
+const LINE_RE = /^([a-zA-Z_:][\w:]*)(\{([^}]*)\})?\s+(\S+)$/;
+const LABEL_RE = /([a-zA-Z_]\w*)="([^"\\]*(?:\\.[^"\\]*)*)"/g;
 
 function parseLabels(raw: string | undefined): Record<string, string> {
   if (!raw) return {};
