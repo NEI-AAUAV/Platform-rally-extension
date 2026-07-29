@@ -576,6 +576,26 @@ class TestAllEvaluationsAPI:
         assert body["evaluations"][0]["team"]["id"] == team_obj.id
         assert body["evaluations"][0]["activity"]["id"] == activity_obj.id
 
+    async def test_all_evaluations_staff_checkpoint_clamp_survives_team_filter(
+        self, pg_session, pg_client, as_admin
+    ):
+        # A staff caller passing `team_id` must still be clamped to their own
+        # checkpoint — the filters are conjunctive, not either/or.
+        team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
+        other_checkpoint = await _make_checkpoint(pg_session, order=2)
+        as_admin.staff_checkpoint_id = other_checkpoint.id
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?team_id={team_obj.id}")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["evaluations"] == []
+
     async def test_all_evaluations_filter_by_checkpoint_id(self, pg_session, pg_client, as_admin):
         team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
         checkpoint_id = as_admin.staff_checkpoint_id

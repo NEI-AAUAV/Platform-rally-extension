@@ -622,10 +622,11 @@ class StaffEvaluationController:
             joinedload(ActivityResult.team).selectinload(Team.members),
         )
 
+        # Filters are conjunctive: a staff caller's checkpoint clamp must survive
+        # even when team_id is also supplied.
         if team_id:
-            # Filter by specific team
             stmt = stmt.where(ActivityResult.team_id == team_id)
-        elif checkpoint_id:
+        if checkpoint_id:
             # Get teams at specific checkpoint
             teams = await team_crud.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
             team_ids = [t.id for t in teams]
