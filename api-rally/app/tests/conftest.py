@@ -90,10 +90,12 @@ def client():
 @pytest.fixture
 def mock_auth():
     """Mock authentication for tests"""
-    with patch("app.api.api_v1.team_members.require_team_management_permission"):
-        with patch("app.api.api_v1.team_members.require_add_team_member_permission"):
-            with patch("app.api.api_v1.rally_settings.validate_settings_update_access"):
-                yield
+    with (
+        patch("app.api.api_v1.team_members.require_team_management_permission"),
+        patch("app.api.api_v1.team_members.require_add_team_member_permission"),
+        patch("app.api.api_v1.rally_settings.validate_settings_update_access"),
+    ):
+        yield
 
 
 # NOTE: --require-pg is registered in the rootdir conftest (api-rally/conftest.py)
@@ -199,8 +201,6 @@ def pg_client(_pg_engine) -> TestClient:
 
 
 async def make_event(pg_session, **overrides):
-    from app.models.activity import RallyEvent
-
     event = RallyEvent(name="Test Event", is_current=True, **overrides)
     pg_session.add(event)
     await pg_session.commit()
@@ -232,11 +232,12 @@ def as_admin():
     fixture's approach of patching auth checks rather than faking tokens.
     """
     from app.api import deps
-    from app.api.auth import api_nei_auth
+    from app.api.auth import api_nei_auth, api_nei_auth_optional
 
     user = _fake_detailed_user(scopes=["admin"])
     auth_data = _fake_auth_data(scopes=["admin"])
     app.dependency_overrides[api_nei_auth] = lambda: auth_data
+    app.dependency_overrides[api_nei_auth_optional] = lambda: auth_data
     app.dependency_overrides[deps.get_admin] = lambda: user
     app.dependency_overrides[deps.get_admin_or_staff] = lambda: user
     app.dependency_overrides[deps.get_guide] = lambda: user
@@ -248,6 +249,7 @@ def as_admin():
     finally:
         for dep in (
             api_nei_auth,
+            api_nei_auth_optional,
             deps.get_admin,
             deps.get_admin_or_staff,
             deps.get_guide,

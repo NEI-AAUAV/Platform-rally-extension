@@ -14,7 +14,12 @@ from app.api.abac_deps import (
 from app.api.api_v1.staff_evaluation_utils import serialize_activity, serialize_team
 from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.core.abac import Action, Resource, check_permission
-from app.core.exceptions import RallyError, RallyForbiddenError, RallyValidationError
+from app.core.exceptions import (
+    RallyError,
+    RallyForbiddenError,
+    RallyUnauthorizedError,
+    RallyValidationError,
+)
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_checkpoint_crud, get_team_crud
@@ -36,6 +41,7 @@ from app.services.storage import storage_client
 from app.services.team_service import TeamService
 
 _TEAM_ID_PATH = "/{id}"
+AUTH_REQUIRED = "Authentication required (User or Team Token)"
 
 
 class TeamController:
@@ -58,6 +64,7 @@ class TeamController:
             methods=["GET"],
             status_code=200,
             name="get_team_by_id",
+            responses={401: {"description": AUTH_REQUIRED}},
         )
         self.router.add_api_route(
             f"{_TEAM_ID_PATH}/checkpoint",
@@ -120,15 +127,30 @@ class TeamController:
         *,
         id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
-        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
-        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        auth: Annotated[AuthData | None, Depends(api_nei_auth_optional)],
+        curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+        curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> PrivilegedDetailedTeam:
+        # Teams log in with an access code, not with OIDC, so their bearer token
+        # never validates against the provider's JWKS — accept either identity
+        # here or the team's own progress view (GET /team/{id} with a team
+        # token) 401s. `auth` alone is enough: a valid OIDC token whose local
+        # user row hasn't been mirrored yet (first request of a fresh sub)
+        # leaves curr_user None but is still an authenticated caller.
+        if not curr_user and not curr_team and not auth:
+            raise RallyUnauthorizedError(AUTH_REQUIRED)
+
         # The access code is a login credential: only the team's own members and
         # callers who may manage teams (admin/staff) get it back.
-        may_see_access_code = curr_user.team_id == id or check_permission(
-            curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM
+        may_see_access_code = (curr_team is not None and curr_team.team_id == id) or (
+            curr_user is not None
+            and auth is not None
+            and (
+                curr_user.team_id == id
+                or check_permission(curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM)
+            )
         )
         team_obj = await team_crud.get(db=db, id=id)
         return await service.build_detailed_team(
@@ -257,7 +279,7 @@ class TeamController:
         except (HTTPException, RallyError):
             raise
         except Exception as e:
-            raise RallyValidationError(f"Cannot delete team: {str(e)}")
+            raise RallyValidationError(f"Cannot delete team: {str(e)}") from e
 
     async def get_team_evaluations(
         self,

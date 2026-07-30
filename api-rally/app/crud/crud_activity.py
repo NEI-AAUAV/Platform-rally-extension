@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from sqlalchemy import desc, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import current_event_id
@@ -270,7 +271,18 @@ class CRUDRallyEvent:
             is_current=True,
         )
         db.add(default)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Concurrent bootstrap (multiple uvicorn workers / background
+            # workers hitting their first read at once): the slug is unique, so
+            # only one insert lands. The losers adopt whatever event is now
+            # current rather than failing the request.
+            await db.rollback()
+            current = await self.get_current(db)
+            if current is None:
+                raise
+            return current
         await db.refresh(default)
         return default
 

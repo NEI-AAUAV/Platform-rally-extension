@@ -93,16 +93,29 @@ class TestGetTeamById:
         from app.schemas.user import DetailedUser
 
         user = DetailedUser(id=1, name="P", disabled=False, team_id=team_id, scopes=[])
-        app.dependency_overrides[deps.get_participant] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
+        app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
             oidc_sub="p1", name="P", scopes=[]
+        )
+
+    @staticmethod
+    def _as_team_token(team_id):
+        """A team logged in with its access code: no OIDC identity at all."""
+        from app.api import deps
+        from app.schemas.team_auth import TeamTokenData
+
+        app.dependency_overrides[deps.get_current_team_optional] = lambda: TeamTokenData(
+            team_id=team_id, team_name="T"
         )
 
     @staticmethod
     def _clear_overrides():
         from app.api import deps
 
+        app.dependency_overrides.pop(deps.get_current_user_optional, None)
+        app.dependency_overrides.pop(deps.get_current_team_optional, None)
         app.dependency_overrides.pop(deps.get_participant, None)
+        app.dependency_overrides.pop(api_nei_auth_optional, None)
         app.dependency_overrides.pop(api_nei_auth, None)
 
     async def test_get_team_by_id_success(self, pg_session, pg_client):
@@ -146,8 +159,8 @@ class TestGetTeamById:
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Managed")
         admin = DetailedUser(id=2, name="A", disabled=False, team_id=None, scopes=["admin"])
-        app.dependency_overrides[deps.get_participant] = lambda: admin
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
+        app.dependency_overrides[deps.get_current_user_optional] = lambda: admin
+        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
             oidc_sub="a1", name="A", scopes=["admin"]
         )
         try:
@@ -157,6 +170,37 @@ class TestGetTeamById:
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] == team.access_code
+
+    async def test_get_team_by_id_accepts_a_team_token(self, pg_session, pg_client):
+        """Teams authenticate with an access-code-issued token, which never
+        validates against the OIDC provider — the team's own progress view
+        depends on this route accepting it.
+        """
+
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "TokenTeam")
+        self._as_team_token(team.id)
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["name"] == "TokenTeam"
+        assert resp.json()["access_code"] == team.access_code
+
+    async def test_team_token_does_not_leak_another_teams_access_code(self, pg_session, pg_client):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Theirs")
+        self._as_team_token(team.id + 1000)
+        try:
+            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        finally:
+            self._clear_overrides()
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["access_code"] is None
+        assert team.access_code not in resp.text
 
     async def test_get_team_by_id_not_found(self, pg_session, pg_client):
         await _make_event(pg_session)

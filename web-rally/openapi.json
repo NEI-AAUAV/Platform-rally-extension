@@ -134,6 +134,9 @@
               }
             }
           },
+          "401": {
+            "description": "Authentication required (User or Team Token)"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

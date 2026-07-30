@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
@@ -38,7 +39,19 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         if legacy is not None:
             legacy.event_id = event.id  # type: ignore[assignment]
             db.add(legacy)
-            await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                # Another caller already claimed this event's settings row (see
+                # the same race below); use theirs.
+                await db.rollback()
+                adopted = await db.scalar(
+                    select(RallySettings).where(RallySettings.event_id == event.id)
+                )
+                if adopted is None:
+                    raise
+                adopted = await self._normalize_home_fields(db, adopted)
+                return await self._sync_timing_from_event(db, adopted, event)
             await db.refresh(legacy)
             legacy = await self._normalize_home_fields(db, legacy)
             return await self._sync_timing_from_event(db, legacy, event)
@@ -84,8 +97,22 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             ticker_items=list(DEFAULT_TICKER_ITEMS),
         )
         db.add(settings)
-        await db.commit()
-        await db.refresh(settings)
+        try:
+            await db.commit()
+        except IntegrityError:
+            # event_id is unique: several workers (API requests, the badges and
+            # leaderboard workers) can reach this insert concurrently for the
+            # same event and all but one lose the race. The loser adopts the
+            # row the winner committed instead of surfacing the violation.
+            await db.rollback()
+            settings = await db.scalar(
+                select(RallySettings).where(RallySettings.event_id == event.id)
+            )
+            if settings is None:
+                raise
+            settings = await self._normalize_home_fields(db, settings)
+        else:
+            await db.refresh(settings)
 
         return await self._sync_timing_from_event(db, settings, event)
 

@@ -5,9 +5,12 @@ event, home_layout/ticker_items self-healing, and the branding image field
 guard.
 """
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.crud.crud_rally_settings import rally_settings
 from app.models.rally_settings import RallySettings
@@ -24,6 +27,31 @@ class TestGetOrCreate:
         assert settings.event_id is not None
         assert settings.max_teams == 14
         assert settings.home_layout == list(DEFAULT_HOME_LAYOUT)
+
+    async def test_concurrent_creates_adopt_the_winners_row(self, pg_session, _pg_engine):
+        """Several uvicorn workers (plus the badges/leaderboard workers) can
+        reach the settings insert at once for the same event. event_id is
+        unique, so all but one lose — the losers must adopt the committed row
+        instead of raising UniqueViolationError.
+        """
+
+        event = await _make_event(pg_session)
+        maker = async_sessionmaker(_pg_engine, expire_on_commit=False)
+
+        async def create() -> int:
+            async with maker() as session:
+                settings = await rally_settings.get_or_create(session)
+                return settings.event_id
+
+        results = await asyncio.gather(*(create() for _ in range(4)))
+
+        assert results == [event.id] * 4
+        rows = (
+            await pg_session.scalars(
+                select(RallySettings).where(RallySettings.event_id == event.id)
+            )
+        ).all()
+        assert len(rows) == 1
 
     async def test_adopts_legacy_unscoped_row(self, pg_session):
         """A pre-existing settings row with event_id=NULL (single-event era)

@@ -2,6 +2,10 @@
 gaps not already covered by test_event_editions.py (against real Postgres).
 """
 
+import asyncio
+
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_activity import activity_result as crud_activity_result
 from app.crud.crud_activity import rally_event as crud_rally_event
@@ -122,3 +126,24 @@ async def test_remove_rally_event_existing_deletes_and_returns_it(pg_session) ->
     assert removed is not None
     assert removed.id == event.id
     assert await crud_rally_event.get(pg_session, event.id) is None
+
+
+async def test_concurrent_ensure_current_bootstraps_exactly_one_event(_pg_engine) -> None:
+    """Several workers can hit their first read at once on an empty database.
+    The default event's slug is unique, so only one insert lands — the losers
+    must adopt it instead of raising UniqueViolationError.
+    """
+
+    maker = async_sessionmaker(_pg_engine, expire_on_commit=False)
+
+    async def ensure() -> int:
+        async with maker() as session:
+            event = await crud_rally_event.ensure_current(session)
+            return event.id
+
+    ids = await asyncio.gather(*(ensure() for _ in range(4)))
+
+    assert len(set(ids)) == 1
+    async with maker() as session:
+        current = await crud_rally_event.get_current(session)
+        assert current is not None and current.id == ids[0]
