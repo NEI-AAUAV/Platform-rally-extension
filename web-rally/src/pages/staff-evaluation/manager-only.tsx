@@ -1,39 +1,45 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
+import { PageHeader } from "@/components/shared";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
+import useRallyEventStream from "@/hooks/useRallyEventStream";
 import {
-  CheckPointService,
-  ActivitiesService,
-  TeamService,
-  StaffEvaluationService,
+  getCheckpoints,
+  getActivities,
+  getTeams,
+  getAllEvaluations,
   type DetailedCheckPoint,
   type ActivityListResponse,
   type ListingTeam,
   type ActivityResultResponse,
   type ActivityResponse,
 } from "@/client";
-import { useThemedComponents } from "@/components/themes";
 
-export default function ManagerEvaluationPage() {
+interface ManagerEvaluationPageProps {
+  readonly embedded?: boolean;
+}
+
+const STREAM_QUERY_KEYS = [["allTeams"], ["allEvaluations"], ["allCheckpoints"]] as const;
+
+export default function ManagerEvaluationPage({ embedded = false }: ManagerEvaluationPageProps) {
   const userStore = useUserStore();
   const navigate = useNavigate();
   const [showAllEvaluations, setShowAllEvaluations] = useState(false);
-  const { Card } = useThemedComponents();
   const { settings } = useRallySettings();
-
+  useRallyEventStream(STREAM_QUERY_KEYS);
 
   // Get all checkpoints
   const { data: allCheckpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["allCheckpoints"],
     queryFn: async () => {
-      return CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
+      const { data } = await getCheckpoints();
+      return data;
     },
     enabled: !!userStore.token,
   });
@@ -42,7 +48,8 @@ export default function ManagerEvaluationPage() {
   const { data: allActivities } = useQuery<ActivityListResponse>({
     queryKey: ["allActivities"],
     queryFn: async () => {
-      return ActivitiesService.getActivitiesApiRallyV1ActivitiesGet();
+      const { data } = await getActivities();
+      return data;
     },
     enabled: !!userStore.token,
   });
@@ -51,24 +58,25 @@ export default function ManagerEvaluationPage() {
   const { data: allTeams } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],
     queryFn: async () => {
-      return TeamService.getTeamsApiRallyV1TeamGet();
+      const { data } = await getTeams();
+      return data;
     },
     enabled: !!userStore.token,
   });
 
-type EvaluationResponse = ActivityResultResponse & {
-  team?: ListingTeam & { members?: Array<unknown> };
-  activity?: ActivityResponse;
-};
+  type EvaluationResponse = ActivityResultResponse & {
+    team?: ListingTeam & { members?: Array<unknown> };
+    activity?: ActivityResponse;
+  };
 
   // Get all evaluations using the dedicated endpoint that includes relationships
   const { data: allEvaluations, isLoading: evaluationsLoading } = useQuery({
     queryKey: ["allEvaluations"],
     queryFn: async (): Promise<Evaluation[]> => {
-      const response = await StaffEvaluationService.getAllEvaluationsApiRallyV1StaffAllEvaluationsGet();
-      
+      const { data: response } = await getAllEvaluations();
+
       if (!response || !response.evaluations) return [];
-      
+
       // Transform the results to match the AllEvaluations component interface
       const evaluations = (response.evaluations as EvaluationResponse[]).map((result) => ({
         id: result.id,
@@ -96,60 +104,59 @@ type EvaluationResponse = ActivityResultResponse & {
           description: result.activity?.description ?? undefined,
         },
       }));
-      
+
       return evaluations;
     },
     enabled: !!userStore.token,
   });
 
   const handleCheckpointClick = (checkpoint: DetailedCheckPoint) => {
-    navigate(`/staff-evaluation/checkpoint/${checkpoint.id}`);
+    void navigate({
+      to: "/staff-evaluation/checkpoint/$checkpointId",
+      params: { checkpointId: String(checkpoint.id) },
+    });
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
-      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <Card variant="default" padding="none">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Activity className="w-6 h-6" />
-              Manager Evaluation Dashboard
-            </CardTitle>
-            <p className="text-sm text-[rgb(255,255,255,0.6)]">
-              System-wide evaluation overview and management
-            </p>
-          </CardHeader>
-        </Card>
+        {!embedded && (
+          <PageHeader
+            eyebrow="Avaliação"
+            icon={Activity}
+            title="Painel de avaliação"
+            description="Visão geral e gestão de todas as avaliações."
+          />
+        )}
 
         {/* All Evaluations Section */}
         <div className="relative">
-          <Card
-            variant="default"
-            padding="sm"
-            rounded="lg"
-            hover
+          <button
+            type="button"
             onClick={() => setShowAllEvaluations(!showAllEvaluations)}
-            className="cursor-pointer"
+            className="rally-surface flex w-full cursor-pointer items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-accent sm:p-4"
           >
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-semibold">All Evaluations</span>
-              <Badge variant="outline" className="text-white border-white/20">
-                {evaluationsLoading ? "Loading..." : (allEvaluations as Evaluation[])?.length || 0}
+              <CheckCircle className="h-5 w-5" />
+              <span className="font-semibold">Todas as Avaliações</span>
+              <Badge variant="outline" className="border-border text-foreground">
+                {evaluationsLoading
+                  ? "A carregar..."
+                  : (allEvaluations as Evaluation[])?.length || 0}
               </Badge>
             </div>
-            <ChevronDown 
-              className={`w-5 h-5 transition-transform ${showAllEvaluations ? 'rotate-180' : ''}`} 
+            <ChevronDown
+              className={`h-5 w-5 transition-transform ${showAllEvaluations ? "rotate-180" : ""}`}
             />
-          </Card>
-          
+          </button>
+
           {showAllEvaluations && (
             <div className="mt-2">
               {evaluationsLoading ? (
-                <Card variant="default" padding="md">
-                  <p className="text-white/70 text-center">Loading evaluations...</p>
-                </Card>
+                <div className="rally-surface rounded-2xl p-4 sm:p-6">
+                  <p className="text-center text-muted-foreground">A carregar avaliações...</p>
+                </div>
               ) : (
                 <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
               )}
@@ -166,81 +173,64 @@ type EvaluationResponse = ActivityResultResponse & {
         />
 
         {/* Teams Overview */}
-        <Card variant="default" padding="none">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Teams Overview
-            </CardTitle>
-            <p className="text-sm text-[rgb(255,255,255,0.6)]">
-              All teams in the rally
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {allTeams?.map((team) => (
-                <Card
-                  key={team.id}
-                  variant="nested"
-                  padding="sm"
-                  rounded="lg"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-white">{team.name}</h4>
-                    <Badge variant="outline" className="text-white border-white/20">
-                      #{team.id}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1 text-sm text-[rgb(255,255,255,0.7)]">
-                    <p>Members: {team.num_members || 0}</p>
-                    {settings?.show_score_mode !== "hidden" && (
-                      <p>Total Score: {team.total || 0}</p>
-                    )}
-                    {settings?.show_score_mode !== "hidden" && (
-                      <p>Classification: {team.classification || 'N/A'}</p>
-                    )}
-                    <p>Last Checkpoint: {team.last_checkpoint_number || 'None'}</p>
-                  </div>
-                </Card>
-              ))}
+        <div className="rally-surface rounded-2xl p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="rally-bg-accent-soft grid h-9 w-9 place-items-center rounded-lg text-foreground">
+              <Users className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="font-bold text-foreground">Visão Geral das Equipas</p>
+              <p className="text-xs text-muted-foreground">Todas as equipas do rally</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {allTeams?.map((team) => (
+              <div key={team.id} className="rounded-xl border border-border bg-secondary p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="font-semibold text-foreground">{team.name}</h4>
+                  <Badge variant="outline" className="border-border text-foreground">
+                    #{team.id}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>Membros: {team.num_members || 0}</p>
+                  {settings?.show_score_mode !== "hidden" && <p>Pontuação: {team.total || 0}</p>}
+                  {settings?.show_score_mode !== "hidden" && (
+                    <p>Classificação: {team.classification || "N/D"}</p>
+                  )}
+                  <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          <Card variant="default" padding="md">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
-                {allTeams?.length || 0}
-              </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                Total Teams
-              </div>
+              <div className="mb-2 text-2xl font-bold text-foreground">{allTeams?.length || 0}</div>
+              <div className="text-sm text-muted-foreground">Equipas</div>
             </div>
-          </Card>
+          </div>
 
-          <Card variant="default" padding="md">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
+              <div className="mb-2 text-2xl font-bold text-foreground">
                 {allCheckpoints?.length || 0}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                Checkpoints
-              </div>
+              <div className="text-sm text-muted-foreground">Checkpoints</div>
             </div>
-          </Card>
+          </div>
 
-          <Card variant="default" padding="md">
+          <div className="rally-surface rounded-2xl p-4 sm:p-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-2">
+              <div className="mb-2 text-2xl font-bold text-foreground">
                 {allActivities?.activities?.length || 0}
               </div>
-              <div className="text-sm text-[rgb(255,255,255,0.7)]">
-                Total Activities
-              </div>
+              <div className="text-sm text-muted-foreground">Atividades</div>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </div>

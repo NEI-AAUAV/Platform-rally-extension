@@ -6,7 +6,6 @@ import type {
   RallySettingsResponse,
   ActivityResultResponse,
 } from '@/client';
-import { ActivityType } from '@/client';
 
 // Mock checkpoint data
 export const MOCK_CHECKPOINT: DetailedCheckPoint = {
@@ -39,7 +38,7 @@ export const MOCK_ACTIVITY: ActivityResponse = {
   id: 1,
   name: 'Test Activity',
   description: 'A test activity for evaluation',
-  activity_type: ActivityType.GENERAL_ACTIVITY,
+  activity_type: 'GeneralActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -52,7 +51,7 @@ export const MOCK_TIME_BASED_ACTIVITY: ActivityResponse = {
   id: 2,
   name: 'Time-Based Activity',
   description: 'Complete as fast as possible',
-  activity_type: ActivityType.TIME_BASED_ACTIVITY,
+  activity_type: 'TimeBasedActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -64,7 +63,7 @@ export const MOCK_SCORE_BASED_ACTIVITY: ActivityResponse = {
   id: 3,
   name: 'Score-Based Activity',
   description: 'Achieve maximum points',
-  activity_type: ActivityType.SCORE_BASED_ACTIVITY,
+  activity_type: 'ScoreBasedActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -76,7 +75,7 @@ export const MOCK_BOOLEAN_ACTIVITY: ActivityResponse = {
   id: 4,
   name: 'Boolean Activity',
   description: 'Pass or fail',
-  activity_type: ActivityType.BOOLEAN_ACTIVITY,
+  activity_type: 'BooleanActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -88,7 +87,7 @@ export const MOCK_TEAM_VS_ACTIVITY: ActivityResponse = {
   id: 5,
   name: 'Team vs Team Activity',
   description: 'Head-to-head competition',
-  activity_type: ActivityType.TEAM_VS_ACTIVITY,
+  activity_type: 'TeamVsActivity',
   checkpoint_id: 1,
   config: {},
   is_active: true,
@@ -130,8 +129,8 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   enable_versus: false,
   rally_start_time: new Date().toISOString(),
   rally_end_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
-  penalty_per_puke: 10,
-  penalty_per_not_drinking: 5,
+  penalty_per_puke: -10,
+  penalty_per_not_drinking: -5,
   bonus_per_extra_shot: 2,
   max_extra_shots_per_member: 3,
   checkpoint_order_matters: true,
@@ -139,22 +138,47 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   show_live_leaderboard: true,
   show_team_details: true,
   show_checkpoint_map: true,
+  participant_view_enabled: true,
+  show_route_mode: 'complete',
+  show_score_mode: 'competitive',
   rally_theme: 'nei',
   public_access_enabled: true,
+  allow_photo_as_team_photo: true,
+  guide_mode_enabled: false,
+  guide_mode_active: false,
+  badges_enabled: true,
+  home_layout: [],
+  ticker_items: [],
 };
 
 // Mock JWT token for staff (for testing - properly formatted with valid sub)
 // This token decodes to: { sub: "test-user-123", name: "Test User", scopes: ["rally-staff"], iat: 1516239022 }
 // Base64 encoded header + payload: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9
-export const MOCK_JWT_TOKEN_STAFF =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
+export const MOCK_JWT_TOKEN_STAFF = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9',
+  'test'
+].join('.');
 
 // Mock JWT token for manager (with manager-rally scope)
 // This token decodes to: { sub: "manager-user-456", name: "Manager User", scopes: ["manager-rally"], iat: 1516239022 }
 // Base64: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0
-export const MOCK_JWT_TOKEN_MANAGER =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0.test';
+export const MOCK_JWT_TOKEN_MANAGER = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJtYW5hZ2VyLXVzZXItNDU2IiwibmFtZSI6Ik1hbmFnZXIgVXNlciIsInNjb3BlcyI6WyJtYW5hZ2VyLXJhbGx5Il0sImlhdCI6MTUxNjIzOTAyMn0',
+  'test'
+].join('.');
 
 // Backward compatibility - default to staff token
 export const MOCK_JWT_TOKEN = MOCK_JWT_TOKEN_STAFF;
 
+
+// Mock JWT token for a tour guide (rally-guide scope)
+// Decodes to: { sub: "guide-user-789", name: "Guide User", scopes: ["rally-guide"], iat: 1516239022 }
+// NOSONAR - not a secret: a fabricated test JWT with the literal signature
+// "test" and a public example payload; used only by the frontend test suite.
+export const MOCK_JWT_TOKEN_GUIDE = [
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+  'eyJzdWIiOiJndWlkZS11c2VyLTc4OSIsIm5hbWUiOiJHdWlkZSBVc2VyIiwic2NvcGVzIjpbInJhbGx5LWd1aWRlIl0sImlhdCI6MTUxNjIzOTAyMn0',
+  'test'
+].join('.');

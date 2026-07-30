@@ -1,8 +1,23 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { TeamService, TeamMembersService, type DetailedTeam } from "@/client";
-
-
+import {
+  getTeamById,
+  addTeamMember,
+  removeTeamMember,
+  teamLogin,
+  type PrivilegedDetailedTeam,
+} from "@/client";
+import { ApiError } from "@/services/apiClient";
+import { setSentryUser, clearSentryUser } from "@/lib/sentry";
+import {
+  getTeamToken,
+  setTeamToken,
+  getTeamData,
+  setTeamData,
+  hasTeamData,
+  clearTeamAuth,
+  type TeamTokenData,
+} from "@/lib/auth/tokenStore";
 
 interface TeamLoginResponse {
   access_token: string;
@@ -11,114 +26,99 @@ interface TeamLoginResponse {
   team_name: string;
 }
 
-interface TeamTokenData {
-  team_id: number;
-  team_name: string;
-}
-
-const TEAM_TOKEN_KEY = "rally_team_token";
-const TEAM_DATA_KEY = "rally_team_data";
-
 /**
  * Hook for team authentication
  * Provides login, logout, and authentication state management
  */
 export default function useTeamAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [teamData, setTeamData] = useState<TeamTokenData | null>(null);
+  const [currentTeamData, setCurrentTeamData] = useState<TeamTokenData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const queryClient = useQueryClient();
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = localStorage.getItem(TEAM_TOKEN_KEY);
-    const data = localStorage.getItem(TEAM_DATA_KEY);
+    const token = getTeamToken();
+    const data = getTeamData();
 
     if (token && data) {
-      try {
-        const parsedData = JSON.parse(data) as TeamTokenData;
-        setTeamData(parsedData);
-        setIsAuthenticated(true);
-      } catch (error) {
-        // Invalid data, clear storage
-        localStorage.removeItem(TEAM_TOKEN_KEY);
-        localStorage.removeItem(TEAM_DATA_KEY);
-      }
+      setCurrentTeamData(data);
+      setIsAuthenticated(true);
+      setSentryUser(data.team_id);
+    } else if (token && hasTeamData()) {
+      // Token present and a data entry exists but is corrupt — clear stale storage.
+      clearTeamAuth();
     }
     setIsLoadingAuth(false);
   }, []);
 
   // Fetch team members data when authenticated
-  const { data: team, isLoading: isLoadingTeam } = useQuery<DetailedTeam>({
-    queryKey: ["team", teamData?.team_id],
-    queryFn: () =>
-      teamData ? TeamService.getTeamByIdApiRallyV1TeamIdGet(teamData.team_id) : Promise.reject(new Error("No team data")),
-    enabled: isAuthenticated && !!teamData?.team_id,
+  const { data: team, isLoading: isLoadingTeam } = useQuery<PrivilegedDetailedTeam>({
+    queryKey: ["team", currentTeamData?.team_id],
+    queryFn: async () => {
+      if (!currentTeamData) {
+        throw new Error("No team data");
+      }
+      const { data } = await getTeamById({ path: { id: currentTeamData.team_id } });
+      return data;
+    },
+    enabled: isAuthenticated && !!currentTeamData?.team_id,
     staleTime: 0,
   });
 
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (accessCode: string): Promise<TeamLoginResponse> => {
-      const response = await fetch("/api/rally/v1/team-auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ access_code: accessCode }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json() as { detail?: string };
-        throw new Error(error.detail || "Login failed");
+      try {
+        const { data } = await teamLogin({ body: { access_code: accessCode } });
+        return data as TeamLoginResponse;
+      } catch (error) {
+        if (error instanceof ApiError) {
+          const detail = (error.body as { detail?: string } | undefined)?.detail;
+          throw new Error(detail || "Login failed");
+        }
+        throw error;
       }
-
-      return response.json() as Promise<TeamLoginResponse>;
     },
     onSuccess: (data) => {
       // Store token and team data
-      localStorage.setItem(TEAM_TOKEN_KEY, data.access_token);
-      localStorage.setItem(
-        TEAM_DATA_KEY,
-        JSON.stringify({
-          team_id: data.team_id,
-          team_name: data.team_name,
-        })
-      );
-
-      setTeamData({
+      const teamTokenData: TeamTokenData = {
         team_id: data.team_id,
         team_name: data.team_name,
-      });
+      };
+      setTeamToken(data.access_token);
+      setTeamData(teamTokenData);
+
+      setCurrentTeamData(teamTokenData);
       setIsAuthenticated(true);
+      setSentryUser(data.team_id);
     },
   });
 
   // Add member mutation
   const { mutate: addMember, isPending: isAddingMember } = useMutation({
     mutationFn: async (memberData: { name: string; email?: string | null }) => {
-      if (!teamData?.team_id) throw new Error("Team ID not found");
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(
-        teamData.team_id,
-        memberData
-      );
+      if (!currentTeamData?.team_id) throw new Error("Team ID not found");
+      return addTeamMember({
+        path: { team_id: currentTeamData.team_id },
+        body: memberData,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", teamData?.team_id] });
+      void queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
     },
   });
 
   // Remove member mutation
   const { mutate: removeMember, isPending: isRemovingMember } = useMutation({
     mutationFn: async (memberId: number) => {
-      if (!teamData?.team_id) throw new Error("Team ID not found");
-      return TeamMembersService.removeTeamMemberApiRallyV1TeamTeamIdMembersUserIdDelete(
-        teamData.team_id,
-        memberId
-      );
+      if (!currentTeamData?.team_id) throw new Error("Team ID not found");
+      return removeTeamMember({
+        path: { team_id: currentTeamData.team_id, user_id: memberId },
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team", teamData?.team_id] });
+      void queryClient.invalidateQueries({ queryKey: ["team", currentTeamData?.team_id] });
     },
   });
 
@@ -127,20 +127,20 @@ export default function useTeamAuth() {
   };
 
   const logout = () => {
-    localStorage.removeItem(TEAM_TOKEN_KEY);
-    localStorage.removeItem(TEAM_DATA_KEY);
+    clearTeamAuth();
     setIsAuthenticated(false);
-    setTeamData(null);
-    queryClient.invalidateQueries({ queryKey: ["team"] });
+    setCurrentTeamData(null);
+    clearSentryUser();
+    void queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 
   const getToken = (): string | null => {
-    return localStorage.getItem(TEAM_TOKEN_KEY);
+    return getTeamToken();
   };
 
   return {
     isAuthenticated,
-    teamData,
+    teamData: currentTeamData,
     team,
     isLoading: isLoadingAuth || isLoadingTeam,
     login,

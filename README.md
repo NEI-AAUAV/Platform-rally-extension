@@ -2,19 +2,20 @@
 
 Rally is the NEI Platform’s competition module. It handles team rosters, checkpoint progress, activity scoring, staff evaluations, and public leaderboards. The extension is split into:
 
-- `api-rally/` – FastAPI service (Python 3.11, SQLAlchemy, PostgreSQL)
+- `api-rally/` – FastAPI service (Python 3.12, SQLAlchemy, PostgreSQL)
 - `web-rally/` – React/Vite frontend (TypeScript, Tailwind, Zustand)
 
 ## Directory Map
 
 ```
-extensions/rally/
+rally/
 ├── api-rally/
 │   └── app/
-│       ├── api/        # FastAPI routers
-│       ├── crud/       # DB helpers
-│       ├── models/     # SQLAlchemy models
-│       └── services/   # Scoring + business logic
+│       ├── api/        # FastAPI routers (thin controllers), auth deps
+│       ├── crud/       # Repositories — data access only
+│       ├── models/     # SQLAlchemy entities
+│       ├── schemas/    # Pydantic DTOs
+│       └── services/   # Business logic, one class per domain (see api-rally/README.md)
 └── web-rally/
     └── src/
         ├── components/ # UI + themed parts
@@ -25,34 +26,47 @@ extensions/rally/
 
 ## Local Setup
 
+Copy `.env.example` to `.env` and fill in the OIDC, database, and secret values first.
+
+### Full stack (Docker)
+```bash
+cp .env.example .env   # then edit
+docker compose up --build
+```
+
 ### Backend
 ```bash
-cd Platform/extensions/rally/api-rally
+cd api-rally
 poetry install
 poetry run uvicorn app.main:app --reload
 ```
-Set the usual `POSTGRES_*` env vars and point `JWT_PUBLIC_KEY_PATH` to the NEI key.
+Set the `POSTGRES_*` and OIDC env vars (see `.env.example`).
 
 ### Frontend
 ```bash
-cd Platform/extensions/rally/web-rally
+cd web-rally
 pnpm install
 pnpm dev
 ```
-The dev server proxies through the Platform compose stack, so run the backend first.
+Run the backend first — the dev server proxies API requests to it.
 
 ## Testing
 
 ```bash
-# API
-cd extensions/rally/api-rally
+# All tests (from repo root)
+./run-tests.sh
+
+# API only
+cd api-rally
 poetry run pytest
 
-# Frontend
-cd extensions/rally/web-rally
+# Frontend only
+cd web-rally
 pnpm test
 ```
-The backend test suite mocks the JWT verifier and spins up a temporary DB. Frontend tests run under Vitest/jsdom.
+The backend test suite runs against a real Postgres schema (dropped/recreated per test) and bypasses
+OIDC by overriding FastAPI dependencies rather than mocking a JWT verifier — see `api-rally/README.md`
+and `TESTING.md` for the `RALLY_TEST_PG` modes. Frontend tests run under Vitest/jsdom.
 
 ## API at a Glance
 

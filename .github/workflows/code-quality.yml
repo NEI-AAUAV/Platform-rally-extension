@@ -1,5 +1,12 @@
 name: Code Quality
 
+# Least-privilege default token; jobs opt into more only if needed.
+permissions:
+  contents: read
+
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 on:
   push:
     branches: [ main ]
@@ -28,6 +35,9 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
       
+      - name: Configure Poetry security settings
+        run: "poetry config installer.only-binary :all:"
+      
       - name: Cache Python dependencies
         uses: actions/cache@v5
         with:
@@ -38,32 +48,27 @@ jobs:
         working-directory: api-rally
         run: poetry install --no-interaction --with dev
       
-      - name: Run black (formatting check)
+      - name: Run ruff format check - BLOCKING
         working-directory: api-rally
-        run: poetry run black --check app/
-        continue-on-error: true
-      
-      - name: Run isort (import sorting check)
+        run: poetry run ruff format --check app/
+
+      - name: Run ruff lint (includes import sorting/order) - BLOCKING
         working-directory: api-rally
-        run: poetry run isort --check-only app/
-        continue-on-error: true
-      
-      - name: Run flake8 (linting)
+        run: poetry run ruff check app/
+
+      - name: Run import-linter (layering contracts) - BLOCKING
         working-directory: api-rally
-        run: poetry run flake8 app/
-        continue-on-error: true
-      
+        run: poetry run lint-imports
+
       - name: Run mypy (type checking) - BLOCKING
         working-directory: api-rally
         run: poetry run mypy app/
-        # Removed continue-on-error: true - this is now a blocking check
-      
+
       - name: Summary
         if: always()
         run: |
           echo "✅ Code quality checks completed"
-          echo "⚠️  Formatting and linting warnings don't fail the build"
-          echo "❌ Type checking (mypy) failures will block the build"
+          echo "❌ ruff, import-linter, and mypy failures block the build"
 
   lint-typescript:
     name: TypeScript Linting & Type Checking
@@ -85,35 +90,27 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
       
+      - name: Configure Poetry security settings
+        run: "poetry config installer.only-binary :all:"
+      
       - name: Install API dependencies
         working-directory: api-rally
         run: poetry install --no-interaction --no-root
       
       - name: Generate OpenAPI schema
         working-directory: api-rally
-        run: |
-          poetry run python - <<'PY'
-          from app.main import app
-          from fastapi.openapi.utils import get_openapi
-          import json, os
-          
-          schema = get_openapi(
-              title=getattr(app, 'title', 'API'),
-              version=getattr(app, 'version', '0.0.0'),
-              routes=app.routes,
-          )
-          
-          # Use os.getcwd() since __file__ is undefined when executing via stdin
-          # Since working-directory is api-rally, we need to go up one level to repo root
-          repo_root = os.path.dirname(os.getcwd())
-          out_path = os.path.join(repo_root, 'web-rally', 'openapi.json')
-          with open(out_path, 'w') as f:
-              json.dump(schema, f)
-          print(f"Wrote schema to {out_path}")
-          PY
+        run: poetry run python scripts/generate_openapi.py
         env:
           TEAM_JWT_SECRET_KEY: test_secret
-      
+
+      - name: Check OpenAPI schema is up to date
+        run: |
+          if ! git diff --exit-code -- web-rally/openapi.json; then
+            echo "❌ web-rally/openapi.json is out of date."
+            echo "Run 'poetry run python api-rally/scripts/generate_openapi.py' and commit the result."
+            exit 1
+          fi
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -137,33 +134,30 @@ jobs:
       
       - name: Install dependencies
         working-directory: web-rally
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
       
       - name: Generate API client
         working-directory: web-rally
         run: pnpm run generate-client
       
-      - name: Run ESLint
+      - name: Run ESLint - BLOCKING
         working-directory: web-rally
-        run: pnpm run lint || true
-        continue-on-error: true
-      
+        run: pnpm run lint
+
       - name: Run TypeScript type checking - BLOCKING
         working-directory: web-rally
         run: pnpm run type-check || pnpm exec tsc --noEmit
         # Removed continue-on-error: true - this is now a blocking check
       
-      - name: Check formatting with Prettier
+      - name: Check formatting with Prettier - BLOCKING
         working-directory: web-rally
-        run: pnpm exec prettier --check "src/**/*.{ts,tsx,js,jsx,json,css}" || true
-        continue-on-error: true
-      
+        run: pnpm run format:check
+
       - name: Summary
         if: always()
         run: |
           echo "✅ TypeScript quality checks completed"
-          echo "⚠️  Formatting and linting warnings don't fail the build"
-          echo "❌ Type checking failures will block the build"
+          echo "❌ ESLint, Prettier, and type checking failures will block the build"
 
   security-scan:
     name: Security Vulnerability Scan
@@ -181,11 +175,13 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
       
+      - name: Configure Poetry security settings
+        run: "poetry config installer.only-binary :all:"
+      
       - name: Check Python dependencies for vulnerabilities
         working-directory: api-rally
         run: |
           poetry install --no-interaction
-          poetry run pip install safety || pip install safety
           poetry run safety check --json || echo "⚠️  Security issues found in Python dependencies"
         continue-on-error: true
       

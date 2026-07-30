@@ -1,30 +1,34 @@
-import config from "@/config";
-import { useLocation } from "react-router-dom";
+import { useCallback } from "react";
+import { useAuth } from "react-oidc-context";
+import { useLocation } from "@tanstack/react-router";
 
 /**
- * Hook to generate login link with redirect parameter
- * 
- * Creates a login URL that redirects back to the current page after authentication.
- * Uses the current route pathname to construct the redirect URL.
- * 
- * @returns Full login URL with redirect_to query parameter
- * 
+ * Returns a staff-login trigger. Starts the authentik PKCE flow and remembers
+ * the current page so the user returns here after authenticating.
+ *
+ * Pass `mode: "registration"` to land the user on authentik's registration
+ * flow instead of the login form (authentik honors `prompt=registration`).
+ *
  * @example
  * ```tsx
- * const loginLink = useLoginLink();
- * // Returns: "https://nei.web.ua.pt/auth/login?redirect_to=https://nei.web.ua.pt/rally/scoreboard"
- * window.location.href = loginLink;
+ * const onStaffLogin = useStaffLogin();
+ * <button onClick={() => onStaffLogin({ mode: "registration" })}>Registar</button>
  * ```
  */
-export default function useLoginLink() {
-  const { pathname, search, hash } = useLocation();
-  const loginURL = new URL("/auth/login", config.BASE_URL);
+export default function useStaffLogin(): (opts?: { mode?: "login" | "registration" }) => void {
+  const auth = useAuth();
+  // TanStack's ParsedLocation.href is the relative path incl. search + hash.
+  const { href } = useLocation();
 
-  // Construct the full redirect path
-  const redirectPath = pathname + search + hash;
-  const redirectUrl = new URL(redirectPath, config.BASE_URL);
-
-  loginURL.searchParams.set("redirect_to", redirectUrl.toString());
-
-  return loginURL.toString();
+  return useCallback(
+    (opts?: { mode?: "login" | "registration" }) => {
+      sessionStorage.setItem("rally_auth_return_url", href);
+      void auth.signinRedirect(
+        opts?.mode === "registration"
+          ? { extraQueryParams: { prompt: "registration" } }
+          : undefined,
+      );
+    },
+    [auth, href],
+  );
 }

@@ -8,12 +8,14 @@ WORKDIR /app
 
 # Copy only what's needed for schema generation
 COPY api-rally/pyproject.toml api-rally/poetry.lock* ./
-RUN pip install --no-cache-dir poetry && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-root --only main
+RUN pip install --no-cache-dir --only-binary :all: poetry-plugin-export==1.9.0 poetry==2.4.1 && \
+    poetry export -f requirements.txt --output requirements.txt --only main && \
+    pip install --no-compile --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
 
 # Copy API source and generate schema
 COPY api-rally/app ./app
+COPY api-rally/alembic ./alembic
+COPY api-rally/alembic.ini ./alembic.ini
 
 # Create static directory (required by app startup)
 RUN mkdir -p static
@@ -27,15 +29,40 @@ FROM node:24-alpine AS web-builder
 WORKDIR /web
 
 # Install pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g --ignore-scripts pnpm@9.15.9
 
 # Copy package files and install dependencies
 COPY web-rally/package.json web-rally/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy web source and OpenAPI schema
 COPY web-rally/ ./
 COPY --from=schema-generator /app/openapi.json ./openapi.json
+
+# authentik OIDC config is baked into the bundle at build time (Vite reads
+# VITE_* from the environment). Passed via build-args from the publish workflow.
+ARG VITE_OIDC_AUTHORITY
+ARG VITE_OIDC_CLIENT_ID
+ARG VITE_OIDC_REDIRECT_URI
+ARG VITE_OIDC_POST_LOGOUT_REDIRECT_URI
+ARG VITE_OIDC_ADMIN_GROUP
+ARG VITE_OIDC_MANAGER_GROUP
+ARG VITE_OIDC_STAFF_GROUP
+ARG VITE_EVENTS_ENABLED
+ARG VITE_SENTRY_DSN
+ARG VITE_SENTRY_TRACES_SAMPLE_RATE
+ARG VITE_RELEASE
+ENV VITE_OIDC_AUTHORITY=$VITE_OIDC_AUTHORITY \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_OIDC_REDIRECT_URI=$VITE_OIDC_REDIRECT_URI \
+    VITE_OIDC_POST_LOGOUT_REDIRECT_URI=$VITE_OIDC_POST_LOGOUT_REDIRECT_URI \
+    VITE_OIDC_ADMIN_GROUP=$VITE_OIDC_ADMIN_GROUP \
+    VITE_OIDC_MANAGER_GROUP=$VITE_OIDC_MANAGER_GROUP \
+    VITE_OIDC_STAFF_GROUP=$VITE_OIDC_STAFF_GROUP \
+    VITE_EVENTS_ENABLED=$VITE_EVENTS_ENABLED \
+    VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
+    VITE_SENTRY_TRACES_SAMPLE_RATE=$VITE_SENTRY_TRACES_SAMPLE_RATE \
+    VITE_RELEASE=$VITE_RELEASE
 
 # Build (prebuild hook will generate client from openapi.json)
 ENV GENERATE_SOURCEMAP=false

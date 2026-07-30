@@ -1,0 +1,160 @@
+# Auth: api-rally is a pure OIDC resource server. The SPA logs users in directly
+# against authentik (PKCE); the API validates those tokens via JWKS discovery.
+#
+# Copy .env.example to .env and fill in the authentik + secret values first.
+
+services:
+  db_pg:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rally}
+    volumes:
+      - rally_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rally
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Ephemeral cache/pub-sub broker: no persistence needed, leaderboard
+    # state is always recomputable from Postgres.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rally
+
+  api_rally:
+    build:
+      context: ./api-rally
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      POSTGRES_SERVER: db_pg
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rally}
+      # Redis (realtime subsystem). On by default; set EVENTS_ENABLED=false
+      # to opt out. Redis failures degrade silently (EVENTS_FAIL_SILENTLY).
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
+      EVENTS_FAIL_SILENTLY: ${EVENTS_FAIL_SILENTLY:-true}
+      # Move the score recompute off the request path (handled by the scoring
+      # worker). Off by default; only effective alongside EVENTS_ENABLED.
+      RECOMPUTE_OFF_PATH: ${RECOMPUTE_OFF_PATH:-false}
+      # OIDC resource-server validation (authentik).
+      OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_APPLICATION_SLUG: ${OIDC_APPLICATION_SLUG:-rally}
+      OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
+      OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
+      OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      OIDC_GUIDE_GROUP: ${OIDC_GUIDE_GROUP:-rally-guide}
+      # authentik management API (optional) — enables live staff-group lookup
+      # without requiring a prior login for the account to appear.
+      AUTHENTIK_API_URL: ${AUTHENTIK_API_URL:-}
+      AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN:-}
+      # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
+      TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
+      # Team QR self-check-in. Staff display a rotating QR; teams scan it to
+      # register arrival at the staff's checkpoint. Signed with
+      # CHECKIN_HMAC_SECRET (falls back to TEAM_JWT_SECRET_KEY when unset).
+      SELF_CHECKIN_ENABLED: ${SELF_CHECKIN_ENABLED:-true}
+      CHECKIN_HMAC_SECRET: ${CHECKIN_HMAC_SECRET:-}
+      CHECKIN_TOKEN_TTL_SECONDS: ${CHECKIN_TOKEN_TTL_SECONDS:-90}
+      # CORS: the public origin the SPA is served from.
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["http://localhost"]}
+      # Cloudflare R2 (branding uploads) — optional.
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
+      # Logging (see .env.example for details).
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_JSON: ${LOG_JSON:-false}
+      RELEASE: ${RELEASE:-dev}
+      # Error tracking — optional, no-op with an empty DSN.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-0.0}
+      # Prometheus /metrics — must be blocked at the reverse proxy in prod.
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+    volumes:
+      - ./api-rally:/api_rally
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      db_pg:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rally
+
+  web_rally:
+    build:
+      context: ./web-rally
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      # Vite reads VITE_* from the environment at dev/build time.
+      VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY}
+      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID}
+      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI}
+      VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI}
+      VITE_OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
+      VITE_OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
+      VITE_OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}
+      VITE_OIDC_GUIDE_GROUP: ${OIDC_GUIDE_GROUP:-rally-guide}
+      # Realtime scoreboard (mirror of backend EVENTS_ENABLED).
+      VITE_EVENTS_ENABLED: ${EVENTS_ENABLED:-true}
+    volumes:
+      - ./web-rally:/web_rally
+      - rally_node_modules:/web_rally/node_modules
+    networks:
+      - rally
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api_rally:
+        condition: service_healthy
+      web_rally:
+        condition: service_started
+    networks:
+      - rally
+
+volumes:
+  rally_db_data:
+    driver: local
+  rally_node_modules:
+    driver: local
+
+networks:
+  rally:
+    driver: bridge

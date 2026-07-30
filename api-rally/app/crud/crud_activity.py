@@ -1,183 +1,102 @@
 """
 CRUD operations for activities
 """
-from typing import Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func, select
 
-from app.models.activity import Activity, ActivityResult, RallyEvent
-from app.models.team import Team
-from app.models.activity_factory import ActivityFactory
-from app.schemas.activity import ActivityCreate, ActivityUpdate, ActivityResultCreate, ActivityResultUpdate, RallyEventCreate, RallyEventUpdate
-# ScoringService imported locally to avoid circular imports
+import re
+from typing import Any
+
+from sqlalchemy import desc, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.crud import current_event_id
+from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
+from app.schemas.activity import (
+    ActivityCreate,
+    ActivityResultCreate,
+    ActivityResultUpdate,
+    ActivityUpdate,
+    RallyEventCreate,
+    RallyEventUpdate,
+)
 
 
 class CRUDActivity:
     """CRUD operations for Activity model"""
-    
-    def create(self, db: Session, *, obj_in: ActivityCreate) -> Activity:
-        """Create a new activity"""
+
+    async def create(self, db: AsyncSession, *, obj_in: ActivityCreate) -> Activity:
+        """Create a new activity, stamped with the current event id."""
         db_obj = Activity(
             name=obj_in.name,
             description=obj_in.description,
             activity_type=obj_in.activity_type.value,
             checkpoint_id=obj_in.checkpoint_id,
             config=obj_in.config,
-            is_active=obj_in.is_active
+            is_active=obj_in.is_active,
+            event_id=await current_event_id(db),
         )
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
-    
-    def get(self, db: Session, id: int) -> Activity | None:
+
+    async def get(self, db: AsyncSession, id: int) -> Activity | None:
         """Get activity by ID"""
-        return db.get(Activity, id)
-    
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> list[Activity]:
-        """Get multiple activities"""
-        stmt = select(Activity).offset(skip).limit(limit)
-        return list(db.scalars(stmt).all())
-    
-    def get_by_checkpoint(self, db: Session, checkpoint_id: int) -> list[Activity]:
+        return await db.get(Activity, id)
+
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> list[Activity]:
+        """Get the current event's activities (legacy NULL rows included)."""
+        event_id = await current_event_id(db)
+        stmt = (
+            select(Activity)
+            .where((Activity.event_id == event_id) | (Activity.event_id.is_(None)))
+            .offset(skip)
+            .limit(limit)
+        )
+        return list((await db.scalars(stmt)).all())
+
+    async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> list[Activity]:
         """Get activities by checkpoint"""
         stmt = select(Activity).where(
-            Activity.checkpoint_id == checkpoint_id,
-            Activity.is_active == True
+            Activity.checkpoint_id == checkpoint_id, Activity.is_active.is_(True)
         )
-        return list(db.scalars(stmt).all())
-    
-    def update(self, db: Session, *, db_obj: Activity, obj_in: ActivityUpdate) -> Activity:
+        return list((await db.scalars(stmt)).all())
+
+    async def update(
+        self, db: AsyncSession, *, db_obj: Activity, obj_in: ActivityUpdate
+    ) -> Activity:
         """Update an activity"""
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
-    
-    def remove(self, db: Session, *, id: int) -> Activity | None:
+
+    async def remove(self, db: AsyncSession, *, id: int) -> Activity | None:
         """Remove an activity"""
-        obj = db.get(Activity, id)
+        obj = await db.get(Activity, id)
         if obj is None:
             return None
-        db.delete(obj)
-        db.commit()
+        await db.delete(obj)
+        await db.commit()
         return obj
 
 
 class CRUDActivityResult:
-    """CRUD operations for ActivityResult model"""
-    
-    def create(self, db: Session, *, obj_in: ActivityResultCreate, recalc: bool = True, update_team_scores_flag: bool = True) -> ActivityResult:
-        """Create a new activity result"""
-        # Validate activity exists
-        activity = self._get_activity_for_result(db, obj_in.activity_id)
-        
-        # Create activity instance and validate result data
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type, 
-            activity.config
-        )
-        
-        if not activity_instance.validate_result(obj_in.result_data, obj_in.team_id, db):
-            raise ValueError("Invalid result data for activity type")
-        
-        # Calculate final score
-        final_score = self._calculate_final_score(db, activity_instance, obj_in)
-        
-        # Create result object
-        db_obj = self._create_result_object(obj_in, final_score)
-        
-        # Set specific score fields based on activity type
-        self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
-        
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        
-        # If this is a TimeBasedActivity, recalculate ALL existing results for this activity
-        # since the ranking has changed
-        if recalc and activity.activity_type == 'TimeBasedActivity':
-            self._recalculate_all_results_for_activity(db, activity.id, exclude_result_id=db_obj.id)
-        
-        # Update team scores after creating result
-        if update_team_scores_flag:
-            self._update_team_scores(db, obj_in.team_id)
-        
-        return db_obj
-    
-    def _get_activity_for_result(self, db: Session, activity_id: int) -> Activity:
-        """Get activity and validate it exists"""
-        activity = db.get(Activity, activity_id)
-        if not activity:
-            raise ValueError(f"Activity {activity_id} not found")
-        return activity
-    
-    def _get_team_size(self, db: Session, team_id: int) -> int:
-        """Get team size for scoring"""
-        team = db.get(Team, team_id)
-        return len(team.members) if team and team.members else 1
-    
-    def _get_all_times_for_ranking(self, db: Session, activity_id: int, current_time: float | None) -> list[float]:
-        """Get all completion times including current result"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.is_completed == True
-        )
-        existing_results = list(db.scalars(stmt).all())
-        
-        all_times = [float(result.time_score) for result in existing_results if result.time_score is not None]
-        if current_time is not None:
-            all_times.append(current_time)
-        
-        return all_times
-    
-    def _calculate_with_relative_ranking(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
-        """Calculate score using relative ranking for time-based activities"""
-        completion_time = obj_in.result_data.get('completion_time_seconds')
-        current_time: float | None = float(completion_time) if completion_time is not None else None
-        
-        all_times = self._get_all_times_for_ranking(
-            db, 
-            obj_in.activity_id, 
-            current_time
-        )
-        
-        if len(all_times) <= 1:
-            team_size = self._get_team_size(db, obj_in.team_id)
-            return float(activity_instance.calculate_score(obj_in.result_data, team_size))
-        
-        if hasattr(activity_instance, 'calculate_relative_ranking_score'):
-            return float(activity_instance.calculate_relative_ranking_score(
-                all_times,
-                float(obj_in.result_data['completion_time_seconds'])
-            ))
-        
-        team_size = self._get_team_size(db, obj_in.team_id)
-        return float(activity_instance.calculate_score(obj_in.result_data, team_size))
-    
-    def _calculate_final_score(self, db: Session, activity_instance: Any, obj_in: ActivityResultCreate) -> float:
-        """Calculate the final score for the activity result"""
-        is_time_based = activity_instance.__class__.__name__ == 'TimeBasedActivity'
-        
-        # Use relative ranking for time-based activities
-        if is_time_based:
-            base_score = self._calculate_with_relative_ranking(db, activity_instance, obj_in)
-        else:
-            team_size = self._get_team_size(db, obj_in.team_id)
-            base_score = float(activity_instance.calculate_score(obj_in.result_data, team_size))
-        
-        # Apply modifiers
-        modifiers = {
-            'extra_shots': obj_in.extra_shots,
-            'penalties': obj_in.penalties
-        }
-        return float(activity_instance.apply_modifiers(base_score, modifiers, db))
-    
-    def _create_result_object(self, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
-        """Create the ActivityResult database object"""
+    """Persistence for ActivityResult.
+
+    Pure data access. Scoring, ranking recalculation and team-score updates
+    are orchestrated by ScoringService (the higher layer), which calls these
+    methods. CRUD never imports the service, so the dependency runs one way
+    (Service -> CRUD) and there is no circular import.
+    """
+
+    def build(self, obj_in: ActivityResultCreate, final_score: float) -> ActivityResult:
+        """Construct an ActivityResult ORM object (no DB writes, no scoring)."""
         return ActivityResult(
             activity_id=obj_in.activity_id,
             team_id=obj_in.team_id,
@@ -186,290 +105,237 @@ class CRUDActivityResult:
             penalties=obj_in.penalties,
             final_score=final_score,
             is_completed=True,
-            completed_at=func.now()
+            completed_at=func.now(),
         )
-    
-    def _set_activity_specific_scores(self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]) -> None:
-        """Set specific score fields based on activity type"""
-        if activity.activity_type == 'TimeBasedActivity':
-            db_obj.time_score = result_data.get('completion_time_seconds')
-        elif activity.activity_type == 'ScoreBasedActivity':
-            db_obj.points_score = result_data.get('achieved_points')
-        elif activity.activity_type == 'BooleanActivity':
-            db_obj.boolean_score = result_data.get('success')
-        elif activity.activity_type == 'TeamVsActivity':
-            db_obj.team_vs_result = result_data.get('result')
-        elif activity.activity_type == 'GeneralActivity':
-            db_obj.points_score = result_data.get('assigned_points')
-    
-    def _validate_time_based_activity(self, db: Session, activity_id: int) -> tuple[Activity | None, str | None]:
-        """Validate that activity is time-based"""
-        activity = db.get(Activity, activity_id)
-        if not activity or activity.activity_type != 'TimeBasedActivity':
-            return None, None
-        return activity, activity.activity_type
-    
-    def _get_all_completed_times(self, all_results: list[ActivityResult]) -> list[float]:
-        """Extract all completion times from results"""
-        return [float(result.time_score) for result in all_results if result.time_score is not None]
-    
-    def _recalculate_single_result(self, result: ActivityResult, activity_instance: Any, max_points: float, db: Session) -> None:
-        """Recalculate score for a single result with max points"""
-        modifiers = {
-            'extra_shots': result.extra_shots,
-            'penalties': result.penalties
-        }
-        result.final_score = activity_instance.apply_modifiers(
-            max_points,
-            modifiers,
-            db
-        )
-    
-    def _recalculate_with_ranking(self, result: ActivityResult, activity_instance: Any, all_times: list[float], db: Session) -> None:
-        """Recalculate score using relative ranking"""
-        if not result.time_score or not hasattr(activity_instance, 'calculate_relative_ranking_score'):
-            return
-        
-        ranking_score = activity_instance.calculate_relative_ranking_score(
-            all_times,
-            result.time_score
-        )
-        
-        modifiers = {
-            'extra_shots': result.extra_shots,
-            'penalties': result.penalties
-        }
-        result.final_score = activity_instance.apply_modifiers(ranking_score, modifiers, db)
-    
-    def _recalculate_all_results_for_activity(self, db: Session, activity_id: int, exclude_result_id: int | None = None) -> None:
-        """Recalculate all results for a time-based activity when a new result is added"""
-        activity, _ = self._validate_time_based_activity(db, activity_id)
-        if not activity:
-            return
-        
-        # Get all results for this activity, excluding the newly created one
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.is_completed == True
-        )
-        
-        # Exclude the newly created result to avoid double-counting
-        if exclude_result_id is not None:
-            stmt = stmt.where(ActivityResult.id != exclude_result_id)
-        
-        all_results = list(db.scalars(stmt).all())
-        
-        if not all_results:
-            return
-        
-        # Get the excluded result to include its time in all_times
-        excluded_result = None
-        if exclude_result_id is not None:
-            excluded_result = db.get(ActivityResult, exclude_result_id)
-        
-        # Collect all times (from existing + newly created result)
-        all_times = self._get_all_completed_times(all_results)
-        if excluded_result and excluded_result.time_score:
-            all_times.append(excluded_result.time_score)
-        
-        # Create activity instance
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type,
-            activity.config
-        )
-        
-        # Recalculate scores for existing results (excluding the newly created one)
-        if len(all_times) <= 1:
-            # Only one result, give it max points
-            max_points = float(activity_instance.config.get('max_points', 100))
-            for result in all_results:
-                self._recalculate_single_result(result, activity_instance, max_points, db)
+
+    async def persist(
+        self, db: AsyncSession, db_obj: ActivityResult, *, commit: bool = True
+    ) -> ActivityResult:
+        """Add and refresh an ActivityResult.
+
+        Commits by default. Pass commit=False to only flush, so the caller can
+        batch several writes into a single transaction (e.g. team-vs results
+        that must persist atomically).
+        """
+        db.add(db_obj)
+        if commit:
+            await db.commit()
         else:
-            # Multiple results - use ranking (use all_times including the new result)
-            for result in all_results:
-                self._recalculate_with_ranking(result, activity_instance, all_times, db)
-        
-        # Commit and update team scores
-        db.commit()
-        affected_team_ids = {r.team_id for r in all_results}
-        for team_id in affected_team_ids:
-            self._update_team_scores(db, team_id)
-    
-    def _update_team_scores(self, db: Session, team_id: int) -> None:
-        """Update team scores after activity result changes"""
-        from app.services.scoring_service import ScoringService
-        scoring_service = ScoringService(db)
-        scoring_service.update_team_scores(team_id)
-    
-    def get(self, db: Session, id: int) -> ActivityResult | None:
-        """Get activity result by ID"""
-        return db.get(ActivityResult, id)
-    
-    def get_by_activity_and_team(self, db: Session, activity_id: int, team_id: int) -> ActivityResult | None:
-        """Get activity result by activity and team"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id
-        )
-        return db.scalars(stmt).first()
-    
-    def get_by_activity(self, db: Session, activity_id: int) -> list[ActivityResult]:
-        """Get all results for an activity"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id
-        ).order_by(desc(ActivityResult.final_score))
-        return list(db.scalars(stmt).all())
-    
-    def get_by_team(self, db: Session, team_id: int) -> list[ActivityResult]:
-        """Get all results for a team"""
-        stmt = select(ActivityResult).where(
-            ActivityResult.team_id == team_id
-        ).order_by(desc(ActivityResult.final_score))
-        return list(db.scalars(stmt).all())
-    
-    def get_all(self, db: Session) -> list[ActivityResult]:
-        """Get all activity results"""
-        stmt = select(ActivityResult).order_by(desc(ActivityResult.completed_at))
-        return list(db.scalars(stmt).all())
-    
-    def update(self, db: Session, *, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> ActivityResult:
-        """Update an activity result"""
+            await db.flush()
+        await db.refresh(db_obj)
+        return db_obj
+
+    def apply_update(self, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> dict[str, Any]:
+        """Set fields from the update schema in-place (no commit).
+
+        Returns the applied data so the caller can decide whether a rescore
+        is needed (e.g. when 'result_data' changed).
+        """
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
-        
-        # Recalculate final score if result data changed
-        if 'result_data' in update_data:
-            self._recalculate_score_for_update(db, db_obj)
-            
-            # If this is a TimeBasedActivity, recalculate all results
-            activity = db.get(Activity, db_obj.activity_id)
-            if activity and activity.activity_type == 'TimeBasedActivity':
-                self._recalculate_all_results_for_activity(db, activity.id)
-        
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        
-        # Update team scores after updating result
-        self._update_team_scores(db, db_obj.team_id)
-        
-        return db_obj
-    
-    def _recalculate_score_for_update(self, db: Session, db_obj: ActivityResult) -> None:
-        """Recalculate the final score when result data is updated"""
-        activity = db.get(Activity, db_obj.activity_id)
-        if not activity:
-            return
-        
-        activity_instance = ActivityFactory.create_activity(
-            activity.activity_type, 
-            activity.config
+        return update_data
+
+    async def get(self, db: AsyncSession, id: int) -> ActivityResult | None:
+        """Get activity result by ID"""
+        return await db.get(ActivityResult, id)
+
+    async def get_by_activity_and_team(
+        self, db: AsyncSession, activity_id: int, team_id: int
+    ) -> ActivityResult | None:
+        """Get activity result by activity and team"""
+        stmt = select(ActivityResult).where(
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
-        
-        # For time-based activities, use relative ranking
-        if activity.activity_type == 'TimeBasedActivity':
-            # Get all results for this activity to calculate ranking
-            stmt = select(ActivityResult).where(
-                ActivityResult.activity_id == db_obj.activity_id,
-                ActivityResult.is_completed == True
-            )
-            all_results = list(db.scalars(stmt).all())
-            
-            all_times = [float(result.time_score) for result in all_results if result.time_score is not None]
-            
-            if len(all_times) > 1 and hasattr(activity_instance, 'calculate_relative_ranking_score') and db_obj.time_score is not None:
-                # Use relative ranking
-                ranking_score = activity_instance.calculate_relative_ranking_score(
-                    all_times,
-                    float(db_obj.time_score)
-                )
-                base_score = float(ranking_score)
-            else:
-                # Single result or fallback
-                team = db.get(Team, db_obj.team_id)
-                team_size = len(team.members) if team and team.members else 1
-                base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
-        else:
-            team = db.get(Team, db_obj.team_id)
-            team_size = len(team.members) if team and team.members else 1
-            base_score = float(activity_instance.calculate_score(db_obj.result_data, team_size))
-        
-        modifiers = {
-            'extra_shots': db_obj.extra_shots,
-            'penalties': db_obj.penalties
-        }
-        db_obj.final_score = float(activity_instance.apply_modifiers(base_score, modifiers, db))
-    
-    def remove(self, db: Session, *, id: int) -> ActivityResult | None:
-        """Remove an activity result"""
-        obj = db.get(ActivityResult, id)
-        if obj is None:
-            return None
-        
-        team_id = obj.team_id  # Store team_id before deletion
-        db.delete(obj)
-        db.commit()
-        
-        # Update team scores after removing result
-        from app.services.scoring_service import ScoringService
-        scoring_service = ScoringService(db)
-        scoring_service.update_team_scores(team_id)
-        
-        return obj
+        return (await db.scalars(stmt)).first()
+
+    async def get_by_activity(self, db: AsyncSession, activity_id: int) -> list[ActivityResult]:
+        """Get all results for an activity"""
+        stmt = (
+            select(ActivityResult)
+            .where(ActivityResult.activity_id == activity_id)
+            .order_by(desc(ActivityResult.final_score))
+        )
+        return list((await db.scalars(stmt)).all())
+
+    async def get_by_team(self, db: AsyncSession, team_id: int) -> list[ActivityResult]:
+        """Get all results for a team"""
+        stmt = (
+            select(ActivityResult)
+            .where(ActivityResult.team_id == team_id)
+            .order_by(desc(ActivityResult.final_score))
+        )
+        return list((await db.scalars(stmt)).all())
+
+    async def get_all(self, db: AsyncSession) -> list[ActivityResult]:
+        """Get all activity results"""
+        stmt = select(ActivityResult).order_by(desc(ActivityResult.completed_at))
+        return list((await db.scalars(stmt)).all())
+
+    async def delete(self, db: AsyncSession, *, db_obj: ActivityResult) -> ActivityResult:
+        """Delete a result and commit (no team-score side effects)."""
+        await db.delete(db_obj)
+        await db.commit()
+        return db_obj
+
+
+def _slugify(value: str) -> str:
+    """Lowercase, hyphenated, ascii-ish slug from an event name."""
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "event"
 
 
 class CRUDRallyEvent:
-    """CRUD operations for RallyEvent model"""
-    
-    def create(self, db: Session, *, obj_in: RallyEventCreate) -> RallyEvent:
-        """Create a new rally event"""
+    """CRUD operations for RallyEvent — the event-scoping entity.
+
+    Exactly one event is ``is_current`` at a time; ``set_current`` enforces
+    that. ``ensure_current`` lazily bootstraps a default event so single-event
+    deployments keep working without any explicit event creation.
+    """
+
+    async def _unique_slug(self, db: AsyncSession, base: str) -> str:
+        """Return ``base`` or ``base-2``/``-3``… so the slug stays unique."""
+        slug = base
+        n = 1
+        while await db.scalar(select(RallyEvent).where(RallyEvent.slug == slug)) is not None:
+            n += 1
+            slug = f"{base}-{n}"
+        return slug
+
+    async def create(self, db: AsyncSession, *, obj_in: RallyEventCreate) -> RallyEvent:
+        """Create a new rally event.
+
+        If the new event is current, any previously-current event is demoted
+        first so the single-current invariant holds.
+        """
+        slug_source = obj_in.slug or obj_in.name
+        slug = await self._unique_slug(db, _slugify(slug_source))
+
+        if obj_in.is_current:
+            await self._demote_all(db)
+
         db_obj = RallyEvent(
             name=obj_in.name,
+            slug=slug,
             description=obj_in.description,
+            event_type=obj_in.event_type.value
+            if isinstance(obj_in.event_type, EventType)
+            else obj_in.event_type,
             config=obj_in.config,
             is_active=obj_in.is_active,
             is_current=obj_in.is_current,
             start_time=obj_in.start_time,
-            end_time=obj_in.end_time
+            end_time=obj_in.end_time,
         )
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
-    
-    def get(self, db: Session, id: int) -> RallyEvent | None:
+
+    async def get(self, db: AsyncSession, id: int) -> RallyEvent | None:
         """Get rally event by ID"""
-        return db.get(RallyEvent, id)
-    
-    def get_current(self, db: Session) -> RallyEvent | None:
-        """Get current rally event"""
-        stmt = select(RallyEvent).where(RallyEvent.is_current == True)
-        return db.scalars(stmt).first()
-    
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> list[RallyEvent]:
-        """Get multiple rally events"""
-        stmt = select(RallyEvent).offset(skip).limit(limit)
-        return list(db.scalars(stmt).all())
-    
-    def update(self, db: Session, *, db_obj: RallyEvent, obj_in: RallyEventUpdate) -> RallyEvent:
-        """Update a rally event"""
+        return await db.get(RallyEvent, id)
+
+    async def get_current(self, db: AsyncSession) -> RallyEvent | None:
+        """Get current rally event (None if none flagged)."""
+        stmt = select(RallyEvent).where(RallyEvent.is_current.is_(True))
+        return (await db.scalars(stmt)).first()
+
+    async def ensure_current(self, db: AsyncSession) -> RallyEvent:
+        """Return the current event, lazily creating a default one if absent.
+
+        Bootstraps single-event deployments: the first read materialises a
+        "Rally Tascas" event flagged current, so everything that scopes by the
+        current event has something to attach to.
+        """
+        current = await self.get_current(db)
+        if current is not None:
+            return current
+
+        # Adopt an existing non-current event if one exists, else create.
+        existing = (await db.scalars(select(RallyEvent).limit(1))).first()
+        if existing is not None:
+            existing.is_current = True
+            db.add(existing)
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+        default = RallyEvent(
+            name="Rally Tascas",
+            slug=await self._unique_slug(db, "rally-tascas"),
+            description="",
+            event_type=EventType.RALLY_TASCAS.value,
+            config={},
+            is_active=True,
+            is_current=True,
+        )
+        db.add(default)
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Concurrent bootstrap (multiple uvicorn workers / background
+            # workers hitting their first read at once): the slug is unique, so
+            # only one insert lands. The losers adopt whatever event is now
+            # current rather than failing the request.
+            await db.rollback()
+            current = await self.get_current(db)
+            if current is None:
+                raise
+            return current
+        await db.refresh(default)
+        return default
+
+    async def _demote_all(self, db: AsyncSession) -> None:
+        """Clear is_current on every event (call before promoting one)."""
+        for ev in (
+            await db.scalars(select(RallyEvent).where(RallyEvent.is_current.is_(True)))
+        ).all():
+            ev.is_current = False
+            db.add(ev)
+
+    async def set_current(self, db: AsyncSession, *, event_id: int) -> RallyEvent | None:
+        """Make ``event_id`` the sole current event."""
+        target = await db.get(RallyEvent, event_id)
+        if target is None:
+            return None
+        await self._demote_all(db)
+        target.is_current = True
+        db.add(target)
+        await db.commit()
+        await db.refresh(target)
+        return target
+
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> list[RallyEvent]:
+        """Get multiple rally events (newest first)."""
+        stmt = select(RallyEvent).order_by(desc(RallyEvent.created_at)).offset(skip).limit(limit)
+        return list((await db.scalars(stmt)).all())
+
+    async def update(
+        self, db: AsyncSession, *, db_obj: RallyEvent, obj_in: RallyEventUpdate
+    ) -> RallyEvent:
+        """Update a rally event; promoting to current demotes the others."""
         update_data = obj_in.model_dump(exclude_unset=True)
+        if update_data.get("is_current") is True and not db_obj.is_current:
+            await self._demote_all(db)
         for field, value in update_data.items():
+            if field == "event_type" and isinstance(value, EventType):
+                value = value.value
             setattr(db_obj, field, value)
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
         return db_obj
-    
-    def remove(self, db: Session, *, id: int) -> RallyEvent | None:
+
+    async def remove(self, db: AsyncSession, *, id: int) -> RallyEvent | None:
         """Remove a rally event"""
-        from app.models.activity import RallyEvent
-        obj = db.get(RallyEvent, id)
+        obj = await db.get(RallyEvent, id)
         if obj is None:
             return None
-        db.delete(obj)
-        db.commit()
+        await db.delete(obj)
+        await db.commit()
         return obj
 
 

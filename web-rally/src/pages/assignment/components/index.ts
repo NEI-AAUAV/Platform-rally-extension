@@ -1,2 +1,2 @@
-export { default as StaffAssignmentList } from './StaffAssignmentList';
-export { default as AssignmentForm } from './AssignmentForm';
+export { default as StaffAssignmentList } from "./StaffAssignmentList";
+export { default as AssignmentForm } from "./AssignmentForm";

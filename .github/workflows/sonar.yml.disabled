@@ -1,0 +1,203 @@
+name: SonarQube Analysis
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  # This workflow runs independently and will run tests if coverage is not found
+  # It can run on PRs and pushes to main
+  pull_request:
+    branches: main
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    env:
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      TEST_DB_SECRET: postgres # NOSONAR test-only credential, ephemeral CI service container
+      TEST_DB_USER: postgres
+      TEST_DB_NAME: postgres_test
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_SECRET }}
+          POSTGRES_USER: ${{ env.TEST_DB_USER }}
+          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9
+
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Check if coverage exists
+        id: check_coverage
+        run: |
+          # Check for API coverage
+          if [ -f "api-rally/coverage.xml" ] || [ -f "api-rally/test-results.xml" ]; then
+            echo "API coverage found"
+            echo "has_api_coverage=true" >> $GITHUB_OUTPUT
+          else
+            echo "No API coverage found, will run tests"
+            echo "has_api_coverage=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for web coverage
+          if [ -d "web-rally/coverage" ] && [ -f "web-rally/coverage/lcov.info" ]; then
+            echo "Web coverage found"
+            echo "has_web_coverage=true" >> $GITHUB_OUTPUT
+          else
+            echo "No web coverage found, will run tests"
+            echo "has_web_coverage=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Only install deps and run tests if coverage not found
+      - name: Install Python dependencies (API)
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
+        run: |
+          cd api-rally
+          # NOSONAR: source builds required for native deps pinned in poetry.lock
+          poetry install --no-root
+          poetry run pip install --only-binary :all: pytest-cov
+          poetry run pip install --only-binary :all: requests
+
+      - name: Cache pnpm store (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        uses: actions/cache@v5
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Node.js dependencies (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        run: |
+          cd web-rally
+          pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Create test database
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD="$TEST_DB_SECRET" psql -h localhost -U "$TEST_DB_USER" -d "$TEST_DB_NAME" -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+        env:
+          POSTGRES_SERVER: localhost
+
+      - name: Run Python tests with coverage (API)
+        if: steps.check_coverage.outputs.has_api_coverage == 'false'
+        run: |
+          cd api-rally
+          poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+        env:
+          POSTGRES_SERVER: localhost
+          POSTGRES_PASSWORD: ${{ env.TEST_DB_SECRET }}
+          POSTGRES_USER: ${{ env.TEST_DB_USER }}
+          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
+          TEAM_JWT_SECRET_KEY: test_secret
+        continue-on-error: true
+
+      - name: Generate OpenAPI schema
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: api-rally
+        run: poetry run python scripts/generate_openapi.py
+        env:
+          TEAM_JWT_SECRET_KEY: test_secret
+
+      - name: Generate OpenAPI client (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        working-directory: web-rally
+        run: |
+          # Generate client if needed
+          if [ ! -d "src/client" ] && [ -f "openapi.json" ]; then
+            pnpm run generate-client || echo "Client generation failed, continuing..."
+          fi
+
+      - name: Run TypeScript tests with coverage (Web)
+        if: steps.check_coverage.outputs.has_web_coverage == 'false'
+        run: |
+          cd web-rally
+          # Run tests with coverage using vitest
+          pnpm run test:coverage || pnpm run test:run -- --coverage || true
+        continue-on-error: true
+
+      - name: Summary
+        run: |
+          echo "## Test Coverage Source" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_coverage.outputs.has_api_coverage }}" == "true" ]; then
+            echo "✅ API: Coverage found (from previous run or artifacts)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 API: Ran tests locally to generate coverage" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.check_coverage.outputs.has_web_coverage }}" == "true" ]; then
+            echo "✅ Web: Coverage found (from previous run or artifacts)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 Web: Ran tests locally to generate coverage" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: SonarQube Scan (PR)
+        # Skip SonarQube for Dependabot PRs (secrets not available)
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
+        with:
+          args: >
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Scan (Branch)
+        # Skip for Dependabot PRs (though this step shouldn't run for PRs anyway)
+        if: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
+        with:
+          args: >
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.scm.revision=${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

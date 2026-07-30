@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { BloodyButton } from "@/components/themes/bloody";
-import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
-import useRallySettings from "@/hooks/useRallySettings";
-import { VersusService, TeamService } from "@/client";
+import { useState, useEffect, useRef, type FormEvent } from "react";
+import { getTeamOpponent, getTeams } from "@/client";
+import { logger } from "@/lib/logger";
+import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
+import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
+import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import NotesField from "@/components/forms/shared/NotesField";
+import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { TeamVsFormProps } from "@/types/forms";
-import { getTeamSize } from "@/types/forms";
 import type { ListingTeam } from "@/client";
 
 function getOutcomePoints(result: string, config: TeamVsFormProps["config"]): number {
@@ -20,85 +22,103 @@ function getOutcomeLabel(result: string): string {
   return "Derrota";
 }
 
-function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
-  if (isSubmitting) return "Saving...";
-  return hasExisting ? "Update Evaluation" : "Submit Evaluation";
+async function fetchPreselectedOpponent(
+  teamId: number,
+): Promise<{ id: number; name: string } | null> {
+  try {
+    const { data: opponent } = await getTeamOpponent({ path: { team_id: teamId } });
+    if (opponent?.opponent_id) {
+      return { id: opponent.opponent_id, name: opponent.opponent_name || "" };
+    }
+  } catch (error) {
+    logger.warn("Failed to fetch preselected opponent, falling back to manual selection", {
+      teamId,
+      error: String(error),
+    });
+  }
+  return null;
 }
 
-export default function TeamVsForm({ existingResult, team, config = {}, onSubmit, isSubmitting }: TeamVsFormProps) {
+export default function TeamVsForm({
+  existingResult,
+  team,
+  config = {},
+  onSubmit,
+  isSubmitting,
+}: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [completed, setCompleted] = useState<boolean>(true);
   const [opponentTeamId, setOpponentTeamId] = useState<number | undefined>();
   const [opponentTeamName, setOpponentTeamName] = useState<string>("");
   const [isOpponentPreselected, setIsOpponentPreselected] = useState(false);
-  const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
   const [notes, setNotes] = useState<string>("");
   const [teams, setTeams] = useState<ListingTeam[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const teamsFetchedRef = useRef(false);
   const toast = useAppToast();
 
-  // Get Rally settings for dynamic configuration
-  const { settings } = useRallySettings();
-
-  // Calculate max extra shots based on team size
-  const teamSize = getTeamSize(team);
-  const extraShotsConfig = getExtraShotsConfig(settings);
-  const maxExtraShotsPerMember = extraShotsConfig.perMember;
-  const maxExtraShots = teamSize * maxExtraShotsPerMember;
-
-  // Use penalty values from API settings or fallback to defaults
-  const penaltyValues = getPenaltyValues(settings);
+  const {
+    extraShots,
+    setExtraShots,
+    penalties,
+    setPenalties,
+    maxExtraShots,
+    maxExtraShotsPerMember,
+    showExtraShots,
+    penaltyValues,
+    showVomitPenalty,
+    showNotDrinkingPenalty,
+    showPenalties,
+    validateExtraShots,
+  } = useExtraShotsAndPenalties(team, existingResult);
 
   // Fetch opponent when team is available, then fetch teams if needed
   useEffect(() => {
+    const loadTeamsList = async (teamId: number) => {
+      teamsFetchedRef.current = true;
+      setIsLoadingTeams(true);
+      try {
+        const { data: teamsList } = await getTeams();
+        const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== teamId);
+        setTeams(filteredTeams);
+
+        // If we have an opponent ID from existingResult but no name, try to find it now
+        const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
+        const foundTeam = currentOpponentId
+          ? filteredTeams.find((t: ListingTeam) => t.id === currentOpponentId)
+          : undefined;
+        if (foundTeam && !opponentTeamName) {
+          setOpponentTeamName(foundTeam.name);
+        }
+      } catch (error) {
+        toast.error("Failed to load teams list");
+        teamsFetchedRef.current = false; // Allow retry on error
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
+
     const initializeOpponent = async () => {
       if (!team?.id) return;
 
       // First, try to fetch opponent from versus pair (if not in existingResult)
       if (!existingResult?.result_data?.opponent_team_id) {
-        try {
-          const opponent = await VersusService.getTeamOpponentApiRallyV1VersusTeamTeamIdOpponentGet(team.id);
-          if (opponent?.opponent_id) {
-            setOpponentTeamId(opponent.opponent_id);
-            setOpponentTeamName(opponent.opponent_name || "");
-            setIsOpponentPreselected(true); // Mark as automatically preselected
-            return; // Opponent is preselected, don't fetch teams
-          }
-        } catch (error) {
-          // Silently fail - opponent is optional
+        const preselected = await fetchPreselectedOpponent(team.id);
+        if (preselected) {
+          setOpponentTeamId(preselected.id);
+          setOpponentTeamName(preselected.name);
+          setIsOpponentPreselected(true);
+          return; // Opponent is preselected, don't fetch teams
         }
       }
 
       // If opponent is not preselected, fetch teams list (only once)
       if (!teamsFetchedRef.current && !isLoadingTeams) {
-        teamsFetchedRef.current = true;
-        setIsLoadingTeams(true);
-        try {
-          const teamsList = await TeamService.getTeamsApiRallyV1TeamGet();
-          // Exclude current team from the list
-          const filteredTeams = teamsList.filter((t: ListingTeam) => t.id !== team.id);
-          setTeams(filteredTeams);
-
-          // If we have an opponent ID from existingResult but no name, try to find it now
-          const currentOpponentId = opponentTeamId || existingResult?.result_data?.opponent_team_id;
-          if (currentOpponentId) {
-            const foundTeam = filteredTeams.find((t: ListingTeam) => t.id === currentOpponentId);
-            if (foundTeam && !opponentTeamName) {
-              setOpponentTeamName(foundTeam.name);
-            }
-          }
-        } catch (error) {
-          toast.error("Failed to load teams list");
-          teamsFetchedRef.current = false; // Allow retry on error
-        } finally {
-          setIsLoadingTeams(false);
-        }
+        await loadTeamsList(team.id);
       }
     };
 
-    initializeOpponent();
+    void initializeOpponent();
     // Note: Intentionally omitting opponentTeamId, opponentTeamName, and teams from dependencies
     // to avoid infinite loops. These are state variables set by this effect itself.
     // The effect only needs to run when team.id or existingResult changes.
@@ -107,11 +127,11 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setResult(existingResult.result_data.result || "win");
-      if (typeof existingResult.result_data.completed === 'boolean') {
+      setResult((existingResult.result_data.result as string) || "win");
+      if (typeof existingResult.result_data.completed === "boolean") {
         setCompleted(existingResult.result_data.completed);
       }
-      const existingOpponentId = existingResult.result_data.opponent_team_id;
+      const existingOpponentId = existingResult.result_data.opponent_team_id as number | undefined;
       // Only set opponent if not already set to avoid infinite loops
       if (existingOpponentId && opponentTeamId === undefined) {
         setOpponentTeamId(existingOpponentId);
@@ -125,11 +145,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
         // Don't mark as preselected when loading from existingResult - allow editing
         setIsOpponentPreselected(false);
       }
-      setNotes(existingResult.result_data.notes || "");
-    }
-    if (existingResult) {
-      setExtraShots(existingResult.extra_shots || 0);
-      setPenalties(existingResult.penalties || {});
+      setNotes((existingResult.result_data.notes as string) || "");
     }
     // Only depend on existingResult and teams - not on opponentTeamId/opponentTeamName
     // to avoid infinite loops when these values are set inside the effect
@@ -143,14 +159,10 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
   const hasTieredScoring = basePoints > 0 || completionPoints > 0;
   const previewTotal = basePoints + (completed ? completionPoints : 0) + outcomePoints;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    // Validate extra shots limit
-    if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
-      return;
-    }
+    if (!validateExtraShots()) return;
 
     onSubmit({
       result_data: {
@@ -167,7 +179,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="teamvs-result" className="block text-sm font-medium mb-2 text-white">
+        <label htmlFor="teamvs-result" className="mb-2 block text-sm font-medium text-foreground">
           Match Result
         </label>
         <select
@@ -175,53 +187,63 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
           data-testid="select-result"
           value={result}
           onChange={(e) => setResult(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         >
-          <option value="win" className="bg-gray-800">Win</option>
-          <option value="lose" className="bg-gray-800">Lose</option>
-          <option value="draw" className="bg-gray-800">Draw</option>
+          <option value="win" className="bg-gray-800">
+            Win
+          </option>
+          <option value="lose" className="bg-gray-800">
+            Lose
+          </option>
+          <option value="draw" className="bg-gray-800">
+            Draw
+          </option>
         </select>
       </div>
 
       {/* Completed toggle — only shown when activity has tiered scoring configured */}
       {hasTieredScoring && (
         <div>
-          <label className="block text-sm font-medium mb-2 text-white">
+          <label
+            htmlFor="teamvs-toggle-completed"
+            className="mb-2 block text-sm font-medium text-foreground"
+          >
             Challenge Completed?
           </label>
           <div className="flex items-center gap-3">
             <button
+              id="teamvs-toggle-completed"
               type="button"
               data-testid="toggle-completed"
               onClick={() => setCompleted(!completed)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${completed ? 'bg-green-500' : 'bg-[rgb(255,255,255,0.2)]'
-                }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${
+                completed ? "bg-green-500" : "bg-muted"
+              }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${completed ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  completed ? "translate-x-6" : "translate-x-1"
+                }`}
               />
             </button>
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
-              {completed ? '✓ Completou o desafio' : '✗ Não completou o desafio'}
+            <span className="text-sm text-muted-foreground">
+              {completed ? "✓ Completou o desafio" : "✗ Não completou o desafio"}
             </span>
           </div>
-          <p className="text-[rgb(255,255,255,0.5)] text-xs mt-1">
-            +{completionPoints} pts se completou
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">+{completionPoints} pts se completou</p>
         </div>
       )}
 
       {/* Live score preview — shown when tiered scoring is configured */}
       {hasTieredScoring && (
-        <div className="bg-[rgb(255,255,255,0.05)] border border-[rgb(255,255,255,0.1)] rounded p-3 text-sm">
-          <p className="text-[rgb(255,255,255,0.7)] font-medium mb-1">Pontuação estimada</p>
-          <div className="space-y-0.5 text-[rgb(255,255,255,0.6)]">
+        <div className="rounded border border-border bg-muted p-3 text-sm">
+          <p className="mb-1 font-medium text-muted-foreground">Pontuação estimada</p>
+          <div className="space-y-0.5 text-muted-foreground">
             <div className="flex justify-between">
               <span>Participação</span>
               <span>+{basePoints} pts</span>
             </div>
-            <div className={`flex justify-between ${!completed ? 'opacity-40 line-through' : ''}`}>
+            <div className={`flex justify-between ${completed ? "" : "line-through opacity-40"}`}>
               <span>Completou desafio</span>
               <span>+{completionPoints} pts</span>
             </div>
@@ -229,7 +251,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               <span className="capitalize">{getOutcomeLabel(result)}</span>
               <span>+{outcomePoints} pts</span>
             </div>
-            <div className="flex justify-between font-semibold text-white border-t border-[rgb(255,255,255,0.1)] pt-1 mt-1">
+            <div className="mt-1 flex justify-between border-t border-border pt-1 font-semibold text-foreground">
               <span>Total</span>
               <span>{previewTotal} pts</span>
             </div>
@@ -238,7 +260,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
+        <label className="mb-2 block text-sm font-medium text-foreground">
           Opponent {opponentTeamName && `(${opponentTeamName})`}
         </label>
         {isOpponentPreselected && opponentTeamId && opponentTeamName ? (
@@ -248,9 +270,9 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               type="text"
               value={opponentTeamName}
               disabled
-              className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white opacity-50 cursor-not-allowed"
+              className="w-full cursor-not-allowed rounded border border-border bg-muted p-3 text-foreground opacity-50"
             />
-            <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               ✓ Opponent automatically set from versus pair
             </p>
           </div>
@@ -266,7 +288,7 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
               setIsOpponentPreselected(false); // Mark as manually selected
             }}
             disabled={isLoadingTeams || isSubmitting}
-            className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
             required
           >
             <option value="" className="bg-gray-800">
@@ -281,96 +303,33 @@ export default function TeamVsForm({ existingResult, team, config = {}, onSubmit
         )}
       </div>
 
-      <div>
-        <label htmlFor="teamvs-extra-shots" className="block text-sm font-medium mb-2 text-white">
-          Extra Shots
-        </label>
-        <input
-          id="teamvs-extra-shots"
-          type="number"
-          min="0"
-          max={maxExtraShots}
-          value={extraShots}
-          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Extra shots taken"
+      {showExtraShots && (
+        <ExtraShotsField
+          idPrefix="teamvs"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
-        </p>
-        {extraShots > maxExtraShots && (
-          <p className="text-red-400 text-sm mt-1">
-            ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
-          </p>
-        )}
-      </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Penalties
-        </label>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-3">
-            <input
-              id="teamvs-vomit"
-              type="number"
-              min="0"
-              value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Vomit penalty count"
-            />
-            <label htmlFor="teamvs-vomit" className="text-[rgb(255,255,255,0.8)] text-sm">
-              Vomit penalty ({penaltyValues.vomit} pts each)
-            </label>
-          </div>
-          <div className="flex items-center space-x-3">
-            <input
-              id="teamvs-not-drinking"
-              type="number"
-              min="0"
-              value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Not drinking penalty count"
-            />
-            <label htmlFor="teamvs-not-drinking" className="text-[rgb(255,255,255,0.8)] text-sm">
-              Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </label>
-          </div>
-        </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor="teamvs-notes" className="block text-sm font-medium mb-2 text-white">
-          Notes (Optional)
-        </label>
-        <textarea
-          id="teamvs-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Add any additional notes..."
-          rows={3}
+      {showPenalties && (
+        <PenaltiesFieldset
+          idPrefix="teamvs"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
         />
-      </div>
+      )}
 
-      <div className="flex gap-3 mt-6">
-        <BloodyButton
-          type="submit"
-          disabled={isSubmitting}
-          variant="primary"
-          blood={true}
-          className="flex-1 px-6 py-3"
-        >
-          {getSubmitLabel(isSubmitting, !!existingResult)}
-        </BloodyButton>
-      </div>
+      <NotesField idPrefix="teamvs" notes={notes} onChange={setNotes} />
+
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label={getSubmitLabel(isSubmitting, !!existingResult)}
+      />
     </form>
   );
 }

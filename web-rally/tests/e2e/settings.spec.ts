@@ -3,6 +3,7 @@ import {
   MOCK_JWT_TOKEN_MANAGER,
   MOCK_RALLY_SETTINGS,
 } from '../mocks/data';
+import { seedOidcSession, MANAGER_GROUPS, STAFF_GROUPS } from './helpers/session';
 
 test.describe('Settings', () => {
   test.beforeEach(async ({ page, context }) => {
@@ -56,10 +57,8 @@ test.describe('Settings', () => {
       }
     });
 
-    // Set token in localStorage
-    await context.addInitScript((token) => {
-      localStorage.setItem('token', token);
-    }, MOCK_JWT_TOKEN_MANAGER);
+    // Seed a signed-in manager OIDC session
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     // Navigate to settings
     await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
@@ -70,8 +69,8 @@ test.describe('Settings', () => {
       // User endpoint might already be cached or not called
     });
     
-    // Wait a bit for React to process the user data and enable the settings query
-    await page.waitForTimeout(500);
+    // Wait for settings query to load
+    await page.waitForResponse('**/api/rally/v1/rally/settings**', { timeout: 10000 }).catch(() => {});
     
     // Don't wait for settings content here - let each test wait for what it needs
     // This avoids timeout issues if the settings API is slow or fails
@@ -79,12 +78,12 @@ test.describe('Settings', () => {
 
   test('should display settings page', async ({ page }) => {
     // Wait for settings page heading (more specific than generic text to avoid strict mode violation)
-    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
   });
 
   test('should display settings sections', async ({ page }) => {
     // Wait for settings page heading
-    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
     
     // Verify different settings sections are visible
     // These may be in tabs or accordions
@@ -93,14 +92,14 @@ test.describe('Settings', () => {
 
   test('should allow editing settings', async ({ page }) => {
     // Wait for settings page heading
-    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
     
     // Look for edit button or form fields
     const editButton = page.getByRole('button', { name: /Editar|Edit|Salvar|Save/i }).first();
     
     if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await editButton.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('input[type="number"], input[type="text"]').first()).toBeVisible({ timeout: 5000 });
       
       // Verify form fields are editable
       const inputs = page.locator('input[type="number"], input[type="text"]');
@@ -115,22 +114,9 @@ test.describe('Settings', () => {
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
-    // Use staff token instead of manager (no manager-rally scope)
-    const staffToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwibmFtZSI6IlRlc3QgVXNlciIsInNjb3BlcyI6WyJyYWxseS1zdGFmZiJdLCJpYXQiOjE1MTYyMzkwMjJ9.test';
-    
-    await context.addInitScript((token) => {
-      localStorage.setItem('token', token);
-    }, staffToken);
-
-    await page.route('**/api/nei/v1/auth/refresh/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: staffToken,
-        }),
-      });
-    });
+    // Re-seed with a staff-only session (overwrites the beforeEach seed, so
+    // the non-manager identity wins).
+    await seedOidcSession(context, STAFF_GROUPS);
 
     // Mock user endpoint to return staff user (no manager scope)
     await page.route('**/api/nei/v1/user/me**', async (route) => {
@@ -174,7 +160,6 @@ test.describe('Settings', () => {
     const saveButton = page.getByRole('button', { name: /Salvar|Save/i }).first();
     if (await saveButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await saveButton.click();
-      await page.waitForTimeout(1000);
       
       // Should show error message
       await expect(page.locator('body')).toContainText(/erro|error|falha|failed/i, { timeout: 3000 });
@@ -183,13 +168,13 @@ test.describe('Settings', () => {
 
   test('should validate form inputs', async ({ page }) => {
     // Wait for settings page heading
-    await expect(page.getByRole('heading', { name: /Configurações do Rally/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'Configurações', exact: true })).toBeVisible({ timeout: 20000 });
     
     // Click edit button to enable the form
     const editButton = page.getByRole('button', { name: /Editar Configurações|Edit Settings/i });
     if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await editButton.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('input[type="number"]:not([disabled])').first()).toBeVisible({ timeout: 5000 });
     }
     
     // Look for number inputs and try invalid values
@@ -204,7 +189,6 @@ test.describe('Settings', () => {
       const saveButton = page.getByRole('button', { name: /Salvar|Save/i }).first();
       if (await saveButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await saveButton.click();
-        await page.waitForTimeout(500);
         
         // Should show validation error
         await expect(page.locator('body')).toContainText(/inválido|invalid|deve|must/i, { timeout: 2000 }).catch(() => {

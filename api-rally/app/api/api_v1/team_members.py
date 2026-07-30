@@ -1,212 +1,227 @@
-from fastapi import APIRouter, Depends, HTTPException, Security
-from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Security
 
 from app.api import deps
+from app.api.abac_deps import (
+    require_add_team_member_permission,
+    require_team_management_permission,
+    require_view_team_members_permission,
+)
 from app.api.auth import AuthData, api_nei_auth
-from app.api.abac_deps import require_view_team_members_permission, require_team_management_permission
-from app.schemas.user import DetailedUser, UserCreate
-from app.schemas.team_members import TeamMemberAdd, TeamMemberResponse, TeamMemberUpdate
-from app import crud
-from app.models.user import User
-from app.models.team import Team
-from app.crud.crud_rally_settings import rally_settings
-
-router = APIRouter()
-
-# Constants
-TEAM_NOT_FOUND_MESSAGE = "Team not found"
-USER_NOT_FOUND_MESSAGE = "User not found"
+from app.schemas.team_members import (
+    TeamMemberAdd,
+    TeamMemberLink,
+    TeamMemberLinkSelf,
+    TeamMemberResponse,
+    TeamMemberUpdate,
+)
+from app.schemas.user import DetailedUser
+from app.services.deps import get_team_member_service
+from app.services.team_member_service import TeamMemberService
 
 
-@router.post("/team/{team_id}/members", status_code=201)
-def add_team_member(
-    team_id: int,
-    member_data: TeamMemberAdd,
-    db: Session = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
-) -> TeamMemberResponse:
-    """
-    Add a member to a team.
-    """
-    require_team_management_permission(auth=auth, curr_user=curr_user)
-    
-    # Check if team exists
-    team = db.get(Team, team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
-    # Check member limit
-    from sqlalchemy import select, func
-    settings = rally_settings.get_or_create(db)
-    count_stmt = select(func.count(User.id)).where(User.team_id == team_id)
-    current_member_count = db.scalar(count_stmt) or 0
-    
-    if current_member_count >= settings.max_members_per_team:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Team member limit reached. Maximum {settings.max_members_per_team} members allowed per team."
+class TeamMembersController:
+    """REST controller for team roster management."""
+
+    def __init__(self) -> None:
+        self.router = APIRouter()
+        self._register_routes()
+
+    def _register_routes(self) -> None:
+        self.router.add_api_route(
+            "/team/{team_id}/members",
+            self.add_team_member,
+            methods=["POST"],
+            status_code=201,
+            name="add_team_member",
         )
-    
-    # If setting as captain, check if team already has a captain
-    if member_data.is_captain:
-        captain_stmt = select(User).where(
-            User.team_id == team_id,
-            User.is_captain == True
+        self.router.add_api_route(
+            "/team/{team_id}/members/{user_id}/link",
+            self.link_team_member,
+            methods=["POST"],
+            status_code=200,
+            name="link_team_member",
         )
-        existing_captain = db.scalars(captain_stmt).first()
-        if existing_captain:
-            raise HTTPException(
-                status_code=400,
-                detail="Team already has a captain. Remove current captain first."
+        self.router.add_api_route(
+            "/team/{team_id}/members/{user_id}/link-self",
+            self.link_self_team_member,
+            methods=["POST"],
+            status_code=200,
+            name="link_self_team_member",
+        )
+        self.router.add_api_route(
+            "/team/{team_id}/members/{user_id}",
+            self.remove_team_member,
+            methods=["DELETE"],
+            status_code=200,
+            name="remove_team_member",
+        )
+        self.router.add_api_route(
+            "/team/{team_id}/members/{user_id}",
+            self.update_team_member,
+            methods=["PUT"],
+            status_code=200,
+            name="update_team_member",
+        )
+        self.router.add_api_route(
+            "/team/{team_id}/members",
+            self.get_team_members,
+            methods=["GET"],
+            status_code=200,
+            name="get_team_members",
+        )
+
+    async def add_team_member(
+        self,
+        team_id: int,
+        member_data: TeamMemberAdd,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> TeamMemberResponse:
+        """Add a member to a team."""
+        require_add_team_member_permission(auth=auth, curr_user=curr_user)
+
+        user = await service.add_member(
+            team_id, member_data, is_privileged=deps.is_admin(auth.scopes)
+        )
+        return TeamMemberResponse(
+            id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
+        )
+
+    async def link_team_member(
+        self,
+        team_id: int,
+        user_id: int,
+        link_data: TeamMemberLink,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> TeamMemberResponse:
+        """Link a name-only placeholder member to a real NEI (OIDC) account.
+
+        ``user_id`` is the placeholder (a user row with no authentik_sub); the body
+        carries the Authentik subject of the account chosen via search. If that
+        account has never logged in, a local mirror is created for it. The
+        placeholder's team membership is moved onto the account and the placeholder
+        is removed, mirroring the self-service ``/profile/claim`` flow but
+        admin-driven. A participation row is recorded for the event.
+        """
+        require_team_management_permission(auth=auth, curr_user=curr_user)
+
+        team = await service.get_team_or_raise(team_id)
+        placeholder = await service.get_team_member_or_raise(team_id, user_id)
+
+        target = await service.link_placeholder_to_authentik_account(
+            team=team,
+            placeholder=placeholder,
+            authentik_sub=link_data.authentik_sub,
+            name=link_data.name,
+            email=link_data.email,
+        )
+
+        return TeamMemberResponse(
+            id=target.id,
+            name=target.name,
+            email=target.email,
+            is_captain=target.is_captain,
+            is_linked=True,
+        )
+
+    async def link_self_team_member(
+        self,
+        team_id: int,
+        user_id: int,
+        link_data: TeamMemberLinkSelf,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> TeamMemberResponse:
+        """Self-serve variant of ``link_team_member``.
+
+        Lets whoever holds a team's access code claim a placeholder slot in that
+        team using the NEI (OIDC) account they just logged in with.
+
+        The client can only send a single bearer token per request, and it
+        switches to the OIDC token as soon as this NEI login completes — so
+        team membership cannot be proven via the (now unavailable) team token
+        here. The caller therefore re-presents the team access code, which is
+        what binds them to ``team_id``; the OIDC bearer only says *who* they are.
+        Placeholder state alone is not authorization: without the code check any
+        authenticated user could claim any team's open slot.
+        """
+        team_obj = await service.get_team_or_raise(team_id)
+        service.assert_team_access_code(team_obj, link_data.access_code)
+        placeholder = await service.get_team_member_or_raise(team_id, user_id)
+
+        target = await service.link_placeholder_to_authentik_account(
+            team=team_obj,
+            placeholder=placeholder,
+            authentik_sub=auth.oidc_sub,
+            name=auth.name,
+            email=auth.email,
+        )
+
+        return TeamMemberResponse(
+            id=target.id,
+            name=target.name,
+            email=target.email,
+            is_captain=target.is_captain,
+            is_linked=True,
+        )
+
+    async def remove_team_member(
+        self,
+        team_id: int,
+        user_id: int,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> dict[str, str]:
+        """Remove a member from a team."""
+        require_team_management_permission(auth=auth, curr_user=curr_user)
+
+        await service.remove_member(team_id, user_id)
+        return {"message": "Member removed from team successfully"}
+
+    async def update_team_member(
+        self,
+        team_id: int,
+        user_id: int,
+        member_data: TeamMemberUpdate,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> TeamMemberResponse:
+        """Update a team member's information."""
+        require_team_management_permission(auth=auth, curr_user=curr_user)
+
+        user = await service.update_member(team_id, user_id, member_data)
+        return TeamMemberResponse(
+            id=user.id, name=user.name, email=user.email, is_captain=user.is_captain
+        )
+
+    async def get_team_members(
+        self,
+        team_id: int,
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
+        service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+    ) -> list[TeamMemberResponse]:
+        """Get all members of a team."""
+        require_view_team_members_permission(auth=auth, curr_user=curr_user)
+
+        members = await service.list_members(team_id)
+        return [
+            TeamMemberResponse(
+                id=member.id,
+                name=member.name,
+                email=member.email,
+                is_captain=member.is_captain,
+                is_linked=member.authentik_sub is not None,
             )
-    
-    # Create new user with auto-assigned ID
-    user_data = UserCreate(
-        name=member_data.name,
-        email=member_data.email,
-        team_id=team_id,
-        is_captain=member_data.is_captain
-    )
-    user = crud.user.create(db, obj_in=user_data)
-    
-    return TeamMemberResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        is_captain=user.is_captain
-    )
+            for member in members
+        ]
 
 
-@router.delete("/team/{team_id}/members/{user_id}", status_code=200)
-def remove_team_member(
-    team_id: int,
-    user_id: int,
-    db: Session = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
-) -> Dict[str, str]:
-    """
-    Remove a member from a team.
-    """
-    require_team_management_permission(auth=auth, curr_user=curr_user)
-    
-    # Check if team exists
-    team = db.get(Team, team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
-    # Check if user exists and is in this team
-    user = db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
-    
-    if user.team_id != team_id:
-        raise HTTPException(
-            status_code=400, 
-            detail="User is not a member of this team"
-        )
-    
-    # Remove user from team
-    user.team_id = None
-    db.commit()
-    
-    return {"message": "Member removed from team successfully"}
-
-
-@router.put("/team/{team_id}/members/{user_id}", status_code=200)
-def update_team_member(
-    team_id: int,
-    user_id: int,
-    member_data: TeamMemberUpdate,
-    db: Session = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
-) -> TeamMemberResponse:
-    """
-    Update a team member's information.
-    """
-    require_team_management_permission(auth=auth, curr_user=curr_user)
-    
-    # Check if team exists
-    team = db.get(Team, team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
-    # Check if user exists and is in this team
-    user = db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=USER_NOT_FOUND_MESSAGE)
-    
-    if user.team_id != team_id:
-        raise HTTPException(
-            status_code=400, 
-            detail="User is not a member of this team"
-        )
-    
-    # If setting as captain, check if team already has a captain
-    if member_data.is_captain is True:
-        from sqlalchemy import select
-        stmt = select(User).where(
-            User.team_id == team_id,
-            User.is_captain == True,
-            User.id != user_id
-        )
-        existing_captain = db.scalars(stmt).first()
-        if existing_captain:
-            raise HTTPException(
-                status_code=400,
-                detail="Team already has a captain. Remove current captain first."
-            )
-    
-    # Update user fields
-    if member_data.name is not None:
-        user.name = member_data.name
-    if member_data.email is not None:
-        user.email = member_data.email
-    if member_data.is_captain is not None:
-        user.is_captain = member_data.is_captain
-    
-    db.commit()
-    db.refresh(user)
-    
-    return TeamMemberResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        is_captain=user.is_captain
-    )
-
-
-@router.get("/team/{team_id}/members", status_code=200)
-def get_team_members(
-    team_id: int,
-    db: Session = Depends(deps.get_db),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-    curr_user: DetailedUser = Depends(deps.get_participant),
-) -> List[TeamMemberResponse]:
-    """
-    Get all members of a team.
-    """
-    require_view_team_members_permission(auth=auth, curr_user=curr_user)
-    
-    # Check if team exists
-    team = db.get(Team, team_id)
-    if not team:
-        raise HTTPException(status_code=404, detail=TEAM_NOT_FOUND_MESSAGE)
-    
-    # Get team members
-    from sqlalchemy import select
-    stmt = select(User).where(User.team_id == team_id)
-    members = list(db.scalars(stmt).all())
-    
-    return [
-        TeamMemberResponse(
-            id=member.id,
-            name=member.name,
-            email=member.email,
-            is_captain=member.is_captain
-        )
-        for member in members
-    ]
+router = TeamMembersController().router

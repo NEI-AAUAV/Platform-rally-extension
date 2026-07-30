@@ -1,58 +1,62 @@
-import { useState, useEffect } from "react";
-import { BloodyButton } from "@/components/themes/bloody";
-import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
-import useRallySettings from "@/hooks/useRallySettings";
+import { useState, useEffect, type FormEvent } from "react";
+import { Timer } from "lucide-react";
+import { StopwatchWidget } from "@/components/shared";
+import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
+import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
+import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import NotesField from "@/components/forms/shared/NotesField";
+import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { BaseActivityFormProps } from "@/types/forms";
-import { getTeamSize } from "@/types/forms";
 
-export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
+export default function TimeBasedForm({
+  existingResult,
+  team,
+  onSubmit,
+  isSubmitting,
+}: BaseActivityFormProps) {
   // Keep as string to allow clearing input and typing like ".5" or "03"
   const [completionTime, setCompletionTime] = useState<string>("");
-  const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{[key: string]: number}>({});
+  const [showStopwatch, setShowStopwatch] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>("");
   const toast = useAppToast();
 
-  // Get Rally settings for dynamic configuration
-  const { settings } = useRallySettings();
-
-  // Calculate max extra shots based on team size
-  const teamSize = getTeamSize(team);
-  const extraShotsConfig = getExtraShotsConfig(settings);
-  const maxExtraShotsPerMember = extraShotsConfig.perMember;
-  const maxExtraShots = teamSize * maxExtraShotsPerMember;
-  
-  // Use penalty values from API settings or fallback to defaults
-  const penaltyValues = getPenaltyValues(settings);
+  const {
+    extraShots,
+    setExtraShots,
+    penalties,
+    setPenalties,
+    maxExtraShots,
+    maxExtraShotsPerMember,
+    penaltyValues,
+    showVomitPenalty,
+    showNotDrinkingPenalty,
+    validateExtraShots,
+  } = useExtraShotsAndPenalties(team, existingResult);
 
   useEffect(() => {
     if (existingResult?.result_data) {
       const v = existingResult.result_data.completion_time_seconds;
-      setCompletionTime(
-        typeof v === 'number' && !isNaN(v) ? String(v) : (typeof v === 'string' ? v : "")
-      );
-      setNotes(existingResult.result_data.notes || "");
-    }
-    if (existingResult) {
-      setExtraShots(existingResult.extra_shots || 0);
-      setPenalties(existingResult.penalties || {});
+      let timeValue = "";
+      if (typeof v === "number" && !Number.isNaN(v)) {
+        timeValue = String(v);
+      } else if (typeof v === "string") {
+        timeValue = v;
+      }
+      setCompletionTime(timeValue);
+      setNotes((existingResult.result_data.notes as string) || "");
     }
   }, [existingResult]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
-    // Validate extra shots limit
-    if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
-      return;
-    }
-    
+
+    if (!validateExtraShots()) return;
+
     // Normalize and validate time (allow comma or dot)
     const normalized = (completionTime || "").replace(",", ".").trim();
     const parsed = normalized === "" ? NaN : parseFloat(normalized);
-    if (isNaN(parsed) || parsed < 0) {
+    if (Number.isNaN(parsed) || parsed < 0) {
       toast.error("Please enter a valid non-negative time in seconds.");
       return;
     }
@@ -70,104 +74,63 @@ export default function TimeBasedForm({ existingResult, team, onSubmit, isSubmit
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Completion Time (seconds)
-        </label>
+        <div className="mb-2 flex items-center justify-between">
+          <label
+            htmlFor="timebased-completion-time"
+            className="block text-sm font-medium text-foreground"
+          >
+            Completion Time (seconds)
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowStopwatch((v) => !v)}
+            className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-accent"
+          >
+            <Timer className="h-3.5 w-3.5" />
+            {showStopwatch ? "Ocultar cronómetro" : "Usar cronómetro"}
+          </button>
+        </div>
+
+        {showStopwatch && (
+          <div className="mb-3">
+            <StopwatchWidget onUseTime={(seconds) => setCompletionTime(String(seconds))} />
+          </div>
+        )}
+
         <input
+          id="timebased-completion-time"
           type="text"
           inputMode="decimal"
-          pattern="[0-9]*[.,]?[0-9]*"
           value={completionTime}
           onChange={(e) => setCompletionTime(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Enter completion time in seconds"
         />
       </div>
-      
-      <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Extra Shots
-        </label>
-        <input
-          type="number"
-          min="0"
-          max={maxExtraShots}
-          value={extraShots}
-          onChange={(e) => setExtraShots(parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Extra shots taken"
-        />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
-        </p>
-        {extraShots > maxExtraShots && (
-          <p className="text-red-400 text-sm mt-1">
-            ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
-          </p>
-        )}
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Penalties
-        </label>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-3">
-            <input
-              type="number"
-              min="0"
-              value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({...penalties, vomit: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-            />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
-              Vomit penalty ({penaltyValues.vomit} pts each)
-            </span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <input
-              type="number"
-              min="0"
-              value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({...penalties, not_drinking: parseInt(e.target.value, 10) || 0})}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-            />
-            <span className="text-[rgb(255,255,255,0.8)] text-sm">
-              Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </span>
-          </div>
-        </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
-        </p>
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Notes (Optional)
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Add any additional notes..."
-          rows={3}
-        />
-      </div>
+      <ExtraShotsField
+        idPrefix="timebased"
+        extraShots={extraShots}
+        onChange={setExtraShots}
+        maxExtraShots={maxExtraShots}
+        maxExtraShotsPerMember={maxExtraShotsPerMember}
+      />
 
-      <div className="flex gap-3 mt-6">
-        <BloodyButton
-          type="submit"
-          disabled={isSubmitting}
-          variant="primary"
-          blood={true}
-          className="flex-1 px-6 py-3"
-        >
-          {isSubmitting ? "Saving..." : existingResult ? "Update Evaluation" : "Submit Evaluation"}
-        </BloodyButton>
-      </div>
+      <PenaltiesFieldset
+        idPrefix="timebased"
+        penalties={penalties}
+        onChange={setPenalties}
+        penaltyValues={penaltyValues}
+        showVomitPenalty={showVomitPenalty}
+        showNotDrinkingPenalty={showNotDrinkingPenalty}
+      />
+
+      <NotesField idPrefix="timebased" notes={notes} onChange={setNotes} />
+
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label={getSubmitLabel(isSubmitting, !!existingResult)}
+      />
     </form>
   );
 }

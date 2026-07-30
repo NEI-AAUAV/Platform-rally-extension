@@ -9,9 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, AlertCircle } from "lucide-react";
-import { TeamMembersService, type TeamMemberAdd } from "@/client";
+import { addTeamMember, type TeamMemberAdd } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
-import { useThemedComponents } from "@/components/themes";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 const addMemberSchema = z.object({
@@ -23,17 +22,15 @@ const addMemberSchema = z.object({
 type AddMemberForm = z.infer<typeof addMemberSchema>;
 
 type MemberFormProps = Readonly<{
-
   selectedTeam: string;
   userToken: string;
   onSuccess: () => void;
   className?: string;
-}>
+}>;
 
 export default function MemberForm({ selectedTeam, onSuccess, className = "" }: MemberFormProps) {
-  const { Card } = useThemedComponents();
   const toast = useAppToast();
-  
+
   // Form setup
   const form = useForm<AddMemberForm>({
     resolver: zodResolver(addMemberSchema),
@@ -56,7 +53,10 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
         email: memberData.email || null,
         is_captain: memberData.is_captain,
       };
-      return TeamMembersService.addTeamMemberApiRallyV1TeamTeamIdMembersPost(Number(selectedTeam), requestBody);
+      return await addTeamMember({
+        path: { team_id: Number(selectedTeam) },
+        body: requestBody,
+      });
     },
     onSuccess: () => {
       onSuccess();
@@ -74,15 +74,13 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
   };
 
   return (
-    <Card variant="default" padding="none" rounded="2xl" className={className}>
+    <div className={`rally-surface rounded-2xl ${className}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <UserPlus className="w-5 h-5" />
+          <UserPlus className="h-5 w-5" />
           Adicionar Membro
         </CardTitle>
-        <CardDescription>
-          Adicionar um novo membro à equipa selecionada
-        </CardDescription>
+        <CardDescription>Adicionar um novo membro à equipa selecionada</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={form.handleSubmit(handleAddMember)} className="space-y-4">
@@ -94,20 +92,16 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
               </AlertDescription>
             </Alert>
           )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                {...form.register("name")}
-                placeholder="Nome do membro"
-              />
+              <Input id="name" {...form.register("name")} placeholder="Nome do membro" />
               {form.formState.errors.name && (
-                <p className="text-red-400 text-sm">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
               )}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email (opcional)</Label>
               <Input
@@ -117,18 +111,18 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 placeholder="email@exemplo.com"
               />
               {form.formState.errors.email && (
-                <p className="text-red-400 text-sm">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-400">{form.formState.errors.email.message}</p>
               )}
             </div>
           </div>
-          
-          <Card variant="subtle" padding="md" rounded="lg">
+
+          <div className="rounded-lg border border-border bg-card/60 p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="is_captain" className="text-base">
                   Capitão da Equipa
                 </Label>
-                <p className="text-sm text-[rgb(255,255,255,0.7)]">
+                <p className="text-sm text-muted-foreground">
                   Marcar este membro como capitão da equipa
                 </p>
               </div>
@@ -137,22 +131,15 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 onCheckedChange={(checked) => form.setValue("is_captain", checked)}
               />
             </div>
-          </Card>
-          
+          </div>
+
           <div className="flex justify-center">
-            <Button
-              type="submit"
-              disabled={isAddingMember}
-              className="min-w-[200px]"
-            >
+            <Button type="submit" disabled={isAddingMember} className="min-w-[200px]">
               {isAddingMember ? "A Adicionar..." : "Adicionar Membro"}
             </Button>
           </div>
         </form>
       </CardContent>
-    </Card>
+    </div>
   );
 }
-
-
-

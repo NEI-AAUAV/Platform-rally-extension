@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import {
   MOCK_CHECKPOINT,
   MOCK_TEAM,
@@ -13,6 +13,7 @@ import {
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
 } from '../mocks/data';
+import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from './helpers/session';
 
 test.describe('Staff Evaluation Flow', () => {
   test.beforeEach(async ({ page, context }) => {
@@ -91,7 +92,7 @@ test.describe('Staff Evaluation Flow', () => {
 
     await page.route('**/api/rally/v1/staff/teams/*/activities**', async (route) => {
       const url = new URL(route.request().url());
-      const teamIdMatch = url.pathname.match(/\/teams\/(\d+)\/activities/);
+      const teamIdMatch = /\/teams\/(\d+)\/activities/.exec(url.pathname);
       const teamId = teamIdMatch ? Number(teamIdMatch[1]) : null;
 
       if (teamId === MOCK_TEAM.id) {
@@ -136,13 +137,8 @@ test.describe('Staff Evaluation Flow', () => {
       });
     });
 
-    // Set mock JWT token in localStorage before navigation
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    // Seed a signed-in staff OIDC session before navigation
+    await seedOidcSession(context, STAFF_GROUPS);
 
     // Navigate to staff evaluation page
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
@@ -169,14 +165,14 @@ test.describe('Staff Evaluation Flow', () => {
     }
     
     // Give React time to render
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   test('displays checkpoint name', async ({ page }) => {
     // Verify checkpoint name is displayed in the heading
     // Use getByRole to target the heading specifically
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(MOCK_CHECKPOINT.name, { exact: true }).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -301,13 +297,8 @@ test.describe('Manager Evaluation Flow', () => {
       });
     });
 
-    // Set manager token in localStorage
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    // Seed a signed-in manager OIDC session
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     // Navigate to manager evaluation page
     await page.goto('/rally/staff-evaluation', {
@@ -334,13 +325,13 @@ test.describe('Manager Evaluation Flow', () => {
     }
     
     // Give React time to render
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   test('displays manager evaluation dashboard', async ({ page }) => {
     // Verify manager dashboard is displayed
     await expect(
-      page.getByRole('heading', { name: /manager.*evaluation.*dashboard/i }),
+      page.getByRole('heading', { name: 'Painel de avaliação' }),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -361,7 +352,7 @@ test.describe('Manager Evaluation Flow', () => {
   test('displays all evaluations section', async ({ page }) => {
     // Manager should see "All Evaluations" section
     await expect(
-      page.getByText(/all.*evaluations/i).first(),
+      page.getByText(/Todas as Avaliações/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -379,7 +370,7 @@ test.describe('Manager Evaluation Flow', () => {
 
     // Verify checkpoint name is displayed
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(new RegExp(MOCK_CHECKPOINT.name)).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 });
@@ -419,9 +410,19 @@ test.describe('Staff Evaluation - Authentication', () => {
       });
     });
 
-    // Set expired token
+    // Seed an already-expired OIDC session
     await context.addInitScript(() => {
-      localStorage.setItem('rally_token', 'expired-token');
+      const now = Math.floor(Date.now() / 1000);
+      localStorage.setItem(
+        'oidc.user::',
+        JSON.stringify({
+          access_token: 'expired-token',
+          token_type: 'Bearer',
+          profile: { sub: 'e2e-user-1', groups: ['rally-staff'], iss: '', aud: '', exp: now - 100, iat: now - 4000 },
+          expires_at: now - 100,
+          scope: 'openid profile email',
+        }),
+      );
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
@@ -442,7 +443,7 @@ test.describe('Staff Evaluation - Authentication', () => {
     });
 
     await context.addInitScript(() => {
-      localStorage.setItem('rally_token', 'invalid-token-format');
+      localStorage.setItem('oidc.user::', 'not-json{{{');
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
@@ -474,19 +475,14 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
     });
 
     // Wait a bit to see if page loads or redirects
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should either redirect to login, show error, or handle gracefully
     // The app might show a toast or just fail silently
@@ -530,18 +526,13 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
     });
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should handle 403 gracefully - might show error, redirect, or empty state
     // Just verify page doesn't crash
@@ -565,12 +556,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       timeout: 10000,
@@ -578,7 +564,7 @@ test.describe('Staff Evaluation - API Error Cases', () => {
 
     // Should handle timeout gracefully (may show error or loading state)
     // The exact behavior depends on the app's error handling
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
   });
 
   test('handles malformed JSON response', async ({ page, context }) => {
@@ -608,17 +594,12 @@ test.describe('Staff Evaluation - API Error Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     // Should handle JSON parse error gracefully
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     // App should either show error or handle gracefully
   });
 });
@@ -651,18 +632,13 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
     // Should show "No Checkpoint Assigned" message
     await expect(
-      page.getByText(/no checkpoint assigned|haven't been assigned/i).first(),
+      page.getByText(/sem posto atribuído|não foste atribuído/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -701,22 +677,17 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Should handle empty teams list (may show empty state or message)
     // Checkpoint name should still be visible
     await expect(
-      page.getByRole('heading', { name: new RegExp(MOCK_CHECKPOINT.name) }),
+      page.getByText(new RegExp(MOCK_CHECKPOINT.name)).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -777,24 +748,19 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Select team
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Should handle empty activities (may show empty state)
     // Team should still be selected
@@ -872,24 +838,19 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Select team
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should show all activities as completed
     // Check for completion indicators - might be badges, status text, or summary
@@ -963,24 +924,19 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Select team
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should show warning dialog about checkpoint mismatch
     // The dialog shows "This team is from a different checkpoint"
@@ -1069,59 +1025,51 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Select team
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Try to evaluate (if button is visible)
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Should show error message (via toast or in form)
       // Toast messages might be transient, so check for error indicators
       await Promise.race([
         page.getByText(/erro ao avaliar|error|invalid/i).first().isVisible().catch(() => false),
         page.locator('[class*="error"], [class*="red"]').first().isVisible().catch(() => false),
-        page.waitForTimeout(1000).then(() => false),
+        new Promise(resolve => setTimeout(resolve, 1000)).then(() => false),
       ]);
 
       // If no visible error, at least verify the form/modal is still open or closed appropriately
       // The mutation should have failed, so form might still be open
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   });
 
   test('prevents double submission during evaluation', async ({ page, context }) => {
-    let submissionCount = 0;
-
     await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', async (route) => {
-      submissionCount++;
       // Simulate slow response
-      await page.waitForTimeout(500);
+      await new Promise(resolve => setTimeout(resolve, 500));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1198,30 +1146,25 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Select team
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Try rapid double-click on evaluate button (if visible)
@@ -1229,7 +1172,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       // Rapid clicks - but wait a bit between to avoid modal blocking
       await evaluateButton.click();
-      await page.waitForTimeout(500);
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Second click might be blocked by modal, that's fine - it tests the prevention
       try {
@@ -1238,7 +1181,7 @@ test.describe('Staff Evaluation - Evaluation Submission Edge Cases', () => {
         // Expected - modal might block second click
       }
       
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Should only submit once (or handle gracefully)
       // The exact behavior depends on the app's implementation
@@ -1329,12 +1272,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -1348,7 +1286,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     );
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   test('successfully submits evaluation and shows success message', async ({ page }) => {
@@ -1357,31 +1295,31 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button for activity
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluate.*test activity|avaliar/i).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
       const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
       if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await submitButton.click();
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Should show success toast message
         await expect(
@@ -1397,31 +1335,31 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Open evaluation form
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Form should be visible
       await expect(
-        page.getByText(/evaluate|avaliar/i).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
       const cancelButton = page.getByRole('button', { name: /cancel|fechar|close|×/i }).first();
       if (await cancelButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await cancelButton.click();
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Form should be closed, activities list should be visible again
         await expect(
@@ -1437,20 +1375,20 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Look for back button or team list toggle
     const backButton = page.getByRole('button', { name: /back|voltar|teams|list/i }).first();
     if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await backButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Should see team list again
       await expect(teamElement).toBeVisible({ timeout: 5000 });
@@ -1465,8 +1403,8 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
 test.describe('Staff Evaluation - Activity Type Evaluations', () => {
   const setupTestForActivityType = async (
-    page: any,
-    context: any,
+    page: Page,
+    context: BrowserContext,
     activity: typeof MOCK_ACTIVITY,
   ) => {
     // Set up route mocks
@@ -1554,12 +1492,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -1573,7 +1506,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     );
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   test('evaluates TimeBasedActivity with completion time', async ({ page, context }) => {
@@ -1584,20 +1517,20 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify form is visible with time-based fields
       await expect(
@@ -1608,13 +1541,13 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       const timeInput = page.getByLabel(/completion time|tempo/i).first();
       if (await timeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await timeInput.fill('120.5');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -1633,20 +1566,20 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify form is visible with score-based fields
       await expect(
@@ -1657,13 +1590,13 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       const pointsInput = page.getByLabel(/achieved points|pontos/i).first();
       if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await pointsInput.fill('85');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -1682,20 +1615,20 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify form is visible with boolean fields
       await expect(
@@ -1706,13 +1639,13 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       const switchElement = page.getByRole('switch').first();
       if (await switchElement.isVisible({ timeout: 2000 }).catch(() => false)) {
         await switchElement.click();
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -1731,20 +1664,20 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify form is visible with general activity fields
       await expect(
@@ -1755,13 +1688,13 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       const pointsInput = page.getByLabel(/assigned points|pontos/i).first();
       if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await pointsInput.fill('75');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -1780,20 +1713,20 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Click evaluate button
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify form is visible with team vs fields
       await expect(
@@ -1804,13 +1737,13 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
       const resultSelect = page.locator('select[id="result"]').first();
       if (await resultSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
         await resultSelect.selectOption('win');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -1824,8 +1757,8 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
 
 test.describe('Staff Evaluation - Form Validation', () => {
   const setupTestForActivityType = async (
-    page: any,
-    context: any,
+    page: Page,
+    context: BrowserContext,
     activity: typeof MOCK_ACTIVITY,
   ) => {
     // Set up route mocks
@@ -1898,12 +1831,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -1917,7 +1845,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
     );
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   test('rejects negative time values in TimeBasedActivity', async ({ page, context }) => {
@@ -1926,33 +1854,32 @@ test.describe('Staff Evaluation - Form Validation', () => {
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const timeInput = page.getByLabel(/completion time|tempo/i).first();
       if (await timeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await timeInput.fill('-10');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Try to submit - should show validation error
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(1000);
 
-          // Should show validation error
+          // Should show validation error (toast is transient; assert immediately)
           await expect(
-            page.getByText(/time must be positive|must be positive|invalid/i).first(),
+            page.getByText(/valid non-negative time|must be positive|invalid/i).first(),
           ).toBeVisible({ timeout: 5000 });
         }
       }
@@ -1965,29 +1892,29 @@ test.describe('Staff Evaluation - Form Validation', () => {
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Leave time field empty and try to submit
       const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
       if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await submitButton.click();
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Should show validation error or prevent submission
         await Promise.race([
           page.getByText(/required|obrigatório|invalid|must/i).first().isVisible().catch(() => false),
-          page.waitForTimeout(1000).then(() => false),
+          new Promise(resolve => setTimeout(resolve, 1000)).then(() => false),
         ]);
 
         // Form should still be visible (not submitted)
@@ -2004,28 +1931,28 @@ test.describe('Staff Evaluation - Form Validation', () => {
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const pointsInput = page.getByLabel(/achieved points|pontos/i).first();
       if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await pointsInput.fill('-5');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(1000);
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           // Should show validation error
           await expect(
@@ -2042,28 +1969,28 @@ test.describe('Staff Evaluation - Form Validation', () => {
     const teamElement = page.getByText(MOCK_TEAM.name).first();
     await expect(teamElement).toBeVisible();
     await teamElement.click();
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     const evaluateButton = page.getByRole('button', { name: /evaluate|avaliar/i }).first();
     if (await evaluateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await evaluateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const pointsInput = page.getByLabel(/assigned points|pontos/i).first();
       if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await pointsInput.fill('-20');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(1000);
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           // Should show validation error
           await expect(
@@ -2080,6 +2007,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
     // Mock activity with existing completed result
     const activityWithResult = {
       ...MOCK_ACTIVITY,
+      evaluation_status: 'completed' as const,
       existing_result: {
         ...MOCK_ACTIVITY_RESULT,
         is_completed: true,
@@ -2171,12 +2099,15 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await page.route('**/api/rally/v1/activities/results**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([activityWithResult.existing_result]),
+      });
+    });
+
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -2190,7 +2121,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
     );
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   test('allows updating existing completed evaluation', async ({ page }) => {
@@ -2199,22 +2130,22 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should show activity as completed
     await expect(
-      page.getByText(/completed|complet|update/i).first(),
+      page.getByText(/avaliado|atualizar/i).first(),
     ).toBeVisible({ timeout: 5000 });
 
     // Click update button (should be visible for completed activities)
     const updateButton = page.getByRole('button', { name: /update|atualizar/i }).first();
     if (await updateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await updateButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Form should be visible with existing values
       await expect(
-        page.getByText(/evaluate|avaliar/i).first(),
+        page.getByRole('heading', { name: /activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Update the points value
@@ -2226,13 +2157,13 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
         // Update to new value
         await pointsInput.fill('90');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit update
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success message
           await expect(
@@ -2339,12 +2270,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_STAFF],
-    );
+    await seedOidcSession(context, STAFF_GROUPS);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
       waitUntil: 'domcontentloaded',
@@ -2358,7 +2284,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
     );
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   test('can evaluate multiple activities sequentially for same team', async ({ page }) => {
@@ -2367,13 +2293,13 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
     await expect(teamElement).toBeVisible();
     await teamElement.click();
 
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Close warning dialog if it appears
-    const closeButton = page.getByRole('button', { name: /close|fechar/i }).first();
+    const closeButton = page.locator('.fixed.inset-0').getByRole('button', { name: 'Close', exact: true });
     if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await closeButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Should see multiple activities
@@ -2386,18 +2312,18 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
     const firstButton = evaluateButtons.first();
     if (await firstButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await firstButton.click();
-      await page.waitForTimeout(1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Fill and submit first activity
       const pointsInput = page.getByLabel(/assigned points|pontos|completion time|achieved points/i).first();
       if (await pointsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await pointsInput.fill('80');
-        await page.waitForTimeout(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
-          await page.waitForTimeout(2000);
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
           // Should show success
           await expect(
@@ -2408,7 +2334,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
     }
 
     // Wait for activities list to refresh
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Should still see remaining activities
     const remainingActivities = page.getByText(/activity|atividade/i);
@@ -2463,21 +2389,16 @@ test.describe('Manager Evaluation - Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Should show empty evaluations state
     await expect(
-      page.getByText(/all.*evaluations/i).first(),
+      page.getByText(/todas as avaliaç/i).first(),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -2508,21 +2429,16 @@ test.describe('Manager Evaluation - Edge Cases', () => {
       });
     });
 
-    await context.addInitScript(
-      ([token]) => {
-        localStorage.setItem('rally_token', token);
-      },
-      [MOCK_JWT_TOKEN_MANAGER],
-    );
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     await page.goto('/rally/staff-evaluation');
 
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Should handle empty checkpoints gracefully
     await expect(
-      page.getByRole('heading', { name: /manager.*evaluation.*dashboard/i }),
+      page.getByRole('heading', { name: 'Painel de avaliação' }),
     ).toBeVisible({ timeout: 10000 });
   });
 });

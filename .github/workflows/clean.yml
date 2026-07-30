@@ -1,0 +1,27 @@
+name: Clean from NEI VM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROD_COMPOSE: docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml
+
+jobs:
+  clean:
+    name: Down and Clean
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Down the application
+        run: ${{ env.PROD_COMPOSE }} down --remove-orphans
+      - name: Remove project images
+        run: |
+          docker images "ghcr.io/nei-aauav/rally*" --format "{{.Repository}}:{{.Tag}}" | while read -r image; do
+            echo "Removing image: $image"
+            docker rmi "$image" || true
+          done
+      - name: Remove dangling build cache
+        run: docker builder prune -f --filter "unused-for=0s" || true

@@ -1,3 +1,11 @@
-export { default as TeamManagement } from './TeamManagement';
-export { default as CheckpointManagement } from './CheckpointManagement';
-export { default as ActivityManagement } from './ActivityManagement';
+export { default as LiveDashboard } from "./dashboard/LiveDashboard";
+export { default as TeamManagement } from "./teams/TeamManagement";
+export { default as CheckpointManagement } from "./checkpoints/CheckpointManagement";
+export { default as ActivityManagement } from "./activity/ActivityManagement";
+export { default as BrandingSettings } from "./branding/BrandingSettings";
+export { default as EventsManagement } from "./events/EventsManagement";
+export { default as DeferredJudgingTab } from "./judging/DeferredJudgingTab";
+export { default as BadgeAdminTab } from "./badges/BadgeAdminTab";
+export { default as DynamicScoringTab } from "./judging/DynamicScoringTab";
+export { default as AuditLogTab } from "./audit/AuditLogTab";
+export { default as MetricsTab } from "./audit/MetricsTab";

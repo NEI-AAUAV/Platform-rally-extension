@@ -3,15 +3,22 @@ name: Rally Extension Tests
 permissions:
   contents: read
 
+env:
+  POETRY_INSTALLER_ONLY_BINARY: ":all:"
+
 on:
   push:
     branches: [ main ]
     paths:
-      - 'extensions/rally/**'
+      - 'api-rally/**'
+      - 'web-rally/**'
+      - '.github/workflows/tests.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'extensions/rally/**'
+      - 'api-rally/**'
+      - 'web-rally/**'
+      - '.github/workflows/tests.yml'
   workflow_dispatch:
     inputs:
       test_type:
@@ -24,6 +31,7 @@ on:
         - api
         - frontend
         - integration
+        - e2e
       coverage:
         description: 'Generate coverage reports'
         required: false
@@ -42,7 +50,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_DB: rally
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -61,7 +69,7 @@ jobs:
         python-version: '3.12'
         
     - name: Install Poetry
-      uses: snok/install-poetry@v1
+      uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
       with:
         version: latest
         virtualenvs-create: true
@@ -71,11 +79,11 @@ jobs:
       id: cached-poetry-dependencies
       uses: actions/cache@v5
       with:
-        path: extensions/rally/api-rally/.venv
+        path: api-rally/.venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-        
+
     - name: Install dependencies
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         poetry install --no-interaction --no-root
         
@@ -83,36 +91,52 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y postgresql-client
-        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres_test -c "CREATE DATABASE postgres_test_test;" || echo "Database might already exist"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d rally -c "CREATE DATABASE rally_test;" || echo "Database might already exist"
       env:
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
         
     - name: Run API tests
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          poetry run pytest app/tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+          poetry run pytest app/tests/ -v --require-pg --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
         else
-          poetry run pytest app/tests/ -v --junitxml=test-results.xml
+          poetry run pytest app/tests/ -v --require-pg --junitxml=test-results.xml
         fi
       env:
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
-        POSTGRES_DB: postgres_test
+        POSTGRES_DB: rally
         TEAM_JWT_SECRET_KEY: test_secret
-        
+
+    - name: Enforce scoring/badges coverage floor
+      # The global 80% gate lets low coverage in the scoring/badge engine hide
+      # behind well-covered code elsewhere. These modules decide every point on
+      # the leaderboard, so they get a dedicated, higher floor. Reuses the
+      # .coverage data written by the run above (no re-run).
+      if: ${{ github.event.inputs.coverage == 'true' || github.event.inputs.coverage == '' }}
+      working-directory: api-rally
+      run: |
+        poetry run coverage report --fail-under=85 --include="\
+        app/services/scoring_service.py,\
+        app/services/badge_service.py,\
+        app/badges/evaluators.py,\
+        app/badges/triggers.py,\
+        app/workers/worker_scoring.py,\
+        app/workers/worker_badges.py"
+
     - name: Upload API test results
       uses: actions/upload-artifact@v7
       if: always()
       with:
         name: api-test-results
         path: |
-          extensions/rally/api-rally/test-results.xml
-          extensions/rally/api-rally/coverage/
+          api-rally/test-results.xml
+          api-rally/coverage/
 
   test-frontend:
     name: Frontend Tests
@@ -122,34 +146,203 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-      
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Install API dependencies
+      working-directory: api-rally
+      run: |
+        poetry install --no-interaction --no-root
+
+    - name: Generate OpenAPI schema (offline)
+      working-directory: api-rally
+      run: poetry run python scripts/generate_openapi.py
+      env:
+        TEAM_JWT_SECRET_KEY: test_secret
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: extensions/rally/web-rally/package-lock.json
-        
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
     - name: Install dependencies
-      working-directory: extensions/rally/web-rally
-      run: npm ci
-      
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
+
     - name: Run frontend tests
-      working-directory: extensions/rally/web-rally
+      working-directory: web-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          npm run test -- --run --coverage --reporter=verbose
+          pnpm exec vitest run --coverage --reporter=verbose
         else
-          npm run test -- --run --reporter=verbose
+          pnpm exec vitest run --reporter=verbose
         fi
-        
+
     - name: Upload frontend test results
       uses: actions/upload-artifact@v7
       if: always()
       with:
         name: frontend-test-results
         path: |
-          extensions/rally/web-rally/coverage/
+          web-rally/coverage/
+
+  test-e2e-mocked:
+    name: E2E Tests (mocked)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' || github.event.inputs.test_type == '' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
+    - name: Install frontend dependencies
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
+
+    - name: e2e traceability gate
+      working-directory: web-rally
+      run: pnpm run test:e2e:coverage-gate
+
+    - name: Build
+      working-directory: web-rally
+      run: pnpm run build
+
+    - name: Install Playwright browsers
+      working-directory: web-rally
+      run: pnpm run playwright:install
+
+    - name: Run mocked e2e suite (chromium + mobile)
+      working-directory: web-rally
+      env:
+        CI: true
+      run: pnpm run test:e2e --project=chromium --project=mobile
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v7
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report-mocked
+        path: web-rally/playwright-report/
+
+  test-e2e-fullstack:
+    name: E2E Tests (fullstack, real backend)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' || github.event.inputs.test_type == '' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
+    - name: Install frontend dependencies
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate API client
+      working-directory: web-rally
+      run: pnpm run generate-client
+
+    - name: Build
+      working-directory: web-rally
+      run: pnpm run build
+
+    - name: Install Playwright browsers
+      working-directory: web-rally
+      run: pnpm run playwright:install
+
+    - name: Start api-rally smoke stack
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
+
+    - name: Wait for api-rally to become healthy
+      working-directory: api-rally
+      run: |
+        for i in $(seq 1 30); do
+          status="$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose -f docker-compose.smoke.yml ps -q api)" 2>/dev/null || echo starting)"
+          if [ "$status" = "healthy" ]; then
+            echo "api-rally is healthy"
+            exit 0
+          fi
+          echo "waiting for api-rally ($status)..."
+          sleep 5
+        done
+        echo "api-rally did not become healthy in time"
+        docker compose -f docker-compose.smoke.yml logs
+        exit 1
+
+    - name: Run fullstack e2e suite
+      working-directory: web-rally
+      env:
+        CI: true
+        FULLSTACK_OIDC_URL: http://localhost:9009
+        FULLSTACK_API_BASE_URL: http://localhost:8003
+        FULLSTACK_API_PROXY_TARGET: http://localhost:8003
+      run: pnpm run test:e2e --project=fullstack
+
+    - name: Dump api-rally logs on failure
+      if: failure()
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml logs
+
+    - name: Stop api-rally smoke stack
+      if: always()
+      working-directory: api-rally
+      run: docker compose -f docker-compose.smoke.yml down -v
+
+    - name: Upload Playwright report
+      uses: actions/upload-artifact@v7
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report-fullstack
+        path: web-rally/playwright-report/
 
   test-integration:
     name: Integration Tests
@@ -163,7 +356,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: postgres_test
+          POSTGRES_DB: rally
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -182,54 +375,81 @@ jobs:
         python-version: '3.12'
         
     - name: Install Poetry
-      uses: snok/install-poetry@v1
+      uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
       with:
         version: latest
         virtualenvs-create: true
         virtualenvs-in-project: true
         
     - name: Install API dependencies
-      working-directory: extensions/rally/api-rally
+      working-directory: api-rally
       run: |
         poetry install --no-interaction --no-root
-        
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      with:
+        version: 9
+
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: extensions/rally/web-rally/package-lock.json
-        
+        cache: 'pnpm'
+        cache-dependency-path: web-rally/pnpm-lock.yaml
+
     - name: Install frontend dependencies
-      working-directory: extensions/rally/web-rally
-      run: npm ci
-      
+      working-directory: web-rally
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Generate OpenAPI schema
+      working-directory: api-rally
+      run: poetry run python scripts/generate_openapi.py
+      env:
+        TEAM_JWT_SECRET_KEY: test_secret
+
     - name: Download API test results
       uses: actions/download-artifact@v8
       with:
         name: api-test-results
-        path: extensions/rally/api-rally/
-        
+        path: api-rally/
+
     - name: Download frontend test results
       uses: actions/download-artifact@v8
       with:
         name: frontend-test-results
-        path: extensions/rally/web-rally/coverage/
-        
+        path: web-rally/coverage/
+
+    - name: Create test database
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        PGPASSWORD=postgres psql -h localhost -U postgres -d rally -c "CREATE DATABASE rally_test;" || echo "Database might already exist"
+      env:
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: rally
+
     - name: Run integration tests
-      working-directory: extensions/rally
       run: |
         chmod +x run-tests.sh
         ./run-tests.sh
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_test
-        
+        RALLY_TEST_PG: external
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rally
+        POSTGRES_SERVER: localhost
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+        POSTGRES_DB: rally
+        TEAM_JWT_SECRET_KEY: test_secret
+
     - name: Upload integration test results
       uses: actions/upload-artifact@v7
       if: always()
       with:
         name: integration-test-results
         path: |
-          extensions/rally/api-rally/test-results.xml
-          extensions/rally/api-rally/coverage/
-          extensions/rally/web-rally/coverage/
+          api-rally/test-results.xml
+          api-rally/coverage/
+          web-rally/coverage/

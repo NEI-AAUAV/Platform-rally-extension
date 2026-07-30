@@ -1,588 +1,607 @@
-"""
-API tests for Staff Evaluation endpoints
-"""
-import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone
-from fastapi.testclient import TestClient
+"""API tests for Staff Evaluation endpoints, against real Postgres.
 
+Unit-level coverage of `validate_staff_checkpoint_access`, checkpoint
+progression, and progress calculation now lives in
+`test_staff_evaluation_utils.py` (migrated to real Postgres) — not duplicated
+here.
+"""
+
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import AsyncMock
+
+from sqlalchemy import select
+
+import app.api.api_v1.staff_evaluation as staff_evaluation_module
+from app.api.auth import api_nei_auth
+from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_team import team as crud_team
 from app.main import app
-from app.api.deps import get_db
-from app.api.api_v1.staff_evaluation_utils import (
-    validate_staff_checkpoint_access,
-    validate_admin_access,
-    validate_rally_permissions,
-    is_admin_or_manager,
-    serialize_activity,
-    serialize_team,
-    check_existing_result,
-)
+from app.models.activity import ActivityResult
+from app.models.idempotency_key import IdempotencyKey
+from app.schemas.activity import ActivityCreate, ActivityType
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.team import TeamCreate
+from app.tests.conftest import _fake_auth_data, as_team
+from app.tests.conftest import make_event as _make_event
 
 
-@pytest.fixture
-def mock_db():
-    """Mock database session"""
-    return Mock()
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order), commit=True
+    )
 
 
-@pytest.fixture
-def client_with_mocked_db(mock_db):
-    """Test client with mocked database"""
-    def override_get_db():
-        return mock_db
-    
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+async def _make_team(pg_session, name="TeamA"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
-@pytest.fixture
-def mock_team():
-    """Mock team data"""
-    team = Mock()
-    team.id = 1
-    team.name = "Test Team"
-    team.times = [datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)]
-    team.members = []
-    return team
-
-
-@pytest.fixture
-def mock_activity():
-    """Mock activity data"""
-    activity = Mock()
-    activity.id = 1
-    activity.name = "Test Activity"
-    activity.activity_type = "GeneralActivity"
-    activity.checkpoint_id = 1
-    activity.description = "Test Description"
-    activity.config = {"max_points": 100, "min_points": 0}
-    activity.is_active = True
-    return activity
-
-
-@pytest.fixture
-def mock_staff_user():
-    """Mock staff user"""
-    user = Mock()
-    user.id = 1
-    user.name = "Staff User"
-    user.staff_checkpoint_id = 1
-    return user
-
-
-@pytest.fixture
-def mock_auth_data():
-    """Mock auth data with staff scopes"""
-    auth = Mock()
-    auth.scopes = ["rally-staff"]
-    return auth
-
-
-@pytest.fixture
-def mock_manager_auth_data():
-    """Mock auth data with manager scopes"""
-    auth = Mock()
-    auth.scopes = ["manager-rally", "admin"]
-    return auth
+async def _make_activity(pg_session, checkpoint_id):
+    return await crud_activity.create(
+        pg_session,
+        obj_in=ActivityCreate(
+            name="Activity",
+            activity_type=ActivityType.GENERAL,
+            checkpoint_id=checkpoint_id,
+            config={},
+        ),
+    )
 
 
 class TestStaffEvaluationAPI:
-    """Test Staff Evaluation API endpoints"""
-    
-    def test_get_teams_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_staff_user, mock_auth_data):
-        """Test getting teams available for evaluation"""
-        with patch('app.api.api_v1.staff_evaluation.get_staff_with_checkpoint_access') as mock_get_user, \
-             patch('app.api.api_v1.staff_evaluation.api_nei_auth') as mock_auth, \
-             patch('app.api.api_v1.staff_evaluation.team.get_multi') as mock_get_teams, \
-             patch('app.api.api_v1.staff_evaluation.checkpoint.get') as mock_get_checkpoint:
-            
-            mock_get_user.return_value = mock_staff_user
-            mock_auth.return_value = mock_auth_data
-            mock_get_teams.return_value = [mock_team]
-            
-            # Mock checkpoint
-            checkpoint = Mock()
-            checkpoint.id = 1
-            checkpoint.order = 1
-            checkpoint.name = "Checkpoint 1"
-            mock_get_checkpoint.return_value = checkpoint
-            
-            response = client_with_mocked_db.get("/api/rally/v1/staff/teams?checkpoint_id=1")
-            
-            # Endpoint requires authentication
-            assert response.status_code in [200, 401]
-    
-    @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_team_activities_for_evaluation_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_staff_user, mock_auth_data):
-        """Test getting activities for a team that can be evaluated"""
-        pass
-    
-    @pytest.mark.skip(reason="Complex evaluation mocking required")
-    def test_evaluate_team_activity_success(self, client_with_mocked_db, mock_db, mock_team, mock_activity, mock_auth_data):
-        """Test evaluating a team's activity performance"""
-        pass
-    
-    @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_all_evaluations_success(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
-        """Test getting all evaluations (manager only)"""
-        pass
-    
-    @pytest.mark.skip(reason="Complex query mocking required")
-    def test_get_all_evaluations_with_team_filter(self, client_with_mocked_db, mock_db, mock_manager_auth_data):
-        """Test getting all evaluations filtered by team"""
-        pass
+    async def test_get_teams_for_evaluation_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        await _make_team(pg_session, name="Team1")
+        as_admin.staff_checkpoint_id = checkpoint.id
+
+        resp = pg_client.get(f"/api/rally/v1/staff/teams?checkpoint_id={checkpoint.id}")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert len(body) == 1
+        assert body[0]["name"] == "Team1"
+
+    async def test_get_teams_for_evaluation_no_checkpoint_assigned(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        as_admin.staff_checkpoint_id = None
+
+        resp = pg_client.get("/api/rally/v1/staff/teams")
+
+        assert resp.status_code == 404
+
+    async def test_get_teams_for_evaluation_checkpoint_not_found(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        as_admin.staff_checkpoint_id = 999999
+
+        resp = pg_client.get("/api/rally/v1/staff/teams")
+
+        assert resp.status_code == 404
 
 
-class TestStaffEvaluationBusinessLogic:
-    """Test staff evaluation business logic"""
-    
-    def test_team_checkpoint_validation(self):
-        """Test that teams can only be evaluated at correct checkpoint"""
-        from datetime import datetime, timezone
-        
-        # Test scenario: Staff at checkpoint 1 can evaluate teams at checkpoint 1
-        staff_checkpoint = 1
-        team_checkpoint = 1
-        
-        assert team_checkpoint <= staff_checkpoint  # Should pass
-    
-    def test_evaluation_summary_calculation(self):
-        """Test evaluation summary calculation logic"""
-        total_activities = 5
-        completed_activities = 3
-        completion_rate = (completed_activities / total_activities) * 100
-        
-        assert completion_rate == 60.0
-        assert total_activities > completed_activities  # Has incomplete activities
+class TestMyCheckpointAPI:
+    async def test_get_my_checkpoint_success(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+
+        resp = pg_client.get("/api/rally/v1/staff/my-checkpoint")
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["id"] == checkpoint.id
+
+    def test_get_my_checkpoint_no_checkpoint_assigned(self, pg_session, pg_client, as_admin):
+        as_admin.staff_checkpoint_id = None
+
+        resp = pg_client.get("/api/rally/v1/staff/my-checkpoint")
+
+        assert resp.status_code == 404
+
+    def test_get_my_checkpoint_not_found(self, pg_session, pg_client, as_admin):
+        as_admin.staff_checkpoint_id = 999999
+
+        resp = pg_client.get("/api/rally/v1/staff/my-checkpoint")
+
+        assert resp.status_code == 404
 
 
-class TestStaffEvaluationEdgeCases:
-    """Test edge cases and error scenarios for staff evaluation"""
-    
-    def test_staff_without_checkpoint_assigned(self):
-        """Test that staff without checkpoint assignment cannot evaluate"""
-        from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
-        from fastapi import HTTPException
-        from unittest.mock import Mock
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = None
-        
-        with pytest.raises(HTTPException) as exc_info:
-            validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-        
-        assert exc_info.value.status_code == 403
-        assert "No checkpoint assigned" in exc_info.value.detail
-    
-    def test_team_not_found_during_evaluation(self):
-        """Test error when team doesn't exist"""
-        from app.api.api_v1.staff_evaluation import validate_staff_checkpoint_access
-        from fastapi import HTTPException
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
-                validate_staff_checkpoint_access(mock_db, mock_user, team_id=999, activity_id=1)
-            
-            assert exc_info.value.status_code == 404
-            assert "Team not found" in exc_info.value.detail
-    
-    def test_team_at_different_checkpoint_allowed(self):
-        """Test that staff can evaluate teams regardless of checkpoint progress (for error recovery)"""
-        from unittest.mock import Mock, patch
-        from datetime import datetime, timezone
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 2  # Staff at checkpoint 2
-        
-        mock_team = Mock()
-        mock_team.times = [datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)]  # Only at checkpoint 1
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 2  # Activity at checkpoint 2
-        mock_activity.id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                assert team_obj == mock_team
-                assert activity_obj == mock_activity
-    
-    def test_activity_not_at_staff_checkpoint(self):
-        """Test error when activity is not at staff's checkpoint"""
-        from fastapi import HTTPException
-        from unittest.mock import Mock, patch
-        from datetime import datetime, timezone
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 1
-        
-        mock_team = Mock()
-        mock_team.times = [datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)]
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 2  # Activity at checkpoint 2, staff at checkpoint 1
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                with pytest.raises(HTTPException) as exc_info:
-                    validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                
-                assert exc_info.value.status_code == 404
-                assert "Activity not found at your assigned checkpoint" in exc_info.value.detail
-    
-    def testvalidate_rally_permissions_staff(self):
-        """Test permission validation for staff users"""
-        from app.api.api_v1.staff_evaluation import validate_rally_permissions
-        from unittest.mock import Mock
-        
-        auth_staff = Mock()
-        auth_staff.scopes = ["rally-staff"]
-        
-        assert validate_rally_permissions(auth_staff) is True
-    
-    def testvalidate_rally_permissions_manager(self):
-        """Test permission validation for manager users"""
-        from app.api.api_v1.staff_evaluation import validate_rally_permissions
-        from unittest.mock import Mock
-        
-        auth_manager = Mock()
-        auth_manager.scopes = ["manager-rally"]
-        
-        assert validate_rally_permissions(auth_manager) is True
-    
-    def testvalidate_rally_permissions_admin(self):
-        """Test permission validation for admin users"""
-        from app.api.api_v1.staff_evaluation import validate_rally_permissions
-        from unittest.mock import Mock
-        
-        auth_admin = Mock()
-        auth_admin.scopes = ["admin"]
-        
-        assert validate_rally_permissions(auth_admin) is True
-    
-    def testvalidate_rally_permissions_no_access(self):
-        """Test permission validation for users without rally access"""
-        from app.api.api_v1.staff_evaluation import validate_rally_permissions
-        from unittest.mock import Mock
-        
-        auth_no_access = Mock()
-        auth_no_access.scopes = ["user"]
-        
-        assert validate_rally_permissions(auth_no_access) is False
-    
-    def testis_admin_or_manager_admin(self):
-        """Test admin/manager check for admin users"""
-        from app.api.api_v1.staff_evaluation import is_admin_or_manager
-        from unittest.mock import Mock
-        
-        auth_admin = Mock()
-        auth_admin.scopes = ["admin"]
-        
-        assert is_admin_or_manager(auth_admin) is True
-    
-    def testis_admin_or_manager_manager(self):
-        """Test admin/manager check for manager users"""
-        from app.api.api_v1.staff_evaluation import is_admin_or_manager
-        from unittest.mock import Mock
-        
-        auth_manager = Mock()
-        auth_manager.scopes = ["manager-rally"]
-        
-        assert is_admin_or_manager(auth_manager) is True
-    
-    def testis_admin_or_manager_staff(self):
-        """Test admin/manager check for staff users (should be False)"""
-        from app.api.api_v1.staff_evaluation import is_admin_or_manager
-        from unittest.mock import Mock
-        
-        auth_staff = Mock()
-        auth_staff.scopes = ["rally-staff"]
-        
-        assert is_admin_or_manager(auth_staff) is False
-    
-    def testserialize_activity_with_all_fields(self):
-        """Test activity serialization with all fields"""
-        from app.api.api_v1.staff_evaluation import serialize_activity
-        from unittest.mock import Mock
-        
-        mock_result = Mock()
-        mock_activity = Mock()
-        mock_activity.id = 1
-        mock_activity.name = "Test Activity"
-        mock_activity.activity_type = "GeneralActivity"
-        mock_activity.checkpoint_id = 1
-        mock_activity.description = "Test Description"
-        mock_activity.config = {"max_points": 100}
-        mock_activity.is_active = True
-        
-        mock_result.activity = mock_activity
-        
-        result = serialize_activity(mock_result)
-        
-        assert result is not None
-        assert result["id"] == 1
-        assert result["name"] == "Test Activity"
-        assert result["activity_type"] == "GeneralActivity"
-        assert result["checkpoint_id"] == 1
-        assert result["description"] == "Test Description"
-        assert result["config"] == {"max_points": 100}
-        assert result["is_active"] is True
-    
-    def testserialize_activity_without_activity(self):
-        """Test activity serialization when activity is None"""
-        from app.api.api_v1.staff_evaluation import serialize_activity
-        from unittest.mock import Mock
-        
-        mock_result = Mock()
-        mock_result.activity = None
-        
-        result = serialize_activity(mock_result)
-        
-        assert result is None
-    
-    def testserialize_team_with_members(self):
-        """Test team serialization with members"""
-        from app.api.api_v1.staff_evaluation import serialize_team
-        from unittest.mock import Mock
-        
-        mock_result = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        mock_team.name = "Test Team"
-        mock_team.total = 100
-        mock_team.members = [Mock(), Mock(), Mock()]  # 3 members
-        
-        mock_result.team = mock_team
-        
-        result = serialize_team(mock_result)
-        
-        assert result is not None
-        assert result["id"] == 1
-        assert result["name"] == "Test Team"
-        assert result["total"] == 100
-        assert result["num_members"] == 3
-    
-    def testserialize_team_without_members(self):
-        """Test team serialization without members"""
-        from app.api.api_v1.staff_evaluation import serialize_team
-        from unittest.mock import Mock
-        
-        mock_result = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        mock_team.name = "Test Team"
-        mock_team.total = 0
-        mock_team.members = None
-        
-        mock_result.team = mock_team
-        
-        result = serialize_team(mock_result)
-        
-        assert result is not None
-        assert result["num_members"] == 0
-    
-    def testserialize_team_without_team(self):
-        """Test team serialization when team is None"""
-        from app.api.api_v1.staff_evaluation import serialize_team
-        from unittest.mock import Mock
-        
-        mock_result = Mock()
-        mock_result.team = None
-        
-        result = serialize_team(mock_result)
-        
-        assert result is None
-    
-    def testcheck_existing_result_exists(self):
-        """Test error when result already exists"""
-        from app.api.api_v1.staff_evaluation import check_existing_result
-        from fastapi import HTTPException
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_existing_result = Mock()
-        
-        with patch('app.api.api_v1.staff_evaluation.activity_result.get_by_activity_and_team', return_value=mock_existing_result):
-            with pytest.raises(HTTPException) as exc_info:
-                check_existing_result(mock_db, activity_id=1, team_id=1)
-            
-            assert exc_info.value.status_code == 400
-            assert "Result already exists" in exc_info.value.detail
-    
-    def testcheck_existing_result_not_exists(self):
-        """Test that no error is raised when result doesn't exist"""
-        from app.api.api_v1.staff_evaluation import check_existing_result
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        
-        with patch('app.api.api_v1.staff_evaluation.activity_result.get_by_activity_and_team', return_value=None):
-            # Should not raise an exception
-            check_existing_result(mock_db, activity_id=1, team_id=1)
-    
-    def test_team_at_exact_checkpoint(self):
-        """Test that staff can evaluate teams at their exact checkpoint"""
-        from datetime import datetime, timezone
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 2
-        
-        mock_team = Mock()
-        mock_team.times = [
-            datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
-            datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc)
-        ]  # At checkpoint 2
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 2
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                # Should not raise an exception
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                assert team_obj == mock_team
-                assert activity_obj == mock_activity
-    
-    def test_team_at_later_checkpoint(self):
-        """Test that staff can evaluate teams that have passed their checkpoint"""
-        from datetime import datetime, timezone
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 1
-        
-        mock_team = Mock()
-        mock_team.times = [
-            datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
-            datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc)
-        ]  # At checkpoint 2, staff at checkpoint 1
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 1  # Activity at staff's checkpoint
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                # Should not raise an exception - team has passed checkpoint 1
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                assert team_obj == mock_team
-                assert activity_obj == mock_activity
-    
-    def test_team_at_checkpoint_zero_allowed(self):
-        """Test that staff can evaluate teams at checkpoint 0 (for error recovery)"""
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_user = Mock()
-        mock_user.staff_checkpoint_id = 1
-        
-        mock_team = Mock()
-        mock_team.times = []  # No checkpoints visited yet
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 1  # Activity at checkpoint 1
-        mock_activity.id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                # Should NOT raise an exception - staff can evaluate regardless of team checkpoint
-                team_obj, activity_obj = validate_staff_checkpoint_access(mock_db, mock_user, team_id=1, activity_id=1)
-                assert team_obj == mock_team
-                assert activity_obj == mock_activity
-    
-    def test_completion_rate_calculation_zero_total(self):
-        """Test completion rate calculation with zero total activities (edge case)"""
-        total_activities = 0
-        completed_activities = 0
-        
-        # Should handle division by zero gracefully
-        if total_activities > 0:
-            completion_rate = (completed_activities / total_activities) * 100
-        else:
-            completion_rate = 0
-        
-        assert completion_rate == 0
-    
-    def test_completion_rate_calculation_all_completed(self):
-        """Test completion rate calculation when all activities are completed"""
-        total_activities = 5
-        completed_activities = 5
-        completion_rate = (completed_activities / total_activities) * 100
-        
-        assert completion_rate == 100.0
-    
-    def test_completion_rate_calculation_none_completed(self):
-        """Test completion rate calculation when no activities are completed"""
-        total_activities = 5
-        completed_activities = 0
-        completion_rate = (completed_activities / total_activities) * 100
-        
-        assert completion_rate == 0.0
-    
-    def testvalidate_admin_access_team_not_found(self):
-        """Test admin access validation when team doesn't exist"""
-        from app.api.api_v1.staff_evaluation import validate_admin_access
-        from fastapi import HTTPException
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
-                validate_admin_access(mock_db, team_id=999, activity_id=1)
-            
-            assert exc_info.value.status_code == 404
-            assert "Team not found" in exc_info.value.detail
-    
-    def testvalidate_admin_access_activity_not_found(self):
-        """Test admin access validation when activity doesn't exist"""
-        from fastapi import HTTPException
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=None):
-                with pytest.raises(HTTPException) as exc_info:
-                    validate_admin_access(mock_db, team_id=1, activity_id=999)
-                
-                assert exc_info.value.status_code == 404
-                assert "Activity not found" in exc_info.value.detail
-    
-    def testvalidate_admin_access_success(self):
-        """Test successful admin access validation"""
-        from unittest.mock import Mock, patch
-        
-        mock_db = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        
-        mock_activity = Mock()
-        mock_activity.id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation.team.get', return_value=mock_team):
-            with patch('app.crud.crud_activity.activity.get', return_value=mock_activity):
-                team_obj, activity_obj = validate_admin_access(mock_db, team_id=1, activity_id=1)
-                assert team_obj == mock_team
-                assert activity_obj == mock_activity
+class TestTeamActivitiesForEvaluationAPI:
+    async def test_get_team_activities_no_checkpoint_assigned(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_obj = await _make_team(pg_session, "TeamA")
+        as_admin.staff_checkpoint_id = None
 
+        resp = pg_client.get(f"/api/rally/v1/staff/teams/{team_obj.id}/activities")
+
+        assert resp.status_code == 404
+
+    async def test_get_team_activities_team_not_found(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+
+        resp = pg_client.get("/api/rally/v1/staff/teams/999999/activities")
+
+        assert resp.status_code == 404
+
+    async def test_get_team_activities_pending_and_completed(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity1 = await _make_activity(pg_session, checkpoint.id)
+        activity2 = await _make_activity(pg_session, checkpoint.id)
+
+        # Evaluate one of the two activities so the team has partial completion.
+        eval_url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity1.id}/evaluate"
+        resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 50}})
+        assert resp.status_code == 200, resp.text
+
+        resp = pg_client.get(f"/api/rally/v1/staff/teams/{team_obj.id}/activities")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["team"]["id"] == team_obj.id
+        assert body["evaluation_summary"]["total_activities"] == 2
+        assert body["evaluation_summary"]["completed_activities"] == 1
+        assert body["evaluation_summary"]["has_incomplete"] is True
+        assert activity2.name in body["evaluation_summary"]["missing_activities"]
+        statuses = {a["id"]: a["evaluation_status"] for a in body["activities"]}
+        assert statuses[activity1.id] == "completed"
+        assert statuses[activity2.id] == "pending"
+
+
+class TestEvaluateTeamActivityAuthzAPI:
+    # Note: `validate_rally_permissions(auth)` inside `evaluate_team_activity`
+    # (and the analogous checks in update/history/all-evaluations) use the
+    # same `is_admin_or_staff` predicate as the `get_staff_with_checkpoint_access`
+    # dependency the route already depends on. Any request that fails that
+    # predicate is rejected by the dependency (403) before the route body's
+    # own `validate_rally_permissions` check ever runs, so that in-body
+    # branch is unreachable through the API and not exercised here.
+
+    async def test_evaluate_staff_wrong_checkpoint_not_found(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        other_checkpoint = await _make_checkpoint(pg_session, order=2)
+        as_admin.staff_checkpoint_id = other_checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.post(
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+                json={"result_data": {"assigned_points": 50}},
+            )
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 404
+
+    async def test_evaluate_admin_team_not_found(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/999999/activities/{activity_obj.id}/evaluate",
+            json={"result_data": {"assigned_points": 50}},
+        )
+        assert resp.status_code == 404
+
+    async def test_evaluate_admin_activity_not_found(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/999999/evaluate",
+            json={"result_data": {"assigned_points": 50}},
+        )
+        assert resp.status_code == 404
+
+
+class TestConcurrentEvaluation:
+    """Two staff submitting an evaluation for the same team/activity at once.
+
+    `evaluate_team_activity` checks for an existing result then inserts a new
+    one — a TOCTOU race two concurrent requests can both pass. A unique
+    constraint on (activity_id, team_id) plus an IntegrityError fallback in
+    `create_or_update_activity_result` closes it: the losing insert rolls
+    back and updates the winner's row instead of duplicating it.
+    """
+
+    async def test_duplicate_submit_races_to_two_rows(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(pg_client.post, url, json=payload) for _ in range(2)]
+            responses = [f.result() for f in futures]
+
+        statuses = sorted(r.status_code for r in responses)
+        assert all(s == 200 for s in statuses), [r.text for r in responses]
+
+        rows = (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_obj.id,
+                    ActivityResult.team_id == team_obj.id,
+                )
+            )
+        ).all()
+
+        # The unique constraint + IntegrityError fallback collapses the race
+        # to a single row: the losing request updates instead of duplicating.
+        assert len(rows) == 1
+
+
+class TestEvaluationSideEffectResilience:
+    """Mirroring the versus result and advancing the team are best-effort side
+    effects: if either raises, the evaluation itself still succeeds."""
+
+    async def test_evaluate_succeeds_when_mirror_versus_result_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "mirror_team_vs_result",
+            AsyncMock(side_effect=RuntimeError("mirror boom")),
+        )
+
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(url, json={"result_data": {"assigned_points": 50}})
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_evaluate_succeeds_when_check_and_advance_team_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        import app.api.api_v1.staff_evaluation as staff_evaluation_module
+
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "check_and_advance_team",
+            AsyncMock(side_effect=RuntimeError("advance boom")),
+        )
+
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(url, json={"result_data": {"assigned_points": 50}})
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_update_evaluation_succeeds_when_mirror_versus_result_raises(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        import app.api.api_v1.staff_evaluation as staff_evaluation_module
+
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        monkeypatch.setattr(
+            staff_evaluation_module,
+            "mirror_team_vs_result",
+            AsyncMock(side_effect=RuntimeError("mirror boom")),
+        )
+
+        url = (
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+            f"{activity_obj.id}/evaluate/{result_id}"
+        )
+        resp = pg_client.put(url, json={"result_data": {"assigned_points": 80}})
+
+        assert resp.status_code == 200, resp.text
+
+
+class TestEvaluationIdempotency:
+    """`Idempotency-Key` header behavior on the evaluate endpoint."""
+
+    async def _seed(self, pg_session):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        return team_obj, activity_obj, url
+
+    async def test_same_key_replays_without_reapplying(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+        headers = {"Idempotency-Key": "abc-123"}
+
+        first = pg_client.post(url, json=payload, headers=headers)
+        assert first.status_code == 200, first.text
+        second = pg_client.post(url, json=payload, headers=headers)
+        assert second.status_code == 200, second.text
+
+        # Same response replayed…
+        assert first.json()["final_score"] == second.json()["final_score"]
+
+        # …and still exactly one result row (no double-apply).
+        rows = (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_obj.id,
+                    ActivityResult.team_id == team_obj.id,
+                )
+            )
+        ).all()
+        assert len(rows) == 1
+
+        keys = (
+            await pg_session.scalars(
+                select(IdempotencyKey).where(IdempotencyKey.idempotency_key == "abc-123")
+            )
+        ).all()
+        assert len(keys) == 1
+
+    async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
+        _team, _activity, url = await self._seed(pg_session)
+        headers = {"Idempotency-Key": "dup-key"}
+
+        first = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}},
+            headers=headers,
+        )
+        assert first.status_code == 200, first.text
+
+        conflict = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 90}, "extra_shots": 0, "penalties": {}},
+            headers=headers,
+        )
+        assert conflict.status_code == 409, conflict.text
+
+    async def test_no_key_behaves_normally(self, pg_session, pg_client, as_admin):
+        _team, _activity, url = await self._seed(pg_session)
+        resp = pg_client.post(
+            url,
+            json={"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}},
+        )
+        assert resp.status_code == 200, resp.text
+
+        keys = (await pg_session.scalars(select(IdempotencyKey))).all()
+        assert keys == []
+
+
+async def _seed_result(pg_session, pg_client, as_admin):
+    """Create a scored result via the API so it exists to edit/contest."""
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    as_admin.staff_checkpoint_id = checkpoint.id
+    team_obj = await _make_team(pg_session, "TeamA")
+    activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+    url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+    resp = pg_client.post(url, json={"result_data": {"assigned_points": 50}})
+    assert resp.status_code == 200, resp.text
+    return team_obj, activity_obj, resp.json()["id"]
+
+
+class TestEvaluationHistoryAPI:
+    async def test_edit_records_history_and_lists_it(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        # Edit the score -> should append one UPDATED history row.
+        put_url = (
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+            f"{activity_obj.id}/evaluate/{result_id}"
+        )
+        resp = pg_client.put(put_url, json={"result_data": {"assigned_points": 80}})
+        assert resp.status_code == 200, resp.text
+
+        hist_url = f"/api/rally/v1/staff/evaluations/{result_id}/history"
+        resp = pg_client.get(hist_url)
+        assert resp.status_code == 200, resp.text
+        rows = resp.json()
+        assert len(rows) == 1
+        assert rows[0]["action"] == "updated"
+        assert rows[0]["editor_name"]  # editor recorded
+        assert rows[0]["changes"]["final_score"]["after"] == 80
+
+    async def test_history_forbidden_for_plain_staff(self, pg_session, pg_client, as_admin):
+        # Seed as admin, then demote auth to plain staff (no manager scope) and
+        # confirm the history view is 403 — the trail is a managers-only tool.
+        _team, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get(f"/api/rally/v1/staff/evaluations/{result_id}/history")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 403
+
+    async def test_team_can_contest_own_result(self, pg_session, pg_client, as_admin):
+        from app.tests.conftest import as_team
+
+        team_obj, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        with as_team(team_obj.id, team_obj.name):
+            resp = pg_client.post(
+                f"/api/rally/v1/team-auth/evaluations/{result_id}/contest",
+                json={"reason": "score is wrong, we scored 80"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["action"] == "contested"
+        assert body["note"] == "score is wrong, we scored 80"
+
+        # The contest shows up in the admin history view.
+        resp = pg_client.get(f"/api/rally/v1/staff/evaluations/{result_id}/history")
+        assert resp.status_code == 200
+        assert any(r["action"] == "contested" for r in resp.json())
+
+    async def test_team_cannot_contest_other_teams_result(self, pg_session, pg_client, as_admin):
+        _team, _activity, result_id = await _seed_result(pg_session, pg_client, as_admin)
+        other = await _make_team(pg_session, "OtherTeam")
+
+        with as_team(other.id, other.name):
+            resp = pg_client.post(
+                f"/api/rally/v1/team-auth/evaluations/{result_id}/contest",
+                json={"reason": "not mine but let me try"},
+            )
+        # Same 404 as a missing result — don't leak other teams' result ids.
+        assert resp.status_code == 404
+
+
+class TestUpdateTeamActivityEvaluationAPI:
+    # Note: as in TestEvaluateTeamActivityAuthzAPI, the in-body
+    # `validate_rally_permissions` re-check, and the "staff with no
+    # checkpoint" branch inside `_load_activity_and_team_for_update`, are
+    # unreachable through the API because `get_staff_with_checkpoint_access`
+    # already gates on the same conditions before the route body runs.
+
+    async def test_update_staff_activity_not_at_checkpoint(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+        other_checkpoint = await _make_checkpoint(pg_session, order=2)
+        as_admin.staff_checkpoint_id = other_checkpoint.id
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.put(
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+                f"{activity_obj.id}/evaluate/{result_id}",
+                json={"result_data": {"assigned_points": 80}},
+            )
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 404
+
+    async def test_update_team_not_found(self, pg_session, pg_client, as_admin):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.put(
+            f"/api/rally/v1/staff/teams/999999/activities/{activity_obj.id}/evaluate/1",
+            json={"result_data": {"assigned_points": 80}},
+        )
+        assert resp.status_code == 404
+
+    async def test_update_result_not_found(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, _result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        resp = pg_client.put(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate/999999",
+            json={"result_data": {"assigned_points": 80}},
+        )
+        assert resp.status_code == 404
+
+    async def test_update_result_wrong_team_or_activity(self, pg_session, pg_client, as_admin):
+        _, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+        other_team = await _make_team(pg_session, "OtherTeam")
+
+        resp = pg_client.put(
+            f"/api/rally/v1/staff/teams/{other_team.id}/activities/"
+            f"{activity_obj.id}/evaluate/{result_id}",
+            json={"result_data": {"assigned_points": 80}},
+        )
+        assert resp.status_code == 404
+
+
+class TestEvaluationHistoryPermissionsAPI:
+    # Note: as above, the in-body `validate_rally_permissions` re-check for
+    # history is unreachable through the API for the same reason.
+
+    async def test_history_result_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        resp = pg_client.get("/api/rally/v1/staff/evaluations/999999/history")
+        assert resp.status_code == 404
+
+
+class TestAllEvaluationsAPI:
+    # Note: as above, the in-body `validate_rally_permissions` re-check for
+    # all-evaluations is unreachable through the API for the same reason.
+
+    def test_all_evaluations_staff_without_checkpoint_forbidden(
+        self, pg_session, pg_client, as_admin
+    ):
+        # The `get_staff_with_checkpoint_access` dependency itself rejects
+        # staff without a checkpoint assignment (403) before the endpoint's
+        # own body-level checkpoint check ever runs.
+        as_admin.staff_checkpoint_id = None
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get("/api/rally/v1/staff/all-evaluations")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 403
+
+    async def test_all_evaluations_staff_restricted_to_own_checkpoint(
+        self, pg_session, pg_client, as_admin
+    ):
+        _team, _activity, _result_id = await _seed_result(pg_session, pg_client, as_admin)
+        checkpoint_id = as_admin.staff_checkpoint_id
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get("/api/rally/v1/staff/all-evaluations")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == len(body["evaluations"])
+        assert checkpoint_id is not None
+
+    async def test_all_evaluations_filter_by_team_id(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj, _ = await _seed_result(pg_session, pg_client, as_admin)
+
+        resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?team_id={team_obj.id}")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["evaluations"][0]["team_id"] == team_obj.id
+        assert body["evaluations"][0]["team"]["id"] == team_obj.id
+        assert body["evaluations"][0]["activity"]["id"] == activity_obj.id
+
+    async def test_all_evaluations_staff_checkpoint_clamp_survives_team_filter(
+        self, pg_session, pg_client, as_admin
+    ):
+        # A staff caller passing `team_id` must still be clamped to their own
+        # checkpoint — the filters are conjunctive, not either/or.
+        team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
+        other_checkpoint = await _make_checkpoint(pg_session, order=2)
+        as_admin.staff_checkpoint_id = other_checkpoint.id
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?team_id={team_obj.id}")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["evaluations"] == []
+
+    async def test_all_evaluations_filter_by_checkpoint_id(self, pg_session, pg_client, as_admin):
+        team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
+        checkpoint_id = as_admin.staff_checkpoint_id
+
+        resp = pg_client.get(f"/api/rally/v1/staff/all-evaluations?checkpoint_id={checkpoint_id}")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] >= 1
+        assert any(e["team_id"] == team_obj.id for e in body["evaluations"])

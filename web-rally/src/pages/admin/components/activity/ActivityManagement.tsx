@@ -1,0 +1,186 @@
+import React from "react";
+import { Plus, AlertCircle } from "lucide-react";
+import { BloodyButton } from "@/components/themes/bloody";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import ActivityForm from "@/components/activity-form/ActivityCreateForm";
+import ActivityList from "@/components/activity-form/ActivityList";
+import {
+  useActivities,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
+} from "@/hooks/useActivities";
+import {
+  ActivityType as CustomActivityType,
+  type Activity as ActivityType,
+  type ActivityCreate as CustomActivityCreate,
+} from "@/types/activityTypes";
+import type {
+  ActivityCreate as ClientActivityCreate,
+  ActivityListResponse,
+  ActivityResponse,
+  ActivityType as ClientActivityType,
+} from "@/client";
+import { useAppToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errorHandling";
+
+interface Checkpoint {
+  id: number;
+  name: string;
+  description?: string | null;
+  order: number;
+}
+
+type ActivityManagementProps = Readonly<{
+  checkpoints: Checkpoint[];
+}>;
+
+export default function ActivityManagement({ checkpoints }: ActivityManagementProps) {
+  const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
+  const [showActivityForm, setShowActivityForm] = React.useState(false);
+  const toast = useAppToast();
+
+  // Activities queries and mutations
+  const { data: activitiesData } = useActivities();
+  const {
+    mutate: createActivity,
+    isPending: isCreatingActivity,
+    error: createActivityError,
+  } = useCreateActivity();
+  const { mutate: updateActivity, isPending: isUpdatingActivity } = useUpdateActivity();
+  const { mutate: deleteActivity } = useDeleteActivity();
+
+  const handleCreateActivity = (data: ClientActivityCreate) => {
+    createActivity(data, {
+      onSuccess: () => {
+        setShowActivityForm(false);
+        setEditingActivity(null);
+        toast.success("Atividade criada com sucesso!");
+      },
+      onError: (error) => {
+        toast.error(getErrorMessage(error, "Erro ao criar atividade"));
+      },
+    });
+  };
+
+  const handleUpdateActivity = (data: ClientActivityCreate) => {
+    if (!editingActivity) return;
+
+    updateActivity(
+      { id: editingActivity.id, activity: data },
+      {
+        onSuccess: () => {
+          setEditingActivity(null);
+          setShowActivityForm(false);
+          toast.success("Atividade atualizada com sucesso!");
+        },
+        onError: (error) => {
+          toast.error(getErrorMessage(error, "Erro ao atualizar atividade"));
+        },
+      },
+    );
+  };
+
+  const handleEditActivity = (activity: ActivityType) => {
+    setEditingActivity(activity);
+    setShowActivityForm(true);
+  };
+
+  const handleDeleteActivity = (id: number) => {
+    if (confirm("Tem certeza que deseja deletar esta atividade?")) {
+      deleteActivity(id, {
+        onSuccess: () => {
+          toast.success("Atividade deletada com sucesso!");
+        },
+        onError: (error) => {
+          toast.error(getErrorMessage(error, "Erro ao deletar atividade"));
+        },
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {showActivityForm ? (
+        <ActivityForm
+          checkpoints={checkpoints}
+          onSubmit={(data: CustomActivityCreate) => {
+            // Convert custom types to client types
+            const clientData: ClientActivityCreate = {
+              name: data.name,
+              description: data.description ?? null,
+              activity_type: data.activity_type as unknown as ClientActivityType,
+              checkpoint_id: data.checkpoint_id,
+              config: data.config as Record<string, unknown>,
+              is_active: data.is_active,
+            };
+            const mutation = editingActivity ? handleUpdateActivity : handleCreateActivity;
+            mutation(clientData);
+          }}
+          onCancel={() => {
+            setShowActivityForm(false);
+            setEditingActivity(null);
+          }}
+          isLoading={isCreatingActivity || isUpdatingActivity}
+          error={createActivityError?.message}
+          initialData={
+            editingActivity
+              ? {
+                  name: editingActivity.name,
+                  description: editingActivity.description ?? undefined,
+                  activity_type: editingActivity.activity_type as unknown as CustomActivityType,
+                  checkpoint_id: editingActivity.checkpoint_id,
+                  config: editingActivity.config as Record<string, string | number | boolean>,
+                  is_active: editingActivity.is_active,
+                }
+              : undefined
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <BloodyButton
+              onClick={() => setShowActivityForm(true)}
+              disabled={!checkpoints || checkpoints.length === 0}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Atividade
+            </BloodyButton>
+          </div>
+
+          {!checkpoints || checkpoints.length === 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                É necessário criar pelo menos um checkpoint antes de criar atividades.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <ActivityList
+              activities={(
+                (activitiesData as ActivityListResponse | undefined)?.activities ?? []
+              ).map(
+                (activity: ActivityResponse): ActivityType => ({
+                  id: activity.id,
+                  name: activity.name,
+                  description: activity.description ?? undefined,
+                  activity_type: activity.activity_type as unknown as CustomActivityType,
+                  checkpoint_id: activity.checkpoint_id ?? 0,
+                  config: activity.config as Record<string, string | number | boolean>,
+                  is_active: activity.is_active ?? true,
+                  order:
+                    "order" in activity && typeof activity.order === "number" ? activity.order : 0,
+                  created_at: activity.created_at,
+                  updated_at: activity.updated_at,
+                }),
+              )}
+              checkpoints={checkpoints}
+              onEdit={handleEditActivity}
+              onDelete={handleDeleteActivity}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

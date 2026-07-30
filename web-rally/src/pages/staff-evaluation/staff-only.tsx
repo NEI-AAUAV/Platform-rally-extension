@@ -1,62 +1,53 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Activity } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
-import { useNavigate } from "react-router-dom";
-import { StaffEvaluationService } from "@/client";
+import { useNavigate } from "@tanstack/react-router";
+import { getMyCheckpoint } from "@/client";
 
 export default function StaffEvaluationPage() {
   const userStore = useUserStore();
   const navigate = useNavigate();
 
-  // Get staff's assigned checkpoint
   const { data: myCheckpoint } = useQuery({
     queryKey: ["myCheckpoint"],
     queryFn: async () => {
-      return await StaffEvaluationService.getMyCheckpointApiRallyV1StaffMyCheckpointGet();
+      const { data } = await getMyCheckpoint();
+      return data;
     },
     enabled: !!userStore.token,
+    staleTime: 0, // Always refetch: admin may reassign this staff member's checkpoint at any time
   });
 
-  // Redirect to checkpoint evaluation page once checkpoint is loaded
   useEffect(() => {
     if (myCheckpoint) {
-      navigate(`/staff-evaluation/checkpoint/${myCheckpoint.id}`);
+      void navigate({
+        to: "/staff-evaluation/checkpoint/$checkpointId",
+        params: { checkpointId: String(myCheckpoint.id) },
+      });
     }
   }, [myCheckpoint, navigate]);
 
   if (!myCheckpoint) {
     return (
-      <div className="p-2 sm:p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">No Checkpoint Assigned</h2>
-                <p className="text-muted-foreground">
-                  You haven't been assigned to a checkpoint yet. Please contact an administrator.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
+        <span className="rally-bg-accent-soft mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl text-foreground">
+          <Activity className="h-6 w-6" />
+        </span>
+        <h2 className="rally-display text-xl font-bold text-foreground">Sem posto atribuído</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ainda não foste atribuído a um posto. Contacta um administrador.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="p-2 sm:p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <div className="text-center">
-              <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Redirecting to your checkpoint evaluation...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
+      <Loader2 className="rally-accent mx-auto mb-4 h-10 w-10 animate-spin" />
+      <p className="text-sm text-muted-foreground">
+        A redirecionar para a avaliação do teu posto...
+      </p>
     </div>
   );
 }

@@ -1,21 +1,32 @@
-FROM python:3.12-slim as requirements-stage
+FROM python:3.12-slim AS requirements-stage
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
+ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
 
 WORKDIR /api_rally
 
-RUN apt-get update && apt-get -y install libpq-dev gcc
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends gcc=4:14.2.0-1 libpq-dev=17.10-0+deb13u1 && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir --upgrade --only-binary :all: pip==24.3.1 && \
+    pip install --no-cache-dir --only-binary :all: poetry==2.4.1 && \
+    useradd --create-home appuser && \
+    chown appuser:appuser /api_rally
 
-RUN pip install --upgrade pip &&\
-    pip install --no-cache-dir --upgrade poetry
+USER appuser
 
-COPY poetry.lock pyproject.toml ./
+COPY --chown=appuser:appuser poetry.lock pyproject.toml ./
 
-RUN poetry install --no-root
+# Only binary wheels are allowed (via POETRY_INSTALLER_ONLY_BINARY env var) to prevent execution of untrusted build scripts
+RUN poetry install --no-root --no-cache
 
-COPY . .
+COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser alembic ./alembic
+COPY --chown=appuser:appuser alembic.ini pytest.ini ./
+COPY --chown=appuser:appuser static ./static
 
-RUN poetry install
+# Only binary wheels are allowed (via POETRY_INSTALLER_ONLY_BINARY env var) to prevent execution of untrusted build scripts
+RUN poetry install --no-cache
 
 EXPOSE 8003
-CMD poetry run uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app"]

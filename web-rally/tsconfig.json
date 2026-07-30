@@ -27,7 +27,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
@@ -38,14 +37,13 @@
     "src",
     "src/**/*.d.ts",
     "src/types.d.ts",
-    "tests/unit"
+    "tests/unit",
+    "tests/mocks"
   ],
   "exclude": [
     "tests/e2e",
     "node_modules",
-    "dist",
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx"
+    "dist"
   ],
   "references": [
     {

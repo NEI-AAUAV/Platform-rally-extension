@@ -1,81 +1,79 @@
-from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
-from sqlalchemy import select
 from collections import defaultdict
+from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import (
+    RallyForbiddenError,
+    RallyNotFoundError,
+    RallyValidationError,
+)
 from app.crud.crud_rally_settings import rally_settings
 from app.models.team import Team
 
 
-class CRUDVersus():
-    def create_versus_pair(self, db: Session, *, team_a_id: int, team_b_id: int) -> int:
+class CRUDVersus:
+    async def create_versus_pair(self, db: AsyncSession, *, team_a_id: int, team_b_id: int) -> int:
         """
         Manually pair two teams into a versus group.
-        
+
         Returns:
             The group ID (same as team_a_id for simplicity)
         """
 
-        settings = rally_settings.get_or_create(db)
+        settings = await rally_settings.get_or_create(db)
         if not settings.enable_versus:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Versus mode is not enabled"
-            )
+            raise RallyForbiddenError("Versus mode is not enabled")
 
         if team_a_id == team_b_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A team cannot be paired with itself"
-            )
-        
-        team_a = db.get(Team, team_a_id)
-        team_b = db.get(Team, team_b_id)
+            raise RallyValidationError("A team cannot be paired with itself")
+
+        # Lock both team rows before checking versus_group_id so two
+        # concurrent pair requests sharing a team can't both observe it as
+        # unpaired and cross-pair it. Locked in id order to avoid deadlocking
+        # against another pair request that targets the same two teams in
+        # reverse.
+        locked_ids = sorted((team_a_id, team_b_id))
+        result = await db.execute(
+            select(Team).where(Team.id.in_(locked_ids)).order_by(Team.id).with_for_update()
+        )
+        teams_by_id = {t.id: t for t in result.scalars().all()}
+        team_a = teams_by_id.get(team_a_id)
+        team_b = teams_by_id.get(team_b_id)
 
         if not team_a or not team_b:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="One or both teams not found"
-            )
-        
+            raise RallyNotFoundError("One or both teams not found")
+
         if team_a.versus_group_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team {team_a_id} is already in a versus group"
-            )
-        
+            raise RallyValidationError(f"Team {team_a_id} is already in a versus group")
+
         if team_b.versus_group_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team {team_b_id} is already in a versus group"
-            )
-        
+            raise RallyValidationError(f"Team {team_b_id} is already in a versus group")
+
         # use team_a.id as the group id (no extra table)
         group_id = team_a.id
         team_a.versus_group_id = group_id
         team_b.versus_group_id = group_id
 
-        db.commit()
+        await db.commit()
         return group_id
-    
-    def get_opponent(self, db: Session, *, team_id: int) -> Optional[Team]:
+
+    async def get_opponent(self, db: AsyncSession, *, team_id: int) -> Team | None:
         """Get the opponent team in the same versus group"""
-        team = db.get(Team, team_id)
+        team = await db.get(Team, team_id)
         if not team or team.versus_group_id is None:
             return None
-        
-        opponent = db.execute(
+
+        result = await db.execute(
             select(Team)
             .where(Team.id != team_id)
             .where(Team.versus_group_id == team.versus_group_id)
-        ).scalar_one_or_none()
+        )
+        return result.scalar_one_or_none()
 
-        return opponent
-    
-    def get_all_versus_pairs(self, db: Session) -> List[Dict[str, Any]]:
-        teams = db.scalars(select(Team).where(Team.versus_group_id.isnot(None))).all()
+    async def get_all_versus_pairs(self, db: AsyncSession) -> list[dict[str, Any]]:
+        teams = (await db.scalars(select(Team).where(Team.versus_group_id.isnot(None)))).all()
 
         groups = defaultdict(list)
         for team in teams:
@@ -84,5 +82,6 @@ class CRUDVersus():
         return [
             {"group_id": gid, "team_ids": tids} for gid, tids in groups.items() if len(tids) == 2
         ]
-    
+
+
 versus = CRUDVersus()

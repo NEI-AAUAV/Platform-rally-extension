@@ -14,5 +14,29 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // Allow underscore-prefixed identifiers as intentional "discard" markers
+    // (e.g. destructuring to strip fields before an API call).
+    'no-unused-vars': 'off',
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      },
+    ],
   },
+  overrides: [
+    {
+      files: ['tests/**/*', '**/*.test.ts', '**/*.test.tsx'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+      },
+    },
+    {
+      files: ['scripts/**/*'],
+      env: { node: true },
+    },
+  ],
 }

@@ -4,30 +4,46 @@ import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Settings, Save, RotateCcw } from "lucide-react";
-import { SettingsService, type RallySettingsUpdate, type RallySettingsResponse } from "@/client";
+import {
+  viewRallySettings,
+  updateRallySettings,
+  type RallySettingsUpdate,
+  type RallySettingsResponse,
+} from "@/client";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
-import { TeamSettings, RallyTimingSettings, ScoringSettings, DisplaySettings } from "./components";
 import {
-  utcISOStringToLocalDatetimeLocal,
-  localDatetimeLocalToUTCISOString
-} from "@/utils/timezone";
+  TeamSettings,
+  RallyTimingSettings,
+  ScoringSettings,
+  DisplaySettings,
+  HomeLayoutSettings,
+} from "./components";
+import { DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
+import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
 
 // Extended interface to include possibly missing properties
-type ExtendedRallySettingsResponse = Omit<RallySettingsResponse, 'participant_view_enabled' | 'show_route_mode' | 'show_score_mode'> & {
+type ExtendedRallySettingsResponse = Omit<
+  RallySettingsResponse,
+  "participant_view_enabled" | "show_route_mode" | "show_score_mode" | "allow_photo_as_team_photo"
+> & {
   participant_view_enabled?: boolean;
   show_route_mode?: string;
   show_score_mode?: string;
+  allow_photo_as_team_photo?: boolean;
 };
 
 const rallySettingsSchema = z.object({
   // Team management
   max_teams: z.number().min(1, "Must allow at least 1 team").max(100, "Maximum 100 teams allowed"),
-  max_members_per_team: z.number().min(1, "Must allow at least 1 member").max(50, "Maximum 50 members per team"),
+  max_members_per_team: z
+    .number()
+    .min(1, "Must allow at least 1 member")
+    .max(50, "Maximum 50 members per team"),
   enable_versus: z.boolean(),
 
   // Rally timing
@@ -35,10 +51,19 @@ const rallySettingsSchema = z.object({
   rally_end_time: z.string().nullable().optional(),
 
   // Scoring system
-  penalty_per_puke: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
-  penalty_per_not_drinking: z.number().min(-100, "Penalty too severe").max(0, "Penalty must be negative or zero"),
+  penalty_per_puke: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
+  penalty_per_not_drinking: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
   bonus_per_extra_shot: z.number().min(0, "Bonus must be positive").max(100, "Bonus too high"),
-  max_extra_shots_per_member: z.number().min(1, "Must allow at least 1 extra shot").max(20, "Maximum 20 extra shots per member"),
+  max_extra_shots_per_member: z
+    .number()
+    .min(1, "Must allow at least 1 extra shot")
+    .max(20, "Maximum 20 extra shots per member"),
 
   // Checkpoint behavior
   checkpoint_order_matters: z.boolean(),
@@ -59,6 +84,22 @@ const rallySettingsSchema = z.object({
 
   // Access control
   public_access_enabled: z.boolean(),
+
+  // Staff capability: promote a deferred-judging photo to team photo
+  allow_photo_as_team_photo: z.boolean(),
+
+  // Guide mode gates
+  guide_mode_enabled: z.boolean(),
+  guide_mode_active: z.boolean(),
+
+  // Badges / conquistas master kill-switch
+  badges_enabled: z.boolean(),
+
+  // Home page layout: ordered section visibility
+  home_layout: z.array(z.object({ key: z.string(), visible: z.boolean() })),
+
+  // Ticker items, edited as a field array of { value } for useFieldArray
+  ticker_items_list: z.array(z.object({ value: z.string().max(40, "Máximo 40 caracteres") })),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -72,11 +113,58 @@ const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => 
   return "bloody";
 };
 
+function buildFormValues(
+  settings: RallySettingsResponse,
+  extendedSettings: ExtendedRallySettingsResponse | undefined,
+): RallySettingsForm {
+  return {
+    max_teams: settings.max_teams,
+    max_members_per_team: settings.max_members_per_team,
+    enable_versus: settings.enable_versus,
+    rally_start_time: settings.rally_start_time
+      ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
+      : null,
+    rally_end_time: settings.rally_end_time
+      ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time)
+      : null,
+    penalty_per_puke: settings.penalty_per_puke,
+    penalty_per_not_drinking: settings.penalty_per_not_drinking,
+    bonus_per_extra_shot: settings.bonus_per_extra_shot,
+    max_extra_shots_per_member: settings.max_extra_shots_per_member,
+    checkpoint_order_matters: settings.checkpoint_order_matters,
+    enable_staff_scoring: settings.enable_staff_scoring,
+    show_live_leaderboard: settings.show_live_leaderboard,
+    show_team_details: settings.show_team_details,
+    show_checkpoint_map: settings.show_checkpoint_map,
+    participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
+    show_route_mode: extendedSettings?.show_route_mode ?? "focused",
+    show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
+    rally_theme: normalizeTheme(settings.rally_theme),
+    public_access_enabled: settings.public_access_enabled,
+    allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
+    guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
+    guide_mode_active: extendedSettings?.guide_mode_active ?? false,
+    badges_enabled: extendedSettings?.badges_enabled ?? true,
+    home_layout: (settings.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT).map(
+      (section) => ({ key: section.key, visible: section.visible ?? true }),
+    ),
+    ticker_items_list: (settings.ticker_items?.length
+      ? settings.ticker_items
+      : DEFAULT_TICKER_ITEMS
+    ).map((value) => ({ value })),
+  };
+}
+
 import { getErrorMessage } from "@/utils/errorHandling";
 
-export default function RallySettings() {
+interface RallySettingsProps {
+  readonly embedded?: boolean;
+}
+
+export default function RallySettings({ embedded = false }: RallySettingsProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
+  const fallbackPath = useFallbackNavigation();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -88,7 +176,7 @@ export default function RallySettings() {
     error: settingsError,
   } = useQuery<RallySettingsResponse>({
     queryKey: ["rallySettings-admin"], // Use different key to avoid conflicts with public endpoint
-    queryFn: SettingsService.viewRallySettingsApiRallyV1RallySettingsGet,
+    queryFn: async () => (await viewRallySettings()).data,
     enabled: isRallyAdmin,
     retry: 2, // Retry up to 2 times
     retryDelay: 1000, // Wait 1 second between retries
@@ -122,37 +210,19 @@ export default function RallySettings() {
       show_score_mode: "hidden",
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
       public_access_enabled: false,
+      allow_photo_as_team_photo: false,
+      guide_mode_enabled: false,
+      guide_mode_active: false,
+      badges_enabled: true,
+      home_layout: DEFAULT_HOME_LAYOUT,
+      ticker_items_list: DEFAULT_TICKER_ITEMS.map((value) => ({ value })),
     },
   });
 
   // Update form when settings are loaded
   useEffect(() => {
     if (settings) {
-      const mappedTheme = normalizeTheme(settings.rally_theme);
-
-      form.reset({
-        max_teams: settings.max_teams,
-        max_members_per_team: settings.max_members_per_team,
-        enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
-          : null,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
-        penalty_per_puke: settings.penalty_per_puke,
-        penalty_per_not_drinking: settings.penalty_per_not_drinking,
-        bonus_per_extra_shot: settings.bonus_per_extra_shot,
-        max_extra_shots_per_member: settings.max_extra_shots_per_member,
-        checkpoint_order_matters: settings.checkpoint_order_matters,
-        enable_staff_scoring: settings.enable_staff_scoring,
-        show_live_leaderboard: settings.show_live_leaderboard,
-        show_team_details: settings.show_team_details,
-        show_checkpoint_map: settings.show_checkpoint_map,
-        participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
-        show_route_mode: extendedSettings?.show_route_mode ?? "focused",
-        show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
-        rally_theme: mappedTheme,
-        public_access_enabled: settings.public_access_enabled,
-      });
+      form.reset(buildFormValues(settings, extendedSettings));
     }
     // Note: 'form' is intentionally excluded from dependencies to prevent infinite re-renders.
     // Including 'form' would cause this effect to run repeatedly since reset() is called inside the effect.
@@ -160,16 +230,14 @@ export default function RallySettings() {
   }, [settings]);
 
   // Update settings mutation
-  const {
-    mutate: updateSettings,
-    isPending: isUpdating,
-  } = useMutation({
+  const { mutate: updateSettings, isPending: isUpdating } = useMutation({
     mutationFn: async (settingsData: RallySettingsUpdate) => {
-      return SettingsService.updateRallySettingsApiRallyV1RallySettingsPut(settingsData);
+      const { data } = await updateRallySettings({ body: settingsData });
+      return data;
     },
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");
-      refetchSettings();
+      void refetchSettings();
       setIsEditing(false);
     },
     onError: (error) => {
@@ -178,14 +246,20 @@ export default function RallySettings() {
   });
 
   const handleSave = (data: RallySettingsForm) => {
-    // Convert datetime-local strings to UTC ISO strings before sending to API
-    const settingsData: RallySettingsUpdate = {
-      ...data,
-      rally_start_time: data.rally_start_time ? localDatetimeLocalToUTCISOString(data.rally_start_time) : null,
-      rally_end_time: data.rally_end_time ? localDatetimeLocalToUTCISOString(data.rally_end_time) : null,
-    };
-
-    updateSettings(settingsData);
+    // rally_start_time/rally_end_time are read-only here — they're set on the
+    // event (see EventsManagement), not via this settings form.
+    const {
+      rally_start_time: _rallyStartTime,
+      rally_end_time: _rallyEndTime,
+      ticker_items_list,
+      ...settingsData
+    } = data;
+    updateSettings({
+      ...settingsData,
+      ticker_items: ticker_items_list
+        .map((item) => item.value)
+        .filter((value) => value.trim().length > 0),
+    } as RallySettingsUpdate);
   };
 
   const handleSubmitError = (errors: FieldErrors<RallySettingsForm>) => {
@@ -206,28 +280,7 @@ export default function RallySettings() {
 
   const handleCancel = () => {
     if (settings) {
-      const mappedTheme = normalizeTheme(settings.rally_theme);
-
-      form.reset({
-        max_teams: settings.max_teams,
-        max_members_per_team: settings.max_members_per_team,
-        enable_versus: settings.enable_versus,
-        rally_start_time: settings.rally_start_time
-          ? utcISOStringToLocalDatetimeLocal(settings.rally_start_time)
-          : null,
-        rally_end_time: settings.rally_end_time ? utcISOStringToLocalDatetimeLocal(settings.rally_end_time) : null,
-        penalty_per_puke: settings.penalty_per_puke,
-        penalty_per_not_drinking: settings.penalty_per_not_drinking,
-        bonus_per_extra_shot: settings.bonus_per_extra_shot,
-        max_extra_shots_per_member: settings.max_extra_shots_per_member,
-        checkpoint_order_matters: settings.checkpoint_order_matters,
-        enable_staff_scoring: settings.enable_staff_scoring,
-        show_live_leaderboard: settings.show_live_leaderboard,
-        show_team_details: settings.show_team_details,
-        show_checkpoint_map: settings.show_checkpoint_map,
-        rally_theme: mappedTheme,
-        public_access_enabled: settings.public_access_enabled,
-      });
+      form.reset(buildFormValues(settings, extendedSettings));
     }
     setIsEditing(false);
   };
@@ -236,8 +289,7 @@ export default function RallySettings() {
     return <LoadingState message="Carregando..." />;
   }
 
-  const fallbackPath = useFallbackNavigation();
-  if (!isRallyAdmin) {
+  if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }
 
@@ -256,10 +308,7 @@ export default function RallySettings() {
           message={`${settingsError instanceof Error ? settingsError.message : "Erro de autenticação"}. Certifique-se de que está logado e tem permissões de manager-rally ou admin.`}
         />
         <div className="flex justify-center">
-          <Button
-            onClick={() => refetchSettings()}
-            variant="outline"
-          >
+          <Button onClick={() => refetchSettings()} variant="outline">
             Tentar Novamente
           </Button>
         </div>
@@ -268,60 +317,57 @@ export default function RallySettings() {
   }
 
   return (
-    <div className="mt-16 space-y-8">
-      <PageHeader
-        title="Configurações do Rally"
-        description="Gerir configurações globais do Rally Tascas"
-      />
-
-      {/* Edit Button at the top */}
-      {!isEditing ? (
-        <div className="text-center space-y-3">
-          <p className="text-[rgb(255,255,255,0.7)] text-sm">
-            Clique no botão abaixo para editar as configurações
-          </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        {!embedded && (
+          <PageHeader
+            eyebrow="Gestão"
+            icon={Settings}
+            title="Configurações"
+            description="Gerir configurações globais do rally."
+          />
+        )}
+        {!isEditing && (
           <Button
             type="button"
             onClick={() => setIsEditing(true)}
             variant="default"
             size="lg"
+            className="shrink-0"
           >
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="mr-2 h-4 w-4" />
             Editar Configurações
           </Button>
-        </div>
-      ) : (
-        <div className="p-3 bg-blue-600/20 border border-blue-500/30 rounded-lg">
-          <p className="text-blue-300 text-sm font-medium text-center">
-            Modo de edição ativo - Clique em "Guardar" para aplicar as alterações
+        )}
+      </div>
+
+      {isEditing && (
+        <div className="rally-bg-accent-soft rounded-xl border border-border p-3">
+          <p className="text-center text-sm font-medium text-foreground">
+            Modo de edição ativo — clique em "Guardar" para aplicar as alterações
           </p>
         </div>
       )}
 
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-8">
-          <DisplaySettings disabled={!isEditing} />
-          <TeamSettings disabled={!isEditing} />
-          <RallyTimingSettings disabled={!isEditing} />
-          <ScoringSettings disabled={!isEditing} />
+        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <DisplaySettings disabled={!isEditing} />
+            <TeamSettings disabled={!isEditing} />
+            <RallyTimingSettings />
+            <ScoringSettings disabled={!isEditing} />
+            <HomeLayoutSettings disabled={!isEditing} className="xl:col-span-2" />
+          </div>
 
-          {/* Action Buttons */}
+          {/* Sticky action bar */}
           {isEditing && (
-            <div className="flex justify-center gap-4">
-              <Button
-                type="submit"
-                disabled={isUpdating}
-                variant="default"
-              >
-                <Save className="w-4 h-4 mr-2" />
+            <div className="sticky bottom-4 z-10 flex justify-center gap-4 rounded-2xl border border-border bg-card/80 p-3 backdrop-blur">
+              <Button type="submit" disabled={isUpdating} variant="default">
+                <Save className="mr-2 h-4 w-4" />
                 {isUpdating ? "A Guardar..." : "Guardar"}
               </Button>
-              <Button
-                type="button"
-                onClick={handleCancel}
-                variant="outline"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
+              <Button type="button" onClick={handleCancel} variant="outline">
+                <RotateCcw className="mr-2 h-4 w-4" />
                 Cancelar
               </Button>
             </div>

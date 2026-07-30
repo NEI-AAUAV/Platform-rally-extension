@@ -1,16 +1,18 @@
-import * as BloodyTheme from './bloody';
-import * as NEITheme from './nei';
+import * as RallyTheme from "./rally";
 import type { CSSProperties } from "react";
-import type { ThemeConfig } from "./bloody/config";
+import type { ThemeConfig } from "./rally";
 
-type ThemeButtonComponent = typeof BloodyTheme.BloodyButton;
-type ThemeBadgeComponent = typeof BloodyTheme.BloodyBadge;
-type ThemeScoreComponent = typeof BloodyTheme.BloodyScore;
-type ThemeBloodComponent = typeof BloodyTheme.BloodyBlood;
-type ThemeCardComponent = typeof BloodyTheme.BloodyCard;
-type ThemeInteractiveCardComponent = typeof BloodyTheme.BloodyInteractiveCard;
+type ThemeButtonComponent = typeof RallyTheme.RallyButton;
+type ThemeBadgeComponent = typeof RallyTheme.RallyBadge;
+type ThemeScoreComponent = typeof RallyTheme.RallyScore;
+type ThemeBloodComponent = typeof RallyTheme.RallyBlood;
+type ThemeCardComponent = typeof RallyTheme.RallyCard;
+type ThemeInteractiveCardComponent = typeof RallyTheme.RallyInteractiveCard;
 
-export type ThemeName = 'bloody' | 'nei' | 'default';
+// Theme keys are retained for the runtime accent fallback (data-rally-theme),
+// but all map to the single accent-driven rally component set — the former
+// bloody/nei dual skins are collapsed.
+export type ThemeName = "bloody" | "nei" | "default";
 
 export interface ThemeComponents {
   Button: ThemeButtonComponent;
@@ -25,43 +27,27 @@ export interface ThemeComponents {
 
 export type { ThemeConfig };
 
-const themes: Record<ThemeName, ThemeComponents> = {
-  bloody: {
-    Button: BloodyTheme.BloodyButton,
-    Badge: BloodyTheme.BloodyBadge,
-    Score: BloodyTheme.BloodyScore,
-    Blood: BloodyTheme.BloodyBlood,
-    Card: BloodyTheme.BloodyCard,
-    InteractiveCard: BloodyTheme.BloodyInteractiveCard,
-    background: BloodyTheme.bloodyBackground,
-    config: BloodyTheme.bloodyConfig,
-  },
-  nei: {
-    Button: NEITheme.NEIButton,
-    Badge: NEITheme.NEIBadge,
-    Score: NEITheme.NEIScore,
-    Blood: BloodyTheme.BloodyBlood, // Keep bloody blood for backward compatibility (not used in NEI)
-    Card: NEITheme.NEICard,
-    InteractiveCard: NEITheme.NEIInteractiveCard,
-    background: NEITheme.neiBackground,
-    config: NEITheme.neiConfig,
-  },
-  default: {
-    Button: NEITheme.NEIButton,
-    Badge: NEITheme.NEIBadge,
-    Score: NEITheme.NEIScore,
-    Blood: BloodyTheme.BloodyBlood,
-    Card: NEITheme.NEICard,
-    InteractiveCard: NEITheme.NEIInteractiveCard,
-    background: NEITheme.neiBackground,
-    config: NEITheme.neiConfig,
-  },
+const rallyComponents: ThemeComponents = {
+  Button: RallyTheme.RallyButton,
+  Badge: RallyTheme.RallyBadge,
+  Score: RallyTheme.RallyScore,
+  Blood: RallyTheme.RallyBlood,
+  Card: RallyTheme.RallyCard,
+  InteractiveCard: RallyTheme.RallyInteractiveCard,
+  background: RallyTheme.rallyBackground,
+  config: RallyTheme.rallyConfig,
 };
 
-export function getThemeComponents(themeName: ThemeName = 'bloody'): ThemeComponents {
-  return themes[themeName] || themes.bloody;
+const themes: Record<ThemeName, ThemeComponents> = {
+  bloody: rallyComponents,
+  nei: rallyComponents,
+  default: rallyComponents,
+};
+
+export function getThemeComponents(themeName: ThemeName = "default"): ThemeComponents {
+  return themes[themeName] || rallyComponents;
 }
 
-export const BloodyThemeComponents = themes.bloody;
-export const NEIThemeComponents = themes.nei;
-export const DefaultThemeComponents = themes.default;
+export const BloodyThemeComponents = rallyComponents;
+export const NEIThemeComponents = rallyComponents;
+export const DefaultThemeComponents = rallyComponents;

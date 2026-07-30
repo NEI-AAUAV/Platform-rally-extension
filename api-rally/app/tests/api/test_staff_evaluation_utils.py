@@ -1,316 +1,653 @@
+"""Tests for staff_evaluation_utils, against real Postgres.
+
+`serialize_activity`/`serialize_team`/`determine_current_order` are pure
+dict-shaping functions with no DB access — kept as plain unit tests, not
+migrated here.
 """
-Additional tests for staff_evaluation_utils to improve coverage
-"""
+
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
-from fastapi import HTTPException
 
 from app.api.api_v1.staff_evaluation_utils import (
-    create_activity_result,
-    check_and_advance_team,
-    ensure_team_checkpoint_and_advance,
-    checkin_team_to_checkpoint,
     advance_team_to_next_checkpoint,
-    compute_checkpoint_progress,
-    checkpoint_has_activities,
-    is_checkpoint_completed,
-    determine_current_order,
     build_team_for_staff,
+    check_and_advance_team,
+    check_existing_result,
+    checkin_team_to_checkpoint,
+    checkpoint_has_activities,
+    compute_checkpoint_progress,
+    create_or_update_activity_result,
+    determine_current_order,
+    ensure_team_checkpoint_and_advance,
+    is_checkpoint_completed,
+    mirror_team_vs_result,
+    serialize_activity,
+    serialize_team,
+    validate_admin_access,
+    validate_staff_checkpoint_access,
 )
-from app.schemas.activity import ActivityResultEvaluation
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
+from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_team import team as crud_team
+from app.schemas.activity import ActivityCreate, ActivityResultEvaluation, ActivityType
+from app.schemas.checkpoint import CheckPointCreate
+from app.schemas.team import TeamCreate
+from app.tests.conftest import make_event as _make_event
 
 
-class TestActivityResultCreation:
-    """Test activity result creation functions"""
-    
-    def test_create_activity_result_success(self):
-        """Test successful activity result creation"""
-        mock_db = Mock()
-        team_id = 1
-        activity_id = 1
-        
-        result_in = ActivityResultEvaluation(
-            result_data={"score": 100},
-            extra_shots=2,
-            penalties={"vomit": 1}
+async def _activate_rally(pg_session, event):
+    from app.crud.crud_rally_settings import rally_settings
+
+    now = datetime.now(UTC)
+    event.start_time = now - timedelta(hours=1)
+    event.end_time = now + timedelta(hours=1)
+    pg_session.add(event)
+    await pg_session.commit()
+    return await rally_settings.get_or_create(pg_session)
+
+
+async def _make_checkpoint(pg_session, order=1):
+    return await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order)
+    )
+
+
+async def _make_team(pg_session, name="TeamA"):
+    return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+
+
+async def _make_activity(pg_session, checkpoint_id, activity_type=ActivityType.GENERAL):
+    return await crud_activity.create(
+        pg_session,
+        obj_in=ActivityCreate(
+            name="Activity", activity_type=activity_type, checkpoint_id=checkpoint_id, config={}
+        ),
+    )
+
+
+def _staff_user(staff_checkpoint_id):
+    from app.schemas.user import DetailedUser
+
+    return DetailedUser(
+        id=1,
+        name="Staff",
+        disabled=False,
+        staff_checkpoint_id=staff_checkpoint_id,
+        scopes=["rally-staff"],
+    )
+
+
+class TestValidateStaffCheckpointAccess:
+    async def test_no_checkpoint_assigned_raises(self, pg_session):
+        user = _staff_user(None)
+
+        with pytest.raises(RallyForbiddenError) as exc:
+            await validate_staff_checkpoint_access(pg_session, user, team_id=1, activity_id=1)
+
+        assert exc.value.status_code == 403
+        assert "No checkpoint assigned" in exc.value.message
+
+    async def test_team_not_found_raises(self, pg_session):
+        """crud.team.get() itself raises RallyNotFoundError (404) before
+        validate_staff_checkpoint_access's own `if not team_obj` check (which
+        is unreachable dead code as a result — team.get never returns None)."""
+        user = _staff_user(1)
+
+        with pytest.raises(RallyNotFoundError) as exc:
+            await validate_staff_checkpoint_access(pg_session, user, team_id=999999, activity_id=1)
+
+        assert exc.value.status_code == 404
+
+    async def test_activity_not_at_staff_checkpoint_raises(self, pg_session):
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp2.id)
+        user = _staff_user(cp1.id)
+
+        with pytest.raises(RallyNotFoundError) as exc:
+            await validate_staff_checkpoint_access(
+                pg_session, user, team_id=team.id, activity_id=activity.id
+            )
+
+        assert "assigned checkpoint" in exc.value.message
+
+    async def test_activity_not_found_raises(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        user = _staff_user(cp.id)
+
+        with pytest.raises(RallyNotFoundError) as exc:
+            await validate_staff_checkpoint_access(
+                pg_session, user, team_id=team.id, activity_id=999999
+            )
+
+        assert "Activity not found" in exc.value.message
+
+    async def test_staff_can_evaluate_regardless_of_team_progress(self, pg_session):
+        """Staff can evaluate any team at their checkpoint, even ones not yet checked in."""
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+        user = _staff_user(cp.id)
+
+        team_obj, activity_obj = await validate_staff_checkpoint_access(
+            pg_session, user, team_id=team.id, activity_id=activity.id
         )
-        
-        mock_result = Mock()
-        mock_result.id = 1
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.activity_result.create', return_value=mock_result):
-            result = create_activity_result(mock_db, team_id, activity_id, result_in)
-            assert result == mock_result
+
+        assert team_obj.id == team.id
+        assert activity_obj.id == activity.id
 
 
-class TestTeamCheckpointProgression:
-    """Test team checkpoint progression functions"""
-    
-    def test_check_and_advance_team_with_scored_results(self):
-        """Test team advancement when scored results exist"""
-        mock_db = Mock()
-        team_id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 1
-        
-        # Mock activity result with score
-        mock_result = Mock()
-        mock_result.activity = Mock()
-        mock_result.activity.checkpoint_id = 1
-        mock_result.final_score = 100
-        
-        mock_db.scalars.return_value.unique.return_value.all.return_value = [mock_result]
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
-            check_and_advance_team(mock_db, team_id, mock_activity)
-            mock_advance.assert_called_once_with(mock_db, team_id, 1)
-    
-    def test_check_and_advance_team_no_scored_results(self):
-        """Test team does not advance when no scored results exist"""
-        mock_db = Mock()
-        team_id = 1
-        
-        mock_activity = Mock()
-        mock_activity.checkpoint_id = 1
-        
-        # Mock activity result without score
-        mock_result = Mock()
-        mock_result.activity = Mock()
-        mock_result.activity.checkpoint_id = 1
-        mock_result.final_score = None
-        
-        mock_db.scalars.return_value.unique.return_value.all.return_value = [mock_result]
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.ensure_team_checkpoint_and_advance') as mock_advance:
-            check_and_advance_team(mock_db, team_id, mock_activity)
-            mock_advance.assert_not_called()
-    
-    def test_ensure_team_checkpoint_and_advance_needs_checkin(self):
-        """Test team is checked in before advancement"""
-        mock_db = Mock()
-        team_id = 1
-        checkpoint_id = 2
-        
-        # Team at checkpoint 0, needs to be checked into checkpoint 2
-        mock_team = Mock()
-        mock_team.times = []  # No checkpoints visited
-        
-        mock_checkpoint = Mock()
-        mock_checkpoint.order = 2
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.team.get', return_value=mock_team), \
-             patch('app.crud.crud_checkpoint.checkpoint.get', return_value=mock_checkpoint), \
-             patch('app.api.api_v1.staff_evaluation_utils.checkin_team_to_checkpoint') as mock_checkin, \
-             patch('app.api.api_v1.staff_evaluation_utils.advance_team_to_next_checkpoint') as mock_advance:
-            
-            ensure_team_checkpoint_and_advance(mock_db, team_id, checkpoint_id)
-            mock_checkin.assert_called_once_with(mock_db, team_id, checkpoint_id)
-            mock_advance.assert_called_once_with(mock_db, team_id)
-    
-    def test_checkin_team_to_checkpoint_success(self):
-        """Test successful team check-in"""
-        mock_db = Mock()
-        team_id = 1
-        checkpoint_id = 1
-        
-        with patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
-            mock_add.assert_called_once()
-    
-    def test_checkin_team_to_checkpoint_failure(self):
-        """Test team check-in failure propagates exception"""
-        mock_db = Mock()
-        team_id = 1
-        checkpoint_id = 1
-        
-        with patch('app.crud.crud_team.team.add_checkpoint', side_effect=Exception("DB error")):
-            with pytest.raises(Exception, match="DB error"):
-                checkin_team_to_checkpoint(mock_db, team_id, checkpoint_id)
-    
-    def test_advance_team_to_next_checkpoint_success(self):
-        """Test successful team advancement"""
-        mock_db = Mock()
-        team_id = 1
-        
-        mock_next_checkpoint = Mock()
-        mock_next_checkpoint.id = 2
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=mock_next_checkpoint), \
-             patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            advance_team_to_next_checkpoint(mock_db, team_id)
-            mock_add.assert_called_once()
-    
-    def test_advance_team_to_next_checkpoint_no_next(self):
-        """Test advancement when no next checkpoint exists"""
-        mock_db = Mock()
-        team_id = 1
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=None), \
-             patch('app.crud.crud_team.team.add_checkpoint') as mock_add:
-            advance_team_to_next_checkpoint(mock_db, team_id)
-            mock_add.assert_not_called()
-    
-    def test_advance_team_to_next_checkpoint_failure(self):
-        """Test team advancement failure propagates exception"""
-        mock_db = Mock()
-        team_id = 1
-        
-        mock_next_checkpoint = Mock()
-        mock_next_checkpoint.id = 2
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.get_next', return_value=mock_next_checkpoint), \
-             patch('app.crud.crud_team.team.add_checkpoint', side_effect=Exception("DB error")):
-            with pytest.raises(Exception, match="DB error"):
-                advance_team_to_next_checkpoint(mock_db, team_id)
+class TestValidateAdminAccess:
+    async def test_team_not_found(self, pg_session):
+        """Same dead-code path as above: crud.team.get() raises RallyNotFoundError first."""
+        with pytest.raises(RallyNotFoundError):
+            await validate_admin_access(pg_session, team_id=999999, activity_id=1)
+
+    async def test_activity_not_found(self, pg_session):
+        team = await _make_team(pg_session)
+
+        with pytest.raises(RallyNotFoundError):
+            await validate_admin_access(pg_session, team_id=team.id, activity_id=999999)
+
+    async def test_success(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        team_obj, activity_obj = await validate_admin_access(
+            pg_session, team_id=team.id, activity_id=activity.id
+        )
+
+        assert team_obj.id == team.id
+        assert activity_obj.id == activity.id
+
+
+class TestCheckExistingResult:
+    async def test_raises_when_result_exists(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add(ActivityResult(team_id=team.id, activity_id=activity.id, result_data={}))
+        await pg_session.commit()
+
+        with pytest.raises(RallyValidationError):
+            await check_existing_result(pg_session, activity_id=activity.id, team_id=team.id)
+
+    async def test_passes_when_no_result(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        await check_existing_result(pg_session, activity_id=activity.id, team_id=team.id)
+
+
+class TestCheckpointProgression:
+    async def test_checkin_team_to_checkpoint(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+
+        await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+
+    async def test_advance_team_to_next_checkpoint(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+
+        await advance_team_to_next_checkpoint(pg_session, team.id)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 2
+
+    async def test_advance_team_to_next_checkpoint_no_next(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
+
+        await advance_team_to_next_checkpoint(pg_session, team.id)  # no-op, no next checkpoint
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+
+    async def test_ensure_team_checkpoint_and_advance_checks_in_first(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+
+        await ensure_team_checkpoint_and_advance(pg_session, team.id, cp1.id)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 2  # checked into cp1, then advanced to cp2
+
+    async def test_check_and_advance_team_global_activity_never_advances(self, pg_session):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        from app.models.activity import Activity
+
+        global_activity = Activity(
+            name="Global",
+            activity_type="GeneralActivity",
+            checkpoint_id=None,
+            config={},
+            is_active=True,
+        )
+
+        await check_and_advance_team(pg_session, team.id, global_activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 0
+
+    async def test_check_and_advance_team_advances_when_all_scored(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+        from app.models.activity import ActivityResult
+
+        result = ActivityResult(
+            team_id=team.id, activity_id=activity.id, result_data={}, final_score=100
+        )
+        pg_session.add(result)
+        await pg_session.commit()
+
+        await check_and_advance_team(pg_session, team.id, activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+
+    async def test_check_and_advance_team_idempotent_when_already_past(self, pg_session):
+        """Team already checked into checkpoint 2 (past checkpoint 1's order):
+        re-evaluating a checkpoint-1 activity must not advance it again."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp1.id)
+
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+        await advance_team_to_next_checkpoint(pg_session, team.id)
+
+        await check_and_advance_team(pg_session, team.id, activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 2  # unchanged, still just cp1 + cp2
+
+    async def test_check_and_advance_team_no_scored_results(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        await check_and_advance_team(pg_session, team.id, activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 0
 
 
 class TestCheckpointProgressCalculation:
-    """Test checkpoint progress calculation functions"""
-    
-    def test_checkpoint_has_activities_true(self):
-        """Test checkpoint has activities"""
-        mock_db = Mock()
-        checkpoint_id = 1
-        
-        mock_activities = [Mock(), Mock()]
-        
-        with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=mock_activities):
-            result = checkpoint_has_activities(mock_db, checkpoint_id)
-            assert result is True
-    
-    def test_checkpoint_has_activities_false(self):
-        """Test checkpoint has no activities"""
-        mock_db = Mock()
-        checkpoint_id = 1
-        
-        with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[]):
-            result = checkpoint_has_activities(mock_db, checkpoint_id)
-            assert result is False
-    
-    def test_is_checkpoint_completed_true(self):
-        """Test checkpoint is completed"""
-        mock_db = Mock()
-        checkpoint_id = 1
-        
-        mock_activity1 = Mock()
-        mock_activity1.id = 1
-        mock_activity2 = Mock()
-        mock_activity2.id = 2
-        
-        completed_ids = {1, 2}
-        
-        with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[mock_activity1, mock_activity2]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
-            assert result is True
-    
-    def test_is_checkpoint_completed_false(self):
-        """Test checkpoint is not completed"""
-        mock_db = Mock()
-        checkpoint_id = 1
-        
-        mock_activity1 = Mock()
-        mock_activity1.id = 1
-        mock_activity2 = Mock()
-        mock_activity2.id = 2
-        
-        completed_ids = {1}  # Only one activity completed
-        
-        with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[mock_activity1, mock_activity2]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
-            assert result is False
-    
-    def test_is_checkpoint_completed_no_activities(self):
-        """Test checkpoint with no activities is not completed"""
-        mock_db = Mock()
-        checkpoint_id = 1
-        completed_ids = set()
-        
-        with patch('app.crud.crud_activity.activity.get_by_checkpoint', return_value=[]):
-            result = is_checkpoint_completed(mock_db, checkpoint_id, completed_ids)
-            assert result is False
-    
-    def test_determine_current_order_not_at_max(self):
-        """Test current order when not at maximum"""
-        mock_checkpoint = Mock()
-        mock_checkpoint.order = 5
-        checkpoints = [mock_checkpoint]
-        last_completed = 2
-        
-        result = determine_current_order(checkpoints, last_completed)
-        assert result == 3  # last_completed + 1
-    
-    def test_determine_current_order_at_max(self):
-        """Test current order when at maximum"""
-        mock_checkpoint = Mock()
-        mock_checkpoint.order = 5
-        checkpoints = [mock_checkpoint]
-        last_completed = 5
-        
-        result = determine_current_order(checkpoints, last_completed)
-        assert result == 5  # stays at max
-    
-    def test_determine_current_order_empty_checkpoints(self):
-        """Test current order with no checkpoints"""
-        checkpoints = []
-        last_completed = 3
-        
-        result = determine_current_order(checkpoints, last_completed)
-        assert result == 3  # returns last_completed
-    
-    def test_compute_checkpoint_progress_all_completed(self):
-        """Test progress calculation with all checkpoints completed"""
-        mock_db = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        
-        # Mock checkpoints
-        mock_cp1 = Mock()
-        mock_cp1.id = 1
-        mock_cp1.order = 1
-        mock_cp2 = Mock()
-        mock_cp2.id = 2
-        mock_cp2.order = 2
-        
-        # Mock results
-        mock_result1 = Mock()
-        mock_result1.activity_id = 1
-        mock_result1.is_completed = True
-        mock_result2 = Mock()
-        mock_result2.activity_id = 2
-        mock_result2.is_completed = True
-        
-        with patch('app.crud.crud_checkpoint.checkpoint.get_all_ordered', return_value=[mock_cp1, mock_cp2]), \
-             patch('app.crud.crud_activity.activity_result.get_by_team', return_value=[mock_result1, mock_result2]), \
-             patch('app.api.api_v1.staff_evaluation_utils.checkpoint_has_activities', return_value=True), \
-             patch('app.api.api_v1.staff_evaluation_utils.is_checkpoint_completed', return_value=True):
-            
-            last, current, completed = compute_checkpoint_progress(mock_db, mock_team)
-            assert last == 2
-            assert current == 2
-            assert completed == [1, 2]
-    
-    def test_build_team_for_staff_complete(self):
-        """Test building team data for staff with all fields"""
-        mock_db = Mock()
-        mock_team = Mock()
-        mock_team.id = 1
-        mock_team.name = "Test Team"
-        mock_team.total = 100
-        mock_team.classification = "A"
-        mock_team.versus_group_id = 1
-        mock_team.members = [Mock(), Mock()]
-        mock_team.times = [datetime(2024, 1, 1, tzinfo=timezone.utc)]
-        mock_team.score_per_checkpoint = [50]
-        
-        with patch('app.api.api_v1.staff_evaluation_utils.compute_checkpoint_progress', return_value=(1, 2, [1])):
-            result = build_team_for_staff(mock_db, mock_team, staff_checkpoint_order=1)
-            
-            assert result["id"] == 1
-            assert result["name"] == "Test Team"
-            assert result["num_members"] == 2
-            assert result["last_checkpoint_number"] == 1
-            assert result["current_checkpoint_number"] == 2
-            assert result["completed_checkpoint_numbers"] == [1]
-            assert result["evaluated_at_current_checkpoint"] is True
+    async def test_checkpoint_has_activities(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        await _make_activity(pg_session, cp.id)
+
+        assert await checkpoint_has_activities(pg_session, cp.id) is True
+
+    async def test_checkpoint_has_activities_false(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+
+        assert await checkpoint_has_activities(pg_session, cp.id) is False
+
+    async def test_is_checkpoint_completed(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        assert await is_checkpoint_completed(pg_session, cp.id, {activity.id}) is True
+        assert await is_checkpoint_completed(pg_session, cp.id, set()) is False
+
+    async def test_compute_checkpoint_progress_all_completed(self, pg_session):
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        a1 = await _make_activity(pg_session, cp1.id)
+        a2 = await _make_activity(pg_session, cp2.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add_all(
+            [
+                ActivityResult(
+                    team_id=team.id, activity_id=a1.id, result_data={}, is_completed=True
+                ),
+                ActivityResult(
+                    team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True
+                ),
+            ]
+        )
+        await pg_session.commit()
+
+        last, current, completed = await compute_checkpoint_progress(pg_session, team)
+
+        assert last == 2
+        assert current == 2
+        assert completed == [1, 2]
+
+    async def test_build_team_for_staff(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+
+        from app.models.activity import ActivityResult
+        from app.models.team import Team
+
+        pg_session.add(
+            ActivityResult(
+                team_id=team.id, activity_id=activity.id, result_data={}, is_completed=True
+            )
+        )
+        await pg_session.commit()
+
+        team_with_members = (
+            await pg_session.scalars(
+                select(Team).where(Team.id == team.id).options(selectinload(Team.members))
+            )
+        ).one()
+
+        result = await build_team_for_staff(pg_session, team_with_members, staff_checkpoint_order=1)
+
+        assert result["id"] == team.id
+        assert result["num_members"] == 0
+        assert result["last_checkpoint_number"] == 1
+        assert result["evaluated_at_current_checkpoint"] is True
+
+    async def test_is_checkpoint_completed_no_activities(self, pg_session):
+        """Checkpoint exists but has zero activities: not `all([])` (vacuously
+        True) — an explicit early-return False so an empty checkpoint never
+        counts as completed."""
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+
+        assert await is_checkpoint_completed(pg_session, cp.id, set()) is False
+
+    async def test_compute_checkpoint_progress_stops_at_first_incomplete(self, pg_session):
+        """Completed checkpoint 2 must not count if checkpoint 1 is incomplete
+        (teams must complete in order) -- loop breaks instead of continuing."""
+        await _make_event(pg_session)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        cp2 = await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        await _make_activity(pg_session, cp1.id)
+        a2 = await _make_activity(pg_session, cp2.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add(
+            ActivityResult(team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True)
+        )
+        await pg_session.commit()
+
+        last, current, completed = await compute_checkpoint_progress(pg_session, team)
+
+        assert last == 0
+        assert current == 1
+        assert completed == []
+
+
+class TestDetermineCurrentOrder:
+    def test_no_checkpoints_returns_last_completed(self):
+        assert determine_current_order([], 0) == 0
+
+    def test_all_checkpoints_completed_stays_at_max(self):
+        class _CP:
+            def __init__(self, order):
+                self.order = order
+
+        checkpoints = [_CP(1), _CP(2)]
+        assert determine_current_order(checkpoints, 2) == 2
+
+
+class TestSerializers:
+    def test_serialize_activity_none_when_missing(self):
+        class _Result:
+            activity = None
+
+        assert serialize_activity(_Result()) is None
+
+    def test_serialize_team_none_when_missing(self):
+        class _Result:
+            team = None
+
+        assert serialize_team(_Result()) is None
+
+    def test_serialize_activity_present(self):
+        class _Activity:
+            id = 1
+            name = "A"
+            activity_type = "GeneralActivity"
+            checkpoint_id = 2
+            description = "desc"
+            config = {}
+            is_active = True
+
+        class _Result:
+            activity = _Activity()
+
+        serialized = serialize_activity(_Result())
+        assert serialized["id"] == 1
+        assert serialized["name"] == "A"
+
+    def test_serialize_team_present(self):
+        class _Team:
+            id = 1
+            name = "T"
+            total = 5
+            members = [object(), object()]
+
+        class _Result:
+            team = _Team()
+
+        serialized = serialize_team(_Result())
+        assert serialized["num_members"] == 2
+
+
+class TestCreateOrUpdateActivityResult:
+    async def test_updates_existing_result(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        first = await create_or_update_activity_result(
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 10}),
+        )
+        assert first.result_data == {"assigned_points": 10}
+
+        updated = await create_or_update_activity_result(
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 20}),
+        )
+
+        assert updated.id == first.id
+        assert updated.result_data == {"assigned_points": 20}
+
+    async def test_integrity_error_race_recovers_via_existing_result(self, pg_session, monkeypatch):
+        """Two concurrent evaluations for the same team+activity: the loser's
+        INSERT hits a unique-constraint IntegrityError; it should roll back
+        and fall through to updating the winner's row instead of failing."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        # Seed a "winner" result as if a concurrent request created it first.
+        winner = await create_or_update_activity_result(
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 1}),
+        )
+
+        from sqlalchemy.exc import IntegrityError
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
+
+        async def _raise_integrity_error(*args, **kwargs):
+            raise IntegrityError("dup", None, RuntimeError("duplicate key"))
+
+        monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
+
+        result = await create_or_update_activity_result(
+            pg_session,
+            team.id,
+            activity.id,
+            ActivityResultEvaluation(result_data={"assigned_points": 99}),
+        )
+        assert result.id == winner.id
+        assert result.result_data == {"assigned_points": 99}
+
+    async def test_integrity_error_without_existing_result_reraises(self, pg_session, monkeypatch):
+        """If the IntegrityError wasn't actually a concurrent-insert race (no
+        existing row is found after rollback), the original error must
+        propagate rather than being silently swallowed."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        from sqlalchemy.exc import IntegrityError
+
+        import app.api.api_v1.staff_evaluation_utils as utils_module
+
+        async def _raise_integrity_error(*args, **kwargs):
+            raise IntegrityError("dup", None, RuntimeError("some unrelated constraint"))
+
+        monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
+
+        eval_obj = ActivityResultEvaluation(result_data={"assigned_points": 5})
+        with pytest.raises(IntegrityError):
+            await create_or_update_activity_result(pg_session, team.id, activity.id, eval_obj)
+
+
+class TestMirrorTeamVsResult:
+    async def test_no_op_for_non_versus_activity(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        activity = await _make_activity(pg_session, cp.id)  # GENERAL, not TeamVsActivity
+
+        # Should simply return without raising or doing anything.
+        await mirror_team_vs_result(
+            pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "win"}
+        )
+
+    async def test_no_op_when_missing_opponent_or_result(self, pg_session):
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session, order=1)
+        activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
+
+        await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={})
+        await mirror_team_vs_result(
+            pg_session,
+            activity,
+            team_id=1,
+            result_data={"opponent_team_id": 2, "result": "invalid"},
+        )
+
+    async def test_mirrors_opposite_result_to_opponent(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, name="A")
+        team_b = await _make_team(pg_session, name="B")
+        activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
+
+        await mirror_team_vs_result(
+            pg_session,
+            activity,
+            team_id=team_a.id,
+            result_data={"opponent_team_id": team_b.id, "result": "win"},
+        )
+
+        from app.crud.crud_activity import activity_result as crud_activity_result
+
+        opponent_result = await crud_activity_result.get_by_activity_and_team(
+            pg_session, activity.id, team_b.id
+        )
+        assert opponent_result is not None
+        assert opponent_result.result_data["result"] == "lose"
+        assert opponent_result.result_data["opponent_team_id"] == team_a.id
+
+
+class TestCheckinAndAdvanceExceptionPaths:
+    async def test_checkin_team_to_checkpoint_propagates_exception(self, pg_session):
+        """Rally window set entirely in the future: `_validate_rally_timing`
+        raises, exercising the `except Exception: log + raise` path."""
+        from datetime import datetime, timedelta
+
+        event = await _make_event(pg_session)
+        now = datetime.now(UTC)
+        event.start_time = now + timedelta(hours=1)
+        event.end_time = now + timedelta(hours=2)
+        pg_session.add(event)
+        await pg_session.commit()
+
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+
+        with pytest.raises(RallyValidationError):
+            await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
+
+    async def test_advance_team_to_next_checkpoint_propagates_exception(self, pg_session):
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        team = await _make_team(pg_session)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+
+        # Deactivate the rally window so the next add_checkpoint call fails
+        # timing validation, exercising the except/raise path.
+
+        event.start_time = datetime.now(UTC) + timedelta(hours=1)
+        event.end_time = datetime.now(UTC) + timedelta(hours=2)
+        pg_session.add(event)
+        await pg_session.commit()
+
+        with pytest.raises(RallyValidationError):
+            await advance_team_to_next_checkpoint(pg_session, team.id)

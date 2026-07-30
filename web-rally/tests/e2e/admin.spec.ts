@@ -2,18 +2,15 @@ import { test, expect } from '@playwright/test';
 import {
   MOCK_CHECKPOINT,
   MOCK_TEAM,
-  MOCK_JWT_TOKEN_MANAGER,
-  MOCK_JWT_TOKEN_STAFF,
   MOCK_RALLY_SETTINGS,
   MOCK_ACTIVITY_LIST,
 } from '../mocks/data';
+import { seedOidcSession, MANAGER_GROUPS, STAFF_GROUPS } from './helpers/session';
 
 test.describe('Admin Panel', () => {
   test.beforeEach(async ({ page, context }) => {
-    // Set manager token in localStorage BEFORE page loads
-    await context.addInitScript((token) => {
-      localStorage.setItem('rally_token', token);
-    }, MOCK_JWT_TOKEN_MANAGER);
+    // Seed a signed-in manager OIDC session BEFORE page loads
+    await seedOidcSession(context, MANAGER_GROUPS);
 
     // Mock rally settings with public access enabled (so tests don't redirect to login)
     await page.route('**/api/rally/v1/rally/settings**', async (route) => {
@@ -60,20 +57,20 @@ test.describe('Admin Panel', () => {
     // Wait for tabs to appear (indicates user is authenticated and authorized)
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 10000 });
     
-    // Verify all tabs are visible
-    await expect(page.getByRole('button', { name: /Checkpoints/i })).toBeVisible();
+    // Verify all tabs are visible ("Checkpoints" tab is labelled "Postos")
+    await expect(page.getByRole('button', { name: /Postos/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Atividades/i })).toBeVisible();
-    
+
     // Verify heading is also visible
-    await expect(page.getByText(/Gestão Administrativa/i)).toBeVisible();
+    await expect(page.getByText(/Administração/i).first()).toBeVisible();
   });
 
   test('should switch between tabs', async ({ page }) => {
     // Wait for tabs to appear
     await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 10000 });
     
-    // Click on Checkpoints tab
-    await page.getByRole('button', { name: /Checkpoints/i }).click();
+    // Click on the checkpoints ("Postos") tab
+    await page.getByRole('button', { name: /Postos/i }).click();
     
     // Verify checkpoint management is visible (check for checkpoint name or form)
     await expect(page.getByText(MOCK_CHECKPOINT.name, { exact: false })).toBeVisible({ timeout: 5000 }).catch(async () => {
@@ -92,12 +89,9 @@ test.describe('Admin Panel', () => {
   });
 
   test('should redirect non-managers to scoreboard', async ({ page, context }) => {
-    // Use staff token instead of manager (no manager-rally scope)
-    // JWT token has only 'rally-staff' scope, not 'manager-rally'
-    // Set staff token in localStorage - store will parse JWT and see no manager scope
-    await context.addInitScript((token) => {
-      localStorage.setItem('rally_token', token);
-    }, MOCK_JWT_TOKEN_STAFF);
+    // Re-seed with a staff-only session (runs after the beforeEach seed and
+    // overwrites the same storage key, so the staff identity wins).
+    await seedOidcSession(context, STAFF_GROUPS);
 
     // Mock rally settings with public access enabled
     await page.route('**/api/rally/v1/rally/settings**', async (route) => {
@@ -122,22 +116,16 @@ test.describe('Admin Panel', () => {
     expect(page.url()).toContain('/scoreboard');
   });
 
-  test('should display teams tab by default', async ({ page }) => {
-    // Wait for tabs to appear
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({ timeout: 10000 });
-    
-    // Teams tab button should be visible by default
+  test('shows team management under the teams tab', async ({ page }) => {
+    // Wait for tabs to appear (Dashboard is the default tab nowadays)
     const teamsTab = page.getByRole('button', { name: /Equipas/i });
-    await expect(teamsTab).toBeVisible();
-    
-    // Verify teams content is visible (use first() to avoid strict mode violation)
-    const heading = page.getByRole('heading', { name: /Equipas Existentes|Existing Teams/i }).first();
-    const description = page.getByText(/Criar e editar equipas/i).first();
-    
-    // At least one should be visible
-    const headingVisible = await heading.isVisible().catch(() => false);
-    const descVisible = await description.isVisible().catch(() => false);
-    expect(headingVisible || descVisible).toBe(true);
+    await expect(teamsTab).toBeVisible({ timeout: 10000 });
+
+    await teamsTab.click();
+
+    await expect(
+      page.getByRole('heading', { name: /Equipas Existentes|Existing Teams/i }).first(),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('should handle API errors gracefully', async ({ page }) => {

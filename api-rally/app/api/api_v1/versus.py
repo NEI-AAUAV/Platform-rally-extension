@@ -1,107 +1,122 @@
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy.orm import Session
 from sqlalchemy import select
-from collections import defaultdict
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.abac_deps import Action, Resource, require_permission
+from app.api.auth import AuthData, api_nei_auth
+from app.api.deps import get_db, get_participant
 from app.crud.crud_versus import versus
 from app.models.team import Team
-from app.api.deps import get_db, get_participant
-from app.api.abac_deps import require_permission, Action, Resource
+from app.schemas.user import DetailedUser
 from app.schemas.versus import (
+    VersusGroupListResponse,
+    VersusOpponentResponse,
     VersusPairCreate,
     VersusPairResponse,
-    VersusGroupListResponse,
-    VersusOpponentResponse
 )
+from app.services.versus_service import VersusService
 
-from app.api.auth import AuthData, api_nei_auth
-from app.schemas.user import DetailedUser
 
-router = APIRouter()
+class VersusController:
+    """REST controller for /versus."""
 
-@router.post("/versus/pair", response_model=VersusPairResponse)
-def create_versus_pair(
-    pair_in: VersusPairCreate,
-    db: Session = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-) -> VersusPairResponse:
-    """Create versus pair"""
-    require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.CREATE_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
-    )
+    def __init__(self) -> None:
+        self.router = APIRouter()
+        self._register_routes()
 
-    group_id = versus.create_versus_pair(
-        db, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id
-    )
+    def _register_routes(self) -> None:
+        self.router.add_api_route(
+            "/versus/pair",
+            self.create_versus_pair,
+            methods=["POST"],
+            name="create_versus_pair",
+            response_model=VersusPairResponse,
+        )
+        self.router.add_api_route(
+            "/versus/team/{team_id}/opponent",
+            self.get_team_opponent,
+            methods=["GET"],
+            name="get_team_opponent",
+            response_model=VersusOpponentResponse,
+        )
+        self.router.add_api_route(
+            "/versus/groups",
+            self.list_versus_groups,
+            methods=["GET"],
+            name="list_versus_groups",
+            response_model=VersusGroupListResponse,
+        )
 
-    return VersusPairResponse(
-        group_id=group_id,
-        team_a_id=pair_in.team_a_id,
-        team_b_id=pair_in.team_b_id
-    )
+    async def create_versus_pair(
+        self,
+        pair_in: VersusPairCreate,
+        db: AsyncSession = Depends(get_db),
+        curr_user: DetailedUser = Depends(get_participant),
+        auth: AuthData = Security(api_nei_auth, scopes=[]),
+    ) -> VersusPairResponse:
+        """Create versus pair"""
+        require_permission(
+            user=curr_user,
+            auth=auth,
+            action=Action.CREATE_VERSUS_GROUP,
+            resource=Resource.VERSUS_GROUP,
+        )
 
-@router.get("/versus/team/{team_id}/opponent", response_model=VersusOpponentResponse)
-def get_team_opponent(
-    team_id: int,
-    db: Session = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-) -> VersusOpponentResponse:
-    """Get a team's opponent"""
-    require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.VIEW_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
-    )
+        group_id = await versus.create_versus_pair(
+            db, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id
+        )
 
-    opp = versus.get_opponent(db, team_id=team_id)
-    
-    if opp is None:
-        return VersusOpponentResponse(opponent_id=None, opponent_name=None)
-    
-    return VersusOpponentResponse(
-        opponent_id=opp.id,
-        opponent_name=opp.name
-    )
+        return VersusPairResponse(
+            group_id=group_id, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id
+        )
 
-@router.get("/versus/groups", response_model=VersusGroupListResponse)
-def list_versus_groups(
-    db: Session = Depends(get_db),
-    curr_user: DetailedUser = Depends(get_participant),
-    auth: AuthData = Security(api_nei_auth, scopes=[]),
-) -> VersusGroupListResponse:
-    """Get all versus groups"""
-    require_permission(
-        user=curr_user,
-        auth=auth,
-        action=Action.VIEW_VERSUS_GROUP,
-        resource=Resource.VERSUS_GROUP
-    )
+    async def get_team_opponent(
+        self,
+        team_id: int,
+        db: AsyncSession = Depends(get_db),
+        curr_user: DetailedUser = Depends(get_participant),
+        auth: AuthData = Security(api_nei_auth, scopes=[]),
+    ) -> VersusOpponentResponse:
+        """Get a team's opponent"""
+        require_permission(
+            user=curr_user,
+            auth=auth,
+            action=Action.VIEW_VERSUS_GROUP,
+            resource=Resource.VERSUS_GROUP,
+        )
 
-    teams = db.scalars(
-        select(Team)
-        .where(Team.versus_group_id.isnot(None))
-        .order_by(Team.versus_group_id, Team.id)
-    ).all()
+        opp = await versus.get_opponent(db, team_id=team_id)
 
-    groups = defaultdict(list)
-    for team in teams:
-        groups[team.versus_group_id].append(team)
+        if opp is None:
+            return VersusOpponentResponse(opponent_id=None, opponent_name=None)
 
-    pairs = []
-    for gid, tl in groups.items():
-        if len(tl) == 2 and gid is not None:
-            pairs.append(
-                VersusPairResponse(
-                    group_id=gid,
-                    team_a_id=tl[0].id,
-                    team_b_id=tl[1].id
+        return VersusOpponentResponse(opponent_id=opp.id, opponent_name=opp.name)
+
+    async def list_versus_groups(
+        self,
+        db: AsyncSession = Depends(get_db),
+        curr_user: DetailedUser = Depends(get_participant),
+        auth: AuthData = Security(api_nei_auth, scopes=[]),
+    ) -> VersusGroupListResponse:
+        """Get all versus groups"""
+        require_permission(
+            user=curr_user,
+            auth=auth,
+            action=Action.VIEW_VERSUS_GROUP,
+            resource=Resource.VERSUS_GROUP,
+        )
+
+        teams = list(
+            (
+                await db.scalars(
+                    select(Team)
+                    .where(Team.versus_group_id.isnot(None))
+                    .order_by(Team.versus_group_id, Team.id)
                 )
-            )
+            ).all()
+        )
 
-    return VersusGroupListResponse(groups=pairs)
+        return VersusGroupListResponse(groups=VersusService.build_pair_list(teams))
+
+
+router = VersusController().router

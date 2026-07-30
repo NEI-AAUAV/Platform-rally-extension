@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
-import { ActivitiesService } from "@/client";
+import { getActivities, createActivity, updateActivity, deleteActivity } from "@/client";
 import { type ActivityCreate, type ActivityUpdate } from "@/client";
 
 /**
  * Hook to fetch activities list
- * 
+ *
  * Only enabled for users with manager-rally or admin scope.
  * Automatically disabled if user is not a manager or token is missing.
- * 
+ *
  * @returns React Query result with activities list
  * @example
  * ```tsx
@@ -20,16 +20,16 @@ export function useActivities() {
 
   return useQuery({
     queryKey: ["activities"],
-    queryFn: () => ActivitiesService.getActivitiesApiRallyV1ActivitiesGet(),
+    queryFn: async () => (await getActivities()).data,
     enabled: isRallyAdmin && !!userStore.token,
   });
 }
 
 /**
  * Hook to create a new activity
- * 
+ *
  * Automatically invalidates the activities query cache on success.
- * 
+ *
  * @returns React Query mutation for creating activities
  * @example
  * ```tsx
@@ -45,19 +45,18 @@ export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (activity: ActivityCreate) =>
-      ActivitiesService.createActivityApiRallyV1ActivitiesPost(activity),
+    mutationFn: async (activity: ActivityCreate) => (await createActivity({ body: activity })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
 
 /**
  * Hook to update an existing activity
- * 
+ *
  * Automatically invalidates the activities query cache on success.
- * 
+ *
  * @returns React Query mutation for updating activities
  * @example
  * ```tsx
@@ -72,19 +71,19 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, activity }: { id: number; activity: ActivityUpdate }) =>
-      ActivitiesService.updateActivityApiRallyV1ActivitiesActivityIdPut(id, activity),
+    mutationFn: async ({ id, activity }: { id: number; activity: ActivityUpdate }) =>
+      (await updateActivity({ path: { activity_id: id }, body: activity })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
 
 /**
  * Hook to delete an activity
- * 
+ *
  * Automatically invalidates the activities query cache on success.
- * 
+ *
  * @returns React Query mutation for deleting activities
  * @example
  * ```tsx
@@ -96,9 +95,9 @@ export function useDeleteActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => ActivitiesService.deleteActivityApiRallyV1ActivitiesActivityIdDelete(id),
+    mutationFn: async (id: number) => (await deleteActivity({ path: { activity_id: id } })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }

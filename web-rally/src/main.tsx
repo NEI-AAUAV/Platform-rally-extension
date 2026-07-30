@@ -1,37 +1,59 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { AuthProvider } from "react-oidc-context";
 import Router from "@/router";
 import "@/styles/global.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { refreshToken } from "./services/client";
-import { OpenAPI } from "./client/core/OpenAPI";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { notifyUnauthorized, refreshTeamToken } from "./services/client";
+import { ApiError } from "./services/apiClient";
 import { useUserStore } from "@/stores/useUserStore";
 import { ToastProvider } from "@/components/ui/toast";
+import { oidcConfig } from "@/auth/oidcConfig";
+import AuthSyncGate from "@/auth/AuthSyncGate";
+import { ColorModeProvider } from "@/components/theme";
+import { initSentry } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
+import { registerSW } from "virtual:pwa-register";
 
-// Configure OpenAPI BASE URL - use empty string to use relative paths
-OpenAPI.BASE = '';
-OpenAPI.VERSION = 'v1';
+// Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
+// early exceptions are captured.
+initSentry();
 
-// Configure OpenAPI to use authentication token
-OpenAPI.HEADERS = async () => {
-  // Check for staff token first
-  const staffToken = useUserStore.getState().token;
-  if (staffToken) {
-    return { 'Authorization': `Bearer ${staffToken}` } as Record<string, string>;
+// Keep a returning team session alive on startup (staff sessions are owned by
+// react-oidc-context, which restores them automatically).
+void refreshTeamToken();
+
+/**
+ * A staff request hit an unrecoverable 401: hand off to the OIDC layer to
+ * re-authenticate. Only staff sessions redirect — team 401s are not handled
+ * here (a team session has no IdP to bounce through). Centralised on the query
+ * cache so the single generated client drives this, with no per-call wiring.
+ *
+ * Also the single choke point for reporting API failures: 5xx and network
+ * errors are captured (they're unexpected); 4xx are left unreported as
+ * expected validation noise, except 401/403 which become breadcrumbs so
+ * they show up as context on a later captured error.
+ */
+function handleApiError(error: unknown): void {
+  const isStaff = Boolean(useUserStore.getState().token);
+  if (isStaff && error instanceof ApiError && error.status === 401) {
+    notifyUnauthorized();
   }
 
-  // Fall back to team token if no staff token
-  const teamToken = localStorage.getItem('rally_team_token');
-  if (teamToken) {
-    return { 'Authorization': `Bearer ${teamToken}` } as Record<string, string>;
+  if (!(error instanceof ApiError)) {
+    logger.error("Network error", error);
+    return;
   }
-
-  return {} as Record<string, string>;
-};
-
-refreshToken();
+  if (error.status === 0 || error.status >= 500) {
+    logger.error("API request failed", error, { status: error.status, requestId: error.requestId });
+  } else if (error.status === 401 || error.status === 403) {
+    logger.warn("API auth error", { status: error.status, requestId: error.requestId });
+  }
+}
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: handleApiError }),
+  mutationCache: new MutationCache({ onError: handleApiError }),
   defaultOptions: {
     queries: {
       retry: 2,
@@ -46,54 +68,23 @@ const queryClient = new QueryClient({
   },
 });
 
-// Register Service Worker for PWA functionality
-if ('serviceWorker' in navigator) {
-  globalThis.addEventListener('load', () => {
-    navigator.serviceWorker.register('/rally/sw.js')
-      .then((registration) => {
-        // Check for updates and force activation
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker is available, force activation
-                newWorker.postMessage({ action: 'skipWaiting' });
-                globalThis.location.reload();
-              }
-            });
-          }
-        });
-
-        // Add development utility to clear cache
-        if (process.env.NODE_ENV === 'development') {
-          (globalThis as unknown as Record<string, () => void>).clearRallyCache = () => {
-            navigator.serviceWorker.controller?.postMessage({ action: 'clearCache' });
-            // Also clear browser cache
-            if ('caches' in window) {
-              caches.keys().then((cacheNames) => {
-                return Promise.all(
-                  cacheNames.map((cacheName) => caches.delete(cacheName))
-                );
-              }).then(() => {
-                globalThis.location.reload();
-              });
-            }
-          };
-        }
-      })
-      .catch(() => {
-        // Service worker registration failed - app will still work without PWA features
-      });
-  });
-}
+// Register the Workbox service worker (generated from src/sw.ts by
+// vite-plugin-pwa). autoUpdate reloads to activate a new SW automatically,
+// preserving the old force-update behavior.
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <Router />
-      </ToastProvider>
-    </QueryClientProvider>
+    <ColorModeProvider>
+      <AuthProvider {...oidcConfig}>
+        <QueryClientProvider client={queryClient}>
+          <AuthSyncGate>
+            <ToastProvider>
+              <Router />
+            </ToastProvider>
+          </AuthSyncGate>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ColorModeProvider>
   </React.StrictMode>,
 );

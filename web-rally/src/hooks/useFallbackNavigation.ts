@@ -3,7 +3,7 @@ import useRallySettings from "./useRallySettings";
 /**
  * Returns the appropriate fallback navigation path based on admin settings.
  * When a non-admin user tries to access an admin page, they should be redirected to:
- * - /postos if score display is completely hidden
+ * - /checkpoints if score display is completely hidden
  * - /scoreboard otherwise (for viewing their score/team progress)
  */
 export default function useFallbackNavigation(): string {
@@ -11,7 +11,7 @@ export default function useFallbackNavigation(): string {
 
   // If score mode is "hidden", redirect to checkpoints page
   if (settings?.show_score_mode === "hidden") {
-    return "/postos";
+    return "/checkpoints";
   }
 
   // Otherwise, redirect to scoreboard

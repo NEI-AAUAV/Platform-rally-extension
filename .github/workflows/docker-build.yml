@@ -1,5 +1,9 @@
 name: Docker Build Validation
 
+# Validation only builds images (push: false); read access is sufficient.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
@@ -121,41 +125,22 @@ jobs:
   docker-compose-validation:
     name: Validate Docker Compose
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      
-      - name: Validate compose.override.yml
+
+      - name: Validate compose files
+        env:
+          # Placeholders so interpolation resolves; `config` does not run anything.
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rally
         run: |
-          if [ -f compose.override.yml ]; then
-            echo "Validating compose.override.yml..."
-            docker compose -f .github/compose.stub.yml -f compose.override.yml config > /dev/null
-            echo "✅ compose.override.yml is valid"
-          else
-            echo "⚠️  compose.override.yml not found"
-          fi
-      
-      - name: Validate compose.override.prod.yml
-        run: |
-          if [ -f compose.override.prod.yml ]; then
-            echo "Validating compose.override.prod.yml..."
-            docker compose -f .github/compose.stub.yml -f compose.override.prod.yml config > /dev/null
-            echo "✅ compose.override.prod.yml is valid"
-          else
-            echo "⚠️  compose.override.prod.yml not found"
-          fi
-      
-      - name: Check service names match manifest
-        run: |
-          MANIFEST_NAME=$(jq -r '.name' manifest.json)
-          echo "Extension name from manifest: $MANIFEST_NAME"
-          
-          # Check if compose file uses correct service naming
-          if grep -q "api_${MANIFEST_NAME}" compose.override.yml && \
-             grep -q "web_${MANIFEST_NAME}" compose.override.yml; then
-            echo "✅ Service names match manifest"
-          else
-            echo "⚠️  Service names may not match manifest naming convention"
-          fi
+          set -e
+          for f in compose.yml deploy/docker-compose.prod.yaml deploy/docker-compose.staging.yaml; do
+            echo "Validating $f..."
+            docker compose -f "$f" config -q
+            echo "✅ $f is valid"
+          done
 

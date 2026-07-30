@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface Props {
   children: ReactNode;
@@ -23,7 +24,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    logger.error("Uncaught error", error, { componentStack: errorInfo.componentStack ?? "" });
   }
 
   public render() {
@@ -34,23 +35,23 @@ class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="p-6">
-          <Card className="max-w-2xl mx-auto">
+          <Card className="mx-auto max-w-2xl">
             <CardHeader>
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
                 Something went wrong
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
+              <p className="mb-4 text-muted-foreground">
                 An unexpected error occurred. Please try refreshing the page.
               </p>
               {this.state.error && (
                 <details className="mt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground mb-2">
+                  <summary className="mb-2 cursor-pointer text-sm font-medium text-muted-foreground">
                     Error details
                   </summary>
-                  <pre className="p-4 bg-muted rounded-md text-sm overflow-auto max-h-96">
+                  <pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-sm">
                     {this.state.error.message}
                     {"\n"}
                     {this.state.error.stack}
@@ -58,8 +59,9 @@ class ErrorBoundary extends Component<Props, State> {
                 </details>
               )}
               <button
+                type="button"
                 onClick={() => this.setState({ hasError: false, error: null })}
-                className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Try again
               </button>

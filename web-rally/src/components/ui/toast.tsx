@@ -29,18 +29,21 @@ export const useToast = () => {
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = "info", duration: number = 5000) => {
-    const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-    const newToast: Toast = { id, message, type, duration };
+  const showToast = useCallback(
+    (message: string, type: ToastType = "info", duration: number = 5000) => {
+      const id = Date.now().toString() + Math.random().toString(36).slice(2, 11);
+      const newToast: Toast = { id, message, type, duration };
 
-    setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => [...prev, newToast]);
 
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id));
-      }, duration);
-    }
-  }, []);
+      if (duration > 0) {
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((toast) => toast.id !== id));
+        }, duration);
+      }
+    },
+    [],
+  );
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -49,7 +52,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast, toasts }}>
       {children}
-      <div className="fixed bottom-0 right-0 z-50 flex flex-col-reverse gap-2 p-4 pointer-events-none">
+      <div className="pointer-events-none fixed bottom-0 right-0 z-50 flex flex-col-reverse gap-2 p-4">
         {toasts.map((toast) => (
           <ToastComponent key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
         ))}
@@ -92,16 +95,17 @@ const ToastComponent: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast
 
   return (
     <div
-      className={`min-w-[300px] max-w-[500px] ${bg} border ${border} rounded-lg shadow-lg p-4 pointer-events-auto animate-in slide-in-from-bottom-2`}
+      className={`min-w-[300px] max-w-[500px] ${bg} border ${border} pointer-events-auto rounded-lg p-4 shadow-lg animate-in slide-in-from-bottom-2`}
     >
       <div className="flex items-start gap-3">
-        <Icon className={`w-5 h-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-        <p className="flex-1 text-white text-sm font-medium">{message}</p>
+        <Icon className={`h-5 w-5 ${iconColor} mt-0.5 flex-shrink-0`} />
+        <p className="flex-1 text-sm font-medium text-white">{message}</p>
         <button
+          type={"button"}
           onClick={onClose}
-          className="flex-shrink-0 text-white/70 hover:text-white transition-colors"
+          className="flex-shrink-0 text-white/70 transition-colors hover:text-white"
         >
-          <X className="w-4 h-4" />
+          <X className="h-4 w-4" />
         </button>
       </div>
     </div>

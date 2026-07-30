@@ -13,6 +13,7 @@ module.exports = {
     fontFamily: {
       inter: ["Inter", "sans-serif", "system-ui"],
       playfair: ["Playfair Display", "serif", "system-ui"],
+      display: ["Space Grotesk", "Inter", "sans-serif", "system-ui"],
     },
     container: {
       center: true,

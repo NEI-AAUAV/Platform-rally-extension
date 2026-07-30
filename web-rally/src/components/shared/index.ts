@@ -1,28 +1,35 @@
-// Shared components (theme-agnostic)
-export { default as NavTabs } from './nav-tabs';
-export { default as RallyTimeBanner } from './rally-time-banner';
+// Navigation
+export { default as NavTabs } from "./navigation/nav-tabs";
+export { default as RallyNavbar } from "./navigation/RallyNavbar";
+export { default as MobileBottomNav } from "./navigation/MobileBottomNav";
+export { UserMenu } from "./navigation/user-menu";
 
-// Common UI components
-export { default as PageHeader } from './PageHeader';
-export { default as LoadingState } from './LoadingState';
-export { default as ErrorState } from './ErrorState';
-export { default as EmptyState } from './EmptyState';
+// Layout
+export { default as PageHeader } from "./layout/PageHeader";
+export { default as SiteFooter } from "./layout/SiteFooter";
+export { default as ListItem } from "./layout/ListItem";
+export { default as RallyTimeBanner } from "./layout/rally-time-banner";
 
-// Permission and access control
-export { default as PermissionGuard } from './PermissionGuard';
+// State / feedback
+export { default as LoadingState } from "./state/LoadingState";
+export { default as ErrorState } from "./state/ErrorState";
+export { default as EmptyState } from "./state/EmptyState";
+export { default as Skeleton } from "./state/Skeleton";
+export { default as StatusMessage } from "./state/StatusMessage";
 
-// Status and feedback
-export { default as StatusMessage } from './StatusMessage';
+// Checkpoint
+export { default as CheckpointDiscovery } from "./checkpoint/CheckpointDiscovery";
+export { default as CheckpointDiscoveryModal } from "./checkpoint/CheckpointDiscoveryModal";
+export { default as FreshnessIndicator } from "./checkpoint/FreshnessIndicator";
+export { default as ProvisionalBadge } from "./checkpoint/ProvisionalBadge";
 
-// Form components
-export { default as TeamSelector } from './TeamSelector';
-
-// Feature management
-export { default as FeatureDisabledAlert } from './FeatureDisabledAlert';
-
-// Layout components
-export { default as ListItem } from './ListItem';
+// Access control
+export { default as PermissionGuard } from "./access/PermissionGuard";
+export { default as FeatureDisabledAlert } from "./access/FeatureDisabledAlert";
 
 // Card components (themeable)
-export { default as RallyCard } from './RallyCard';
-export { default as RallyInteractiveCard } from './RallyInteractiveCard';
+export { default as RallyInteractiveCard } from "./RallyInteractiveCard";
+
+// Tools
+export { default as StopwatchWidget } from "./StopwatchWidget";
+export { ShareButton } from "./ShareButton";

@@ -7,6 +7,8 @@ Thumbs.db
 # Env
 .env
 .env.*
+# ...but keep the committed template
+!.env.example
 
 # Python (api-rally)
 __pycache__/
@@ -28,7 +30,7 @@ web-rally/.vite/
 web-rally/.eslintcache
 
 # Generated files (OpenAPI client)
-web-rally/openapi.json
+# openapi.json is committed intentionally — it's the visible API contract, diffed in CI
 web-rally/src/client/
 
 # Logs
@@ -46,3 +48,5 @@ __pycache__/
 
 # JWT keys (keep private key secret)
 dev-keys/jwt.key
+coverage.xml
+test-results.xml

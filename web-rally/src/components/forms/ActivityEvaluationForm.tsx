@@ -1,4 +1,11 @@
-import { TimeBasedForm, ScoreBasedForm, BooleanForm, GeneralForm, TeamVsForm } from "./index";
+import {
+  TimeBasedForm,
+  ScoreBasedForm,
+  BooleanForm,
+  GeneralForm,
+  TeamVsForm,
+  DeferredJudgedForm,
+} from "./index";
 import type { ActivityResponse, ActivityResultResponse } from "@/client";
 import type { FormSubmitHandler, Team } from "@/types/forms";
 
@@ -12,30 +19,32 @@ interface ActivityWithStatus extends ActivityResponse {
  */
 interface ActivityEvaluationFormProps {
   /** Activity to evaluate with status information */
-  activity: ActivityWithStatus;
+  readonly activity: ActivityWithStatus;
   /** Team being evaluated */
-  team: Team;
+  readonly team: Team;
   /** Callback when form is submitted */
-  onSubmit: FormSubmitHandler;
+  readonly onSubmit: FormSubmitHandler;
   /** Whether the form is currently submitting */
-  isSubmitting: boolean;
+  readonly isSubmitting: boolean;
+  /** Called when a deferred-judged photo capture completes (no score yet, just upload) */
+  readonly onCaptured?: () => void;
 }
 
 /**
  * Form component for evaluating team activities
- * 
+ *
  * Renders the appropriate form based on activity type:
  * - TimeBasedActivity: Time input form
  * - ScoreBasedActivity: Score input form
  * - BooleanActivity: Yes/No form
  * - GeneralActivity: General evaluation form
  * - TeamVsActivity: Team vs team form
- * 
+ *
  * Displays activity details and handles form submission with validation.
- * 
+ *
  * @param props - ActivityEvaluationFormProps
  * @returns JSX form element
- * 
+ *
  * @example
  * ```tsx
  * <ActivityEvaluationForm
@@ -46,7 +55,13 @@ interface ActivityEvaluationFormProps {
  * />
  * ```
  */
-export default function ActivityEvaluationForm({ activity, team, onSubmit, isSubmitting }: ActivityEvaluationFormProps) {
+export default function ActivityEvaluationForm({
+  activity,
+  team,
+  onSubmit,
+  isSubmitting,
+  onCaptured,
+}: ActivityEvaluationFormProps) {
   const renderForm = () => {
     switch (activity.activity_type) {
       case "TimeBasedActivity":
@@ -101,15 +116,21 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
           />
         );
 
+      case "DeferredJudgedActivity":
+        return (
+          <DeferredJudgedForm
+            activityId={activity.id}
+            team={team}
+            existingResult={activity.existing_result}
+            onCaptured={onCaptured}
+          />
+        );
+
       default:
         return (
-          <div className="text-center py-8">
-            <p className="text-[rgb(255,255,255,0.7)]">
-              Unknown activity type: {activity.activity_type}
-            </p>
-            <p className="text-[rgb(255,255,255,0.5)] text-sm mt-2">
-              Please contact an administrator.
-            </p>
+          <div className="py-8 text-center">
+            <p className="text-muted-foreground">Unknown activity type: {activity.activity_type}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Please contact an administrator.</p>
           </div>
         );
     }
@@ -117,12 +138,18 @@ export default function ActivityEvaluationForm({ activity, team, onSubmit, isSub
 
   return (
     <div className="space-y-4">
-      <div className="bg-[rgb(255,255,255,0.05)] border border-[rgb(255,255,255,0.1)] p-4 rounded">
-        <h3 className="font-semibold mb-2 text-white">Activity Details</h3>
-        <p className="text-[rgb(255,255,255,0.8)]"><strong>Type:</strong> {activity.activity_type}</p>
-        <p className="text-[rgb(255,255,255,0.8)]"><strong>Team:</strong> {team.name}</p>
+      <div className="rounded border border-border bg-muted p-4">
+        <h3 className="mb-2 font-semibold text-foreground">Activity Details</h3>
+        <p className="text-muted-foreground">
+          <strong>Type:</strong> {activity.activity_type}
+        </p>
+        <p className="text-muted-foreground">
+          <strong>Team:</strong> {team.name}
+        </p>
         {activity.description && (
-          <p className="text-[rgb(255,255,255,0.8)]"><strong>Description:</strong> {activity.description}</p>
+          <p className="text-muted-foreground">
+            <strong>Description:</strong> {activity.description}
+          </p>
         )}
       </div>
 

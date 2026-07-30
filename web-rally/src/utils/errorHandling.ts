@@ -4,16 +4,16 @@
 
 /**
  * Extracts a user-friendly error message from various error types
- * 
+ *
  * Handles different error formats:
  * - API errors with body.detail
  * - Axios errors with response.data.detail
  * - Standard Error objects with message
- * 
+ *
  * @param error - The error object (unknown type for flexibility)
  * @param fallback - Fallback message if error format is unknown
  * @returns User-friendly error message
- * 
+ *
  * @example
  * ```tsx
  * try {
@@ -52,4 +52,3 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 
   return fallback;
 }
-

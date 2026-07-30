@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Activity, CheckCircle, Clock, Star, Trophy, Edit } from "lucide-react";
+import { Activity, CheckCircle, Clock, Star, Trophy, Edit, Camera } from "lucide-react";
 import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
 import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
+import { cn } from "@/lib/utils";
 
 type TeamActivitiesListProps = Readonly<{
-
   team: Team;
   activities: ActivityResponse[];
-  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => void;
+  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => Promise<void>;
   isEvaluating: boolean;
-}>
+}>;
 
 const activityTypeIcons = {
   TimeBasedActivity: Clock,
@@ -21,13 +19,19 @@ const activityTypeIcons = {
   BooleanActivity: CheckCircle,
   TeamVsActivity: Trophy,
   GeneralActivity: Activity,
+  DeferredJudgedActivity: Camera,
 };
 
-const getActivityTypeIcon = (activityType: string) => {
+function getActivityTypeIcon(activityType: string) {
   return activityTypeIcons[activityType as keyof typeof activityTypeIcons] || Activity;
-};
+}
 
-export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating }: TeamActivitiesListProps) {
+export function TeamActivitiesList({
+  team,
+  activities,
+  onEvaluate,
+  isEvaluating,
+}: TeamActivitiesListProps) {
   const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
 
@@ -36,9 +40,9 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
     setShowEvaluationForm(true);
   };
 
-  const handleFormSubmit = (resultData: ActivityResultData) => {
+  const handleFormSubmit = async (resultData: ActivityResultData) => {
     if (selectedActivity) {
-      onEvaluate(team.id, selectedActivity.id, resultData);
+      await onEvaluate(team.id, selectedActivity.id, resultData);
     }
     setShowEvaluationForm(false);
     setSelectedActivity(null);
@@ -52,113 +56,124 @@ export function TeamActivitiesList({ team, activities, onEvaluate, isEvaluating 
   if (showEvaluationForm && selectedActivity) {
     return (
       <div className="space-y-4">
-        <Button
-          onClick={handleFormCancel}
-          variant="outline"
-          className="mb-4"
-        >
-          ← Back to Activities
+        <Button onClick={handleFormCancel} variant="outline" size="sm">
+          ← Voltar às atividades
         </Button>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Evaluate: {selectedActivity.name}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Team: {team.name}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ActivityEvaluationForm
-              activity={{
-                ...selectedActivity,
-                evaluation_status: "pending" as const,
-              }}
-              team={team}
-              onSubmit={handleFormSubmit}
-              isSubmitting={isEvaluating}
-            />
-          </CardContent>
-        </Card>
+
+        <div className="rally-surface rally-elevate rounded-2xl p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg text-foreground">
+              <Activity className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="font-bold text-foreground">{selectedActivity.name}</p>
+              <p className="text-xs text-muted-foreground">{team.name}</p>
+            </div>
+          </div>
+          <ActivityEvaluationForm
+            activity={{
+              ...selectedActivity,
+              evaluation_status: "pending" as const,
+            }}
+            team={team}
+            onSubmit={handleFormSubmit}
+            isSubmitting={isEvaluating}
+            onCaptured={handleFormCancel}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          {team.name} - Activities
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Click "Evaluate" or "Update" to evaluate each activity
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {activities.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No activities available for evaluation</p>
-          </div>
-        ) : (
-          activities.map((activity) => {
-            const IconComponent = getActivityTypeIcon(activity.activity_type);
-            const isCompleted = 'evaluation_status' in activity && activity.evaluation_status === "completed";
-            
-            return (
-              <div
-                key={activity.id}
-                className="p-4 rounded-lg border flex items-center justify-between"
+    <div className="space-y-3">
+      <div className="mb-1 flex items-center gap-3">
+        <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg text-foreground">
+          <Activity className="h-4 w-4" />
+        </span>
+        <div>
+          <p className="font-bold text-foreground">{team.name}</p>
+          <p className="text-xs text-muted-foreground">Atividades do posto</p>
+        </div>
+      </div>
+
+      {activities.length === 0 ? (
+        <div className="rally-surface rounded-xl p-8 text-center">
+          <Activity className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">Sem atividades para avaliar</p>
+        </div>
+      ) : (
+        activities.map((activity) => {
+          const IconComponent = getActivityTypeIcon(activity.activity_type);
+          const isCompleted =
+            "evaluation_status" in activity && activity.evaluation_status === "completed";
+
+          return (
+            <div
+              key={activity.id}
+              className={cn(
+                "flex items-center gap-4 rounded-xl border p-4 transition-colors",
+                isCompleted
+                  ? "border-border bg-card opacity-80"
+                  : "rally-border-accent rally-bg-accent-soft",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
+                  isCompleted
+                    ? "rally-bg-accent-soft text-foreground"
+                    : "rally-bg-accent text-white",
+                )}
               >
-                <div className="flex items-center gap-3">
-                  <IconComponent className="w-5 h-5 text-gray-600" />
-                  <div>
-                    <h4 className="font-semibold">{activity.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.description}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={
-                      isCompleted
-                        ? "text-green-600 border-green-600"
-                        : "text-yellow-600 border-yellow-600"
-                    }
-                  >
-                    {isCompleted ? "Completed" : "Pending"}
-                  </Badge>
-                  
-                  <Button
-                    onClick={() => handleEvaluateClick(activity)}
-                    variant={isCompleted ? "outline" : "default"}
-                    size="sm"
-                    disabled={isEvaluating}
-                  >
-                    {isCompleted ? (
-                      <>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Update
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Evaluate
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <IconComponent className="h-4 w-4" />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground">{activity.name}</p>
+                {activity.description && (
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    {activity.description}
+                  </p>
+                )}
               </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
+
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                    isCompleted
+                      ? "rally-bg-accent-soft text-foreground"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                  )}
+                >
+                  {isCompleted ? "Avaliado" : "Pendente"}
+                </span>
+
+                <Button
+                  onClick={() => handleEvaluateClick(activity)}
+                  variant={isCompleted ? "outline" : "default"}
+                  size="sm"
+                  disabled={isEvaluating}
+                  className={cn(!isCompleted && "rally-bg-accent text-white hover:opacity-90")}
+                >
+                  {isCompleted ? (
+                    <>
+                      <Edit className="mr-1.5 h-3.5 w-3.5" />
+                      Atualizar
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                      Avaliar
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }

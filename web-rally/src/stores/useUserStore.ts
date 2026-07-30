@@ -1,145 +1,68 @@
 import { create } from "zustand";
 import { shallow } from "zustand/shallow";
-
-function parseJWT(token: string) {
-  const base64Url = token.split(".")[1];
-  const base64 = base64Url?.replace(/-/g, "+").replace(/_/g, "/");
-  const jsonPayload = decodeURIComponent(
-    window
-      .atob(base64 ?? "")
-      .split("")
-      .map((c) => {
-        const hex = c.charCodeAt(0).toString(16).padStart(2, '0');
-        return '%' + hex;
-      })
-      .join(""),
-  );
-  return JSON.parse(jsonPayload) as TokenPayload;
-}
+import { clearAllAuth } from "@/lib/auth/tokenStore";
 
 type TokenPayload = {
   image?: string;
   sub?: string;
   email?: string;
   name?: string;
-  surname?: string;
   scopes?: string[];
 };
 
 type UserState = TokenPayload & {
   sessionLoading: boolean;
   token?: string;
-  login: ({ token }: { token: string }) => void;
+  /** Populate the staff session from a validated authentik login. */
+  setSession: (args: { token: string; user: TokenPayload }) => void;
+  /** Mark the staff session resolved-but-absent (unauthenticated). */
+  clearSession: () => void;
+  /** Full logout: clears staff + team auth and resets identity. */
   logout: () => void;
-  setUser: (userData: Partial<TokenPayload>) => void;
-  clearUser: () => void;
   isAuthenticated: boolean;
 };
 
-// Initialize from localStorage on app startup
-const initializeFromStorage = (): Omit<UserState, 'login' | 'logout' | 'setUser' | 'clearUser'> => {
-  // Start with loading state - we're about to check localStorage
-  const baseState = {
-    sessionLoading: true as boolean,
-    isAuthenticated: false as boolean,
-    token: undefined as string | undefined,
-  };
-
-  try {
-    const storedToken = localStorage.getItem('rally_token');
-    if (storedToken) {
-      const payload: TokenPayload = parseJWT(storedToken);
-      // Token injection is now handled dynamically in main.tsx via OpenAPI.HEADERS resolver
-      return {
-        ...baseState,
-        token: storedToken,
-        sessionLoading: false,
-        isAuthenticated: !!payload.sub,
-        ...payload,
-      };
-    } else {
-      // No stored token found
-      return {
-        ...baseState,
-        sessionLoading: false,
-      };
-    }
-  } catch (error) {
-    console.error('Failed to initialize from localStorage:', error);
-    // Clear invalid token
-    localStorage.removeItem('rally_token');
-    return {
-      ...baseState,
-      sessionLoading: false,
-    };
-  }
-};
+const emptyIdentity = {
+  image: undefined,
+  sub: undefined,
+  name: undefined,
+  email: undefined,
+  scopes: undefined,
+  token: undefined,
+} as const;
 
 const useUserStore = create<UserState>((set) => ({
-  ...initializeFromStorage(),
+  // Identity is driven by react-oidc-context via useAuthSync; we start in a
+  // loading state until the OIDC layer reports whether a session exists.
+  sessionLoading: true,
+  isAuthenticated: false,
+  ...emptyIdentity,
 
-  login: ({ token }) => {
-    const payload: TokenPayload = token ? parseJWT(token) : {};
-
-    // Store token in localStorage
-    localStorage.setItem('rally_token', token);
-
-    // Note: team token is intentionally NOT cleared here.
-    // Staff/admin users may also have a team token (dual-role),
-    // and the nav toggle handles switching between views.
-
+  setSession: ({ token, user }) => {
     set((state) => ({
       ...state,
+      ...user,
       token,
       sessionLoading: false,
-      isAuthenticated: !!payload.sub,
-      ...payload,
+      isAuthenticated: !!user.sub,
+    }));
+  },
+
+  clearSession: () => {
+    set(() => ({
+      ...emptyIdentity,
+      sessionLoading: false,
+      isAuthenticated: false,
     }));
   },
 
   logout: () => {
-    // Clear both staff and team tokens
-    localStorage.removeItem('rally_token');
-    localStorage.removeItem('rally_team_token');
-    localStorage.removeItem('rally_team_data');
-
+    // Clear the team token too (a staff user may also hold a team session).
+    clearAllAuth();
     set(() => ({
+      ...emptyIdentity,
       sessionLoading: false,
       isAuthenticated: false,
-      image: undefined,
-      sub: undefined,
-      name: undefined,
-      surname: undefined,
-      email: undefined,
-      scopes: undefined,
-      token: undefined,
-    }));
-  },
-
-  setUser: (userData: Partial<TokenPayload>) => {
-    set((state) => ({
-      ...state,
-      ...userData,
-      isAuthenticated: !!userData.sub || !!state.sub,
-    }));
-  },
-
-  clearUser: () => {
-    // Clear both staff and team tokens
-    localStorage.removeItem('rally_token');
-    localStorage.removeItem('rally_team_token');
-    localStorage.removeItem('rally_team_data');
-
-    set(() => ({
-      sessionLoading: false,
-      isAuthenticated: false,
-      image: undefined,
-      sub: undefined,
-      name: undefined,
-      surname: undefined,
-      email: undefined,
-      scopes: undefined,
-      token: undefined,
     }));
   },
 }));

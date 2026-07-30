@@ -1,56 +1,49 @@
-import { useState, useEffect } from "react";
-import { BloodyButton } from "@/components/themes/bloody";
-import { getPenaltyValues, getExtraShotsConfig } from "@/config/rallyDefaults";
-import useRallySettings from "@/hooks/useRallySettings";
+import { useState, useEffect, type FormEvent } from "react";
+import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import { useAppToast } from "@/hooks/use-toast";
+import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
+import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import NotesField from "@/components/forms/shared/NotesField";
+import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { BaseActivityFormProps } from "@/types/forms";
-import { getTeamSize } from "@/types/forms";
 
-function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
-  if (isSubmitting) return "Saving...";
-  return hasExisting ? "Update Evaluation" : "Submit Evaluation";
-}
-
-export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmitting }: BaseActivityFormProps) {
+export default function ScoreBasedForm({
+  existingResult,
+  team,
+  onSubmit,
+  isSubmitting,
+}: Readonly<BaseActivityFormProps>) {
   const [achievedPoints, setAchievedPoints] = useState<number>(0);
-  const [extraShots, setExtraShots] = useState<number>(0);
-  const [penalties, setPenalties] = useState<{ [key: string]: number }>({});
   const [notes, setNotes] = useState<string>("");
   const toast = useAppToast();
 
-  // Get Rally settings for dynamic configuration
-  const { settings } = useRallySettings();
-
-  // Calculate max extra shots based on team size
-  const teamSize = getTeamSize(team);
-  const extraShotsConfig = getExtraShotsConfig(settings);
-  const maxExtraShotsPerMember = extraShotsConfig.perMember;
-  const maxExtraShots = teamSize * maxExtraShotsPerMember;
-
-  // Use penalty values from API settings or fallback to defaults
-  const penaltyValues = getPenaltyValues(settings);
+  const {
+    extraShots,
+    setExtraShots,
+    penalties,
+    setPenalties,
+    maxExtraShots,
+    maxExtraShotsPerMember,
+    showExtraShots,
+    penaltyValues,
+    showVomitPenalty,
+    showNotDrinkingPenalty,
+    showPenalties,
+    validateExtraShots,
+  } = useExtraShotsAndPenalties(team, existingResult);
 
   useEffect(() => {
     if (existingResult?.result_data) {
-      setAchievedPoints(existingResult.result_data.achieved_points || 0);
-      setNotes(existingResult.result_data.notes || "");
-    }
-    if (existingResult) {
-      setExtraShots(existingResult.extra_shots || 0);
-      setPenalties(existingResult.penalties || {});
+      setAchievedPoints((existingResult.result_data.achieved_points as number) || 0);
+      setNotes((existingResult.result_data.notes as string) || "");
     }
   }, [existingResult]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    // Validate extra shots limit
-    if (extraShots > maxExtraShots) {
-      toast.error(`Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`);
-      return;
-    }
+    if (!validateExtraShots()) return;
 
-    // Validate non-negative points
     if (achievedPoints < 0) {
       toast.error("Points must be positive.");
       return;
@@ -67,9 +60,9 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <label htmlFor="score-achieved" className="block text-sm font-medium mb-2 text-white">
+        <label htmlFor="score-achieved" className="mb-2 block text-sm font-medium text-foreground">
           Achieved Points
         </label>
         <input
@@ -78,102 +71,39 @@ export default function ScoreBasedForm({ existingResult, team, onSubmit, isSubmi
           min="0"
           value={achievedPoints}
           onChange={(e) => setAchievedPoints(Number(e.target.value))}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Enter achieved points"
           required
         />
       </div>
 
-      <div>
-        <label htmlFor="score-extra-shots" className="block text-sm font-medium mb-2 text-white">
-          Extra Shots
-        </label>
-        <input
-          id="score-extra-shots"
-          type="number"
-          min="0"
-          max={maxExtraShots}
-          value={extraShots}
-          onChange={(e) => setExtraShots(Number.parseInt(e.target.value, 10) || 0)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Extra shots taken"
+      {showExtraShots && (
+        <ExtraShotsField
+          idPrefix="score"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
         />
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots ({maxExtraShotsPerMember} per team member)
-        </p>
-        {extraShots > maxExtraShots && (
-          <p className="text-red-400 text-sm mt-1">
-            ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
-          </p>
-        )}
-      </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium mb-2 text-white">
-          Penalties
-        </label>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-3">
-            <input
-              id="score-vomit"
-              type="number"
-              min="0"
-              value={penalties.vomit || 0}
-              onChange={(e) => setPenalties({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Vomit penalty count"
-            />
-            <label htmlFor="score-vomit" className="text-[rgb(255,255,255,0.8)] text-sm">
-              Vomit penalty ({penaltyValues.vomit} pts each)
-            </label>
-          </div>
-          <div className="flex items-center space-x-3">
-            <input
-              id="score-not-drinking"
-              type="number"
-              min="0"
-              value={penalties.not_drinking || 0}
-              onChange={(e) => setPenalties({ ...penalties, not_drinking: Number.parseInt(e.target.value, 10) || 0 })}
-              className="w-20 p-2 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              placeholder="0"
-              aria-label="Not drinking penalty count"
-            />
-            <label htmlFor="score-not-drinking" className="text-[rgb(255,255,255,0.8)] text-sm">
-              Not drinking penalty ({penaltyValues.not_drinking} pts each)
-            </label>
-          </div>
-        </div>
-        <p className="text-[rgb(255,255,255,0.6)] text-sm mt-1">
-          Penalties reduce the final score. Total penalty: {((penalties.vomit || 0) * penaltyValues.vomit + (penalties.not_drinking || 0) * penaltyValues.not_drinking)} points
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor="score-notes" className="block text-sm font-medium mb-2 text-white">
-          Notes (Optional)
-        </label>
-        <textarea
-          id="score-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="w-full p-3 bg-[rgb(255,255,255,0.1)] border border-[rgb(255,255,255,0.2)] rounded text-white placeholder-[rgb(255,255,255,0.5)] focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Add any additional notes..."
-          rows={3}
+      {showPenalties && (
+        <PenaltiesFieldset
+          idPrefix="score"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
         />
-      </div>
+      )}
 
-      <div className="flex gap-3 mt-6">
-        <BloodyButton
-          type="submit"
-          disabled={isSubmitting}
-          variant="primary"
-          blood={true}
-          className="flex-1 px-6 py-3"
-        >
-          {getSubmitLabel(isSubmitting, !!existingResult)}
-        </BloodyButton>
-      </div>
+      <NotesField idPrefix="score" notes={notes} onChange={setNotes} />
+
+      <FormSubmitButton
+        isSubmitting={isSubmitting}
+        label={getSubmitLabel(isSubmitting, !!existingResult)}
+      />
     </form>
   );
 }

@@ -1,0 +1,8 @@
+# Generated OpenAPI client — regenerated from openapi.json, never hand-formatted
+src/client/
+openapi.json
+
+# Build + tooling output
+dist/
+coverage/
+node_modules/

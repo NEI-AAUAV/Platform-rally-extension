@@ -6,53 +6,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useThemedComponents } from "@/components/themes/ThemeContext";
+import { cn } from "@/lib/utils";
 import type { ListingTeam } from "@/client";
 
 type TeamSelectorProps = Readonly<{
-
   teams: ListingTeam[] | undefined;
   selectedTeam: string;
   onTeamChange: (value: string) => void;
   className?: string;
-}>
+}>;
 
 export default function TeamSelector({
   teams,
   selectedTeam,
   onTeamChange,
-  className = "",
+  className,
 }: TeamSelectorProps) {
-  const components = useThemedComponents();
-  const { Card, config } = components;
-
   return (
-    <Card className={`p-6 border-opacity-50 shadow-lg backdrop-blur-md ${className}`}>
+    <div className={cn("rally-surface rounded-2xl p-6", className)}>
       <div className="mb-4">
-        <h2
-          className="text-xl font-bold mb-1"
-          style={{ color: config?.colors?.text }}
-        >
-          Selecionar Equipa
-        </h2>
-        <p className="text-sm opacity-70" style={{ color: config?.colors?.text }}>
+        <h2 className="mb-1 text-xl font-bold text-foreground">Selecionar Equipa</h2>
+        <p className="text-sm text-muted-foreground">
           Escolha uma equipa para gerir os seus membros
         </p>
       </div>
-
       <div className="space-y-3">
-        <Label
-          htmlFor="team-select"
-          style={{ color: config?.colors?.text }}
-        >
-          Equipa
-        </Label>
+        <Label htmlFor="team-select">Equipa</Label>
         <Select value={selectedTeam} onValueChange={onTeamChange}>
-          <SelectTrigger
-            id="team-select"
-            className="bg-black/10 border-white/10"
-            style={{ color: config?.colors?.text }}
-          >
+          <SelectTrigger id="team-select" className="border-border bg-muted">
             <SelectValue placeholder="Selecionar equipa" />
           </SelectTrigger>
           <SelectContent>
@@ -64,6 +45,6 @@ export default function TeamSelector({
           </SelectContent>
         </Select>
       </div>
-    </Card>
+    </div>
   );
 }

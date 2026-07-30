@@ -7,36 +7,126 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-SQLAlchemy = "^2.0.47"
-pydantic = "^2.12.5"
-loguru = "^0.7.2"
-python-multipart = ">=0.0.20,<0.0.32"
-fastapi = "0.121.3"
+SQLAlchemy = {version = "^2.0.51", extras = ["asyncio"]}
+pydantic = "^2.13.4"
+loguru = "^0.7.3"
+python-multipart = "^0.0.32"
+fastapi = "==0.140.7"
 python-jose = "^3.5.0"
-psycopg2-binary = "^2.9.11"
-pydantic-settings = "^2.2.1"
-orjson = "^3.11.4"
+psycopg2-binary = "^2.9.12"
+asyncpg = "^0.31.0"
+pydantic-settings = "^2.14.2"
+orjson = "^3.11.9"
 aiocache = "^0.12.3"
-alembic = "^1.18.4"
+alembic = "^1.18.5"
 h11 = ">=0.16.0"
+boto3 = "==1.43.57"
+authlib = "^1.3.0"
+httpx = "0.28.1"
+redis = "^8.0.1"
+greenlet = "^3.5.4"
+sentry-sdk = {version = "^2.66.1", extras = ["fastapi"]}
+openpyxl = "^3.1.5"
+boto3-stubs = "==1.43.57"
+botocore = "==1.43.57"
+prometheus-client = "^0.21"
 
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^6.1.0"
-mypy = "1.6.0"
-uvicorn = "^0.38.0"
-types-python-jose = "^3.3.4.8"
+ruff = "^0.16.0.0"
+import-linter = "^2.5"
+mypy = "^2.3.0"
+uvicorn = "^0.51.0"
+types-python-jose = "^3.5.0.20260408"
 types-passlib = "^1.7.7.20260211"
-black = "^26.1.0"
+safety = "^3.2.0"
 
 
 [tool.poetry.group.test.dependencies]
-pytest = "^9.0.0"
-pytest-cov = "^7.0.0"
-pytest-asyncio = "^1.0.0"
-httpx = "0.28.1"
-requests = "^2.31.0"
-psycopg2-binary = "^2.9.11"
+pytest = "^9.1.1"
+pytest-cov = "^7.1.0"
+pytest-asyncio = "^1.4.0"
+requests = "^2.34.2"
+psycopg2-binary = "^2.9.12"
+aiosqlite = "^0.22.1"
+fakeredis = "^2.26.0"
+hypothesis = "^6.161.8"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+concurrency = ["greenlet", "thread"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "N", "UP", "B", "SIM", "RET", "ARG",
+    "TID252",   # ban relative imports
+    "PLC0415",  # ban imports inside functions (circular-import workarounds)
+    "PLR0913",  # too many constructor/function arguments
+    "C90",      # mccabe complexity
+]
+ignore = [
+    "PLR0913",  # many-argument constructors are expected with constructor injection
+    # FastAPI's dependency system *requires* Depends()/Security()/Query() calls
+    # in parameter defaults; B008 flags the framework's own idiom.
+    "B008",
+    # `class X(str, Enum)` is deliberate: the string mixin is what lets these
+    # values serialize to plain JSON strings and compare against raw DB/JSON
+    # values throughout the app.
+    "UP042",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Domain repackaging (Part B) removed the circular-import pressure that used
+# to require function-local imports across api/, crud/, services/ and db/.
+# app/crud/** keeps a small, deliberate PLC0415 exemption: a couple of
+# genuine circular-import survivors (app.crud.crud_team <-> app.services
+# .team_service, app.crud._event_scope <-> app.crud.crud_activity) are
+# commented in place rather than hoisted.
+"app/crud/**" = ["PLC0415"]
+"app/tests/**" = ["PLC0415", "ARG001", "ARG002"]  # tests use scoped local imports and fixture args freely
+# Signatures fixed by a contract rather than by their body: the activity
+# scoring strategies share one calculate/validate signature (not every kind
+# needs team_size/db_session), the workers share one handle_event(channel,
+# data), and route handlers declare auth dependencies whose only job is to
+# raise before the body runs.
+"app/models/activities/**" = ["ARG002"]
+"app/workers/**" = ["ARG002"]
+"app/api/api_v1/staff_evaluation.py" = ["ARG002"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.importlinter]
+root_package = "app"
+
+# Phase 0: permissive baseline. app.db legitimately reaches into crud/models/
+# schemas to bootstrap and seed the schema (entity registration, demo data) —
+# it is excluded from this contract rather than exempted import-by-import.
+# app.core and app.utils are meant to be dependency-free of every domain
+# package; two pre-existing violations are allowlisted below and should be
+# fixed (not widened) as each domain is repackaged in later phases.
+[[tool.importlinter.contracts]]
+name = "core/utils are dependency-free of domain packages"
+type = "forbidden"
+source_modules = ["app.core", "app.utils"]
+forbidden_modules = [
+    "app.api", "app.crud", "app.models", "app.schemas", "app.services",
+]
+ignore_imports = [
+    "app.core.abac -> app.api.auth",
+    "app.core.abac -> app.schemas.user",
+    "app.utils.rally_duration -> app.crud.crud_rally_settings",
+    "app.utils.rally_duration -> app.models.rally_settings",
+]
 
 [tool.mypy]
 exclude = ["app/tests"]
@@ -50,6 +140,10 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "sqlalchemy.schema"
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*", "authlib.*", "openpyxl.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "app.main"

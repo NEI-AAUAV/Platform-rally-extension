@@ -1,99 +1,86 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   RALLY DESIGN TOKENS — dual light/dark, shadcn-compatible.
+   :root = light (Tailwind default), .dark = dark. The app defaults
+   to dark (evening event) via the color-mode provider, but both are
+   first-class. Brand accent is layered on top at runtime
+   (--rally-accent from settings.accent_color).
+   ============================================================ */
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-
-    --radius: 0.5rem;
-  }
-
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 40 30% 98%;
+    --foreground: 220 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 220 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 220 20% 12%;
 
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 220 20% 12%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
 
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 42%;
 
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 220 20% 18%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 220 20% 12%;
+
+    --radius: 0.75rem;
+
+    /* Soft-depth elevation (light). */
+    --rally-shadow-sm: 0 1px 2px rgba(16, 18, 27, 0.06), 0 2px 8px rgba(16, 18, 27, 0.05);
+    --rally-shadow-md: 0 4px 12px rgba(16, 18, 27, 0.08), 0 10px 30px rgba(16, 18, 27, 0.07);
+    --rally-shadow-lg: 0 12px 28px rgba(16, 18, 27, 0.12), 0 28px 64px rgba(16, 18, 27, 0.1);
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 224 30% 6%;
+    --foreground: 210 20% 96%;
 
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 224 26% 9%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 224 28% 8%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 210 20% 96%;
+    --primary-foreground: 224 30% 8%;
 
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 222 18% 16%;
+    --secondary-foreground: 210 20% 92%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 222 16% 16%;
+    --muted-foreground: 215 16% 62%;
 
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 222 18% 18%;
+    --accent-foreground: 210 20% 92%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 222 16% 18%;
+    --input: 222 16% 18%;
+    --ring: 210 20% 70%;
+
+    /* Soft-depth elevation (dark) — deeper, accent-neutral. */
+    --rally-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --rally-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), 0 14px 40px rgba(0, 0, 0, 0.4);
+    --rally-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5), 0 32px 80px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -102,6 +89,469 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-inter text-foreground antialiased;
+    transition:
+      background-color 0.35s ease,
+      color 0.2s ease;
+  }
+}
+
+/* ============================================================
+   RALLY BRAND ACCENT — set at runtime by useDocumentBranding from
+   settings.accent_color. When unset, falls back per active skin.
+   ============================================================ */
+@layer base {
+  :root {
+    --rally-accent-fallback: #dc2625;
+    --rally-accent-soft-fallback: rgba(220, 38, 37, 0.15);
+    --rally-glow-fallback: rgba(255, 0, 0, 0.12);
+    /* Lightened variant of the fallback, pre-verified >= 4.5:1 against the
+       dark card background — see ensureContrastByLightening in branding.ts
+       for the runtime equivalent used with custom accent_color values. */
+    --rally-accent-contrast-dark-fallback: #e45554;
+  }
+  [data-rally-theme="nei"],
+  [data-rally-theme="default"] {
+    --rally-accent-fallback: #008542;
+    --rally-accent-soft-fallback: rgba(0, 133, 66, 0.16);
+    --rally-glow-fallback: rgba(0, 133, 66, 0.14);
+    --rally-accent-contrast-dark-fallback: #009a4c;
+  }
+}
+
+@layer utilities {
+  /* --- Brand accent helpers --- */
+  .rally-accent {
+    color: var(--rally-accent, var(--rally-accent-fallback));
+  }
+  /* Dark theme: raw accent text can fail WCAG AA against the dark card
+     background (e.g. default NEI green is ~3.9:1). Use the lightened,
+     contrast-verified variant instead — computed at runtime for custom
+     accent colors by useDocumentBranding, with a pre-verified fallback. */
+  .dark .rally-accent {
+    color: var(--rally-accent-contrast, var(--rally-accent-contrast-dark-fallback));
+  }
+  .rally-bg-accent {
+    background-color: var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-bg-accent-soft {
+    background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+  }
+  .rally-border-accent {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-ring-accent {
+    box-shadow: 0 0 0 3px var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+  }
+  .rally-shadow-accent {
+    box-shadow: 0 18px 48px -18px var(--rally-accent, var(--rally-accent-fallback));
+  }
+
+  /* === Button-style axis ==================================================
+     Every RallyButton carries `.rally-btn`; the filled action variants also
+     carry `.rally-blood-button` (the "primary" hook). The axis is applied via
+     [data-rally-buttons] on the shell — and, for the unsaved draft, on the
+     identity preview.
+
+     Hierarchy is deliberate: STRUCTURAL styles (sharp) reshape ALL buttons,
+     while DECORATIVE styles (blood/glow/shine/halloween) are loud on primary
+     and only a restrained echo on secondary/outline — two buttons never carry
+     the same emphasis weight. */
+
+  /* Drip flag lives on the *scope* so the nearest [data-rally-buttons] (shell
+     or preview) wins by inheritance; the preview isolates itself for free.
+     (`.rally-blood-button` is just the historical name of the primary hook —
+     the drip now belongs to the halloween style.) */
+  [data-rally-buttons] {
+    --rally-btn-drip: 0;
+  }
+  [data-rally-buttons="halloween"] {
+    --rally-btn-drip: 1;
+  }
+
+  /* The drip (primary only): a connecting bar + three elongated blobs melted by
+     #rally-goo into liquid drops that hang off the bottom edge, tinted by the
+     per-event accent. scaleY(var(--rally-btn-drip)) collapses it to nothing when
+     the active style has no drip, so a primary under glow/sharp/shine stays
+     clean without any per-style reset. */
+  .rally-blood-button {
+    position: relative;
+  }
+  .rally-blood-button::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    bottom: -22px;
+    width: 52px;
+    height: 34px;
+    pointer-events: none;
+    color: var(--rally-accent, var(--rally-accent-fallback));
+    filter: url(#rally-goo);
+    background:
+      linear-gradient(currentColor, currentColor) top center / 100% 12px no-repeat,
+      radial-gradient(6px 13px at 18% 42%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(7px 19px at 50% 55%, currentColor 62%, transparent 63%) no-repeat,
+      radial-gradient(5px 11px at 82% 38%, currentColor 62%, transparent 63%) no-repeat;
+    transform-origin: top center;
+    transform: scaleY(var(--rally-btn-drip, 0));
+    opacity: var(--rally-btn-drip, 0);
+    transition:
+      transform 0.18s ease,
+      opacity 0.18s ease;
+  }
+
+  /* --- Glow: neon accent halo on primary; a quiet accent ring on secondary --- */
+  [data-rally-buttons="glow"] .rally-blood-button {
+    box-shadow:
+      0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+      0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  [data-rally-buttons="glow"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 0 0 0 1px var(--rally-accent, var(--rally-accent-fallback));
+  }
+
+  /* --- Sharp: brutalist squared corners on ALL buttons (structural) + a hard
+         offset shadow, accent-coloured on primary, muted on secondary. --- */
+  [data-rally-buttons="sharp"] .rally-btn {
+    border-radius: 2px;
+  }
+  [data-rally-buttons="sharp"] .rally-blood-button {
+    box-shadow: 3px 3px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  [data-rally-buttons="sharp"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground) / 0.35);
+  }
+
+  /* --- Shine: glossy sheen over the fill; a fainter sheen on secondary --- */
+  [data-rally-buttons="shine"] .rally-blood-button {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0) 46%
+    );
+  }
+  [data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
+  }
+
+  /* --- Halloween: oozing drip + a flickering candle-lit glow that follows the
+         accent (pumpkin-orange or witch-purple depending on the chosen colour);
+         secondary gets a steady accent ring + soft glow, no drip. --- */
+  [data-rally-buttons="halloween"] .rally-blood-button {
+    box-shadow: 0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker 2.6s ease-in-out infinite;
+  }
+  [data-rally-buttons="halloween"] .rally-btn:not(.rally-blood-button) {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker-soft 3.4s ease-in-out infinite;
+  }
+
+  /* --- Identity preview isolation ---
+     The shell's [data-rally-buttons] also matches the preview's sample buttons
+     (they are descendants), so reset the box-shadow / sheen / radius / animation
+     the shell applied, then re-apply only the *draft* style. The drip needs no
+     reset: it is driven by --rally-btn-drip, which the preview's own scope sets. */
+  .rally-identity-preview[data-rally-buttons] .rally-btn {
+    box-shadow: none;
+    background-image: none;
+    border-radius: 0.75rem;
+    animation: none;
+  }
+  .rally-identity-preview[data-rally-buttons="glow"] .rally-blood-button {
+    box-shadow:
+      0 0 0 1px var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+      0 6px 22px -6px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="glow"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 0 0 0 1px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-btn {
+    border-radius: 2px;
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-blood-button {
+    box-shadow: 3px 3px 0 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  .rally-identity-preview[data-rally-buttons="sharp"] .rally-btn:not(.rally-blood-button) {
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground) / 0.35);
+  }
+  .rally-identity-preview[data-rally-buttons="shine"] .rally-blood-button {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0) 46%
+    );
+  }
+  .rally-identity-preview[data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
+  }
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-blood-button {
+    box-shadow: 0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker 2.6s ease-in-out infinite;
+  }
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-btn:not(.rally-blood-button) {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+    animation: rally-flicker-soft 3.4s ease-in-out infinite;
+  }
+
+  /* --- Soft-depth surfaces (the rally design language) --- */
+  .rally-surface {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--rally-shadow-sm);
+  }
+  .rally-elevate {
+    box-shadow: var(--rally-shadow-md);
+  }
+  .rally-elevate-lg {
+    box-shadow: var(--rally-shadow-lg);
+  }
+  .rally-hairline {
+    border-color: hsl(var(--border));
+  }
+  /* Interaction: lift on hover, settle on press — compositor-friendly. */
+  .rally-press {
+    transition:
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .rally-press:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--rally-shadow-md);
+  }
+  .rally-press:active {
+    transform: translateY(0);
+    box-shadow: var(--rally-shadow-sm);
+  }
+
+  /* --- Back-compat aliases (softened): keep B3 shell coherent until
+     those components are rebuilt in the page pass; then remove. --- */
+  .rally-brutal,
+  .rally-brutal-sm,
+  .rally-brutal-soft {
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--rally-shadow-sm);
+  }
+  .brutal-shadow {
+    box-shadow: var(--rally-shadow-md);
+  }
+  .brutal-shadow-sm {
+    box-shadow: var(--rally-shadow-sm);
+  }
+  .brutal-shadow-primary {
+    box-shadow: var(--rally-shadow-md);
+  }
+  .brutal-press {
+    transition:
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .brutal-press:hover {
+    transform: translateY(-2px);
+  }
+  .brutal-press:active {
+    transform: translateY(0);
+  }
+
+  /* --- Typography + atmosphere --- */
+  .rally-display {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    letter-spacing: -0.03em;
+    line-height: 0.92;
+  }
+  .rally-serif {
+    font-family: "Playfair Display", serif;
+  }
+  .rally-grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* --- Background pattern axis (data-rally-bg) ---
+     Each value sets --rally-bg-image (+ size). Custom props inherit, so the
+     nearest data-rally-bg wins: the app shell paints it as a fixed full-screen
+     layer (.rally-grain::after) and the identity preview paints it contained —
+     no duplication, no bleed between the two. */
+  [data-rally-bg="dots"] {
+    --rally-bg-image: radial-gradient(
+      var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1.6px,
+      transparent 1.7px
+    );
+    --rally-bg-size: 22px 22px;
+  }
+  [data-rally-bg="grid"] {
+    --rally-bg-image:
+      linear-gradient(
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1px,
+        transparent 1px
+      );
+    --rally-bg-size: 34px 34px;
+  }
+  [data-rally-bg="glow"] {
+    --rally-bg-image:
+      radial-gradient(
+        42% 42% at 12% 12%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      ),
+      radial-gradient(
+        46% 46% at 88% 64%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      );
+    --rally-bg-size: cover;
+  }
+  [data-rally-bg="stripes"] {
+    --rally-bg-image: repeating-linear-gradient(
+      45deg,
+      var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 0 10px,
+      transparent 10px 28px
+    );
+    --rally-bg-size: auto;
+  }
+  [data-rally-bg="confetti"] {
+    --rally-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect x='16' y='20' width='9' height='9' rx='2' fill='%23ff5a5f' transform='rotate(20 20 24)'/%3E%3Ccircle cx='62' cy='30' r='5' fill='%23ffd23f'/%3E%3Crect x='104' y='16' width='8' height='8' rx='2' fill='%234ea8de' transform='rotate(-22 108 20)'/%3E%3Crect x='128' y='64' width='9' height='9' rx='2' fill='%2306d6a0' transform='rotate(35 132 68)'/%3E%3Ccircle cx='32' cy='78' r='4.5' fill='%23ef476f'/%3E%3Crect x='70' y='90' width='8' height='8' rx='2' fill='%23c77dff' transform='rotate(-14 74 94)'/%3E%3Ccircle cx='112' cy='112' r='5' fill='%23ffd23f'/%3E%3Crect x='18' y='120' width='9' height='9' rx='2' fill='%234ea8de' transform='rotate(28 22 124)'/%3E%3Ccircle cx='138' cy='34' r='4' fill='%2306d6a0'/%3E%3Crect x='86' y='54' width='7' height='7' rx='2' fill='%23ff5a5f' transform='rotate(40 89 57)'/%3E%3C/svg%3E");
+    --rally-bg-size: 150px 150px;
+  }
+  [data-rally-bg="halloween"] {
+    --rally-bg-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='%238b5cf6' opacity='0.16'%3E%3Cpath d='M14 12 C12 10 9 10 8 12 C7 10 4 11 4 13 C6 13 8 14 9 16 C11 14 13 13 14 15 C15 13 17 14 19 16 C20 14 22 13 24 13 C24 11 21 10 20 12 C19 10 16 10 14 12 Z'/%3E%3Cpath d='M58 50 C56 48 53 48 52 50 C51 48 48 49 48 51 C50 51 52 52 53 54 C55 52 57 51 58 53 C59 51 61 52 63 54 C64 52 66 51 68 51 C68 49 65 48 64 50 C63 48 60 48 58 50 Z'/%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(
+        55% 45% at 12% 8%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 70%
+      ),
+      radial-gradient(
+        50% 45% at 88% 26%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      );
+    --rally-bg-size: 90px 90px, cover, cover;
+  }
+
+  /* Shell: fixed full-screen pattern layer (skips 'plain'). */
+  .rally-grain[data-rally-bg]:not([data-rally-bg="plain"])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--rally-bg-image);
+    background-size: var(--rally-bg-size, auto);
+    background-position: center;
+  }
+
+  /* Identity preview: the same pattern, contained to the panel. */
+  .rally-identity-preview[data-rally-bg]:not([data-rally-bg="plain"]) {
+    background-image: var(--rally-bg-image);
+    background-size: var(--rally-bg-size, auto);
+    background-position: center;
+  }
+
+  .rally-marquee {
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .rally-marquee-track {
+    width: max-content;
+    animation: rally-scroll 26s linear infinite;
+  }
+}
+
+@keyframes rally-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Halloween button glow: an irregular candle-lit flicker of the accent halo. */
+@keyframes rally-flicker {
+  0%,
+  100% {
+    box-shadow: 0 0 16px -3px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  20% {
+    box-shadow: 0 0 26px 0 var(--rally-accent, var(--rally-accent-fallback));
+  }
+  35% {
+    box-shadow: 0 0 12px -5px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  55% {
+    box-shadow: 0 0 24px -1px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  75% {
+    box-shadow: 0 0 14px -4px var(--rally-accent, var(--rally-accent-fallback));
+  }
+}
+
+/* Halloween secondary: a calmer breathing glow around a steady accent ring. */
+@keyframes rally-flicker-soft {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 12px -5px var(--rally-accent, var(--rally-accent-fallback));
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
+      0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+  }
+}
+
+/* View Transition: circular reveal for light/dark toggle */
+::view-transition-new(root) {
+  animation: rally-reveal-in 0.6s ease-in-out forwards;
+  z-index: 2;
+}
+
+::view-transition-old(root) {
+  animation: none;
+  z-index: 1;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
+@keyframes rally-reveal-in {
+  from {
+    clip-path: circle(0% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rally-marquee-track {
+    animation: none;
+  }
+  [data-rally-buttons="halloween"] .rally-btn,
+  .rally-identity-preview[data-rally-buttons="halloween"] .rally-btn {
+    animation: none;
+  }
+  .rally-press,
+  .brutal-press {
+    transition: none;
+  }
+  ::view-transition-new(root),
+  ::view-transition-old(root) {
+    animation: none;
   }
 }

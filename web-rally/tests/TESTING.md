@@ -67,7 +67,8 @@ We use Playwright's native `page.route()` to intercept browser API calls and pro
 
 ### Adding a New Unit Test
 
-1.  Create a `*.test.ts` file alongside the source file you are testing.
+1.  Create a `*.test.ts` file under `tests/unit/`, mirroring the source file's path under `src/`
+    (e.g. `src/hooks/useFoo.ts` → `tests/unit/hooks/useFoo.test.ts`).
 2.  Import `describe`, `it`, and `expect` from `vitest`.
 3.  Write tests that cover the core logic and edge cases of your function or hook.
 

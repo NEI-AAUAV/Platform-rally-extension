@@ -1,10 +1,18 @@
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { LoadingState } from "@/components/shared";
+import { LoadingState, PageHeader } from "@/components/shared";
+import { ClipboardList } from "lucide-react";
 import { StaffAssignmentList, AssignmentForm } from "./components";
-import { CheckPointService, UserService, type CheckpointAssignmentUpdate, type DetailedCheckPoint, type RallyStaffAssignmentWithCheckpoint } from "@/client";
+import {
+  getCheckpoints,
+  getStaffAssignments,
+  updateCheckpointAssignment,
+  type CheckpointAssignmentUpdate,
+  type DetailedCheckPoint,
+  type RallyStaffAssignmentWithCheckpoint,
+} from "@/client";
 
 interface StaffAssignment {
   id: number;
@@ -15,22 +23,31 @@ interface StaffAssignment {
   checkpoint_name?: string;
 }
 
-export default function Assignment() {
+interface AssignmentProps {
+  readonly embedded?: boolean;
+}
+
+export default function Assignment({ embedded = false }: AssignmentProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
 
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
     queryFn: async (): Promise<DetailedCheckPoint[]> => {
-      const data = await CheckPointService.getCheckpointsApiRallyV1CheckpointGet();
-      return Array.isArray(data) ? data : [];
+      const { data: checkpoints } = await getCheckpoints();
+      return Array.isArray(checkpoints) ? checkpoints : [];
     },
   });
 
-  const { data: staffAssignments, error: assignmentsError, refetch: refetchAssignments } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
+  const {
+    data: staffAssignments,
+    error: assignmentsError,
+    refetch: refetchAssignments,
+  } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
     queryKey: ["staffAssignments"],
     queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
-      return UserService.getStaffAssignmentsApiRallyV1UserStaffAssignmentsGet();
+      const { data } = await getStaffAssignments();
+      return data ?? [];
     },
     enabled: isRallyAdmin,
   });
@@ -46,11 +63,15 @@ export default function Assignment() {
       const requestBody: CheckpointAssignmentUpdate = {
         checkpoint_id: checkpointId === 0 ? null : checkpointId,
       };
-      return UserService.updateCheckpointAssignmentApiRallyV1UserUserIdCheckpointAssignmentPut(userId, requestBody);
+      const { data } = await updateCheckpointAssignment({
+        path: { user_id: userId },
+        body: requestBody,
+      });
+      return data;
     },
     onSuccess: () => {
-      refetchAssignments(); // Refetch assignments to update UI
-    }
+      void refetchAssignments(); // Refetch assignments to update UI
+    },
   });
 
   const handleUpdateAssignment = (userId: number, checkpointId: number) => {
@@ -61,7 +82,7 @@ export default function Assignment() {
     return <LoadingState message="Carregando..." />;
   }
 
-  if (!isRallyAdmin) {
+  if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
   }
 
@@ -76,13 +97,15 @@ export default function Assignment() {
   }));
 
   return (
-    <div className="mt-16 space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Atribuição de Checkpoints</h2>
-        <p className="text-[rgb(255,255,255,0.7)]">
-          Atribuir utilizadores com role rally-staff aos checkpoints do Rally
-        </p>
-      </div>
+    <div className="space-y-8">
+      {!embedded && (
+        <PageHeader
+          eyebrow="Staff"
+          icon={ClipboardList}
+          title="Atribuição de postos"
+          description="Atribuir utilizadores com o papel rally-staff aos postos do rally."
+        />
+      )}
 
       <AssignmentForm
         assignmentsError={assignmentsError}

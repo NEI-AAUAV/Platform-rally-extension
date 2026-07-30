@@ -4,3 +4,20 @@ Dockerfile*
 # static files
 static/*
 !static/**/.gitkeep
+
+# secrets / env
+.env
+.env.*
+*.pem
+*.key
+
+# vcs / tooling
+.git
+.gitignore
+.vscode
+.idea
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache

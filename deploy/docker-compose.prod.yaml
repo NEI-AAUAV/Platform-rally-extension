@@ -1,0 +1,120 @@
+# Production Rally Tascas stack — runs on the NEI VM, fully independent.
+#
+# Images are pulled from GHCR (published by .github/workflows/publish.yml on a
+# v*.*.* tag). A VM-level nginx on the shared `rally_network` routes /rally and
+# /api/rally to the service aliases below (see deploy/nginx/rally.conf).
+#
+# Driven by .github/workflows/deploy.yml (self-hosted runner). All values come
+# from repository Variables/Secrets — never commit real credentials.
+
+# Cap container log growth on the VM: without this the json-file driver grows
+# unbounded and can fill the disk. 3×10MB per service is plenty for `logs.yml`.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  web_rally:
+    image: ghcr.io/nei-aauav/rally/web:${IMAGE_TAG:-latest}
+    restart: always
+    logging: *default-logging
+    depends_on:
+      api_rally:
+        condition: service_healthy
+    networks:
+      default: {}
+      rally_network:
+        aliases:
+          - rally-web
+
+  api_rally:
+    image: ghcr.io/nei-aauav/rally/api:${IMAGE_TAG:-latest}
+    restart: always
+    logging: *default-logging
+    networks:
+      default: {}
+      rally_network:
+        aliases:
+          - rally-api
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - ENV=production
+      # Redis (realtime subsystem). On by default; set EVENTS_ENABLED=false
+      # to opt out. Redis failures degrade silently (EVENTS_FAIL_SILENTLY).
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - EVENTS_ENABLED=${EVENTS_ENABLED:-true}
+      - EVENTS_FAIL_SILENTLY=${EVENTS_FAIL_SILENTLY:-true}
+      # Error tracking (Sentry / GlitchTip). Unset = disabled (no-op).
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      # OIDC resource-server validation (authentik)
+      - OIDC_PROVIDER_URL=${OIDC_PROVIDER_URL}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_APPLICATION_SLUG=${OIDC_APPLICATION_SLUG}
+      - OIDC_ADMIN_GROUP=${OIDC_ADMIN_GROUP}
+      - OIDC_MANAGER_GROUP=${OIDC_MANAGER_GROUP}
+      - OIDC_STAFF_GROUP=${OIDC_STAFF_GROUP}
+      - OIDC_GUIDE_GROUP=${OIDC_GUIDE_GROUP}
+      # Team auth (rally-minted HS256 tokens)
+      - TEAM_JWT_SECRET_KEY=${TEAM_JWT_SECRET_KEY}
+      # CORS
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      # Cloudflare R2 (branding uploads)
+      - R2_ENDPOINT_URL=${R2_ENDPOINT_URL}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET=${R2_BUCKET}
+      - R2_PUBLIC_BASE_URL=${R2_PUBLIC_BASE_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    logging: *default-logging
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:18-alpine
+    restart: always
+    logging: *default-logging
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - rally_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  rally_db_data:
+    driver: local
+
+networks:
+  rally_network:
+    external: true

@@ -1,0 +1,165 @@
+.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps demo web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down lock
+
+DEV_COMPOSE     := docker compose --project-name nei-rally-dev -f compose.yml --env-file .env
+PROD_COMPOSE    := docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml --env-file .env.prod
+STAGING_COMPOSE := docker compose --project-name nei-rally-staging -f deploy/docker-compose.staging.yaml --env-file .env.staging
+SMOKE_COMPOSE   := docker compose --project-name nei-rally-smoke -f api-rally/docker-compose.smoke.yml
+
+help:
+	@echo "Available commands:"
+	@echo ""
+	@echo "Development Environment:"
+	@echo "  make dev          - Start all services (DB, API, WebApp, proxy)"
+	@echo "  make dev-backend  - Start backend services (DB, API)"
+	@echo "  make dev-db       - Start only the database"
+	@echo "  make dev-down     - Stop all services"
+	@echo "  make dev-build    - Build all services"
+	@echo "  make dev-logs     - Follow logs from all services"
+	@echo "  make dev-restart  - Restart services"
+	@echo "  make dev-clean    - Stop services and remove volumes"
+	@echo "  make dev-ps       - List running services"
+	@echo "  make demo         - Seed fake teams/results/badges into the dev DB"
+	@echo ""
+	@echo "Web:"
+	@echo "  make web-dev      - Start web dev server (HMR)"
+	@echo "  make web-build    - Build web for production"
+	@echo ""
+	@echo "Production:"
+	@echo "  make prod         - Start all services with .env.prod"
+	@echo "  make prod-pull    - Pull latest production images"
+	@echo "  make prod-build   - Build latest production images"
+	@echo "  make prod-down    - Stop production services"
+	@echo "  make prod-logs    - Follow production logs"
+	@echo ""
+	@echo "Staging (self-contained, bundled nginx, .env.staging):"
+	@echo "  make staging      - Start staging stack"
+	@echo "  make staging-pull - Pull latest images"
+	@echo "  make staging-down - Stop staging services"
+	@echo "  make staging-logs - Follow staging logs"
+	@echo ""
+	@echo "Tests:"
+	@echo "  make test         - Run backend + web tests"
+	@echo "  make test-backend - Run api-rally pytest suite"
+	@echo "  make test-web     - Run web-rally vitest suite"
+	@echo "  make test-smoke   - Run e2e smoke suite against a real api-rally+Postgres stack"
+	@echo ""
+	@echo "Misc:"
+	@echo "  make lock         - Regenerate api-rally poetry.lock"
+
+## --- Development Environment
+
+dev:
+	$(DEV_COMPOSE) up -d --remove-orphans
+
+dev-backend:
+	$(DEV_COMPOSE) up -d --remove-orphans db_pg api_rally
+
+dev-db:
+	$(DEV_COMPOSE) up -d --remove-orphans db_pg
+
+dev-down:
+	$(DEV_COMPOSE) down --remove-orphans
+
+dev-build:
+	$(DEV_COMPOSE) build
+
+dev-logs:
+	$(DEV_COMPOSE) logs -f
+
+dev-restart:
+	$(DEV_COMPOSE) restart
+
+dev-clean:
+	$(DEV_COMPOSE) down -v --remove-orphans
+
+dev-ps:
+	$(DEV_COMPOSE) ps
+
+demo:
+	@echo "Seeding demo data (fake teams, results, badges) into the dev database..."
+	$(DEV_COMPOSE) up -d --remove-orphans db_pg api_rally
+	$(DEV_COMPOSE) exec -e DEMO_SEED_ALLOW=1 api_rally python -m app.db.demo_seed
+	@echo "Done. Log in as staff/admin to see the seeded evaluations and audit trail."
+
+## --- Web
+
+web-dev:
+	cd web-rally && pnpm dev
+
+web-build:
+	cd web-rally && pnpm build
+
+## --- Production
+
+prod:
+	@if [ ! -f .env.prod ]; then \
+		echo "Error: .env.prod file not found. Create it from .env.example"; \
+		exit 1; \
+	fi
+	$(PROD_COMPOSE) up -d --remove-orphans
+
+prod-pull:
+	@if [ ! -f .env.prod ]; then \
+		echo "Error: .env.prod file not found. Create it from .env.example"; \
+		exit 1; \
+	fi
+	$(PROD_COMPOSE) pull
+
+prod-build:
+	@if [ ! -f .env.prod ]; then \
+		echo "Error: .env.prod file not found. Create it from .env.example"; \
+		exit 1; \
+	fi
+	$(PROD_COMPOSE) build
+
+prod-down:
+	$(PROD_COMPOSE) down --remove-orphans
+
+prod-logs:
+	$(PROD_COMPOSE) logs -f
+
+## --- Staging Environment
+
+staging:
+	@if [ ! -f .env.staging ]; then \
+		echo "Error: .env.staging file not found. Create it from .env.example"; \
+		exit 1; \
+	fi
+	$(STAGING_COMPOSE) up -d --remove-orphans
+
+staging-pull:
+	@if [ ! -f .env.staging ]; then \
+		echo "Error: .env.staging file not found. Create it from .env.example"; \
+		exit 1; \
+	fi
+	$(STAGING_COMPOSE) pull
+
+staging-down:
+	$(STAGING_COMPOSE) down --remove-orphans
+
+staging-logs:
+	$(STAGING_COMPOSE) logs -f
+
+## --- Tests
+
+test: test-backend test-web
+
+test-backend:
+	cd api-rally && poetry run pytest
+
+test-web:
+	cd web-rally && pnpm test
+
+test-smoke:
+	$(SMOKE_COMPOSE) up --build --abort-on-container-exit --exit-code-from smoke; \
+	status=$$?; \
+	$(SMOKE_COMPOSE) down -v --remove-orphans; \
+	exit $$status
+
+test-smoke-down:
+	$(SMOKE_COMPOSE) down -v --remove-orphans
+
+## --- Misc
+
+lock:
+	cd api-rally && poetry lock

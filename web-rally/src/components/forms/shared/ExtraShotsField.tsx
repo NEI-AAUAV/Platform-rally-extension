@@ -1,0 +1,50 @@
+import type { ChangeEvent } from "react";
+
+interface ExtraShotsFieldProps {
+  idPrefix: string;
+  extraShots: number;
+  onChange: (value: number) => void;
+  maxExtraShots: number;
+  maxExtraShotsPerMember: number;
+}
+
+export default function ExtraShotsField({
+  idPrefix,
+  extraShots,
+  onChange,
+  maxExtraShots,
+  maxExtraShotsPerMember,
+}: Readonly<ExtraShotsFieldProps>) {
+  const inputId = `${idPrefix}-extra-shots`;
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const parsed = Number.parseInt(e.target.value, 10);
+    onChange(Number.isNaN(parsed) ? 0 : parsed);
+  };
+
+  return (
+    <div>
+      <label htmlFor={inputId} className="mb-2 block text-sm font-medium text-foreground">
+        Extra Shots
+      </label>
+      <input
+        id={inputId}
+        type="number"
+        min="0"
+        max={maxExtraShots}
+        value={extraShots}
+        onChange={handleChange}
+        className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+        placeholder="Extra shots taken"
+      />
+      <p className="mt-1 text-sm text-muted-foreground">
+        Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
+        {maxExtraShotsPerMember} per team member)
+      </p>
+      {extraShots > maxExtraShots && (
+        <p className="mt-1 text-sm text-red-400">
+          ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
+        </p>
+      )}
+    </div>
+  );
+}

@@ -1,49 +1,47 @@
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, ArrowRight } from "lucide-react";
-import { useThemedComponents } from "@/components/themes";
 import type { DetailedCheckPoint, ActivityResponse, ListingTeam } from "@/client";
 
 type AssignedCheckpointsProps = Readonly<{
-
   checkpoints: DetailedCheckPoint[];
   activities: ActivityResponse[];
   teams: ListingTeam[];
   onCheckpointClick: (checkpoint: DetailedCheckPoint) => void;
-}>
+}>;
 
-export default function AssignedCheckpoints({ 
-  checkpoints, 
-  activities, 
-  teams, 
-  onCheckpointClick 
+export default function AssignedCheckpoints({
+  checkpoints,
+  activities,
+  teams,
+  onCheckpointClick,
 }: AssignedCheckpointsProps) {
-  const { Card, InteractiveCard } = useThemedComponents();
-  
+  const CARD = "rally-surface rounded-2xl";
+  const ITEM_BASE =
+    "border border-border bg-secondary rounded-xl p-3 sm:p-4 cursor-pointer transition-colors hover:bg-accent w-full text-left";
+
   if (!checkpoints || checkpoints.length === 0) {
     return (
-      <Card variant="default" padding="none">
+      <div className={CARD}>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
-            Assigned Checkpoints
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <MapPin className="h-5 w-5" />
+            Postos Atribuídos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-[rgb(255,255,255,0.7)] text-center py-4">
-            No checkpoints found.
-          </p>
+          <p className="py-4 text-center text-muted-foreground">Nenhum posto encontrado.</p>
         </CardContent>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card variant="default" padding="none">
+    <div className={CARD}>
       <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <MapPin className="w-5 h-5" />
-          Assigned Checkpoints
+        <CardTitle className="flex items-center gap-2 text-foreground">
+          <MapPin className="h-5 w-5" />
+          Postos Atribuídos
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -53,33 +51,39 @@ export default function AssignedCheckpoints({
               (activity) => activity.checkpoint_id === checkpoint.id,
             );
             const teamsAtCheckpoint = teams;
-            
+
             return (
-              <InteractiveCard
+              <button
                 key={checkpoint.id}
-                status="nested"
+                type="button"
+                className={ITEM_BASE}
                 onClick={() => onCheckpointClick(checkpoint)}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white text-lg sm:text-base truncate">{checkpoint.name}</h3>
-                    <p className="text-sm text-[rgb(255,255,255,0.6)] mt-1">
-                      {checkpointActivities.length} activities • {teamsAtCheckpoint.length} teams
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-lg font-semibold text-foreground sm:text-base">
+                      {checkpoint.name}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {checkpointActivities.length} atividades • {teamsAtCheckpoint.length} equipas
                     </p>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-2">
-                    <Badge variant="outline" className="text-white border-white/20 text-xs sm:text-sm">
-                      Checkpoint {checkpoint.order}
+                  <div className="flex items-center justify-between gap-2 sm:justify-end">
+                    <Badge
+                      variant="outline"
+                      className="border-border text-xs text-foreground sm:text-sm"
+                    >
+                      Posto {checkpoint.order}
                     </Badge>
-                    <ArrowRight className="w-5 h-5 sm:w-4 sm:h-4 text-[rgb(255,255,255,0.6)] flex-shrink-0" />
+                    <ArrowRight className="h-5 w-5 flex-shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
                   </div>
                 </div>
-              </InteractiveCard>
+              </button>
             );
           })}
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 }
 
