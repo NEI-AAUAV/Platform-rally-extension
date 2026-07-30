@@ -5,6 +5,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.schema import CreateSchema
 
@@ -78,10 +79,6 @@ def _create_schema_and_tables(connection: Connection) -> None:
     """
     schemas = {table.schema for table in Base.metadata.tables.values() if table.schema}
     for schema in schemas:
-        # IF NOT EXISTS instead of a check-then-create: with multiple app
-        # workers booting against the same fresh DB, two can both see the
-        # schema absent and race to create it, and the loser gets a
-        # duplicate-key crash on pg_namespace that kills startup entirely.
         connection.execute(CreateSchema(schema, if_not_exists=True))
 
     Base.metadata.reflect(bind=connection, schema=settings.SCHEMA_NAME)
@@ -134,11 +131,28 @@ def _run_migrations(connection: Connection) -> None:
     command.upgrade(alembic_cfg, "head")
 
 
+# Arbitrary constant identifying this app's migration lock; any bigint works
+# as long as it's consistent across processes and doesn't collide with other
+# advisory locks this database might use.
+_MIGRATION_LOCK_ID = 927_364_501
+
+
 async def init_db() -> None:
     # Alembic owns the schema. Fresh DBs are bootstrapped with create_all (==
     # baseline 0001) and stamped at head; existing DBs are upgraded to head so
     # new revisions ship via `alembic upgrade head` semantics on every boot.
+    #
+    # Production runs multiple uvicorn workers that each hit this on startup.
+    # `CREATE SCHEMA IF NOT EXISTS` alone isn't race-safe under concurrent
+    # transactions — Postgres can still raise a duplicate-key error on
+    # pg_namespace when two sessions race the check-then-insert, crashing
+    # every worker but the winner. A transaction-scoped advisory lock
+    # serializes the migration: the first worker runs it, the rest block
+    # here, then see current == head and return immediately once unblocked.
     async with engine.begin() as connection:
+        await connection.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": _MIGRATION_LOCK_ID}
+        )
         await connection.run_sync(_run_migrations)
 
     async with SessionLocal() as db:
