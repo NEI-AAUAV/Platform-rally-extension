@@ -36,7 +36,7 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Configure Poetry security settings
-        run: poetry config installer.only-binary :all:
+        run: "poetry config installer.only-binary :all:"
       
       - name: Cache Python dependencies
         uses: actions/cache@v5
@@ -91,7 +91,7 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Configure Poetry security settings
-        run: poetry config installer.only-binary :all:
+        run: "poetry config installer.only-binary :all:"
       
       - name: Install API dependencies
         working-directory: api-rally
@@ -176,7 +176,7 @@ jobs:
         uses: snok/install-poetry@v1
       
       - name: Configure Poetry security settings
-        run: poetry config installer.only-binary :all:
+        run: "poetry config installer.only-binary :all:"
       
       - name: Check Python dependencies for vulnerabilities
         working-directory: api-rally

@@ -61,7 +61,7 @@ class OIDCJWTValidator:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Failed to fetch OIDC configuration: {str(e)}",
-            )
+            ) from e
 
     async def _get_jwks(
         self, jwks_uri: str, settings: Settings, force_refresh: bool = False
@@ -132,13 +132,13 @@ class OIDCJWTValidator:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {str(e)}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Token validation failed: {str(e)}",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
 
 # Global instance (JWKS/issuer cached after first call).

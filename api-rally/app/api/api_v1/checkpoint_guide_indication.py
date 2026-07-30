@@ -18,6 +18,7 @@ from app.schemas.checkpoint_guide_indication import (
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 GUIDE_INDICATION_NOT_FOUND = "Guide indication not found"
 
+
 class CheckpointGuideIndicationController:
     """REST controller for checkpoint guide indications (hints for guides)."""
 

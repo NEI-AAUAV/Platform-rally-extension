@@ -166,7 +166,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
                 raise
 
             if _name_unique_error_regex.search(str(e.orig)) is not None:
-                raise RallyValidationError("Team name already exists")
+                raise RallyValidationError("Team name already exists") from e
 
             raise
 

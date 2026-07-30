@@ -16,7 +16,6 @@ from app.core.config import get_settings
 from app.core.exceptions import RallyError, RallyValidationError
 from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
-from app.services._diff import diff_snapshots, snapshot_fields
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.events import (
     ActivityResultChangedPayload,
@@ -35,6 +34,7 @@ from app.models.rally_settings import RallySettings
 from app.models.team import Team
 from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
 from app.schemas.activity_types import ActivityType
+from app.services._diff import diff_snapshots, snapshot_fields
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +137,9 @@ class ScoringService:
     ) -> float:
         """Single source of truth for scoring a result.
 
-        For time-based games, pass all_times (full set to rank against, including this results own time)
-        to use relative ranking; otherwise, base scoring.
+        For time-based games, pass all_times (the full set to rank against,
+        including this result's own time) to use relative ranking; otherwise,
+        base scoring.
         """
 
         instance = ActivityFactory.create_activity(activity_type, config)
@@ -245,7 +246,7 @@ class ScoringService:
             await self.db.commit()
         except Exception as e:
             logger.exception("Failed to update team scores")
-            raise RallyError(f"Failed to update team scores: {str(e)}")
+            raise RallyError(f"Failed to update team scores: {str(e)}") from e
         # Publish after the commit so subscribers never see scores a
         # rollback would erase. No-op unless the realtime subsystem is on.
         # This is the single funnel for every leaderboard-affecting change.
@@ -863,10 +864,7 @@ class ScoringService:
         if result1 and result1.is_completed:
             return False
 
-        if result2 and result2.is_completed:
-            return False
-
-        return True
+        return not (result2 and result2.is_completed)
 
     async def create_team_vs_result(
         self,

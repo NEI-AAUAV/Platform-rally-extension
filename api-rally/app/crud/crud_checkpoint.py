@@ -46,7 +46,7 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
                 CheckPoint.order == last_checkpoint_order + 1,
                 _event_filter(event_id),
             )
-            checkpoint = await db.scalar(stmt)
+            checkpoint: CheckPoint | None = await db.scalar(stmt)
             return checkpoint
 
         return None
@@ -80,7 +80,8 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         for checkpoint_id in checkpoint_orders:
             await db.execute(
                 text(
-                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = -:checkpoint_id WHERE id = :checkpoint_id'
+                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = -:checkpoint_id '
+                    f"WHERE id = :checkpoint_id"
                 ),
                 {"checkpoint_id": checkpoint_id},
             )
@@ -91,7 +92,8 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         for checkpoint_id, new_order in checkpoint_orders.items():
             await db.execute(
                 text(
-                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = :new_order WHERE id = :checkpoint_id'
+                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = :new_order '
+                    f"WHERE id = :checkpoint_id"
                 ),
                 {"new_order": new_order, "checkpoint_id": checkpoint_id},
             )

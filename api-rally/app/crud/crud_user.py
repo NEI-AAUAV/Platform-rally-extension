@@ -138,7 +138,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise
 
             if _team_foreign_error_regex.search(str(e.orig)) is not None:
-                raise RallyNotFoundError("Team not found")
+                raise RallyNotFoundError("Team not found") from e
 
             raise
 
@@ -154,7 +154,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise
 
             if _team_foreign_error_regex.search(str(e.orig)) is not None:
-                raise RallyNotFoundError("Team not found")
+                raise RallyNotFoundError("Team not found") from e
 
             raise
 

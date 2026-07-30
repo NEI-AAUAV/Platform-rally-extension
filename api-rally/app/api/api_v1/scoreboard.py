@@ -143,9 +143,7 @@ class ScoreboardController:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    def stream_rally_events(
-        self, request: Request, settings: SettingsDep
-    ) -> StreamingResponse:
+    def stream_rally_events(self, request: Request, settings: SettingsDep) -> StreamingResponse:
         """Server-Sent Events stream that forwards raw activity_result/team events.
 
         Unlike /scoreboard/stream (which only signals "leaderboard changed"), this

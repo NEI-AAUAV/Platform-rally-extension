@@ -158,7 +158,7 @@ class TestConsume:
         ]
 
         fake_pubsub = MagicMock()
-        fake_pubsub.get_message.side_effect = lambda timeout=1.0: (
+        fake_pubsub.get_message.side_effect = lambda timeout=1.0: (  # noqa: ARG005
             messages.pop(0) if messages else worker._stop_event.set()
         )
 

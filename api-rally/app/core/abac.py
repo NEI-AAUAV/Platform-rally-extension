@@ -9,7 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 from fastapi import HTTPException, status
 
@@ -262,7 +262,7 @@ class AllCheckpoints:
 
 ALL_CHECKPOINTS = AllCheckpoints()
 
-AccessibleCheckpoints = Union[AllCheckpoints, list[int]]
+AccessibleCheckpoints = AllCheckpoints | list[int]
 
 
 def get_accessible_checkpoints(user: DetailedUser, auth: AuthData) -> AccessibleCheckpoints:

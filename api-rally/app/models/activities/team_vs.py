@@ -86,7 +86,9 @@ class TeamVsActivity(BaseActivity):
     ) -> bool:
         """Validate that teams are in the same versus group"""
         try:
-            from app.crud.crud_versus import versus
+            # Local import: app.models must not depend on app.crud at module
+            # scope (import cycle).
+            from app.crud.crud_versus import versus  # noqa: PLC0415
 
             # Get opponent using versus system
             opponent = await versus.get_opponent(db_session, team_id=team_id)
@@ -94,14 +96,16 @@ class TeamVsActivity(BaseActivity):
             # Check if the opponent matches the provided opponent_team_id
             if opponent is None:
                 logger.warning(
-                    f"Team {team_id} has no opponent in versus system, but opponent_team_id={opponent_team_id} was provided"
+                    f"Team {team_id} has no opponent in versus system, but "
+                    f"opponent_team_id={opponent_team_id} was provided"
                 )
                 # Allow validation if no opponent is set (teams might not be in versus mode)
                 return True
 
             if opponent.id != opponent_team_id:
                 logger.warning(
-                    f"Team {team_id} opponent mismatch: expected {opponent.id}, got {opponent_team_id}"
+                    f"Team {team_id} opponent mismatch: expected {opponent.id}, got "
+                    f"{opponent_team_id}"
                 )
                 return False
 
@@ -110,14 +114,17 @@ class TeamVsActivity(BaseActivity):
         except Exception as e:
             # If versus system fails, fall back to basic validation
             logger.warning(
-                f"Versus validation failed for team {team_id} vs {opponent_team_id}: {str(e)}, allowing validation"
+                f"Versus validation failed for team {team_id} vs {opponent_team_id}: "
+                f"{str(e)}, allowing validation"
             )
             return True
 
     async def get_opponent_for_team(self, team_id: int, db_session: Any) -> dict[str, Any] | None:
         """Get opponent team information for a given team"""
         try:
-            from app.crud.crud_versus import versus
+            # Local import: app.models must not depend on app.crud at module
+            # scope (import cycle).
+            from app.crud.crud_versus import versus  # noqa: PLC0415
 
             opponent = await versus.get_opponent(db_session, team_id=team_id)
             if opponent:

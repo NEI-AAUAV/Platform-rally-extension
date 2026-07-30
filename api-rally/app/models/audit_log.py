@@ -76,4 +76,7 @@ class AuditLog(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<AuditLog(id={self.id}, action='{self.action}', target='{self.target_type}:{self.target_id}')>"
+        return (
+            f"<AuditLog(id={self.id}, action='{self.action}', "
+            f"target='{self.target_type}:{self.target_id}')>"
+        )

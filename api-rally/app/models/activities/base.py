@@ -63,7 +63,7 @@ class BaseActivity(ABC):
         if extra_shots > 0:
             bonus_per_shot = modifiers.get("bonus_per_shot")
             if bonus_per_shot is None:
-                from app.core.config import settings
+                from app.core.config import settings  # noqa: PLC0415
 
                 bonus_per_shot = settings.EXTRA_SHOT_BONUS
 
@@ -71,7 +71,7 @@ class BaseActivity(ABC):
 
         # Apply penalties
         penalties = modifiers.get("penalties", {})
-        for penalty_type, penalty_value in penalties.items():
+        for _penalty_type, penalty_value in penalties.items():
             final_score -= penalty_value
 
         return max(0, final_score)  # Score cannot be negative

@@ -61,14 +61,13 @@ def mock_staff_user():
 
 
 def _context(action: Action, resource: Resource, scopes: list[str], **kwargs) -> Context:
-    context = Context(
+    return Context(
         user=kwargs.pop("user", Mock(staff_checkpoint_id=None)),
         auth=Mock(scopes=scopes),
         action=action,
         resource=resource,
         **kwargs,
     )
-    return context
 
 
 class TestABACEngine:

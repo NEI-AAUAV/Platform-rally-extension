@@ -36,11 +36,8 @@ class ActivityBase(BaseModel):
         # ActivityFactory.get_available_types() mirrors the same enum's
         # values, so the `else`/`raise` below are unreachable in practice;
         # kept as a defensive guard in case the field type ever loosens.
-        if isinstance(v, ActivityType):
-            # Convert enum to string for factory validation
-            activity_type_str = v.value
-        else:
-            activity_type_str = str(v)
+        # Convert enum to string for factory validation.
+        activity_type_str = v.value if isinstance(v, ActivityType) else str(v)
 
         available_types = ActivityFactory.get_available_types()
         if activity_type_str not in available_types:

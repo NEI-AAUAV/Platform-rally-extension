@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
+from app.models.activity import RallyEvent
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -28,7 +29,11 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         back a single RallySettings object for "the active rally".
         """
         event = await rally_event.ensure_current(db)
-        settings = await db.scalar(select(RallySettings).where(RallySettings.event_id == event.id))
+        # Snapshot the id: a rollback below expires `event`, and reading any
+        # attribute off an expired instance from async code emits sync IO
+        # (MissingGreenlet). See _reload_event.
+        event_id = event.id
+        settings = await db.scalar(select(RallySettings).where(RallySettings.event_id == event_id))
         if settings is not None:
             settings = await self._normalize_home_fields(db, settings)
             return await self._sync_timing_from_event(db, settings, event)
@@ -37,7 +42,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # existing single-event deployments keep their configured values.
         legacy = await db.scalar(select(RallySettings).where(RallySettings.event_id.is_(None)))
         if legacy is not None:
-            legacy.event_id = event.id  # type: ignore[assignment]
+            legacy.event_id = event_id  # type: ignore[assignment]
             db.add(legacy)
             try:
                 await db.commit()
@@ -45,8 +50,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                 # Another caller already claimed this event's settings row (see
                 # the same race below); use theirs.
                 await db.rollback()
+                event = await self._reload_event(db, event_id)
                 adopted = await db.scalar(
-                    select(RallySettings).where(RallySettings.event_id == event.id)
+                    select(RallySettings).where(RallySettings.event_id == event_id)
                 )
                 if adopted is None:
                     raise
@@ -57,7 +63,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             return await self._sync_timing_from_event(db, legacy, event)
 
         settings = RallySettings(
-            event_id=event.id,
+            event_id=event_id,
             # Team management
             max_teams=14,
             max_members_per_team=10,
@@ -105,8 +111,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # same event and all but one lose the race. The loser adopts the
             # row the winner committed instead of surfacing the violation.
             await db.rollback()
+            event = await self._reload_event(db, event_id)
             settings = await db.scalar(
-                select(RallySettings).where(RallySettings.event_id == event.id)
+                select(RallySettings).where(RallySettings.event_id == event_id)
             )
             if settings is None:
                 raise
@@ -115,6 +122,24 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             await db.refresh(settings)
 
         return await self._sync_timing_from_event(db, settings, event)
+
+    @staticmethod
+    async def _reload_event(db: "AsyncSession", event_id: int) -> RallyEvent:
+        """Re-load the event after a rollback so its attributes stay usable.
+
+        ``rollback()`` expires every instance in the session regardless of
+        ``expire_on_commit``. Any later plain attribute read (e.g. the
+        ``getattr(event, "start_time")`` in :meth:`_sync_timing_from_event`)
+        would then trigger a *synchronous* lazy refresh from async code and
+        raise ``MissingGreenlet``. Awaiting the reload here keeps that IO on
+        the async path; a row that vanished under us falls back to
+        ``ensure_current``.
+        """
+        merged = await db.get(RallyEvent, event_id)
+        if merged is not None:
+            return merged
+        reloaded: RallyEvent = await rally_event.ensure_current(db)
+        return reloaded
 
     async def _sync_timing_from_event(
         self, db: "AsyncSession", settings: RallySettings, event: object

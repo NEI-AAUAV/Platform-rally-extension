@@ -136,7 +136,8 @@ class ActivityResult(Base):
     media_urls: Mapped[list[str]] = mapped_column(
         MutableList.as_mutable(JSON), nullable=False, default=list
     )
-    # judgment_status: None = normal result; "pending_judgment" = captured, awaiting judge; "judged" = judged
+    # judgment_status: None = normal result; "pending_judgment" = captured,
+    # awaiting judge; "judged" = judged
     judgment_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
 
     # Timestamps
@@ -173,7 +174,10 @@ class ActivityResult(Base):
         self.completed_at = datetime.now(UTC)
 
     def __repr__(self) -> str:
-        return f"<ActivityResult(id={self.id}, activity_id={self.activity_id}, team_id={self.team_id})>"
+        return (
+            f"<ActivityResult(id={self.id}, activity_id={self.activity_id}, "
+            f"team_id={self.team_id})>"
+        )
 
 
 class EventType(str, Enum):
@@ -241,4 +245,7 @@ class RallyEvent(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<RallyEvent(id={self.id}, name='{self.name}', type='{self.event_type}', current={self.is_current})>"
+        return (
+            f"<RallyEvent(id={self.id}, name='{self.name}', type='{self.event_type}', "
+            f"current={self.is_current})>"
+        )

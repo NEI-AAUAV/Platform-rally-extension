@@ -18,6 +18,7 @@ from app.services.checkpoint_media_service import CheckpointMediaService
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 MEDIA_NOT_FOUND = "Media not found"
 
+
 class CheckpointMediaController:
     """REST controller for checkpoint media (photos, fun facts)."""
 

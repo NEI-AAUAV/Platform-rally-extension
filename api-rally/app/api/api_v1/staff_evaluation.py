@@ -302,7 +302,8 @@ class StaffEvaluationController:
             resolved_checkpoint_id = current_user.staff_checkpoint_id
 
         logger.debug(
-            f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) evaluating team {team_id} (at checkpoint {team_checkpoint_number})"
+            f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) "
+            f"evaluating team {team_id} (at checkpoint {team_checkpoint_number})"
         )
 
         # Always show activities for the resolved checkpoint
@@ -365,7 +366,8 @@ class StaffEvaluationController:
         Submits without a key behave exactly as before.
         """
         logger.info(
-            f"Evaluation request: team_id={team_id}, activity_id={activity_id}, user_id={current_user.id}, scopes={auth.scopes}"
+            f"Evaluation request: team_id={team_id}, activity_id={activity_id}, "
+            f"user_id={current_user.id}, scopes={auth.scopes}"
         )
 
         # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
@@ -387,7 +389,8 @@ class StaffEvaluationController:
                     db, current_user, team_id, activity_id
                 )
             logger.debug(
-                f"Access validated: activity_id={activity_obj.id}, checkpoint_id={activity_obj.checkpoint_id}"
+                f"Access validated: activity_id={activity_obj.id}, "
+                f"checkpoint_id={activity_obj.checkpoint_id}"
             )
         except HTTPException as e:
             logger.error(f"Access validation failed: {e.status_code} - {e.detail}")
@@ -425,7 +428,8 @@ class StaffEvaluationController:
             f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"
         )
 
-        # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
+        # Mirror the result onto the opponent for TeamVsActivity matchups (win
+        # <-> lose, draw <-> draw)
         try:
             await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
         except Exception:
@@ -535,7 +539,8 @@ class StaffEvaluationController:
         editor = EvaluationEditor(id=str(current_user.id), name=current_user.name)
         db_result = await ScoringService(db).update_result(db_result, result_in, editor=editor)
 
-        # Mirror the result onto the opponent for TeamVsActivity matchups (win <-> lose, draw <-> draw)
+        # Mirror the result onto the opponent for TeamVsActivity matchups (win
+        # <-> lose, draw <-> draw)
         try:
             if activity_obj:
                 await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
@@ -591,7 +596,11 @@ class StaffEvaluationController:
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> dict[str, Any]:
-        """Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)"""
+        """Get all evaluations.
+
+        Accessible by staff (filtered to their checkpoint) and by managers
+        (all data).
+        """
         # Check if user has rally permissions
         # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
         # dependency) already enforces `is_admin_or_staff`, the same check

@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.api import deps
 from app.api.auth import AuthData
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity, activity_result
@@ -80,8 +81,6 @@ def serialize_team(result: ActivityResult) -> dict[str, Any] | None:
 # =============================================================================
 # Permission Validation
 # =============================================================================
-
-from app.api import deps
 
 
 def validate_rally_permissions(auth: AuthData) -> bool:

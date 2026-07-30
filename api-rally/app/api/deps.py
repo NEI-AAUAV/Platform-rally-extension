@@ -88,7 +88,7 @@ async def get_current_user(
             await db.rollback()
             user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
             if user is None:
-                raise HTTPException(status_code=500, detail="Failed to initialise user")
+                raise HTTPException(status_code=500, detail="Failed to initialise user") from None
     else:
         await _sync_scopes(db, user, auth)
 

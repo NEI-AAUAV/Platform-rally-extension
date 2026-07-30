@@ -12,12 +12,17 @@ from app.schemas.team import TeamCreate, TeamUpdate
 from app.tests.conftest import make_event as _make_event
 
 
+# The re-raise branches hang off `create`'s `await db.flush()` (the insert),
+# not off a commit — create() flushes regardless of the caller's commit=
+# intent so the unique constraints are evaluated inside its own savepoint.
+# Patching commit instead would fire inside rally_settings.get_or_create,
+# which create() calls first, and never reach the code under test.
 async def test_create_reraises_when_orig_is_none(pg_session):
     await _make_event(pg_session)
     obj_in = TeamCreate(name="Orig None Team")
     with (
         patch.object(
-            pg_session, "commit", new=AsyncMock(side_effect=IntegrityError("x", None, None))
+            pg_session, "flush", new=AsyncMock(side_effect=IntegrityError("x", None, None))
         ),
         pytest.raises(IntegrityError),
     ):
@@ -28,9 +33,11 @@ async def test_create_reraises_when_error_does_not_match_name_unique(pg_session)
     await _make_event(pg_session)
     obj_in = TeamCreate(name="Unrelated Error Team")
     unrelated = IntegrityError("x", None, RuntimeError("some other constraint violation"))
-    with patch.object(pg_session, "commit", new=AsyncMock(side_effect=unrelated)):
-        with pytest.raises(IntegrityError):
-            await crud_team.create(pg_session, obj_in=obj_in)
+    with (
+        patch.object(pg_session, "flush", new=AsyncMock(side_effect=unrelated)),
+        pytest.raises(IntegrityError),
+    ):
+        await crud_team.create(pg_session, obj_in=obj_in)
 
 
 async def test_create_logs_and_continues_when_classification_update_fails(pg_session):

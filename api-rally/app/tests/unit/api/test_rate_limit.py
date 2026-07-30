@@ -75,9 +75,11 @@ async def test_enforce_rearms_orphaned_key_on_block():
     """A key without TTL (crash between INCR and EXPIRE) must be re-armed
     so the block cannot last forever."""
     client = _fake_redis(6, ttl=-1)
-    with patch.object(rl, "get_async_redis_client", return_value=client):
-        with pytest.raises(HTTPException) as exc:
-            await rl._enforce("k", limit=5, window_seconds=60)
+    with (
+        patch.object(rl, "get_async_redis_client", return_value=client),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await rl._enforce("k", limit=5, window_seconds=60)
     assert exc.value.headers["Retry-After"] == "60"
     client.expire.assert_awaited_with("k", 60)
 

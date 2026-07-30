@@ -120,7 +120,7 @@ class DeferredJudgingController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
         service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
-        images: Annotated[list[UploadFile], File()] = None,
+        images: Annotated[list[UploadFile] | None, File()] = None,
         team_id: int = 0,
     ) -> DeferredResultResponse:
         activity = await crud_activity.get(db, activity_id)

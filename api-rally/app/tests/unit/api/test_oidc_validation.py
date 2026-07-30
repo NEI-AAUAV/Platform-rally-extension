@@ -86,10 +86,12 @@ async def test_hs256_token_rejected_alg_confusion():
 async def test_jwks_cached_across_validations():
     """JWKS is fetched once for two validations within the cache TTL."""
     calls: list[int] = []
-    with patch.object(settings, "OIDC_JWKS_CACHE_TTL_SECONDS", 600):
-        with _wired_validator(jwks_calls=calls) as v:
-            await v.validate_token(_sign("RS256", sub="a"), settings)
-            await v.validate_token(_sign("RS256", sub="b"), settings)
+    with (
+        patch.object(settings, "OIDC_JWKS_CACHE_TTL_SECONDS", 600),
+        _wired_validator(jwks_calls=calls) as v,
+    ):
+        await v.validate_token(_sign("RS256", sub="a"), settings)
+        await v.validate_token(_sign("RS256", sub="b"), settings)
     assert len(calls) == 1
 
 
@@ -135,10 +137,12 @@ async def test_unexpected_error_wrapped_as_401():
     """A non-Jose, non-HTTPException failure mid-validation still surfaces as
     a 401 rather than leaking a raw exception."""
     token = _sign("RS256", sub="u1")
-    with _wired_validator() as v:
-        with patch("app.api.oidc._jwt.decode", side_effect=RuntimeError("boom")):
-            with pytest.raises(HTTPException) as exc:
-                await v.validate_token(token, settings)
+    with (
+        _wired_validator() as v,
+        patch("app.api.oidc._jwt.decode", side_effect=RuntimeError("boom")),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await v.validate_token(token, settings)
     assert exc.value.status_code == 401
     assert "validation failed" in exc.value.detail.lower()
 
@@ -179,7 +183,7 @@ async def test_get_oidc_config_failure_raises_503():
         patch.object(settings, "OIDC_PROVIDER_URL", "https://issuer.example"),
         patch.object(settings, "OIDC_APPLICATION_SLUG", "rally"),
         patch("app.api.oidc.httpx.AsyncClient", return_value=client),
+        pytest.raises(HTTPException) as exc,
     ):
-        with pytest.raises(HTTPException) as exc:
-            await v._get_oidc_config(settings)
+        await v._get_oidc_config(settings)
     assert exc.value.status_code == 503

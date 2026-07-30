@@ -118,9 +118,12 @@ class CheckinController:
         self._require_enabled(settings)
 
         is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
-        if checkpoint_id is not None and not is_privileged:
-            if checkpoint_id != current_user.staff_checkpoint_id:
-                raise RallyForbiddenError("Staff may only mint QR for their own checkpoint")
+        if (
+            checkpoint_id is not None
+            and not is_privileged
+            and checkpoint_id != current_user.staff_checkpoint_id
+        ):
+            raise RallyForbiddenError("Staff may only mint QR for their own checkpoint")
 
         target = (
             checkpoint_id

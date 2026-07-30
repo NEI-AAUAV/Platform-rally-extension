@@ -2933,7 +2933,7 @@
           "Staff Evaluation"
         ],
         "summary": "Get All Evaluations",
-        "description": "Get all evaluations - accessible by staff (filtered by checkpoint) and managers (all data)",
+        "description": "Get all evaluations.\n\nAccessible by staff (filtered to their checkpoint) and by managers\n(all data).",
         "operationId": "get_all_evaluations",
         "security": [
           {
@@ -6887,11 +6887,18 @@
       "Body_capture_deferred_result": {
         "properties": {
           "images": {
-            "items": {
-              "type": "string",
-              "contentMediaType": "application/octet-stream"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Images"
           }
         },

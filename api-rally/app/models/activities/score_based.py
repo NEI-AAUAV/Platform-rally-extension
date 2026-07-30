@@ -22,7 +22,6 @@ class ScoreBasedActivity(BaseActivity):
     def calculate_score(self, result_data: dict[str, Any], team_size: int = 1) -> float:
         """Calculate score based on achieved points"""
         achieved_points = result_data.get("achieved_points", 0)
-        max_points = self.config.get("max_points", 100)
 
         # Calculate percentage of max points achieved
         achieved = float(achieved_points)

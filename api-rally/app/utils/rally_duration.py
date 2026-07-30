@@ -199,10 +199,7 @@ class RallyDurationCalculator:
         if team_start_time < self.settings.rally_start_time:
             return False
 
-        if self.settings.rally_end_time and team_start_time > self.settings.rally_end_time:
-            return False
-
-        return True
+        return not (self.settings.rally_end_time and team_start_time > self.settings.rally_end_time)
 
 
 async def get_rally_duration_info(db: AsyncSession) -> dict[str, Any]:

@@ -70,13 +70,15 @@ async def test_rejects_oversized_upload_without_buffering_it_all():
     """A payload over the cap must 400 — and stop reading at the cap, not
     buffer the entire body (DoS guard)."""
     big = _FakeUpload(b"a" * (MAX_IMAGE_SIZE_BYTES + 2), "image/png")
-    with patch.object(image_upload, "storage_client", _storage()):
-        with pytest.raises(HTTPException) as exc:
-            await validate_and_store(
-                image=big,
-                allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
-                key_prefix="rally/test",
-            )
+    with (
+        patch.object(image_upload, "storage_client", _storage()),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await validate_and_store(
+            image=big,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            key_prefix="rally/test",
+        )
     assert exc.value.status_code == 400
     assert "too large" in exc.value.detail.lower()
     # Reading stopped at the first chunk past the cap.

@@ -14,9 +14,9 @@ from fastapi import HTTPException
 from app.api.auth import (
     AuthData,
     ScopeEnum,
-    build_auth_data,
     api_nei_auth,
     api_nei_auth_optional,
+    build_auth_data,
     map_groups_to_scopes,
 )
 from app.core.config import Settings

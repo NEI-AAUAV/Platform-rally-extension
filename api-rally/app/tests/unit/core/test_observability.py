@@ -88,7 +88,11 @@ def test_scrub_redacts_access_code_query_string() -> None:
 
 
 def test_scrub_strips_access_code_from_url() -> None:
-    event = {"request": {"url": "https://rally.example/api/rally/v1/profile/claimable?access_code=SECRET123"}}
+    event = {
+        "request": {
+            "url": "https://rally.example/api/rally/v1/profile/claimable?access_code=SECRET123"
+        }
+    }
     scrubbed = observability._scrub_sensitive(event, {})
     assert "SECRET123" not in scrubbed["request"]["url"]
 

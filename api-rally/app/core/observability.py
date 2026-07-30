@@ -66,7 +66,9 @@ def init_sentry() -> None:
     if not settings.SENTRY_DSN:
         return
     try:
-        import sentry_sdk
+        # sentry-sdk is an optional dependency: importing it lazily keeps the
+        # app importable when it is not installed.
+        import sentry_sdk  # noqa: PLC0415
     except ImportError:
         logger.warning("SENTRY_DSN set but sentry-sdk is not installed; skipping")
         return
@@ -90,13 +92,13 @@ def traced(name: str) -> Any:
     badge evaluation) so call sites stay clean regardless of whether Sentry is
     configured. No-op span when no DSN is set."""
     if not settings.SENTRY_DSN:
-        return _nullcontext()
-    import sentry_sdk
+        return _NullSpan()
+    import sentry_sdk  # noqa: PLC0415  (optional dependency, see init_sentry)
 
     return sentry_sdk.start_span(name=name)
 
 
-class _nullcontext:
+class _NullSpan:
     def __enter__(self) -> None:
         return None
 

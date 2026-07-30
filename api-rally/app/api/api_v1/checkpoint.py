@@ -220,7 +220,7 @@ class CheckpointController:
             await crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
             return {"message": "Checkpoints reordered successfully"}
         except Exception as e:
-            raise RallyValidationError(f"Cannot reorder checkpoints: {str(e)}")
+            raise RallyValidationError(f"Cannot reorder checkpoints: {str(e)}") from e
 
     async def update_checkpoint(
         self,
@@ -248,7 +248,7 @@ class CheckpointController:
             return {"message": "Checkpoint deleted successfully"}
         except Exception as e:
             await db.rollback()
-            raise RallyValidationError(f"Cannot delete checkpoint: {str(e)}")
+            raise RallyValidationError(f"Cannot delete checkpoint: {str(e)}") from e
 
 
 router = CheckpointController().router

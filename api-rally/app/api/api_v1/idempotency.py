@@ -99,7 +99,7 @@ async def reserve_idempotency_key(
         if found is None:
             raise
         if found.request_fingerprint != fingerprint:
-            raise _conflict()
+            raise _conflict() from None
         return IdempotencyReservation(replay=found.response_body)
 
     return IdempotencyReservation(row=row)

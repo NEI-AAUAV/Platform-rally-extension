@@ -56,6 +56,7 @@ _SETTINGS_AUDITED_FIELDS = (
     "ticker_items",
 )
 
+
 class RallySettingsController:
     """REST controller for /rally/settings."""
 

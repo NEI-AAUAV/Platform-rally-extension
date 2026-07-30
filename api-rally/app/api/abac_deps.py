@@ -7,8 +7,6 @@ for Rally checkpoint and team management.
 
 from collections.abc import Callable
 
-from typing import Optional
-
 from fastapi import Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -99,21 +97,24 @@ async def get_staff_with_checkpoint_access(
         )
 
     # For staff users, ensure they have a checkpoint assignment
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
-        if not curr_user.staff_checkpoint_id:
-            logger.debug(f"Checking staff assignment for user_id={curr_user.id}")
-            staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
-            if not staff_assignment or not staff_assignment.checkpoint_id:
-                logger.warning(f"No staff assignment found for user_id={curr_user.id}")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Staff user must be assigned to a checkpoint",
-                )
-            # Add checkpoint_id to user for easy access
-            curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-            logger.debug(
-                f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}"
+    if (
+        "rally-staff" in auth.scopes
+        and not is_admin(auth.scopes)
+        and not curr_user.staff_checkpoint_id
+    ):
+        logger.debug(f"Checking staff assignment for user_id={curr_user.id}")
+        staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
+        if not staff_assignment or not staff_assignment.checkpoint_id:
+            logger.warning(f"No staff assignment found for user_id={curr_user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff user must be assigned to a checkpoint",
             )
+        # Add checkpoint_id to user for easy access
+        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
+        logger.debug(
+            f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}"
+        )
 
     return curr_user
 
@@ -155,7 +156,10 @@ async def require_checkpoint_score_permission(
         if checkpoint.order != expected_order:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team must complete checkpoint order {expected_order} before checkpoint order {checkpoint.order}",
+                detail=(
+                    f"Team must complete checkpoint order {expected_order} before checkpoint "
+                    f"order {checkpoint.order}"
+                ),
             )
 
     require_permission(
@@ -169,7 +173,7 @@ async def require_checkpoint_score_permission(
 
 
 def require_checkpoint_view_permission(
-    checkpoint_id: Optional[int] = None,
+    checkpoint_id: int | None = None,
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(get_staff_with_checkpoint_access),
 ) -> None:

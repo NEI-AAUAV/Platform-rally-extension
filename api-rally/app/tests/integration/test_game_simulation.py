@@ -65,7 +65,8 @@ class TestGameSimulationScoring:
         assert scores[2] < scores[0]
 
         print(
-            f"\nRanking: Fastest gets highest score ({scores[1]}), Slowest gets lowest ({scores[2]})"
+            f"\nRanking: Fastest gets highest score ({scores[1]}), Slowest gets "
+            f"lowest ({scores[2]})"
         )
 
     def test_boolean_activity_scoring(self):

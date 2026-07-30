@@ -11,16 +11,15 @@ from unittest.mock import MagicMock, patch
 from app.db import init_db
 
 
-def test_create_schema_and_tables_creates_missing_schema() -> None:
+def test_create_schema_and_tables_creates_schema_if_not_exists() -> None:
+    """Schema creation is unconditional but idempotent: no inspector round-trip,
+    just `CREATE SCHEMA IF NOT EXISTS`, which is what makes concurrent uvicorn
+    workers safe to race here."""
     connection = MagicMock()
-
-    fake_inspector = MagicMock()
-    fake_inspector.get_schema_names.return_value = ["public"]
 
     fake_table = MagicMock(schema="rally")
 
     with (
-        patch.object(init_db, "inspect", return_value=fake_inspector) as mock_inspect,
         patch.object(init_db.Base.metadata, "tables", {"rally.foo": fake_table}),
         patch.object(init_db.Base.metadata, "reflect") as mock_reflect,
         patch.object(init_db.Base.metadata, "create_all") as mock_create_all,
@@ -28,24 +27,20 @@ def test_create_schema_and_tables_creates_missing_schema() -> None:
     ):
         init_db._create_schema_and_tables(connection)
 
-    mock_inspect.assert_called_once_with(connection)
-    mock_create_schema.assert_called_once_with("rally")
+    mock_create_schema.assert_called_once_with("rally", if_not_exists=True)
     connection.execute.assert_called_once()
     mock_reflect.assert_called_once()
     mock_create_all.assert_called_once()
 
 
-def test_create_schema_and_tables_skips_existing_schema() -> None:
+def test_create_schema_and_tables_skips_schemaless_tables() -> None:
+    """Tables without an explicit schema produce no CREATE SCHEMA at all."""
     connection = MagicMock()
 
-    fake_inspector = MagicMock()
-    fake_inspector.get_schema_names.return_value = ["rally"]
-
-    fake_table = MagicMock(schema="rally")
+    fake_table = MagicMock(schema=None)
 
     with (
-        patch.object(init_db, "inspect", return_value=fake_inspector),
-        patch.object(init_db.Base.metadata, "tables", {"rally.foo": fake_table}),
+        patch.object(init_db.Base.metadata, "tables", {"foo": fake_table}),
         patch.object(init_db.Base.metadata, "reflect"),
         patch.object(init_db.Base.metadata, "create_all"),
         patch("app.db.init_db.CreateSchema") as mock_create_schema,

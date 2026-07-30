@@ -72,6 +72,13 @@ select = [
 ]
 ignore = [
     "PLR0913",  # many-argument constructors are expected with constructor injection
+    # FastAPI's dependency system *requires* Depends()/Security()/Query() calls
+    # in parameter defaults; B008 flags the framework's own idiom.
+    "B008",
+    # `class X(str, Enum)` is deliberate: the string mixin is what lets these
+    # values serialize to plain JSON strings and compare against raw DB/JSON
+    # values throughout the app.
+    "UP042",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -83,6 +90,14 @@ ignore = [
 # commented in place rather than hoisted.
 "app/crud/**" = ["PLC0415"]
 "app/tests/**" = ["PLC0415", "ARG001", "ARG002"]  # tests use scoped local imports and fixture args freely
+# Signatures fixed by a contract rather than by their body: the activity
+# scoring strategies share one calculate/validate signature (not every kind
+# needs team_size/db_session), the workers share one handle_event(channel,
+# data), and route handlers declare auth dependencies whose only job is to
+# raise before the body runs.
+"app/models/activities/**" = ["ARG002"]
+"app/workers/**" = ["ARG002"]
+"app/api/api_v1/staff_evaluation.py" = ["ARG002"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

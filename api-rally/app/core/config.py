@@ -212,4 +212,7 @@ def get_settings() -> Settings:
     return Settings()
 
 
-SettingsDep: TypeAlias = Annotated[Settings, Depends(get_settings)]
+# Kept as an explicit TypeAlias rather than a PEP 695 `type` statement: FastAPI
+# unwraps Annotated dependency markers at import time, and a lazily-evaluated
+# TypeAliasType does not resolve to Depends(get_settings) there.
+SettingsDep: TypeAlias = Annotated[Settings, Depends(get_settings)]  # noqa: UP040

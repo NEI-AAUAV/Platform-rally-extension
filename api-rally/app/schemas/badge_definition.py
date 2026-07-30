@@ -16,7 +16,7 @@ def _validate_trigger(value: str | None) -> str | None:
     try:
         BadgeTrigger(value)
     except ValueError:
-        raise ValueError(f"invalid trigger_type: {value!r}")
+        raise ValueError(f"invalid trigger_type: {value!r}") from None
     return value
 
 

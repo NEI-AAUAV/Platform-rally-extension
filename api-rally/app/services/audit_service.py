@@ -10,7 +10,12 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
-from app.services._diff import diff_snapshots, snapshot_fields
+
+# Redundant aliases mark these as deliberate re-exports: callers (e.g.
+# app.api.api_v1.rally_settings) take the snapshot helpers from this module
+# rather than reaching into the private _diff module.
+from app.services._diff import diff_snapshots as diff_snapshots
+from app.services._diff import snapshot_fields as snapshot_fields
 
 
 @dataclass(frozen=True)

@@ -52,7 +52,9 @@ scoring_recompute_duration_seconds = Histogram(
 )
 
 
-def record_request(*, method: str, path_template: str, status: int, duration_seconds: float) -> None:
+def record_request(
+    *, method: str, path_template: str, status: int, duration_seconds: float
+) -> None:
     if not settings.METRICS_ENABLED:
         return
     http_requests_total.labels(method=method, path_template=path_template, status=str(status)).inc()

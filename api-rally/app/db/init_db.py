@@ -44,14 +44,16 @@ def _install_local_migration_utils_shim() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     sys.modules["alembic.migration_utils"] = module
-    setattr(_alembic_pkg, "migration_utils", module)
+    _alembic_pkg.migration_utils = module  # type: ignore[attr-defined]
 
 
 _install_local_migration_utils_shim()
 
 # IMPORTANT: Import all models here so they're registered with Base.metadata
 # before create_all() is called. Otherwise tables will be missing columns!
-from app.models import (  # noqa: F401
+# The import is deliberately below _install_local_migration_utils_shim(), which
+# must run first — hence the E402 exemption.
+from app.models import (  # noqa: E402, F401
     Activity,
     ActivityResult,
     CheckPoint,

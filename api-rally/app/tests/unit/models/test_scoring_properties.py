@@ -40,7 +40,7 @@ def test_faster_time_never_scores_less(times: list[float]) -> None:
     scores = [activity.calculate_relative_ranking_score(times, t) for t in sorted_times]
 
     # Scores must be non-increasing as time increases (faster => same or higher score)
-    for earlier, later in zip(scores, scores[1:]):
+    for earlier, later in zip(scores, scores[1:], strict=False):
         assert earlier >= later
 
 

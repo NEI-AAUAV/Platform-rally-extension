@@ -55,14 +55,22 @@ def format_record(record: dict[Any, Any]) -> str:
     Uses pformat for log any data like request/response body during debug.
     Works with logging if loguru handler it.
     Example:
-    >>> payload = [{"users":[{"name": "Nick", "age": 87, "is_active": True}, {"name": "Alex", "age": 27, "is_active": True}], "count": 2}]
+    >>> payload = [
+    ...     {
+    ...         "users": [
+    ...             {"name": "Nick", "age": 87, "is_active": True},
+    ...             {"name": "Alex", "age": 27, "is_active": True},
+    ...         ],
+    ...         "count": 2,
+    ...     }
+    ... ]
     >>> logger.bind(payload=).debug("users payload")
     >>> [   {   'count': 2,
     >>>         'users': [   {'age': 87, 'is_active': True, 'name': 'Nick'},
     >>>                      {'age': 27, 'is_active': True, 'name': 'Alex'}]}]
     """
 
-    format_string: str = typing.cast(str, LOGURU_FORMAT)
+    format_string: str = LOGURU_FORMAT
     if record["extra"].get("payload") is not None:
         record["extra"]["payload"] = pformat(
             record["extra"]["payload"], indent=4, compact=True, width=88
@@ -86,7 +94,8 @@ def init_logging() -> None:
     INFO:     Started reloader process [11528] using statreload
     INFO:     Started server process [6036]
     INFO:     Waiting for application startup.
-    2020-07-25 02:19:21.357 | INFO     | uvicorn.lifespan.on:startup:34 - Application startup complete.
+    2020-07-25 02:19:21.357 | INFO     | uvicorn.lifespan.on:startup:34
+        - Application startup complete.
     """
     # disable handlers for specific uvicorn loggers
     # to redirect their output to the default uvicorn logger
