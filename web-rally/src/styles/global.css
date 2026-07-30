@@ -195,7 +195,9 @@
     transform-origin: top center;
     transform: scaleY(var(--rally-btn-drip, 0));
     opacity: var(--rally-btn-drip, 0);
-    transition: transform 0.18s ease, opacity 0.18s ease;
+    transition:
+      transform 0.18s ease,
+      opacity 0.18s ease;
   }
 
   /* --- Glow: neon accent halo on primary; a quiet accent ring on secondary --- */
@@ -222,7 +224,11 @@
 
   /* --- Shine: glossy sheen over the fill; a fainter sheen on secondary --- */
   [data-rally-buttons="shine"] .rally-blood-button {
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0) 46%
+    );
   }
   [data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
@@ -272,7 +278,11 @@
     box-shadow: 3px 3px 0 0 hsl(var(--foreground) / 0.35);
   }
   .rally-identity-preview[data-rally-buttons="shine"] .rally-blood-button {
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0) 46%
+    );
   }
   .rally-identity-preview[data-rally-buttons="shine"] .rally-btn:not(.rally-blood-button) {
     background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%);
@@ -381,7 +391,8 @@
     --rally-bg-size: 22px 22px;
   }
   [data-rally-bg="grid"] {
-    --rally-bg-image: linear-gradient(
+    --rally-bg-image:
+      linear-gradient(
         var(--rally-accent-soft, var(--rally-accent-soft-fallback)) 1px,
         transparent 1px
       ),
@@ -393,7 +404,8 @@
     --rally-bg-size: 34px 34px;
   }
   [data-rally-bg="glow"] {
-    --rally-bg-image: radial-gradient(
+    --rally-bg-image:
+      radial-gradient(
         42% 42% at 12% 12%,
         var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
         transparent 72%

@@ -100,7 +100,9 @@ export function UserMenu() {
         <div className="absolute right-0 top-full z-50 hidden w-52 pt-2 group-hover:block">
           <div className="rally-elevate flex flex-col overflow-hidden rounded-lg border border-border bg-popover">
             <div className="border-b border-border px-4 py-3">
-              <p className="truncate text-sm font-semibold text-popover-foreground">{displayName}</p>
+              <p className="truncate text-sm font-semibold text-popover-foreground">
+                {displayName}
+              </p>
               {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
             </div>
             <Link

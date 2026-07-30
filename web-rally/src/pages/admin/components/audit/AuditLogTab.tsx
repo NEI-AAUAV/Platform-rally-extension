@@ -144,9 +144,7 @@ export default function AuditLogTab() {
       );
     }
     if (isError) {
-      return (
-        <p className="py-6 text-sm text-red-400">Não foi possível carregar a auditoria.</p>
-      );
+      return <p className="py-6 text-sm text-red-400">Não foi possível carregar a auditoria.</p>;
     }
     if (entries.length === 0) {
       return (

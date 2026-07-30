@@ -35,7 +35,11 @@ function RallyButton({
   const showBlood = blood ?? (variant == null || variant === "default" || variant === "primary");
   return (
     <Comp
-      className={cn(rallyButtonVariants({ variant, size }), showBlood && "rally-blood-button", className)}
+      className={cn(
+        rallyButtonVariants({ variant, size }),
+        showBlood && "rally-blood-button",
+        className,
+      )}
       {...props}
     >
       {children}
