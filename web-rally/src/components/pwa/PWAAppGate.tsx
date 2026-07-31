@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { healthCheck } from "@/client";
+import { viewRallySettingsPublic } from "@/client";
 import { logger } from "@/lib/logger";
 import PWALoadingScreen from "./PWALoadingScreen";
 import PWAConnectionError from "./PWAConnectionError";
@@ -8,14 +8,25 @@ const HEALTH_CHECK_TIMEOUT_MS = 6000;
 
 type ConnectionStatus = "checking" | "online" | "offline";
 
+/**
+ * Pings a real public endpoint under `/api/rally/...` rather than the raw
+ * `/health` route: the gateway only proxies `/api/rally` and `/static/rally`
+ * to the backend (see deploy/nginx/rally.conf) — `/health` is an internal
+ * Docker healthcheck path that 404s from the browser even when the API is up.
+ */
 async function pingBackend(): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
   try {
-    const { error } = await healthCheck({ signal: controller.signal, throwOnError: false });
+    const { error } = await viewRallySettingsPublic({
+      signal: controller.signal,
+      throwOnError: false,
+    });
     return !error;
   } catch (err) {
-    logger.warn("Backend health check failed", { error: err instanceof Error ? err.message : err });
+    logger.warn("Backend connectivity check failed", {
+      error: err instanceof Error ? err.message : err,
+    });
     return false;
   } finally {
     clearTimeout(timeout);
