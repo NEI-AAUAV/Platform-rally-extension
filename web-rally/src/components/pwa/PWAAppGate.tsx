@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { viewRallySettingsPublic } from "@/client";
 import { logger } from "@/lib/logger";
+import { useClearBadgeOnFocus } from "@/hooks/useClearBadgeOnFocus";
 import PWALoadingScreen from "./PWALoadingScreen";
 import PWAConnectionError from "./PWAConnectionError";
 
@@ -48,6 +49,8 @@ export default function PWAAppGate({ children }: Readonly<{ children: ReactNode 
   const [status, setStatus] = useState<ConnectionStatus>("checking");
   const [retrying, setRetrying] = useState(false);
   const mounted = useRef(true);
+
+  useClearBadgeOnFocus();
 
   useEffect(() => {
     mounted.current = true;
