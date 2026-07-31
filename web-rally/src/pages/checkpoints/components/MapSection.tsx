@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigation } from "lucide-react";
+import { routeUrl, type MapCoordinates } from "@/lib/mapLinks";
 
 const RealMap = lazy(() => import("./RealMap"));
 
@@ -21,7 +22,7 @@ type MapSectionProps = Readonly<{
 
 const ACCENT = "var(--rally-accent, #008542)";
 
-function hasValidCoordinates(cp: Checkpoint): boolean {
+function hasValidCoordinates(cp: Checkpoint): cp is Checkpoint & MapCoordinates {
   return (
     cp.latitude != null &&
     cp.longitude != null &&
@@ -86,11 +87,7 @@ export default function MapSection({
   const overlay = selectedCheckpoint ?? checkpoints[0];
   const withCoords = checkpoints.filter(hasValidCoordinates);
   const useRealMap = withCoords.length >= 1;
-  const mapUrl = withCoords.length
-    ? `https://www.google.com/maps/dir/?api=1&waypoints=${withCoords
-        .map((c) => `${c.latitude},${c.longitude}`)
-        .join("|")}`
-    : null;
+  const mapUrl = routeUrl(withCoords);
 
   return (
     <div className="isolate overflow-hidden rounded-[20px] border border-border bg-card">
@@ -170,7 +167,7 @@ export default function MapSection({
           className="rally-accent flex items-center justify-center gap-2 border-t border-border px-4 py-3 text-sm font-bold transition-colors hover:bg-muted/40"
         >
           <Navigation className="h-4 w-4" />
-          Abrir no Google Maps
+          Abrir no mapa
         </a>
       )}
     </div>

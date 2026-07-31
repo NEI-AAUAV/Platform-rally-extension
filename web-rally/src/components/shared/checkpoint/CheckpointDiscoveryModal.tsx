@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 import CheckpointDiscovery from "./CheckpointDiscovery";
+import { directionsUrl } from "@/lib/mapLinks";
 
 type CheckpointDiscoveryModalProps = Readonly<{
   open: boolean;
@@ -93,7 +94,7 @@ export default function CheckpointDiscoveryModal({
 
           {showMap && hasCoords && (
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`}
+              href={directionsUrl({ latitude, longitude })}
               target="_blank"
               rel="noopener noreferrer"
               className="rally-bg-accent mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
