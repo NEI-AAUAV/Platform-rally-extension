@@ -16,6 +16,7 @@ from app.api.api_v1 import (
     export,
     guide,
     profile,
+    push,
     rally_duration,
     rally_settings,
     scoreboard,
@@ -55,3 +56,4 @@ api_v1_router.include_router(dynamic_scoring.router, prefix="", tags=["Dynamic S
 api_v1_router.include_router(guide.router, prefix="", tags=["Guide"])
 api_v1_router.include_router(export.router, prefix="", tags=["Export"])
 api_v1_router.include_router(audit.router, prefix="", tags=["Audit"])
+api_v1_router.include_router(push.router, prefix="", tags=["Push Notifications"])

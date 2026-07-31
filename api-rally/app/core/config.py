@@ -108,6 +108,14 @@ class Settings(BaseSettings):
     CHECKIN_HMAC_SECRET: str | None = os.getenv("CHECKIN_HMAC_SECRET") or None
     CHECKIN_TOKEN_TTL_SECONDS: int = int(os.getenv("CHECKIN_TOKEN_TTL_SECONDS", "90"))
 
+    # Web Push (VAPID). Optional: when the key pair is unset, the subscribe
+    # endpoint returns 503 and the frontend never prompts for permission —
+    # same fallback contract as R2. Generate a pair with `vapid --gen`
+    # (py-vapid, a pywebpush dependency) or `web-push generate-vapid-keys`.
+    VAPID_PUBLIC_KEY: str | None = os.getenv("VAPID_PUBLIC_KEY") or None
+    VAPID_PRIVATE_KEY: str | None = os.getenv("VAPID_PRIVATE_KEY") or None
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:admin@nei.web.ua.pt")
+
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"
 

@@ -75,3 +75,49 @@ self.addEventListener("install", () => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
+
+// Web Push (VAPID). Requires iOS 16.4+ AND the PWA installed to the Home
+// Screen — Safari never fires `push` for a plain browser tab.
+interface RallyPushPayload {
+  title?: string;
+  body?: string;
+  url?: string;
+}
+
+self.addEventListener("push", (event) => {
+  let payload: RallyPushPayload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = { body: event.data?.text() };
+  }
+
+  const title = payload.title ?? "Rally Tascas";
+  const url = payload.url ?? BASE;
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body ?? "",
+      icon: `${BASE}icon-192.png`,
+      badge: `${BASE}icon-192.png`,
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? BASE;
+
+  event.waitUntil(
+    (async () => {
+      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const existing = clientsList.find((client) => client.url.includes(url));
+      if (existing) {
+        await existing.focus();
+        return;
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});
