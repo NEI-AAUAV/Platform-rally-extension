@@ -80,8 +80,8 @@ export default function PWAInstallPrompt() {
           {showApple ? (
             <p className="mt-1 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
               Toca em <Share className="inline h-4 w-4 shrink-0" aria-label="Partilhar" /> Partilhar
-              e depois em <SquarePlus className="inline h-4 w-4 shrink-0" aria-hidden /> Adicionar ao
-              Ecrã Principal
+              e depois em <SquarePlus className="inline h-4 w-4 shrink-0" aria-hidden /> Adicionar
+              ao Ecrã Principal
             </p>
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
