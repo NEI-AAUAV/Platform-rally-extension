@@ -148,6 +148,36 @@
       will-change: transform, opacity;
       transform: translate3d(0, 0, 0);
     }
+
+    /* iOS-native spring feel for page/menu transitions instead of linear ease. */
+    .ios-spring {
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Kills the full-app rubber-band bounce that exposes an empty background
+       behind the PWA chrome. Scoped to body only — internal scroll containers
+       (.overflow-y-auto etc. above) keep their own native inertia untouched. */
+    /* overscroll-behavior-y kills the full-app rubber-band bounce that exposes an
+       empty background behind the PWA chrome — scoped to body only, internal
+       scroll containers (.overflow-y-auto etc. above) keep native inertia.
+       Font smoothing keeps text subpixel-crisp over blurred/glassmorphic
+       surfaces on Retina displays. */
+    body {
+      overscroll-behavior-y: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Liquid-glass surface. Keep instance count low — backdrop-filter is GPU-heavy
+       and stacking many at once tanks framerate/battery on iOS. saturate() lifts
+       vibrancy without needing a bigger blur radius (cheaper on the GPU). */
+    .liquid-glass-panel {
+      background: rgba(255, 255, 255, 0.4);
+      -webkit-backdrop-filter: blur(20px) saturate(190%);
+      backdrop-filter: blur(20px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      transform: translate3d(0, 0, 0);
+    }
   }
 }
 
