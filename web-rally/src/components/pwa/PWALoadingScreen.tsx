@@ -13,7 +13,10 @@ export default function PWALoadingScreen({
   message = "A carregar o Rally...",
 }: PWALoadingScreenProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 overflow-hidden bg-background">
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 overflow-hidden bg-background"
+      style={{ paddingTop: "var(--safe-top)", paddingBottom: "var(--safe-bottom)" }}
+    >
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{

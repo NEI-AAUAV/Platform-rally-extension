@@ -39,8 +39,21 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
   useEffect(() => {
     void syncNow();
     const onOnline = () => void syncNow();
+    // iOS kills backgrounded PWAs outright, so the process that queued an item
+    // may never see another `online` event. Retrying whenever the app comes
+    // back to the foreground covers the kill/relaunch cycle. `syncNow` already
+    // no-ops when offline, so no extra guard is needed here.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void syncNow();
+    };
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
   }, [syncNow]);
 
   return { syncNow };

@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
+import { getResumeValue } from '@/lib/authResumeStore'
 
 const h = vi.hoisted(() => ({
   setSession: vi.fn(),
@@ -95,7 +96,7 @@ describe('useAuthSync', () => {
     expect(clear).toHaveBeenCalled()
     expect(h.clearSession).toHaveBeenCalled()
     expect(signinRedirect).toHaveBeenCalled()
-    expect(sessionStorage.getItem('rally_auth_return_url')).toBe(
+    expect(getResumeValue('rally_auth_return_url')).toBe(
       globalThis.location.pathname + globalThis.location.search,
     )
 

@@ -98,9 +98,12 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
       scopes.includes("rally:admin"));
 
   return (
+    // In landscape safe-area-inset-top reports 0px, but recent iOS still
+    // swallows touches along the top edge (undocumented dead zone). The 20px
+    // floor keeps the nav controls tappable there.
     <header
       className="rally-glass sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]"
-      style={{ paddingTop: "var(--safe-top)" }}
+      style={{ paddingTop: "max(20px, var(--safe-top))" }}
     >
       <nav
         aria-label="Navegação principal"

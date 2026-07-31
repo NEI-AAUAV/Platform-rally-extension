@@ -30,7 +30,10 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
-  base: "/rally",
+  // Trailing slash matters: it must match the VitePWA base/scope above, or the
+  // service worker registers against a different path than the app is served
+  // from.
+  base: "/rally/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

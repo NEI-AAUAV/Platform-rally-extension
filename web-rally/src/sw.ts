@@ -126,7 +126,7 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload: RallyPushPayload = {};
+  let payload: RallyPushPayload;
   try {
     payload = event.data?.json() ?? {};
   } catch {

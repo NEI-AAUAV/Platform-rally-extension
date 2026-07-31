@@ -110,10 +110,22 @@
     /* Fixed-position full-screen states (PWA boot gate) don't contribute to
        layout height, so without this body collapses to 0px and reads as
        invisible to layout/visibility checks despite being painted. */
-    min-height: 100dvh;
+    min-height: 100vh;
     transition:
       background-color 0.35s ease,
       color 0.2s ease;
+  }
+
+  /* dvh tracks the collapsing browser toolbar, so it is the value we want where
+     it exists. It is an enhancement rather than the base value because on a
+     standalone cold start dvh can resolve short before the viewport settles,
+     and vh is correct from the first paint. Expressed as a feature query, not a
+     second min-height declaration, so it does not read as an accidental
+     overwrite. */
+  @supports (min-height: 100dvh) {
+    body {
+      min-height: 100dvh;
+    }
   }
 
   /* @supports (-webkit-touch-callout: none) matches WebKit on iOS/iPadOS only
@@ -176,14 +188,6 @@
       transform: translate3d(0, 0, 0);
     }
 
-    /* Wire up to the #liquid-goo SVG filter in index.html: children that
-       overlap will merge into one another with a fluid, gooey edge. Container
-       must not clip — the blur needs room to bleed past child bounds. */
-    .liquid-goo-container {
-      filter: url(#liquid-goo);
-      overflow: visible;
-    }
-
     /* Organic multi-source gradient for the ambient background blobs — 0
        network bytes, scales on any display. Non-iOS keeps the flat
        .rally-bg-accent-soft tint set in the base rule below. */
@@ -206,6 +210,17 @@
    ============================================================ */
 @layer base {
   :root {
+    /* Declared as `initial` (the guaranteed-invalid value) rather than left
+       undeclared: every consumer reads them as `var(--rally-accent, <fallback>)`
+       and `initial` is precisely what makes that fallback apply, so behaviour is
+       identical to being absent — while giving tooling a declaration to resolve.
+       useDocumentBranding overrides them inline on <html> when a custom
+       accent_color is set, and removeProperty() restores this state. */
+    --rally-accent: initial;
+    --rally-accent-soft: initial;
+    --rally-accent-contrast: initial;
+    --rally-glow: initial;
+
     --rally-accent-fallback: #dc2625;
     --rally-accent-soft-fallback: rgba(220, 38, 37, 0.15);
     --rally-glow-fallback: rgba(255, 0, 0, 0.12);
@@ -241,8 +256,8 @@
   .rally-bg-accent-soft {
     background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
-  /* Flat tint by default; iOS override above swaps this for an organic
-     multi-source gradient (see .liquid-goo-container block). */
+  /* Flat tint by default; the iOS override above swaps this for an organic
+     multi-source gradient. */
   .rally-ambient-blob {
     background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
@@ -463,6 +478,10 @@
     --glass-saturate: 180%;
     --glass-tint: 0.55;
     --glass-tint-lens: 0.22;
+    /* Only used by the refraction path, where the lens carries the material and
+       the flat blur drops to a light frost. */
+    --glass-frost: 1px;
+    --glass-brightness: 112%;
     --glass-rim-strong: rgba(255, 255, 255, 0.9);
     --glass-rim-weak: rgba(255, 255, 255, 0.25);
     --glass-inner-highlight: rgba(255, 255, 255, 0.65);
@@ -525,8 +544,8 @@
     /* Barely tinted: with the lens doing the work the pane should read as
        clear glass with a bent, bright edge, not as a frosted panel. */
     background-color: hsl(var(--glass-surface, var(--card)) / var(--glass-tint-lens));
-    backdrop-filter: var(--glass-lens) blur(var(--glass-frost, 1px)) saturate(var(--glass-saturate))
-      brightness(var(--glass-brightness, 112%));
+    backdrop-filter: var(--glass-lens) blur(var(--glass-frost)) saturate(var(--glass-saturate))
+      brightness(var(--glass-brightness));
   }
 
   [data-glass="on"][data-glass-refraction="on"] .rally-tabbar::before {
@@ -901,7 +920,17 @@
   }
 }
 
-/* View Transition: circular reveal for light/dark toggle */
+/* View Transition: circular reveal for light/dark toggle.
+   The reveal origin is the pointer position, written to these two properties on
+   <html> by ColorModeProvider's toggle. Declared here as `initial` (the
+   guaranteed-invalid value) so the 50%/50% var() fallbacks below apply on a
+   keyboard-triggered toggle, which has no pointer coordinates to supply —
+   identical behaviour to leaving them undeclared, but resolvable by tooling. */
+:root {
+  --reveal-x: initial;
+  --reveal-y: initial;
+}
+
 ::view-transition-new(root) {
   animation: rally-reveal-in 0.6s ease-in-out forwards;
   z-index: 2;

@@ -39,10 +39,15 @@ async function pingBackend(): Promise<boolean> {
   }
 }
 
+/** True when a service worker is actively controlling this page. */
+function hasServiceWorker(): boolean {
+  return typeof navigator !== "undefined" && Boolean(navigator.serviceWorker?.controller);
+}
+
 /**
  * Boot gate for the PWA: shows an animated loader while the backend health
- * check runs, then either renders the app or a full-screen connection-error
- * state with retry. Also reacts to the browser's own online/offline events so
+ * check runs, then renders the app — or, only when nothing is cached to fall
+ * back to, a full-screen connection-error state with retry. Also reacts to the browser's own online/offline events so
  * a device going offline mid-session surfaces immediately, not just at boot.
  */
 export default function PWAAppGate({ children }: Readonly<{ children: ReactNode }>) {
@@ -91,7 +96,12 @@ export default function PWAAppGate({ children }: Readonly<{ children: ReactNode 
     return <PWALoadingScreen />;
   }
 
-  if (status === "offline") {
+  // A controlling service worker means the app shell and the NetworkFirst API
+  // cache are already on the device, so an unreachable backend is a degraded
+  // state, not a dead end — render the app and let the in-app offline banner
+  // (useOfflineSync) explain it. The hard error screen is reserved for the case
+  // where there is no cached app at all to fall back to.
+  if (status === "offline" && !hasServiceWorker()) {
     return <PWAConnectionError onRetry={handleRetry} retrying={retrying} />;
   }
 

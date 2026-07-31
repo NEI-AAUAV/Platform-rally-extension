@@ -295,9 +295,12 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
             isMobileMenuOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
           )}
           style={{
-            paddingTop: "var(--safe-top)",
+            // 20px floor on top: see RallyNavbar — landscape reports a 0px top
+            // inset but iOS still eats touches in that strip.
+            paddingTop: "max(20px, var(--safe-top))",
             paddingBottom: "var(--safe-bottom)",
             paddingRight: "var(--safe-right)",
+            paddingLeft: "var(--safe-left)",
           }}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import useStaffLogin from '@/hooks/useLoginLink'
+import { getResumeValue } from '@/lib/authResumeStore'
 
 const signinRedirect = vi.fn()
 
@@ -23,6 +24,7 @@ describe('useStaffLogin', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     sessionStorage.clear()
+    localStorage.clear()
     mockHref = '/'
   })
 
@@ -37,7 +39,7 @@ describe('useStaffLogin', () => {
     mockHref = '/admin'
     const { result } = renderHook(() => useStaffLogin())
     result.current()
-    expect(sessionStorage.getItem('rally_auth_return_url')).toBe('/admin')
+    expect(getResumeValue('rally_auth_return_url')).toBe('/admin')
   })
 
   it('calls signinRedirect with no options when opts is undefined', () => {

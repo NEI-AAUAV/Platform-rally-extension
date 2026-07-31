@@ -11,7 +11,7 @@ interface LegacyStandaloneNavigator {
 
 function readDisplayMode(): DisplayMode {
   if (globalThis.window === undefined) return "browser";
-  if (globalThis.matchMedia?.(STANDALONE_QUERY)?.matches === true) return "standalone";
+  if (globalThis.matchMedia?.(STANDALONE_QUERY)?.matches) return "standalone";
   const legacy = navigator as Navigator & LegacyStandaloneNavigator;
   return legacy.standalone === true ? "standalone" : "browser";
 }

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "react-oidc-context";
 import { useNavigate } from "@tanstack/react-router";
+import { clearResumeValue, getResumeValue } from "@/lib/authResumeStore";
 
 /**
  * OIDC redirect landing. react-oidc-context completes the code exchange; once
@@ -14,8 +15,8 @@ export default function AuthCallback() {
     if (auth.isLoading) return;
 
     if (auth.isAuthenticated) {
-      const returnUrl = sessionStorage.getItem("rally_auth_return_url");
-      sessionStorage.removeItem("rally_auth_return_url");
+      const returnUrl = getResumeValue("rally_auth_return_url");
+      clearResumeValue("rally_auth_return_url");
       // returnUrl is an arbitrary stored path (pathname+search+hash), so it is
       // not a statically known route — navigate by raw href.
       void navigate({ to: returnUrl || "/", replace: true });
