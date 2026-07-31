@@ -60,7 +60,7 @@ async def send_to_user(
     if not subscriptions:
         return
 
-    payload = {"title": title, "body": body, "url": url}
+    payload: dict[str, object] = {"title": title, "body": body, "url": url}
     dead_endpoints: list[str] = []
     for subscription in subscriptions:
         status = await run_in_threadpool(_send_one, subscription, payload)

@@ -15,7 +15,8 @@ class CRUDPushSubscription(
 ):
     async def get_by_endpoint(self, db: AsyncSession, *, endpoint: str) -> PushSubscription | None:
         stmt = select(self.model).where(self.model.endpoint == endpoint)
-        return await db.scalar(stmt)
+        result: PushSubscription | None = await db.scalar(stmt)
+        return result
 
     async def get_by_user(self, db: AsyncSession, *, user_id: int) -> Sequence[PushSubscription]:
         stmt = select(self.model).where(self.model.user_id == user_id)
