@@ -107,6 +107,10 @@
   }
   body {
     @apply bg-background font-inter text-foreground antialiased;
+    /* Fixed-position full-screen states (PWA boot gate) don't contribute to
+       layout height, so without this body collapses to 0px and reads as
+       invisible to layout/visibility checks despite being painted. */
+    min-height: 100dvh;
     transition:
       background-color 0.35s ease,
       color 0.2s ease;

@@ -382,13 +382,23 @@ test.describe('Staff Evaluation - Authentication', () => {
       localStorage.clear();
     });
 
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
     // Navigate to protected page
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should redirect to login or show error
-    // Adjust based on your auth flow
+    // No route-level auth guard exists for this page: an unauthenticated
+    // visitor lands on the checkpoint view itself (data fails to load, so it
+    // renders its not-found state) rather than being redirected. The header's
+    // "Iniciar sessão" CTA is what actually signals the logged-out state here.
     await expect(
-      page.getByText(/login|entrar|autenticação/i).first(),
+      page.getByRole('button', { name: /iniciar sessão/i }),
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -442,15 +452,24 @@ test.describe('Staff Evaluation - Authentication', () => {
       });
     });
 
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
     await context.addInitScript(() => {
       localStorage.setItem('oidc.user::', 'not-json{{{');
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should handle invalid token
+    // An unparseable session is treated the same as no session — the header
+    // CTA reflects the logged-out state, no dedicated login screen exists.
     await expect(
-      page.getByText(/login|entrar|invalid|error/i).first(),
+      page.getByRole('button', { name: /iniciar sessão/i }),
     ).toBeVisible({ timeout: 5000 });
   });
 });

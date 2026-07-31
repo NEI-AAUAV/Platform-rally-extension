@@ -13,16 +13,21 @@ type ConnectionStatus = "checking" | "online" | "offline";
  * `/health` route: the gateway only proxies `/api/rally` and `/static/rally`
  * to the backend (see deploy/nginx/rally.conf) — `/health` is an internal
  * Docker healthcheck path that 404s from the browser even when the API is up.
+ *
+ * Reachability is judged on whether a response was received at all, not on
+ * its status: a 401/403/500 still means the server is up and answering — only
+ * a network-level failure (no `response`, e.g. timeout, DNS, connection
+ * refused) means the backend is actually unreachable.
  */
 async function pingBackend(): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
   try {
-    const { error } = await viewRallySettingsPublic({
+    const { response } = await viewRallySettingsPublic({
       signal: controller.signal,
       throwOnError: false,
     });
-    return !error;
+    return Boolean(response);
   } catch (err) {
     logger.warn("Backend connectivity check failed", {
       error: err instanceof Error ? err.message : err,
