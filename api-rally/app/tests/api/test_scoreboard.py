@@ -40,9 +40,14 @@ class _FakePubsub:
 
     psubscribe = subscribe
 
-    async def get_message(self, ignore_subscribe_messages: bool) -> dict[str, Any] | None:
+    async def get_message(
+        self, ignore_subscribe_messages: bool, timeout: float | None = None
+    ) -> dict[str, Any] | None:
         await asyncio.sleep(0)
         self.calls += 1
+        # The stream must ask for a blocking wait; polling with timeout=0 is
+        # what turned this loop into a CPU-burning hot loop.
+        assert timeout, "get_message must be called with a heartbeat timeout"
         if self._messages:
             return self._messages.pop(0)
         return None
