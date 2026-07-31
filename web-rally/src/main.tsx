@@ -74,6 +74,12 @@ const queryClient = new QueryClient({
 // preserving the old force-update behavior.
 registerSW({ immediate: true });
 
+// Ask iOS/Chrome not to evict this origin's cache/IndexedDB under storage
+// pressure. Best-effort — unsupported or denied silently, no UX depends on it.
+void navigator.storage?.persist?.().then((granted) => {
+  if (!granted) logger.warn("Persistent storage not granted");
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorModeProvider>
