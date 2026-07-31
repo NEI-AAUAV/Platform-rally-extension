@@ -361,7 +361,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
 
           {/* Sticky action bar */}
           {isEditing && (
-            <div className="sticky bottom-4 z-10 flex justify-center gap-4 rounded-2xl border border-border bg-card/80 p-3 backdrop-blur">
+            <div className="rally-glass sticky bottom-4 z-10 flex justify-center gap-4 rounded-2xl border border-border p-3">
               <Button type="submit" disabled={isUpdating} variant="default">
                 <Save className="mr-2 h-4 w-4" />
                 {isUpdating ? "A Guardar..." : "Guardar"}

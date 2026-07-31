@@ -15,6 +15,9 @@ function renderToggle(className?: string) {
 describe('ColorModeToggle', () => {
   beforeEach(() => {
     localStorage.clear();
+    // Pin dark explicitly: with no stored preference the provider now follows
+    // the OS, which the test setup's matchMedia mock reports as light.
+    localStorage.setItem(COLOR_MODE_STORAGE_KEY, 'dark');
     document.documentElement.classList.remove('dark', 'light');
     if (!Element.prototype.setPointerCapture) {
       Element.prototype.setPointerCapture = () => {};

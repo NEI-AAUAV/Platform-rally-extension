@@ -98,7 +98,10 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
       scopes.includes("rally:admin"));
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card shadow-[var(--rally-shadow-sm)]">
+    <header
+      className="rally-glass sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]"
+      style={{ paddingTop: "var(--safe-top)" }}
+    >
       <nav
         aria-label="Navegação principal"
         className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"

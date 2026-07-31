@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Profile from '@/pages/profile/index';
+import { ColorModeProvider } from '@/components/theme/ColorModeProvider';
 
 const { mockUseUserStore, mockUseStaffLogin, mockUseProfile } = vi.hoisted(() => ({
   mockUseUserStore: vi.fn(),
@@ -30,6 +31,15 @@ vi.mock('@/pages/profile/JoinTeamCard', () => ({
   default: () => <div>JoinTeamCard</div>,
 }));
 
+// The page hosts the appearance panel, which needs the colour-mode context.
+function renderProfile() {
+  return render(
+    <ColorModeProvider>
+      <Profile />
+    </ColorModeProvider>,
+  );
+}
+
 describe('Profile index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -39,7 +49,7 @@ describe('Profile index', () => {
   it('shows loading state while session is loading', () => {
     mockUseUserStore.mockReturnValue({ sessionLoading: true });
     mockUseProfile.mockReturnValue({ data: undefined, isLoading: false, isError: false });
-    render(<Profile />);
+    renderProfile();
     expect(screen.getByText('A carregar perfil...')).toBeInTheDocument();
   });
 
@@ -49,7 +59,7 @@ describe('Profile index', () => {
     const onStaffLogin = vi.fn();
     mockUseStaffLogin.mockReturnValue(onStaffLogin);
     const user = userEvent.setup();
-    render(<Profile />);
+    renderProfile();
     expect(screen.getByText('Inicia sessão')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Login NEI/i }));
     expect(onStaffLogin).toHaveBeenCalled();
@@ -87,7 +97,7 @@ describe('Profile index', () => {
       isLoading: false,
       isError: false,
     });
-    render(<Profile />);
+    renderProfile();
     expect(screen.getByText('O meu perfil')).toBeInTheDocument();
     expect(screen.getByText('Rally 2024')).toBeInTheDocument();
     expect(screen.getByText('Capitão')).toBeInTheDocument();
@@ -108,7 +118,7 @@ describe('Profile index', () => {
       isLoading: false,
       isError: false,
     });
-    render(<Profile />);
+    renderProfile();
     expect(screen.getByText('JoinTeamCard')).toBeInTheDocument();
   });
 
@@ -120,7 +130,7 @@ describe('Profile index', () => {
       email: 'alice@example.com',
     });
     mockUseProfile.mockReturnValue({ data: undefined, isLoading: false, isError: true });
-    render(<Profile />);
+    renderProfile();
     expect(screen.getByText('Não foi possível carregar o histórico.')).toBeInTheDocument();
   });
 
@@ -136,7 +146,7 @@ describe('Profile index', () => {
       isLoading: false,
       isError: false,
     });
-    render(<Profile />);
+    renderProfile();
     expect(
       screen.getByText('Ainda não há participações registadas. Junta-te a uma equipa para começar.'),
     ).toBeInTheDocument();

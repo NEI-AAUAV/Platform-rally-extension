@@ -23,6 +23,9 @@ export default defineConfig({
       manifest: false,
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Install-dialog artwork: the browser fetches it, the app never does,
+        // so precaching it would cost every user ~450 KB for nothing.
+        globIgnores: ["**/screenshots/**"],
       },
       devOptions: { enabled: false },
     }),

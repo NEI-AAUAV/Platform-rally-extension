@@ -4,14 +4,23 @@
     <base href="/rally/" />
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover is required on iOS 26+: without it env(safe-area-inset-*)
+         stays 0 and Safari paints solid gaps around the redesigned chrome. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- Apply the saved color mode before paint to avoid a flash. -->
+    <!-- Apply the saved color mode before paint to avoid a flash. Must resolve
+         the same way as colorModeContext.ts: the stored value may be "system",
+         in which case the OS appearance wins. -->
     <script>
       (function () {
         try {
-          var m = localStorage.getItem("rally_color_mode");
-          if (m !== "light" && m !== "dark") m = "dark";
+          var pref = localStorage.getItem("rally_color_mode");
+          if (pref !== "light" && pref !== "dark" && pref !== "system") pref = "system";
+          var m = pref;
+          if (pref === "system") {
+            if (!window.matchMedia) m = "dark";
+            else m = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
           document.documentElement.classList.add(m);
           document.documentElement.style.colorScheme = m;
         } catch (e) {
@@ -21,6 +30,41 @@
       })();
     </script>
 
+    <!-- Opt in to the translucent surfaces only on Apple platforms running
+         Safari 26+, where they read as native. navigator.vendor is WebKit-only
+         and survives a standalone launch, unlike the UA "Safari/Version"
+         tokens; scroll-driven animations shipped in Safari 26.0, so the pair
+         approximates "Apple, 26 or newer". Everywhere else the attribute is
+         absent and the design is unchanged. -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("rally_glass");
+          if (pref !== "on" && pref !== "off") pref = "auto";
+          var supported =
+            window.CSS &&
+            (CSS.supports("backdrop-filter", "blur(1px)") ||
+              CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
+          var isApple26 =
+            navigator.vendor === "Apple Computer, Inc." &&
+            window.CSS &&
+            CSS.supports("animation-timeline", "scroll()");
+          var on = supported && (pref === "on" || (pref === "auto" && isApple26));
+          if (on) document.documentElement.dataset.glass = "on";
+        } catch (e) {
+          /* no glass, current design */
+        }
+      })();
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap"
+    />
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#dc2626" />
     <meta name="description" content="Rally Tascas - Competição de equipas do NEI" />
@@ -28,10 +72,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Rally Tascas" />
-    
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
-    
+
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/rally/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/rally/AppImages/ios/152.png" />
@@ -42,13 +86,16 @@
     <link rel="apple-touch-icon" sizes="72x72" href="/rally/AppImages/ios/72.png" />
     <link rel="apple-touch-icon" sizes="60x60" href="/rally/AppImages/ios/60.png" />
     <link rel="apple-touch-icon" sizes="57x57" href="/rally/AppImages/ios/57.png" />
-    
+
     <!-- Open Graph -->
     <meta property="og:title" content="Rally Tascas - NEI" />
-    <meta property="og:description" content="Competição de equipas do Núcleo de Estudantes de Informática" />
+    <meta
+      property="og:description"
+      content="Competição de equipas do Núcleo de Estudantes de Informática"
+    />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/rally/icon-512.png" />
-    
+
     <title>Rally Tascas - NEI</title>
   </head>
   <body>

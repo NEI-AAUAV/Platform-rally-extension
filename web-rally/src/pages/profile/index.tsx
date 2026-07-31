@@ -6,6 +6,7 @@ import useStaffLogin from "@/hooks/useLoginLink";
 import { useProfile } from "@/hooks/useProfile";
 import { EVENT_TYPE_LABELS, type EventType } from "@/types/event";
 import type { ParticipationEntry } from "@/types/profile";
+import { AppearanceSettings } from "@/components/theme";
 import JoinTeamCard from "./JoinTeamCard";
 
 function initialsOf(name: string): string {
@@ -193,6 +194,8 @@ export default function Profile() {
 
         {historyContent}
       </div>
+
+      <AppearanceSettings />
     </div>
   );
 }
