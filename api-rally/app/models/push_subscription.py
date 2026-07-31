@@ -26,7 +26,7 @@ class PushSubscription(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.user.id", ondelete="CASCADE"), nullable=False
     )
     # The PushSubscription.endpoint URL — unique per device+browser install.
     endpoint: Mapped[str] = mapped_column(String(1024), nullable=False)
