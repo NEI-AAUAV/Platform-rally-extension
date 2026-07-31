@@ -4,7 +4,16 @@ import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useRef } from "react";
-import { Menu, X, ShieldCheck, Users, ChevronDown, UserPlus, LogIn } from "lucide-react";
+import {
+  Menu,
+  X,
+  ShieldCheck,
+  Users,
+  ChevronDown,
+  UserPlus,
+  LogIn,
+  SlidersHorizontal,
+} from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -355,6 +364,21 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               viewMode={viewMode}
               toggleViewMode={toggleViewMode}
             />
+            {/* Device-local preferences: no account required, so this sits
+                outside every role gate above. */}
+            <li className="border-t border-border pt-2">
+              <Link
+                to="/preferences"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-2",
+                  linkClass(location.pathname === "/preferences", true),
+                )}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Preferências
+              </Link>
+            </li>
           </ul>
         </dialog>
       </div>

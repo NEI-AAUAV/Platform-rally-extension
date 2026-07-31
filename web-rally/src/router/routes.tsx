@@ -47,6 +47,12 @@ const profileRoute = createRoute({
   component: lazyRouteComponent(() => import("@/pages/profile")),
 });
 
+const preferencesRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/preferences",
+  component: lazyRouteComponent(() => import("@/pages/preferences")),
+});
+
 export const teamsRedirectRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/teams",
@@ -179,6 +185,7 @@ export const routeTree = rootRoute.addChildren([
     checkpointsRoute,
     rulesRoute,
     profileRoute,
+    preferencesRoute,
     teamsRedirectRoute,
     teamByIdRoute,
     adminRoute,
