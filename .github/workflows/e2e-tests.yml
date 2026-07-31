@@ -5,6 +5,8 @@ permissions:
 
 env:
   POETRY_INSTALLER_ONLY_BINARY: ":all:"
+  # http-ece (pywebpush dep) publishes no wheels; exact-name no-binary overrides :all: for it only
+  POETRY_INSTALLER_NO_BINARY: "http-ece"
 
 on:
   push:

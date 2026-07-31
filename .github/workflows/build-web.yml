@@ -13,6 +13,8 @@ on:
 
 env:
   POETRY_INSTALLER_ONLY_BINARY: ":all:"
+  # http-ece (pywebpush dep) publishes no wheels; exact-name no-binary overrides :all: for it only
+  POETRY_INSTALLER_NO_BINARY: "http-ece"
 
 jobs:
   build-web-rally:
@@ -46,6 +48,7 @@ jobs:
         working-directory: api-rally
         run: |
           poetry config installer.only-binary :all:
+          poetry config installer.no-binary http-ece
           poetry install --no-interaction --no-root
 
       - name: Generate OpenAPI schema (offline)

@@ -6,6 +6,8 @@ permissions:
 
 env:
   POETRY_INSTALLER_ONLY_BINARY: ":all:"
+  # http-ece (pywebpush dep) publishes no wheels; exact-name no-binary overrides :all: for it only
+  POETRY_INSTALLER_NO_BINARY: "http-ece"
 
 on:
   push:
@@ -36,7 +38,9 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Configure Poetry security settings
-        run: "poetry config installer.only-binary :all:"
+        run: |
+          poetry config installer.only-binary :all:
+          poetry config installer.no-binary http-ece
       
       - name: Cache Python dependencies
         uses: actions/cache@v5
@@ -91,7 +95,9 @@ jobs:
           virtualenvs-in-project: true
       
       - name: Configure Poetry security settings
-        run: "poetry config installer.only-binary :all:"
+        run: |
+          poetry config installer.only-binary :all:
+          poetry config installer.no-binary http-ece
       
       - name: Install API dependencies
         working-directory: api-rally
@@ -176,7 +182,9 @@ jobs:
         uses: snok/install-poetry@v1
       
       - name: Configure Poetry security settings
-        run: "poetry config installer.only-binary :all:"
+        run: |
+          poetry config installer.only-binary :all:
+          poetry config installer.no-binary http-ece
       
       - name: Check Python dependencies for vulnerabilities
         working-directory: api-rally

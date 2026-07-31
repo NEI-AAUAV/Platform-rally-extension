@@ -8,9 +8,12 @@ WORKDIR /app
 
 # Copy only what's needed for schema generation
 COPY api-rally/pyproject.toml api-rally/poetry.lock* ./
+# http-ece (pywebpush dependency) only ships an sdist on PyPI — pure Python,
+# no build script, so it's carved out of the binary-only guard by name.
+# An exact package name in --no-binary takes precedence over --only-binary :all:.
 RUN pip install --no-cache-dir --only-binary :all: poetry-plugin-export==1.9.0 poetry==2.4.1 && \
     poetry export -f requirements.txt --output requirements.txt --only main && \
-    pip install --no-compile --no-cache-dir --only-binary :all: --require-hashes -r requirements.txt
+    pip install --no-compile --no-cache-dir --only-binary :all: --no-binary http-ece --require-hashes -r requirements.txt
 
 # Copy API source and generate schema
 COPY api-rally/app ./app
