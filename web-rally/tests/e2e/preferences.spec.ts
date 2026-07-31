@@ -13,7 +13,7 @@ test.describe('Preferences', () => {
 
     await page.goto('/rally/preferences');
 
-    await expect(page.getByText('Preferências')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Preferências' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Aparência' })).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Tema' })).toBeVisible();
   });

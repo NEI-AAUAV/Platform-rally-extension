@@ -32,7 +32,7 @@ describe('NextCheckpointCard', () => {
         settings={{ show_checkpoint_map: true } as RallySettingsResponse}
       />,
     );
-    expect(screen.getByText('Abrir no Google Maps')).toBeInTheDocument();
+    expect(screen.getByText('Abrir no mapa')).toBeInTheDocument();
   });
 
   it('hides the map when show_checkpoint_map is false', () => {
@@ -44,7 +44,7 @@ describe('NextCheckpointCard', () => {
         settings={{ show_checkpoint_map: false } as RallySettingsResponse}
       />,
     );
-    expect(screen.queryByText('Abrir no Google Maps')).not.toBeInTheDocument();
+    expect(screen.queryByText('Abrir no mapa')).not.toBeInTheDocument();
   });
 
   it('renders nothing when there are no more checkpoints and route mode is not complete', () => {

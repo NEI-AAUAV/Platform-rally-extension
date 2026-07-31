@@ -95,7 +95,7 @@ describe("MapSection", () => {
 
   it("renders a Google Maps link when any checkpoint has coordinates", () => {
     render(<MapSection checkpoints={withCoords} selectedCheckpoint={null} />);
-    const link = screen.getByRole("link", { name: /Abrir no Google Maps/i });
+    const link = screen.getByRole("link", { name: /Abrir no mapa/i });
     expect(link).toHaveAttribute(
       "href",
       expect.stringContaining("https://www.google.com/maps/dir/?api=1&waypoints="),
@@ -104,7 +104,7 @@ describe("MapSection", () => {
 
   it("does not render a Google Maps link when no checkpoint has coordinates", () => {
     render(<MapSection checkpoints={withoutCoords} selectedCheckpoint={null} />);
-    expect(screen.queryByRole("link", { name: /Abrir no Google Maps/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Abrir no mapa/i })).not.toBeInTheDocument();
   });
 
   it("invokes onSelectCheckpoint when a marker is clicked on the real map", async () => {

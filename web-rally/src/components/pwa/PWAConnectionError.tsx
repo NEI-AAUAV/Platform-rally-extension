@@ -42,8 +42,8 @@ export default function PWAConnectionError({ onRetry, retrying = false }: PWACon
           Sem ligação ao servidor
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Não foi possível contactar os serviços de backend do NEI. Verifica a tua ligação à internet
-          e tenta novamente.
+          Não foi possível contactar os serviços de backend do NEI. Verifica a tua ligação à
+          internet e tenta novamente.
         </p>
         {attempted && !retrying && (
           <p className="mt-1 text-xs font-medium text-destructive">
