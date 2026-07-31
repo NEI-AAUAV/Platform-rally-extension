@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     LOG_JSON: bool = os.getenv("LOG_JSON", "true" if PRODUCTION else "false").lower() == "true"
     RELEASE: str = os.getenv("RELEASE", "dev")
 
+    # SQLAlchemy statement echo. Off by default even in development: the echo
+    # goes through the loguru intercept, so every statement is formatted and
+    # written twice and a handful of requests per second is enough to dominate
+    # the process's CPU time. Set SQL_ECHO=true when debugging queries.
+    SQL_ECHO: bool = os.getenv("SQL_ECHO", "false").lower() == "true"
+
     # Prometheus /metrics endpoint. On by default; must be blocked at the
     # reverse proxy in production (it is not itself access-controlled).
     METRICS_ENABLED: bool = os.getenv("METRICS_ENABLED", "true").lower() == "true"

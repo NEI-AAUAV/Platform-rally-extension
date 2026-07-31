@@ -35,7 +35,7 @@ def _engine_kwargs() -> dict[str, Any]:
 
 engine = create_async_engine(
     _async_url(str(settings.POSTGRES_URI)),
-    echo=not settings.PRODUCTION,  # Only echo SQL in development
+    echo=settings.SQL_ECHO,
     **_engine_kwargs(),
 )
 SessionLocal = async_sessionmaker(

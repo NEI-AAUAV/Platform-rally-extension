@@ -29,4 +29,7 @@ COPY --chown=appuser:appuser static ./static
 RUN poetry install --no-cache
 
 EXPOSE 8003
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app"]
+# --reload uses watchfiles (installed as a dev dep) for event-based watching.
+# app/tests is ~12MB of the 16MB tree and is never imported by the server, so
+# excluding it keeps the watch set small.
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app", "--reload-exclude", "tests/*", "--reload-exclude", "*/__pycache__/*"]
