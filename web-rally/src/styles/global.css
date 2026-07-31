@@ -115,6 +115,30 @@
       background-color 0.35s ease,
       color 0.2s ease;
   }
+
+  /* @supports (-webkit-touch-callout: none) matches WebKit on iOS/iPadOS only
+     (every iOS browser is WebKit under the hood) — desktop Safari lacks this
+     prop, so these rules never leak into non-Apple browsers. */
+  @supports (-webkit-touch-callout: none) {
+    /* Kill the gray tap flash so links/buttons feel native, not browser-chrome. */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* iOS auto-zooms into inputs below 16px; this is the PWA-breaking kind of zoom. */
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+
+    /* Native momentum scroll inside internal scroll containers (sheets, panels). */
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 }
 
 /* ============================================================
