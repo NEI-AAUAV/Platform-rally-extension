@@ -138,6 +138,16 @@
     .overflow-auto {
       -webkit-overflow-scrolling: touch;
     }
+
+    /* Opt-in GPU layer promotion for iOS WebKit. Toggle this class on for the
+       duration of an animation/menu-open/blur and remove it after — leaving
+       will-change permanent burns a GPU layer per element and pressures the
+       tight memory ceiling PWAs get on iOS, which can get the tab killed.
+       translate3d is a fallback for older WebKit builds that ignore will-change. */
+    .gpu-layer {
+      will-change: transform, opacity;
+      transform: translate3d(0, 0, 0);
+    }
   }
 }
 
