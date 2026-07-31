@@ -56,7 +56,7 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
     );
   }, [reduceTransparency]);
 
-  const [glass, setGlassPreference] = useState<GlassPreference>(readStoredGlass);
+  const [glass, setGlass] = useState<GlassPreference>(readStoredGlass);
   const glassActive = resolveGlass(glass);
 
   useEffect(() => {
@@ -65,7 +65,6 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
   }, [glass, glassActive]);
 
   const setMode = useCallback((next: ColorModePreference) => setPreference(next), []);
-  const setGlass = useCallback((next: GlassPreference) => setGlassPreference(next), []);
 
   // The toggle is an explicit light/dark choice, so it always leaves `system`.
   const toggle = useCallback(
