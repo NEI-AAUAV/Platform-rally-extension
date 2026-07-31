@@ -88,9 +88,9 @@ function MainLayoutContent() {
     >
       {/* Ambient accent atmosphere — fixed, behind all content. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="rally-bg-accent-soft absolute -left-32 top-[-10%] h-80 w-80 rounded-full blur-3xl" />
-        <div className="rally-bg-accent-soft absolute right-[-8%] top-[35%] h-96 w-96 rounded-full blur-3xl" />
-        <div className="rally-bg-accent-soft absolute bottom-[-10%] left-[25%] h-72 w-72 rounded-full blur-3xl" />
+        <div className="rally-ambient-blob absolute -left-32 top-[-10%] h-80 w-80 rounded-full blur-3xl" />
+        <div className="rally-ambient-blob absolute right-[-8%] top-[35%] h-96 w-96 rounded-full blur-3xl" />
+        <div className="rally-ambient-blob absolute bottom-[-10%] left-[25%] h-72 w-72 rounded-full blur-3xl" />
       </div>
       <div
         className="relative z-10 flex min-h-screen flex-1 flex-col"

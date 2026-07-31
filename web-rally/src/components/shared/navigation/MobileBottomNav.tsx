@@ -166,7 +166,7 @@ export function MobileBottomNav() {
       >
         <ul
           ref={listRef}
-          className="relative mx-auto flex max-w-lg touch-pan-y items-stretch"
+          className="liquid-goo-container relative mx-auto flex max-w-lg touch-pan-y items-stretch"
           onPointerDown={onPointerDown}
           onClickCapture={onClickCapture}
         >

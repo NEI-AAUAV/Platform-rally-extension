@@ -154,9 +154,6 @@
       transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Kills the full-app rubber-band bounce that exposes an empty background
-       behind the PWA chrome. Scoped to body only — internal scroll containers
-       (.overflow-y-auto etc. above) keep their own native inertia untouched. */
     /* overscroll-behavior-y kills the full-app rubber-band bounce that exposes an
        empty background behind the PWA chrome — scoped to body only, internal
        scroll containers (.overflow-y-auto etc. above) keep native inertia.
@@ -177,6 +174,28 @@
       backdrop-filter: blur(20px) saturate(190%);
       border: 1px solid rgba(255, 255, 255, 0.3);
       transform: translate3d(0, 0, 0);
+    }
+
+    /* Wire up to the #liquid-goo SVG filter in index.html: children that
+       overlap will merge into one another with a fluid, gooey edge. Container
+       must not clip — the blur needs room to bleed past child bounds. */
+    .liquid-goo-container {
+      filter: url(#liquid-goo);
+      overflow: visible;
+    }
+
+    /* Organic multi-source gradient for the ambient background blobs — 0
+       network bytes, scales on any display. Non-iOS keeps the flat
+       .rally-bg-accent-soft tint set in the base rule below. */
+    .rally-ambient-blob {
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.35), transparent 55%),
+        radial-gradient(
+          circle at 75% 75%,
+          var(--rally-accent, var(--rally-accent-fallback)),
+          transparent 60%
+        ),
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback));
     }
   }
 }
@@ -220,6 +239,11 @@
     background-color: var(--rally-accent, var(--rally-accent-fallback));
   }
   .rally-bg-accent-soft {
+    background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+  }
+  /* Flat tint by default; iOS override above swaps this for an organic
+     multi-source gradient (see .liquid-goo-container block). */
+  .rally-ambient-blob {
     background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
   .rally-border-accent {

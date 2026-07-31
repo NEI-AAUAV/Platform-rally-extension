@@ -10,7 +10,7 @@ import { useUserStore } from "@/stores/useUserStore";
 import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
-import { ColorModeProvider, GlassFilters } from "@/components/theme";
+import { ColorModeProvider, GlassFilters, GooFilter } from "@/components/theme";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { registerSW } from "virtual:pwa-register";
@@ -84,6 +84,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorModeProvider>
       <GlassFilters />
+      <GooFilter />
       <PWAAppGate>
         <AuthProvider {...oidcConfig}>
           <QueryClientProvider client={queryClient}>
