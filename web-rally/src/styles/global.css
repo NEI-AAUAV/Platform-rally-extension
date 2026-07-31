@@ -765,6 +765,50 @@
   }
 }
 
+/* PWA boot loading / connection-error screens */
+@keyframes rally-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rally-pulse-ring {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.15;
+  }
+}
+
+@keyframes rally-logo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes rally-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
 /* View Transition: circular reveal for light/dark toggle */
 ::view-transition-new(root) {
   animation: rally-reveal-in 0.6s ease-in-out forwards;
@@ -800,6 +844,12 @@
   .rally-press,
   .brutal-press {
     transition: none;
+  }
+  [class*="rally-spin"],
+  [class*="rally-pulse-ring"],
+  [class*="rally-logo-breathe"],
+  [class*="rally-dot-bounce"] {
+    animation: none !important;
   }
   ::view-transition-new(root),
   ::view-transition-old(root) {

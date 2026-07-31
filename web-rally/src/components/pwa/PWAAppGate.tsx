@@ -1,0 +1,80 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { healthCheck } from "@/client";
+import { logger } from "@/lib/logger";
+import PWALoadingScreen from "./PWALoadingScreen";
+import PWAConnectionError from "./PWAConnectionError";
+
+const HEALTH_CHECK_TIMEOUT_MS = 6000;
+
+type ConnectionStatus = "checking" | "online" | "offline";
+
+async function pingBackend(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+  try {
+    const { error } = await healthCheck({ signal: controller.signal, throwOnError: false });
+    return !error;
+  } catch (err) {
+    logger.warn("Backend health check failed", { error: err instanceof Error ? err.message : err });
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Boot gate for the PWA: shows an animated loader while the backend health
+ * check runs, then either renders the app or a full-screen connection-error
+ * state with retry. Also reacts to the browser's own online/offline events so
+ * a device going offline mid-session surfaces immediately, not just at boot.
+ */
+export default function PWAAppGate({ children }: Readonly<{ children: ReactNode }>) {
+  const [status, setStatus] = useState<ConnectionStatus>("checking");
+  const [retrying, setRetrying] = useState(false);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const check = useCallback(async () => {
+    const isReachable = await pingBackend();
+    if (!mounted.current) return isReachable;
+    setStatus(isReachable ? "online" : "offline");
+    return isReachable;
+  }, []);
+
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  useEffect(() => {
+    const handleOffline = () => setStatus("offline");
+    const handleOnline = () => void check();
+    globalThis.addEventListener("offline", handleOffline);
+    globalThis.addEventListener("online", handleOnline);
+    return () => {
+      globalThis.removeEventListener("offline", handleOffline);
+      globalThis.removeEventListener("online", handleOnline);
+    };
+  }, [check]);
+
+  const handleRetry = useCallback(async () => {
+    setRetrying(true);
+    await check();
+    if (mounted.current) setRetrying(false);
+  }, [check]);
+
+  if (status === "checking") {
+    return <PWALoadingScreen />;
+  }
+
+  if (status === "offline") {
+    return <PWAConnectionError onRetry={handleRetry} retrying={retrying} />;
+  }
+
+  return <>{children}</>;
+}

@@ -14,6 +14,7 @@ import { ColorModeProvider, GlassFilters } from "@/components/theme";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { registerSW } from "virtual:pwa-register";
+import PWAAppGate from "@/components/pwa/PWAAppGate";
 
 // Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
 // early exceptions are captured.
@@ -77,15 +78,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorModeProvider>
       <GlassFilters />
-      <AuthProvider {...oidcConfig}>
-        <QueryClientProvider client={queryClient}>
-          <AuthSyncGate>
-            <ToastProvider>
-              <Router />
-            </ToastProvider>
-          </AuthSyncGate>
-        </QueryClientProvider>
-      </AuthProvider>
+      <PWAAppGate>
+        <AuthProvider {...oidcConfig}>
+          <QueryClientProvider client={queryClient}>
+            <AuthSyncGate>
+              <ToastProvider>
+                <Router />
+              </ToastProvider>
+            </AuthSyncGate>
+          </QueryClientProvider>
+        </AuthProvider>
+      </PWAAppGate>
     </ColorModeProvider>
   </React.StrictMode>,
 );

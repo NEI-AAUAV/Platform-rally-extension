@@ -180,7 +180,7 @@ export function MobileBottomNav() {
             data-visible={activeIndex >= 0 || isDragging}
             style={{ width: `${100 / items.length}%` }}
           />
-          {items.map(renderTab)}
+          {items.map((item, index) => renderTab(item, index))}
         </ul>
       </nav>
 
