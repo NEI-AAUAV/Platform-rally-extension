@@ -32,7 +32,10 @@ export function readStoredGlass(): GlassPreference {
  */
 export function isNativeGlassPlatform(): boolean {
   if (globalThis.window === undefined) return false;
-  return (navigator.vendor === "Apple Computer, Inc." && globalThis.CSS?.supports("animation-timeline", "scroll()"));
+  return (
+    navigator.vendor === "Apple Computer, Inc." &&
+    globalThis.CSS?.supports("animation-timeline", "scroll()")
+  );
 }
 
 /** The material needs backdrop-filter; without it there is nothing to show. */

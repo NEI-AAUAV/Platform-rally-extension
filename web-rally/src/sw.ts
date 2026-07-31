@@ -155,7 +155,10 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
-      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const clientsList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
       const existing = clientsList.find((client) => client.url.includes(url));
       if (existing) {
         await existing.focus();

@@ -14,7 +14,11 @@ export function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer
  * specifically the PWA must be running installed to the Home Screen — a
  * plain Safari tab never delivers `push` events, even after 16.4. */
 export function isPushSupported(): boolean {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+  if (
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window) ||
+    !("Notification" in window)
+  ) {
     return false;
   }
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);

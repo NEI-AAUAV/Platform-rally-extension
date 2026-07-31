@@ -10,31 +10,31 @@
  * which is the one the call sites below actually guard against.
  */
 interface BadgeNavigator {
-  setAppBadge?: (count?: number) => Promise<void>
-  clearAppBadge?: () => Promise<void>
-  serviceWorker?: Navigator['serviceWorker']
+  setAppBadge?: (count?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+  serviceWorker?: Navigator["serviceWorker"];
 }
 
 function getBadgeNavigator(): BadgeNavigator | null {
-  if (typeof navigator === 'undefined') return null
-  return navigator as BadgeNavigator
+  if (typeof navigator === "undefined") return null;
+  return navigator as BadgeNavigator;
 }
 
 export function setAppBadge(count: number): void {
-  const nav = getBadgeNavigator()
-  if (!nav?.setAppBadge) return
+  const nav = getBadgeNavigator();
+  if (!nav?.setAppBadge) return;
 
   if (count <= 0) {
-    nav.clearAppBadge?.().catch(() => {})
-    return
+    nav.clearAppBadge?.().catch(() => {});
+    return;
   }
 
-  nav.setAppBadge(count).catch(() => {})
+  nav.setAppBadge(count).catch(() => {});
 }
 
 export function clearAppBadge(): void {
-  const nav = getBadgeNavigator()
-  if (!nav) return
-  nav.clearAppBadge?.().catch(() => {})
-  nav.serviceWorker?.controller?.postMessage({ action: 'clearBadge' })
+  const nav = getBadgeNavigator();
+  if (!nav) return;
+  nav.clearAppBadge?.().catch(() => {});
+  nav.serviceWorker?.controller?.postMessage({ action: "clearBadge" });
 }
