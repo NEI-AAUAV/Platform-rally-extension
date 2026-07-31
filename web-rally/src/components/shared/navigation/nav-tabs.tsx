@@ -276,10 +276,20 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           open={isMobileMenuOpen || undefined}
           aria-modal="true"
           aria-label="Menu"
+          // `left-auto` is required: the UA stylesheet sets
+          // `inset-inline-start: 0` on `dialog`, and on WebKit (iOS/iPadOS 26,
+          // macOS Tahoe) that wins over `right-0` for a fixed-width box, which
+          // pinned the drawer to the *left* edge. Explicitly clearing `left`
+          // makes `right-0` authoritative on every engine.
           className={cn(
-            "rally-elevate fixed inset-y-0 right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
+            "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
             isMobileMenuOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
           )}
+          style={{
+            paddingTop: "var(--safe-top)",
+            paddingBottom: "var(--safe-bottom)",
+            paddingRight: "var(--safe-right)",
+          }}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">
