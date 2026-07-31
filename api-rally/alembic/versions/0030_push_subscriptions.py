@@ -42,7 +42,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["user_id"],
-            [f"{SCHEMA}.users.id"],
+            [f"{SCHEMA}.user.id"],
             name="fk_push_subscriptions_user_id",
             ondelete="CASCADE",
         ),

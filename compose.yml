@@ -57,8 +57,8 @@ services:
       # worker). Off by default; only effective alongside EVENTS_ENABLED.
       RECOMPUTE_OFF_PATH: ${RECOMPUTE_OFF_PATH:-false}
       # OIDC resource-server validation (authentik).
-      OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_PROVIDER_URL: ${OIDC_PROVIDER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_APPLICATION_SLUG: ${OIDC_APPLICATION_SLUG:-rally}
       OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
@@ -79,11 +79,11 @@ services:
       # CORS: the public origin the SPA is served from.
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-["http://localhost"]}
       # Cloudflare R2 (branding uploads) — optional.
-      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
-      R2_BUCKET: ${R2_BUCKET}
-      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL}
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
       # Logging (see .env.example for details).
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_JSON: ${LOG_JSON:-false}
@@ -118,10 +118,10 @@ services:
       - "3003:3003"
     environment:
       # Vite reads VITE_* from the environment at dev/build time.
-      VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY}
-      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID}
-      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI}
-      VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI}
+      VITE_OIDC_AUTHORITY: ${VITE_OIDC_AUTHORITY:-}
+      VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-}
+      VITE_OIDC_REDIRECT_URI: ${VITE_OIDC_REDIRECT_URI:-}
+      VITE_OIDC_POST_LOGOUT_REDIRECT_URI: ${VITE_OIDC_POST_LOGOUT_REDIRECT_URI:-}
       VITE_OIDC_ADMIN_GROUP: ${OIDC_ADMIN_GROUP:-admin}
       VITE_OIDC_MANAGER_GROUP: ${OIDC_MANAGER_GROUP:-manager-rally}
       VITE_OIDC_STAFF_GROUP: ${OIDC_STAFF_GROUP:-rally-staff}

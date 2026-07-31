@@ -2,6 +2,9 @@ FROM python:3.12-slim AS requirements-stage
 
 ENV PYTHONUNBUFFERED=1
 ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
+# http-ece (pywebpush dependency) only ships an sdist on PyPI — pure Python,
+# no build script, so it's carved out of the binary-only guard by name.
+ENV POETRY_INSTALLER_NO_BINARY="http-ece"
 
 WORKDIR /api_rally
 
