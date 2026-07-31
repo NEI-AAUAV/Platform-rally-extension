@@ -52,7 +52,7 @@
           var on = supported && (pref === "on" || (pref === "auto" && isApple26));
           if (on) document.documentElement.dataset.glass = "on";
         } catch (e) {
-          /* no glass, current design */
+          console.warn("Failed to check glass styling preference", e);
         }
       })();
     </script>
