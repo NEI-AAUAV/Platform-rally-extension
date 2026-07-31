@@ -102,7 +102,7 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
         </div>
       </fieldset>
 
-      <label className="mt-5 flex items-start justify-between gap-4">
+      <label htmlFor="reduce-transparency" className="mt-5 flex items-start justify-between gap-4">
         <span className="min-w-0">
           <span className="block text-sm font-medium text-foreground">Reduzir transparência</span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
@@ -110,6 +110,7 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
           </span>
         </span>
         <input
+          id="reduce-transparency"
           type="checkbox"
           checked={reduceTransparency}
           onChange={(e) => setReduceTransparency(e.target.checked)}
