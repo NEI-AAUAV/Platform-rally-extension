@@ -16,7 +16,7 @@ export default function ProvisionalBadge({
 }: Readonly<ProvisionalBadgeProps>) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yellow-600 dark:text-yellow-300 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yellow-800 dark:text-yellow-300 ${className}`}
     >
       <Clock className="h-3 w-3" />
       {label}

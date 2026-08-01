@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { seedOidcSession } from './helpers/session';
+import { readResumeValue } from './helpers/authResume';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';
 
 async function seedTeamAuth(context: BrowserContext, page: Page, teamId = 3) {
@@ -73,9 +74,7 @@ test.describe('Team info', () => {
     await page.goto('/rally/team-info');
     await page.getByRole('button', { name: 'Associar a mim' }).click();
 
-    const pendingMember = await page.evaluate(() =>
-      sessionStorage.getItem('rally_pending_link_user_id'),
-    );
+    const pendingMember = await readResumeValue(page, 'rally_pending_link_user_id');
     expect(pendingMember).toBe('2');
   });
 

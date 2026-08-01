@@ -40,7 +40,7 @@ function PhaseChip({
   }
   if (phase === "pre") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-600 dark:text-yellow-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-800 dark:text-yellow-300">
         <Clock className="h-3.5 w-3.5" />
         Começa em {state.days > 0 ? `${state.days}d ` : ""}
         {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
@@ -163,8 +163,8 @@ export default function LiveDashboard() {
       {/* Teams not started alert */}
       {teamsNotStarted > 0 && countdownState.phase === "live" && (
         <div className="flex items-center gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
-          <Clock className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
-          <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+          <Clock className="h-4 w-4 shrink-0 text-yellow-800 dark:text-yellow-400" />
+          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
             {teamsNotStarted} equipa{teamsNotStarted !== 1 ? "s" : ""} ainda não iniciou o percurso
           </p>
         </div>

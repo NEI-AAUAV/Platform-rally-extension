@@ -1,11 +1,22 @@
 import { useEffect } from "react";
-import { hexToRgba, ensureContrastByLightening, type Branding } from "@/lib/branding";
+import {
+  hexToRgba,
+  ensureContrastByLightening,
+  ensureContrastByDarkening,
+  flattenOnWhite,
+  type Branding,
+} from "@/lib/branding";
 
 // Calibration background for deriving a contrast-safe dark-mode accent
 // variant. Deliberately darker than the plain card background (hsl(224 26% 9%))
 // to also clear darker surfaces such as accent-glow sections, with a small
 // margin above the 4.5:1 minimum since real surfaces vary slightly.
 const DARK_CARD_BG_HEX = "#09201b";
+
+// Light-mode mirror: accent text most often sits on the soft accent tint
+// (the accent at ~15% over the page). Calibrating against a heavier 22% blend
+// leaves margin for the grain overlay, which darkens that tint slightly.
+const LIGHT_TINT_ALPHA = 0.22;
 
 function setLinkHrefAll(selector: string, href: string): void {
   document.querySelectorAll<HTMLLinkElement>(selector).forEach((el) => {
@@ -56,11 +67,19 @@ export default function useDocumentBranding(branding: Branding): void {
         "--rally-accent-contrast",
         ensureContrastByLightening(accentColor, DARK_CARD_BG_HEX, 4.6),
       );
+      const lightTint = flattenOnWhite(accentColor, LIGHT_TINT_ALPHA);
+      if (lightTint) {
+        root.style.setProperty(
+          "--rally-accent-contrast-light",
+          ensureContrastByDarkening(accentColor, lightTint, 4.6),
+        );
+      }
     } else {
       root.style.removeProperty("--rally-accent");
       root.style.removeProperty("--rally-accent-soft");
       root.style.removeProperty("--rally-glow");
       root.style.removeProperty("--rally-accent-contrast");
+      root.style.removeProperty("--rally-accent-contrast-light");
     }
   }, [accentColor]);
 }

@@ -29,7 +29,9 @@
     --secondary-foreground: 220 20% 20%;
 
     --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 42%;
+    /* 34% (not 42%): muted text also lands on the soft accent tints
+       (.rally-bg-accent-soft), where the lighter value was 4.33:1 — under AA. */
+    --muted-foreground: 220 14% 34%;
 
     --accent: 220 14% 94%;
     --accent-foreground: 220 20% 18%;
@@ -228,6 +230,10 @@
        dark card background — see ensureContrastByLightening in branding.ts
        for the runtime equivalent used with custom accent_color values. */
     --rally-accent-contrast-dark-fallback: #e45554;
+    /* Light-theme counterpart: darkened until it clears 4.5:1 on the soft
+       accent tint. See ensureContrastByDarkening in branding.ts for the
+       runtime equivalent used with custom accent_color values. */
+    --rally-accent-contrast-light-fallback: #b61e1d;
   }
   [data-rally-theme="nei"],
   [data-rally-theme="default"] {
@@ -235,13 +241,17 @@
     --rally-accent-soft-fallback: rgba(0, 133, 66, 0.16);
     --rally-glow-fallback: rgba(0, 133, 66, 0.14);
     --rally-accent-contrast-dark-fallback: #009a4c;
+    --rally-accent-contrast-light-fallback: #006f37;
   }
 }
 
 @layer utilities {
   /* --- Brand accent helpers --- */
+  /* Light theme: raw accent text fails WCAG AA on the soft accent tint it most
+     often sits on (default NEI green is ~3.7:1 there), so use the darkened,
+     contrast-verified variant — the mirror of the dark-theme rule below. */
   .rally-accent {
-    color: var(--rally-accent, var(--rally-accent-fallback));
+    color: var(--rally-accent-contrast-light, var(--rally-accent-contrast-light-fallback));
   }
   /* Dark theme: raw accent text can fail WCAG AA against the dark card
      background (e.g. default NEI green is ~3.9:1). Use the lightened,

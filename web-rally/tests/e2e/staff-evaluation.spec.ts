@@ -13,6 +13,7 @@ import {
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
 } from '../mocks/data';
+import { expectLoggedOutLoginCta } from './helpers/nav';
 import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from './helpers/session';
 
 test.describe('Staff Evaluation Flow', () => {
@@ -397,9 +398,7 @@ test.describe('Staff Evaluation - Authentication', () => {
     // visitor lands on the checkpoint view itself (data fails to load, so it
     // renders its not-found state) rather than being redirected. The header's
     // "Iniciar sessão" CTA is what actually signals the logged-out state here.
-    await expect(
-      page.getByRole('button', { name: /iniciar sessão/i }),
-    ).toBeVisible({ timeout: 5000 });
+    await expectLoggedOutLoginCta(page);
   });
 
   test('handles expired token gracefully', async ({ page, context }) => {
@@ -468,9 +467,7 @@ test.describe('Staff Evaluation - Authentication', () => {
 
     // An unparseable session is treated the same as no session — the header
     // CTA reflects the logged-out state, no dedicated login screen exists.
-    await expect(
-      page.getByRole('button', { name: /iniciar sessão/i }),
-    ).toBeVisible({ timeout: 5000 });
+    await expectLoggedOutLoginCta(page);
   });
 });
 

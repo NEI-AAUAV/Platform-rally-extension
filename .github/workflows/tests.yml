@@ -263,6 +263,17 @@ jobs:
         name: playwright-report-mocked
         path: web-rally/playwright-report/
 
+    # Visual baselines are platform-specific (…-linux.png) and can only be
+    # produced on Linux. Publishing the rendered screenshots lets a failed
+    # visual diff be turned into an updated baseline without a Linux machine.
+    - name: Upload rendered screenshots (visual baseline refresh)
+      uses: actions/upload-artifact@v7
+      if: ${{ failure() }}
+      with:
+        name: playwright-actual-screenshots
+        path: web-rally/test-results/**/*-actual.png
+        if-no-files-found: ignore
+
   test-e2e-fullstack:
     name: E2E Tests (fullstack, real backend)
     runs-on: ubuntu-latest

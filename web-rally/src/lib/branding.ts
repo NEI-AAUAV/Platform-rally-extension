@@ -58,6 +58,19 @@ export function hexToRgba(hex: string, alpha: number): string | null {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/**
+ * Flatten a translucent tint of `hex` over white into an opaque hex, so it can
+ * be used as the background in a contrast computation (which needs a solid
+ * color). Returns null when the input is not a parseable hex.
+ */
+export function flattenOnWhite(hex: string, alpha: number): string | null {
+  const n = parseHex(hex);
+  if (n === null) return null;
+  const mix = (channel: number) => Math.round(alpha * channel + (1 - alpha) * 255);
+  const toHex = (v: number) => v.toString(16).padStart(2, "0");
+  return `#${toHex(mix((n >> 16) & 255))}${toHex(mix((n >> 8) & 255))}${toHex(mix(n & 255))}`;
+}
+
 function hexToHsl(hex: string): [number, number, number] | null {
   const n = parseHex(hex);
   if (n === null) return null;
@@ -149,6 +162,41 @@ export function ensureContrastByLightening(
       hi = mid;
     } else {
       lo = mid;
+    }
+  }
+  return best;
+}
+
+/**
+ * Darken a hex color (in HSL space) until it reaches at least `minContrast`
+ * against `backgroundHex`. The light-theme mirror of
+ * `ensureContrastByLightening`: accent text sits on the soft accent tint
+ * (`--rally-accent-soft`, the accent at ~15% over the page), where the raw
+ * accent fails WCAG AA (the default NEI green is ~3.7:1 there).
+ * Returns the original hex unchanged if it cannot be parsed or already meets
+ * the target.
+ */
+export function ensureContrastByDarkening(
+  hex: string,
+  backgroundHex: string,
+  minContrast = 4.5,
+): string {
+  const hsl = hexToHsl(hex);
+  if (!hsl) return hex;
+  const [h, s, l] = hsl;
+  if (contrastRatio(hex, backgroundHex) >= minContrast) return hex;
+
+  let lo = 0.02;
+  let hi = l;
+  let best = hslToHex(h, s, lo);
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    const candidate = hslToHex(h, s, mid);
+    if (contrastRatio(candidate, backgroundHex) >= minContrast) {
+      best = candidate;
+      lo = mid;
+    } else {
+      hi = mid;
     }
   }
   return best;

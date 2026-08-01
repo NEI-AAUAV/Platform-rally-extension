@@ -35,7 +35,7 @@ function StatCard({
   if (tone === "danger") {
     toneClass = "bg-red-500/10 text-red-500";
   } else if (tone === "warning") {
-    toneClass = "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+    toneClass = "bg-yellow-500/10 text-yellow-800 dark:text-yellow-400";
   }
   return (
     <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
