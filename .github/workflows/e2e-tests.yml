@@ -23,7 +23,10 @@ jobs:
   e2e-tests:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # This job runs every project (chromium + mobile + fullstack) in one pass,
+    # after ~14 min of setup (poetry, smoke stack, build, browsers). The suite
+    # has outgrown a 30 min cap and was being killed mid-run.
+    timeout-minutes: 60
     
     steps:
       - name: Checkout code
