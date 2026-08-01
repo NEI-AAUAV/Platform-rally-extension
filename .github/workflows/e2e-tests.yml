@@ -112,9 +112,15 @@ jobs:
       
       - name: Run Playwright E2E tests
         working-directory: web-rally
+        # The fullstack project drives the smoke stack started above; without
+        # these it falls back to defaults and every fullstack spec burns its
+        # timeout (plus two retries) instead of running.
         run: pnpm run test:e2e
         env:
           CI: true
+          FULLSTACK_OIDC_URL: http://localhost:9009
+          FULLSTACK_API_BASE_URL: http://localhost:8003
+          FULLSTACK_API_PROXY_TARGET: http://localhost:8003
       
       - name: Upload Playwright test results
         uses: actions/upload-artifact@v7
