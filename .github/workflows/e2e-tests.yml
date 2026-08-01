@@ -23,9 +23,8 @@ jobs:
   e2e-tests:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
-    # This job runs every project (chromium + mobile + fullstack) in one pass,
-    # after ~14 min of setup (poetry, smoke stack, build, browsers). The suite
-    # has outgrown a 30 min cap and was being killed mid-run.
+    # Raised from 30 while the mocked suite's runtime here (~58 min, against
+    # ~12 min for the same command in tests.yml) is being investigated.
     timeout-minutes: 60
     
     steps:
@@ -110,21 +109,33 @@ jobs:
         working-directory: web-rally
         run: pnpm run playwright:install
       
-      # Split the same way tests.yml does. A single `test:e2e` mixes the
-      # fullstack specs into the ~500-test mocked run: `workers` is a top-level
-      # Playwright option, so the `workers: 1` on the fullstack project does not
-      # apply, and those specs end up interleaved against one shared backend.
-      # That run took nearly an hour and was killed; run separately they are
-      # ~12 min and ~4 min.
+      # The same mocked command takes ~12 min in tests.yml but ~58 min here,
+      # where the smoke stack is running alongside it. Record the machine size
+      # and what the containers are consuming so the gap can be attributed.
+      - name: Record runner capacity and container load
+        run: |
+          echo "cores: $(nproc)"
+          free -m
+          docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}'
+
+      # Split the same way tests.yml does, which runs these as two parallel
+      # jobs finishing in ~12 min and ~4 min.
+      # `--reporter=line` is what makes this measurable: the configured `html`
+      # reporter prints nothing while running, so a killed step leaves no trace
+      # of which specs were slow. GitHub timestamps every line.
       - name: Run mocked e2e suite (chromium + mobile)
         working-directory: web-rally
-        run: pnpm run test:e2e --project=chromium --project=mobile
+        run: pnpm run test:e2e --project=chromium --project=mobile --reporter=line,html
         env:
           CI: true
 
+      - name: Container load after the mocked suite
+        if: ${{ always() }}
+        run: docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}'
+
       - name: Run fullstack e2e suite (real backend)
         working-directory: web-rally
-        run: pnpm run test:e2e --project=fullstack
+        run: pnpm run test:e2e --project=fullstack --reporter=line,html
         env:
           CI: true
           FULLSTACK_OIDC_URL: http://localhost:9009
