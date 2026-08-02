@@ -34,10 +34,25 @@ function check(condition, message) {
 function safeResolve(base, ...segments) {
   const target = resolve(base, ...segments);
   if (target !== base && !target.startsWith(base + sep)) {
-    console.error(`✗ refusing path outside ${base}: ${segments.join("/")}`);
-    process.exit(1);
+    throw new Error(`refusing path outside ${base}: ${segments.join("/")}`);
   }
   return target;
+}
+
+/**
+ * Read a file that must live under `base`.
+ *
+ * The containment check is repeated inline rather than left to `safeResolve`
+ * alone: taint analysis follows the value, not the call graph, so the guard has
+ * to sit between the canonicalisation and the read for the path to count as
+ * validated.
+ */
+function readUnder(base, ...segments) {
+  const target = safeResolve(base, ...segments);
+  if (target !== base && !target.startsWith(base + sep)) {
+    throw new Error(`refusing to read outside ${base}: ${segments.join("/")}`);
+  }
+  return readFileSync(target, "utf8");
 }
 
 /**
@@ -65,7 +80,7 @@ if (!existsSync(manifestPath)) {
   process.exit(1);
 }
 
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const manifest = JSON.parse(readUnder(dist, "manifest.json"));
 
 check(manifest.name, "manifest.name is empty");
 check(manifest.short_name, "manifest.short_name is empty — the launcher label");
@@ -124,7 +139,7 @@ check(
 );
 
 // --- document head --------------------------------------------------------
-const html = readFileSync(safeResolve(dist, "index.html"), "utf8");
+const html = readUnder(dist, "index.html");
 
 check(
   /<meta[^>]+name="theme-color"[^>]+media="\(prefers-color-scheme:\s*light\)"/.test(html),
