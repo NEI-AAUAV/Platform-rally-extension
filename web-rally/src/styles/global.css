@@ -141,6 +141,14 @@
     }
   }
 
+  /* Top inset for sticky/fixed chrome (navbar). Plain safe-area everywhere;
+     the WebKit query below raises it to a 20px floor on iOS only. Declared
+     before that query on purpose — both selectors have the same specificity,
+     so source order is what decides, and this must lose to the iOS rule. */
+  .rally-topbar-inset {
+    padding-top: var(--safe-top);
+  }
+
   /* @supports (-webkit-touch-callout: none) matches WebKit on iOS/iPadOS only
      (every iOS browser is WebKit under the hood) — desktop Safari lacks this
      prop, so these rules never leak into non-Apple browsers. */
@@ -177,6 +185,16 @@
     /* iOS-native spring feel for page/menu transitions instead of linear ease. */
     .ios-spring {
       transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* In landscape safe-area-inset-top reports 0px, but recent iOS still
+       swallows touches along the top edge (undocumented dead zone). The 20px
+       floor keeps the nav controls tappable there. Scoped to iOS/iPadOS: the
+       floor is a workaround for that dead zone, and applying it everywhere put
+       a permanent 20px band above the navbar on desktop and Android, where
+       nothing eats the touch and the inset is legitimately 0. */
+    .rally-topbar-inset {
+      padding-top: max(20px, var(--safe-top));
     }
 
     /* overscroll-behavior-y kills the full-app rubber-band bounce that exposes an
@@ -1096,14 +1114,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The route cross-fade (router defaultViewTransition) is a UA animation, and
-     the UA does not suppress it here on its own. Zeroing both halves keeps the
-     snapshot machinery working while removing the motion. */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none;
-  }
-
   .rally-marquee-track {
     animation: none;
   }

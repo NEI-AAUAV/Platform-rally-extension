@@ -4,12 +4,12 @@ import { routeTree } from "./routes";
 const router = createRouter({
   routeTree,
   basepath: import.meta.env.BASE_URL.replace(/\/$/, "") || "/",
-  // Cross-fade page swaps through the View Transitions API instead of the hard
-  // cut a plain SPA does — the single cheapest thing that stops navigation
-  // reading as "a website". The router falls back to an instant swap where the
-  // API is missing (Safari before 18). The UA cross-fade is not automatically
-  // suppressed under prefers-reduced-motion, so global.css disables it there.
-  defaultViewTransition: true,
+  // No defaultViewTransition here on purpose. The ::view-transition-new(root)
+  // rule in global.css is the circular reveal written for the light/dark
+  // toggle, and it applies to *any* root view transition — turning it on for
+  // navigation made every page change wipe in as a circle from the centre
+  // (with no --reveal-x/y set, the origin falls back to 50% 50%). Scoping that
+  // animation to the toggle is a prerequisite for enabling it here.
 });
 
 declare module "@tanstack/react-router" {
