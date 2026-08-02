@@ -21,6 +21,7 @@ import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useClickOutside from "@/hooks/useClickOutside";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
 
 type NavTabsProps = ComponentProps<"ul">;
 
@@ -186,6 +187,8 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const checkpointsLabel = capitalize(terms.checkpoints);
 
   useClickOutside(mobileMenuRef, isMobileMenuOpen, () => setIsMobileMenuOpen(false));
+  // Back closes the drawer rather than leaving the page behind it.
+  useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },

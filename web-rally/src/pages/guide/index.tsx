@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "@tanstack/react-router";
 import {
@@ -20,9 +20,15 @@ import {
 } from "@/client";
 import { LoadingState } from "@/components/shared";
 import useGuideAccess from "@/hooks/useGuideAccess";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
 
 function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>) {
   const [lightbox, setLightbox] = useState<string | null>(null);
+  // Back closes the zoomed image, the way a native gallery behaves.
+  useBackDismiss(
+    lightbox !== null,
+    useCallback(() => setLightbox(null), []),
+  );
 
   const photos = media.filter((m) => m.kind === "photo" && m.url);
   const funFacts = media.filter((m) => m.kind === "fun_fact");

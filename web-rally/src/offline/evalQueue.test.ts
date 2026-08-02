@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // In-memory stand-in for idb-keyval (jsdom has no IndexedDB).
 const store = new Map<string, unknown>();
@@ -10,7 +10,7 @@ vi.mock("idb-keyval", () => ({
   },
 }));
 
-import { enqueue, list, drain, markSynced, markFailed } from "./evalQueue";
+import { enqueue, list, drain, markSynced, markFailed, EVAL_SYNC_TAG } from "./evalQueue";
 
 const base = {
   teamId: 1,
@@ -85,5 +85,63 @@ describe("evalQueue", () => {
     const items = await list();
     expect(items).toHaveLength(1);
     expect(items[0]?.idempotencyKey).toBe("k2");
+  });
+
+  /**
+   * Background Sync is a Chrome-only supplement on top of the foreground
+   * drain, never a replacement: iOS Safari has no such API, and that is where
+   * much of the staff runs. These tests pin that the queue is written first and
+   * that a missing or failing API cannot cost us an entry.
+   */
+  describe("background sync registration", () => {
+    const originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, "serviceWorker");
+
+    function stubServiceWorker(value: unknown) {
+      Object.defineProperty(navigator, "serviceWorker", {
+        value,
+        configurable: true,
+        writable: true,
+      });
+    }
+
+    afterEach(() => {
+      if (originalServiceWorker) {
+        Object.defineProperty(navigator, "serviceWorker", originalServiceWorker);
+      } else {
+        // jsdom has no navigator.serviceWorker to restore.
+        Reflect.deleteProperty(navigator, "serviceWorker");
+      }
+    });
+
+    it("registers the sync tag after persisting the entry", async () => {
+      const register = vi.fn().mockResolvedValue(undefined);
+      stubServiceWorker({ ready: Promise.resolve({ sync: { register } }) });
+
+      await enqueue({ idempotencyKey: "k1", ...base });
+
+      expect(register).toHaveBeenCalledWith(EVAL_SYNC_TAG);
+      expect(await list()).toHaveLength(1);
+    });
+
+    it("still queues where Background Sync does not exist (iOS Safari)", async () => {
+      stubServiceWorker({ ready: Promise.resolve({}) });
+
+      await enqueue({ idempotencyKey: "k1", ...base });
+
+      const items = await list();
+      expect(items).toHaveLength(1);
+      expect(items[0]?.status).toBe("pending");
+    });
+
+    it("still queues when the browser refuses the sync registration", async () => {
+      stubServiceWorker({
+        ready: Promise.resolve({
+          sync: { register: vi.fn().mockRejectedValue(new Error("permission denied")) },
+        }),
+      });
+
+      await expect(enqueue({ idempotencyKey: "k1", ...base })).resolves.toBeUndefined();
+      expect(await list()).toHaveLength(1);
+    });
   });
 });

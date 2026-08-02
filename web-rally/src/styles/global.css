@@ -204,6 +204,101 @@
         var(--rally-accent-soft, var(--rally-accent-soft-fallback));
     }
   }
+
+  /* ------------------------------------------------------------------
+     Touch-device native feel, platform-independent.
+
+     Everything here used to live only inside the WebKit feature query
+     above, so Android Chrome — where most non-staff users are — got the
+     browser defaults: gray tap flashes, double-tap zoom, whole-app
+     rubber-banding. The iOS block is deliberately left untouched and these
+     rules are duplicated rather than moved, so the Apple behaviour cannot
+     regress from a reordering.
+
+     Scoped to `pointer: coarse` (not to a browser sniff) because these are
+     touch affordances: on a desktop pointer, killing the tap highlight and
+     forcing 16px inputs would be a design change, not a fix.
+     ------------------------------------------------------------------ */
+  @media (pointer: coarse) {
+    /* Gray flash on tap reads as browser chrome, not as an app. */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Removes the double-tap-to-zoom wait on tap targets. `manipulation`
+       keeps pan and pinch-zoom, so page zoom stays available — dropping it
+       entirely would be an accessibility regression. */
+    a,
+    button,
+    label,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      touch-action: manipulation;
+    }
+
+    /* Chrome auto-zooms into inputs under 16px exactly like Safari does. */
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+
+    /* Stops a scrolled-to-the-end panel from handing the scroll to the page
+       behind it (and, on Android, from arming pull-to-refresh mid-gesture). */
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-auto {
+      overscroll-behavior: contain;
+    }
+
+    /* `none` rather than `contain`: contain still allows the pull-to-refresh
+       spinner, which fires while dragging a list in an installed app and reads
+       as a bug. Also kills the bounce that exposes bare background behind the
+       app chrome. */
+    body {
+      overscroll-behavior-y: none;
+    }
+
+    /* Chrome/Android leaves nav chrome selectable; a long-press on a tab label
+       pops the text-selection handles instead of activating the tab. */
+    .rally-tabbar,
+    nav {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+
+  /* Opt-in GPU layer promotion, previously iOS-only. Same contract on every
+     platform: toggle the class on for the duration of an animation and take it
+     off afterwards — a permanent will-change burns a compositor layer per
+     element, which costs memory on low-end Android just as it does on iOS. */
+  .gpu-layer {
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+  }
+
+  /* Motion curves. Both are emphasized-decelerate shapes, but each platform
+     has its own: .ios-spring above is the iOS overshoot-free spring, this is
+     the Material 3 curve. Exposed as a token so components can reference one
+     name; the WebKit block keeps overriding .ios-spring for Apple. */
+  :root {
+    --ease-android: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: var(--ease-android);
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    :root {
+      --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+
+  .ease-emphasized {
+    transition-timing-function: var(--ease-emphasized);
+  }
 }
 
 /* ============================================================
@@ -965,6 +1060,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The route cross-fade (router defaultViewTransition) is a UA animation, and
+     the UA does not suppress it here on its own. Zeroing both halves keeps the
+     snapshot machinery working while removing the motion. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+
   .rally-marquee-track {
     animation: none;
   }

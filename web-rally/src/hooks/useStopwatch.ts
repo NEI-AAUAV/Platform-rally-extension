@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useWakeLock } from "./useWakeLock";
 
 export interface Lap {
   n: number;
@@ -61,6 +62,10 @@ export function useStopwatch() {
       return [...ls, { n: ls.length + 1, elapsed, split: elapsed - prev }];
     });
   }, [elapsed]);
+
+  // Keep the screen on while timing: nobody is touching the phone, and a
+  // display timeout mid-activity means unlocking to read the clock.
+  useWakeLock(running);
 
   useEffect(() => {
     return () => {

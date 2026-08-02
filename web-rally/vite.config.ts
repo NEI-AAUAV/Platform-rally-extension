@@ -15,9 +15,11 @@ export default defineConfig({
       // controls the whole app and nothing outside it.
       base: "/rally/",
       scope: "/rally/",
-      // Silent update: activate the new SW and reload, matching the old
-      // force-update behavior.
-      registerType: "autoUpdate",
+      // Prompt, not autoUpdate: a silent activate-and-reload can fire while a
+      // judge is halfway through an evaluation form and throw the input away.
+      // The app surfaces PWAUpdatePrompt instead and only reloads on tap (see
+      // src/components/pwa/PWAUpdatePrompt.tsx).
+      registerType: "prompt",
       // The PWA web-app manifest is hand-authored in public/manifest.json;
       // don't let the plugin emit a competing one.
       manifest: false,

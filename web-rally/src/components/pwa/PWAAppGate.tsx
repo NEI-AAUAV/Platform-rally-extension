@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { viewRallySettingsPublic } from "@/client";
 import { logger } from "@/lib/logger";
 import { useClearBadgeOnFocus } from "@/hooks/useClearBadgeOnFocus";
+import { useRotatedPushSync } from "@/hooks/useRotatedPushSync";
 import PWALoadingScreen from "./PWALoadingScreen";
 import PWAConnectionError from "./PWAConnectionError";
 
@@ -56,6 +57,7 @@ export default function PWAAppGate({ children }: Readonly<{ children: ReactNode 
   const mounted = useRef(true);
 
   useClearBadgeOnFocus();
+  useRotatedPushSync();
 
   useEffect(() => {
     mounted.current = true;

@@ -10,12 +10,8 @@
   "theme_color": "#dc2626",
   "orientation": "portrait-primary",
   "scope": "/rally/",
+  "handle_links": "preferred",
   "icons": [
-    {
-      "src": "/rally/favicon.ico",
-      "sizes": "32x32",
-      "type": "image/x-icon"
-    },
     {
       "src": "/rally/icon-144.png",
       "type": "image/png",
@@ -51,6 +47,12 @@
       "type": "image/png",
       "sizes": "180x180",
       "purpose": "any"
+    },
+    {
+      "src": "/rally/icon-monochrome-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "monochrome"
     }
   ],
   "shortcuts": [

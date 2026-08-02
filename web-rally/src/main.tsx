@@ -13,8 +13,8 @@ import AuthSyncGate from "@/auth/AuthSyncGate";
 import { ColorModeProvider, GlassFilters } from "@/components/theme";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
-import { registerSW } from "virtual:pwa-register";
 import PWAAppGate from "@/components/pwa/PWAAppGate";
+import PWAUpdatePrompt from "@/components/pwa/PWAUpdatePrompt";
 
 // Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
 // early exceptions are captured.
@@ -69,10 +69,10 @@ const queryClient = new QueryClient({
   },
 });
 
-// Register the Workbox service worker (generated from src/sw.ts by
-// vite-plugin-pwa). autoUpdate reloads to activate a new SW automatically,
-// preserving the old force-update behavior.
-registerSW({ immediate: true });
+// The Workbox service worker (generated from src/sw.ts by vite-plugin-pwa) is
+// registered by PWAUpdatePrompt via useRegisterSW, which also owns the
+// "new version available" state. It is mounted outside PWAAppGate so
+// registration is not held up by the boot connectivity check.
 
 // Ask iOS/Chrome not to evict this origin's cache/IndexedDB under storage
 // pressure. Best-effort — unsupported or denied silently, no UX depends on it.
@@ -84,6 +84,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorModeProvider>
       <GlassFilters />
+      <PWAUpdatePrompt />
       <PWAAppGate>
         <AuthProvider {...oidcConfig}>
           <QueryClientProvider client={queryClient}>
