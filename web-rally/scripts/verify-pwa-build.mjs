@@ -40,7 +40,23 @@ function safeResolve(base, ...segments) {
   return target;
 }
 
-const dist = safeResolve(projectRoot, process.argv[2] ?? "dist");
+/**
+ * Accept only a relative, dot-free path made of plain path characters.
+ *
+ * `safeResolve` below already rejects anything that escapes the root, but that
+ * check happens after the join, so a taint analyser cannot see it. Screening
+ * the raw CLI argument against an allow-list first makes the guarantee local
+ * and obvious: nothing absolute and no `..` segment ever reaches `resolve`.
+ */
+const DIST_ARG_PATTERN = /^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*\/?$/;
+
+const distArg = process.argv[2] ?? "dist";
+if (!DIST_ARG_PATTERN.test(distArg)) {
+  console.error(`✗ invalid dist directory argument: ${distArg}`);
+  process.exit(1);
+}
+
+const dist = safeResolve(projectRoot, distArg);
 
 // --- manifest -------------------------------------------------------------
 const manifestPath = safeResolve(dist, "manifest.json");

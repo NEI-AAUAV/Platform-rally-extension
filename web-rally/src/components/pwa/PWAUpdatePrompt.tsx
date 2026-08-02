@@ -27,8 +27,7 @@ export default function PWAUpdatePrompt() {
   if (!needRefresh) return null;
 
   return (
-    <div
-      role="status"
+    <output
       className="rally-surface rally-glass fixed left-4 right-4 z-[70] flex items-center gap-3 p-4 shadow-lg"
       style={{ bottom: "calc(1rem + var(--safe-bottom))" }}
     >
@@ -37,7 +36,7 @@ export default function PWAUpdatePrompt() {
       </div>
 
       <p className="min-w-0 flex-1 text-sm font-medium text-foreground">
-        Nova versão disponível
+        <span className="block">Nova versão disponível</span>
         <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
           Atualiza quando estiveres pronto
         </span>
@@ -61,6 +60,6 @@ export default function PWAUpdatePrompt() {
           Atualizar
         </button>
       </div>
-    </div>
+    </output>
   );
 }
