@@ -15,17 +15,35 @@
  * Usage: node scripts/verify-pwa-build.mjs [distDir]
  */
 import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { resolve, sep } from "node:path";
 
-const dist = process.argv[2] ?? "dist";
+const projectRoot = resolve(process.cwd());
 const failures = [];
 
 function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
+/**
+ * Resolve `segments` under `base` and refuse anything that escapes it.
+ *
+ * Both the CLI argument and the manifest-supplied icon/screenshot paths are
+ * untrusted here: `../../etc/passwd` in either one would otherwise turn this
+ * verifier into an arbitrary-file reader.
+ */
+function safeResolve(base, ...segments) {
+  const target = resolve(base, ...segments);
+  if (target !== base && !target.startsWith(base + sep)) {
+    console.error(`✗ refusing path outside ${base}: ${segments.join("/")}`);
+    process.exit(1);
+  }
+  return target;
+}
+
+const dist = safeResolve(projectRoot, process.argv[2] ?? "dist");
+
 // --- manifest -------------------------------------------------------------
-const manifestPath = join(dist, "manifest.json");
+const manifestPath = safeResolve(dist, "manifest.json");
 if (!existsSync(manifestPath)) {
   console.error(`✗ ${manifestPath} is missing — the app is not installable at all`);
   process.exit(1);
@@ -70,21 +88,27 @@ check(
 // install dialog renders a blank square.
 for (const icon of icons) {
   const rel = icon.src.replace(/^\/rally\//, "");
-  check(existsSync(join(dist, rel)), `icon ${icon.src} is referenced but not present in ${dist}`);
+  check(
+    existsSync(safeResolve(dist, rel)),
+    `icon ${icon.src} is referenced but not present in ${dist}`,
+  );
 }
 for (const shot of manifest.screenshots ?? []) {
   const rel = shot.src.replace(/^\/rally\//, "");
   check(
-    existsSync(join(dist, rel)),
+    existsSync(safeResolve(dist, rel)),
     `screenshot ${shot.src} is referenced but not present in ${dist}`,
   );
 }
 
 // --- service worker -------------------------------------------------------
-check(existsSync(join(dist, "sw.js")), "dist/sw.js is missing — no offline support, no push");
+check(
+  existsSync(safeResolve(dist, "sw.js")),
+  "dist/sw.js is missing — no offline support, no push",
+);
 
 // --- document head --------------------------------------------------------
-const html = readFileSync(join(dist, "index.html"), "utf8");
+const html = readFileSync(safeResolve(dist, "index.html"), "utf8");
 
 check(
   /<meta[^>]+name="theme-color"[^>]+media="\(prefers-color-scheme:\s*light\)"/.test(html),
