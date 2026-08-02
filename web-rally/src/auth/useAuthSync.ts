@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useUserStore } from "@/stores/useUserStore";
 import { setOnUnauthorized } from "@/services/client";
+import { setResumeValue } from "@/lib/authResumeStore";
 import { profileToUser } from "./identity";
 
 /**
@@ -43,7 +44,7 @@ export function useAuthSync() {
     clearSession();
 
     // Return to the current page after re-authentication.
-    sessionStorage.setItem(
+    setResumeValue(
       "rally_auth_return_url",
       globalThis.location.pathname + globalThis.location.search,
     );

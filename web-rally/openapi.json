@@ -5737,6 +5737,118 @@
         }
       }
     },
+    "/api/rally/v1/push/vapid-public-key": {
+      "get": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Get Vapid Public Key",
+        "description": "The public key the frontend passes to `PushManager.subscribe`.\n\nNone when VAPID isn't configured \u2014 the frontend must not prompt for\nnotification permission in that case (nothing would ever be sent).",
+        "operationId": "get_vapid_public_key",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VapidPublicKey"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/push/subscribe": {
+      "post": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Push Subscribe",
+        "operationId": "push_subscribe",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscriptionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/push/unsubscribe": {
+      "post": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Push Unsubscribe",
+        "operationId": "push_unsubscribe",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionUnsubscribe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -8859,6 +8971,73 @@
         "title": "ProfileResponse",
         "description": "A person's rally profile: identity + participation history."
       },
+      "PushSubscriptionCreate": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushSubscriptionKeys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "PushSubscriptionCreate",
+        "description": "Body shape of the browser's `PushSubscription.toJSON()`."
+      },
+      "PushSubscriptionKeys": {
+        "properties": {
+          "p256dh": {
+            "type": "string",
+            "title": "P256Dh"
+          },
+          "auth": {
+            "type": "string",
+            "title": "Auth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushSubscriptionKeys"
+      },
+      "PushSubscriptionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "endpoint"
+        ],
+        "title": "PushSubscriptionRead"
+      },
+      "PushSubscriptionUnsubscribe": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint"
+        ],
+        "title": "PushSubscriptionUnsubscribe"
+      },
       "RallyEventCreate": {
         "properties": {
           "name": {
@@ -10361,6 +10540,26 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VapidPublicKey": {
+        "properties": {
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_key"
+        ],
+        "title": "VapidPublicKey"
       },
       "VersusGroupListResponse": {
         "properties": {

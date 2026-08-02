@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ColorModeContext,
+  DARK_MEDIA_QUERY,
   applyColorMode,
-  readStoredMode,
+  applyGlass,
+  applyReduceTransparency,
+  readStoredGlass,
+  readStoredPreference,
+  readStoredReduceTransparency,
+  resolveColorMode,
+  resolveGlass,
   COLOR_MODE_STORAGE_KEY,
+  GLASS_STORAGE_KEY,
+  REDUCE_TRANSPARENCY_STORAGE_KEY,
+  type GlassPreference,
   type ColorMode,
+  type ColorModePreference,
 } from "./colorModeContext";
 
 interface ColorModeProviderProps {
@@ -12,27 +23,80 @@ interface ColorModeProviderProps {
 }
 
 export function ColorModeProvider({ children }: ColorModeProviderProps) {
-  const [colorMode, setColorMode] = useState<ColorMode>(readStoredMode);
+  const [preference, setPreference] = useState<ColorModePreference>(readStoredPreference);
+  const [systemMode, setSystemMode] = useState<ColorMode>(() => resolveColorMode("system"));
+
+  const mode: ColorMode = preference === "system" ? systemMode : preference;
 
   useEffect(() => {
-    applyColorMode(colorMode);
-    globalThis.localStorage.setItem(COLOR_MODE_STORAGE_KEY, colorMode);
-  }, [colorMode]);
+    applyColorMode(mode);
+  }, [mode]);
 
-  const setMode = useCallback((next: ColorMode) => setColorMode(next), []);
-  const toggle = useCallback((e?: { clientX: number; clientY: number }) => {
-    const flip = () => setColorMode((prev) => (prev === "dark" ? "light" : "dark"));
+  useEffect(() => {
+    globalThis.localStorage.setItem(COLOR_MODE_STORAGE_KEY, preference);
+  }, [preference]);
 
-    if (document.startViewTransition && e) {
-      document.documentElement.style.setProperty("--reveal-x", `${e.clientX}px`);
-      document.documentElement.style.setProperty("--reveal-y", `${e.clientY}px`);
-      document.startViewTransition(flip);
-    } else {
-      flip();
-    }
+  useEffect(() => {
+    const mql = globalThis.matchMedia?.(DARK_MEDIA_QUERY);
+    if (!mql) return;
+    const onChange = (e: MediaQueryListEvent) => setSystemMode(e.matches ? "dark" : "light");
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  const value = useMemo(() => ({ mode: colorMode, setMode, toggle }), [colorMode, setMode, toggle]);
+  const [reduceTransparency, setReduceTransparency] = useState<boolean>(
+    readStoredReduceTransparency,
+  );
+
+  useEffect(() => {
+    applyReduceTransparency(reduceTransparency);
+    globalThis.localStorage.setItem(
+      REDUCE_TRANSPARENCY_STORAGE_KEY,
+      reduceTransparency ? "true" : "false",
+    );
+  }, [reduceTransparency]);
+
+  const [glass, setGlass] = useState<GlassPreference>(readStoredGlass);
+  const glassActive = resolveGlass(glass);
+
+  useEffect(() => {
+    applyGlass(glassActive);
+    globalThis.localStorage.setItem(GLASS_STORAGE_KEY, glass);
+  }, [glass, glassActive]);
+
+  const setMode = useCallback((next: ColorModePreference) => setPreference(next), []);
+
+  // The toggle is an explicit light/dark choice, so it always leaves `system`.
+  const toggle = useCallback(
+    (e?: { clientX: number; clientY: number }) => {
+      const next: ColorMode = mode === "dark" ? "light" : "dark";
+      const flip = () => setPreference(next);
+
+      if (document.startViewTransition && e) {
+        document.documentElement.style.setProperty("--reveal-x", `${e.clientX}px`);
+        document.documentElement.style.setProperty("--reveal-y", `${e.clientY}px`);
+        document.startViewTransition(flip);
+      } else {
+        flip();
+      }
+    },
+    [mode],
+  );
+
+  const value = useMemo(
+    () => ({
+      mode,
+      preference,
+      setMode,
+      toggle,
+      reduceTransparency,
+      setReduceTransparency,
+      glass,
+      glassActive,
+      setGlass,
+    }),
+    [mode, preference, setMode, toggle, reduceTransparency, glass, glassActive, setGlass],
+  );
 
   return <ColorModeContext.Provider value={value}>{children}</ColorModeContext.Provider>;
 }

@@ -1,6 +1,7 @@
 import { Navigation, Compass } from "lucide-react";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import { directionsUrl } from "@/lib/mapLinks";
 
 interface Checkpoint {
   id: number;
@@ -63,7 +64,10 @@ export default function CheckpointCard({
         </button>
         {showMap && hasCoords && (
           <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
+            href={directionsUrl({
+              latitude: checkpoint.latitude as number,
+              longitude: checkpoint.longitude as number,
+            })}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted/40"

@@ -10,6 +10,7 @@ from app.models.dynamic_scoring import DynamicAward, DynamicRule
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.models.idempotency_key import IdempotencyKey
 from app.models.participation import EventParticipation
+from app.models.push_subscription import PushSubscription
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.rally_settings import RallySettings
 from app.models.rally_staff_assignment import RallyStaffAssignment
@@ -38,6 +39,7 @@ __all__ = [
     "DynamicAward",
     "EventParticipation",
     "EvaluationHistory",
+    "PushSubscription",
     "EvaluationAction",
     "IdempotencyKey",
     "AuditLog",

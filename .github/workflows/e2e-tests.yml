@@ -5,6 +5,8 @@ permissions:
 
 env:
   POETRY_INSTALLER_ONLY_BINARY: ":all:"
+  # http-ece (pywebpush dep) publishes no wheels; exact-name no-binary overrides :all: for it only
+  POETRY_INSTALLER_NO_BINARY: "http-ece"
 
 on:
   push:
@@ -105,12 +107,20 @@ jobs:
         working-directory: web-rally
         run: pnpm run playwright:install
       
-      - name: Run Playwright E2E tests
+      # This job starts the smoke stack, so it owns the fullstack project only.
+      # The mocked suite belongs to tests.yml, which runs it on a clean runner:
+      # run here (instrumented run 91402576977) it produced 139 retries and 25+
+      # failures, most of them beforeEach timeouts, and took nearly an hour —
+      # the same specs are green in tests.yml in ~12 min.
+      - name: Run fullstack e2e suite (real backend)
         working-directory: web-rally
-        run: pnpm run test:e2e
+        run: pnpm run test:e2e --project=fullstack --reporter=line,html
         env:
           CI: true
-      
+          FULLSTACK_OIDC_URL: http://localhost:9009
+          FULLSTACK_API_BASE_URL: http://localhost:8003
+          FULLSTACK_API_PROXY_TARGET: http://localhost:8003
+
       - name: Upload Playwright test results
         uses: actions/upload-artifact@v7
         if: always()

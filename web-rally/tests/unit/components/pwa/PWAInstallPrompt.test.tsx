@@ -1,6 +1,13 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import PWAInstallPrompt from '@/components/pwa/PWAInstallPrompt'
+
+const DISMISS_LABEL = 'Dispensar sugestão de instalação'
+
+/** jsdom reports Safari's vendor by default, so it has to be set per test. */
+function setVendor(vendor: string) {
+  Object.defineProperty(navigator, 'vendor', { value: vendor, configurable: true })
+}
 
 function dispatchBeforeInstallPrompt() {
   const event = new Event('beforeinstallprompt', { cancelable: true }) as Event & {
@@ -14,7 +21,16 @@ function dispatchBeforeInstallPrompt() {
 }
 
 describe('PWAInstallPrompt', () => {
-  it('renders nothing until a beforeinstallprompt event fires', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setVendor('Google Inc.')
+  })
+
+  afterEach(() => {
+    setVendor('Apple Computer, Inc.')
+  })
+
+  it('renders nothing on a Chromium browser until a beforeinstallprompt event fires', () => {
     const { container } = render(<PWAInstallPrompt />)
     expect(container).toBeEmptyDOMElement()
   })
@@ -27,13 +43,48 @@ describe('PWAInstallPrompt', () => {
     expect(screen.getByText('Instalar Rally Tascas')).toBeInTheDocument()
   })
 
-  it('dismisses the prompt when "Agora não" is clicked', () => {
+  it('shows Add to Home Screen instructions on Apple browsers, which never fire the event', () => {
+    setVendor('Apple Computer, Inc.')
+    render(<PWAInstallPrompt />)
+    expect(screen.getByText(/Adicionar ao/)).toBeInTheDocument()
+    // Safari cannot be prompted programmatically, so there is no install button.
+    expect(screen.queryByText('Instalar')).not.toBeInTheDocument()
+  })
+
+  it('renders nothing when already running standalone', () => {
+    setVendor('Apple Computer, Inc.')
+    const spy = vi.spyOn(globalThis, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === '(display-mode: standalone)',
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    )
+
+    const { container } = render(<PWAInstallPrompt />)
+    expect(container).toBeEmptyDOMElement()
+    spy.mockRestore()
+  })
+
+  it('dismisses the prompt when "Agora não" is clicked and remembers it', () => {
     render(<PWAInstallPrompt />)
     act(() => {
       dispatchBeforeInstallPrompt()
     })
-    fireEvent.click(screen.getByLabelText('Dismiss install prompt'))
+    fireEvent.click(screen.getByLabelText(DISMISS_LABEL))
     expect(screen.queryByText('Instalar Rally Tascas')).not.toBeInTheDocument()
+    expect(localStorage.getItem('rally_install_prompt_dismissed')).toBe('true')
+  })
+
+  it('stays dismissed across mounts', () => {
+    localStorage.setItem('rally_install_prompt_dismissed', 'true')
+    const { container } = render(<PWAInstallPrompt />)
+    act(() => {
+      dispatchBeforeInstallPrompt()
+    })
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('triggers the native install prompt and hides after choice', async () => {
@@ -58,15 +109,5 @@ describe('PWAInstallPrompt', () => {
     unmount()
     expect(removeSpy).toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function))
     removeSpy.mockRestore()
-  })
-
-  it('does not show the prompt again after being dismissed and re-triggering handleInstallClick indirectly', () => {
-    render(<PWAInstallPrompt />)
-    act(() => {
-      dispatchBeforeInstallPrompt()
-    })
-    fireEvent.click(screen.getByLabelText('Dismiss install prompt'))
-    // deferredPrompt is now null; component should render nothing
-    expect(screen.queryByText('Instalar')).not.toBeInTheDocument()
   })
 })

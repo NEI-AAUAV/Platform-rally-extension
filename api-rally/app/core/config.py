@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     LOG_JSON: bool = os.getenv("LOG_JSON", "true" if PRODUCTION else "false").lower() == "true"
     RELEASE: str = os.getenv("RELEASE", "dev")
 
+    # SQLAlchemy statement echo. Off by default even in development: the echo
+    # goes through the loguru intercept, so every statement is formatted and
+    # written twice and a handful of requests per second is enough to dominate
+    # the process's CPU time. Set SQL_ECHO=true when debugging queries.
+    SQL_ECHO: bool = os.getenv("SQL_ECHO", "false").lower() == "true"
+
     # Prometheus /metrics endpoint. On by default; must be blocked at the
     # reverse proxy in production (it is not itself access-controlled).
     METRICS_ENABLED: bool = os.getenv("METRICS_ENABLED", "true").lower() == "true"
@@ -101,6 +107,14 @@ class Settings(BaseSettings):
     SELF_CHECKIN_ENABLED: bool = os.getenv("SELF_CHECKIN_ENABLED", "false").lower() == "true"
     CHECKIN_HMAC_SECRET: str | None = os.getenv("CHECKIN_HMAC_SECRET") or None
     CHECKIN_TOKEN_TTL_SECONDS: int = int(os.getenv("CHECKIN_TOKEN_TTL_SECONDS", "90"))
+
+    # Web Push (VAPID). Optional: when the key pair is unset, the subscribe
+    # endpoint returns 503 and the frontend never prompts for permission —
+    # same fallback contract as R2. Generate a pair with `vapid --gen`
+    # (py-vapid, a pywebpush dependency) or `web-push generate-vapid-keys`.
+    VAPID_PUBLIC_KEY: str | None = os.getenv("VAPID_PUBLIC_KEY") or None
+    VAPID_PRIVATE_KEY: str | None = os.getenv("VAPID_PRIVATE_KEY") or None
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:admin@nei.web.ua.pt")
 
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"

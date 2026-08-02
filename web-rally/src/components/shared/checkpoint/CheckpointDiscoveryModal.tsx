@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 import CheckpointDiscovery from "./CheckpointDiscovery";
+import { directionsUrl } from "@/lib/mapLinks";
 
 type CheckpointDiscoveryModalProps = Readonly<{
   open: boolean;
@@ -65,7 +66,7 @@ export default function CheckpointDiscoveryModal({
       />
       <div className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl duration-300 animate-in fade-in slide-in-from-bottom-4 sm:rounded-3xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border bg-card/95 px-5 py-4 backdrop-blur">
+        <div className="rally-glass sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <MapPin className="rally-accent h-4 w-4 shrink-0" />
@@ -93,7 +94,7 @@ export default function CheckpointDiscoveryModal({
 
           {showMap && hasCoords && (
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`}
+              href={directionsUrl({ latitude, longitude })}
               target="_blank"
               rel="noopener noreferrer"
               className="rally-bg-accent mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"

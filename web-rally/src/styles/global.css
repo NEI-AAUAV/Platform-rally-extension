@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap");
+/* Fonts are loaded from index.html with preconnect: an @import here is
+   render-blocking and cannot start until the stylesheet itself has parsed. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,7 +29,9 @@
     --secondary-foreground: 220 20% 20%;
 
     --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 42%;
+    /* 34% (not 42%): muted text also lands on the soft accent tints
+       (.rally-bg-accent-soft), where the lighter value was 4.33:1 — under AA. */
+    --muted-foreground: 220 14% 34%;
 
     --accent: 220 14% 94%;
     --accent-foreground: 220 20% 18%;
@@ -85,14 +88,121 @@
 }
 
 @layer base {
+  :root {
+    /* Named safe-area insets. Only resolve to non-zero with viewport-fit=cover
+       in the viewport meta (see index.html). */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
   * {
     @apply border-border;
   }
+  /* Safari 26 ignores <meta name="theme-color"> and derives the standalone
+     chrome tint from the page instead — from fixed/sticky elements near a
+     viewport edge, else from the body background. This rule is what makes that
+     sampling deterministic, and it also colours the overscroll rubber band. */
+  html {
+    @apply bg-background;
+  }
   body {
     @apply bg-background font-inter text-foreground antialiased;
+    /* Fixed-position full-screen states (PWA boot gate) don't contribute to
+       layout height, so without this body collapses to 0px and reads as
+       invisible to layout/visibility checks despite being painted. */
+    min-height: 100vh;
     transition:
       background-color 0.35s ease,
       color 0.2s ease;
+  }
+
+  /* dvh tracks the collapsing browser toolbar, so it is the value we want where
+     it exists. It is an enhancement rather than the base value because on a
+     standalone cold start dvh can resolve short before the viewport settles,
+     and vh is correct from the first paint. Expressed as a feature query, not a
+     second min-height declaration, so it does not read as an accidental
+     overwrite. */
+  @supports (min-height: 100dvh) {
+    body {
+      min-height: 100dvh;
+    }
+  }
+
+  /* @supports (-webkit-touch-callout: none) matches WebKit on iOS/iPadOS only
+     (every iOS browser is WebKit under the hood) — desktop Safari lacks this
+     prop, so these rules never leak into non-Apple browsers. */
+  @supports (-webkit-touch-callout: none) {
+    /* Kill the gray tap flash so links/buttons feel native, not browser-chrome. */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* iOS auto-zooms into inputs below 16px; this is the PWA-breaking kind of zoom. */
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+
+    /* Native momentum scroll inside internal scroll containers (sheets, panels). */
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Opt-in GPU layer promotion for iOS WebKit. Toggle this class on for the
+       duration of an animation/menu-open/blur and remove it after — leaving
+       will-change permanent burns a GPU layer per element and pressures the
+       tight memory ceiling PWAs get on iOS, which can get the tab killed.
+       translate3d is a fallback for older WebKit builds that ignore will-change. */
+    .gpu-layer {
+      will-change: transform, opacity;
+      transform: translate3d(0, 0, 0);
+    }
+
+    /* iOS-native spring feel for page/menu transitions instead of linear ease. */
+    .ios-spring {
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* overscroll-behavior-y kills the full-app rubber-band bounce that exposes an
+       empty background behind the PWA chrome — scoped to body only, internal
+       scroll containers (.overflow-y-auto etc. above) keep native inertia.
+       Font smoothing keeps text subpixel-crisp over blurred/glassmorphic
+       surfaces on Retina displays. */
+    body {
+      overscroll-behavior-y: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Liquid-glass surface. Keep instance count low — backdrop-filter is GPU-heavy
+       and stacking many at once tanks framerate/battery on iOS. saturate() lifts
+       vibrancy without needing a bigger blur radius (cheaper on the GPU). */
+    .liquid-glass-panel {
+      background: rgba(255, 255, 255, 0.4);
+      -webkit-backdrop-filter: blur(20px) saturate(190%);
+      backdrop-filter: blur(20px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      transform: translate3d(0, 0, 0);
+    }
+
+    /* Organic multi-source gradient for the ambient background blobs — 0
+       network bytes, scales on any display. Non-iOS keeps the flat
+       .rally-bg-accent-soft tint set in the base rule below. */
+    .rally-ambient-blob {
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.35), transparent 55%),
+        radial-gradient(
+          circle at 75% 75%,
+          var(--rally-accent, var(--rally-accent-fallback)),
+          transparent 60%
+        ),
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+    }
   }
 }
 
@@ -102,6 +212,17 @@
    ============================================================ */
 @layer base {
   :root {
+    /* Declared as `initial` (the guaranteed-invalid value) rather than left
+       undeclared: every consumer reads them as `var(--rally-accent, <fallback>)`
+       and `initial` is precisely what makes that fallback apply, so behaviour is
+       identical to being absent — while giving tooling a declaration to resolve.
+       useDocumentBranding overrides them inline on <html> when a custom
+       accent_color is set, and removeProperty() restores this state. */
+    --rally-accent: initial;
+    --rally-accent-soft: initial;
+    --rally-accent-contrast: initial;
+    --rally-glow: initial;
+
     --rally-accent-fallback: #dc2625;
     --rally-accent-soft-fallback: rgba(220, 38, 37, 0.15);
     --rally-glow-fallback: rgba(255, 0, 0, 0.12);
@@ -109,6 +230,10 @@
        dark card background — see ensureContrastByLightening in branding.ts
        for the runtime equivalent used with custom accent_color values. */
     --rally-accent-contrast-dark-fallback: #e45554;
+    /* Light-theme counterpart: darkened until it clears 4.5:1 on the soft
+       accent tint. See ensureContrastByDarkening in branding.ts for the
+       runtime equivalent used with custom accent_color values. */
+    --rally-accent-contrast-light-fallback: #b61e1d;
   }
   [data-rally-theme="nei"],
   [data-rally-theme="default"] {
@@ -116,13 +241,17 @@
     --rally-accent-soft-fallback: rgba(0, 133, 66, 0.16);
     --rally-glow-fallback: rgba(0, 133, 66, 0.14);
     --rally-accent-contrast-dark-fallback: #009a4c;
+    --rally-accent-contrast-light-fallback: #006f37;
   }
 }
 
 @layer utilities {
   /* --- Brand accent helpers --- */
+  /* Light theme: raw accent text fails WCAG AA on the soft accent tint it most
+     often sits on (default NEI green is ~3.7:1 there), so use the darkened,
+     contrast-verified variant — the mirror of the dark-theme rule below. */
   .rally-accent {
-    color: var(--rally-accent, var(--rally-accent-fallback));
+    color: var(--rally-accent-contrast-light, var(--rally-accent-contrast-light-fallback));
   }
   /* Dark theme: raw accent text can fail WCAG AA against the dark card
      background (e.g. default NEI green is ~3.9:1). Use the lightened,
@@ -135,6 +264,11 @@
     background-color: var(--rally-accent, var(--rally-accent-fallback));
   }
   .rally-bg-accent-soft {
+    background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+  }
+  /* Flat tint by default; the iOS override above swaps this for an organic
+     multi-source gradient. */
+  .rally-ambient-blob {
     background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
   .rally-border-accent {
@@ -314,6 +448,244 @@
   }
   .rally-hairline {
     border-color: hsl(var(--border));
+  }
+
+  /* --- Glass material ---------------------------------------------------
+     Liquid Glass has no web API. Real refraction needs an SVG
+     feDisplacementMap fed into backdrop-filter, which only Chromium
+     supports — Safari, i.e. the platform this is imitating, cannot do it.
+     So the material is built from what Safari 26 does support: a blurred
+     and saturated backdrop, a translucent tint, a specular rim, and an
+     inner top highlight, layered in that order.
+
+     Everything is gated behind [data-glass="on"] (see index.html and the
+     appearance preference); without it the app renders exactly as before.
+
+     Two structural rules:
+     - the blur lives on ::before, because backdrop-filter would make the
+       host the containing block for its position: fixed descendants and
+       trap things like the mobile drawer inside the navbar box;
+     - no `position` is declared on the classes themselves — these rules
+       sit in the utilities layer after Tailwind's own, so that would beat
+       a `fixed`/`sticky` utility. :where() below carries it at zero
+       specificity so any positioning utility still wins. --- */
+  :where(.rally-glass, [data-glass="on"] .rally-surface, [data-glass="on"] .rally-glass-control) {
+    position: relative;
+  }
+
+  .rally-glass {
+    --glass-surface: var(--card);
+    background-color: hsl(var(--glass-surface));
+  }
+  /* For chrome that sits on the page background rather than on a card. */
+  .rally-glass-on-background {
+    --glass-surface: var(--background);
+  }
+
+  [data-glass="on"] {
+    /* Tuned per mode below; these are the light-mode values. */
+    --glass-blur: 20px;
+    --glass-saturate: 180%;
+    --glass-tint: 0.55;
+    --glass-tint-lens: 0.22;
+    /* Only used by the refraction path, where the lens carries the material and
+       the flat blur drops to a light frost. */
+    --glass-frost: 1px;
+    --glass-brightness: 112%;
+    --glass-rim-strong: rgba(255, 255, 255, 0.9);
+    --glass-rim-weak: rgba(255, 255, 255, 0.25);
+    --glass-inner-highlight: rgba(255, 255, 255, 0.65);
+    --glass-inner-shade: rgba(15, 20, 35, 0.06);
+  }
+
+  [data-glass="on"].dark,
+  [data-glass="on"] .dark {
+    /* Dark glass reads as smoked, not milky: less tint, a dimmer rim. */
+    --glass-blur: 26px;
+    --glass-saturate: 200%;
+    --glass-tint: 0.45;
+    --glass-tint-lens: 0.16;
+    --glass-rim-strong: rgba(255, 255, 255, 0.5);
+    --glass-rim-weak: rgba(255, 255, 255, 0.07);
+    --glass-inner-highlight: rgba(255, 255, 255, 0.14);
+    --glass-inner-shade: rgba(0, 0, 0, 0.35);
+  }
+
+  [data-glass="on"] .rally-glass,
+  [data-glass="on"] .rally-surface {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-inner-highlight),
+      inset 0 -1px 0 0 var(--glass-inner-shade),
+      var(--rally-shadow-md);
+  }
+
+  /* Layer 1 — the backdrop itself: blurred, saturated, tinted. */
+  [data-glass="on"] .rally-glass::before,
+  [data-glass="on"] .rally-surface::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: hsl(var(--glass-surface, var(--card)) / var(--glass-tint));
+    /* Sheen: the light falls across the top of the pane, as on a curved
+       piece of glass. */
+    background-image: linear-gradient(
+      160deg,
+      var(--glass-inner-highlight),
+      rgba(255, 255, 255, 0) 42%
+    );
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+
+  /* Refraction. Only Chromium can run an SVG filter as a backdrop-filter, so
+     GlassFilters sets data-glass-refraction after feature-detecting it. There
+     the edge bends the live page behind it — real lens behaviour — and the
+     flat blur drops to a light frost, since the displacement already carries
+     the material. Elsewhere the rule never matches and the blur above stands
+     on its own. */
+  [data-glass="on"][data-glass-refraction="on"] .rally-glass::before,
+  [data-glass="on"][data-glass-refraction="on"] .rally-surface::before {
+    --glass-lens: url(#rally-glass-lens);
+    /* Barely tinted: with the lens doing the work the pane should read as
+       clear glass with a bent, bright edge, not as a frosted panel. */
+    background-color: hsl(var(--glass-surface, var(--card)) / var(--glass-tint-lens));
+    backdrop-filter: var(--glass-lens) blur(var(--glass-frost)) saturate(var(--glass-saturate))
+      brightness(var(--glass-brightness));
+  }
+
+  [data-glass="on"][data-glass-refraction="on"] .rally-tabbar::before {
+    --glass-lens: url(#rally-glass-lens-capsule);
+  }
+
+  /* Layer 2 — the specular rim. A gradient hairline, bright where the light
+     hits and fading away from it, masked to the border box so it reads as a
+     lit edge rather than a drawn border. */
+  [data-glass="on"] .rally-glass::after,
+  [data-glass="on"] .rally-surface::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      145deg,
+      var(--glass-rim-strong),
+      var(--glass-rim-weak) 32%,
+      transparent 58%,
+      var(--glass-rim-weak) 88%,
+      var(--glass-rim-strong)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+
+  /* Concentric radii: glass wants rounder, and nested corners want to be
+     inset from their container's, not equal to it. */
+  [data-glass="on"] .rally-surface {
+    border-radius: calc(var(--radius) + 0.4rem);
+  }
+
+  /* Reduce transparency: keep the shape and the rim, drop the see-through. */
+  [data-glass="on"][data-reduce-transparency="true"] .rally-glass,
+  [data-glass="on"][data-reduce-transparency="true"] .rally-surface {
+    background-color: hsl(var(--glass-surface, var(--card)));
+    border-color: hsl(var(--border));
+  }
+  [data-glass="on"][data-reduce-transparency="true"] .rally-glass::before,
+  [data-glass="on"][data-reduce-transparency="true"] .rally-surface::before {
+    display: none;
+  }
+
+  /* Bottom tab bar. Edge-to-edge everywhere; under glass it detaches into
+     the floating capsule the platform uses, which is the shape the material
+     is meant to read as. */
+  .rally-tabbar {
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  [data-glass="on"] .rally-tabbar {
+    left: max(0.75rem, var(--safe-left));
+    right: max(0.75rem, var(--safe-right));
+    bottom: calc(var(--safe-bottom) + 0.5rem);
+    padding-bottom: 0;
+    border-width: 0;
+    border-radius: 1.75rem;
+    /* The tab bar is a solid slab of material, not a clear pane: the platform
+       keeps it substantial enough to sit over any content and stay legible.
+       Refraction still bends the edges, but the body carries a real tint. */
+    --glass-tint-lens: 0.62;
+  }
+
+  /* The selected tab is a lit pill that slides across the bar. */
+  .rally-tabbar-pill {
+    position: absolute;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    left: 0;
+    z-index: 0;
+    border-radius: 1.25rem;
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: center;
+    will-change: transform;
+    background-color: hsl(var(--foreground) / 0.08);
+    box-shadow: inset 0 1px 0 0 var(--glass-inner-highlight, rgba(255, 255, 255, 0.4));
+    transition:
+      transform 420ms cubic-bezier(0.34, 1.32, 0.5, 1),
+      opacity 180ms ease,
+      width 260ms ease;
+  }
+  .rally-tabbar-pill[data-visible="true"] {
+    opacity: 1;
+  }
+  [data-glass="on"] .rally-tabbar-pill {
+    background-color: hsl(var(--card) / 0.55);
+    backdrop-filter: brightness(1.35) saturate(140%);
+    -webkit-backdrop-filter: brightness(1.35) saturate(140%);
+  }
+  [data-glass="on"].dark .rally-tabbar-pill,
+  [data-glass="on"] .dark .rally-tabbar-pill {
+    background-color: hsl(0 0% 100% / 0.12);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rally-tabbar-pill {
+      transition: opacity 180ms ease;
+    }
+  }
+
+  /* Opt-in control material, for chrome-level controls (segmented pickers,
+     toolbar buttons). Deliberately not applied to .rally-btn: the button
+     skins own their own box-shadow, and overriding it would flatten them. */
+  [data-glass="on"] .rally-glass-control {
+    border-color: transparent;
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-inner-highlight),
+      var(--rally-shadow-sm);
+  }
+  [data-glass="on"] .rally-glass-control::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(12px) saturate(var(--glass-saturate));
   }
   /* Interaction: lift on hover, settle on press — compositor-friendly. */
   .rally-press {
@@ -514,7 +886,61 @@
   }
 }
 
-/* View Transition: circular reveal for light/dark toggle */
+/* PWA boot loading / connection-error screens */
+@keyframes rally-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rally-pulse-ring {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.15;
+  }
+}
+
+@keyframes rally-logo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes rally-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* View Transition: circular reveal for light/dark toggle.
+   The reveal origin is the pointer position, written to these two properties on
+   <html> by ColorModeProvider's toggle. Declared here as `initial` (the
+   guaranteed-invalid value) so the 50%/50% var() fallbacks below apply on a
+   keyboard-triggered toggle, which has no pointer coordinates to supply —
+   identical behaviour to leaving them undeclared, but resolvable by tooling. */
+:root {
+  --reveal-x: initial;
+  --reveal-y: initial;
+}
+
 ::view-transition-new(root) {
   animation: rally-reveal-in 0.6s ease-in-out forwards;
   z-index: 2;
@@ -549,6 +975,12 @@
   .rally-press,
   .brutal-press {
     transition: none;
+  }
+  [class*="rally-spin"],
+  [class*="rally-pulse-ring"],
+  [class*="rally-logo-breathe"],
+  [class*="rally-dot-bounce"] {
+    animation: none !important;
   }
   ::view-transition-new(root),
   ::view-transition-old(root) {

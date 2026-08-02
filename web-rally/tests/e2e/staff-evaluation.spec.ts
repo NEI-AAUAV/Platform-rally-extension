@@ -13,6 +13,7 @@ import {
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
 } from '../mocks/data';
+import { expectLoggedOutLoginCta } from './helpers/nav';
 import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from './helpers/session';
 
 test.describe('Staff Evaluation Flow', () => {
@@ -382,14 +383,22 @@ test.describe('Staff Evaluation - Authentication', () => {
       localStorage.clear();
     });
 
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
     // Navigate to protected page
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should redirect to login or show error
-    // Adjust based on your auth flow
-    await expect(
-      page.getByText(/login|entrar|autenticação/i).first(),
-    ).toBeVisible({ timeout: 5000 });
+    // No route-level auth guard exists for this page: an unauthenticated
+    // visitor lands on the checkpoint view itself (data fails to load, so it
+    // renders its not-found state) rather than being redirected. The header's
+    // "Iniciar sessão" CTA is what actually signals the logged-out state here.
+    await expectLoggedOutLoginCta(page);
   });
 
   test('handles expired token gracefully', async ({ page, context }) => {
@@ -442,16 +451,23 @@ test.describe('Staff Evaluation - Authentication', () => {
       });
     });
 
+    await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_RALLY_SETTINGS),
+      });
+    });
+
     await context.addInitScript(() => {
       localStorage.setItem('oidc.user::', 'not-json{{{');
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should handle invalid token
-    await expect(
-      page.getByText(/login|entrar|invalid|error/i).first(),
-    ).toBeVisible({ timeout: 5000 });
+    // An unparseable session is treated the same as no session — the header
+    // CTA reflects the logged-out state, no dedicated login screen exists.
+    await expectLoggedOutLoginCta(page);
   });
 });
 

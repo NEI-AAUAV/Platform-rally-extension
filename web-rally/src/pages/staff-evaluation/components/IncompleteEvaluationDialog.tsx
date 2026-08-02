@@ -16,7 +16,7 @@ export function IncompleteEvaluationDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-yellow-600">
+          <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
             <AlertTriangle className="h-5 w-5" />
             Incomplete Evaluations Detected
           </CardTitle>
@@ -26,7 +26,7 @@ export function IncompleteEvaluationDialog({
             <div className="space-y-3">
               {summary.checkpoint_mismatch ? (
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-yellow-600">
+                  <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">
                     ⚠️ This team is from a different checkpoint
                   </p>
                   <p className="text-sm">

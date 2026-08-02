@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Home,
   Trophy,
@@ -22,6 +22,7 @@ import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
+import { useTabScrub } from "./useTabScrub";
 
 interface NavItem {
   readonly name: string;
@@ -37,6 +38,7 @@ interface NavItem {
  */
 export function MobileBottomNav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { scopes } = useUserStore((state) => state);
   const { settings } = useRallySettings();
   const { isAuthenticated: isTeamAuthenticated, team } = useTeamAuth();
@@ -107,16 +109,35 @@ export function MobileBottomNav() {
       ].filter((i) => i.show);
 
   const showQrFab = showTeamNav && !!accessCode;
+  const activeIndex = items.findIndex((item) => location.pathname === item.href);
 
-  const renderTab = (item: NavItem) => {
+  const goToTab = useCallback(
+    (index: number) => {
+      const target = items[index];
+      if (target !== undefined) navigate({ to: target.href });
+    },
+    [items, navigate],
+  );
+
+  const { listRef, pillRef, hoverIndex, isDragging, onPointerDown, onClickCapture } = useTabScrub({
+    count: items.length,
+    activeIndex,
+    onSelect: goToTab,
+  });
+
+  const renderTab = (item: NavItem, index: number) => {
     const isActive = location.pathname === item.href;
+    // While scrubbing, the tab under the finger lights up instead of the
+    // route's own tab — the screen has not changed yet.
+    const isLit = hoverIndex >= 0 ? hoverIndex === index : isActive;
     return (
       <li key={item.name} className="min-w-0 flex-1">
         <Link
           to={item.href}
+          draggable={false}
           className={cn(
-            "flex flex-col items-center gap-0.5 px-0.5 py-2 text-center text-[9.5px] font-medium leading-tight transition-colors",
-            isActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
+            "relative z-10 flex select-none flex-col items-center gap-0.5 px-0.5 py-2 text-center text-[9.5px] font-medium leading-tight transition-colors",
+            isLit ? "rally-accent" : "text-muted-foreground hover:text-foreground",
           )}
         >
           <item.Icon className="h-[18px] w-[18px] shrink-0" />
@@ -133,7 +154,7 @@ export function MobileBottomNav() {
           type="button"
           onClick={() => setQrOpen(true)}
           aria-label="Mostrar o meu QR de equipa"
-          className="rally-bg-accent fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-1/2 z-50 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full text-white shadow-[0_10px_26px_-8px_var(--rally-accent,#008542)] sm:hidden"
+          className="rally-bg-accent fixed bottom-[calc(var(--safe-bottom)+4.75rem)] left-1/2 z-50 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full text-white shadow-[0_10px_26px_-8px_var(--rally-accent,#008542)] sm:hidden"
         >
           <QrCode className="h-6 w-6" />
         </button>
@@ -141,10 +162,26 @@ export function MobileBottomNav() {
 
       <nav
         aria-label="Navegação rápida"
-        className="rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur sm:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="rally-glass rally-glass-on-background rally-tabbar rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden"
       >
-        <ul className="mx-auto flex max-w-lg items-stretch">{items.map(renderTab)}</ul>
+        <ul
+          ref={listRef}
+          className="relative mx-auto flex max-w-lg touch-pan-y items-stretch"
+          onPointerDown={onPointerDown}
+          onClickCapture={onClickCapture}
+        >
+          {/* The selection reads as a lit pill sliding across the material,
+              rather than a colour change in place. Position is written
+              imperatively by useTabScrub so a drag does not re-render. */}
+          <span
+            ref={pillRef}
+            aria-hidden
+            className="rally-tabbar-pill"
+            data-visible={activeIndex >= 0 || isDragging}
+            style={{ width: `${100 / items.length}%` }}
+          />
+          {items.map((item, index) => renderTab(item, index))}
+        </ul>
       </nav>
 
       {qrOpen && accessCode && (

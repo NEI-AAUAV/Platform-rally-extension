@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAuth } from "react-oidc-context";
 import { useLocation } from "@tanstack/react-router";
+import { setResumeValue } from "@/lib/authResumeStore";
 
 /**
  * Returns a staff-login trigger. Starts the authentik PKCE flow and remembers
@@ -22,7 +23,7 @@ export default function useStaffLogin(): (opts?: { mode?: "login" | "registratio
 
   return useCallback(
     (opts?: { mode?: "login" | "registration" }) => {
-      sessionStorage.setItem("rally_auth_return_url", href);
+      setResumeValue("rally_auth_return_url", href);
       void auth.signinRedirect(
         opts?.mode === "registration"
           ? { extraQueryParams: { prompt: "registration" } }

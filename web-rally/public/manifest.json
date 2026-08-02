@@ -1,9 +1,11 @@
 {
+  "id": "/rally/",
   "name": "Rally Tascas - NEI",
   "short_name": "Rally Tascas",
   "description": "Rally Tascas - Competição de equipas do NEI",
   "start_url": "/rally/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#1a1a1a",
   "theme_color": "#dc2626",
   "orientation": "portrait-primary",
@@ -24,13 +26,25 @@
       "src": "/rally/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/rally/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/rally/icon-maskable-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/rally/icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     },
     {
       "src": "/rally/apple-touch-icon.png",
@@ -39,6 +53,37 @@
       "purpose": "any"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Percurso da equipa",
+      "short_name": "Percurso",
+      "url": "/rally/team-progress",
+      "icons": [{ "src": "/rally/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Classificação",
+      "short_name": "Classificação",
+      "url": "/rally/scoreboard",
+      "icons": [{ "src": "/rally/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/rally/screenshots/narrow-1.png",
+      "sizes": "412x915",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ecrã de entrada do Rally Tascas"
+    },
+    {
+      "src": "/rally/screenshots/wide-1.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Ecrã de entrada do Rally Tascas"
+    }
+  ],
+  "launch_handler": { "client_mode": "navigate-existing" },
   "categories": ["education", "games", "sports"],
   "lang": "pt-PT",
   "dir": "ltr",

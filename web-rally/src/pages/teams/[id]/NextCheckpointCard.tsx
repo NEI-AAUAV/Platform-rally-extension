@@ -1,6 +1,7 @@
 import { Target, MapPin, Navigation } from "lucide-react";
 import { RallyButton } from "@/components/themes/rally";
 import type { DetailedTeam, DetailedCheckPoint, RallySettingsResponse } from "@/client";
+import { directionsUrl } from "@/lib/mapLinks";
 
 type NextCheckpointCardProps = Readonly<{
   team: DetailedTeam;
@@ -49,12 +50,15 @@ export function NextCheckpointCard({
                   </div>
                   <RallyButton asChild variant="primary" size="md">
                     <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${nextCheckpoint.latitude},${nextCheckpoint.longitude}`}
+                      href={directionsUrl({
+                        latitude: nextCheckpoint.latitude,
+                        longitude: nextCheckpoint.longitude,
+                      })}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       <Navigation className="h-4 w-4" />
-                      Abrir no Google Maps
+                      Abrir no mapa
                     </a>
                   </RallyButton>
                 </div>

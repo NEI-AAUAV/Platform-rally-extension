@@ -23,11 +23,17 @@ export default defineConfig({
       manifest: false,
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Install-dialog artwork: the browser fetches it, the app never does,
+        // so precaching it would cost every user ~450 KB for nothing.
+        globIgnores: ["**/screenshots/**"],
       },
       devOptions: { enabled: false },
     }),
   ],
-  base: "/rally",
+  // Trailing slash matters: it must match the VitePWA base/scope above, or the
+  // service worker registers against a different path than the app is served
+  // from.
+  base: "/rally/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -36,6 +42,21 @@ export default defineConfig({
   server: {
     watch: {
       ignored: ['**/.pnpm-store/**', '**/node_modules/**'],
+    },
+    // Local dev talks to a directly-run api-rally (poetry run uvicorn, port
+    // 8003 by default — see api-rally/docker-compose.smoke.yml). Production
+    // instead relies on the gateway nginx routing /api and /static to the
+    // backend container (deploy/nginx/rally.conf); this proxy just recreates
+    // that for `vite dev`, where there is no such gateway in front.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8003',
+        changeOrigin: true,
+      },
+      '/static': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8003',
+        changeOrigin: true,
+      },
     },
   },
   // For the fullstack e2e project only: proxy /api to a real running

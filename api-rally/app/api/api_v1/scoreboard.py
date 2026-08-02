@@ -6,12 +6,12 @@ ranking fresh and signals refreshes on a Redis channel; the SSE stream forwards
 those signals so the SPA can refetch without polling.
 """
 
-import asyncio
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from redis.asyncio.client import PubSub
 
 from app.core.config import SettingsDep
 from app.core.redis import get_async_redis_client
@@ -28,6 +28,24 @@ def decode_value(value: str | bytes) -> str:
     return value.decode() if isinstance(value, bytes) else value
 
 
+async def _next_message(pubsub: PubSub) -> dict[str, Any] | None:
+    """Await the next pubsub message, or None once the heartbeat interval passes.
+
+    The ``timeout`` argument is what makes this a blocking wait: without it
+    ``get_message`` polls the socket and returns None immediately, so the
+    surrounding ``while True`` becomes a hot loop that burns a full CPU core and
+    floods the client with heartbeats for as long as one SSE client is attached.
+    """
+    try:
+        message: dict[str, Any] | None = await pubsub.get_message(
+            ignore_subscribe_messages=True,
+            timeout=_HEARTBEAT_SECONDS,
+        )
+    except TimeoutError:
+        return None
+    return message
+
+
 async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
     client = get_async_redis_client()
     pubsub = client.pubsub()
@@ -37,11 +55,7 @@ async def _pmessage_event_stream(request: Request) -> AsyncIterator[str]:
         while True:
             if await request.is_disconnected():
                 break
-            try:
-                async with asyncio.timeout(_HEARTBEAT_SECONDS):
-                    message = await pubsub.get_message(ignore_subscribe_messages=True)
-            except TimeoutError:
-                message = None
+            message = await _next_message(pubsub)
             if message and message.get("type") == "pmessage":
                 channel = decode_value(message["channel"])
                 data = decode_value(message["data"])
@@ -123,11 +137,7 @@ class ScoreboardController:
                 while True:
                     if await request.is_disconnected():
                         break
-                    try:
-                        async with asyncio.timeout(_HEARTBEAT_SECONDS):
-                            message = await pubsub.get_message(ignore_subscribe_messages=True)
-                    except TimeoutError:
-                        message = None
+                    message = await _next_message(pubsub)
                     if message and message.get("type") == "message":
                         yield "event: refresh\ndata: 1\n\n"
                     else:

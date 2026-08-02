@@ -36,7 +36,14 @@ export function SiteFooter({ branding }: SiteFooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative mt-16 overflow-hidden border-t border-border bg-card/40">
+    <footer
+      className="relative mt-16 overflow-hidden border-t border-border bg-card/40"
+      style={{
+        // Keeps the last row clear of the iOS home-indicator gesture zone,
+        // which stays reserved even after the indicator itself fades.
+        paddingBottom: "var(--safe-bottom)",
+      }}
+    >
       {/* Faint Aveiro map — swaps with color mode */}
       <img
         src={mapWhite}

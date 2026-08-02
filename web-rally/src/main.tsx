@@ -10,10 +10,11 @@ import { useUserStore } from "@/stores/useUserStore";
 import { ToastProvider } from "@/components/ui/toast";
 import { oidcConfig } from "@/auth/oidcConfig";
 import AuthSyncGate from "@/auth/AuthSyncGate";
-import { ColorModeProvider } from "@/components/theme";
+import { ColorModeProvider, GlassFilters } from "@/components/theme";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { registerSW } from "virtual:pwa-register";
+import PWAAppGate from "@/components/pwa/PWAAppGate";
 
 // Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
 // early exceptions are captured.
@@ -73,18 +74,27 @@ const queryClient = new QueryClient({
 // preserving the old force-update behavior.
 registerSW({ immediate: true });
 
+// Ask iOS/Chrome not to evict this origin's cache/IndexedDB under storage
+// pressure. Best-effort — unsupported or denied silently, no UX depends on it.
+void navigator.storage?.persist?.().then((granted) => {
+  if (!granted) logger.warn("Persistent storage not granted");
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ColorModeProvider>
-      <AuthProvider {...oidcConfig}>
-        <QueryClientProvider client={queryClient}>
-          <AuthSyncGate>
-            <ToastProvider>
-              <Router />
-            </ToastProvider>
-          </AuthSyncGate>
-        </QueryClientProvider>
-      </AuthProvider>
+      <GlassFilters />
+      <PWAAppGate>
+        <AuthProvider {...oidcConfig}>
+          <QueryClientProvider client={queryClient}>
+            <AuthSyncGate>
+              <ToastProvider>
+                <Router />
+              </ToastProvider>
+            </AuthSyncGate>
+          </QueryClientProvider>
+        </AuthProvider>
+      </PWAAppGate>
     </ColorModeProvider>
   </React.StrictMode>,
 );

@@ -4,7 +4,16 @@ import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
 import { useState, useRef } from "react";
-import { Menu, X, ShieldCheck, Users, ChevronDown, UserPlus, LogIn } from "lucide-react";
+import {
+  Menu,
+  X,
+  ShieldCheck,
+  Users,
+  ChevronDown,
+  UserPlus,
+  LogIn,
+  SlidersHorizontal,
+} from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -276,10 +285,23 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
           open={isMobileMenuOpen || undefined}
           aria-modal="true"
           aria-label="Menu"
+          // `left-auto` is required: the UA stylesheet sets
+          // `inset-inline-start: 0` on `dialog`, and on WebKit (iOS/iPadOS 26,
+          // macOS Tahoe) that wins over `right-0` for a fixed-width box, which
+          // pinned the drawer to the *left* edge. Explicitly clearing `left`
+          // makes `right-0` authoritative on every engine.
           className={cn(
-            "rally-elevate fixed inset-y-0 right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
+            "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
             isMobileMenuOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
           )}
+          style={{
+            // 20px floor on top: see RallyNavbar — landscape reports a 0px top
+            // inset but iOS still eats touches in that strip.
+            paddingTop: "max(20px, var(--safe-top))",
+            paddingBottom: "var(--safe-bottom)",
+            paddingRight: "var(--safe-right)",
+            paddingLeft: "var(--safe-left)",
+          }}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-xs font-bold uppercase tracking-wider text-popover-foreground">
@@ -345,6 +367,21 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
               viewMode={viewMode}
               toggleViewMode={toggleViewMode}
             />
+            {/* Device-local preferences: no account required, so this sits
+                outside every role gate above. */}
+            <li className="border-t border-border pt-2">
+              <Link
+                to="/preferences"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-2",
+                  linkClass(location.pathname === "/preferences", true),
+                )}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Preferências
+              </Link>
+            </li>
           </ul>
         </dialog>
       </div>

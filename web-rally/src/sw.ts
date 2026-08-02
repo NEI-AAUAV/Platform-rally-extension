@@ -75,3 +75,96 @@ self.addEventListener("install", () => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
+
+// Web Push (VAPID). Requires iOS 16.4+ AND the PWA installed to the Home
+// Screen — Safari never fires `push` for a plain browser tab.
+interface RallyPushPayload {
+  title?: string;
+  body?: string;
+  url?: string;
+}
+
+// App icon badge count. Cache Storage (not a variable) because the SW can be
+// killed and restarted between pushes — a plain module-scope counter would
+// reset to 0 on every wakeup.
+const BADGE_CACHE = "rally-badge-count";
+const BADGE_KEY = "https://rally.badge/count";
+
+async function readBadgeCount(): Promise<number> {
+  const cache = await caches.open(BADGE_CACHE);
+  const res = await cache.match(BADGE_KEY);
+  if (!res) return 0;
+  return Number(await res.text()) || 0;
+}
+
+async function writeBadgeCount(count: number): Promise<void> {
+  const cache = await caches.open(BADGE_CACHE);
+  await cache.put(BADGE_KEY, new Response(String(count)));
+}
+
+async function bumpAppBadge(): Promise<void> {
+  const count = (await readBadgeCount()) + 1;
+  await writeBadgeCount(count);
+  const reg = self.registration as ServiceWorkerRegistration & {
+    setAppBadge?: (count?: number) => Promise<void>;
+  };
+  await reg.setAppBadge?.(count);
+}
+
+async function resetAppBadge(): Promise<void> {
+  await writeBadgeCount(0);
+  const reg = self.registration as ServiceWorkerRegistration & {
+    clearAppBadge?: () => Promise<void>;
+  };
+  await reg.clearAppBadge?.();
+}
+
+self.addEventListener("message", (event) => {
+  if ((event.data as { action?: string })?.action === "clearBadge") {
+    event.waitUntil(resetAppBadge());
+  }
+});
+
+self.addEventListener("push", (event) => {
+  let payload: RallyPushPayload;
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = { body: event.data?.text() };
+  }
+
+  const title = payload.title ?? "Rally Tascas";
+  const url = payload.url ?? BASE;
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, {
+        body: payload.body ?? "",
+        icon: `${BASE}icon-192.png`,
+        badge: `${BASE}icon-192.png`,
+        data: { url },
+      }),
+      bumpAppBadge(),
+    ]),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? BASE;
+
+  event.waitUntil(
+    (async () => {
+      const clientsList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const existing = clientsList.find((client) => client.url.includes(url));
+      if (existing) {
+        await existing.focus();
+        return;
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});

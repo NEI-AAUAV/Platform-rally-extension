@@ -42,7 +42,7 @@ export default function LandingGate({
           Núcleo de Estudantes de Informática
         </p>
 
-        <div className="overflow-hidden rounded-3xl border border-border bg-muted shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)]">
+        <div className="rally-glass overflow-hidden rounded-3xl border border-border bg-muted shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)]">
           {/* banner cover */}
           {showBanner && (
             <div className="relative h-32 w-full overflow-hidden sm:h-36">

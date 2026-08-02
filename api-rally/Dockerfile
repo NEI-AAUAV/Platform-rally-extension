@@ -2,6 +2,9 @@ FROM python:3.12-slim AS requirements-stage
 
 ENV PYTHONUNBUFFERED=1
 ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
+# http-ece (pywebpush dependency) only ships an sdist on PyPI — pure Python,
+# no build script, so it's carved out of the binary-only guard by name.
+ENV POETRY_INSTALLER_NO_BINARY="http-ece"
 
 WORKDIR /api_rally
 
@@ -29,4 +32,7 @@ COPY --chown=appuser:appuser static ./static
 RUN poetry install --no-cache
 
 EXPOSE 8003
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app"]
+# --reload uses watchfiles (installed as a dev dep) for event-based watching.
+# app/tests is ~12MB of the 16MB tree and is never imported by the server, so
+# excluding it keeps the watch set small.
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "app", "--reload-exclude", "tests/*", "--reload-exclude", "*/__pycache__/*"]

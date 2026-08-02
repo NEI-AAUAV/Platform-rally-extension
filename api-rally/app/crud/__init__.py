@@ -5,6 +5,7 @@ from app.crud.crud_checkpoint import checkpoint
 from app.crud.crud_checkpoint_guide_indication import checkpoint_guide_indication
 from app.crud.crud_checkpoint_media import checkpoint_media
 from app.crud.crud_participation import participation
+from app.crud.crud_push_subscription import push_subscription
 from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.crud.crud_team import CRUDTeam, team
@@ -24,6 +25,7 @@ __all__ = [
     "activity_result",
     "rally_event",
     "participation",
+    "push_subscription",
     "checkpoint_media",
     "checkpoint_guide_indication",
     "Team",

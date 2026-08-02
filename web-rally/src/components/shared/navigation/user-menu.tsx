@@ -1,6 +1,6 @@
 import { useUserStore } from "@/stores/useUserStore";
 import { Link } from "@tanstack/react-router";
-import { Settings, LogOut, UserPlus, LogIn, Users, User } from "lucide-react";
+import { Settings, SlidersHorizontal, LogOut, UserPlus, LogIn, Users, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
 
@@ -110,6 +110,13 @@ export function UserMenu() {
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
             >
               <User className="h-4 w-4" />O meu perfil
+            </Link>
+            <Link
+              to="/preferences"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Preferências
             </Link>
             <button
               type={"button"}

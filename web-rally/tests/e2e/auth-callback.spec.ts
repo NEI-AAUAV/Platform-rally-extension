@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedOidcSession } from './helpers/session';
+import { readResumeValue, seedResumeValue } from './helpers/authResume';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';
 
 test.describe('Auth callback', () => {
@@ -8,14 +9,12 @@ test.describe('Auth callback', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_RALLY_SETTINGS) }),
     );
     await seedOidcSession(context, ['rally-participant']);
-    await page.addInitScript(() => {
-      sessionStorage.setItem('rally_auth_return_url', '/profile');
-    });
+    await seedResumeValue(page, 'rally_auth_return_url', '/profile');
 
     await page.goto('/rally/auth/callback');
 
     await page.waitForURL('**/profile');
-    const returnUrl = await page.evaluate(() => sessionStorage.getItem('rally_auth_return_url'));
+    const returnUrl = await readResumeValue(page, 'rally_auth_return_url');
     expect(returnUrl).toBeNull();
   });
 

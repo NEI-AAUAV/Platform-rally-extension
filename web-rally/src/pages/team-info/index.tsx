@@ -7,6 +7,7 @@ import { useAppToast } from "@/hooks/use-toast";
 import { TeamMemberLinkService } from "@/services/TeamMemberLinkService";
 import { useAuth } from "react-oidc-context";
 import { LoadingState } from "@/components/shared";
+import { clearResumeValue, getResumeValue, setResumeValue } from "@/lib/authResumeStore";
 
 const PENDING_LINK_MEMBER_KEY = "rally_pending_link_user_id";
 const PENDING_LINK_TEAM_KEY = "rally_pending_link_team_id";
@@ -26,9 +27,9 @@ export default function TeamInfo() {
     try {
       await TeamMemberLinkService.linkSelf(teamId, memberId, accessCode);
       toast.success("Conta NEI associada com sucesso!");
-      sessionStorage.removeItem(PENDING_LINK_MEMBER_KEY);
-      sessionStorage.removeItem(PENDING_LINK_TEAM_KEY);
-      sessionStorage.removeItem(PENDING_LINK_CODE_KEY);
+      clearResumeValue(PENDING_LINK_MEMBER_KEY);
+      clearResumeValue(PENDING_LINK_TEAM_KEY);
+      clearResumeValue(PENDING_LINK_CODE_KEY);
       window.location.reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível associar a conta";
@@ -42,9 +43,9 @@ export default function TeamInfo() {
   // and a pending target member is stored, finish the link automatically.
   useEffect(() => {
     if (!oidcAuth.isAuthenticated) return;
-    const pendingMember = sessionStorage.getItem(PENDING_LINK_MEMBER_KEY);
-    const pendingTeam = sessionStorage.getItem(PENDING_LINK_TEAM_KEY);
-    const pendingCode = sessionStorage.getItem(PENDING_LINK_CODE_KEY);
+    const pendingMember = getResumeValue(PENDING_LINK_MEMBER_KEY);
+    const pendingTeam = getResumeValue(PENDING_LINK_TEAM_KEY);
+    const pendingCode = getResumeValue(PENDING_LINK_CODE_KEY);
     if (!pendingMember || !pendingTeam || !pendingCode) return;
     void linkNow(Number(pendingTeam), Number(pendingMember), pendingCode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,9 +62,9 @@ export default function TeamInfo() {
       void linkNow(teamData.team_id, memberId, accessCode);
       return;
     }
-    sessionStorage.setItem(PENDING_LINK_MEMBER_KEY, String(memberId));
-    sessionStorage.setItem(PENDING_LINK_TEAM_KEY, String(teamData.team_id));
-    sessionStorage.setItem(PENDING_LINK_CODE_KEY, accessCode);
+    setResumeValue(PENDING_LINK_MEMBER_KEY, String(memberId));
+    setResumeValue(PENDING_LINK_TEAM_KEY, String(teamData.team_id));
+    setResumeValue(PENDING_LINK_CODE_KEY, accessCode);
     onStaffLogin();
   };
 
