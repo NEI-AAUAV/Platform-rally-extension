@@ -38,10 +38,21 @@ registerRoute(
 // Read-only API GETs: fresh when online, cached copy as an offline fallback.
 // Mutations (POST/PUT/DELETE) are never matched — Workbox routes GET only, and
 // we additionally exclude auth/OIDC and the evaluate endpoint by URL.
+// Server-sent events are a GET under /api/rally/ that never completes. Running
+// one through NetworkFirst leaves a request pending for the lifetime of the
+// stream: the response is never cached, the network-timeout fallback never
+// fires, and the page never reaches a settled/idle network state. Excluded by
+// both the path and the Accept header so a new stream endpoint cannot
+// reintroduce it by being named something else.
+const isEventStream = (url: URL, request: Request): boolean =>
+  url.pathname.endsWith("/stream") ||
+  (request.headers.get("accept") ?? "").includes("text/event-stream");
+
 registerRoute(
   ({ url, request }) =>
     request.method === "GET" &&
     url.pathname.includes("/api/rally/") &&
+    !isEventStream(url, request) &&
     !url.pathname.includes("/evaluate") &&
     !url.pathname.includes("/oidc") &&
     !url.pathname.includes("/auth"),

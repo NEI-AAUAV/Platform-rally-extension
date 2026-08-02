@@ -194,7 +194,7 @@ export function MobileBottomNav() {
         <dialog
           open
           aria-label="QR de equipa"
-          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
+          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 pb-[calc(1rem+var(--safe-bottom))] sm:hidden"
           onClose={() => setQrOpen(false)}
           onCancel={() => setQrOpen(false)}
         >

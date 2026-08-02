@@ -206,6 +206,42 @@
   }
 
   /* ------------------------------------------------------------------
+     Bottom-edge insets.
+
+     Two things overlay the bottom of the viewport that the scrollport knows
+     nothing about: the fixed .rally-tabbar (phones only) and the platform's
+     own gesture bar / home indicator (--safe-bottom). Anything anchored to
+     the bottom edge has to clear both, or it renders *under* them — visible
+     but not tappable, which is the classic "web app in a shell" tell. Android
+     15+ forces edge-to-edge, so this is no longer only an iOS concern.
+     ------------------------------------------------------------------ */
+  :root {
+    /* Icon + label + padding of a tab in MobileBottomNav; the bar adds
+       --safe-bottom on top of this itself (see .rally-tabbar). */
+    --rally-tabbar-height: 3.5rem;
+  }
+
+  /* Sticky action bar inside a scrolling form. Clears the tab bar on phones,
+     only the gesture inset from `sm` up, where the tab bar is hidden. */
+  .rally-sticky-actions {
+    position: sticky;
+    bottom: calc(1rem + var(--safe-bottom) + var(--rally-tabbar-height));
+  }
+
+  @media (min-width: 640px) {
+    .rally-sticky-actions {
+      bottom: calc(1rem + var(--safe-bottom));
+    }
+  }
+
+  /* Bottom sheets sit on the viewport edge by design, so they clear the
+     gesture bar with padding rather than by floating above it. There is no
+     class for that here on purpose: sheets already carry Tailwind padding
+     utilities, which live in a later layer and would win over anything
+     declared in @layer base. They use pb-[…var(--safe-bottom)] inline, the
+     same way layout.tsx already does. */
+
+  /* ------------------------------------------------------------------
      Touch-device native feel, platform-independent.
 
      Everything here used to live only inside the WebKit feature query
