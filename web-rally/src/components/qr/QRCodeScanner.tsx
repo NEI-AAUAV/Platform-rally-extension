@@ -26,6 +26,11 @@ export default function QRCodeScanner({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  // iOS can reject an autoplay attempt that is no longer tied to the opening
+  // tap. The stream is live at that point (the camera indicator is on) but the
+  // element stays paused and paints nothing, so we surface a tap-to-start.
+  const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const { isActive, startScanning, stopScanning } = useQRCodeScanner(videoRef, canvasRef, onScan);
 
   const stopCamera = useCallback(() => {
@@ -62,17 +67,35 @@ export default function QRCodeScanner({
           return;
         }
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play().catch((err) => {
-              logger.error("Error playing video", err);
-              setCameraError("Erro ao iniciar câmara");
-            });
-            // Start scanning after video is ready
-            setTimeout(() => startScanning(), 100);
-          };
+        const video = videoRef.current;
+        if (!video) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
         }
+
+        // Safari/WebKit only honours inline playback when these are set as
+        // attributes on the element; React's `muted` prop alone is not enough
+        // to make the stream count as muted autoplay.
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.muted = true;
+        video.srcObject = stream;
+
+        // Play right after attaching the stream instead of waiting for
+        // `loadedmetadata`: with a MediaStream source iOS often never fires
+        // that event until playback has already been requested, which left the
+        // camera running with a blank element.
+        try {
+          await video.play();
+        } catch (playErr) {
+          if (cancelled) return;
+          logger.error("Error playing video", playErr);
+          setNeedsTapToPlay(true);
+          return;
+        }
+        if (cancelled) return;
+        setIsVideoReady(true);
+        startScanning();
       } catch (err) {
         if (err instanceof DOMException && err.name === "NotAllowedError") {
           setPermissionDenied(true);
@@ -92,10 +115,41 @@ export default function QRCodeScanner({
 
     return () => {
       cancelled = true;
+      setIsVideoReady(false);
+      setNeedsTapToPlay(false);
       stopCamera();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // iOS pauses the element when the app is backgrounded and does not resume it
+  // on return, so the preview would come back frozen/black.
+  useEffect(() => {
+    if (!isOpen) return;
+    const resume = () => {
+      const video = videoRef.current;
+      if (document.visibilityState !== "visible" || !video?.srcObject || !video.paused) return;
+      video.play().catch((err) => logger.error("Error resuming video", err));
+    };
+    document.addEventListener("visibilitychange", resume);
+    return () => document.removeEventListener("visibilitychange", resume);
+  }, [isOpen]);
+
+  const handleTapToPlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video
+      .play()
+      .then(() => {
+        setNeedsTapToPlay(false);
+        setIsVideoReady(true);
+        startScanning();
+      })
+      .catch((err) => {
+        logger.error("Error playing video", err);
+        setCameraError("Erro ao iniciar câmara");
+      });
+  };
 
   const handleClose = () => {
     stopCamera();
@@ -136,7 +190,14 @@ export default function QRCodeScanner({
           </div>
         ) : (
           <div className="relative aspect-square bg-black">
-            <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+            <video
+              ref={videoRef}
+              className="h-full w-full object-cover"
+              playsInline
+              autoPlay
+              muted
+              onCanPlay={() => setIsVideoReady(true)}
+            />
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Scanning overlay */}
@@ -153,8 +214,23 @@ export default function QRCodeScanner({
               </>
             )}
 
-            {/* Loading indicator */}
-            {!isActive && !permissionDenied && (
+            {/* Tap-to-start fallback for browsers that refused the autoplay */}
+            {needsTapToPlay && (
+              <button
+                type="button"
+                onClick={handleTapToPlay}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80"
+              >
+                <Camera className="h-10 w-10 text-primary" />
+                <span className="text-sm font-semibold text-foreground">
+                  Toque para ativar a câmara
+                </span>
+              </button>
+            )}
+
+            {/* Loading indicator — gated on the video itself, never on the scan
+                loop, so a live preview is never hidden behind an opaque layer. */}
+            {!isVideoReady && !needsTapToPlay && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>

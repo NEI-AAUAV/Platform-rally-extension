@@ -29,6 +29,9 @@ describe('QRCodeScanner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     h.isActive = false
+    // jsdom does not implement media playback; the component now plays the
+    // stream itself, so every test needs a resolving stub.
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
   })
 
   it('renders nothing when isOpen is false', () => {
@@ -116,53 +119,37 @@ describe('QRCodeScanner', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
-  it('starts scanning once the video metadata is loaded and play succeeds', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
+  it('plays the stream and starts scanning without waiting for loadedmetadata', async () => {
+    const play = vi.fn().mockResolvedValue(undefined)
+    HTMLMediaElement.prototype.play = play
     const stream = { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream
     mockGetUserMedia(async () => stream)
 
     render(<QRCodeScanner onScan={vi.fn()} isOpen />)
 
-    await act(async () => {
-      await Promise.resolve()
-    })
-
+    await waitFor(() => expect(h.startScanning).toHaveBeenCalled())
+    expect(play).toHaveBeenCalled()
+    // iOS needs the inline-playback hints as real attributes, not just props.
     const video = document.querySelector('video') as HTMLVideoElement
-    video.play = vi.fn().mockResolvedValue(undefined)
-
-    await act(async () => {
-      video.onloadedmetadata?.(new Event('loadedmetadata'))
-      await Promise.resolve()
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(100)
-    })
-
-    expect(h.startScanning).toHaveBeenCalled()
-    vi.useRealTimers()
+    expect(video.getAttribute('playsinline')).not.toBeNull()
+    expect(video.getAttribute('webkit-playsinline')).not.toBeNull()
   })
 
-  it('shows a camera error when video.play() rejects', async () => {
+  it('offers a tap-to-start fallback when autoplay is rejected', async () => {
+    const play = vi.fn().mockRejectedValueOnce(new Error('play failed')).mockResolvedValue(undefined)
+    HTMLMediaElement.prototype.play = play
     const stream = { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream
     mockGetUserMedia(async () => stream)
 
     render(<QRCodeScanner onScan={vi.fn()} isOpen />)
 
-    await act(async () => {
-      await Promise.resolve()
-    })
+    const tapButton = await screen.findByText('Toque para ativar a câmara')
+    expect(h.startScanning).not.toHaveBeenCalled()
 
-    const video = document.querySelector('video') as HTMLVideoElement
-    video.play = vi.fn().mockRejectedValue(new Error('play failed'))
+    fireEvent.click(tapButton)
 
-    await act(async () => {
-      video.onloadedmetadata?.(new Event('loadedmetadata'))
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(await screen.findByText('Erro ao iniciar câmara')).toBeInTheDocument()
+    await waitFor(() => expect(h.startScanning).toHaveBeenCalled())
+    expect(screen.queryByText('Toque para ativar a câmara')).not.toBeInTheDocument()
   })
 
   it('stops existing tracks and does not render video when unmounted before getUserMedia resolves', async () => {
