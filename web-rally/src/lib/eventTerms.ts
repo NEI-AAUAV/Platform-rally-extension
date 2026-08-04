@@ -20,6 +20,12 @@ export interface EventTerms {
   activities: string;
   /** Generic name for the competition itself. */
   event: string;
+  /**
+   * Grammatical gender of {@link EventTerms.checkpoint}, so Portuguese copy can
+   * agree with it ("próximo posto" vs "próxima tasca") instead of hardcoding
+   * one gender or comparing against the noun itself.
+   */
+  checkpointGender: "m" | "f";
 }
 
 const TERMS: Record<EventType, EventTerms> = {
@@ -29,6 +35,7 @@ const TERMS: Record<EventType, EventTerms> = {
     activity: "prova",
     activities: "provas",
     event: "rally",
+    checkpointGender: "f",
   },
   peddy_paper: {
     checkpoint: "posto",
@@ -36,6 +43,7 @@ const TERMS: Record<EventType, EventTerms> = {
     activity: "desafio",
     activities: "desafios",
     event: "peddy-paper",
+    checkpointGender: "m",
   },
   generic: {
     checkpoint: "posto",
@@ -43,6 +51,7 @@ const TERMS: Record<EventType, EventTerms> = {
     activity: "prova",
     activities: "provas",
     event: "evento",
+    checkpointGender: "m",
   },
   olympic: {
     checkpoint: "estação",
@@ -50,6 +59,7 @@ const TERMS: Record<EventType, EventTerms> = {
     activity: "prova",
     activities: "provas",
     event: "competição olímpica",
+    checkpointGender: "f",
   },
 };
 

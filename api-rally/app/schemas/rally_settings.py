@@ -137,6 +137,10 @@ class RallySettingsBase(BaseModel):
     # Staff can promote a deferred-judging photo to be the team's official photo
     allow_photo_as_team_photo: bool = False
 
+    # GPS geofence self-check-in (bootstrapped on for peddy paper, see
+    # crud_rally_settings.get_or_create); admin-togglable for any event.
+    gps_checkin_enabled: bool = False
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

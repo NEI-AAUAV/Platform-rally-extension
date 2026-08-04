@@ -5,6 +5,9 @@ import type { DetailedCheckPoint } from "@/client";
 import { arriveAtCheckpoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import useRallySettings from "@/hooks/useRallySettings";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type NextCheckpointCardProps = Readonly<{
@@ -24,14 +27,19 @@ type GpsState = "idle" | "locating" | "done" | "error";
 function traduzirDistancia(detail: string): string {
   const match = /: (.+) \(max (\d+)m\)$/.exec(detail.trimEnd());
   if (!match) {
-    return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
+    return "Ainda não estás perto o suficiente. Aproxima-te e tenta outra vez.";
   }
   const [, band, maxDistance] = match;
-  return `Ainda estás longe do posto: ${band} (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
+  return `Ainda não estás perto o suficiente: ${band} (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
 }
 
 export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
+  const { settings } = useRallySettings();
+  // "posto" for a peddy-paper, "tasca" for a rally — this card renders for
+  // every event type, so the copy follows the event's terminology.
+  const terms = useEventTerms();
+  const feminino = terms.checkpointGender === "f";
   const [gpsState, setGpsState] = useState<GpsState>("idle");
   const [gpsMsg, setGpsMsg] = useState("");
   const qc = useQueryClient();
@@ -46,7 +54,9 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
     },
     onSuccess: (data) => {
       if (data.auto_completed) {
-        setGpsMsg("Posto concluído! A avançar para o próximo…");
+        setGpsMsg(
+          `${capitalize(terms.checkpoint)} concluíd${feminino ? "a" : "o"}! A avançar para ${feminino ? "a próxima" : "o próximo"}…`,
+        );
         // Progress changed server-side — refresh team + checkpoints so the
         // route jumps to the next post without a manual reload.
         void qc.invalidateQueries({ queryKey: ["team"] });
@@ -88,7 +98,10 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
     );
   };
 
-  const canCheckin = hasCoords && (checkpoint.arrival_radius_m ?? 0) > 0;
+  // Don't offer a button the server will reject: GPS check-in needs the event
+  // setting on *and* a post with coordinates and a real geofence radius.
+  const canCheckin =
+    settings?.gps_checkin_enabled === true && hasCoords && (checkpoint.arrival_radius_m ?? 0) > 0;
 
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!checkpoint.description;
@@ -140,7 +153,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         </div>
         <div>
           <h2 className="rally-display text-xl font-bold text-foreground">
-            Próximo Posto — {checkpoint.name}
+            {feminino ? "Próxima" : "Próximo"} {capitalize(terms.checkpoint)} — {checkpoint.name}
           </h2>
           <p className="text-sm text-muted-foreground">Dirija-se a este local</p>
         </div>

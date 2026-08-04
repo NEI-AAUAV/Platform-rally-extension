@@ -38,9 +38,17 @@ export function useExtraShotsAndPenalties(
 
   const penaltyValues = getPenaltyValues(settings);
 
-  const showExtraShots = maxExtraShots > 0;
-  const showVomitPenalty = penaltyValues.vomit > 0;
-  const showNotDrinkingPenalty = penaltyValues.not_drinking > 0;
+  // Drinking mechanics belong to the pub-crawl format. A peddy-paper is a city
+  // route game, so its evaluation forms never offer shots or drinking penalties
+  // no matter what values the settings row happens to carry.
+  const hasDrinkingMechanics = settings?.event_type !== "peddy_paper";
+
+  // Penalty amounts are stored negative (the backend applies `abs()`), so
+  // "configured" means non-zero, not positive. Gating on `> 0` hid the fields
+  // for every event using the seeded default of -10.
+  const showExtraShots = hasDrinkingMechanics && maxExtraShots > 0;
+  const showVomitPenalty = hasDrinkingMechanics && penaltyValues.vomit !== 0;
+  const showNotDrinkingPenalty = hasDrinkingMechanics && penaltyValues.not_drinking !== 0;
   const showPenalties = showVomitPenalty || showNotDrinkingPenalty;
 
   useEffect(() => {

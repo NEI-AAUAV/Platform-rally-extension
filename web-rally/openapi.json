@@ -9531,6 +9531,11 @@
             "title": "Allow Photo As Team Photo",
             "default": false
           },
+          "gps_checkin_enabled": {
+            "type": "boolean",
+            "title": "Gps Checkin Enabled",
+            "default": false
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -9775,6 +9780,11 @@
           "allow_photo_as_team_photo": {
             "type": "boolean",
             "title": "Allow Photo As Team Photo",
+            "default": false
+          },
+          "gps_checkin_enabled": {
+            "type": "boolean",
+            "title": "Gps Checkin Enabled",
             "default": false
           },
           "guide_mode_enabled": {

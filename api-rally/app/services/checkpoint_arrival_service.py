@@ -2,6 +2,8 @@
 arrival recording, and no-activity checkpoint auto-completion.
 """
 
+from datetime import UTC, datetime
+
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +17,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.services.checkin_service import require_same_event
-from app.services.team_service import is_checkpoint_reachable
+from app.services.team_service import is_checkpoint_reachable, validate_rally_timing
 from app.utils.geo import distance_m
 
 # Coarse distance bands reported to the client on a rejected arrival, in
@@ -66,6 +68,13 @@ class CheckpointArrivalService:
         # one edition must never register progress against another's route.
         team_obj = await self._team_crud.get(db=self._db, id=team_id)
         require_same_event(team_obj.event_id, checkpoint.event_id)
+
+        # An arrival is progress, so the event window applies here exactly as it
+        # does to a staff evaluation. Checking before the insert (rather than
+        # relying on the auto-advance path further down) keeps a pre-event or
+        # post-event scan out of the arrivals table and the audit log entirely.
+        settings = await rally_settings.get_or_create(self._db)
+        validate_rally_timing(settings, datetime.now(UTC))
 
         if checkpoint.latitude is None or checkpoint.longitude is None:
             raise RallyValidationError("Checkpoint has no GPS coordinates")

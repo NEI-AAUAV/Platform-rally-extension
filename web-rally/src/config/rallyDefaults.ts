@@ -5,10 +5,12 @@ import type { RallySettingsResponse } from "@/client";
  * These are fallback values when API settings are not available
  */
 export const RALLY_DEFAULTS = {
-  // Penalty values (fallback when API not available)
+  // Penalty values (fallback when API not available). Negative by convention,
+  // matching the RallySettings columns — the backend applies `abs()` when
+  // scoring, and the UI renders the signed value as "N pts each".
   PENALTY_VALUES: {
-    vomit: 5, // Fallback from RallySettings.penalty_per_puke
-    not_drinking: 2, // Fallback from RallySettings.penalty_per_not_drinking
+    vomit: -5, // Fallback from RallySettings.penalty_per_puke
+    not_drinking: -2, // Fallback from RallySettings.penalty_per_not_drinking
   },
 
   // Extra shots configuration

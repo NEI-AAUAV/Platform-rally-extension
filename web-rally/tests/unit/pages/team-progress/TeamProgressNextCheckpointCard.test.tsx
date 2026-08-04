@@ -6,12 +6,22 @@ import NextCheckpointCard from "@/pages/team-progress/NextCheckpointCard";
 import { arriveAtCheckpoint } from "@/client";
 import type { DetailedCheckPoint } from "@/client";
 
-const { mockUseCheckpointMedia } = vi.hoisted(() => ({
+const { mockUseCheckpointMedia, mockUseRallySettings, mockUseEventTerms } = vi.hoisted(() => ({
   mockUseCheckpointMedia: vi.fn(),
+  mockUseRallySettings: vi.fn(),
+  mockUseEventTerms: vi.fn(),
+}));
+
+vi.mock("@/hooks/useEventTerms", () => ({
+  default: () => mockUseEventTerms(),
 }));
 
 vi.mock("@/hooks/useCheckpointMedia", () => ({
   useCheckpointMedia: (...args: unknown[]) => mockUseCheckpointMedia(...args),
+}));
+
+vi.mock("@/hooks/useRallySettings", () => ({
+  default: () => mockUseRallySettings(),
 }));
 
 vi.mock("@/client", () => ({
@@ -42,12 +52,34 @@ describe("team-progress NextCheckpointCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseCheckpointMedia.mockReturnValue({ photos: [], funFacts: [] });
+    mockUseRallySettings.mockReturnValue({ settings: { gps_checkin_enabled: true } });
+    mockUseEventTerms.mockReturnValue({
+      checkpoint: "posto",
+      checkpoints: "postos",
+      activity: "desafio",
+      activities: "desafios",
+      event: "peddy-paper",
+      checkpointGender: "m",
+    });
   });
 
   it("renders checkpoint name and coordinates when showMap is true", () => {
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
     expect(screen.getByText(/Próximo Posto — Posto 1/)).toBeInTheDocument();
     expect(screen.getByText(/41\.100000/)).toBeInTheDocument();
+  });
+
+  it("agrees with the event terminology's gender in the heading", () => {
+    mockUseEventTerms.mockReturnValue({
+      checkpoint: "tasca",
+      checkpoints: "tascas",
+      activity: "prova",
+      activities: "provas",
+      event: "rally",
+      checkpointGender: "f",
+    });
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+    expect(screen.getByText(/Próxima Tasca — Posto 1/)).toBeInTheDocument();
   });
 
   it("hides coordinates when showMap is false", () => {
@@ -65,6 +97,12 @@ describe("team-progress NextCheckpointCard", () => {
   it("does not render checkin button when checkpoint has no coordinates", () => {
     const cpNoCoords = { ...checkpoint, latitude: null, longitude: null } as DetailedCheckPoint;
     render(<NextCheckpointCard checkpoint={cpNoCoords} showMap />, { wrapper: createWrapper() });
+    expect(screen.queryByRole("button", { name: /Check-in GPS/ })).not.toBeInTheDocument();
+  });
+
+  it("does not render the checkin button when GPS check-in is disabled for the event", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { gps_checkin_enabled: false } });
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
     expect(screen.queryByRole("button", { name: /Check-in GPS/ })).not.toBeInTheDocument();
   });
 
@@ -142,7 +180,7 @@ describe("team-progress NextCheckpointCard", () => {
     await vi.waitFor(() =>
       expect(
         screen.getByText(
-          /Ainda estás longe do posto: menos de 500m \(tens de estar a menos de 50 m\)/,
+          /Ainda não estás perto o suficiente: menos de 500m \(tens de estar a menos de 50 m\)/,
         ),
       ).toBeInTheDocument(),
     );
@@ -166,7 +204,7 @@ describe("team-progress NextCheckpointCard", () => {
 
     await vi.waitFor(() =>
       expect(
-        screen.getByText("Ainda estás longe do posto. Aproxima-te e tenta outra vez."),
+        screen.getByText("Ainda não estás perto o suficiente. Aproxima-te e tenta outra vez."),
       ).toBeInTheDocument(),
     );
   });

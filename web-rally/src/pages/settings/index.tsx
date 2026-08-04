@@ -68,6 +68,9 @@ const rallySettingsSchema = z.object({
   // Checkpoint behavior
   checkpoint_order_matters: z.boolean(),
 
+  // GPS geofence self-check-in by the team
+  gps_checkin_enabled: z.boolean(),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -132,6 +135,7 @@ function buildFormValues(
     bonus_per_extra_shot: settings.bonus_per_extra_shot,
     max_extra_shots_per_member: settings.max_extra_shots_per_member,
     checkpoint_order_matters: settings.checkpoint_order_matters,
+    gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
@@ -201,6 +205,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       bonus_per_extra_shot: 1,
       max_extra_shots_per_member: 5,
       checkpoint_order_matters: true,
+      gps_checkin_enabled: false,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,

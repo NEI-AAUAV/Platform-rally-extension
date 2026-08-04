@@ -86,6 +86,11 @@ class RallySettings(Base):
     # Staff can promote a deferred-judging photo to be the team's official photo
     allow_photo_as_team_photo = Column(Boolean, nullable=False, default=False)
 
+    # GPS geofence self-check-in. Defaults on for peddy paper (where walking a
+    # route *is* the game) and off elsewhere, but it is a plain setting: any
+    # event whose checkpoints have coordinates and a radius can switch it on.
+    gps_checkin_enabled = Column(Boolean, nullable=False, default=False)
+
     # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)

@@ -32,6 +32,23 @@ from app.schemas.team import (
 from app.services.scoring_service import ScoringService
 
 
+def validate_rally_timing(settings: Any, current_time: datetime) -> None:
+    """Reject progress recorded outside the event's window.
+
+    Module-level so every path that records progress can apply the same rule —
+    staff evaluation, QR check-in and GPS arrival alike.
+    """
+    if settings.rally_start_time and current_time < settings.rally_start_time:
+        raise RallyValidationError(
+            f"Rally has not started yet. Starts at {settings.rally_start_time.isoformat()}"
+        )
+
+    if settings.rally_end_time and current_time > settings.rally_end_time:
+        raise RallyValidationError(
+            f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
+        )
+
+
 def is_checkpoint_reachable(
     *, checkpoint_order: int, times_reached: int, order_matters: bool
 ) -> bool:
@@ -125,15 +142,7 @@ class TeamService:
 
     def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
         """Validate rally timing constraints."""
-        if settings.rally_start_time and current_time < settings.rally_start_time:
-            raise RallyValidationError(
-                f"Rally has not started yet. Starts at {settings.rally_start_time.isoformat()}"
-            )
-
-        if settings.rally_end_time and current_time > settings.rally_end_time:
-            raise RallyValidationError(
-                f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
-            )
+        validate_rally_timing(settings, current_time)
 
     async def _validate_checkpoint_order(
         self, team: Team, checkpoint_id: int, settings: Any

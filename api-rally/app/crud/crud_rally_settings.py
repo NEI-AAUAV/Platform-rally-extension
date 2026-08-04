@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
-from app.models.activity import RallyEvent
+from app.models.activity import EventType, RallyEvent
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -78,6 +78,10 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             max_extra_shots_per_member=5,
             # Checkpoint behavior
             checkpoint_order_matters=True,
+            # GPS self-check-in: on by default for peddy paper, where reaching
+            # the post *is* the mechanic; off for formats that check teams in
+            # through staff or QR.
+            gps_checkin_enabled=event.event_type == EventType.PEDDY_PAPER.value,
             # Staff and scoring
             enable_staff_scoring=True,
             # Display settings
