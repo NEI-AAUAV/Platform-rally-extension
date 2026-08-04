@@ -47,14 +47,15 @@ export function useTeamDetails(id: string | undefined) {
     queryFn: async () => {
       try {
         const { data: evaluations } = await getAllEvaluations();
-        return (evaluations?.evaluations as EvaluationResult[]) || [];
+        const list = evaluations?.evaluations;
+        return Array.isArray(list) ? (list as EvaluationResult[]) : [];
       } catch {
         return [];
       }
     },
   });
 
-  const allEvaluations = allEvaluationsData || [];
+  const allEvaluations = Array.isArray(allEvaluationsData) ? allEvaluationsData : [];
 
   // Evaluations for this specific team (accessible to team members).
   const { data: teamEvaluationsData } = useQuery<{ evaluations: EvaluationResult[] }>({
@@ -72,9 +73,10 @@ export function useTeamDetails(id: string | undefined) {
     enabled: isSuccess && settings?.show_team_details !== false,
   });
 
-  const activityResults =
-    teamEvaluationsData?.evaluations ||
-    allEvaluations.filter((result) => result.team_id === Number(id));
+  const teamEvaluations = teamEvaluationsData?.evaluations;
+  const activityResults = Array.isArray(teamEvaluations)
+    ? teamEvaluations
+    : allEvaluations.filter((result) => result.team_id === Number(id));
 
   const { data: allTeamsData } = useQuery<ListingTeam[]>({
     queryKey: ["allTeams"],

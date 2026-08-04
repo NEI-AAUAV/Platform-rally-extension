@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowBigLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { nthNumber } from "./teamDetails.types";
@@ -58,7 +58,7 @@ export default function TeamsById() {
               to="/teams"
               className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 font-medium text-foreground transition-colors hover:bg-muted"
             >
-              <ArrowBigLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
               Voltar à lista de equipas
             </Link>
           </div>
@@ -77,7 +77,7 @@ export default function TeamsById() {
     <>
       <Button className="mb-6 mt-2 p-0" variant={"ghost"} asChild>
         <Link to="/teams" className="flex items-center gap-1">
-          <ArrowBigLeft className="h-5 w-5" /> Voltar à lista de equipas
+          <ArrowLeft className="h-5 w-5" /> Voltar à lista de equipas
         </Link>
       </Button>
 
