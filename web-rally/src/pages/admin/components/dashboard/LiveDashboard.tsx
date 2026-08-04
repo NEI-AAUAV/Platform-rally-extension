@@ -34,6 +34,7 @@ function PhaseChip({
     return (
       <span className="rally-bg-accent inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-white">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />A decorrer — termina em{" "}
+        {state.days > 0 ? `${state.days}d ` : ""}
         {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
       </span>
     );

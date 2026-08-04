@@ -15,7 +15,10 @@ const PAD = (n: number) => String(n).padStart(2, "0");
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 function CountdownDigits({ state }: { readonly state: CountdownState }) {
+  // Days only appear once there are any: hours/min/sec are remainders, so
+  // dropping the days cell on a multi-day event makes it read as ending today.
   const cells = [
+    ...(state.days > 0 ? [{ label: "Dias", value: state.days }] : []),
     { label: "Horas", value: state.hours },
     { label: "Min", value: state.minutes },
     { label: "Seg", value: state.seconds },
