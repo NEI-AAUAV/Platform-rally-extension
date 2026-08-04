@@ -95,6 +95,17 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
+
+    /* Icon + label + padding of a tab in MobileBottomNav; the bar adds
+       --safe-bottom on top of this itself (see .rally-tabbar). Consumed by
+       .rally-sticky-actions and friends further down. */
+    --rally-tabbar-height: 3.5rem;
+
+    /* Motion curve, Material 3 emphasized-decelerate. Exposed under a neutral
+       name so components reference one token; the WebKit @supports block near
+       .ease-emphasized swaps in the iOS spring for Apple. */
+    --ease-android: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: var(--ease-android);
   }
 
   * {
@@ -128,6 +139,14 @@
     body {
       min-height: 100dvh;
     }
+  }
+
+  /* Top inset for sticky/fixed chrome (navbar). Plain safe-area everywhere;
+     the WebKit query below raises it to a 20px floor on iOS only. Declared
+     before that query on purpose — both selectors have the same specificity,
+     so source order is what decides, and this must lose to the iOS rule. */
+  .rally-topbar-inset {
+    padding-top: var(--safe-top);
   }
 
   /* @supports (-webkit-touch-callout: none) matches WebKit on iOS/iPadOS only
@@ -168,6 +187,16 @@
       transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* In landscape safe-area-inset-top reports 0px, but recent iOS still
+       swallows touches along the top edge (undocumented dead zone). The 20px
+       floor keeps the nav controls tappable there. Scoped to iOS/iPadOS: the
+       floor is a workaround for that dead zone, and applying it everywhere put
+       a permanent 20px band above the navbar on desktop and Android, where
+       nothing eats the touch and the inset is legitimately 0. */
+    .rally-topbar-inset {
+      padding-top: max(20px, var(--safe-top));
+    }
+
     /* overscroll-behavior-y kills the full-app rubber-band bounce that exposes an
        empty background behind the PWA chrome — scoped to body only, internal
        scroll containers (.overflow-y-auto etc. above) keep native inertia.
@@ -203,6 +232,126 @@
         ),
         var(--rally-accent-soft, var(--rally-accent-soft-fallback));
     }
+  }
+
+  /* ------------------------------------------------------------------
+     Bottom-edge insets.
+
+     Two things overlay the bottom of the viewport that the scrollport knows
+     nothing about: the fixed .rally-tabbar (phones only) and the platform's
+     own gesture bar / home indicator (--safe-bottom). Anything anchored to
+     the bottom edge has to clear both, or it renders *under* them — visible
+     but not tappable, which is the classic "web app in a shell" tell. Android
+     15+ forces edge-to-edge, so this is no longer only an iOS concern.
+     ------------------------------------------------------------------ */
+  /* Sticky action bar inside a scrolling form. Clears the tab bar on phones,
+     only the gesture inset from `sm` up, where the tab bar is hidden. */
+  .rally-sticky-actions {
+    position: sticky;
+    bottom: calc(1rem + var(--safe-bottom) + var(--rally-tabbar-height));
+  }
+
+  @media (min-width: 640px) {
+    .rally-sticky-actions {
+      bottom: calc(1rem + var(--safe-bottom));
+    }
+  }
+
+  /* Bottom sheets sit on the viewport edge by design, so they clear the
+     gesture bar with padding rather than by floating above it. There is no
+     class for that here on purpose: sheets already carry Tailwind padding
+     utilities, which live in a later layer and would win over anything
+     declared in @layer base. They use pb-[…var(--safe-bottom)] inline, the
+     same way layout.tsx already does. */
+
+  /* ------------------------------------------------------------------
+     Touch-device native feel, platform-independent.
+
+     Everything here used to live only inside the WebKit feature query
+     above, so Android Chrome — where most non-staff users are — got the
+     browser defaults: gray tap flashes, double-tap zoom, whole-app
+     rubber-banding. The iOS block is deliberately left untouched and these
+     rules are duplicated rather than moved, so the Apple behaviour cannot
+     regress from a reordering.
+
+     Scoped to `pointer: coarse` (not to a browser sniff) because these are
+     touch affordances: on a desktop pointer, killing the tap highlight and
+     forcing 16px inputs would be a design change, not a fix.
+     ------------------------------------------------------------------ */
+  @media (pointer: coarse) {
+    /* Gray flash on tap reads as browser chrome, not as an app. */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Removes the double-tap-to-zoom wait on tap targets. `manipulation`
+       keeps pan and pinch-zoom, so page zoom stays available — dropping it
+       entirely would be an accessibility regression. */
+    a,
+    button,
+    label,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      touch-action: manipulation;
+    }
+
+    /* Chrome auto-zooms into inputs under 16px exactly like Safari does. */
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+
+    /* Stops a scrolled-to-the-end panel from handing the scroll to the page
+       behind it (and, on Android, from arming pull-to-refresh mid-gesture). */
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-auto {
+      overscroll-behavior: contain;
+    }
+
+    /* `none` rather than `contain`: contain still allows the pull-to-refresh
+       spinner, which fires while dragging a list in an installed app and reads
+       as a bug. Also kills the bounce that exposes bare background behind the
+       app chrome. */
+    body {
+      overscroll-behavior-y: none;
+    }
+
+    /* Chrome/Android leaves nav chrome selectable; a long-press on a tab label
+       pops the text-selection handles instead of activating the tab. */
+    .rally-tabbar,
+    nav {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+
+  /* Opt-in GPU layer promotion, previously iOS-only. Same contract on every
+     platform: toggle the class on for the duration of an animation and take it
+     off afterwards — a permanent will-change burns a compositor layer per
+     element, which costs memory on low-end Android just as it does on iOS. */
+  .gpu-layer {
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+  }
+
+  /* Motion curves. Both are emphasized-decelerate shapes, but each platform has
+     its own: .ios-spring above is the iOS overshoot-free spring, --ease-android
+     (declared with the other root tokens at the top of this layer) is the
+     Material 3 curve. This block points --ease-emphasized at the Apple one. */
+  @supports (-webkit-touch-callout: none) {
+    :root {
+      --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+
+  .ease-emphasized {
+    transition-timing-function: var(--ease-emphasized);
   }
 }
 
@@ -981,9 +1130,5 @@
   [class*="rally-logo-breathe"],
   [class*="rally-dot-bounce"] {
     animation: none !important;
-  }
-  ::view-transition-new(root),
-  ::view-transition-old(root) {
-    animation: none;
   }
 }

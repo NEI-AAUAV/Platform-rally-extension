@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     # (py-vapid, a pywebpush dependency) or `web-push generate-vapid-keys`.
     VAPID_PUBLIC_KEY: str | None = os.getenv("VAPID_PUBLIC_KEY") or None
     VAPID_PRIVATE_KEY: str | None = os.getenv("VAPID_PRIVATE_KEY") or None
-    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:admin@nei.web.ua.pt")
+    VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:nei@aauav.pt")
 
     # PostgreSQL DB
     SCHEMA_NAME: str = "rally_tascas"

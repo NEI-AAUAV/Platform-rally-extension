@@ -23,12 +23,22 @@ export function ShareButton({ title, url, label = "Partilhar" }: ShareButtonProp
   const handleShare = async () => {
     const shareUrl = url ?? globalThis.location.href;
 
-    if (navigator.share) {
+    const shareData = { title, url: shareUrl };
+    // canShare rejects payloads the platform cannot handle, which `share`
+    // itself would only surface as a thrown error after the tap. Optional
+    // because Safari shipped `share` before `canShare`.
+    const canShare =
+      typeof navigator.share === "function" && (navigator.canShare?.(shareData) ?? true);
+
+    if (canShare) {
       try {
-        await navigator.share({ title, url: shareUrl });
+        await navigator.share(shareData);
         return;
-      } catch {
-        // User dismissed the sheet, or share failed — fall through to copy.
+      } catch (error) {
+        // Dismissing the Android share sheet rejects with AbortError. Falling
+        // through would copy the link and toast "copiado" for a share the user
+        // just cancelled, so treat it as done. Any other error still falls back.
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
 

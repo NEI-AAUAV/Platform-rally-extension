@@ -23,6 +23,7 @@ import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
 import { useTabScrub } from "./useTabScrub";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
 
 interface NavItem {
   readonly name: string;
@@ -43,6 +44,11 @@ export function MobileBottomNav() {
   const { settings } = useRallySettings();
   const { isAuthenticated: isTeamAuthenticated, team } = useTeamAuth();
   const [qrOpen, setQrOpen] = useState(false);
+  // Back closes the QR sheet instead of navigating out from under it.
+  useBackDismiss(
+    qrOpen,
+    useCallback(() => setQrOpen(false), []),
+  );
 
   const isAdminOrManager =
     scopes !== undefined &&
@@ -188,7 +194,7 @@ export function MobileBottomNav() {
         <dialog
           open
           aria-label="QR de equipa"
-          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 sm:hidden"
+          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 pb-[calc(1rem+var(--safe-bottom))] sm:hidden"
           onClose={() => setQrOpen(false)}
           onCancel={() => setQrOpen(false)}
         >

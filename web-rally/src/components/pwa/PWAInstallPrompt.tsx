@@ -37,10 +37,22 @@ export default function PWAInstallPrompt() {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
+    // Installing from the browser's own menu (Android Chrome's "Install app")
+    // never resolves our deferred prompt, so without this the bar keeps
+    // offering to install an app that is already installed until the user
+    // happens to launch the standalone window.
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setDismissed(true);
+      globalThis.localStorage.removeItem(DISMISSED_STORAGE_KEY);
+    };
+
     globalThis.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    globalThis.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
       globalThis.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      globalThis.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 

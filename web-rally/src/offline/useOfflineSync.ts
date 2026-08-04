@@ -46,13 +46,25 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
     const onVisible = () => {
       if (document.visibilityState === "visible") void syncNow();
     };
+    // Background Sync (Chrome only) wakes the service worker, which cannot
+    // replay by itself — the auth token and the SDK live here — so it asks the
+    // page to drain instead. Purely additive: every listener above still fires
+    // on its own, and drain() is idempotency-keyed, so a doubled run is safe.
+    const onSwMessage = (event: MessageEvent) => {
+      if ((event.data as { type?: string } | undefined)?.type === "DRAIN_EVAL_QUEUE") {
+        void syncNow();
+      }
+    };
+
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", onVisible);
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
     return () => {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onVisible);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
     };
   }, [syncNow]);
 

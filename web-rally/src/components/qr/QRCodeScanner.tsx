@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
 import { logger } from "@/lib/logger";
 
 type QRCodeScannerProps = Readonly<{
@@ -100,6 +101,10 @@ export default function QRCodeScanner({
     stopCamera();
     onClose?.();
   };
+
+  // Back gesture closes the scanner (and releases the camera) instead of
+  // navigating away with the stream still live.
+  useBackDismiss(isOpen, handleClose);
 
   if (!isOpen) return null;
 

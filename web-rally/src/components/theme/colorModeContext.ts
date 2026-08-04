@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { applyThemeColorMeta } from "@/lib/themeColor";
 
 /** What the user picked. `system` follows the OS appearance. */
 export type ColorModePreference = "light" | "dark" | "system";
@@ -116,10 +117,12 @@ export function resolveColorMode(preference: ColorModePreference): ColorMode {
  *
  * This also drives the iOS 26 standalone chrome tint, which Safari samples
  * from the page background rather than from <meta name="theme-color">.
+ * Android Chrome does read the meta tag, so it is updated here too.
  */
 export function applyColorMode(mode: ColorMode): void {
   const root = document.documentElement;
   root.classList.toggle("dark", mode === "dark");
   root.classList.toggle("light", mode === "light");
   root.style.colorScheme = mode;
+  applyThemeColorMeta(mode);
 }

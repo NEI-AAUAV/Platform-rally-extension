@@ -74,11 +74,39 @@ test.describe('PWA artifacts served by the real build', () => {
     expect(manifestResponse.ok()).toBe(true);
     const manifest = (await manifestResponse.json()) as {
       name: string;
-      icons?: unknown[];
+      icons?: { src: string; purpose?: string }[];
       start_url?: string;
+      id?: string;
+      scope?: string;
+      display?: string;
+      handle_links?: string;
     };
     expect(manifest.name).toBeTruthy();
     expect(manifest.icons?.length ?? 0).toBeGreaterThan(0);
+
+    // Installability and Android app-like behaviour, all of which are silent
+    // when wrong: the app still loads, it just installs as a shortcut, opens
+    // in-app links in a browser tab, or ignores launcher theming.
+    expect(manifest.display).toBe('standalone');
+    expect(manifest.id).toBe('/rally/');
+    expect(manifest.scope).toBe('/rally/');
+    expect(manifest.handle_links).toBe('preferred');
+
+    const purposes = (manifest.icons ?? []).map((icon) => icon.purpose);
+    expect(purposes).toContain('maskable');
+    expect(purposes).toContain('monochrome');
+
+    // Every icon must actually be served; a 404 here is invisible until an
+    // install dialog renders a blank square.
+    for (const icon of manifest.icons ?? []) {
+      const iconResponse = await page.request.get(new URL(icon.src, page.url()).toString());
+      expect(iconResponse.ok(), `icon ${icon.src} is not served`).toBe(true);
+    }
+
+    // Android Chrome tints the status bar from the last matching theme-color,
+    // so both colour schemes need one or the tint stays stuck on one mode.
+    await expect(page.locator('meta[name="theme-color"][media*="light"]')).toHaveCount(1);
+    await expect(page.locator('meta[name="theme-color"][media*="dark"]')).toHaveCount(1);
 
     const swResponse = await page.request.get(new URL('/rally/sw.js', page.url()).toString());
     expect(swResponse.ok()).toBe(true);

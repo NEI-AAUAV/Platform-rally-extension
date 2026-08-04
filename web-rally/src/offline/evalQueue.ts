@@ -7,8 +7,11 @@
  * a stable `idempotencyKey` so replays are recognized by the backend as
  * duplicates rather than re-applying the score.
  *
- * Backed by idb-keyval (a single IndexedDB store) — no service-worker Background
- * Sync, which is unreliable on iOS Safari where most staff run.
+ * Backed by idb-keyval (a single IndexedDB store). The foreground drain in
+ * useOfflineSync is the mechanism on every platform, because iOS Safari — where
+ * much of the staff runs — has no Background Sync at all. Where Background Sync
+ * does exist it is registered as a supplement (see requestBackgroundSync), so
+ * Chrome can also replay after the app is closed; nothing depends on it firing.
  */
 import { get, set, createStore } from "idb-keyval";
 import type { ActivityResultData } from "@/types/forms";
@@ -42,12 +45,37 @@ async function writeAll(items: QueuedEval[]): Promise<void> {
   }
 }
 
+/** Tag the service worker listens for; see the `sync` handler in src/sw.ts. */
+export const EVAL_SYNC_TAG = "rally-eval-queue";
+
+/**
+ * Best-effort Background Sync registration. Absent on iOS Safari and on any
+ * browser without the API, in which case this resolves silently and the
+ * foreground drain remains the only path — as it already was.
+ */
+async function requestBackgroundSync(): Promise<void> {
+  if (globalThis.navigator?.serviceWorker === undefined) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const sync = (
+      registration as ServiceWorkerRegistration & {
+        sync?: { register: (tag: string) => Promise<void> };
+      }
+    ).sync;
+    await sync?.register(EVAL_SYNC_TAG);
+  } catch {
+    // Permission denied, or the browser refused the registration. The queue is
+    // already persisted, so the next foreground drain still picks it up.
+  }
+}
+
 /** Append a submit to the queue (idempotencyKey is the identity). */
 export async function enqueue(item: Omit<QueuedEval, "status" | "createdAt">): Promise<void> {
   const items = await readAll();
   if (items.some((i) => i.idempotencyKey === item.idempotencyKey)) return;
   items.push({ ...item, status: "pending", createdAt: Date.now() });
   await writeAll(items);
+  await requestBackgroundSync();
 }
 
 export async function list(): Promise<QueuedEval[]> {

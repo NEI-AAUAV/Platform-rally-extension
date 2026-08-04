@@ -64,7 +64,7 @@ export default function CheckpointDiscoveryModal({
         onClick={onClose}
         aria-label="Fechar modal"
       />
-      <div className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl duration-300 animate-in fade-in slide-in-from-bottom-4 sm:rounded-3xl">
+      <div className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card pb-[var(--safe-bottom)] shadow-2xl duration-300 animate-in fade-in slide-in-from-bottom-4 sm:rounded-3xl sm:pb-0">
         {/* Header */}
         <div className="rally-glass sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">

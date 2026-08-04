@@ -6,7 +6,16 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <!-- viewport-fit=cover is required on iOS 26+: without it env(safe-area-inset-*)
          stays 0 and Safari paints solid gaps around the redesigned chrome. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content: Android Chrome otherwise pans the
+         visual viewport over a fixed layout when the soft keyboard opens, which
+         hides the bottom nav and any sticky submit button behind the keyboard.
+         Resizing the layout viewport instead is the native behaviour. Ignored by
+         Safari, so iOS is unaffected. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="color-scheme" content="light dark" />
 
     <!-- Apply the saved color mode before paint to avoid a flash. Must resolve
          the same way as colorModeContext.ts: the stored value may be "system",
@@ -66,7 +75,17 @@
     />
 
     <!-- PWA Meta Tags -->
+    <!-- Order matters: browsers that don't understand `media` keep the first,
+         unconditional tag (previous behaviour). Chrome/Android picks the last
+         matching one, so the status bar and the Android task-switcher header
+         track the active colour mode instead of staying brand red. The two
+         values are --background in light/dark (see global.css), which is what
+         Safari 26 already samples from the page. applyThemeColorMeta() in
+         src/lib/themeColor.ts overrides these at runtime when the user picks a
+         mode manually, since `media` only follows the OS. -->
     <meta name="theme-color" content="#dc2626" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0d14" />
     <meta name="description" content="Rally Tascas - Competição de equipas do NEI" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
