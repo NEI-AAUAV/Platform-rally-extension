@@ -100,13 +100,17 @@ jobs:
         POSTGRES_USER: postgres
         POSTGRES_DB: rally
         
+    # -n auto shards the suite across the runner's cores. Each xdist worker gets
+    # its own `${POSTGRES_DB}_test_gwN` database (see app/tests/conftest.py), so
+    # the per-test schema create/drop no longer serialises the whole run.
+    # -q instead of -v: 1100+ verbose lines cost more than they inform.
     - name: Run API tests
       working-directory: api-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          poetry run pytest app/tests/ -v --require-pg --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+          poetry run pytest app/tests/ -q -n auto --require-pg --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
         else
-          poetry run pytest app/tests/ -v --require-pg --junitxml=test-results.xml
+          poetry run pytest app/tests/ -q -n auto --require-pg --no-cov --junitxml=test-results.xml
         fi
       env:
         POSTGRES_SERVER: localhost
@@ -360,7 +364,8 @@ jobs:
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [test-api, test-frontend]
+    # No `needs:` — this job no longer consumes test-api/test-frontend artifacts,
+    # so gating it behind them only added their runtime to the critical path.
     if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration' || github.event.inputs.test_type == '' }}
     
     services:
@@ -394,44 +399,16 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
         
+    - name: Load cached venv
+      uses: actions/cache@v5
+      with:
+        path: api-rally/.venv
+        key: venv-${{ runner.os }}-3.12-${{ hashFiles('**/poetry.lock') }}
+
     - name: Install API dependencies
       working-directory: api-rally
       run: |
         poetry install --no-interaction --no-root
-
-    - name: Set up pnpm
-      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-      with:
-        version: 9
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '24'
-        cache: 'pnpm'
-        cache-dependency-path: web-rally/pnpm-lock.yaml
-
-    - name: Install frontend dependencies
-      working-directory: web-rally
-      run: pnpm install --frozen-lockfile --ignore-scripts
-
-    - name: Generate OpenAPI schema
-      working-directory: api-rally
-      run: poetry run python scripts/generate_openapi.py
-      env:
-        TEAM_JWT_SECRET_KEY: test_secret
-
-    - name: Download API test results
-      uses: actions/download-artifact@v8
-      with:
-        name: api-test-results
-        path: api-rally/
-
-    - name: Download frontend test results
-      uses: actions/download-artifact@v8
-      with:
-        name: frontend-test-results
-        path: web-rally/coverage/
 
     - name: Create test database
       run: |
@@ -444,13 +421,15 @@ jobs:
         POSTGRES_USER: postgres
         POSTGRES_DB: rally
 
+    # Scoped to app/tests/integration only. This job used to shell out to
+    # run-tests.sh, which runs the *entire* pytest suite plus the entire vitest
+    # suite — both already covered by test-api and test-frontend above. That
+    # made the whole pipeline run every test twice for no extra signal.
     - name: Run integration tests
+      working-directory: api-rally
       run: |
-        chmod +x run-tests.sh
-        ./run-tests.sh
+        poetry run pytest app/tests/integration -q --require-pg --no-cov --junitxml=integration-results.xml
       env:
-        RALLY_TEST_PG: external
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rally
         POSTGRES_SERVER: localhost
         POSTGRES_PASSWORD: postgres
         POSTGRES_USER: postgres
@@ -462,7 +441,4 @@ jobs:
       if: always()
       with:
         name: integration-test-results
-        path: |
-          api-rally/test-results.xml
-          api-rally/coverage/
-          web-rally/coverage/
+        path: api-rally/integration-results.xml
