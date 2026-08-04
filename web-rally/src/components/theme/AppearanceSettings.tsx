@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useColorMode } from "./useColorMode";
+import { isNativeGlassPlatform, supportsGlass } from "./colorModeContext";
 import type { ColorModePreference, GlassPreference } from "./colorModeContext";
 
 const GLASS_OPTIONS: ReadonlyArray<{ value: GlassPreference; label: string }> = [
@@ -38,6 +39,15 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
     setGlass,
   } = useColorMode();
 
+  /**
+   * The glass material only ships on Apple platforms, so its controls — and the
+   * manual "reduce transparency" switch that exists because WebKit does not
+   * implement `prefers-reduced-transparency` — are noise everywhere else. Kept
+   * visible when the preference already resolves to on, so a device that forced
+   * it on can still turn it back off.
+   */
+  const showGlassControls = (supportsGlass() && isNativeGlassPlatform()) || glassActive;
+
   return (
     <section className={`rally-surface p-6 ${className}`} aria-labelledby="appearance-heading">
       <h2 id="appearance-heading" className="rally-display text-lg font-bold text-foreground">
@@ -73,50 +83,59 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
         </div>
       </fieldset>
 
-      <fieldset className="mt-5">
-        <legend className="mb-2 text-sm font-medium text-foreground">Efeito de vidro</legend>
-        <p className="mb-2 text-xs text-muted-foreground">
-          Automático liga-o apenas em dispositivos Apple recentes, onde combina com o sistema.
-          {glass === "auto" && !glassActive && " Neste dispositivo está desligado."}
-        </p>
-        <div className="flex gap-2" role="radiogroup" aria-label="Efeito de vidro">
-          {GLASS_OPTIONS.map(({ value, label }) => {
-            const active = glass === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setGlass(value)}
-                className={`flex-1 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
-                  active
-                    ? "rally-bg-accent-soft rally-border-accent text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+      {showGlassControls && (
+        <>
+          <fieldset className="mt-5">
+            <legend className="mb-2 text-sm font-medium text-foreground">Efeito de vidro</legend>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Automático liga-o apenas em dispositivos Apple recentes, onde combina com o sistema.
+              {glass === "auto" && !glassActive && " Neste dispositivo está desligado."}
+            </p>
+            <div className="flex gap-2" role="radiogroup" aria-label="Efeito de vidro">
+              {GLASS_OPTIONS.map(({ value, label }) => {
+                const active = glass === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setGlass(value)}
+                    className={`flex-1 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
+                      active
+                        ? "rally-bg-accent-soft rally-border-accent text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
-      <label htmlFor="reduce-transparency" className="mt-5 flex items-start justify-between gap-4">
-        <span className="min-w-0">
-          <span className="block text-sm font-medium text-foreground">Reduzir transparência</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Torna opacas as superfícies translúcidas usadas em dispositivos Apple recentes.
-          </span>
-        </span>
-        <input
-          id="reduce-transparency"
-          type="checkbox"
-          checked={reduceTransparency}
-          onChange={(e) => setReduceTransparency(e.target.checked)}
-          className="mt-1 h-5 w-5 shrink-0 accent-[var(--rally-accent,#008542)]"
-        />
-      </label>
+          <label
+            htmlFor="reduce-transparency"
+            className="mt-5 flex items-start justify-between gap-4"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">
+                Reduzir transparência
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Torna opacas as superfícies translúcidas usadas em dispositivos Apple recentes.
+              </span>
+            </span>
+            <input
+              id="reduce-transparency"
+              type="checkbox"
+              checked={reduceTransparency}
+              onChange={(e) => setReduceTransparency(e.target.checked)}
+              className="mt-1 h-5 w-5 shrink-0 accent-[var(--rally-accent,#008542)]"
+            />
+          </label>
+        </>
+      )}
     </section>
   );
 }

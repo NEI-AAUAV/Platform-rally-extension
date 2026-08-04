@@ -781,10 +781,15 @@
 
   /* The selected tab is a lit pill that slides across the bar. */
   .rally-tabbar-pill {
+    /* Inset from the bar's own edges, so the pill on the first and last tab
+       keeps the same breathing room it has between tabs instead of butting
+       against the border. The slot width set inline subtracts twice this, so
+       the pill stays centred on its tab. */
+    --rally-tabbar-pill-gap: 0.3rem;
     position: absolute;
     top: 0.3rem;
     bottom: 0.3rem;
-    left: 0;
+    left: var(--rally-tabbar-pill-gap);
     z-index: 0;
     border-radius: 1.25rem;
     pointer-events: none;
@@ -802,6 +807,9 @@
     opacity: 1;
   }
   [data-glass="on"] .rally-tabbar-pill {
+    /* The capsule bar is rounded at 1.75rem, so the extremes need more inset
+       than the square-edged bar to clear the corner arc. */
+    --rally-tabbar-pill-gap: 0.5rem;
     background-color: hsl(var(--card) / 0.55);
     backdrop-filter: brightness(1.35) saturate(140%);
     -webkit-backdrop-filter: brightness(1.35) saturate(140%);
