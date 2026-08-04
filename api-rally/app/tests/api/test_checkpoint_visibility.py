@@ -187,14 +187,42 @@ class TestCheckpointVisibility:
 
     async def test_public_access_disabled_but_map_shown(self, pg_session, pg_client):
         """`public_access_enabled=False` with `show_checkpoint_map=True` still
-        returns the full checkpoint list (checkpoint.py line 62)."""
+        publishes the route — but `show_route_mode` still decides how much of
+        it. Turning public access off must never reveal *more* than leaving it
+        on: focused stays focused."""
         await _make_event(pg_session)
         settings = await rally_settings.get_or_create(pg_session)
         await rally_settings.update(
             pg_session,
             id=settings.id,
             obj_in=_settings_update(
-                settings, public_access_enabled=False, show_checkpoint_map=True
+                settings,
+                public_access_enabled=False,
+                show_checkpoint_map=True,
+                show_route_mode="focused",
+            ),
+            commit=True,
+        )
+        await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0)
+
+        response = pg_client.get("/api/rally/v1/checkpoint/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["order"] == 1
+
+    async def test_map_hidden_denies_public_access(self, pg_session, pg_client):
+        """`show_checkpoint_map=False` denies the public route listing outright,
+        regardless of `public_access_enabled`."""
+        await _make_event(pg_session)
+        settings = await rally_settings.get_or_create(pg_session)
+        await rally_settings.update(
+            pg_session,
+            id=settings.id,
+            obj_in=_settings_update(
+                settings, public_access_enabled=True, show_checkpoint_map=False
             ),
             commit=True,
         )
@@ -202,8 +230,7 @@ class TestCheckpointVisibility:
 
         response = pg_client.get("/api/rally/v1/checkpoint/")
 
-        assert response.status_code == 200
-        assert len(response.json()) == 1
+        assert response.status_code == 403
 
     async def test_public_focused_mode_no_checkpoints_returns_empty(self, pg_session, pg_client):
         """Focused public mode with zero checkpoints yields [] rather than

@@ -32,6 +32,23 @@ from app.schemas.team import (
 from app.services.scoring_service import ScoringService
 
 
+def is_checkpoint_reachable(
+    *, checkpoint_order: int, times_reached: int, order_matters: bool
+) -> bool:
+    """Whether a team that has reached ``times_reached`` checkpoints may check
+    into one of order ``checkpoint_order``.
+
+    Single source of truth for the progression rule: with
+    ``checkpoint_order_matters`` on, a team must arrive at posts strictly in
+    sequence; with it off, any not-yet-visited order is fair game. Callers that
+    only want to *know* (GPS auto-advance) use this predicate; callers that must
+    *reject* (``TeamService._validate_checkpoint_order``) raise on a False.
+    """
+    if order_matters:
+        return times_reached == checkpoint_order - 1
+    return checkpoint_order > times_reached
+
+
 class TeamService:
     """Team lifecycle, checkpoint progression, and classification rules."""
 
@@ -127,17 +144,21 @@ class TeamService:
             raise RallyNotFoundError("Checkpoint not found")
 
         checkpoint_order = checkpoint_obj.order
+        order_matters = settings.checkpoint_order_matters
 
-        if settings.checkpoint_order_matters:
-            # Team should have visited exactly (order - 1) checkpoints
-            if len(team.times) != checkpoint_order - 1:
-                raise RallyValidationError(
-                    f"Checkpoint not in order. Expected checkpoint order "
-                    f"{len(team.times) + 1}, got {checkpoint_order}"
-                )
-        # If order doesn't matter, just check if checkpoint already visited by order
-        elif checkpoint_order <= len(team.times):
-            raise RallyValidationError(f"Checkpoint {checkpoint_order} already visited")
+        if is_checkpoint_reachable(
+            checkpoint_order=checkpoint_order,
+            times_reached=len(team.times),
+            order_matters=order_matters,
+        ):
+            return
+
+        if order_matters:
+            raise RallyValidationError(
+                f"Checkpoint not in order. Expected checkpoint order "
+                f"{len(team.times) + 1}, got {checkpoint_order}"
+            )
+        raise RallyValidationError(f"Checkpoint {checkpoint_order} already visited")
 
     async def add_checkpoint(
         self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate

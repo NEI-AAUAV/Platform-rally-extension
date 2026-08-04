@@ -6506,10 +6506,14 @@
         "properties": {
           "latitude": {
             "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
             "title": "Latitude"
           },
           "longitude": {
             "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
             "title": "Longitude"
           }
         },
@@ -7187,7 +7191,9 @@
           "latitude": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
               },
               {
                 "type": "null"
@@ -7198,7 +7204,9 @@
           "longitude": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
               },
               {
                 "type": "null"
@@ -7212,6 +7220,7 @@
           },
           "arrival_radius_m": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Arrival Radius M",
             "default": 50
           }
@@ -7250,7 +7259,9 @@
           "latitude": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
               },
               {
                 "type": "null"
@@ -7261,7 +7272,9 @@
           "longitude": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
               },
               {
                 "type": "null"
@@ -7283,7 +7296,8 @@
           "arrival_radius_m": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0.0
               },
               {
                 "type": "null"

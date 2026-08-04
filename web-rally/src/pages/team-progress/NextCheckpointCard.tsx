@@ -14,14 +14,20 @@ type NextCheckpointCardProps = Readonly<{
 
 type GpsState = "idle" | "locating" | "done" | "error";
 
-/** "Too far from checkpoint: 240m (max 50m)" → friendly PT message. */
+/**
+ * "Too far from checkpoint: menos de 500m (max 50m)" → friendly PT message.
+ *
+ * The server reports a coarse distance band rather than an exact metre count,
+ * so a team cannot trilaterate a hidden post from repeated rejections. Anything
+ * that does not parse falls back to the generic nudge.
+ */
 function traduzirDistancia(detail: string): string {
-  const match = /: (\d+)m \(max (\d+)m\)$/.exec(detail.trimEnd());
+  const match = /: (.+) \(max (\d+)m\)$/.exec(detail.trimEnd());
   if (!match) {
     return "Ainda estás longe do posto. Aproxima-te e tenta outra vez.";
   }
-  const [, distanceValue, maxDistance] = match;
-  return `Ainda estás longe do posto: ${distanceValue} m (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
+  const [, band, maxDistance] = match;
+  return `Ainda estás longe do posto: ${band} (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
 }
 
 export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {

@@ -66,18 +66,20 @@ class CheckpointService:
     ) -> list[DetailedCheckPoint] | None:
         """Return visible checkpoints for unauthenticated / public access.
 
+        ``show_checkpoint_map`` decides whether the route is public at all;
+        ``show_route_mode`` decides how much of it is revealed. Focused mode
+        exposes only the first post — progressive route reveal is the whole game
+        in peddy paper, so it is honored on every path that returns data.
+
         Returns *None* when access should be denied.
         """
-        if not (settings.public_access_enabled and settings.show_checkpoint_map):
-            if settings.show_checkpoint_map:
-                return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
+        if not settings.show_checkpoint_map:
             return None
+
+        all_checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db)
         if settings.show_route_mode == "focused":
-            all_checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db)
-            if not all_checkpoints:
-                return []
-            return self._validate_list([all_checkpoints[0]])
-        return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
+            return self._validate_list(all_checkpoints[:1])
+        return self._validate_list(all_checkpoints)
 
     async def list_teams_at_checkpoint(
         self, *, checkpoint_id: int, is_admin_unfiltered: bool

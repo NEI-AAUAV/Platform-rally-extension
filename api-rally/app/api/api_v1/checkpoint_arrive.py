@@ -8,7 +8,7 @@ Only available when the current event is PEDDY_PAPER.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -21,8 +21,10 @@ from app.services.deps import get_checkpoint_arrival_service
 
 
 class ArriveRequest(BaseModel):
-    latitude: float
-    longitude: float
+    # WGS-84 bounds: an out-of-range fix is a client bug, and Haversine would
+    # happily return a plausible-looking distance for it.
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
 
 
 class ArriveResponse(BaseModel):
