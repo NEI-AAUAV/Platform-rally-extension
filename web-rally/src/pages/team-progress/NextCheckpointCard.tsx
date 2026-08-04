@@ -1,11 +1,21 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapPin, LocateFixed, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import {
+  MapPin,
+  LocateFixed,
+  CheckCircle2,
+  AlertCircle,
+  CloudOff,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import type { DetailedCheckPoint } from "@/client";
 import { arriveAtCheckpoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import useRallySettings from "@/hooks/useRallySettings";
+import { enqueueArrival } from "@/offline/arrivalQueue";
+import { useArrivalSync } from "@/offline/useArrivalSync";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import { getErrorMessage } from "@/utils/errorHandling";
@@ -15,7 +25,23 @@ type NextCheckpointCardProps = Readonly<{
   showMap: boolean;
 }>;
 
-type GpsState = "idle" | "locating" | "done" | "error";
+type GpsState = "idle" | "locating" | "done" | "queued" | "error";
+
+/**
+ * Whether a failed check-in is worth queueing for replay.
+ *
+ * A server that answered — with a detail body, however unwelcome ("too far",
+ * "not enabled") — has made a decision, and replaying it later would just
+ * repeat the rejection. Only a request that never got an answer is queued.
+ */
+function isOfflineFailure(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  const candidate = error as
+    | { body?: { detail?: unknown }; response?: { data?: { detail?: unknown } } }
+    | null
+    | undefined;
+  return candidate?.body?.detail === undefined && candidate?.response?.data?.detail === undefined;
+}
 
 /**
  * "Too far from checkpoint: menos de 500m (max 50m)" → friendly PT message.
@@ -43,6 +69,11 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const [gpsState, setGpsState] = useState<GpsState>("idle");
   const [gpsMsg, setGpsMsg] = useState("");
   const qc = useQueryClient();
+  // Replays anything queued by an earlier offline attempt, including from a
+  // previous app launch — iOS kills backgrounded PWAs, so the tab that queued
+  // an arrival is often not the tab that gets to send it.
+  const { queued } = useArrivalSync();
+  const isQueuedHere = queued.some((item) => item.checkpointId === checkpoint.id);
 
   const arriveMutation = useMutation({
     mutationFn: async ({ lat, lng }: { lat: number; lng: number }) => {
@@ -68,7 +99,20 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       }
       setGpsState("done");
     },
-    onError: (err: unknown) => {
+    onError: async (err: unknown, variables) => {
+      // The request never reached the server: keep the coordinates captured
+      // here and replay them when the signal comes back, so the team is
+      // credited for where they stood rather than losing the post.
+      if (isOfflineFailure(err)) {
+        await enqueueArrival({
+          checkpointId: checkpoint.id,
+          latitude: variables.lat,
+          longitude: variables.lng,
+        });
+        setGpsMsg("Sem rede. Check-in guardado — será enviado assim que houver ligação.");
+        setGpsState("queued");
+        return;
+      }
       // ApiError.message is a generic "Bad Request"; the useful text
       // ("Too far from checkpoint: …") lives in body.detail.
       const raw = getErrorMessage(err, "Erro ao registar check-in.");
@@ -109,8 +153,17 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   let buttonClasses = "border border-border bg-card text-foreground hover:bg-accent/40";
   if (gpsState === "done") {
     buttonClasses = "cursor-default bg-green-500/15 text-green-600";
+  } else if (gpsState === "queued") {
+    buttonClasses = "bg-amber-500/15 text-amber-600";
   } else if (gpsState === "error") {
     buttonClasses = "bg-red-500/10 text-red-500";
+  }
+
+  let messageClasses = "text-red-500";
+  if (gpsState === "done") {
+    messageClasses = "text-green-600";
+  } else if (gpsState === "queued") {
+    messageClasses = "text-amber-600";
   }
 
   const renderButtonContent = () => {
@@ -126,6 +179,14 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         <>
           <CheckCircle2 className="h-5 w-5" />
           Check-in feito
+        </>
+      );
+    }
+    if (gpsState === "queued") {
+      return (
+        <>
+          <CloudOff className="h-5 w-5" />
+          Guardado — tentar novamente
         </>
       );
     }
@@ -181,14 +242,10 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
           >
             {renderButtonContent()}
           </button>
-          {gpsMsg && (
-            <p
-              className={[
-                "text-center text-xs",
-                gpsState === "done" ? "text-green-600" : "text-red-500",
-              ].join(" ")}
-            >
-              {gpsMsg}
+          {gpsMsg && <p className={["text-center text-xs", messageClasses].join(" ")}>{gpsMsg}</p>}
+          {isQueuedHere && gpsState !== "queued" && (
+            <p className="text-center text-xs text-amber-600">
+              Há um check-in por enviar para este local. Será enviado assim que houver ligação.
             </p>
           )}
           {gpsState === "error" && (

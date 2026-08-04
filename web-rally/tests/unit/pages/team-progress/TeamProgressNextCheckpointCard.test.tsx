@@ -6,10 +6,26 @@ import NextCheckpointCard from "@/pages/team-progress/NextCheckpointCard";
 import { arriveAtCheckpoint } from "@/client";
 import type { DetailedCheckPoint } from "@/client";
 
-const { mockUseCheckpointMedia, mockUseRallySettings, mockUseEventTerms } = vi.hoisted(() => ({
+const {
+  mockUseCheckpointMedia,
+  mockUseRallySettings,
+  mockUseEventTerms,
+  mockEnqueueArrival,
+  mockUseArrivalSync,
+} = vi.hoisted(() => ({
   mockUseCheckpointMedia: vi.fn(),
   mockUseRallySettings: vi.fn(),
   mockUseEventTerms: vi.fn(),
+  mockEnqueueArrival: vi.fn(),
+  mockUseArrivalSync: vi.fn(),
+}));
+
+vi.mock("@/offline/arrivalQueue", () => ({
+  enqueueArrival: (...args: unknown[]) => mockEnqueueArrival(...args),
+}));
+
+vi.mock("@/offline/useArrivalSync", () => ({
+  useArrivalSync: () => mockUseArrivalSync(),
 }));
 
 vi.mock("@/hooks/useEventTerms", () => ({
@@ -53,6 +69,7 @@ describe("team-progress NextCheckpointCard", () => {
     vi.clearAllMocks();
     mockUseCheckpointMedia.mockReturnValue({ photos: [], funFacts: [] });
     mockUseRallySettings.mockReturnValue({ settings: { gps_checkin_enabled: true } });
+    mockUseArrivalSync.mockReturnValue({ queued: [], syncNow: vi.fn() });
     mockUseEventTerms.mockReturnValue({
       checkpoint: "posto",
       checkpoints: "postos",
@@ -207,6 +224,63 @@ describe("team-progress NextCheckpointCard", () => {
         screen.getByText("Ainda não estás perto o suficiente. Aproxima-te e tenta outra vez."),
       ).toBeInTheDocument(),
     );
+  });
+
+  it("queues the check-in when the request never reaches the server", async () => {
+    // No detail body => the server never answered. Keep the captured position
+    // so the team is credited for where they actually stood.
+    vi.mocked(arriveAtCheckpoint).mockRejectedValue(new Error("Failed to fetch"));
+    const getCurrentPosition = vi.fn((success) =>
+      success({ coords: { latitude: 41.15, longitude: -8.61 } }),
+    );
+    Object.defineProperty(navigator, "geolocation", {
+      value: { getCurrentPosition },
+      configurable: true,
+    });
+
+    const user = userEvent.setup();
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole("button", { name: /Check-in GPS/ }));
+
+    await vi.waitFor(() =>
+      expect(mockEnqueueArrival).toHaveBeenCalledWith({
+        checkpointId: 1,
+        latitude: 41.15,
+        longitude: -8.61,
+      }),
+    );
+    expect(screen.getByText(/Check-in guardado/)).toBeInTheDocument();
+  });
+
+  it("does not queue a check-in the server actively rejected", async () => {
+    vi.mocked(arriveAtCheckpoint).mockRejectedValue({
+      body: { detail: "Too far from checkpoint: menos de 500m (max 50m)" },
+    });
+    const getCurrentPosition = vi.fn((success) =>
+      success({ coords: { latitude: 41.1, longitude: -8.6 } }),
+    );
+    Object.defineProperty(navigator, "geolocation", {
+      value: { getCurrentPosition },
+      configurable: true,
+    });
+
+    const user = userEvent.setup();
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole("button", { name: /Check-in GPS/ }));
+
+    await vi.waitFor(() => expect(screen.getByText(/menos de 500m/)).toBeInTheDocument());
+    expect(mockEnqueueArrival).not.toHaveBeenCalled();
+  });
+
+  it("flags a leftover queued arrival from an earlier session", () => {
+    mockUseArrivalSync.mockReturnValue({
+      queued: [
+        { checkpointId: 1, latitude: 41.1, longitude: -8.6, status: "pending", createdAt: 1 },
+      ],
+      syncNow: vi.fn(),
+    });
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+    expect(screen.getByText(/check-in por enviar para este local/i)).toBeInTheDocument();
   });
 
   it("shows a geolocation permission error and allows clearing it", async () => {

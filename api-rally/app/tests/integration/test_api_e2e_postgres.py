@@ -56,7 +56,15 @@ async def _create_schema_and_seed() -> None:
 
             session.add_all(
                 [
-                    RallySettings(event_id=event.id, checkpoint_order_matters=True),
+                    # Seeded directly rather than through `rally_settings.get_or_create`,
+                    # so the peddy-paper bootstrap that switches GPS check-in on
+                    # never runs — this journey exercises the arrive endpoint, so
+                    # it has to ask for the setting explicitly.
+                    RallySettings(
+                        event_id=event.id,
+                        checkpoint_order_matters=True,
+                        gps_checkin_enabled=True,
+                    ),
                     CheckPoint(
                         name="CP1",
                         order=1,
