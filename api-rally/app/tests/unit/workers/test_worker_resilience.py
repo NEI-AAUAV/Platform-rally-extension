@@ -2,7 +2,7 @@
 
 A worker's pub/sub loop must survive a transient Redis outage (reconnect with
 backoff) instead of dying permanently, and must expose whether it is currently
-alive so /health/ready can report a silently-stale leaderboard.
+alive so the readiness probe can report a silently-stale leaderboard.
 """
 
 import threading

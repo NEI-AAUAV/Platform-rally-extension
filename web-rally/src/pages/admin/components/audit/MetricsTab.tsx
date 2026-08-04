@@ -2,18 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, AlertTriangle, Database, Gauge, Server, Zap } from "lucide-react";
-import { readinessCheck } from "@/client";
-import { parsePrometheusText, sumByName, byName } from "./parsePrometheusText";
+import { getAdminMetrics, readinessCheck } from "@/client";
 
 const POLL_INTERVAL_MS = 10_000;
 const MAX_POINTS = 60; // ~10 min of history at the default poll interval
-
-interface ReadinessBody {
-  status: string;
-  db: string;
-  redis?: string;
-  workers: Array<{ name: string; alive: boolean; last_beat: number }>;
-}
 
 interface LatencyPoint {
   t: string;
@@ -50,53 +42,37 @@ function StatCard({
   );
 }
 
-/**
- * Fetches the raw Prometheus text exposition format from GET /metrics.
- * Not part of the generated OpenAPI client — the endpoint is deliberately
- * excluded from the schema (Prometheus scrape format isn't a JSON API
- * response). No auth header: Prometheus scrapers don't authenticate, so
- * this endpoint has none either — it must be blocked at the reverse proxy
- * in production, a backend/infra concern outside this panel.
- */
-async function fetchMetricsText(): Promise<string> {
-  const res = await fetch("/metrics");
-  if (!res.ok) throw new Error(`metrics fetch failed: ${res.status}`);
-  return res.text();
-}
-
 export default function MetricsTab() {
   const [history, setHistory] = useState<LatencyPoint[]>([]);
   const lastSeenTotalRef = useRef<{ count: number; sumSeconds: number } | null>(null);
 
-  const { data: metricsText, isError: metricsError } = useQuery({
-    queryKey: ["prometheus-metrics"],
-    queryFn: fetchMetricsText,
+  // The raw Prometheus scrape (/metrics) is unauthenticated and deliberately
+  // not routed through the reverse proxy, so the panel reads the same counters
+  // through this admin-only endpoint, already aggregated server-side.
+  const { data: metrics, isError: metricsError } = useQuery({
+    queryKey: ["admin-metrics"],
+    queryFn: async () => (await getAdminMetrics()).data,
     refetchInterval: POLL_INTERVAL_MS,
   });
 
   const { data: readiness, isError: readinessError } = useQuery({
     queryKey: ["readiness"],
-    queryFn: async () => {
-      const { data } = await readinessCheck();
-      return data as unknown as ReadinessBody;
-    },
+    queryFn: async () => (await readinessCheck()).data,
     refetchInterval: POLL_INTERVAL_MS,
   });
 
-  const samples = metricsText ? parsePrometheusText(metricsText) : [];
-
-  const requestsTotal = sumByName(samples, "rally_http_requests_total");
-  const errors5xx = samples
-    .filter((s) => s.name === "rally_http_requests_total" && s.labels.status?.startsWith("5"))
-    .reduce((acc, s) => acc + s.value, 0);
+  const requestsTotal = metrics?.requests_total ?? 0;
+  const errors5xx = metrics?.errors_5xx ?? 0;
   const errorRate = requestsTotal > 0 ? (errors5xx / requestsTotal) * 100 : 0;
-  const rateLimitRejections = sumByName(samples, "rally_rate_limit_rejections_total");
+  const rateLimitRejections = metrics?.rate_limit_rejections ?? 0;
 
-  const durationSum = sumByName(samples, "rally_http_request_duration_seconds_sum");
-  const durationCount = sumByName(samples, "rally_http_request_duration_seconds_count");
+  const durationSum = metrics?.request_duration_seconds_sum ?? 0;
+  const durationCount = metrics?.request_duration_seconds_count ?? 0;
 
-  const workerGauges = byName(samples, "rally_worker_last_beat_age_seconds");
-  const deadWorkers = workerGauges.filter((s) => s.value > 30).length;
+  // `alive` already encodes the heartbeat-staleness window, applied server-side
+  // against its own monotonic clock — `last_beat` is a monotonic timestamp and
+  // means nothing relative to the browser's clock, so it must not be compared here.
+  const deadWorkers = (readiness?.workers ?? []).filter((w) => !w.alive).length;
 
   // Accumulate a rolling window of average latency since the page opened —
   // this is NOT historical data from the backend (it doesn't store any); it

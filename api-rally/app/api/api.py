@@ -15,6 +15,7 @@ from app.api.api_v1 import (
     events,
     export,
     guide,
+    health,
     profile,
     push,
     rally_duration,
@@ -57,3 +58,4 @@ api_v1_router.include_router(guide.router, prefix="", tags=["Guide"])
 api_v1_router.include_router(export.router, prefix="", tags=["Export"])
 api_v1_router.include_router(audit.router, prefix="", tags=["Audit"])
 api_v1_router.include_router(push.router, prefix="", tags=["Push Notifications"])
+api_v1_router.include_router(health.router, prefix="", tags=["health"])

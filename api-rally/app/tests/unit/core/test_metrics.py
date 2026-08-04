@@ -79,5 +79,36 @@ def test_set_worker_last_beat_age_sets_gauge(monkeypatch: pytest.MonkeyPatch) ->
     assert value == 5.0
 
 
+def test_collect_summary_totals_match_the_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "METRICS_ENABLED", True)
+    before = metrics.collect_summary()
+
+    metrics.record_request(method="GET", path_template="/x", status=200, duration_seconds=0.25)
+    metrics.record_request(method="GET", path_template="/x", status=503, duration_seconds=0.25)
+
+    after = metrics.collect_summary()
+    assert after["requests_total"] == before["requests_total"] + 2
+    # Only the 503 counts as a server error; the 200 must not.
+    assert after["errors_5xx"] == before["errors_5xx"] + 1
+    assert after["request_duration_seconds_count"] == before["request_duration_seconds_count"] + 2
+    assert after["request_duration_seconds_sum"] == pytest.approx(
+        before["request_duration_seconds_sum"] + 0.5
+    )
+
+
+def test_collect_summary_counts_rate_limit_rejections(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "METRICS_ENABLED", True)
+    before = metrics.collect_summary()["rate_limit_rejections"]
+    metrics.record_rate_limit_rejection(prefix="rally:ratelimit:summary")
+    assert metrics.collect_summary()["rate_limit_rejections"] == before + 1
+
+
+def test_admin_metrics_endpoint_requires_auth(client: TestClient) -> None:
+    """The raw /metrics scrape has no auth and is not routed publicly, so the
+    browser-facing equivalent must not be readable anonymously."""
+    resp = client.get(f"{settings.API_V1_STR}/admin/metrics")
+    assert resp.status_code in (401, 403)
+
+
 def _counter_value(counter, **labels) -> float:  # type: ignore[no-untyped-def]
     return counter.labels(**labels)._value.get()

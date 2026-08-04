@@ -85,3 +85,39 @@ def observe_scoring_recompute(duration_seconds: float) -> None:
     if not settings.METRICS_ENABLED:
         return
     scoring_recompute_duration_seconds.observe(duration_seconds)
+
+
+def collect_summary() -> dict[str, float]:
+    """Aggregate the registry into the handful of totals the admin panel shows.
+
+    Reads the collectors directly rather than re-parsing the text exposition
+    format, so the admin metrics endpoint stays independent of ``/metrics``
+    (which is not reachable through the reverse proxy — see the module
+    docstring).
+
+    Note the sample names: ``prometheus_client`` strips the ``_total`` suffix
+    from a Counter's metric name and re-adds it on the sample, so the samples
+    are matched by name here rather than by the parent metric.
+    """
+    totals = {
+        "requests_total": 0.0,
+        "errors_5xx": 0.0,
+        "rate_limit_rejections": 0.0,
+        "request_duration_seconds_sum": 0.0,
+        "request_duration_seconds_count": 0.0,
+    }
+
+    for metric in registry.collect():
+        for sample in metric.samples:
+            if sample.name == "rally_http_requests_total":
+                totals["requests_total"] += sample.value
+                if sample.labels.get("status", "").startswith("5"):
+                    totals["errors_5xx"] += sample.value
+            elif sample.name == "rally_rate_limit_rejections_total":
+                totals["rate_limit_rejections"] += sample.value
+            elif sample.name == "rally_http_request_duration_seconds_sum":
+                totals["request_duration_seconds_sum"] += sample.value
+            elif sample.name == "rally_http_request_duration_seconds_count":
+                totals["request_duration_seconds_count"] += sample.value
+
+    return totals

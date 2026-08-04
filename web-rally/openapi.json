@@ -5849,13 +5849,62 @@
         ]
       }
     },
+    "/api/rally/v1/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness probe: aggregates DB, Redis and worker liveness.\n\nReturns 503 when any checked dependency is unhealthy so a silently\nstale leaderboard (dead worker) or a database/Redis outage surfaces to\nops. Not wired to the container healthcheck \u2014 see ``health_check`` in\n``app.main``.",
+        "operationId": "readiness_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/admin/metrics": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Admin Metrics",
+        "description": "Prometheus counters aggregated for the admin panel \u2014 admin only.\n\nThe raw ``/metrics`` scrape endpoint has no authentication and is not\nrouted publicly; this is the authenticated way to read the same\ncounters from a browser.",
+        "operationId": "get_admin_metrics",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
           "health"
         ],
         "summary": "Health Check",
-        "description": "Liveness probe: 200 whenever the process can serve requests.\n\nThis is the Docker healthcheck target (and gates ``depends_on``), so it must\nNOT fail on a dependency outage \u2014 a down Redis/DB would otherwise tear down\nthe whole stack. Dependency status lives in ``/health/ready`` instead.",
+        "description": "Liveness probe: 200 whenever the process can serve requests.\n\nThis is the Docker healthcheck target (and gates ``depends_on``), so it must\nNOT fail on a dependency outage \u2014 a down Redis/DB would otherwise tear down\nthe whole stack. Dependency status lives in the readiness probe instead,\nunder the versioned prefix (see ``app.api.api_v1.health``).",
         "operationId": "health_check",
         "responses": {
           "200": {
@@ -5869,26 +5918,6 @@
                   "type": "object",
                   "title": "Response Health Check"
                 }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/health/ready": {
-      "get": {
-        "tags": [
-          "health"
-        ],
-        "summary": "Readiness Check",
-        "description": "Readiness probe: aggregates DB, Redis and worker liveness.\n\nReturns 503 when any checked dependency is unhealthy so a silently-stale\nleaderboard (dead worker) or a database/Redis outage surfaces to ops. Not\nwired to the container healthcheck \u2014 see ``health_check``.",
-        "operationId": "readiness_check",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           }
@@ -8688,6 +8717,40 @@
         ],
         "title": "MediaKind"
       },
+      "MetricsSummary": {
+        "properties": {
+          "requests_total": {
+            "type": "number",
+            "title": "Requests Total"
+          },
+          "errors_5xx": {
+            "type": "number",
+            "title": "Errors 5Xx"
+          },
+          "rate_limit_rejections": {
+            "type": "number",
+            "title": "Rate Limit Rejections"
+          },
+          "request_duration_seconds_sum": {
+            "type": "number",
+            "title": "Request Duration Seconds Sum"
+          },
+          "request_duration_seconds_count": {
+            "type": "number",
+            "title": "Request Duration Seconds Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requests_total",
+          "errors_5xx",
+          "rate_limit_rejections",
+          "request_duration_seconds_sum",
+          "request_duration_seconds_count"
+        ],
+        "title": "MetricsSummary",
+        "description": "Prometheus counters aggregated for the admin panel.\n\n``request_duration_seconds_sum`` / ``_count`` are the raw histogram\naccumulators rather than a pre-computed average: the panel diffs\nsuccessive polls to derive the latency of the interval between them,\nwhich the average alone cannot express."
+      },
       "OidcUserSearchResult": {
         "properties": {
           "id": {
@@ -9950,6 +10013,44 @@
         "title": "RallyStaffAssignmentWithCheckpoint",
         "description": "Staff assignment with checkpoint details"
       },
+      "Readiness": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "db": {
+            "type": "string",
+            "title": "Db"
+          },
+          "redis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redis"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerHealth"
+            },
+            "type": "array",
+            "title": "Workers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "db",
+          "workers"
+        ],
+        "title": "Readiness",
+        "description": "Aggregated dependency health.\n\n``redis`` is absent when the realtime subsystem is disabled, in which case\nno Redis connection is expected and its state says nothing about\nreadiness."
+      },
       "RotationScheduleResponse": {
         "properties": {
           "event_id": {
@@ -10706,6 +10807,30 @@
           "name"
         ],
         "title": "VisualPreset"
+      },
+      "WorkerHealth": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "alive": {
+            "type": "boolean",
+            "title": "Alive"
+          },
+          "last_beat": {
+            "type": "number",
+            "title": "Last Beat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "alive",
+          "last_beat"
+        ],
+        "title": "WorkerHealth",
+        "description": "Liveness of one background worker."
       }
     },
     "securitySchemes": {
