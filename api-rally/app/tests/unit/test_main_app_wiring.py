@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.core.exceptions import RallyError
 from app.main import app, lifespan, settings
+from app.workers import clear_workers, get_workers
 
 
 def test_rally_error_handler_logs_traceback_for_5xx(monkeypatch):
@@ -64,9 +65,10 @@ async def test_lifespan_starts_scoring_worker_when_recompute_off_path(monkeypatc
     monkeypatch.setattr(main_module, "BadgesWorker", fake_worker_cls)
     monkeypatch.setattr(main_module, "ScoringWorker", fake_worker_cls)
 
-    main_module._workers.clear()
+    # Running workers live in app.workers.registry, not app.main.
+    clear_workers()
     async with lifespan(app):
-        assert len(main_module._workers) == 3
+        assert len(get_workers()) == 3
 
-    assert main_module._workers == []
+    assert get_workers() == ()
     main_module.close_pools.assert_called_once()

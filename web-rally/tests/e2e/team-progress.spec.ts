@@ -137,7 +137,9 @@ test.describe('Team progress', () => {
 
     await expect(page.getByText('Os Fixes')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Percurso' })).toBeVisible();
-    await expect(page.getByText('Próximo Posto — Posto 2')).toBeVisible();
+    // The card follows the event's terminology; MOCK_RALLY_SETTINGS carries no
+    // event_type, so it falls back to the classic rally terms ("tasca", f.).
+    await expect(page.getByRole('heading', { name: 'Próxima Tasca — Posto 2' })).toBeVisible();
     await expect(page.getByText('Concluído')).toBeVisible();
     await expect(page.getByText('Em curso')).toBeVisible();
   });
@@ -166,7 +168,8 @@ test.describe('Team progress', () => {
   });
 
   test('successful GPS check-in shows auto-completed message', async ({ page, context }) => {
-    await mockSettings(page, { participant_view_enabled: true });
+    // The button only renders when the event enables GPS check-in.
+    await mockSettings(page, { participant_view_enabled: true, gps_checkin_enabled: true });
     await seedTeamAuth(context);
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 40.64, longitude: -8.66 });
@@ -182,11 +185,11 @@ test.describe('Team progress', () => {
     await page.goto('/rally/team-progress');
     await page.getByRole('button', { name: 'Check-in GPS' }).click();
 
-    await expect(page.getByText('Posto concluído! A avançar para o próximo…')).toBeVisible();
+    await expect(page.getByText('Tasca concluída! A avançar para a próxima…')).toBeVisible();
   });
 
   test('already-registered GPS check-in shows distance message', async ({ page, context }) => {
-    await mockSettings(page, { participant_view_enabled: true });
+    await mockSettings(page, { participant_view_enabled: true, gps_checkin_enabled: true });
     await seedTeamAuth(context);
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 40.64, longitude: -8.66 });
@@ -206,7 +209,7 @@ test.describe('Team progress', () => {
   });
 
   test('too-far GPS check-in shows translated distance error', async ({ page, context }) => {
-    await mockSettings(page, { participant_view_enabled: true });
+    await mockSettings(page, { participant_view_enabled: true, gps_checkin_enabled: true });
     await seedTeamAuth(context);
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 40.7, longitude: -8.7 });
@@ -215,7 +218,8 @@ test.describe('Team progress', () => {
       route.fulfill({
         status: 400,
         contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Too far from checkpoint: 240m (max 50m)' }),
+        // The server reports a coarse distance band, not an exact metre count.
+        body: JSON.stringify({ detail: 'Too far from checkpoint: menos de 500m (max 50m)' }),
       }),
     );
 
@@ -223,7 +227,9 @@ test.describe('Team progress', () => {
     await page.getByRole('button', { name: 'Check-in GPS' }).click();
 
     await expect(
-      page.getByText('Ainda estás longe do posto: 240 m (tens de estar a menos de 50 m). Aproxima-te e tenta outra vez.'),
+      page.getByText(
+        'Ainda não estás perto o suficiente: menos de 500m (tens de estar a menos de 50 m). Aproxima-te e tenta outra vez.',
+      ),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
   });
