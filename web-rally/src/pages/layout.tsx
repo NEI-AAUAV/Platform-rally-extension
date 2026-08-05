@@ -36,17 +36,11 @@ function MainLayoutContent() {
   // settings-fetch error locks every visitor out.
   const isPublicAccessEnabled = settings === undefined || settings.public_access_enabled === true;
 
-  // Paths that are accessible for teams or public even if main public access is disabled
-  const publicPaths = [
-    "/",
-    "/team-login",
-    "/team-progress",
-    "/versus",
-    "/scoreboard",
-    "/checkpoints",
-    "/rules",
-    "/preferences",
-  ];
+  // Paths that are accessible for teams or public even if main public access is disabled.
+  // Keep this to team-only flows — general public pages (home, checkpoints,
+  // rules, scoreboard) must still gate behind LandingGate, or
+  // public_access_enabled=false stops blocking anonymous visitors there.
+  const publicPaths = ["/team-login", "/team-progress", "/versus"];
   const currentPath = useLocation({ select: (state) => state.pathname });
   const isPublicPath = publicPaths.some(
     (path) => currentPath === path || currentPath.startsWith(`${path}/`),
