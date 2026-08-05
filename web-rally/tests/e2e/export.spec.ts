@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';
 import { seedOidcSession, MANAGER_GROUPS } from './helpers/session';
 

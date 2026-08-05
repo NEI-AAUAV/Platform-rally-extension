@@ -1,4 +1,5 @@
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { BrowserContext, Page } from '@playwright/test';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';
 
 async function seedTeamAuth(context: BrowserContext, teamId = 3, teamName = 'Os Fixes') {

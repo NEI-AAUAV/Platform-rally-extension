@@ -1,5 +1,6 @@
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { MOCK_RALLY_SETTINGS } from '../mocks/data';
+import { test, expect } from './fixtures';
+import type { BrowserContext, Page } from '@playwright/test';
+import { MOCK_RALLY_SETTINGS, MOCK_TEAM } from '../mocks/data';
 import type { RallySettingsResponse } from '@/client';
 
 async function seedTeamAuth(context: BrowserContext, page: Page, teamId = 3) {
@@ -12,6 +13,15 @@ async function seedTeamAuth(context: BrowserContext, page: Page, teamId = 3) {
   );
   await page.route('**/api/rally/v1/team-auth/refresh', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'team-jwt' }) }),
+  );
+  // useTeamAuth loads the team behind the session; without this the query
+  // retries against the preview server and the page stays on its loading state.
+  await page.route(`**/api/rally/v1/team/${teamId}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...MOCK_TEAM, id: teamId, name: 'Os Fixes' }),
+    }),
   );
 }
 

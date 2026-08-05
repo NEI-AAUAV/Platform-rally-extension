@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import {
   MOCK_TEAM,
   MOCK_JWT_TOKEN_STAFF,
