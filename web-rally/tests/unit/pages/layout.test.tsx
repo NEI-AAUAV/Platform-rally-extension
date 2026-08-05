@@ -2,16 +2,28 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MainLayout from '@/pages/layout';
 
-const { mockUseUserStore, mockUseStaffLogin, mockUseRallySettings, mockUseDocumentBranding } =
-  vi.hoisted(() => ({
-    mockUseUserStore: vi.fn(),
-    mockUseStaffLogin: vi.fn(),
-    mockUseRallySettings: vi.fn(),
-    mockUseDocumentBranding: vi.fn(),
-  }));
+const {
+  mockUseUserStore,
+  mockUseTeamStore,
+  mockUseStaffLogin,
+  mockUseRallySettings,
+  mockUseDocumentBranding,
+  mockPathname,
+} = vi.hoisted(() => ({
+  mockUseUserStore: vi.fn(),
+  mockUseTeamStore: vi.fn(),
+  mockUseStaffLogin: vi.fn(),
+  mockUseRallySettings: vi.fn(),
+  mockUseDocumentBranding: vi.fn(),
+  mockPathname: { current: '/' },
+}));
 
 vi.mock('@/stores/useUserStore', () => ({
   useUserStore: (selector: (s: unknown) => unknown) => mockUseUserStore(selector),
+}));
+
+vi.mock('@/stores/useTeamStore', () => ({
+  useTeamStore: (selector: (s: unknown) => unknown) => mockUseTeamStore(selector),
 }));
 
 vi.mock('@/hooks/useLoginLink', () => ({
@@ -52,6 +64,10 @@ vi.mock('@/components/landing/LandingGate', () => ({
 
 vi.mock('@tanstack/react-router', () => ({
   Outlet: () => <div data-testid="outlet" />,
+  useLocation: (opts?: { select?: (s: { pathname: string }) => unknown }) => {
+    const state = { pathname: mockPathname.current };
+    return opts?.select ? opts.select(state) : state;
+  },
 }));
 
 vi.mock('@/components/themes', () => ({
@@ -63,6 +79,8 @@ describe('MainLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseStaffLogin.mockReturnValue(vi.fn());
+    // Default: no team session. Individual tests override via mockUseTeamStore.
+    mockUseTeamStore.mockImplementation((selector) => selector({ isAuthenticated: false }));
   });
 
   it('renders the LandingGate when unauthenticated, public access disabled, and not on a public path', () => {
@@ -73,7 +91,7 @@ describe('MainLayout', () => {
       settings: { public_access_enabled: false },
       isLoading: false,
     });
-    window.history.pushState({}, '', '/rally/private-page');
+    mockPathname.current = '/private-page';
 
     render(<MainLayout />);
     expect(screen.getByTestId('landing-gate')).toBeInTheDocument();
@@ -88,7 +106,7 @@ describe('MainLayout', () => {
       settings: { public_access_enabled: false },
       isLoading: false,
     });
-    window.history.pushState({}, '', '/rally/');
+    mockPathname.current = '/';
 
     render(<MainLayout />);
     expect(screen.getByTestId('navbar')).toBeInTheDocument();
@@ -106,7 +124,7 @@ describe('MainLayout', () => {
       settings: { public_access_enabled: true },
       isLoading: false,
     });
-    window.history.pushState({}, '', '/rally/');
+    mockPathname.current = '/';
 
     render(<MainLayout />);
     expect(screen.getByTestId('outlet')).toBeInTheDocument();
@@ -117,9 +135,37 @@ describe('MainLayout', () => {
       selector({ sub: undefined, sessionLoading: false }),
     );
     mockUseRallySettings.mockReturnValue({ settings: undefined, isLoading: true });
-    window.history.pushState({}, '', '/rally/');
+    mockPathname.current = '/';
 
     render(<MainLayout />);
     expect(screen.getByText('A carregar')).toBeInTheDocument();
+  });
+
+  it('renders the full app shell for a team-only session even when public access is disabled', () => {
+    mockUseUserStore.mockImplementation((selector) =>
+      selector({ sub: undefined, sessionLoading: false }),
+    );
+    mockUseTeamStore.mockImplementation((selector) => selector({ isAuthenticated: true }));
+    mockUseRallySettings.mockReturnValue({
+      settings: { public_access_enabled: false },
+      isLoading: false,
+    });
+    mockPathname.current = '/team-info';
+
+    render(<MainLayout />);
+    expect(screen.getByTestId('outlet')).toBeInTheDocument();
+    expect(screen.queryByTestId('landing-gate')).not.toBeInTheDocument();
+  });
+
+  it('does not block access when settings fail to load (undefined, not loading)', () => {
+    mockUseUserStore.mockImplementation((selector) =>
+      selector({ sub: undefined, sessionLoading: false }),
+    );
+    mockUseRallySettings.mockReturnValue({ settings: undefined, isLoading: false });
+    mockPathname.current = '/private-page';
+
+    render(<MainLayout />);
+    expect(screen.getByTestId('outlet')).toBeInTheDocument();
+    expect(screen.queryByTestId('landing-gate')).not.toBeInTheDocument();
   });
 });

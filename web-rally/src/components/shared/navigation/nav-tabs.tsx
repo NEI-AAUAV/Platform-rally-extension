@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { isNavItemActive } from "./activeRoute";
 import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
 import { useUserStore } from "@/stores/useUserStore";
@@ -56,7 +57,7 @@ function NavGroup({
 
   useClickOutside(ref, open, () => setOpen(false));
 
-  const hasActive = items.some((i) => i.href === location.pathname);
+  const hasActive = items.some((i) => isNavItemActive(location.pathname, i.href));
 
   return (
     <div
@@ -81,7 +82,7 @@ function NavGroup({
         <div className="absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2">
           <ul className="rally-elevate min-w-[10rem] space-y-0.5 overflow-hidden rounded-xl border border-border bg-popover p-1.5">
             {items.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive = isNavItemActive(location.pathname, item.href);
               return (
                 <li key={item.name}>
                   <Link
@@ -198,6 +199,8 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
       href: "/achievements",
       show: showTeamView && settings?.badges_enabled !== false,
     },
+    { name: "Equipa", href: "/team-info", show: showTeamView },
+    { name: "Definições", href: "/team-settings", show: showTeamView },
     { name: "Trocar Equipa", href: "/team-login", show: showTeamView },
 
     { name: "Pontuação", href: "/scoreboard", show: !showTeamView && showScoreMenu },
@@ -227,7 +230,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   ].filter((item) => item.show);
 
   const renderLink = (item: NavLink, isSidebar = false) => {
-    const isActive = location.pathname === item.href;
+    const isActive = isNavItemActive(location.pathname, item.href);
     return (
       <li key={`${item.name}-${item.href}`}>
         <Link
@@ -378,7 +381,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-2",
-                  linkClass(location.pathname === "/preferences", true),
+                  linkClass(isNavItemActive(location.pathname, "/preferences"), true),
                 )}
               >
                 <SlidersHorizontal className="h-4 w-4" />
