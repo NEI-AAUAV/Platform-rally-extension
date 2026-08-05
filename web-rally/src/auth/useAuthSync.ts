@@ -37,7 +37,13 @@ export function useAuthSync() {
     // admin/staff-gated subtree — wiping half-typed forms at renew time. Only
     // an actually absent user (renew failed, oidc-client-ts removed it) or an
     // explicit navigator-free unauthenticated state clears the session.
-    if (auth.isLoading || auth.activeNavigator || auth.user) return;
+    if (auth.isLoading || auth.activeNavigator) return;
+
+    // An expired user with no renew in flight is a dead session, not a pending
+    // one: oidc-client-ts keeps the stored user around after a failed silent
+    // renew. Without this the store stays in `sessionLoading` forever and every
+    // gate that waits on it (layout's login redirect included) never resolves.
+    if (auth.user && !auth.user.expired) return;
 
     clearSession();
   }, [
