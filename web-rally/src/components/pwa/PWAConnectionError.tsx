@@ -13,7 +13,7 @@ interface PWAConnectionErrorProps {
  * which handles in-app render crashes — this is specifically "no
  * connection", so the copy and action (retry the connection) differ.
  */
-export default function PWAConnectionError({ onRetry, retrying = false }: PWAConnectionErrorProps) {
+export default function PWAConnectionError({ onRetry, retrying = false }: Readonly<PWAConnectionErrorProps>) {
   const [attempted, setAttempted] = useState(false);
 
   const handleRetry = () => {

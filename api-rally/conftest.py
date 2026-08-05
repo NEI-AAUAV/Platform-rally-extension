@@ -6,10 +6,10 @@ the *rootdir* conftest so the option is recognised no matter which path under
 only picked up when that conftest happens to be an initial/collected one).
 """
 
-from pytest import Parser
+import pytest
 
 
-def pytest_addoption(parser: Parser) -> None:
+def pytest_addoption(parser: pytest.Parser) -> None:
     """--require-pg turns the "Postgres unavailable" skip into a hard failure.
 
     Locally the real-schema fixtures skip when Postgres is unreachable so the

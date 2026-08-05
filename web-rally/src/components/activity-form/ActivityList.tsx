@@ -27,7 +27,7 @@ export default function ActivityList({
   onEdit,
   onDelete,
   onReorder,
-}: ActivityListProps) {
+}: Readonly<ActivityListProps>) {
   const [draggedActivity, setDraggedActivity] = useState<ActivityType | null>(null);
 
   const getCheckpointName = (checkpointId: number) => {
