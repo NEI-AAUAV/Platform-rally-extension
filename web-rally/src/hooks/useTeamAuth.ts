@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getTeamById,
@@ -8,16 +7,8 @@ import {
   type PrivilegedDetailedTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
-import { setSentryUser, clearSentryUser } from "@/lib/sentry";
-import {
-  getTeamToken,
-  setTeamToken,
-  getTeamData,
-  setTeamData,
-  hasTeamData,
-  clearTeamAuth,
-  type TeamTokenData,
-} from "@/lib/auth/tokenStore";
+import { getTeamToken } from "@/lib/auth/tokenStore";
+import { useTeamAuthStore } from "@/stores/useTeamAuthStore";
 
 interface TeamLoginResponse {
   access_token: string;
@@ -27,30 +18,18 @@ interface TeamLoginResponse {
 }
 
 /**
- * Hook for team authentication
- * Provides login, logout, and authentication state management
+ * Hook for team authentication.
+ *
+ * State lives in `useTeamAuthStore` (Zustand) so login/logout in one
+ * component is immediately visible to every other mounted consumer — see
+ * that store's docstring for why. This hook is the thin per-render wrapper:
+ * store state plus the React Query pieces (team fetch, member mutations)
+ * that legitimately need a query client.
  */
 export default function useTeamAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentTeamData, setCurrentTeamData] = useState<TeamTokenData | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const { isAuthenticated, teamData: currentTeamData, isLoadingAuth, setAuth, clearAuth } =
+    useTeamAuthStore();
   const queryClient = useQueryClient();
-
-  // Check for existing token on mount
-  useEffect(() => {
-    const token = getTeamToken();
-    const data = getTeamData();
-
-    if (token && data) {
-      setCurrentTeamData(data);
-      setIsAuthenticated(true);
-      setSentryUser(data.team_id);
-    } else if (token && hasTeamData()) {
-      // Token present and a data entry exists but is corrupt — clear stale storage.
-      clearTeamAuth();
-    }
-    setIsLoadingAuth(false);
-  }, []);
 
   // Fetch team members data when authenticated
   const { data: team, isLoading: isLoadingTeam } = useQuery<PrivilegedDetailedTeam>({
@@ -81,17 +60,7 @@ export default function useTeamAuth() {
       }
     },
     onSuccess: (data) => {
-      // Store token and team data
-      const teamTokenData: TeamTokenData = {
-        team_id: data.team_id,
-        team_name: data.team_name,
-      };
-      setTeamToken(data.access_token);
-      setTeamData(teamTokenData);
-
-      setCurrentTeamData(teamTokenData);
-      setIsAuthenticated(true);
-      setSentryUser(data.team_id);
+      setAuth({ team_id: data.team_id, team_name: data.team_name }, data.access_token);
     },
   });
 
@@ -127,10 +96,7 @@ export default function useTeamAuth() {
   };
 
   const logout = () => {
-    clearTeamAuth();
-    setIsAuthenticated(false);
-    setCurrentTeamData(null);
-    clearSentryUser();
+    clearAuth();
     void queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 

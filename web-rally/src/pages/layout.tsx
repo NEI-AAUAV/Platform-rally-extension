@@ -7,9 +7,10 @@ import LandingGate from "@/components/landing/LandingGate";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
 import useDocumentBranding from "@/hooks/useDocumentBranding";
+import useTeamAuth from "@/hooks/useTeamAuth";
 import { resolveBranding } from "@/lib/branding";
 import { useUserStore } from "@/stores/useUserStore";
-import { Outlet } from "@tanstack/react-router";
+import { Outlet, useLocation } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "@/components/themes";
 
 function MainLayoutContent() {
@@ -21,6 +22,11 @@ function MainLayoutContent() {
   const { sub, sessionLoading } = useUserStore((state) => state);
   const onStaffLogin = useStaffLogin();
   const { settings, isLoading: settingsLoading, error: settingsError } = useRallySettings();
+  // A team's own token is a first-class session: any page a logged-in team
+  // is allowed to be on (checkpoints, scoreboard, achievements, team-info,
+  // team-settings — not just the 3 paths in the old allow-list) must not
+  // bounce it to the landing gate.
+  const { isAuthenticated: isTeamAuthenticated, isLoading: isTeamAuthLoading } = useTeamAuth();
 
   // Branding is DATA: derive it from settings (bundled fallbacks until loaded)
   // and apply it to the live document (title, favicon, theme-color, accent).
@@ -28,13 +34,17 @@ function MainLayoutContent() {
   useDocumentBranding(branding);
 
   // Check if user is authenticated OR if public access is enabled
-  const isAuthenticated = sub !== undefined;
+  const isAuthenticated = sub !== undefined || isTeamAuthenticated;
   const isPublicAccessEnabled = settings?.public_access_enabled === true;
 
-  // Paths that are accessible for teams or public even if main public access is disabled
-  const publicPaths = ["/team-login", "/team-progress", "/versus"];
-  // Extract the path after /rally/ since the router basename is already /rally
-  const currentPath = globalThis.location.pathname.replace(/^\/rally/, "");
+  // Paths reachable pre-auth (login/join flows) even when public access is
+  // disabled — team-authenticated pages are covered by isAuthenticated above,
+  // not by this list.
+  const publicPaths = ["/team-login", "/versus"];
+  // Router-based path, not `globalThis.location`: the latter only reflects
+  // a hard navigation/reload, so a client-side route change left this stuck
+  // on whatever path first loaded the app.
+  const currentPath = useLocation({ select: (loc) => loc.pathname }).replace(/^\/rally/, "");
   const isPublicPath = publicPaths.some((path) => currentPath.startsWith(path));
 
   // Redirect to main platform login if not authenticated and public access is disabled
@@ -44,7 +54,8 @@ function MainLayoutContent() {
     !isPublicAccessEnabled &&
     !isPublicPath &&
     !sessionLoading &&
-    !settingsLoading
+    !settingsLoading &&
+    !isTeamAuthLoading
   ) {
     return (
       <div

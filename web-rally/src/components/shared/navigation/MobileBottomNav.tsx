@@ -15,12 +15,11 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
-import { useUserStore } from "@/stores/useUserStore";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
-import useTeamAuth from "@/hooks/useTeamAuth";
+import useNavAudience from "@/hooks/useNavAudience";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
 import { useTabScrub } from "./useTabScrub";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
@@ -40,9 +39,16 @@ interface NavItem {
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { scopes } = useUserStore((state) => state);
   const { settings } = useRallySettings();
-  const { isAuthenticated: isTeamAuthenticated, team } = useTeamAuth();
+  const {
+    isAdminOrManager,
+    isStaff,
+    isGuide,
+    isPrivileged,
+    isTeamAuthenticated,
+    showTeamView,
+    team,
+  } = useNavAudience();
   const [qrOpen, setQrOpen] = useState(false);
   // Back closes the QR sheet instead of navigating out from under it.
   useBackDismiss(
@@ -50,23 +56,18 @@ export function MobileBottomNav() {
     useCallback(() => setQrOpen(false), []),
   );
 
-  const isAdminOrManager =
-    scopes !== undefined &&
-    (scopes.includes("admin") ||
-      scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin"));
-  const isStaff = scopes !== undefined && scopes.includes("rally-staff");
-  const isGuide = scopes !== undefined && scopes.includes("rally-guide");
-  const isPrivileged = isAdminOrManager || isStaff;
   const { showGuideFeature } = useGuideAccess();
 
   const showScore = settings?.show_score_mode !== "hidden";
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
   const checkpointsLabel = capitalize(useEventTerms().checkpoints);
 
-  // Any authenticated team (incl. dual-role staff/admin) gets the team
-  // destinations + QR FAB; privileged-only users keep the public/staff nav.
-  const showTeamNav = isTeamAuthenticated;
+  // Same rule as the desktop nav (useNavAudience.showTeamView): a dual-role
+  // user only gets the team destinations while switched to "team" view mode,
+  // not on every team-authenticated visit. Previously ignored view mode
+  // entirely here, so a staff member viewing "staff" mode on desktop still
+  // saw the team tab bar on mobile.
+  const showTeamNav = showTeamView;
   const accessCode = team?.access_code;
 
   const items: NavItem[] = showTeamNav
