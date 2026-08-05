@@ -25,6 +25,7 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
 import { useTabScrub } from "./useTabScrub";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
+import { useViewModeStore } from "@/stores/useViewModeStore";
 
 interface NavItem {
   readonly name: string;
@@ -62,14 +63,18 @@ export function MobileBottomNav() {
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff;
   const { showGuideFeature } = useGuideAccess();
+  const { viewMode } = useViewModeStore();
 
   const showScore = settings?.show_score_mode !== "hidden";
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
   const checkpointsLabel = capitalize(useEventTerms().checkpoints);
 
-  // Any authenticated team (incl. dual-role staff/admin) gets the team
-  // destinations + QR FAB; privileged-only users keep the public/staff nav.
-  const showTeamNav = isTeamAuthenticated;
+  // Team-only users always get the team destinations + QR FAB. Dual-role
+  // users (also staff/admin/guide) follow the same team/staff view toggle as
+  // the desktop navbar (useViewModeStore) — otherwise a dual-role team could
+  // see "Equipa"/"Definições" here while the desktop navbar (still on its
+  // default "staff" view) hides them, or vice versa.
+  const showTeamNav = isTeamAuthenticated && (!isPrivileged || viewMode === "team");
   const accessCode = team?.access_code;
 
   const items: NavItem[] = showTeamNav

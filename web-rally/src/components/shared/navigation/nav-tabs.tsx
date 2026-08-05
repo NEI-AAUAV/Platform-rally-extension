@@ -23,11 +23,9 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useClickOutside from "@/hooks/useClickOutside";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
+import { useViewModeStore, type ViewMode } from "@/stores/useViewModeStore";
 
 type NavTabsProps = ComponentProps<"ul">;
-
-const VIEW_MODE_KEY = "rally_view_mode";
-type ViewMode = "team" | "staff";
 
 interface NavLink {
   readonly name: string;
@@ -166,18 +164,12 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const { isAdminOrManager, isStaff, isGuide, isPrivileged } = deriveRoleFlags(scopes);
   const { showGuideFeature } = useGuideAccess();
   const isDualRole = isPrivileged && isTeamAuthenticated;
+  const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
 
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) ?? "staff";
-    }
-    return "staff";
-  });
+  const { viewMode, toggleViewMode: toggleViewModeStore } = useViewModeStore();
 
   const toggleViewMode = () => {
-    const next: ViewMode = viewMode === "staff" ? "team" : "staff";
-    setViewMode(next);
-    localStorage.setItem(VIEW_MODE_KEY, next);
+    toggleViewModeStore();
     setIsMobileMenuOpen(false);
   };
 
@@ -194,6 +186,7 @@ export default function NavTabs({ className, ...props }: NavTabsProps) {
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView },
     { name: "Pontuação", href: "/scoreboard", show: showTeamView && showScoreMenu },
+    { name: checkpointsLabel, href: "/checkpoints", show: showTeamView && showPostos },
     {
       name: "Conquistas",
       href: "/achievements",
