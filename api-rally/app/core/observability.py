@@ -93,7 +93,8 @@ def traced(name: str) -> Any:
     configured. No-op span when no DSN is set."""
     if not settings.SENTRY_DSN:
         return _NullSpan()
-    import sentry_sdk  # noqa: PLC0415  (optional dependency, see init_sentry)
+    # optional dependency, see init_sentry
+    import sentry_sdk  # noqa: PLC0415
 
     return sentry_sdk.start_span(name=name)
 
