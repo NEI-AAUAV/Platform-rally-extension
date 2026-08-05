@@ -437,10 +437,14 @@ test.describe('Staff Evaluation - Authentication', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should redirect to login or show error
+    // The settings query retries twice with a 1s backoff before it settles, so
+    // the layout sits on its "A carregar" screen for a few seconds first. Wait
+    // for that to clear before asserting, and give the assertion enough room
+    // for the retry budget on a slow CI runner.
+    await expect(page.getByText("A carregar", { exact: true })).toBeHidden({ timeout: 15000 });
     await expect(
       page.getByText(/login|entrar|unauthorized|expired/i).first(),
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test('handles invalid token format', async ({ page, context }) => {
