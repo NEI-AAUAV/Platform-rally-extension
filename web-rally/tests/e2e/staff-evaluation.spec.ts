@@ -442,12 +442,15 @@ test.describe('Staff Evaluation - Authentication', () => {
     // for that to clear before asserting, and give the assertion enough room
     // for the retry budget on a slow CI runner.
     await expect(page.getByText("A carregar", { exact: true })).toBeHidden({ timeout: 15000 });
-    // The rendered CTA is Portuguese ("Iniciar sessão"), not the English
-    // strings this assertion used to look for — it never matched on either
-    // viewport (desktop's inline button says "Iniciar sessão"; mobile's lives
-    // behind the hamburger and needs opening first). Reuse the helper that
-    // already handles both cases correctly.
-    await expectLoggedOutLoginCta(page);
+    // Unlike the "not authenticated" test above, settings is mocked to fail
+    // here (401), so `settings` never loads and `isPublicAccessEnabled` stays
+    // false. layout.tsx's redirect branch then takes over and swaps the whole
+    // app shell for the standalone LandingGate — no navbar, no hamburger, so
+    // expectLoggedOutLoginCta's locators never appear. LandingGate's own CTA
+    // is "Login Staff".
+    await expect(page.getByRole("button", { name: /login staff/i })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('handles invalid token format', async ({ page, context }) => {
