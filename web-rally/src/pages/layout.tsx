@@ -41,16 +41,25 @@ function MainLayoutContent() {
   // rules, scoreboard) must still gate behind LandingGate, or
   // public_access_enabled=false stops blocking anonymous visitors there.
   const publicPaths = ["/team-login", "/team-progress", "/versus"];
+  // Staff-only flows must always require auth, independent of public_access_enabled
+  // and regardless of whether the settings fetch itself failed (e.g. an expired
+  // staff session also breaks the settings call) — otherwise a fail-open settings
+  // fetch silently lets an expired/unauthenticated staff session through.
+  const staffOnlyPaths = ["/staff-evaluation"];
   const currentPath = useLocation({ select: (state) => state.pathname });
   const isPublicPath = publicPaths.some(
     (path) => currentPath === path || currentPath.startsWith(`${path}/`),
   );
+  const isStaffOnlyPath = staffOnlyPaths.some(
+    (path) => currentPath === path || currentPath.startsWith(`${path}/`),
+  );
 
-  // Redirect to main platform login if not authenticated and public access is disabled
-  // AND we are not on a specifically allowed public/team path
+  // Redirect to main platform login if not authenticated and either public access
+  // is disabled or this is a staff-only path, AND we are not on a specifically
+  // allowed public/team path.
   if (
     !isAuthenticated &&
-    !isPublicAccessEnabled &&
+    (isStaffOnlyPath || !isPublicAccessEnabled) &&
     !isPublicPath &&
     !sessionLoading &&
     !settingsLoading
