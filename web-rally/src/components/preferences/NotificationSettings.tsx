@@ -18,6 +18,9 @@ export function NotificationSettings({ className = "" }: NotificationSettingsPro
   if (status === "unconfigured") return null;
 
   const subscribed = status === "subscribed";
+  const handleToggle = (checked: boolean) => {
+    (checked ? subscribe() : unsubscribe()).catch(() => undefined);
+  };
   const Icon = subscribed ? Bell : BellOff;
 
   return (
@@ -46,7 +49,7 @@ export function NotificationSettings({ className = "" }: NotificationSettingsPro
         <Switch
           checked={subscribed}
           disabled={loading || status === "unsupported" || status === "denied"}
-          onCheckedChange={(checked) => void (checked ? subscribe() : unsubscribe())}
+          onCheckedChange={handleToggle}
           aria-label="Ativar notificações"
         />
       </div>

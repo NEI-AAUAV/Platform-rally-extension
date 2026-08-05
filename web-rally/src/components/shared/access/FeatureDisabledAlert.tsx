@@ -12,7 +12,7 @@ export default function FeatureDisabledAlert({
   featureName,
   settingsPath = "/settings",
   className = "",
-}: FeatureDisabledAlertProps) {
+}: Readonly<FeatureDisabledAlertProps>) {
   return (
     <div className={`mt-16 space-y-4 text-center ${className}`}>
       <Alert className="mx-auto max-w-md">

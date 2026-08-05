@@ -41,8 +41,8 @@ describe('formatTime', () => {
       const minutes = parts[1]
       expect(hours).toBeDefined()
       expect(minutes).toBeDefined()
-      expect(hours!.length).toBe(2)
-      expect(minutes!.length).toBe(2)
+      expect(hours!).toHaveLength(2)
+      expect(minutes!).toHaveLength(2)
     })
 
     it('should format midnight as 00:00', () => {

@@ -6,7 +6,7 @@ interface ListItemProps {
   className?: string;
 }
 
-export default function ListItem({ children, actions, className = "" }: ListItemProps) {
+export default function ListItem({ children, actions, className = "" }: Readonly<ListItemProps>) {
   return (
     <div
       className={`flex items-center justify-between rounded-xl border border-border bg-muted p-4 ${className}`}

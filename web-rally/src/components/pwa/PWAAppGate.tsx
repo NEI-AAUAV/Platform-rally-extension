@@ -55,6 +55,11 @@ export default function PWAAppGate({ children }: Readonly<{ children: ReactNode 
   const [status, setStatus] = useState<ConnectionStatus>("checking");
   const [retrying, setRetrying] = useState(false);
   const mounted = useRef(true);
+  // Once the app has rendered, it stays rendered: swapping `children` out for
+  // the error screen on a mid-session network flap unmounts the whole tree and
+  // destroys in-progress form state. Offline after boot is the in-app banner's
+  // job (useOfflineSync), not a full-screen takeover.
+  const hasBooted = useRef(false);
 
   useClearBadgeOnFocus();
   useRotatedPushSync();
@@ -103,9 +108,10 @@ export default function PWAAppGate({ children }: Readonly<{ children: ReactNode 
   // state, not a dead end — render the app and let the in-app offline banner
   // (useOfflineSync) explain it. The hard error screen is reserved for the case
   // where there is no cached app at all to fall back to.
-  if (status === "offline" && !hasServiceWorker()) {
+  if (status === "offline" && !hasServiceWorker() && !hasBooted.current) {
     return <PWAConnectionError onRetry={handleRetry} retrying={retrying} />;
   }
 
+  hasBooted.current = true;
   return <>{children}</>;
 }

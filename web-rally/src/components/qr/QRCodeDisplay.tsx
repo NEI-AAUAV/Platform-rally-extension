@@ -14,7 +14,7 @@ export default function QRCodeDisplay({
   accessCode,
   size = 200,
   className = "",
-}: QRCodeDisplayProps) {
+}: Readonly<QRCodeDisplayProps>) {
   // Generate the team login URL with access code
   const loginUrl = `${globalThis.location.origin}/rally/team-login?code=${accessCode}`;
 

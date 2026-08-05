@@ -13,7 +13,7 @@ export default function PermissionGuard({
   children,
   requiredScopes = ["manager-rally", "admin", "rally:admin"],
   fallbackPath = "/scoreboard",
-}: PermissionGuardProps) {
+}: Readonly<PermissionGuardProps>) {
   const { isLoading, userStore } = useUser();
 
   if (isLoading) {

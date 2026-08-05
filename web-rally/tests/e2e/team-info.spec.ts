@@ -1,4 +1,5 @@
-import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { BrowserContext, Page } from '@playwright/test';
 import { seedOidcSession } from './helpers/session';
 import { readResumeValue } from './helpers/authResume';
 import { MOCK_RALLY_SETTINGS } from '../mocks/data';

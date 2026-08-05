@@ -87,6 +87,6 @@ describe("useBackDismiss", () => {
     rerender({ cb: vi.fn() });
     rerender({ cb: vi.fn() });
 
-    expect(window.history.length).toBe(depth);
+    expect(window.history).toHaveLength(depth);
   });
 });

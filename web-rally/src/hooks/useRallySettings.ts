@@ -32,6 +32,13 @@ export default function useRallySettings(options?: { retry?: boolean | number })
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
+    // A failed settings fetch must not re-fetch just because new observers
+    // mount. The layout swaps its whole subtree between the loading screen and
+    // the app shell depending on this query, so mount-triggered retries feed
+    // themselves: fetch -> pending -> loading screen unmounts the shell ->
+    // error -> shell remounts -> refetch. That loop never settles and pins the
+    // UI on "A carregar" whenever the endpoint answers 401/5xx.
+    retryOnMount: false,
   });
 
   return {

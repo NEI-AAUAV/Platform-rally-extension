@@ -22,7 +22,7 @@ function MainLayoutContent() {
   const { sub, sessionLoading } = useUserStore((state) => state);
   const isTeamAuthenticated = useTeamStore((state) => state.isAuthenticated);
   const onStaffLogin = useStaffLogin();
-  const { settings, isLoading: settingsLoading } = useRallySettings();
+  const { settings, isLoading: settingsLoading, error: settingsError } = useRallySettings();
 
   // Branding is DATA: derive it from settings (bundled fallbacks until loaded)
   // and apply it to the live document (title, favicon, theme-color, accent).
@@ -78,8 +78,10 @@ function MainLayoutContent() {
     );
   }
 
-  // Show loading while settings are being fetched
-  if (settingsLoading) {
+  // Show loading while settings are being fetched. A failed fetch is not a
+  // loading state: fall through to the bundled branding defaults instead of
+  // holding the whole app on the spinner.
+  if (settingsLoading && !settingsError) {
     return (
       <div
         className="rally-grain min-h-screen bg-background font-inter text-foreground antialiased"

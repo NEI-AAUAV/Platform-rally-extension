@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,6 +22,49 @@ const addMemberSchema = z.object({
 
 type AddMemberForm = z.infer<typeof addMemberSchema>;
 
+const EMPTY_DRAFT: AddMemberForm = { name: "", email: "", is_captain: false };
+
+const draftKey = (teamId: string) => `rally.memberDraft.${teamId}`;
+
+/**
+ * The form lives inside an auth/role-gated subtree, so anything that briefly
+ * unmounts the tree (token renew, a network flap) would otherwise throw away
+ * a half-typed name. The draft is mirrored to sessionStorage so a remount
+ * restores exactly what was on screen.
+ */
+function readDraft(teamId: string): AddMemberForm {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(draftKey(teamId));
+    if (!raw) return EMPTY_DRAFT;
+    // Deliberately not validated with addMemberSchema: a draft is mid-typing
+    // and usually invalid (empty name, half-written email). Only the shape matters.
+    const parsed = JSON.parse(raw) as Partial<AddMemberForm>;
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+      is_captain: parsed.is_captain === true,
+    };
+  } catch {
+    return EMPTY_DRAFT;
+  }
+}
+
+function writeDraft(teamId: string, values: AddMemberForm): void {
+  try {
+    globalThis.sessionStorage?.setItem(draftKey(teamId), JSON.stringify(values));
+  } catch {
+    // Storage unavailable (private mode, quota): the draft is a convenience.
+  }
+}
+
+function clearDraft(teamId: string): void {
+  try {
+    globalThis.sessionStorage?.removeItem(draftKey(teamId));
+  } catch {
+    // See writeDraft.
+  }
+}
+
 type MemberFormProps = Readonly<{
   selectedTeam: string;
   userToken: string;
@@ -34,12 +78,25 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
   // Form setup
   const form = useForm<AddMemberForm>({
     resolver: zodResolver(addMemberSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      is_captain: false,
-    },
+    defaultValues: readDraft(selectedTeam),
   });
+
+  // Keep the persisted draft in step with what is on screen.
+  useEffect(() => {
+    const subscription = form.watch((values) =>
+      writeDraft(selectedTeam, {
+        name: values.name ?? "",
+        email: values.email ?? "",
+        is_captain: values.is_captain ?? false,
+      }),
+    );
+    return () => subscription.unsubscribe();
+  }, [form, selectedTeam]);
+
+  // Switching teams swaps in that team's own draft.
+  useEffect(() => {
+    form.reset(readDraft(selectedTeam));
+  }, [selectedTeam, form]);
 
   // Add member mutation
   const {
@@ -60,7 +117,10 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
     },
     onSuccess: () => {
       onSuccess();
-      form.reset();
+      // Reset first: the watch subscription re-persists on reset, so the
+      // storage entry is only actually gone if it is removed afterwards.
+      form.reset(EMPTY_DRAFT);
+      clearDraft(selectedTeam);
       toast.success("Membro adicionado com sucesso!");
     },
     onError: (error) => {
