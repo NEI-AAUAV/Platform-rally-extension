@@ -141,6 +141,10 @@ class RallySettingsBase(BaseModel):
     # crud_rally_settings.get_or_create); admin-togglable for any event.
     gps_checkin_enabled: bool = False
 
+    # Redact next checkpoint's name/description/coordinates until check-in
+    # (bootstrapped off for peddy paper, see crud_rally_settings.get_or_create).
+    reveal_next_checkpoint: bool = True
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

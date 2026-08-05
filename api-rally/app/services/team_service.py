@@ -244,13 +244,25 @@ class TeamService:
         )
         return last_completed_order, current_order, last_completed_name
 
-    async def build_listing_team(self, team: Team) -> ListingTeam:
-        """Build team data for listing using strict completion rules."""
+    async def build_listing_team(
+        self, team: Team, *, reveal_next_checkpoint: bool = True, is_privileged: bool = False
+    ) -> ListingTeam:
+        """Build team data for listing using strict completion rules.
+
+        ``last_checkpoint_name`` names a checkpoint this *other* team has
+        completed, which can be ahead of the viewing team's own progress —
+        in a peddy paper that name is the answer to a puzzle the viewer
+        hasn't solved yet. Withheld from non-privileged viewers whenever
+        ``reveal_next_checkpoint`` is off; staff/admin always see it.
+        """
         (
             last_checkpoint_number,
             current_checkpoint_number,
             last_checkpoint_name,
         ) = await self.compute_checkpoint_progress(team)
+
+        if not reveal_next_checkpoint and not is_privileged:
+            last_checkpoint_name = None
 
         return ListingTeam(
             id=team.id,

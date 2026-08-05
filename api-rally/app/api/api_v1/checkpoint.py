@@ -143,23 +143,37 @@ class CheckpointController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
         curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
     ) -> DetailedCheckPoint:
-        """Return the next checkpoint a team must head to."""
+        """Return the next checkpoint a team must head to.
+
+        Staff/admin bypass redaction (they run the event); a team's own
+        token is redacted the same as the list endpoint — this route is not
+        a way around that.
+        """
         team_id = None
-        if curr_user and curr_user.team_id:
-            team_id = curr_user.team_id
-        elif curr_team:
+        is_privileged = False
+        if curr_user:
+            is_privileged = deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
+            if curr_user.team_id:
+                team_id = curr_user.team_id
+        if not team_id and curr_team:
             team_id = curr_team.team_id
 
         if not team_id:
             raise RallyUnauthorizedError(f"{AUTH_REQUIRED} (User with Team or Team Token)")
 
-        checkpoint = await crud.checkpoint.get_next(db=db, team_id=team_id)
+        settings = await rally_settings.get_or_create(db)
+        if is_privileged:
+            checkpoint = await crud.checkpoint.get_next(db=db, team_id=team_id)
+            if checkpoint is None:
+                raise RallyNotFoundError("Checkpoint Not Found")
+            return DetailedCheckPoint.model_validate(checkpoint)
 
-        if checkpoint is None:
+        result = await service.next_checkpoint_for_team(team_id, settings)
+        if result is None:
             raise RallyNotFoundError("Checkpoint Not Found")
-
-        return DetailedCheckPoint.model_validate(checkpoint)
+        return result
 
     async def get_checkpoint_teams(
         self,

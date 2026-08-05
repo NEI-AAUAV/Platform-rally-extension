@@ -91,6 +91,11 @@ class RallySettings(Base):
     # event whose checkpoints have coordinates and a radius can switch it on.
     gps_checkin_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Redact the next checkpoint's name/description/coordinates until a team
+    # checks in. Default on (matches existing rally behaviour); off for peddy
+    # paper, where the checkpoint location is itself the puzzle answer.
+    reveal_next_checkpoint = Column(Boolean, nullable=False, default=True)
+
     # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)

@@ -82,13 +82,20 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # the post *is* the mechanic; off for formats that check teams in
             # through staff or QR.
             gps_checkin_enabled=event.event_type == EventType.PEDDY_PAPER.value,
+            # Redact next checkpoint until check-in for peddy paper, where the
+            # location itself is the puzzle answer; every other format keeps
+            # today's fully-revealed next checkpoint.
+            reveal_next_checkpoint=event.event_type != EventType.PEDDY_PAPER.value,
             # Staff and scoring
             enable_staff_scoring=True,
             # Display settings
             show_live_leaderboard=True,
             show_team_details=True,
             show_checkpoint_map=True,
-            participant_view_enabled=False,
+            # Peddy paper's participant view is the clue/check-in screen —
+            # equipas belong there by default. Other formats keep the
+            # existing opt-in (staff must switch it on).
+            participant_view_enabled=event.event_type == EventType.PEDDY_PAPER.value,
             show_route_mode="focused",
             show_score_mode="hidden",
             # Rally customization

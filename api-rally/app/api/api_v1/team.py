@@ -21,6 +21,7 @@ from app.core.exceptions import (
     RallyValidationError,
 )
 from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.models.activity import ActivityResult
@@ -104,11 +105,23 @@ class TeamController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
+        curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
     ) -> list[ListingTeam]:
         teams = await team_crud.get_multi(db)
         for team in teams:
             await db.refresh(team, ["members"])
-        return [await service.build_listing_team(team) for team in teams]
+        settings = await rally_settings.get_or_create(db)
+        is_privileged = bool(curr_user) and deps.is_admin_or_staff(
+            getattr(curr_user, "scopes", [])
+        )
+        return [
+            await service.build_listing_team(
+                team,
+                reveal_next_checkpoint=settings.reveal_next_checkpoint,
+                is_privileged=is_privileged,
+            )
+            for team in teams
+        ]
 
     async def get_own_team(
         self,
