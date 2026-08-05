@@ -442,9 +442,12 @@ test.describe('Staff Evaluation - Authentication', () => {
     // for that to clear before asserting, and give the assertion enough room
     // for the retry budget on a slow CI runner.
     await expect(page.getByText("A carregar", { exact: true })).toBeHidden({ timeout: 15000 });
-    await expect(
-      page.getByText(/login|entrar|unauthorized|expired/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    // The rendered CTA is Portuguese ("Iniciar sessão"), not the English
+    // strings this assertion used to look for — it never matched on either
+    // viewport (desktop's inline button says "Iniciar sessão"; mobile's lives
+    // behind the hamburger and needs opening first). Reuse the helper that
+    // already handles both cases correctly.
+    await expectLoggedOutLoginCta(page);
   });
 
   test('handles invalid token format', async ({ page, context }) => {
