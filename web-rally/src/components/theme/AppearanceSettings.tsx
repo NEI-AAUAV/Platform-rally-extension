@@ -116,6 +116,7 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
 
           <label
             htmlFor="reduce-transparency"
+            aria-label="Reduzir transparência"
             className="mt-5 flex items-start justify-between gap-4"
           >
             <span className="min-w-0">
