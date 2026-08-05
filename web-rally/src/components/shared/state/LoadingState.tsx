@@ -8,7 +8,7 @@ interface LoadingStateProps {
 export default function LoadingState({
   message = "Carregando...",
   className = "",
-}: LoadingStateProps) {
+}: Readonly<LoadingStateProps>) {
   return (
     <div className={`flex items-center justify-center py-8 ${className}`}>
       <div className="flex items-center gap-2 text-muted-foreground">

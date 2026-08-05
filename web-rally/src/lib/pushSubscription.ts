@@ -5,7 +5,7 @@ export function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer
   const raw = atob(base64);
   const bytes = new Uint8Array(new ArrayBuffer(raw.length));
   for (let i = 0; i < raw.length; i++) {
-    bytes[i] = raw.charCodeAt(i);
+    bytes[i] = raw.codePointAt(i) ?? 0;
   }
   return bytes;
 }

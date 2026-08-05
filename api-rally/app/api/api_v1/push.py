@@ -49,7 +49,7 @@ class PushController:
             name="push_unsubscribe",
         )
 
-    async def get_vapid_public_key(self) -> VapidPublicKey:
+    def get_vapid_public_key(self) -> VapidPublicKey:
         """The public key the frontend passes to `PushManager.subscribe`.
 
         None when VAPID isn't configured — the frontend must not prompt for

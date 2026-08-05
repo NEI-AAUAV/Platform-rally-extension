@@ -146,4 +146,5 @@ async def test_concurrent_ensure_current_bootstraps_exactly_one_event(_pg_engine
     assert len(set(ids)) == 1
     async with maker() as session:
         current = await crud_rally_event.get_current(session)
-        assert current is not None and current.id == ids[0]
+        assert current is not None
+        assert current.id == ids[0]

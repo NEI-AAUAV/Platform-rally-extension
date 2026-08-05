@@ -32,6 +32,7 @@ describe('MemberForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders the form fields', () => {
@@ -90,5 +91,54 @@ describe('MemberForm', () => {
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalled();
     });
+  });
+
+  it('restores a half-typed name after the form is unmounted and remounted', async () => {
+    const user = userEvent.setup();
+    const wrapper = createWrapper();
+    const { unmount } = render(
+      <MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />,
+      { wrapper },
+    );
+
+    await user.type(screen.getByLabelText('Nome'), 'Alic');
+    await waitFor(() =>
+      expect(sessionStorage.getItem('rally.memberDraft.1')).toContain('Alic'),
+    );
+    unmount();
+
+    render(<MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />, { wrapper });
+
+    expect(screen.getByLabelText('Nome')).toHaveValue('Alic');
+  });
+
+  it('keeps drafts separate per team', async () => {
+    const user = userEvent.setup();
+    const wrapper = createWrapper();
+    const { rerender } = render(
+      <MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />,
+      { wrapper },
+    );
+
+    await user.type(screen.getByLabelText('Nome'), 'Alice');
+
+    rerender(<MemberForm selectedTeam="2" userToken="tok" onSuccess={onSuccess} />);
+    await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveValue(''));
+
+    rerender(<MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />);
+    await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveValue('Alice'));
+  });
+
+  it('drops the draft once the member is added', async () => {
+    vi.mocked(addTeamMember).mockResolvedValue({ data: {} } as never);
+    const user = userEvent.setup();
+    render(<MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByLabelText('Nome'), 'Alice');
+    await user.click(screen.getByRole('button', { name: /Adicionar Membro/i }));
+
+    await waitFor(() => expect(sessionStorage.getItem('rally.memberDraft.1')).toBeNull());
   });
 });

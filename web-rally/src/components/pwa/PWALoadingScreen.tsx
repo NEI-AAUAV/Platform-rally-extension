@@ -11,7 +11,7 @@ interface PWALoadingScreenProps {
  */
 export default function PWALoadingScreen({
   message = "A carregar o Rally...",
-}: PWALoadingScreenProps) {
+}: Readonly<PWALoadingScreenProps>) {
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 overflow-hidden bg-background"

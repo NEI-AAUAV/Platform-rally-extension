@@ -1,4 +1,5 @@
-import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import { test, expect } from './fixtures';
+import type { Page, BrowserContext } from '@playwright/test';
 import {
   MOCK_CHECKPOINT,
   MOCK_TEAM,
@@ -436,10 +437,20 @@ test.describe('Staff Evaluation - Authentication', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // Should redirect to login or show error
-    await expect(
-      page.getByText(/login|entrar|unauthorized|expired/i).first(),
-    ).toBeVisible({ timeout: 5000 });
+    // The settings query retries twice with a 1s backoff before it settles, so
+    // the layout sits on its "A carregar" screen for a few seconds first. Wait
+    // for that to clear before asserting, and give the assertion enough room
+    // for the retry budget on a slow CI runner.
+    await expect(page.getByText("A carregar", { exact: true })).toBeHidden({ timeout: 15000 });
+    // Unlike the "not authenticated" test above, settings is mocked to fail
+    // here (401), so `settings` never loads and `isPublicAccessEnabled` stays
+    // false. layout.tsx's redirect branch then takes over and swaps the whole
+    // app shell for the standalone LandingGate — no navbar, no hamburger, so
+    // expectLoggedOutLoginCta's locators never appear. LandingGate's own CTA
+    // is "Login Staff".
+    await expect(page.getByRole("button", { name: /login staff/i })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('handles invalid token format', async ({ page, context }) => {

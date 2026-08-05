@@ -85,7 +85,7 @@ class HealthController:
             workers=workers,
         )
 
-    async def admin_metrics(
+    def admin_metrics(
         self,
         *,
         _admin: Annotated[DetailedUser, Depends(get_admin)],

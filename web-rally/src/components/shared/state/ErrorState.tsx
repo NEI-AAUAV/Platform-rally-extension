@@ -11,7 +11,7 @@ export default function ErrorState({
   message,
   className = "",
   variant = "destructive",
-}: ErrorStateProps) {
+}: Readonly<ErrorStateProps>) {
   return (
     <div className={`mt-8 ${className}`}>
       <Alert variant={variant}>
