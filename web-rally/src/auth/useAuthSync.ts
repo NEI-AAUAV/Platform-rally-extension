@@ -29,10 +29,25 @@ export function useAuthSync() {
   useEffect(() => {
     if (auth.isAuthenticated && auth.user && !auth.user.expired) {
       setSession({ token: auth.user.access_token, user: profileToUser(auth.user) });
-    } else if (!auth.isLoading) {
-      clearSession();
+      return;
     }
-  }, [auth.isAuthenticated, auth.user, auth.isLoading, setSession, clearSession]);
+
+    // A user that is merely expired means a silent renew is in flight, not a
+    // logout. Clearing here drops the scopes for a frame, which unmounts every
+    // admin/staff-gated subtree — wiping half-typed forms at renew time. Only
+    // an actually absent user (renew failed, oidc-client-ts removed it) or an
+    // explicit navigator-free unauthenticated state clears the session.
+    if (auth.isLoading || auth.activeNavigator || auth.user) return;
+
+    clearSession();
+  }, [
+    auth.isAuthenticated,
+    auth.user,
+    auth.isLoading,
+    auth.activeNavigator,
+    setSession,
+    clearSession,
+  ]);
 
   // On 401, redirect to the IdP for a fresh token.
   const handleUnauthorized = useCallback(async () => {

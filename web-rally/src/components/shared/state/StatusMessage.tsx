@@ -6,7 +6,11 @@ interface StatusMessageProps {
   className?: string;
 }
 
-export default function StatusMessage({ type, message, className = "" }: Readonly<StatusMessageProps>) {
+export default function StatusMessage({
+  type,
+  message,
+  className = "",
+}: Readonly<StatusMessageProps>) {
   const isSuccess = type === "success";
 
   return (
