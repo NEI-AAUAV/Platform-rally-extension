@@ -1,9 +1,11 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routes";
+import NotFound from "@/pages/not-found";
 
 const router = createRouter({
   routeTree,
   basepath: import.meta.env.BASE_URL.replace(/\/$/, "") || "/",
+  defaultNotFoundComponent: NotFound,
   // No defaultViewTransition here on purpose. The ::view-transition-new(root)
   // rule in global.css is the circular reveal written for the light/dark
   // toggle, and it applies to *any* root view transition — turning it on for

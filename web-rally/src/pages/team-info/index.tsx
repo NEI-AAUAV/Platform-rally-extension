@@ -8,6 +8,7 @@ import { TeamMemberLinkService } from "@/services/TeamMemberLinkService";
 import { useAuth } from "react-oidc-context";
 import { LoadingState } from "@/components/shared";
 import { clearResumeValue, getResumeValue, setResumeValue } from "@/lib/authResumeStore";
+import { clearTeamAuth } from "@/lib/auth/tokenStore";
 
 const PENDING_LINK_MEMBER_KEY = "rally_pending_link_user_id";
 const PENDING_LINK_TEAM_KEY = "rally_pending_link_team_id";
@@ -30,6 +31,11 @@ export default function TeamInfo() {
       clearResumeValue(PENDING_LINK_MEMBER_KEY);
       clearResumeValue(PENDING_LINK_TEAM_KEY);
       clearResumeValue(PENDING_LINK_CODE_KEY);
+      // The team token may be stale/expired by now and races the OIDC session
+      // restore on reload (apiClient prefers whatever token exists first,
+      // sending a dead team token before react-oidc-context finishes
+      // restoring). Drop it so the reload authenticates via OIDC only.
+      clearTeamAuth();
       window.location.reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível associar a conta";
