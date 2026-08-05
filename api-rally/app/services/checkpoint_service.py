@@ -38,7 +38,9 @@ class CheckpointService:
         return adapter.validate_python(items)
 
     @staticmethod
-    def _redact_unreached(checkpoint: DetailedCheckPoint, *, current_order: int) -> DetailedCheckPoint:
+    def _redact_unreached(
+        checkpoint: DetailedCheckPoint, *, current_order: int
+    ) -> DetailedCheckPoint:
         """Strip the answer-bearing fields from a checkpoint the team hasn't
         reached yet: name, description, and coordinates. In a peddy paper,
         the checkpoint's location *is* the puzzle answer, so this must not
@@ -107,7 +109,9 @@ class CheckpointService:
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
 
         if settings.show_route_mode == "complete":
-            return self._redact_list(all_checkpoints, current_order=current_order, reveal_next=reveal_next)
+            return self._redact_list(
+                all_checkpoints, current_order=current_order, reveal_next=reveal_next
+            )
 
         if getattr(settings, "checkpoint_order_matters", True):
             visible = [cp for cp in all_checkpoints if cp.order <= current_order]

@@ -111,9 +111,7 @@ class TeamController:
         for team in teams:
             await db.refresh(team, ["members"])
         settings = await rally_settings.get_or_create(db)
-        is_privileged = bool(curr_user) and deps.is_admin_or_staff(
-            getattr(curr_user, "scopes", [])
-        )
+        is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
         return [
             await service.build_listing_team(
                 team,
