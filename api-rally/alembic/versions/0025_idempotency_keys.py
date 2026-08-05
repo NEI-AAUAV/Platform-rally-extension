@@ -42,14 +42,10 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.String(255), nullable=False),
         sa.Column("request_fingerprint", sa.String(64), nullable=False),
         sa.Column("response_body", sa.JSON(), nullable=False),
-        sa.Column(
-            "status_code", sa.Integer(), nullable=False, server_default=sa.text("200")
-        ),
+        sa.Column("status_code", sa.Integer(), nullable=False, server_default=sa.text("200")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "endpoint", "idempotency_key", name="uq_idempotency_keys_endpoint_key"
-        ),
+        sa.UniqueConstraint("endpoint", "idempotency_key", name="uq_idempotency_keys_endpoint_key"),
         schema=SCHEMA,
     )
     op.create_index(

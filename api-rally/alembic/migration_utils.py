@@ -2,6 +2,7 @@
 against fresh databases baselined via create_all (which already has the
 constraint).
 """
+
 import sqlalchemy as sa
 from alembic import op
 

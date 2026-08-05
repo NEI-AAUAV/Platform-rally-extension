@@ -7,6 +7,7 @@ Revision ID: 0006
 Revises: 0005
 Create Date: 2026-06-29
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -55,19 +56,32 @@ def upgrade() -> None:
             sa.Column("latitude", sa.Float(), nullable=True),
             sa.Column("longitude", sa.Float(), nullable=True),
             sa.ForeignKeyConstraint(["team_id"], [f"{SCHEMA}.teams.id"], ondelete="CASCADE"),
-            sa.ForeignKeyConstraint(["checkpoint_id"], [f"{SCHEMA}.checkpoints.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(
+                ["checkpoint_id"], [f"{SCHEMA}.checkpoints.id"], ondelete="CASCADE"
+            ),
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint("team_id", "checkpoint_id", name="uq_arrival_team_checkpoint"),
             schema=SCHEMA,
         )
-        op.create_index("ix_checkpoint_arrivals_team_id", "checkpoint_arrivals", ["team_id"], schema=SCHEMA)
-        op.create_index("ix_checkpoint_arrivals_checkpoint_id", "checkpoint_arrivals", ["checkpoint_id"], schema=SCHEMA)
+        op.create_index(
+            "ix_checkpoint_arrivals_team_id", "checkpoint_arrivals", ["team_id"], schema=SCHEMA
+        )
+        op.create_index(
+            "ix_checkpoint_arrivals_checkpoint_id",
+            "checkpoint_arrivals",
+            ["checkpoint_id"],
+            schema=SCHEMA,
+        )
 
 
 def downgrade() -> None:
     if _table_exists("checkpoint_arrivals"):
-        op.drop_index("ix_checkpoint_arrivals_checkpoint_id", table_name="checkpoint_arrivals", schema=SCHEMA)
-        op.drop_index("ix_checkpoint_arrivals_team_id", table_name="checkpoint_arrivals", schema=SCHEMA)
+        op.drop_index(
+            "ix_checkpoint_arrivals_checkpoint_id", table_name="checkpoint_arrivals", schema=SCHEMA
+        )
+        op.drop_index(
+            "ix_checkpoint_arrivals_team_id", table_name="checkpoint_arrivals", schema=SCHEMA
+        )
         op.drop_table("checkpoint_arrivals", schema=SCHEMA)
 
     if _column_exists("checkpoints", "arrival_radius_m"):

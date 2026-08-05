@@ -47,9 +47,7 @@ from app.models.base import Base
 
 # Keep the throwaway sqlite file out of the repo tree (was ./test.db). One file
 # per xdist worker so parallel workers don't share a single sqlite file.
-_SQLITE_PATH = (
-    f"{_tempfile.gettempdir()}/rally_test{_os.getenv('PYTEST_XDIST_WORKER', '')}.db"
-)
+_SQLITE_PATH = f"{_tempfile.gettempdir()}/rally_test{_os.getenv('PYTEST_XDIST_WORKER', '')}.db"
 SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{_SQLITE_PATH}"
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False)
@@ -140,9 +138,7 @@ def _async_test_pg_url() -> str:
     `pg_namespace`. Separating them by *database* keeps the schema name constant
     and gives each worker its own `..._test_gwN`.
     """
-    base = str(app_settings.TEST_POSTGRES_URI).replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    base = str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
     return base + _worker_suffix()
 
 
@@ -161,9 +157,7 @@ async def _ensure_worker_db() -> None:
         return
 
     db_name = f"{app_settings.POSTGRES_DB}_test{suffix}"
-    admin_url = str(app_settings.POSTGRES_URI).replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    admin_url = str(app_settings.POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
     admin_engine = create_async_engine(admin_url, poolclass=NullPool, isolation_level="AUTOCOMMIT")
     try:
         async with admin_engine.connect() as conn:

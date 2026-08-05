@@ -15,6 +15,7 @@ Revision ID: 0003
 Revises: 0002
 Create Date: 2026-06-29
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -67,9 +68,7 @@ def upgrade() -> None:
             server_default=sa.false(),
         ),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint(
-            "authentik_sub", "event_id", name="uq_participation_person_event"
-        ),
+        sa.UniqueConstraint("authentik_sub", "event_id", name="uq_participation_person_event"),
         schema=SCHEMA,
     )
 

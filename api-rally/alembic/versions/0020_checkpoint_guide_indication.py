@@ -9,6 +9,7 @@ Revision ID: 0020
 Revises: 0019
 Create Date: 2026-07-03
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -60,7 +61,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     if not _table_exists():
         return
-    op.drop_index(
-        "ix_checkpoint_guide_indication_checkpoint_id", table_name=TABLE, schema=SCHEMA
-    )
+    op.drop_index("ix_checkpoint_guide_indication_checkpoint_id", table_name=TABLE, schema=SCHEMA)
     op.drop_table(TABLE, schema=SCHEMA)

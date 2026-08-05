@@ -6,7 +6,6 @@ the *rootdir* conftest so the option is recognised no matter which path under
 only picked up when that conftest happens to be an initial/collected one).
 """
 
-
 from pytest import Parser
 
 

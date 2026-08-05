@@ -13,6 +13,7 @@ Revision ID: 0017
 Revises: 0016
 Create Date: 2026-07-02
 """
+
 from typing import Any, Callable, Sequence, Union
 
 import sqlalchemy as sa
@@ -83,9 +84,7 @@ def upgrade() -> None:
             sa.Column("meta", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
             sa.Column("awarded_at", sa.DateTime(timezone=True), nullable=False),
             sa.PrimaryKeyConstraint("id"),
-            sa.ForeignKeyConstraint(
-                ["team_id"], [f"{SCHEMA}.teams.id"], ondelete="CASCADE"
-            ),
+            sa.ForeignKeyConstraint(["team_id"], [f"{SCHEMA}.teams.id"], ondelete="CASCADE"),
             sa.UniqueConstraint(
                 "team_id",
                 "badge_type",
@@ -95,15 +94,9 @@ def upgrade() -> None:
             ),
             schema=SCHEMA,
         )
-        op.create_index(
-            "ix_team_badges_team_id", BADGE_TABLE, ["team_id"], schema=SCHEMA
-        )
-        op.create_index(
-            "ix_team_badges_badge_type", BADGE_TABLE, ["badge_type"], schema=SCHEMA
-        )
-        op.create_index(
-            "ix_team_badges_activity_id", BADGE_TABLE, ["activity_id"], schema=SCHEMA
-        )
+        op.create_index("ix_team_badges_team_id", BADGE_TABLE, ["team_id"], schema=SCHEMA)
+        op.create_index("ix_team_badges_badge_type", BADGE_TABLE, ["badge_type"], schema=SCHEMA)
+        op.create_index("ix_team_badges_activity_id", BADGE_TABLE, ["activity_id"], schema=SCHEMA)
         op.create_index(
             "ix_team_badges_checkpoint_id",
             BADGE_TABLE,

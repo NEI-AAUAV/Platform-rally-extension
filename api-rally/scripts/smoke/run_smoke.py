@@ -152,7 +152,9 @@ def main() -> None:
         raise SystemExit(f"[SMOKE FAIL] scoreboard live: team {team_id} missing from {scoreboard}")
     print("[SMOKE OK] scoreboard contains the smoke team")
 
-    print("\n[SMOKE PASS] login -> check-in -> evaluation -> scoreboard all succeeded against the real stack")
+    print(
+        "\n[SMOKE PASS] login -> check-in -> evaluation -> scoreboard all succeeded against the real stack"
+    )
 
 
 if __name__ == "__main__":

@@ -50,9 +50,7 @@ def _existing_indexes(table: str) -> set[str]:
     if not inspector.has_table(table, schema=SCHEMA):
         return set()
     return {
-        ix["name"]
-        for ix in inspector.get_indexes(table, schema=SCHEMA)
-        if ix["name"] is not None
+        ix["name"] for ix in inspector.get_indexes(table, schema=SCHEMA) if ix["name"] is not None
     }
 
 
