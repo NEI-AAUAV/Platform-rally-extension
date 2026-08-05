@@ -28,6 +28,13 @@ export function useQRCodeScanner(
       return;
     }
 
+    // iOS reports 0x0 for the first frames after play() resolves; drawing then
+    // throws and used to kill the loop for good. Wait for real dimensions.
+    if (!video.videoWidth || !video.videoHeight) {
+      scanIntervalRef.current = globalThis.requestAnimationFrame(scan);
+      return;
+    }
+
     try {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;

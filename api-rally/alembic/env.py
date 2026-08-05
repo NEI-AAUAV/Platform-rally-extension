@@ -49,9 +49,7 @@ SCHEMA = settings.SCHEMA_NAME
 
 def _async_url() -> str:
     """Application Postgres URI with the asyncpg driver."""
-    return str(settings.POSTGRES_URI).replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    return str(settings.POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
 def _configure(connection: Connection) -> None:

@@ -1,3 +1,4 @@
+import os as _os
 import tempfile as _tempfile
 from collections.abc import AsyncIterator
 from unittest.mock import patch
@@ -5,6 +6,7 @@ from unittest.mock import patch
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -43,8 +45,9 @@ from app.models.base import Base
 # Test database setup — async SQLite (aiosqlite). A single shared file lets the
 # get_db override and the db fixtures see each other's committed data.
 
-# Keep the throwaway sqlite file out of the repo tree (was ./test.db).
-_SQLITE_PATH = _tempfile.gettempdir() + "/rally_test.db"
+# Keep the throwaway sqlite file out of the repo tree (was ./test.db). One file
+# per xdist worker so parallel workers don't share a single sqlite file.
+_SQLITE_PATH = f"{_tempfile.gettempdir()}/rally_test{_os.getenv('PYTEST_XDIST_WORKER', '')}.db"
 SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{_SQLITE_PATH}"
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = async_sessionmaker(engine, autoflush=False, expire_on_commit=False)
@@ -119,9 +122,56 @@ def require_or_skip_pg(request, exc: Exception) -> None:
 _PG_SCHEMA = app_settings.SCHEMA_NAME
 
 
+def _worker_suffix() -> str:
+    """`_gw0`, `_gw1`, … under pytest-xdist; empty string for a serial run."""
+    worker = _os.getenv("PYTEST_XDIST_WORKER", "")
+    return f"_{worker}" if worker else ""
+
+
 def _async_test_pg_url() -> str:
-    """Test Postgres URI with the asyncpg driver."""
-    return str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
+    """Test Postgres URI with the asyncpg driver, one database per xdist worker.
+
+    The schema name is baked into the ORM at import time (`settings.SCHEMA_NAME`
+    appears in every `__table_args__` and ForeignKey), so parallel workers cannot
+    be separated by schema — they would all fight over `rally_tascas` and the
+    per-test DROP/CREATE would blow up with a duplicate-key error on
+    `pg_namespace`. Separating them by *database* keeps the schema name constant
+    and gives each worker its own `..._test_gwN`.
+    """
+    base = str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
+    return base + _worker_suffix()
+
+
+_ensured_worker_dbs: set[str] = set()
+
+
+async def _ensure_worker_db() -> None:
+    """Create this xdist worker's `..._test_gwN` database if it does not exist.
+
+    No-op for a serial run: `${POSTGRES_DB}_test` is created by CI / run-tests.sh.
+    CREATE DATABASE cannot run inside a transaction, so this connects with
+    AUTOCOMMIT to the always-present `${POSTGRES_DB}` and issues it there.
+    """
+    suffix = _worker_suffix()
+    if not suffix or suffix in _ensured_worker_dbs:
+        return
+
+    db_name = f"{app_settings.POSTGRES_DB}_test{suffix}"
+    admin_url = str(app_settings.POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
+    admin_engine = create_async_engine(admin_url, poolclass=NullPool, isolation_level="AUTOCOMMIT")
+    try:
+        async with admin_engine.connect() as conn:
+            exists = await conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": db_name}
+            )
+            if exists.scalar() is None:
+                # CREATE DATABASE takes no bind parameters; db_name is built from
+                # our own settings plus the xdist worker id, never user input.
+                await conn.exec_driver_sql(f'CREATE DATABASE "{db_name}"')
+    finally:
+        await admin_engine.dispose()
+
+    _ensured_worker_dbs.add(suffix)
 
 
 @pytest_asyncio.fixture
@@ -141,6 +191,11 @@ async def _pg_engine(request):
     # pytest-asyncio loop this fixture and `pg_session` run on — a pooled
     # asyncpg connection reused across those loops raises "attached to a
     # different loop" / "another operation is in progress".
+    try:
+        await _ensure_worker_db()
+    except (SQLAlchemyError, OSError) as exc:
+        require_or_skip_pg(request, exc)
+
     engine = create_async_engine(_async_test_pg_url(), poolclass=NullPool)
     try:
         async with engine.begin() as conn:

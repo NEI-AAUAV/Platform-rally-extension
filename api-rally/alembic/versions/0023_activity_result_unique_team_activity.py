@@ -11,6 +11,7 @@ Revision ID: 0023
 Revises: 0022
 Create Date: 2026-07-11
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa

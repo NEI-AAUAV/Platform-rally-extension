@@ -26,15 +26,17 @@ from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
+from app.tests.conftest import _async_test_pg_url, _ensure_worker_db
 
 SCHEMA = app_settings.SCHEMA_NAME
 
-
-def _async_test_url() -> str:
-    return str(app_settings.TEST_POSTGRES_URI).replace("postgresql://", "postgresql+asyncpg://", 1)
+# Reuse the shared helper so this module lands on the same per-xdist-worker
+# database as the `pg_*` fixtures instead of colliding on the serial one.
+_async_test_url = _async_test_pg_url
 
 
 async def _create_schema_and_seed() -> None:
+    await _ensure_worker_db()
     engine = create_async_engine(_async_test_url(), poolclass=NullPool)
     try:
         async with engine.begin() as conn:
@@ -56,7 +58,15 @@ async def _create_schema_and_seed() -> None:
 
             session.add_all(
                 [
-                    RallySettings(event_id=event.id, checkpoint_order_matters=True),
+                    # Seeded directly rather than through `rally_settings.get_or_create`,
+                    # so the peddy-paper bootstrap that switches GPS check-in on
+                    # never runs — this journey exercises the arrive endpoint, so
+                    # it has to ask for the setting explicitly.
+                    RallySettings(
+                        event_id=event.id,
+                        checkpoint_order_matters=True,
+                        gps_checkin_enabled=True,
+                    ),
                     CheckPoint(
                         name="CP1",
                         order=1,

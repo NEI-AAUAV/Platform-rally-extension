@@ -49,7 +49,7 @@ class BaseWorker(ABC):
         self._pubsub: redis.client.PubSub | None = None
         self._stop_event = threading.Event()
         # monotonic timestamp of the last successful pub/sub heartbeat; 0.0
-        # means "never beaten". Read by `is_alive` for /health/ready.
+        # means "never beaten". Read by `is_alive` for the readiness probe.
         self._last_beat: float = 0.0
 
     @property

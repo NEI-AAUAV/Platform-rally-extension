@@ -4,6 +4,7 @@ Revision ID: 0010
 Revises: 0009
 Create Date: 2026-06-29
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -21,7 +22,13 @@ def upgrade() -> None:
     op.create_table(
         "dynamic_rules",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("event_id", sa.Integer(), sa.ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"), nullable=True, index=True),
+        sa.Column(
+            "event_id",
+            sa.Integer(),
+            sa.ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("name", sa.String(128), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("rule_type", sa.String(64), nullable=False, server_default="bonus"),
@@ -33,9 +40,26 @@ def upgrade() -> None:
     op.create_table(
         "dynamic_awards",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("team_id", sa.Integer(), sa.ForeignKey(f"{settings.SCHEMA_NAME}.teams.id", ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column("event_id", sa.Integer(), sa.ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"), nullable=True, index=True),
-        sa.Column("rule_id", sa.Integer(), sa.ForeignKey(f"{settings.SCHEMA_NAME}.dynamic_rules.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "team_id",
+            sa.Integer(),
+            sa.ForeignKey(f"{settings.SCHEMA_NAME}.teams.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "event_id",
+            sa.Integer(),
+            sa.ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "rule_id",
+            sa.Integer(),
+            sa.ForeignKey(f"{settings.SCHEMA_NAME}.dynamic_rules.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("points", sa.Float(), nullable=False),
         sa.Column("reason", sa.String(256), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),

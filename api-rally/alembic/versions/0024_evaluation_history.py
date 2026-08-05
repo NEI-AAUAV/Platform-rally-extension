@@ -9,6 +9,7 @@ Revision ID: 0024
 Revises: 0023
 Create Date: 2026-07-11
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -51,12 +52,8 @@ def upgrade() -> None:
         ),
         schema=SCHEMA,
     )
-    op.create_index(
-        "ix_evaluation_history_result_id", TABLE, ["result_id"], schema=SCHEMA
-    )
-    op.create_index(
-        "ix_evaluation_history_created_at", TABLE, ["created_at"], schema=SCHEMA
-    )
+    op.create_index("ix_evaluation_history_result_id", TABLE, ["result_id"], schema=SCHEMA)
+    op.create_index("ix_evaluation_history_created_at", TABLE, ["created_at"], schema=SCHEMA)
 
 
 def downgrade() -> None:

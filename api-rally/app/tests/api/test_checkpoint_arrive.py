@@ -25,16 +25,18 @@ async def _reread_team(pg_session, team_id: int) -> Team:
     return (await pg_session.scalars(stmt)).one()
 
 
-async def _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value):
-    event = RallyEvent(name="Test Event", is_current=True, event_type=event_type)
+async def _make_event(
+    pg_session, event_type=EventType.PEDDY_PAPER.value, *, name="Test Event", is_current=True
+):
+    event = RallyEvent(name=name, is_current=is_current, event_type=event_type)
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)
     return event
 
 
-async def _make_checkpoint(pg_session, order=1, lat=41.0, lon=-8.0, radius=50):
-    return await crud_checkpoint.create(
+async def _make_checkpoint(pg_session, order=1, lat=41.0, lon=-8.0, radius=50, event_id=None):
+    obj = await crud_checkpoint.create(
         pg_session,
         obj_in=CheckPointCreate(
             name=f"Checkpoint {order}",
@@ -45,10 +47,38 @@ async def _make_checkpoint(pg_session, order=1, lat=41.0, lon=-8.0, radius=50):
         ),
         commit=True,
     )
+    # CheckPointCreate has no event_id field; set it directly so scoping tests
+    # exercise real event-bound rows rather than legacy NULLs.
+    if event_id is not None:
+        obj.event_id = event_id
+        pg_session.add(obj)
+        await pg_session.commit()
+        await pg_session.refresh(obj)
+    return obj
 
 
-async def _make_team(pg_session):
-    return await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
+async def _make_team(pg_session, name="TeamA", event_id=None):
+    obj = await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
+    if event_id is not None:
+        obj.event_id = event_id
+        pg_session.add(obj)
+        await pg_session.commit()
+        await pg_session.refresh(obj)
+    return obj
+
+
+async def _set_settings(pg_session, **overrides):
+    """Full-object PUT semantics: rebuild the row from its current values with
+    the given overrides applied."""
+    from app.crud.crud_rally_settings import rally_settings
+    from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+
+    current = await rally_settings.get_or_create(pg_session)
+    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
+    data.update(overrides)
+    return await rally_settings.update(
+        pg_session, id=current.id, obj_in=RallySettingsUpdate(**data), commit=True
+    )
 
 
 async def _make_activity(pg_session, checkpoint_id, is_active=True):
@@ -99,10 +129,17 @@ async def test_arrive_too_far(pg_session, pg_client):
         )
 
     assert resp.status_code == 400
-    assert "Too far" in resp.json()["detail"]
+    detail = resp.json()["detail"]
+    assert "Too far" in detail
+    # Coarse band only: the exact metre count must not leak, or a team could
+    # trilaterate a post whose coordinates focused mode is hiding from them.
+    assert "menos de 2km" in detail
+    assert "500m" not in detail
 
 
-async def test_arrive_wrong_event_type(pg_session, pg_client):
+async def test_arrive_rejected_when_gps_checkin_disabled(pg_session, pg_client):
+    """Non-peddy events bootstrap with GPS check-in off, so the endpoint refuses
+    the request — the same outcome the old hardcoded event-type gate produced."""
     await _make_event(pg_session, event_type=EventType.RALLY_TASCAS.value)
     checkpoint = await _make_checkpoint(pg_session, order=1)
     team = await _make_team(pg_session)
@@ -114,7 +151,58 @@ async def test_arrive_wrong_event_type(pg_session, pg_client):
         )
 
     assert resp.status_code == 400
-    assert "Peddy Paper" in resp.json()["detail"]
+    assert "not enabled" in resp.json()["detail"]
+
+
+async def test_arrive_allowed_for_non_peddy_event_when_setting_enabled(pg_session, pg_client):
+    """GPS check-in is a setting, not a format: any event whose posts have
+    coordinates can switch it on."""
+    event = await _make_event(pg_session, event_type=EventType.GENERIC.value)
+    await _set_settings(pg_session, gps_checkin_enabled=True)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["already_registered"] is False
+
+
+async def test_arrive_rejected_before_the_event_window_opens(pg_session, pg_client):
+    """An arrival is progress, so the event window gates it exactly as it gates
+    a staff evaluation — and nothing is written to the arrivals table."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    event = await _make_event(pg_session)
+    # Timing lives on the event and is mirrored onto the settings row by
+    # get_or_create's _sync_timing_from_event, so set it at the source.
+    event.start_time = datetime.now(UTC) + timedelta(days=1)
+    pg_session.add(event)
+    await pg_session.commit()
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 400
+    assert "not started" in resp.json()["detail"]
+
+    arrivals = (
+        await pg_session.scalars(
+            select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
+        )
+    ).all()
+    assert arrivals == []
 
 
 async def test_arrive_checkpoint_not_found(pg_session, pg_client):
@@ -229,6 +317,67 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
         )
 
     assert response.already_registered is True
+
+
+async def test_arrive_rejects_checkpoint_from_another_event(pg_session, pg_client):
+    """A team of one edition must not register progress against another
+    edition's post, even with a valid team token and a perfect GPS fix."""
+    current = await _make_event(pg_session)
+    other = await _make_event(pg_session, name="Old Edition", is_current=False)
+    foreign_checkpoint = await _make_checkpoint(pg_session, order=1, event_id=other.id)
+    team = await _make_team(pg_session, event_id=current.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{foreign_checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 404, resp.text
+
+    refreshed = await _reread_team(pg_session, team.id)
+    assert len(refreshed.times) == 0
+
+
+async def test_arrive_free_order_auto_completes_out_of_sequence(pg_session, pg_client):
+    """With `checkpoint_order_matters=False` a team picks its own route, so a
+    no-activity post must auto-complete even when earlier posts are unvisited.
+    The strict-order guard used to silently block this and strand the team."""
+    event = await _make_event(pg_session)
+    await _set_settings(pg_session, checkpoint_order_matters=False)
+    await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    checkpoint_3 = await _make_checkpoint(
+        pg_session, order=3, lat=43.0, lon=-9.0, event_id=event.id
+    )
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint_3.id}/arrive",
+            json={"latitude": 43.000045, "longitude": -9.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["auto_completed"] is True
+
+    refreshed = await _reread_team(pg_session, team.id)
+    assert len(refreshed.times) == 1
+
+
+async def test_arrive_rejects_out_of_range_coordinates(pg_session, pg_client):
+    """Latitude/longitude outside WGS-84 bounds are rejected by the schema
+    rather than fed to Haversine, which would return a plausible distance."""
+    event = await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 91.0, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 422
 
 
 async def test_arrive_no_activities_out_of_order_does_not_advance(pg_session, pg_client):

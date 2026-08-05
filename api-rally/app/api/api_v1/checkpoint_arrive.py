@@ -2,18 +2,19 @@
 
 Team app posts its current GPS coords; server checks distance vs
 checkpoint.arrival_radius_m and records idempotent arrival.
-Only available when the current event is PEDDY_PAPER.
+Gated by the ``gps_checkin_enabled`` setting, which is bootstrapped on for
+peddy-paper events and off elsewhere.
 """
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.crud import crud_activity
-from app.models.activity import EventType
+from app.crud.crud_rally_settings import rally_settings
 from app.schemas.team_auth import TeamTokenData
 from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
@@ -21,8 +22,10 @@ from app.services.deps import get_checkpoint_arrival_service
 
 
 class ArriveRequest(BaseModel):
-    latitude: float
-    longitude: float
+    # WGS-84 bounds: an out-of-range fix is a client bug, and Haversine would
+    # happily return a plausible-looking distance for it.
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
 
 
 class ArriveResponse(BaseModel):
@@ -67,9 +70,10 @@ class CheckpointArriveController:
         service: Annotated[CheckpointArrivalService, Depends(get_checkpoint_arrival_service)],
     ) -> ArriveResponse:
         event = await crud_activity.rally_event.get_current(db)
-        if not event or event.event_type != EventType.PEDDY_PAPER.value:
+        settings = await rally_settings.get_or_create(db)
+        if not event or not settings.gps_checkin_enabled:
             raise HTTPException(
-                status_code=400, detail="GPS check-in only available for Peddy Paper events"
+                status_code=400, detail="GPS check-in is not enabled for this event"
             )
 
         dist, already_registered = await service.record_arrival(

@@ -2,6 +2,8 @@
 arrival recording, and no-activity checkpoint auto-completion.
 """
 
+from datetime import UTC, datetime
+
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -11,9 +13,30 @@ from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import crud_activity
 from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_arrival import CheckpointArrival
+from app.services.checkin_service import require_same_event
+from app.services.team_service import is_checkpoint_reachable, validate_rally_timing
 from app.utils.geo import distance_m
+
+# Coarse distance bands reported to the client on a rejected arrival, in
+# ascending order of (upper bound, label). The last entry is the catch-all.
+_DISTANCE_BUCKETS: tuple[tuple[float, str], ...] = (
+    (100.0, "menos de 100m"),
+    (500.0, "menos de 500m"),
+    (2_000.0, "menos de 2km"),
+)
+_DISTANCE_BUCKET_FAR = "mais de 2km"
+
+
+def _distance_bucket(dist: float) -> str:
+    """Bucket a distance into a coarse band so a rejection never reveals the
+    precise metre count (which would expose hidden checkpoint coordinates)."""
+    for upper, label in _DISTANCE_BUCKETS:
+        if dist < upper:
+            return label
+    return _DISTANCE_BUCKET_FAR
 
 
 class CheckpointArrivalService:
@@ -41,13 +64,33 @@ class CheckpointArrivalService:
         if not checkpoint:
             raise RallyNotFoundError("Checkpoint not found")
 
+        # Cross-edition guard, same rule the QR check-in paths apply: a team of
+        # one edition must never register progress against another's route.
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
+        require_same_event(team_obj.event_id, checkpoint.event_id)
+
+        # An arrival is progress, so the event window applies here exactly as it
+        # does to a staff evaluation. Checking before the insert (rather than
+        # relying on the auto-advance path further down) keeps a pre-event or
+        # post-event scan out of the arrivals table and the audit log entirely.
+        settings = await rally_settings.get_or_create(self._db)
+        validate_rally_timing(settings, datetime.now(UTC))
+
         if checkpoint.latitude is None or checkpoint.longitude is None:
             raise RallyValidationError("Checkpoint has no GPS coordinates")
 
         dist = distance_m(latitude, longitude, checkpoint.latitude, checkpoint.longitude)
         if dist > checkpoint.arrival_radius_m:
+            # Deliberately coarse: the exact metre count would let a team that
+            # cannot see a post's coordinates (focused route mode) trilaterate
+            # them from a handful of rejected attempts. Precise value → logs only.
+            logger.info(
+                f"Arrival rejected for team {team_id} at checkpoint {checkpoint_id}: "
+                f"{dist:.0f}m (max {checkpoint.arrival_radius_m}m)"
+            )
             raise RallyValidationError(
-                f"Too far from checkpoint: {dist:.0f}m (max {checkpoint.arrival_radius_m}m)"
+                f"Too far from checkpoint: {_distance_bucket(dist)} "
+                f"(max {checkpoint.arrival_radius_m}m)"
             )
 
         existing = await self._db.execute(
@@ -107,10 +150,16 @@ class CheckpointArrivalService:
         if not team_obj:
             return False
 
-        # Only auto-advance when this is exactly the post the team is due to reach;
-        # add_checkpoint's order validation would reject out-of-sequence check-ins
-        # anyway, but guarding here avoids noisy 400s in the logs.
-        if len(team_obj.times) != checkpoint_obj.order - 1:
+        # Only auto-advance when the team may actually check in here. This mirrors
+        # add_checkpoint's own validation (same predicate) so the guard tracks the
+        # `checkpoint_order_matters` setting instead of assuming strict order —
+        # under free-order routes every no-activity post would otherwise stay stuck.
+        settings = await rally_settings.get_or_create(self._db)
+        if not is_checkpoint_reachable(
+            checkpoint_order=checkpoint_obj.order,
+            times_reached=len(team_obj.times),
+            order_matters=bool(settings.checkpoint_order_matters),
+        ):
             return False
 
         try:

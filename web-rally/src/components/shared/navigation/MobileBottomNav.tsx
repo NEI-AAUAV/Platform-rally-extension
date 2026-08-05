@@ -184,7 +184,9 @@ export function MobileBottomNav() {
             aria-hidden
             className="rally-tabbar-pill"
             data-visible={activeIndex >= 0 || isDragging}
-            style={{ width: `${100 / items.length}%` }}
+            style={{
+              width: `calc(${100 / items.length}% - var(--rally-tabbar-pill-gap) * 2)`,
+            }}
           />
           {items.map((item, index) => renderTab(item, index))}
         </ul>

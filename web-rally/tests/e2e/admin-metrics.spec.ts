@@ -12,13 +12,14 @@ async function mockSettings(page: Page) {
   );
 }
 
-const MOCK_METRICS_TEXT = [
-  'rally_http_requests_total{status="200"} 120',
-  'rally_http_requests_total{status="500"} 3',
-  'rally_http_request_duration_seconds_sum 24.5',
-  'rally_http_request_duration_seconds_count 120',
-  'rally_rate_limit_rejections_total 2',
-].join('\n');
+// Aggregated server-side; the panel no longer parses the Prometheus text format.
+const MOCK_METRICS = {
+  requests_total: 123,
+  errors_5xx: 3,
+  rate_limit_rejections: 2,
+  request_duration_seconds_sum: 24.5,
+  request_duration_seconds_count: 120,
+};
 
 const MOCK_READINESS = {
   status: 'ok',
@@ -27,11 +28,18 @@ const MOCK_READINESS = {
   workers: [{ name: 'scoring-worker', alive: true, last_beat: 1 }],
 };
 
+const METRICS_URL = '**/api/rally/v1/admin/metrics';
+const READY_URL = '**/api/rally/v1/health/ready';
+
 async function mockMetrics(page: Page) {
-  await page.route('**/metrics', (route) =>
-    route.fulfill({ status: 200, contentType: 'text/plain', body: MOCK_METRICS_TEXT }),
+  await page.route(METRICS_URL, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_METRICS),
+    }),
   );
-  await page.route('**/health/ready', (route) =>
+  await page.route(READY_URL, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_READINESS) }),
   );
 }
@@ -58,8 +66,8 @@ test.describe('Admin metrics', () => {
     context,
   }) => {
     await mockSettings(page);
-    await page.route('**/metrics', (route) => route.fulfill({ status: 500, body: '' }));
-    await page.route('**/health/ready', (route) => route.fulfill({ status: 503, body: '{}' }));
+    await page.route(METRICS_URL, (route) => route.fulfill({ status: 500, body: '' }));
+    await page.route(READY_URL, (route) => route.fulfill({ status: 503, body: '{}' }));
     await seedOidcSession(context, ADMIN_GROUPS);
 
     await gotoMetrics(page);
@@ -74,10 +82,14 @@ test.describe('Admin metrics', () => {
     context,
   }) => {
     await mockSettings(page);
-    await page.route('**/metrics', (route) =>
-      route.fulfill({ status: 200, contentType: 'text/plain', body: MOCK_METRICS_TEXT }),
+    await page.route(METRICS_URL, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_METRICS),
+      }),
     );
-    await page.route('**/health/ready', (route) =>
+    await page.route(READY_URL, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',

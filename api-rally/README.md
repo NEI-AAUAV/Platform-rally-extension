@@ -44,7 +44,11 @@ The service exposes:
 - Interactive docs at `/docs`
 - OpenAPI JSON at `/openapi.json` — regenerate the committed copy at `web-rally/openapi.json` with
   `poetry run python scripts/generate_openapi.py` whenever an endpoint's shape changes (CI enforces this stays in sync).
-- Liveness/readiness probes at `/health` and `/health/ready`
+- Liveness probe at `/health` (container healthcheck target; root path, not proxied publicly)
+- Readiness probe at `/api/rally/v1/health/ready` — under the versioned prefix because only
+  `/api/rally/...` is proxied through to this service in production
+- Prometheus scrape at `/metrics` — unauthenticated, deliberately left off the public routes;
+  the admin panel reads the same counters through `/api/rally/v1/admin/metrics` (admin only)
 
 ## Tests
 

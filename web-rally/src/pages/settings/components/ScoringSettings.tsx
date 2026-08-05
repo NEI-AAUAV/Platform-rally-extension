@@ -114,6 +114,28 @@ export default function ScoringSettings({
 
         <div className="flex items-center space-x-2">
           <Controller
+            name="gps_checkin_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                id="gps_checkin_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="gps_checkin_enabled">Check-in por GPS feito pela equipa</Label>
+            <p className="text-xs text-muted-foreground">
+              Requer coordenadas e raio de chegada definidos nos postos
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
             name="enable_staff_scoring"
             control={control}
             defaultValue={true}

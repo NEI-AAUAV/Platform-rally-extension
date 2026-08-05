@@ -16,15 +16,19 @@ from app.api.api import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.logging import bind_request_context, init_logging
-from app.core.metrics import record_request, registry, set_worker_last_beat_age
+from app.core.metrics import record_request, registry
 from app.core.observability import init_sentry
-from app.core.redis import check_redis_health, close_pools
+from app.core.redis import close_pools
 from app.db.init_db import init_db
-from app.db.session import check_db_health
-from app.workers import BadgesWorker, BaseWorker, LeaderboardWorker, ScoringWorker
-
-# Background workers, started in the lifespan when EVENTS_ENABLED is set.
-_workers: list[BaseWorker] = []
+from app.workers import (
+    BadgesWorker,
+    BaseWorker,
+    LeaderboardWorker,
+    ScoringWorker,
+    clear_workers,
+    get_workers,
+    register_worker,
+)
 
 
 @asynccontextmanager
@@ -48,15 +52,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         for worker_cls in worker_classes:
             worker = worker_cls()
             worker.start(background=True)
-            _workers.append(worker)
-        logger.info("Realtime subsystem enabled: started {} worker(s)", len(_workers))
+            register_worker(worker)
+        logger.info("Realtime subsystem enabled: started {} worker(s)", len(get_workers()))
 
     try:
         yield
     finally:
-        for worker in _workers:
+        for worker in get_workers():
             worker.stop()
-        _workers.clear()
+        clear_workers()
         if settings.EVENTS_ENABLED:
             close_pools()
 
@@ -187,49 +191,14 @@ async def health_check() -> dict[str, str]:
 
     This is the Docker healthcheck target (and gates ``depends_on``), so it must
     NOT fail on a dependency outage — a down Redis/DB would otherwise tear down
-    the whole stack. Dependency status lives in ``/health/ready`` instead.
+    the whole stack. Dependency status lives in the readiness probe instead,
+    under the versioned prefix (see ``app.api.api_v1.health``).
     """
     return {
         "status": "healthy",
         "service": "rally-api",
         "version": "1.0.0",
     }
-
-
-@app.get("/health/ready", tags=["health"])
-async def readiness_check() -> JSONResponse:
-    """Readiness probe: aggregates DB, Redis and worker liveness.
-
-    Returns 503 when any checked dependency is unhealthy so a silently-stale
-    leaderboard (dead worker) or a database/Redis outage surfaces to ops. Not
-    wired to the container healthcheck — see ``health_check``.
-    """
-    ready = True
-    body: dict[str, object] = {}
-
-    db_up = await check_db_health()
-    body["db"] = "up" if db_up else "down"
-    ready = ready and db_up
-
-    workers: list[dict[str, object]] = []
-    if settings.EVENTS_ENABLED:
-        redis_up = await check_redis_health()
-        body["redis"] = "up" if redis_up else "down"
-        ready = ready and redis_up
-
-        for worker in _workers:
-            alive = worker.is_alive
-            workers.append({"name": worker.name, "alive": alive, "last_beat": worker.last_beat})
-            ready = ready and alive
-            age = 0.0 if not worker.last_beat else time.monotonic() - worker.last_beat
-            set_worker_last_beat_age(worker=worker.name, age_seconds=age)
-    body["workers"] = workers
-
-    body["status"] = "ready" if ready else "not_ready"
-    return JSONResponse(
-        status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
-        content=body,
-    )
 
 
 @app.get("/metrics", tags=["health"], include_in_schema=False)

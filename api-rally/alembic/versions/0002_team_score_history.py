@@ -15,6 +15,7 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-06-28
 """
+
 from typing import Sequence, Union
 
 from alembic.migration_utils import (
