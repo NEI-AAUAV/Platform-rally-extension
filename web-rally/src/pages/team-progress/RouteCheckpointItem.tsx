@@ -98,6 +98,7 @@ interface CheckpointCardBodyProps {
   readonly isCompleted: boolean;
   readonly isCurrent: boolean;
   readonly isFuture: boolean;
+  readonly canReveal: boolean;
   readonly statusLabel: string;
   readonly description?: string | null;
   readonly hasDiscovery: boolean;
@@ -112,6 +113,7 @@ function CheckpointCardBody({
   isCompleted,
   isCurrent,
   isFuture,
+  canReveal,
   statusLabel,
   description,
   hasDiscovery,
@@ -124,7 +126,11 @@ function CheckpointCardBody({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {!hasCover && (
+            {/* Name only shown once revealable — the lock message below
+                already covers unreached posts, and printing the name over
+                its own lock is confusing even though the value itself is
+                server-redacted. */}
+            {!hasCover && canReveal && (
               <span
                 className={cn(
                   "text-base font-bold",
@@ -257,6 +263,7 @@ export default function RouteCheckpointItem({
             isCompleted={isCompleted}
             isCurrent={isCurrent}
             isFuture={isFuture}
+            canReveal={canReveal}
             statusLabel={statusLabel}
             description={checkpoint.description}
             hasDiscovery={hasDiscovery}

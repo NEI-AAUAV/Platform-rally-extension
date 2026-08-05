@@ -74,7 +74,17 @@ export default function TeamProgress() {
           />
 
           {showMap && checkpoints && checkpoints.length > 0 && (
-            <MapSection checkpoints={checkpoints} selectedCheckpoint={nextCheckpoint ?? null} />
+            <MapSection
+              checkpoints={checkpoints}
+              // A redacted next checkpoint has no coordinates — nothing to
+              // fly to, and selecting it would print a "Posto selecionado"
+              // label over a pin that isn't there.
+              selectedCheckpoint={
+                nextCheckpoint?.latitude != null && nextCheckpoint?.longitude != null
+                  ? nextCheckpoint
+                  : null
+              }
+            />
           )}
 
           {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
