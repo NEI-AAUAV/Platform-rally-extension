@@ -9,10 +9,13 @@ not reached.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.crud import crud_activity
 from app.schemas.hint import HintReveal, TeamHints
 from app.schemas.team_auth import TeamTokenData
+from app.services.audit_service import AuditActor, record_audit
 from app.services.deps import get_hint_service
 from app.services.hint_service import HintService
 
@@ -61,11 +64,31 @@ class CheckpointHintController:
     async def reveal_hint(
         self,
         checkpoint_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
         team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
         service: Annotated[HintService, Depends(get_hint_service)],
     ) -> HintReveal:
         """Unlock the next hint for this checkpoint and charge the team."""
-        return await service.reveal_next(team_id=team.team_id, checkpoint_id=checkpoint_id)
+        reveal = await service.reveal_next(team_id=team.team_id, checkpoint_id=checkpoint_id)
+
+        # Buying a hint moves a team's score, so it belongs in the audit log
+        # for the same reason a GPS arrival does: an admin looking into a
+        # scoring dispute needs to see it. A free hint (cost 0) still gets an
+        # entry — it explains the reveal itself.
+        event = await crud_activity.rally_event.get_current(db)
+        await record_audit(
+            db,
+            action="hint.revealed",
+            actor=AuditActor(id=str(team.team_id), name=team.team_name, kind="team"),
+            target_type="team",
+            target_id=str(team.team_id),
+            event_id=event.id if event else None,
+            note=(
+                f"checkpoint_id={checkpoint_id} indication_id={reveal.indication_id} "
+                f"cost={reveal.cost}"
+            ),
+        )
+        return reveal
 
 
 router = CheckpointHintController().router

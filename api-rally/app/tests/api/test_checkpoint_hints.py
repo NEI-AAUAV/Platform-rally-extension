@@ -203,6 +203,26 @@ async def test_listing_returns_only_what_the_team_paid_for(pg_session, pg_client
     assert data["next_cost"] == -5
 
 
+async def test_reveal_is_recorded_in_the_audit_log(pg_session, pg_client):
+    from app.models.audit_log import AuditLog
+
+    event = await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, checkpoint.id, count=1)
+    await _set_settings(pg_session, hint_penalty=-10)
+
+    with as_team(team.id, "TeamA"):
+        pg_client.post(HINT_URL.format(id=checkpoint.id))
+
+    # A hint moves the score, so an admin investigating a dispute must see it.
+    entries = (
+        await pg_session.scalars(select(AuditLog).where(AuditLog.action == "hint.revealed"))
+    ).all()
+    assert len(entries) == 1
+    assert "cost=-10" in (entries[0].note or "")
+
+
 async def test_hints_require_a_team_token(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
