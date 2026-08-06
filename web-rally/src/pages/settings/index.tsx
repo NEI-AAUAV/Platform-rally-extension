@@ -84,6 +84,9 @@ const rallySettingsSchema = z.object({
   show_live_leaderboard: z.boolean(),
   show_team_details: z.boolean(),
   show_checkpoint_map: z.boolean(),
+
+  // Redact the next checkpoint until the team checks in (peddy paper)
+  reveal_next_checkpoint: z.boolean(),
   participant_view_enabled: z.boolean(),
   show_route_mode: z.string().min(1, "Route mode is required"),
   show_score_mode: z.string().min(1, "Score mode is required"),
@@ -147,6 +150,7 @@ function buildFormValues(
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
     show_checkpoint_map: settings.show_checkpoint_map,
+    reveal_next_checkpoint: settings.reveal_next_checkpoint ?? true,
     participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
     show_route_mode: extendedSettings?.show_route_mode ?? "focused",
     show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
@@ -218,6 +222,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       show_live_leaderboard: true,
       show_team_details: true,
       show_checkpoint_map: true,
+      reveal_next_checkpoint: true,
       participant_view_enabled: false,
       show_route_mode: "focused",
       show_score_mode: "hidden",

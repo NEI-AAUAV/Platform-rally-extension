@@ -159,6 +159,12 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
     hints.nextCost === 0 ||
     globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
 
+  // The server flags a checkpoint the team has not reached yet: its name is a
+  // placeholder and its coordinates were stripped. Without a clue there is
+  // then nothing in the app to go on, so say so rather than showing a bare
+  // "Posto 3" and no instruction at all.
+  const isRedacted = checkpoint.is_redacted === true;
+
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   // The server mirrors the clue into `description` on a redacted checkpoint so
   // description-only clients still show something. Here the clue has its own
@@ -235,9 +241,17 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
           <h2 className="rally-display text-xl font-bold text-foreground">
             {feminino ? "Próxima" : "Próximo"} {capitalize(terms.checkpoint)} — {checkpoint.name}
           </h2>
-          <p className="text-sm text-muted-foreground">Dirija-se a este local</p>
+          <p className="text-sm text-muted-foreground">
+            {isRedacted ? "Descobre onde é" : "Dirija-se a este local"}
+          </p>
         </div>
       </div>
+
+      {isRedacted && !checkpoint.clue && (
+        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+          Sem enigma na app — aguarda as indicações do guia no local de partida.
+        </p>
+      )}
 
       {/* The riddle: this is the whole game in a peddy paper, so it sits above
           the fold, before the map and the check-in button. Absent clue means a

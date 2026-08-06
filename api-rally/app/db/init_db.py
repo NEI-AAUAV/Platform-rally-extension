@@ -58,6 +58,7 @@ from app.models import (  # noqa: E402, F401
     ActivityResult,
     CheckPoint,
     CheckpointGuideIndication,
+    CheckpointHintReveal,
     CheckpointMedia,
     EventParticipation,
     RallyEvent,

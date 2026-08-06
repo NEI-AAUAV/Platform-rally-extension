@@ -52,7 +52,10 @@ export default function TeamProgress() {
     );
   }
 
-  const showMap = settings?.show_checkpoint_map ?? true;
+  // Same convention as every other consumer (nav-tabs, MobileBottomNav,
+  // home): the map is opt-in, so an unloaded or absent setting means hidden
+  // rather than briefly flashing the route.
+  const showMap = settings?.show_checkpoint_map === true;
   // Peddy paper's whole screen is "read the clue, check in" — that card
   // belongs above the fold, not after a scroll past team roster and a map.
   // Team roster/access code already live at /team-info (in the bottom nav),

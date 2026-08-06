@@ -37,6 +37,7 @@ class TestRedactUnreached:
 
         # then reaching it *is* the reward: it keeps its real name and coords
         assert result == checkpoint
+        assert result.is_redacted is False
 
     def test_current_checkpoint_loses_name_description_and_coordinates(self) -> None:
         # given the post the team is currently hunting
@@ -50,6 +51,8 @@ class TestRedactUnreached:
         assert result.latitude is None
         assert result.longitude is None
         assert "2019" not in (result.description or "")
+        # Clients must not have to sniff the placeholder name to know this.
+        assert result.is_redacted is True
 
     def test_clue_survives_redaction(self) -> None:
         # given a post with a participant riddle

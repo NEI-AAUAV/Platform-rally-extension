@@ -36,9 +36,7 @@ class TestStaggeredStart:
             validate_rally_timing(_settings(), START, start_offset_minutes=20)
 
     def test_offset_team_is_admitted_at_its_own_start(self) -> None:
-        validate_rally_timing(
-            _settings(), START + timedelta(minutes=20), start_offset_minutes=20
-        )
+        validate_rally_timing(_settings(), START + timedelta(minutes=20), start_offset_minutes=20)
 
     def test_rejection_names_the_team_s_own_start_time(self) -> None:
         with pytest.raises(RallyValidationError) as excinfo:
@@ -51,12 +49,8 @@ class TestStaggeredStart:
         # The end time is the hard boundary (a venue closing, typically): a
         # late start does not buy extra time at the other end.
         with pytest.raises(RallyValidationError, match="has ended"):
-            validate_rally_timing(
-                _settings(), END + timedelta(minutes=1), start_offset_minutes=30
-            )
+            validate_rally_timing(_settings(), END + timedelta(minutes=1), start_offset_minutes=30)
 
     def test_offset_is_inert_without_a_configured_start_time(self) -> None:
         # An event with no window at all stays open regardless of the offset.
-        validate_rally_timing(
-            _settings(start=None, end=None), START, start_offset_minutes=45
-        )
+        validate_rally_timing(_settings(start=None, end=None), START, start_offset_minutes=45)

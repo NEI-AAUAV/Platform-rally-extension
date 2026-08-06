@@ -49,6 +49,7 @@ const redacted = {
   order: 3,
   clue: "Onde o rio encontra a ponte de ferro.",
   description: "Onde o rio encontra a ponte de ferro.",
+  is_redacted: true,
 } as DetailedCheckPoint;
 
 const createWrapper = () => {
@@ -101,12 +102,38 @@ describe("NextCheckpointCard — clue and hints", () => {
   });
 
   it("renders nothing riddle-shaped for a guided checkpoint", () => {
-    const guided = { ...redacted, clue: null, description: "Um posto" } as DetailedCheckPoint;
+    const guided = {
+      ...redacted,
+      clue: null,
+      description: "Um posto",
+      is_redacted: false,
+    } as DetailedCheckPoint;
 
     render(<NextCheckpointCard checkpoint={guided} showMap />, { wrapper: createWrapper() });
 
     expect(screen.queryByText("Enigma")).not.toBeInTheDocument();
     expect(screen.getByTestId("discovery")).toHaveTextContent("Um posto");
+  });
+
+  it("tells the team to wait for the guide when a redacted post has no clue", () => {
+    const clueless = { ...redacted, clue: null, description: null } as DetailedCheckPoint;
+
+    render(<NextCheckpointCard checkpoint={clueless} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/aguarda as indicações do guia/i)).toBeInTheDocument();
+  });
+
+  it("does not show that fallback once the post is revealed", () => {
+    const revealed = {
+      ...redacted,
+      clue: null,
+      description: "Um posto",
+      is_redacted: false,
+    } as DetailedCheckPoint;
+
+    render(<NextCheckpointCard checkpoint={revealed} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.queryByText(/aguarda as indicações do guia/i)).not.toBeInTheDocument();
   });
 
   it("hides the hint block when the checkpoint has no ladder", () => {

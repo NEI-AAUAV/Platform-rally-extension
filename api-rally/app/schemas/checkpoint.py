@@ -51,3 +51,9 @@ class DetailedCheckPoint(CheckPointBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # True when the team has not reached this checkpoint and the answer-bearing
+    # fields were stripped (see CheckpointService._redact_unreached). Clients
+    # need to know the difference between "this post has no description" and
+    # "you have not earned the description yet" — otherwise they have to sniff
+    # the placeholder name to tell them apart.
+    is_redacted: bool = False

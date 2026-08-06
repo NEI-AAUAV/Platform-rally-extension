@@ -60,6 +60,7 @@ class CheckpointService:
                 "description": checkpoint.clue,
                 "latitude": None,
                 "longitude": None,
+                "is_redacted": True,
             }
         )
 

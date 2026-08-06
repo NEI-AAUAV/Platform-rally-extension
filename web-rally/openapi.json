@@ -7961,6 +7961,11 @@
           "id": {
             "type": "integer",
             "title": "Id"
+          },
+          "is_redacted": {
+            "type": "boolean",
+            "title": "Is Redacted",
+            "default": false
           }
         },
         "type": "object",
