@@ -1,0 +1,71 @@
+"""Hint economy endpoints: a team unlocks guide indications for the checkpoint
+it is currently hunting, paying the ``hint_penalty`` for each.
+
+Team-token only. Both routes are scoped to the requesting team, so there is no
+checkpoint_id a team can pass to read someone else's purchases or a post it has
+not reached.
+"""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from app.api import deps
+from app.schemas.hint import HintReveal, TeamHints
+from app.schemas.team_auth import TeamTokenData
+from app.services.deps import get_hint_service
+from app.services.hint_service import HintService
+
+CHECKPOINT_NOT_FOUND = "Checkpoint not found"
+
+
+class CheckpointHintController:
+    """REST controller for team-facing checkpoint hints."""
+
+    def __init__(self) -> None:
+        self.router = APIRouter()
+        self._register_routes()
+
+    def _register_routes(self) -> None:
+        self.router.add_api_route(
+            "/checkpoint/{checkpoint_id}/hints",
+            self.list_hints,
+            methods=["GET"],
+            name="list_checkpoint_hints",
+            responses={
+                401: {"description": "Authentication required (Team Token)"},
+                404: {"description": CHECKPOINT_NOT_FOUND},
+            },
+        )
+        self.router.add_api_route(
+            "/checkpoint/{checkpoint_id}/hint",
+            self.reveal_hint,
+            methods=["POST"],
+            name="reveal_checkpoint_hint",
+            responses={
+                400: {"description": "Not the team's current checkpoint, or no hints left"},
+                401: {"description": "Authentication required (Team Token)"},
+                404: {"description": CHECKPOINT_NOT_FOUND},
+            },
+        )
+
+    async def list_hints(
+        self,
+        checkpoint_id: int,
+        team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+        service: Annotated[HintService, Depends(get_hint_service)],
+    ) -> TeamHints:
+        """Hints this team already paid for at a checkpoint, plus how many are left."""
+        return await service.list_hints(team_id=team.team_id, checkpoint_id=checkpoint_id)
+
+    async def reveal_hint(
+        self,
+        checkpoint_id: int,
+        team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+        service: Annotated[HintService, Depends(get_hint_service)],
+    ) -> HintReveal:
+        """Unlock the next hint for this checkpoint and charge the team."""
+        return await service.reveal_next(team_id=team.team_id, checkpoint_id=checkpoint_id)
+
+
+router = CheckpointHintController().router

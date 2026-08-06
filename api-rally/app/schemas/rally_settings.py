@@ -145,6 +145,9 @@ class RallySettingsBase(BaseModel):
     # (bootstrapped off for peddy paper, see crud_rally_settings.get_or_create).
     reveal_next_checkpoint: bool = True
 
+    # Points charged for unlocking a hint (negative; 0 disables the cost).
+    hint_penalty: int = 0
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

@@ -71,6 +71,12 @@ const rallySettingsSchema = z.object({
   // GPS geofence self-check-in by the team
   gps_checkin_enabled: z.boolean(),
 
+  // Cost of unlocking a hint (negative; 0 = free)
+  hint_penalty: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -136,6 +142,7 @@ function buildFormValues(
     max_extra_shots_per_member: settings.max_extra_shots_per_member,
     checkpoint_order_matters: settings.checkpoint_order_matters,
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
+    hint_penalty: settings.hint_penalty ?? 0,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
@@ -206,6 +213,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       max_extra_shots_per_member: 5,
       checkpoint_order_matters: true,
       gps_checkin_enabled: false,
+      hint_penalty: 0,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,

@@ -8,11 +8,13 @@ import {
   CloudOff,
   Loader2,
   Sparkles,
+  Lightbulb,
 } from "lucide-react";
 import type { DetailedCheckPoint } from "@/client";
 import { arriveAtCheckpoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import useCheckpointHints from "@/hooks/useCheckpointHints";
 import useRallySettings from "@/hooks/useRallySettings";
 import { enqueueArrival } from "@/offline/arrivalQueue";
 import { useArrivalSync } from "@/offline/useArrivalSync";
@@ -147,8 +149,25 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const canCheckin =
     settings?.gps_checkin_enabled === true && hasCoords && (checkpoint.arrival_radius_m ?? 0) > 0;
 
+  // Hints are the peddy-paper safety valve: help toward the riddle, paid for
+  // in points. A checkpoint with no guide indications has no ladder and the
+  // whole block stays out of the card.
+  const hints = useCheckpointHints(checkpoint.id);
+  const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
+  const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
+  const confirmHint = () =>
+    hints.nextCost === 0 ||
+    globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
+
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
-  const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!checkpoint.description;
+  // The server mirrors the clue into `description` on a redacted checkpoint so
+  // description-only clients still show something. Here the clue has its own
+  // panel, so don't let the discovery block repeat it.
+  const discoveryDescription =
+    checkpoint.description && checkpoint.description === checkpoint.clue
+      ? null
+      : checkpoint.description;
+  const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!discoveryDescription;
 
   let buttonClasses = "border border-border bg-card text-foreground hover:bg-accent/40";
   if (gpsState === "done") {
@@ -220,6 +239,63 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         </div>
       </div>
 
+      {/* The riddle: this is the whole game in a peddy paper, so it sits above
+          the fold, before the map and the check-in button. Absent clue means a
+          guided event — nothing renders and the card behaves as it always did. */}
+      {checkpoint.clue && (
+        <div className="rounded-xl border border-border bg-muted/40 p-4">
+          <div className="rally-accent mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
+            <Sparkles className="h-3.5 w-3.5" />
+            Enigma
+          </div>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {checkpoint.clue}
+          </p>
+          {checkpoint.clue_media_url && (
+            <img
+              src={checkpoint.clue_media_url}
+              alt="Pista visual do enigma"
+              loading="lazy"
+              className="mt-3 max-h-64 w-full rounded-lg object-cover"
+            />
+          )}
+        </div>
+      )}
+
+      {hasHintLadder && (
+        <div className="space-y-2 rounded-xl border border-dashed border-border p-4">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Lightbulb className="h-3.5 w-3.5" />
+            Pistas
+          </div>
+          {hints.revealed.map((item) => (
+            <p key={item.indication_id} className="text-sm leading-relaxed text-foreground">
+              • {item.hint}
+            </p>
+          ))}
+          {hints.remaining > 0 && (
+            <button
+              type="button"
+              disabled={hints.reveal.isPending}
+              onClick={() => {
+                // Points are spent here, so never on a stray tap.
+                if (confirmHint()) hints.reveal.mutate();
+              }}
+              className="rally-press w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
+            >
+              {hints.reveal.isPending
+                ? "A revelar…"
+                : `Pedir pista${hintCostLabel} · faltam ${hints.remaining}`}
+            </button>
+          )}
+          {hints.reveal.isError && (
+            <p className="text-center text-xs text-red-500">
+              {getErrorMessage(hints.reveal.error, "Não foi possível revelar a pista.")}
+            </p>
+          )}
+        </div>
+      )}
+
       {showMap && hasCoords && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 shrink-0" />
@@ -270,7 +346,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             <Sparkles className="h-3.5 w-3.5" />
             {gpsState === "done" ? "Chegaste! Descobre o local" : "Sobre este local"}
           </div>
-          <CheckpointDiscovery checkpointId={checkpoint.id} description={checkpoint.description} />
+          <CheckpointDiscovery checkpointId={checkpoint.id} description={discoveryDescription} />
         </div>
       )}
     </div>

@@ -4638,6 +4638,117 @@
         }
       }
     },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/hints": {
+      "get": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "List Checkpoint Hints",
+        "description": "Hints this team already paid for at a checkpoint, plus how many are left.",
+        "operationId": "list_checkpoint_hints",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamHints"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/hint": {
+      "post": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "Reveal Checkpoint Hint",
+        "description": "Unlock the next hint for this checkpoint and charge the team.",
+        "operationId": "reveal_checkpoint_hint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintReveal"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not the team's current checkpoint, or no hints left"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/badge-definitions": {
       "get": {
         "tags": [
@@ -7263,6 +7374,28 @@
             "minimum": 0.0,
             "title": "Arrival Radius M",
             "default": 50
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           }
         },
         "type": "object",
@@ -7344,6 +7477,28 @@
               }
             ],
             "title": "Arrival Radius M"
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           }
         },
         "type": "object",
@@ -7780,6 +7935,28 @@
             "type": "integer",
             "title": "Arrival Radius M",
             "default": 50
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           },
           "id": {
             "type": "integer",
@@ -8475,6 +8652,39 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HintReveal": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "indication_id": {
+            "type": "integer",
+            "title": "Indication Id"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "indication_id",
+          "hint",
+          "cost",
+          "remaining"
+        ],
+        "title": "HintReveal"
       },
       "HomeSection": {
         "properties": {
@@ -9615,6 +9825,11 @@
             "title": "Reveal Next Checkpoint",
             "default": true
           },
+          "hint_penalty": {
+            "type": "integer",
+            "title": "Hint Penalty",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -9871,6 +10086,11 @@
             "title": "Reveal Next Checkpoint",
             "default": true
           },
+          "hint_penalty": {
+            "type": "integer",
+            "title": "Hint Penalty",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -10072,6 +10292,35 @@
         "title": "Readiness",
         "description": "Aggregated dependency health.\n\n``redis`` is absent when the realtime subsystem is disabled, in which case\nno Redis connection is expected and its state says nothing about\nreadiness."
       },
+      "RevealedHint": {
+        "properties": {
+          "indication_id": {
+            "type": "integer",
+            "title": "Indication Id"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "revealed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Revealed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indication_id",
+          "hint",
+          "cost",
+          "revealed_at"
+        ],
+        "title": "RevealedHint"
+      },
       "RotationScheduleResponse": {
         "properties": {
           "event_id": {
@@ -10257,6 +10506,37 @@
           "name"
         ],
         "title": "TeamCreate"
+      },
+      "TeamHints": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "revealed": {
+            "items": {
+              "$ref": "#/components/schemas/RevealedHint"
+            },
+            "type": "array",
+            "title": "Revealed"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          },
+          "next_cost": {
+            "type": "integer",
+            "title": "Next Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "revealed",
+          "remaining",
+          "next_cost"
+        ],
+        "title": "TeamHints"
       },
       "TeamLoginRequest": {
         "properties": {

@@ -5,6 +5,7 @@ from app.models.badge_definition import BadgeDefinition
 from app.models.base import Base
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
+from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.checkpoint_media import CheckpointMedia, MediaKind
 from app.models.dynamic_scoring import DynamicAward, DynamicRule
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
@@ -27,6 +28,7 @@ __all__ = [
     "CheckpointMedia",
     "MediaKind",
     "CheckpointGuideIndication",
+    "CheckpointHintReveal",
     "Activity",
     "ActivityResult",
     "RallyEvent",

@@ -96,6 +96,11 @@ class RallySettings(Base):
     # paper, where the checkpoint location is itself the puzzle answer.
     reveal_next_checkpoint = Column(Boolean, nullable=False, default=True)
 
+    # Points charged when a team unlocks a guide indication as a hint. Stored
+    # negative like every other penalty; 0 means hints are free. Bootstrapped
+    # to -10 for peddy paper, where asking for help should cost something.
+    hint_penalty = Column(Integer, nullable=False, default=0)
+
     # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)

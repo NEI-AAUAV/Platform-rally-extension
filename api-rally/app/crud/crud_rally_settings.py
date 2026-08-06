@@ -86,6 +86,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # location itself is the puzzle answer; every other format keeps
             # today's fully-revealed next checkpoint.
             reveal_next_checkpoint=event.event_type != EventType.PEDDY_PAPER.value,
+            # Asking for a hint costs points in a peddy paper (the riddle is
+            # the game); other formats have no hint economy, so it stays free.
+            hint_penalty=-10 if event.event_type == EventType.PEDDY_PAPER.value else 0,
             # Staff and scoring
             enable_staff_scoring=True,
             # Display settings

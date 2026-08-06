@@ -14,6 +14,7 @@ from app.services.dynamic_scoring_service import DynamicScoringService
 from app.services.event_service import EventService
 from app.services.export_service import ExportService
 from app.services.guide_service import GuideService
+from app.services.hint_service import HintService
 from app.services.profile_service import ProfileService
 from app.services.rally_settings_service import RallySettingsService
 from app.services.scoring_service import ScoringService
@@ -44,6 +45,10 @@ def get_checkin_service(db: SessionDep) -> CheckinService:
 
 def get_checkpoint_arrival_service(db: SessionDep) -> CheckpointArrivalService:
     return CheckpointArrivalService(db, crud.checkpoint, crud.team)
+
+
+def get_hint_service(db: SessionDep) -> HintService:
+    return HintService(db, crud.checkpoint, crud.team)
 
 
 def get_deferred_judging_service(db: SessionDep) -> DeferredJudgingService:
