@@ -27,8 +27,13 @@ interface TeamLoginResponse {
  * that legitimately need a query client.
  */
 export default function useTeamAuth() {
-  const { isAuthenticated, teamData: currentTeamData, isLoadingAuth, setAuth, clearAuth } =
-    useTeamAuthStore();
+  const {
+    isAuthenticated,
+    teamData: currentTeamData,
+    isLoadingAuth,
+    setAuth,
+    clearAuth,
+  } = useTeamAuthStore();
   const queryClient = useQueryClient();
 
   // Fetch team members data when authenticated
