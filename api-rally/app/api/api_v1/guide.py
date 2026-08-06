@@ -43,6 +43,12 @@ class GuideCheckpointResponse(BaseModel):
     name: str
     order: int
     description: str | None = None
+    # The riddle the team was given for this post. A guide cannot help a stuck
+    # team without knowing what they were told to solve, and unlike the team's
+    # own view there is nothing to redact here — the guide is standing at the
+    # answer.
+    clue: str | None = None
+    clue_media_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     media: list[GuideMediaItem]
@@ -84,6 +90,8 @@ class GuideController:
                 name=cp.name,
                 order=cp.order,
                 description=cp.description,
+                clue=cp.clue,
+                clue_media_url=cp.clue_media_url,
                 latitude=cp.latitude,
                 longitude=cp.longitude,
                 media=[

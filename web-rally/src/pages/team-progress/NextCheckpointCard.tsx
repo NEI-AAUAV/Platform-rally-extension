@@ -155,6 +155,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const hints = useCheckpointHints(checkpoint.id);
   const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
   const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
+  const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
   const confirmHint = () =>
     hints.nextCost === 0 ||
     globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
@@ -283,10 +284,24 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             Pistas
           </div>
           {hints.revealed.map((item) => (
-            <p key={item.indication_id} className="text-sm leading-relaxed text-foreground">
-              • {item.hint}
-            </p>
+            <div key={item.indication_id} className="flex items-start justify-between gap-3">
+              <p className="text-sm leading-relaxed text-foreground">• {item.hint}</p>
+              {/* What this hint cost, at the price it was bought for. Nothing
+                  else in the team's app shows the deduction — the awards that
+                  carry it are admin-only — so without this the score just
+                  drops with no explanation. */}
+              {item.cost !== 0 && (
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                  {item.cost} pts
+                </span>
+              )}
+            </div>
           ))}
+          {totalSpent !== 0 && (
+            <p className="text-xs text-muted-foreground">
+              Total gasto em pistas neste posto: {totalSpent} pts
+            </p>
+          )}
           {hints.remaining > 0 && (
             <button
               type="button"

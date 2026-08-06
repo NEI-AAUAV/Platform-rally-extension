@@ -11,6 +11,7 @@ import {
   Compass,
   HelpCircle,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import {
   listGuideCheckpoints,
@@ -172,6 +173,24 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
       {open && (
         <div className="space-y-4 border-t px-4 pb-4 pt-3">
           {cp.description && <p className="text-sm text-muted-foreground">{cp.description}</p>}
+          {cp.clue && (
+            <section className="rounded-xl border border-dashed border-border bg-muted/40 p-3">
+              <p className="rally-accent mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">
+                <Sparkles className="h-3.5 w-3.5" /> Enigma dado à equipa
+              </p>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {cp.clue}
+              </p>
+              {cp.clue_media_url && (
+                <img
+                  src={cp.clue_media_url}
+                  alt="Pista visual do enigma"
+                  loading="lazy"
+                  className="mt-2 max-h-48 w-full rounded-lg object-cover"
+                />
+              )}
+            </section>
+          )}
           <IndicationList indications={cp.indications} />
           <MediaGallery media={cp.media} />
         </div>

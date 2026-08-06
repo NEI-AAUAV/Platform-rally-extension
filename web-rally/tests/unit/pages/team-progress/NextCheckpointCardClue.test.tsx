@@ -164,6 +164,36 @@ describe("NextCheckpointCard — clue and hints", () => {
     expect(screen.getByText(/Procura junto ao cais/)).toBeInTheDocument();
   });
 
+  it("shows what each hint cost and the running total", () => {
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({
+        revealed: [
+          { indication_id: 7, hint: "Junto ao cais", cost: -10 },
+          { indication_id: 8, hint: "Procura a placa azul", cost: -10 },
+        ],
+        remaining: 0,
+        nextCost: -10,
+      }),
+    );
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    // The deduction lives in admin-only award rows, so this is the team's
+    // only explanation for the points it lost.
+    expect(screen.getAllByText("-10 pts")).toHaveLength(2);
+    expect(screen.getByText(/Total gasto em pistas neste posto: -20 pts/)).toBeInTheDocument();
+  });
+
+  it("omits the cost when hints are free", () => {
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({ revealed: [{ indication_id: 7, hint: "Junto ao cais", cost: 0 }] }),
+    );
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.queryByText(/pts/)).not.toBeInTheDocument();
+  });
+
   it("asks for confirmation before spending points", async () => {
     mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 1, nextCost: -10 }));
     const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(false);

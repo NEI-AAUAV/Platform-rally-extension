@@ -8513,6 +8513,28 @@
             ],
             "title": "Description"
           },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
+          },
           "latitude": {
             "anyOf": [
               {
