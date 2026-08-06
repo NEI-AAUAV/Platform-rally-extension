@@ -27,7 +27,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -538,7 +543,7 @@
           "CheckPoint"
         ],
         "summary": "Get Next Checkpoint",
-        "description": "Return the next checkpoint a team must head to.",
+        "description": "Return the next checkpoint a team must head to.\n\nStaff/admin bypass redaction (they run the event); a team's own\ntoken is redacted the same as the list endpoint \u2014 this route is not\na way around that.",
         "operationId": "get_next_checkpoint",
         "responses": {
           "200": {
@@ -4082,7 +4087,13 @@
           "Checkpoint Media"
         ],
         "summary": "List Checkpoint Media",
+        "description": "Checkpoint media (photos, fun facts) \u2014 as strong a reveal as the\ncheckpoint name/coordinates, so it's gated the same way: staff/admin\nsee everything, a team sees only checkpoints it has reached, and the\npublic follow the same rules as the checkpoint map.",
         "operationId": "list_checkpoint_media",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "checkpoint_id",
@@ -9599,6 +9610,11 @@
             "title": "Gps Checkin Enabled",
             "default": false
           },
+          "reveal_next_checkpoint": {
+            "type": "boolean",
+            "title": "Reveal Next Checkpoint",
+            "default": true
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -9849,6 +9865,11 @@
             "type": "boolean",
             "title": "Gps Checkin Enabled",
             "default": false
+          },
+          "reveal_next_checkpoint": {
+            "type": "boolean",
+            "title": "Reveal Next Checkpoint",
+            "default": true
           },
           "guide_mode_enabled": {
             "type": "boolean",
