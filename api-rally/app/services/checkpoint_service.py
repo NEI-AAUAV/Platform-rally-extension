@@ -203,6 +203,7 @@ class CheckpointService:
                 total=team.total,
                 classification=team.classification,
                 versus_group_id=team.versus_group_id,
+                start_offset_minutes=team.start_offset_minutes or 0,
                 times=team.times,
                 last_checkpoint_time=team.last_checkpoint_time,
                 last_checkpoint_score=team.last_checkpoint_score,

@@ -90,6 +90,7 @@ export default function TeamProgress() {
       showRanking={showRanking}
       completedCount={completedCheckpointsCount}
       totalCount={totalCount}
+      rallyStartTime={settings?.rally_start_time}
     />
   );
 

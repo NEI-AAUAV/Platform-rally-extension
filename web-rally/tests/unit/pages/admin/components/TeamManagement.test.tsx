@@ -145,7 +145,7 @@ describe('TeamManagement', () => {
 
     await waitFor(() => expect(mockUpdateTeam).toHaveBeenCalledWith({
       path: { id: 1 },
-      body: { name: 'Updated Team' },
+      body: { name: 'Updated Team', start_offset_minutes: 0 },
     }));
     expect(mockToastSuccess).toHaveBeenCalledWith('Equipa atualizada com sucesso!');
   });

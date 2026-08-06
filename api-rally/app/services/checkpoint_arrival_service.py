@@ -74,7 +74,11 @@ class CheckpointArrivalService:
         # relying on the auto-advance path further down) keeps a pre-event or
         # post-event scan out of the arrivals table and the audit log entirely.
         settings = await rally_settings.get_or_create(self._db)
-        validate_rally_timing(settings, datetime.now(UTC))
+        validate_rally_timing(
+            settings,
+            datetime.now(UTC),
+            start_offset_minutes=team_obj.start_offset_minutes or 0,
+        )
 
         if checkpoint.latitude is None or checkpoint.longitude is None:
             raise RallyValidationError("Checkpoint has no GPS coordinates")

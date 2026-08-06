@@ -8005,6 +8005,11 @@
             "title": "Photo Url",
             "default": ""
           },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
+          },
           "times": {
             "items": {
               "type": "string",
@@ -8762,6 +8767,11 @@
             "title": "Photo Url",
             "default": ""
           },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
+          },
           "num_members": {
             "type": "integer",
             "title": "Num Members"
@@ -9125,6 +9135,11 @@
             "type": "string",
             "title": "Photo Url",
             "default": ""
+          },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
           },
           "times": {
             "items": {
@@ -10843,6 +10858,19 @@
               }
             ],
             "title": "Name"
+          },
+          "start_offset_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Offset Minutes"
           },
           "times": {
             "anyOf": [
