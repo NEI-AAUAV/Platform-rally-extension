@@ -46,10 +46,15 @@ const useTeamAuthStore = create<TeamAuthState>((set) => ({
   },
 }));
 
-// Hydrate once from localStorage at module load — every consumer shares this
-// one store instance, so a single hydration on import is correct (no
-// per-component re-derivation, no race between mounts).
-(function hydrate() {
+/**
+ * Re-derive auth state from localStorage into the store.
+ *
+ * Exported (not a module-load IIFE) so tests can re-run it after seeding
+ * `localStorage`, since the store is a module-level singleton hydrated once
+ * per process — a private IIFE would only ever see whatever localStorage
+ * held at import time.
+ */
+export function hydrateTeamAuthStore(): void {
   const token = getTeamToken();
   const data = getTeamData();
   if (token && data) {
@@ -61,7 +66,12 @@ const useTeamAuthStore = create<TeamAuthState>((set) => ({
     // Token present and a data entry exists but is corrupt — clear stale storage.
     removeTeamAuth();
   }
-  useTeamAuthStore.setState({ isLoadingAuth: false });
-})();
+  useTeamAuthStore.setState({ teamData: null, isAuthenticated: false, isLoadingAuth: false });
+}
+
+// Hydrate once from localStorage at module load — every consumer shares this
+// one store instance, so a single hydration on import is correct in the app
+// (no per-component re-derivation, no race between mounts).
+hydrateTeamAuthStore();
 
 export { useTeamAuthStore };

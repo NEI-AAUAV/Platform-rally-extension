@@ -1,7 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import TeamHeaderCard from '@/pages/team-progress/TeamHeaderCard';
 import type { PrivilegedDetailedTeam } from '@/client';
+
+// useEventTerms pulls from useRallySettings (React Query), which needs a
+// QueryClientProvider this test doesn't set up.
+vi.mock('@/hooks/useEventTerms', () => ({
+  default: () => ({
+    checkpoint: 'tasca',
+    checkpoints: 'postos',
+    activity: 'desafio',
+    activities: 'desafios',
+    event: 'rally',
+    checkpointGender: 'f',
+  }),
+}));
 
 const baseTeam = {
   name: 'Team Alpha',

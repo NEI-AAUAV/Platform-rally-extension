@@ -6,6 +6,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import useTeamAuth from '@/hooks/useTeamAuth'
+import { hydrateTeamAuthStore } from '@/stores/useTeamAuthStore'
 import { teamLogin, getTeamById, addTeamMember, removeTeamMember } from '@/client'
 
 const TEAM_TOKEN_KEY = 'rally_team_token'
@@ -53,6 +54,9 @@ describe('useTeamAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    // The store hydrates from localStorage once per module load, so tests
+    // that seed localStorage must re-run hydration to see it reflected.
+    hydrateTeamAuthStore()
   })
 
   afterEach(() => {
@@ -73,6 +77,7 @@ describe('useTeamAuth', () => {
       const tokenData = { team_id: 42, team_name: 'Team Alpha' }
       localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
       localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      hydrateTeamAuthStore()
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -85,6 +90,7 @@ describe('useTeamAuth', () => {
     it('should clear invalid localStorage data on mount', async () => {
       localStorage.setItem(TEAM_TOKEN_KEY, 'token')
       localStorage.setItem(TEAM_DATA_KEY, 'invalid-json{{{')
+      hydrateTeamAuthStore()
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -155,6 +161,7 @@ describe('useTeamAuth', () => {
     it('should clear auth state and localStorage on logout', async () => {
       localStorage.setItem(TEAM_TOKEN_KEY, 'some-token')
       localStorage.setItem(TEAM_DATA_KEY, JSON.stringify({ team_id: 1, team_name: 'Team' }))
+      hydrateTeamAuthStore()
 
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })
 
@@ -189,6 +196,7 @@ describe('useTeamAuth', () => {
       const tokenData = { team_id: 42, team_name: 'Team Alpha' }
       localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
       localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      hydrateTeamAuthStore()
       vi.mocked(getTeamById).mockResolvedValueOnce({
         data: { id: 42, name: 'Team Alpha', members: [] },
       } as never)
@@ -233,6 +241,7 @@ describe('useTeamAuth', () => {
       const tokenData = { team_id: 7, team_name: 'Team Beta' }
       localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
       localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      hydrateTeamAuthStore()
       vi.mocked(getTeamById).mockResolvedValue({
         data: { id: 7, name: 'Team Beta', members: [] },
       } as never)
@@ -277,6 +286,7 @@ describe('useTeamAuth', () => {
       const tokenData = { team_id: 9, team_name: 'Team Gamma' }
       localStorage.setItem(TEAM_TOKEN_KEY, 'existing-token')
       localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(tokenData))
+      hydrateTeamAuthStore()
       vi.mocked(getTeamById).mockResolvedValue({
         data: { id: 9, name: 'Team Gamma', members: [] },
       } as never)

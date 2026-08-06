@@ -22,6 +22,10 @@ vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));
 
+vi.mock('@/hooks/useTeamAuth', () => ({
+  default: () => ({ isAuthenticated: false, teamData: null, isLoading: false }),
+}));
+
 vi.mock('@/hooks/useDocumentBranding', () => ({
   default: (...args: unknown[]) => mockUseDocumentBranding(...args),
 }));
@@ -52,6 +56,8 @@ vi.mock('@/components/landing/LandingGate', () => ({
 
 vi.mock('@tanstack/react-router', () => ({
   Outlet: () => <div data-testid="outlet" />,
+  useLocation: (opts?: { select?: (loc: { pathname: string }) => unknown }) =>
+    opts?.select ? opts.select({ pathname: window.location.pathname }) : { pathname: window.location.pathname },
 }));
 
 vi.mock('@/components/themes', () => ({
