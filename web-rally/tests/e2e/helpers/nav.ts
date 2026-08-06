@@ -13,14 +13,18 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
   const menuButton = page.getByRole('button', { name: 'Abrir menu' });
 
   // Whichever renders for this viewport settles first; without this the check
-  // below can run before the header has hydrated and find neither.
-  await expect(inlineCta.or(menuButton).first()).toBeVisible({ timeout: 10000 });
+  // below can run before the header has hydrated and find neither. 20s (not
+  // the usual 10s) because a fully-parallel CI run of this spec saturates the
+  // single preview server, and hydration can lag well past 10s under that
+  // load without the app actually being broken (see staff-evaluation CI runs
+  // where this timed out at 10s with 2 retries but a solo run passed easily).
+  await expect(inlineCta.or(menuButton).first()).toBeVisible({ timeout: 20000 });
   if (await inlineCta.isVisible()) {
     return;
   }
 
   await menuButton.click();
   await expect(page.getByRole('button', { name: /iniciar sessão/i })).toBeVisible({
-    timeout: 5000,
+    timeout: 10000,
   });
 }
