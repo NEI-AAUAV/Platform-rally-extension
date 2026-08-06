@@ -115,7 +115,7 @@ class TeamController:
         return [
             await service.build_listing_team(
                 team,
-                reveal_next_checkpoint=settings.reveal_next_checkpoint,
+                reveal_next_checkpoint=bool(settings.reveal_next_checkpoint),
                 is_privileged=is_privileged,
             )
             for team in teams

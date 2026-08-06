@@ -120,7 +120,7 @@ class CheckpointService:
             # sequential prefix would hide that it exists at all. Every
             # checkpoint is visible — completed ones pass through, the rest
             # stay redacted until reached.
-            visible = all_checkpoints
+            visible = list(all_checkpoints)
         return self._redact_list(visible, current_order=current_order, reveal_next=reveal_next)
 
     async def visible_checkpoints_for_public(
