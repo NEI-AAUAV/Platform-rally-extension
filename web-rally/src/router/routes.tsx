@@ -1,5 +1,12 @@
-import { createRootRoute, createRoute, lazyRouteComponent, Navigate } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  createRoute,
+  lazyRouteComponent,
+  Navigate,
+  redirect,
+} from "@tanstack/react-router";
 import MainLayout from "@/pages/layout";
+import { getTeamToken, getTeamData } from "@/lib/auth/tokenStore";
 
 const rootRoute = createRootRoute();
 
@@ -20,6 +27,16 @@ const layoutRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/",
+  // Both reads are synchronous localStorage lookups, so a signed-in team
+  // never paints the marketing landing (or a blank frame with no active nav
+  // tab) even for an instant — redirect before the route renders at all.
+  // The <Navigate> in pages/home/index.tsx stays as a fallback for whenever
+  // this beforeLoad is bypassed (e.g. tests mounting Home directly).
+  beforeLoad: () => {
+    if (getTeamToken() && getTeamData()) {
+      throw redirect({ to: "/team-progress" });
+    }
+  },
   component: lazyRouteComponent(() => import("@/pages/home")),
 });
 

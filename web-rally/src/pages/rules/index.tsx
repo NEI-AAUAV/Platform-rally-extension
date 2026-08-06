@@ -108,7 +108,7 @@ export default function Rules() {
       id: "badges",
       title: "Distintivos",
       Icon: Award,
-      show: true,
+      show: settings?.badges_enabled !== false,
       body: (
         <p className="text-sm text-muted-foreground">
           As equipas ganham distintivos por feitos especiais durante o rally (vitórias em versus,

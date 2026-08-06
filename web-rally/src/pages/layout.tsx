@@ -9,7 +9,8 @@ import useRallySettings from "@/hooks/useRallySettings";
 import useDocumentBranding from "@/hooks/useDocumentBranding";
 import { resolveBranding } from "@/lib/branding";
 import { useUserStore } from "@/stores/useUserStore";
-import { Outlet } from "@tanstack/react-router";
+import { useTeamStore } from "@/stores/useTeamStore";
+import { Outlet, useLocation } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "@/components/themes";
 
 function MainLayoutContent() {
@@ -19,6 +20,7 @@ function MainLayoutContent() {
   const { themeName, buttonStyle, backgroundStyle } = useTheme();
 
   const { sub, sessionLoading } = useUserStore((state) => state);
+  const isTeamAuthenticated = useTeamStore((state) => state.isAuthenticated);
   const onStaffLogin = useStaffLogin();
   const { settings, isLoading: settingsLoading, error: settingsError } = useRallySettings();
 
@@ -27,21 +29,37 @@ function MainLayoutContent() {
   const branding = resolveBranding(settings);
   useDocumentBranding(branding);
 
-  // Check if user is authenticated OR if public access is enabled
-  const isAuthenticated = sub !== undefined;
-  const isPublicAccessEnabled = settings?.public_access_enabled === true;
+  // A signed-in team is a first-class identity here too, not just OIDC staff.
+  const isAuthenticated = sub !== undefined || isTeamAuthenticated;
+  // settings undefined means the request hasn't resolved (still loading, or
+  // failed) — never read that as "public access is off", or a transient
+  // settings-fetch error locks every visitor out.
+  const isPublicAccessEnabled = settings === undefined || settings.public_access_enabled === true;
 
-  // Paths that are accessible for teams or public even if main public access is disabled
+  // Paths that are accessible for teams or public even if main public access is disabled.
+  // Keep this to team-only flows — general public pages (home, checkpoints,
+  // rules, scoreboard) must still gate behind LandingGate, or
+  // public_access_enabled=false stops blocking anonymous visitors there.
   const publicPaths = ["/team-login", "/team-progress", "/versus"];
-  // Extract the path after /rally/ since the router basename is already /rally
-  const currentPath = globalThis.location.pathname.replace(/^\/rally/, "");
-  const isPublicPath = publicPaths.some((path) => currentPath.startsWith(path));
+  // Staff-only flows must always require auth, independent of public_access_enabled
+  // and regardless of whether the settings fetch itself failed (e.g. an expired
+  // staff session also breaks the settings call) — otherwise a fail-open settings
+  // fetch silently lets an expired/unauthenticated staff session through.
+  const staffOnlyPaths = ["/staff-evaluation"];
+  const currentPath = useLocation({ select: (state) => state.pathname });
+  const isPublicPath = publicPaths.some(
+    (path) => currentPath === path || currentPath.startsWith(`${path}/`),
+  );
+  const isStaffOnlyPath = staffOnlyPaths.some(
+    (path) => currentPath === path || currentPath.startsWith(`${path}/`),
+  );
 
-  // Redirect to main platform login if not authenticated and public access is disabled
-  // AND we are not on a specifically allowed public/team path
+  // Redirect to main platform login if not authenticated and either public access
+  // is disabled or this is a staff-only path, AND we are not on a specifically
+  // allowed public/team path.
   if (
     !isAuthenticated &&
-    !isPublicAccessEnabled &&
+    (isStaffOnlyPath || !isPublicAccessEnabled) &&
     !isPublicPath &&
     !sessionLoading &&
     !settingsLoading

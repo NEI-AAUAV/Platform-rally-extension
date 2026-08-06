@@ -1,5 +1,6 @@
 import { getTeamToken, setTeamToken, clearTeamAuth } from "@/lib/auth/tokenStore";
 import { logger } from "@/lib/logger";
+import { useTeamStore } from "@/stores/useTeamStore";
 
 /**
  * HTTP auth glue for the generated OpenAPI client.
@@ -54,15 +55,25 @@ export async function refreshTeamToken(): Promise<string | undefined> {
     });
     if (!response.ok) {
       logger.warn("Team token refresh failed", { status: response.status });
-      clearTeamAuth();
+      // Only 401/403 mean the token itself is dead (expired/revoked) — clear
+      // it. Any other status (5xx, rate limiting) is a server-side hiccup;
+      // wiping a still-valid session over that would kick a team out of a
+      // live event on a transient blip.
+      if (response.status === 401 || response.status === 403) {
+        clearTeamAuth();
+        useTeamStore.getState().clear();
+      }
       return undefined;
     }
     const { access_token } = (await response.json()) as { access_token: string };
     setTeamToken(access_token);
+    useTeamStore.getState().setToken();
     return access_token;
   } catch (error) {
+    // Network failure (offline, timeout, DNS): keep the existing session —
+    // it may still be valid once connectivity returns. Only a confirmed
+    // 401/403 above should ever clear it.
     logger.warn("Team token refresh failed", { error: String(error) });
-    clearTeamAuth();
     return undefined;
   }
 }

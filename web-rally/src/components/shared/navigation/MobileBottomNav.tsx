@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
+import { isNavItemActive } from "./activeRoute";
 import { useUserStore } from "@/stores/useUserStore";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
@@ -24,12 +25,15 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import { TeamQrCard } from "@/components/checkin/TeamQrCard";
 import { useTabScrub } from "./useTabScrub";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
+import { useViewModeStore } from "@/stores/useViewModeStore";
 
 interface NavItem {
   readonly name: string;
   readonly href: string;
   readonly Icon: ComponentType<{ className?: string }>;
   readonly show: boolean;
+  /** Extra paths that should also light this tab (e.g. a redirect source). */
+  readonly aliases?: readonly string[];
 }
 
 /**
@@ -59,19 +63,32 @@ export function MobileBottomNav() {
   const isGuide = scopes !== undefined && scopes.includes("rally-guide");
   const isPrivileged = isAdminOrManager || isStaff;
   const { showGuideFeature } = useGuideAccess();
+  const { viewMode } = useViewModeStore();
 
   const showScore = settings?.show_score_mode !== "hidden";
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
   const checkpointsLabel = capitalize(useEventTerms().checkpoints);
 
-  // Any authenticated team (incl. dual-role staff/admin) gets the team
-  // destinations + QR FAB; privileged-only users keep the public/staff nav.
-  const showTeamNav = isTeamAuthenticated;
+  // Team-only users always get the team destinations + QR FAB. Dual-role
+  // users (also staff/admin/guide) follow the same team/staff view toggle as
+  // the desktop navbar (useViewModeStore) — otherwise a dual-role team could
+  // see "Equipa"/"Definições" here while the desktop navbar (still on its
+  // default "staff" view) hides them, or vice versa.
+  const showTeamNav = isTeamAuthenticated && (!isPrivileged || viewMode === "team");
   const accessCode = team?.access_code;
 
   const items: NavItem[] = showTeamNav
     ? [
-        { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
+        {
+          name: "Progresso",
+          href: "/team-progress",
+          Icon: Home,
+          show: true,
+          // "/" (PWA start_url, navbar logo, achievements/team-settings
+          // Navigate targets) redirects a signed-in team straight here; light
+          // this tab immediately instead of leaving none lit mid-redirect.
+          aliases: ["/"],
+        },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
         { name: checkpointsLabel, href: "/checkpoints", Icon: MapPin, show: showPostos },
         {
@@ -115,7 +132,9 @@ export function MobileBottomNav() {
       ].filter((i) => i.show);
 
   const showQrFab = showTeamNav && !!accessCode;
-  const activeIndex = items.findIndex((item) => location.pathname === item.href);
+  const activeIndex = items.findIndex((item) =>
+    isNavItemActive(location.pathname, item.href, item.aliases),
+  );
 
   const goToTab = useCallback(
     (index: number) => {
@@ -132,7 +151,7 @@ export function MobileBottomNav() {
   });
 
   const renderTab = (item: NavItem, index: number) => {
-    const isActive = location.pathname === item.href;
+    const isActive = isNavItemActive(location.pathname, item.href, item.aliases);
     // While scrubbing, the tab under the finger lights up instead of the
     // route's own tab — the screen has not changed yet.
     const isLit = hoverIndex >= 0 ? hoverIndex === index : isActive;

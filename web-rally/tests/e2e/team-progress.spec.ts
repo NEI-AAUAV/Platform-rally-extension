@@ -136,7 +136,7 @@ test.describe('Team progress', () => {
 
     await page.goto('/rally/team-progress');
 
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Percurso' })).toBeVisible();
     // The card follows the event's terminology; MOCK_RALLY_SETTINGS carries no
     // event_type, so it falls back to the classic rally terms ("tasca", f.).
@@ -273,6 +273,6 @@ test.describe('Team progress', () => {
 
     await page.goto('/rally/team-progress');
 
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
   });
 });

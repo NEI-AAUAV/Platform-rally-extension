@@ -71,6 +71,37 @@ describe("client.ts", () => {
       expect(localStorage.getItem("rally_team_data")).toBeNull();
     });
 
+    it("keeps the team session on a 500 (server hiccup, not a dead token)", async () => {
+      localStorage.setItem("rally_team_token", "still-good-jwt");
+      localStorage.setItem("rally_team_data", '{"team_id":1,"team_name":"T"}');
+
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+      const { refreshTeamToken } = await import("@/services/client");
+      const result = await refreshTeamToken();
+
+      expect(result).toBeUndefined();
+      expect(localStorage.getItem("rally_team_token")).toBe("still-good-jwt");
+      expect(localStorage.getItem("rally_team_data")).toBe('{"team_id":1,"team_name":"T"}');
+    });
+
+    it("keeps the team session on a network error (offline/timeout)", async () => {
+      localStorage.setItem("rally_team_token", "still-good-jwt");
+      localStorage.setItem("rally_team_data", '{"team_id":1,"team_name":"T"}');
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+      );
+
+      const { refreshTeamToken } = await import("@/services/client");
+      const result = await refreshTeamToken();
+
+      expect(result).toBeUndefined();
+      expect(localStorage.getItem("rally_team_token")).toBe("still-good-jwt");
+      expect(localStorage.getItem("rally_team_data")).toBe('{"team_id":1,"team_name":"T"}');
+    });
+
     it("returns undefined when there is no team token", async () => {
       const { refreshTeamToken } = await import("@/services/client");
       const result = await refreshTeamToken();

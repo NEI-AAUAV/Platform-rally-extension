@@ -1,6 +1,16 @@
 import { useUserStore } from "@/stores/useUserStore";
+import useTeamAuth from "@/hooks/useTeamAuth";
 import { Link } from "@tanstack/react-router";
-import { Settings, SlidersHorizontal, LogOut, UserPlus, LogIn, Users, User } from "lucide-react";
+import {
+  Settings,
+  SlidersHorizontal,
+  LogOut,
+  UserPlus,
+  LogIn,
+  Users,
+  User,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
 
@@ -8,6 +18,7 @@ export function UserMenu() {
   const { isAuthenticated, name, email, image, scopes, logout, sessionLoading } = useUserStore(
     (state) => state,
   );
+  const { isAuthenticated: isTeamAuthenticated, teamData, logout: teamLogout } = useTeamAuth();
   const onStaffLogin = useStaffLogin();
 
   const isAdmin =
@@ -18,6 +29,53 @@ export function UserMenu() {
 
   if (sessionLoading) {
     return <div className="h-9 w-20 animate-pulse rounded-md border border-border bg-muted" />;
+  }
+
+  // Team-only identity (no OIDC session): show the team's name and its own
+  // menu instead of the anonymous login buttons — a code-only session is a
+  // real identity, not a visitor.
+  if (!isAuthenticated && isTeamAuthenticated && teamData) {
+    return (
+      <div className="group relative hidden cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-2 py-1 transition-colors hover:bg-accent sm:flex">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+          <Users className="h-4 w-4" />
+        </div>
+        <span className="max-w-[14ch] truncate text-sm font-semibold">{teamData.team_name}</span>
+
+        <div className="absolute right-0 top-full z-50 hidden w-52 pt-2 group-hover:block">
+          <div className="rally-elevate flex flex-col overflow-hidden rounded-lg border border-border bg-popover">
+            <div className="border-b border-border px-4 py-3">
+              <p className="truncate text-sm font-semibold text-popover-foreground">
+                {teamData.team_name}
+              </p>
+              <p className="text-xs text-muted-foreground">Sessão de equipa</p>
+            </div>
+            <Link
+              to="/team-settings"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
+            >
+              <Settings className="h-4 w-4" />
+              Definições da equipa
+            </Link>
+            <Link
+              to="/team-login"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Trocar equipa
+            </Link>
+            <button
+              type="button"
+              onClick={teamLogout}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              Terminar sessão de equipa
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
