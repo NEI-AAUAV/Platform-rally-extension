@@ -132,13 +132,15 @@ class HintService:
             indication_id=indication.id,
             cost=cost,
         )
-        self._db.add(reveal)
         try:
-            await self._db.flush()
+            # Savepoint, not a bare flush: on a losing race only this insert
+            # is undone. A plain rollback here would discard the whole request
+            # transaction, which is the same reason add_checkpoint uses one.
+            async with self._db.begin_nested():
+                self._db.add(reveal)
         except IntegrityError:
             # Two taps raced: the unique constraint won, so this hint is
             # already paid for. Hand it back for free rather than 500-ing.
-            await self._db.rollback()
             return await self._hint_already_owned(team_id, checkpoint_id, indication)
 
         if cost != 0:
