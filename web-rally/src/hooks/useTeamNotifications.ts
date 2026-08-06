@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { DetailedTeam } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
+import useEventTerms from "@/hooks/useEventTerms";
 
 /**
  * Surface in-app notifications as the team's standing changes.
@@ -12,6 +13,7 @@ import { useAppToast } from "@/hooks/use-toast";
  */
 export default function useTeamNotifications(team: DetailedTeam | undefined): void {
   const toast = useAppToast();
+  const terms = useEventTerms();
   const prevRank = useRef<number | null>(null);
   const prevCheckpoint = useRef<number | null>(null);
 
@@ -23,7 +25,7 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
 
     // Checkpoint advanced.
     if (prevCheckpoint.current !== null && checkpoint > prevCheckpoint.current) {
-      toast.success(`Chegaste ao posto ${checkpoint}!`);
+      toast.success(`Chegaste ao ${terms.checkpoint} ${checkpoint}!`);
     }
 
     // Climbed the ranking (a smaller classification number is a better place).
@@ -35,5 +37,5 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
 
     prevRank.current = rank;
     prevCheckpoint.current = checkpoint;
-  }, [team, toast]);
+  }, [team, toast, terms]);
 }

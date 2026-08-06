@@ -53,41 +53,66 @@ export default function TeamProgress() {
   }
 
   const showMap = settings?.show_checkpoint_map ?? true;
+  // Peddy paper's whole screen is "read the clue, check in" — that card
+  // belongs above the fold, not after a scroll past team roster and a map.
+  // Team roster/access code already live at /team-info (in the bottom nav),
+  // so they aren't duplicated here for this event type.
+  const isPeddyPaper = settings?.event_type === "peddy_paper";
+
+  const nextCheckpointCard = nextCheckpoint && (
+    <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />
+  );
+  const mapSection = showMap && checkpoints && checkpoints.length > 0 && (
+    <MapSection
+      checkpoints={checkpoints}
+      // A redacted next checkpoint has no coordinates — nothing to fly to,
+      // and selecting it would print a "Posto selecionado" label over a
+      // pin that isn't there.
+      selectedCheckpoint={
+        nextCheckpoint?.latitude != null && nextCheckpoint?.longitude != null
+          ? nextCheckpoint
+          : null
+      }
+    />
+  );
+  const progressSummary = (
+    <ProgressSummaryCard
+      completedCount={completedCheckpointsCount}
+      totalCount={totalCount}
+      totalScore={team.total}
+      showScore={showScore}
+    />
+  );
+  const header = (
+    <TeamHeaderCard
+      team={team}
+      showScore={showScore}
+      showRanking={showRanking}
+      completedCount={completedCheckpointsCount}
+      totalCount={totalCount}
+    />
+  );
 
   return (
     <div className="duration-500 animate-in fade-in">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
         <div className="space-y-6 lg:sticky lg:top-24">
-          <TeamHeaderCard
-            team={team}
-            showScore={showScore}
-            showRanking={showRanking}
-            completedCount={completedCheckpointsCount}
-            totalCount={totalCount}
-          />
-          <TeamMembersCard team={team} />
-          <ProgressSummaryCard
-            completedCount={completedCheckpointsCount}
-            totalCount={totalCount}
-            totalScore={team.total}
-            showScore={showScore}
-          />
-
-          {showMap && checkpoints && checkpoints.length > 0 && (
-            <MapSection
-              checkpoints={checkpoints}
-              // A redacted next checkpoint has no coordinates — nothing to
-              // fly to, and selecting it would print a "Posto selecionado"
-              // label over a pin that isn't there.
-              selectedCheckpoint={
-                nextCheckpoint?.latitude != null && nextCheckpoint?.longitude != null
-                  ? nextCheckpoint
-                  : null
-              }
-            />
+          {isPeddyPaper ? (
+            <>
+              {header}
+              {nextCheckpointCard}
+              {progressSummary}
+              {mapSection}
+            </>
+          ) : (
+            <>
+              {header}
+              <TeamMembersCard team={team} />
+              {progressSummary}
+              {mapSection}
+              {nextCheckpointCard}
+            </>
           )}
-
-          {nextCheckpoint && <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />}
         </div>
 
         {checkpoints && checkpoints.length > 0 && (

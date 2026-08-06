@@ -1,4 +1,6 @@
 import type { PrivilegedDetailedTeam } from "@/client";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 
 type TeamHeaderCardProps = Readonly<{
   team: PrivilegedDetailedTeam;
@@ -25,6 +27,7 @@ export default function TeamHeaderCard({
   totalCount,
 }: TeamHeaderCardProps) {
   const initials = initialsOf(team.name);
+  const terms = useEventTerms();
 
   return (
     <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-6 text-white">
@@ -63,7 +66,9 @@ export default function TeamHeaderCard({
             <p className="rally-display text-3xl font-bold tabular-nums">
               {completedCount}/{totalCount}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Postos</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">
+              {capitalize(terms.checkpoints)}
+            </p>
           </div>
         </div>
       </div>
