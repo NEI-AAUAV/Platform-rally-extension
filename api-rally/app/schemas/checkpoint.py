@@ -14,6 +14,13 @@ class CheckPointBase(BaseModel):
     longitude: float | None = None
     order: int
     arrival_radius_m: int = 50
+    # Peddy paper riddle whose answer is *this checkpoint's own location*.
+    # Deliberately distinct from CheckpointGuideIndication.hint, which a guide
+    # reads out to a team that has already arrived. The clue is the one field a
+    # redacted checkpoint still carries (see CheckpointService._redact_unreached).
+    clue: str | None = None
+    # Optional picture-riddle accompanying the clue (R2 URL).
+    clue_media_url: str | None = None
 
 
 class CheckPointCreate(CheckPointBase):
@@ -30,6 +37,8 @@ class CheckPointUpdate(BaseModel):
     longitude: float | None = LONGITUDE_FIELD
     order: int | None = None
     arrival_radius_m: int | None = Field(default=None, ge=0)
+    clue: str | None = None
+    clue_media_url: str | None = None
 
 
 class CheckPointResponse(CheckPointBase):

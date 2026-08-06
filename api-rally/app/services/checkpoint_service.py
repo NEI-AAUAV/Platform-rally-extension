@@ -46,14 +46,18 @@ class CheckpointService:
         the checkpoint's location *is* the puzzle answer, so this must not
         leak through any team-facing list. Completed checkpoints (order <
         current_order) pass through untouched.
+
+        The ``clue`` survives redaction — it is the riddle *pointing at* the
+        location, not the location itself, and is the only thing a team is
+        meant to have before arriving. It is also mirrored into ``description``
+        so clients that only render the description still show something.
         """
         if checkpoint.order < current_order:
             return checkpoint
-        clue = getattr(checkpoint, "clue", None)
         return checkpoint.model_copy(
             update={
                 "name": f"Posto {checkpoint.order}",
-                "description": clue,
+                "description": checkpoint.clue,
                 "latitude": None,
                 "longitude": None,
             }

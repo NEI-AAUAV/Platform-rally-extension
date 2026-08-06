@@ -8,6 +8,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
@@ -136,6 +137,49 @@ export default function CheckpointForm({
                 <p className="text-xs text-muted-foreground">
                   Distância a que a equipa tem de estar para "adivinhar" o sítio via GPS. 0 desativa
                   o check-in por localização.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="clue"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Enigma para a equipa (opcional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={3}
+                    placeholder="Ex: Onde o rio encontra a ponte de ferro..."
+                    {...field}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Mostrado à equipa <strong>antes</strong> de chegar — a resposta é este local. É o
+                  único campo do checkpoint que a equipa vê enquanto não faz check-in. Deixa vazio
+                  para o evento correr guiado, com as indicações dadas pelo guia no local.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="clue_media_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Imagem do enigma (opcional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="https://..."
+                    {...field}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  URL de uma foto-enigma (um detalhe do local, por exemplo).
                 </p>
                 <FormMessage />
               </FormItem>
