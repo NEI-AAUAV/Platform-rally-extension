@@ -2,9 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MainLayout from '@/pages/layout';
 
-const { mockUseUserStore, mockUseStaffLogin, mockUseRallySettings, mockUseDocumentBranding } =
+const { mockUseUserStore, mockUseTeamAuth, mockUseStaffLogin, mockUseRallySettings, mockUseDocumentBranding } =
   vi.hoisted(() => ({
     mockUseUserStore: vi.fn(),
+    mockUseTeamAuth: vi.fn(),
     mockUseStaffLogin: vi.fn(),
     mockUseRallySettings: vi.fn(),
     mockUseDocumentBranding: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock('@/hooks/useRallySettings', () => ({
 }));
 
 vi.mock('@/hooks/useTeamAuth', () => ({
-  default: () => ({ isAuthenticated: false, teamData: null, isLoading: false }),
+  default: () => mockUseTeamAuth(),
 }));
 
 vi.mock('@/hooks/useDocumentBranding', () => ({
@@ -69,6 +70,8 @@ describe('MainLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseStaffLogin.mockReturnValue(vi.fn());
+    // Default: no team session. Individual tests override via mockUseTeamAuth.
+    mockUseTeamAuth.mockReturnValue({ isAuthenticated: false, teamData: null, isLoading: false });
   });
 
   it('renders the LandingGate when unauthenticated, public access disabled, and not on a public path', () => {
@@ -127,5 +130,33 @@ describe('MainLayout', () => {
 
     render(<MainLayout />);
     expect(screen.getByText('A carregar')).toBeInTheDocument();
+  });
+
+  it('renders the full app shell for a team-only session even when public access is disabled', () => {
+    mockUseUserStore.mockImplementation((selector) =>
+      selector({ sub: undefined, sessionLoading: false }),
+    );
+    mockUseTeamAuth.mockReturnValue({ isAuthenticated: true, teamData: null, isLoading: false });
+    mockUseRallySettings.mockReturnValue({
+      settings: { public_access_enabled: false },
+      isLoading: false,
+    });
+    window.history.pushState({}, '', '/rally/team-info');
+
+    render(<MainLayout />);
+    expect(screen.getByTestId('outlet')).toBeInTheDocument();
+    expect(screen.queryByTestId('landing-gate')).not.toBeInTheDocument();
+  });
+
+  it('does not block access when settings fail to load (undefined, not loading)', () => {
+    mockUseUserStore.mockImplementation((selector) =>
+      selector({ sub: undefined, sessionLoading: false }),
+    );
+    mockUseRallySettings.mockReturnValue({ settings: undefined, isLoading: false });
+    window.history.pushState({}, '', '/rally/private-page');
+
+    render(<MainLayout />);
+    expect(screen.getByTestId('outlet')).toBeInTheDocument();
+    expect(screen.queryByTestId('landing-gate')).not.toBeInTheDocument();
   });
 });

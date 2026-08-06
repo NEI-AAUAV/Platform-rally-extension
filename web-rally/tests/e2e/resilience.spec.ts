@@ -117,6 +117,6 @@ test.describe('Resilience', () => {
 
     await page.goto('/rally/team-progress');
 
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
   });
 });

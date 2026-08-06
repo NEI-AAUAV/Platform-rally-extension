@@ -178,6 +178,34 @@ describe('useTeamAuth', () => {
     })
   })
 
+  describe('shared store', () => {
+    it('propagates a login from one consumer to another mounted at the same time', async () => {
+      vi.mocked(teamLogin).mockResolvedValueOnce({
+        data: {
+          access_token: 'shared-token',
+          token_type: 'bearer',
+          team_id: 5,
+          team_name: 'Shared Team',
+        },
+      } as never)
+
+      const wrapper = createWrapper()
+      const a = renderHook(() => useTeamAuth(), { wrapper })
+      const b = renderHook(() => useTeamAuth(), { wrapper })
+
+      expect(a.result.current.isAuthenticated).toBe(false)
+      expect(b.result.current.isAuthenticated).toBe(false)
+
+      await act(async () => {
+        await a.result.current.login('CODE-1')
+      })
+
+      expect(a.result.current.isAuthenticated).toBe(true)
+      expect(b.result.current.isAuthenticated).toBe(true)
+      expect(b.result.current.teamData).toEqual({ team_id: 5, team_name: 'Shared Team' })
+    })
+  })
+
   describe('getToken', () => {
     it('should return null when not logged in', () => {
       const { result } = renderHook(() => useTeamAuth(), { wrapper: createWrapper() })

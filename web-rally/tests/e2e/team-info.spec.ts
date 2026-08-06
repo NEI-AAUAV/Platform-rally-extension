@@ -59,7 +59,7 @@ test.describe('Team info', () => {
 
     await page.goto('/rally/team-info');
 
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
     await expect(page.getByText('Capitão')).toBeVisible();
     await expect(page.getByText('Associado')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Associar a mim' })).toBeVisible();
@@ -101,7 +101,7 @@ test.describe('Team info', () => {
     const reloadPromise = page.waitForURL('**/team-info');
     await page.getByRole('button', { name: 'Associar a mim' }).click();
     await reloadPromise;
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
   });
 
   test('failed link shows error toast', async ({ page, context }) => {
@@ -158,6 +158,6 @@ test.describe('Team info', () => {
 
     await page.goto('/rally/team-info');
 
-    await expect(page.getByText('Os Fixes')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Os Fixes')).toBeVisible();
   });
 });

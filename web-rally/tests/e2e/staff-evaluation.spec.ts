@@ -14,7 +14,6 @@ import {
   MOCK_BOOLEAN_ACTIVITY,
   MOCK_TEAM_VS_ACTIVITY,
 } from '../mocks/data';
-import { expectLoggedOutLoginCta } from './helpers/nav';
 import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from './helpers/session';
 
 test.describe('Staff Evaluation Flow', () => {
@@ -395,11 +394,13 @@ test.describe('Staff Evaluation - Authentication', () => {
     // Navigate to protected page
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // No route-level auth guard exists for this page: an unauthenticated
-    // visitor lands on the checkpoint view itself (data fails to load, so it
-    // renders its not-found state) rather than being redirected. The header's
-    // "Iniciar sessão" CTA is what actually signals the logged-out state here.
-    await expectLoggedOutLoginCta(page);
+    // layout.tsx treats "/staff-evaluation" as a staff-only path: an
+    // unauthenticated visitor is redirected to the standalone LandingGate
+    // regardless of public_access_enabled, so the app shell (navbar,
+    // hamburger) never mounts. LandingGate's own CTA is "Login Staff".
+    await expect(page.getByRole("button", { name: /login staff/i })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('handles expired token gracefully', async ({ page, context }) => {
@@ -476,9 +477,12 @@ test.describe('Staff Evaluation - Authentication', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    // An unparseable session is treated the same as no session — the header
-    // CTA reflects the logged-out state, no dedicated login screen exists.
-    await expectLoggedOutLoginCta(page);
+    // An unparseable session is treated the same as no session, and
+    // "/staff-evaluation" is a staff-only path: layout.tsx redirects to the
+    // standalone LandingGate rather than rendering the app shell.
+    await expect(page.getByRole("button", { name: /login staff/i })).toBeVisible({
+      timeout: 15000,
+    });
   });
 });
 

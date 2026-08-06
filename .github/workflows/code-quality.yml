@@ -43,7 +43,7 @@ jobs:
           poetry config installer.no-binary http-ece
       
       - name: Cache Python dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: api-rally/.venv
           key: venv-${{ runner.os }}-${{ hashFiles('api-rally/poetry.lock') }}
@@ -118,7 +118,7 @@ jobs:
           fi
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
       
@@ -132,7 +132,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
       
       - name: Cache pnpm dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('web-rally/pnpm-lock.yaml') }}
@@ -194,7 +194,7 @@ jobs:
         continue-on-error: true
       
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
       

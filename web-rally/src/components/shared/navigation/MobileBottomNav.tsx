@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
+import { isNavItemActive } from "./activeRoute";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -29,6 +30,8 @@ interface NavItem {
   readonly href: string;
   readonly Icon: ComponentType<{ className?: string }>;
   readonly show: boolean;
+  /** Extra paths that should also light this tab (e.g. a redirect source). */
+  readonly aliases?: readonly string[];
 }
 
 /**
@@ -72,7 +75,16 @@ export function MobileBottomNav() {
 
   const items: NavItem[] = showTeamNav
     ? [
-        { name: "Progresso", href: "/team-progress", Icon: Home, show: true },
+        {
+          name: "Progresso",
+          href: "/team-progress",
+          Icon: Home,
+          show: true,
+          // "/" (PWA start_url, navbar logo, achievements/team-settings
+          // Navigate targets) redirects a signed-in team straight here; light
+          // this tab immediately instead of leaving none lit mid-redirect.
+          aliases: ["/"],
+        },
         { name: "Pontos", href: "/scoreboard", Icon: Trophy, show: showScore },
         { name: checkpointsLabel, href: "/checkpoints", Icon: MapPin, show: showPostos },
         {
@@ -116,7 +128,9 @@ export function MobileBottomNav() {
       ].filter((i) => i.show);
 
   const showQrFab = showTeamNav && !!accessCode;
-  const activeIndex = items.findIndex((item) => location.pathname === item.href);
+  const activeIndex = items.findIndex((item) =>
+    isNavItemActive(location.pathname, item.href, item.aliases),
+  );
 
   const goToTab = useCallback(
     (index: number) => {
@@ -133,7 +147,7 @@ export function MobileBottomNav() {
   });
 
   const renderTab = (item: NavItem, index: number) => {
-    const isActive = location.pathname === item.href;
+    const isActive = isNavItemActive(location.pathname, item.href, item.aliases);
     // While scrubbing, the tab under the finger lights up instead of the
     // route's own tab — the screen has not changed yet.
     const isLit = hoverIndex >= 0 ? hoverIndex === index : isActive;
