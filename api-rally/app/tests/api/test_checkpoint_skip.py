@@ -43,7 +43,6 @@ async def _make_checkpoint(pg_session, order, event_id=None):
     return obj
 
 
-
 async def test_giving_up_moves_the_team_to_the_next_post(pg_session, pg_client):
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
