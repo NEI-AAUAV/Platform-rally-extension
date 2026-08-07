@@ -90,6 +90,17 @@ const rallySettingsSchema = z.object({
   guide_manual_arrival_enabled: z.boolean(),
   reveal_on_arrival: z.boolean(),
 
+  // Navigation aids for teams who do not know the city
+  proximity_enabled: z.boolean(),
+  compass_enabled: z.boolean(),
+  search_radius_m: z
+    .number()
+    .min(0, "O raio nao pode ser negativo")
+    .max(5000, "Raio demasiado grande"),
+
+  // Walk-up registration: staff can add members during the event
+  allow_staff_registration: z.boolean(),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -164,6 +175,10 @@ function buildFormValues(
     skip_enabled: settings.skip_enabled ?? true,
     guide_manual_arrival_enabled: settings.guide_manual_arrival_enabled ?? true,
     reveal_on_arrival: settings.reveal_on_arrival ?? true,
+    proximity_enabled: settings.proximity_enabled ?? false,
+    compass_enabled: settings.compass_enabled ?? false,
+    search_radius_m: settings.search_radius_m ?? 0,
+    allow_staff_registration: settings.allow_staff_registration ?? false,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
@@ -241,6 +256,10 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       skip_enabled: true,
       guide_manual_arrival_enabled: true,
       reveal_on_arrival: true,
+      proximity_enabled: false,
+      compass_enabled: false,
+      search_radius_m: 0,
+      allow_staff_registration: false,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,

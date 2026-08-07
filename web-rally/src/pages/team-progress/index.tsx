@@ -7,6 +7,7 @@ import TeamHeaderCard from "./TeamHeaderCard";
 import TeamMembersCard from "./TeamMembersCard";
 import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
+import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
 import MapSection from "@/pages/checkpoints/components/MapSection";
 
@@ -62,8 +63,21 @@ export default function TeamProgress() {
   // so they aren't duplicated here for this event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
 
-  const nextCheckpointCard = nextCheckpoint && (
+  // Every post resolved — completed or given up on — so there is no next card
+  // to show. Keyed off the route itself rather than a counter: an event with
+  // no checkpoints at all has not been "finished", it just has no route.
+  const isFinished = !nextCheckpoint && (checkpoints?.length ?? 0) > 0;
+  const nextCheckpointCard = nextCheckpoint ? (
     <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />
+  ) : (
+    isFinished && (
+      <RouteFinishedCard
+        completedCount={completedCheckpointsCount}
+        totalCount={totalCount}
+        showScore={showScore}
+        total={team.total}
+      />
+    )
   );
   const mapSection = showMap && checkpoints && checkpoints.length > 0 && (
     <MapSection

@@ -15,6 +15,7 @@ import { arriveAtCheckpoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import useCheckpointHints from "@/hooks/useCheckpointHints";
+import ProximityButton from "./ProximityButton";
 import useRallySettings from "@/hooks/useRallySettings";
 import { enqueueArrival } from "@/offline/arrivalQueue";
 import { useArrivalSync } from "@/offline/useArrivalSync";
@@ -356,6 +357,10 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
         </div>
       )}
 
+      {isRedacted && settings?.proximity_enabled === true && (
+        <ProximityButton checkpointId={checkpoint.id} />
+      )}
+
       {canGiveUp && (
         <div className="space-y-2 border-t border-border pt-4">
           <button
@@ -383,11 +388,23 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       )}
 
       {showMap && hasCoords && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 shrink-0" />
           <span className="font-mono">
             {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
           </span>
+          {/* Only ever offered for a post that is no longer a secret: opening
+              a maps app for a redacted one would be handing over the answer. */}
+          {!isRedacted && (
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rally-accent font-semibold underline"
+            >
+              Como chegar
+            </a>
+          )}
         </div>
       )}
 

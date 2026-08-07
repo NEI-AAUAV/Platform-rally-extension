@@ -154,3 +154,92 @@ class TestRedactList:
         assert result[0].latitude is not None
         assert result[1].latitude is None
         assert result[2].latitude is None
+
+
+class TestSearchArea:
+    """The map circle for a redacted post."""
+
+    def test_no_circle_when_the_radius_is_zero(self) -> None:
+        result = CheckpointService._redact_unreached(
+            _checkpoint(order=3), current_order=3, search_radius_m=0
+        )
+
+        assert result.search_latitude is None
+        assert result.search_radius_m is None
+
+    def test_the_circle_is_not_centred_on_the_post(self) -> None:
+        checkpoint = _checkpoint(order=3)
+
+        result = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, search_radius_m=400
+        )
+
+        # Centring it on the post would be the pin with extra steps.
+        assert result.search_latitude != checkpoint.latitude
+        assert result.search_longitude != checkpoint.longitude
+        assert result.search_radius_m == 400
+
+    def test_the_post_stays_inside_its_own_circle(self) -> None:
+        from app.utils.geo import distance_m
+
+        checkpoint = _checkpoint(order=3)
+        result = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, search_radius_m=400
+        )
+
+        # A circle the post falls outside of would send teams to the wrong
+        # neighbourhood entirely.
+        offset = distance_m(
+            result.search_latitude,
+            result.search_longitude,
+            checkpoint.latitude,
+            checkpoint.longitude,
+        )
+        assert offset < 400
+
+    def test_the_circle_does_not_move_between_requests(self) -> None:
+        checkpoint = _checkpoint(order=3)
+
+        first = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, search_radius_m=400
+        )
+        second = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, search_radius_m=400
+        )
+
+        # A circle that jittered per request could be averaged back to its
+        # centre, which is the post.
+        assert (first.search_latitude, first.search_longitude) == (
+            second.search_latitude,
+            second.search_longitude,
+        )
+
+    def test_different_posts_get_different_offsets(self) -> None:
+        one = CheckpointService._redact_unreached(
+            _checkpoint(order=3), current_order=3, search_radius_m=400
+        )
+        two = CheckpointService._redact_unreached(
+            _checkpoint(order=4), current_order=3, search_radius_m=400
+        )
+
+        assert (one.search_latitude, one.search_longitude) != (
+            two.search_latitude,
+            two.search_longitude,
+        )
+
+    def test_a_revealed_post_gets_no_circle(self) -> None:
+        result = CheckpointService._redact_unreached(
+            _checkpoint(order=1), current_order=3, search_radius_m=400
+        )
+
+        # It has real coordinates now; a search circle would be noise.
+        assert result.search_radius_m is None
+
+    def test_a_post_without_coordinates_gets_no_circle(self) -> None:
+        checkpoint = _checkpoint(order=3, latitude=None, longitude=None)
+
+        result = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, search_radius_m=400
+        )
+
+        assert result.search_latitude is None

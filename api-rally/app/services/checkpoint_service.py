@@ -3,6 +3,7 @@ and cascading delete. Moved out of app.api.api_v1.checkpoint, which used to
 hold this logic inline in the router handlers.
 """
 
+import math
 from collections.abc import Sequence
 from typing import Any
 
@@ -50,8 +51,36 @@ class CheckpointService:
         return set((await self._db.scalars(stmt)).all())
 
     @staticmethod
+    def _search_area(checkpoint: DetailedCheckPoint, radius_m: int) -> tuple[float, float] | None:
+        """A circle the real post sits inside, but is not the centre of.
+
+        Narrowing the city to a neighbourhood is the point; centring the circle
+        on the post would just be the pin with extra steps. The offset is
+        derived from the checkpoint id so it is stable across requests — a
+        circle that jitters between refreshes could be averaged back to the
+        centre.
+        """
+        if checkpoint.latitude is None or checkpoint.longitude is None or radius_m <= 0:
+            return None
+        # Deterministic angle from the id; magnitude fixed at half the radius,
+        # which keeps the post comfortably inside the circle wherever it lands.
+        angle = (checkpoint.id * 137.508) % 360  # golden angle: spreads ids out
+        offset_m = radius_m / 2
+        north_m = offset_m * math.cos(math.radians(angle))
+        east_m = offset_m * math.sin(math.radians(angle))
+        lat = checkpoint.latitude + north_m / 111_320
+        lon = checkpoint.longitude + east_m / (
+            111_320 * max(math.cos(math.radians(checkpoint.latitude)), 0.01)
+        )
+        return lat, lon
+
+    @staticmethod
     def _redact_unreached(
-        checkpoint: DetailedCheckPoint, *, current_order: int, has_arrived: bool = False
+        checkpoint: DetailedCheckPoint,
+        *,
+        current_order: int,
+        has_arrived: bool = False,
+        search_radius_m: int = 0,
     ) -> DetailedCheckPoint:
         """Strip the answer-bearing fields from a checkpoint the team hasn't
         reached yet: name, description, and coordinates. In a peddy paper,
@@ -75,6 +104,7 @@ class CheckpointService:
         """
         if checkpoint.order < current_order or has_arrived:
             return checkpoint
+        area = CheckpointService._search_area(checkpoint, search_radius_m)
         return checkpoint.model_copy(
             update={
                 "name": f"Posto {checkpoint.order}",
@@ -82,6 +112,9 @@ class CheckpointService:
                 "latitude": None,
                 "longitude": None,
                 "is_redacted": True,
+                "search_latitude": area[0] if area else None,
+                "search_longitude": area[1] if area else None,
+                "search_radius_m": search_radius_m if area else None,
             }
         )
 
@@ -92,13 +125,17 @@ class CheckpointService:
         current_order: int,
         reveal_next: bool,
         arrived_ids: frozenset[int] = frozenset(),
+        search_radius_m: int = 0,
     ) -> list[DetailedCheckPoint]:
         validated = self._validate_list(checkpoints)
         if reveal_next:
             return validated
         return [
             self._redact_unreached(
-                cp, current_order=current_order, has_arrived=cp.id in arrived_ids
+                cp,
+                current_order=current_order,
+                has_arrived=cp.id in arrived_ids,
+                search_radius_m=search_radius_m,
             )
             for cp in validated
         ]
@@ -129,6 +166,7 @@ class CheckpointService:
             validated,
             current_order=validated.order,
             has_arrived=validated.id in arrived_ids,
+            search_radius_m=int(getattr(settings, "search_radius_m", 0) or 0),
         )
 
     async def visible_checkpoints_for_team(
@@ -159,6 +197,7 @@ class CheckpointService:
             if reveal_next or not getattr(settings, "reveal_on_arrival", True)
             else frozenset(await self._arrived_checkpoint_ids(team_id))
         )
+        search_radius = int(getattr(settings, "search_radius_m", 0) or 0)
 
         if settings.show_route_mode == "complete":
             return self._redact_list(
@@ -166,6 +205,7 @@ class CheckpointService:
                 current_order=current_order,
                 reveal_next=reveal_next,
                 arrived_ids=arrived_ids,
+                search_radius_m=search_radius,
             )
 
         if getattr(settings, "checkpoint_order_matters", True):
@@ -181,6 +221,7 @@ class CheckpointService:
             current_order=current_order,
             reveal_next=reveal_next,
             arrived_ids=arrived_ids,
+            search_radius_m=search_radius,
         )
 
     async def visible_checkpoints_for_public(

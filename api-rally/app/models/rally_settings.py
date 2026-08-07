@@ -110,6 +110,18 @@ class RallySettings(Base):
     guide_manual_arrival_enabled = Column(Boolean, nullable=False, default=True)
     # Whether arriving reveals a post before its activity has been scored.
     reveal_on_arrival = Column(Boolean, nullable=False, default=True)
+    # "Am I getting warmer?" — a coarse distance band on demand. Off by
+    # default: it is an aid for teams who do not know the city, not something
+    # every event wants.
+    proximity_enabled = Column(Boolean, nullable=False, default=False)
+    # A coarse bearing alongside the band, and only once the team is already
+    # inside the closest band. Off by default — a bearing is far more
+    # revealing than a distance (see ProximityService).
+    compass_enabled = Column(Boolean, nullable=False, default=False)
+    # Radius (metres) of the search circle drawn for a redacted post. 0 shows
+    # no circle at all. The circle is not centred on the post — see
+    # CheckpointService._search_area.
+    search_radius_m = Column(Integer, nullable=False, default=0)
 
     # Points charged when a team gives up on a post it cannot solve. Stored
     # negative; 0 means giving up is free. Steeper than hint_penalty by

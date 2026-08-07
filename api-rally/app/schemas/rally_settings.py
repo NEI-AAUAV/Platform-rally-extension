@@ -157,6 +157,11 @@ class RallySettingsBase(BaseModel):
     skip_enabled: bool = True
     guide_manual_arrival_enabled: bool = True
     reveal_on_arrival: bool = True
+    # Hot/cold distance band on demand, and the (stricter) compass on top.
+    proximity_enabled: bool = False
+    compass_enabled: bool = False
+    # Radius of the on-map search circle for a redacted post; 0 = no circle.
+    search_radius_m: int = 0
 
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event

@@ -1,39 +1,36 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
-import { useTeamProgress } from '@/pages/team-progress/useTeamProgress';
-import { getCheckpoints, getCheckpointsCount, getTeamById } from '@/client';
+import { renderHook, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useTeamProgress } from "@/pages/team-progress/useTeamProgress";
+import { getCheckpoints, getCheckpointsCount, getTeamById } from "@/client";
 
-const {
-  mockNavigate,
-  mockUseTeamAuth,
-  mockUseRallySettings,
-  mockUseRallyEventStream,
-} = vi.hoisted(() => ({
-  mockNavigate: vi.fn(),
-  mockUseTeamAuth: vi.fn(),
-  mockUseRallySettings: vi.fn(),
-  mockUseRallyEventStream: vi.fn(),
-}));
+const { mockNavigate, mockUseTeamAuth, mockUseRallySettings, mockUseRallyEventStream } = vi.hoisted(
+  () => ({
+    mockNavigate: vi.fn(),
+    mockUseTeamAuth: vi.fn(),
+    mockUseRallySettings: vi.fn(),
+    mockUseRallyEventStream: vi.fn(),
+  }),
+);
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('@/hooks/useTeamAuth', () => ({
+vi.mock("@/hooks/useTeamAuth", () => ({
   default: () => mockUseTeamAuth(),
 }));
 
-vi.mock('@/hooks/useRallySettings', () => ({
+vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
 
-vi.mock('@/hooks/useRallyEventStream', () => ({
+vi.mock("@/hooks/useRallyEventStream", () => ({
   default: (...args: unknown[]) => mockUseRallyEventStream(...args),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getCheckpoints: vi.fn(),
   getCheckpointsCount: vi.fn(),
   getTeamById: vi.fn(),
@@ -46,7 +43,7 @@ const createWrapper = () => {
   );
 };
 
-describe('useTeamProgress', () => {
+describe("useTeamProgress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseTeamAuth.mockReturnValue({
@@ -55,16 +52,16 @@ describe('useTeamProgress', () => {
       isLoading: false,
     });
     mockUseRallySettings.mockReturnValue({
-      settings: { participant_view_enabled: true, show_score_mode: 'individual' },
+      settings: { participant_view_enabled: true, show_score_mode: "individual" },
       isLoading: false,
     });
     vi.mocked(getTeamById).mockResolvedValue({
       data: {
         id: 1,
-        name: 'Team A',
+        name: "Team A",
         total: 20,
         last_checkpoint_number: 1,
-        times: ['t1'],
+        times: ["t1"],
         current_checkpoint_number: 2,
       },
     } as never);
@@ -77,11 +74,11 @@ describe('useTeamProgress', () => {
     vi.mocked(getCheckpointsCount).mockResolvedValue({ data: 2 } as never);
   });
 
-  it('loads team, checkpoints, and computes derived progress values', async () => {
+  it("loads team, checkpoints, and computes derived progress values", async () => {
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.team?.name).toBe('Team A');
+    expect(result.current.team?.name).toBe("Team A");
     expect(result.current.completedCheckpointsCount).toBe(1);
     expect(result.current.nextCheckpoint?.order).toBe(2);
     expect(result.current.showScore).toBe(true);
@@ -89,24 +86,24 @@ describe('useTeamProgress', () => {
     expect(result.current.totalCount).toBe(2);
   });
 
-  it('redirects to /team-login when not authenticated', async () => {
+  it("redirects to /team-login when not authenticated", async () => {
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: false, teamData: null, isLoading: false });
     renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/team-login' }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: "/team-login" }));
   });
 
-  it('redirects to /scoreboard when participant view is disabled', async () => {
+  it("redirects to /scoreboard when participant view is disabled", async () => {
     mockUseRallySettings.mockReturnValue({
       settings: { participant_view_enabled: false },
       isLoading: false,
     });
     renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/scoreboard' }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: "/scoreboard" }));
   });
 
-  it('toggles checkpoint expansion state', async () => {
+  it("toggles checkpoint expansion state", async () => {
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -117,8 +114,8 @@ describe('useTeamProgress', () => {
     expect(result.current.expandedCheckpoints.has(0)).toBe(false);
   });
 
-  it('tolerates checkpoints-count fetch failure by falling back to null', async () => {
-    vi.mocked(getCheckpointsCount).mockRejectedValue(new Error('fail'));
+  it("tolerates checkpoints-count fetch failure by falling back to null", async () => {
+    vi.mocked(getCheckpointsCount).mockRejectedValue(new Error("fail"));
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -126,9 +123,9 @@ describe('useTeamProgress', () => {
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 
-  it('uses times.length as completed count fallback when last_checkpoint_number is absent', async () => {
+  it("uses times.length as completed count fallback when last_checkpoint_number is absent", async () => {
     vi.mocked(getTeamById).mockResolvedValue({
-      data: { id: 1, name: 'Team A', total: 0, times: ['t1', 't2'] },
+      data: { id: 1, name: "Team A", total: 0, times: ["t1", "t2"] },
     } as never);
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 

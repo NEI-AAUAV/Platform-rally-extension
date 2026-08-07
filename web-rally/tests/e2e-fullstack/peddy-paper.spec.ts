@@ -291,3 +291,101 @@ test.describe("staggered starts", () => {
     expect(((await response.json()) as { detail: string }).detail).toMatch(/has not started/);
   });
 });
+
+/** The escape hatch and the navigation aids, against the real backend. */
+test.describe("stuck teams and navigation aids", () => {
+  test("a team can give up on a post it cannot solve and move on", async () => {
+    await waitForApi();
+    const peddy = await seedPeddyPaper();
+    const teamToken = await loginTeam(peddy.accessCode);
+    const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
+
+    const before = await apiCall<{ order: number }>("GET", "/checkpoint/me", {
+      token: teamToken,
+    });
+    expect(before.order).toBe(1);
+
+    const skip = await fetch(
+      `${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`,
+      { method: "POST", headers: { Authorization: `Bearer ${teamToken}` } },
+    );
+
+    expect(skip.status).toBe(200);
+    // The whole point: no longer stuck on a riddle they cannot solve.
+    const after = await apiCall<{ order: number; clue: string | null }>("GET", "/checkpoint/me", {
+      token: teamToken,
+    });
+    expect(after.order).toBe(2);
+    expect(after.clue).toBe(peddy.checkpoints[1]!.clue);
+  });
+
+  test("proximity answers in bands and never in coordinates", async () => {
+    await waitForApi();
+    const peddy = await seedPeddyPaper();
+    const teamToken = await loginTeam(peddy.accessCode);
+    const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
+
+    const settings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
+      token: peddy.admin.accessToken,
+    });
+    await apiCall("PUT", "/rally/settings", {
+      token: peddy.admin.accessToken,
+      body: { ...settings, proximity_enabled: true, compass_enabled: true },
+    });
+
+    const post = peddy.checkpoints[0]!;
+    const read = async (latitude: number, longitude: number) => {
+      const response = await fetch(
+        `${apiBase}/api/rally/v1/checkpoint/${post.id}/proximity`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${teamToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ latitude, longitude }),
+        },
+      );
+      return { status: response.status, text: await response.text() };
+    };
+
+    const far = await read(post.latitude + 0.0072, post.longitude);
+    expect(far.status).toBe(200);
+    expect(JSON.parse(far.text).band).toBe("menos de 2km");
+    // A bearing from 800 m away would point straight at the answer.
+    expect(JSON.parse(far.text).direction).toBeNull();
+    // Nor may the reply carry the post's own position.
+    expect(far.text).not.toContain(String(post.latitude));
+
+    const near = await read(post.latitude - 0.0005, post.longitude);
+    expect(JSON.parse(near.text).band).toBe("menos de 100m");
+    // Inside the closest band the puzzle is solved; the compass finds the door.
+    expect(JSON.parse(near.text).direction).toBe("N");
+  });
+
+  test("a redacted post carries a search circle it is not the centre of", async () => {
+    await waitForApi();
+    const peddy = await seedPeddyPaper();
+    const teamToken = await loginTeam(peddy.accessCode);
+
+    const settings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
+      token: peddy.admin.accessToken,
+    });
+    await apiCall("PUT", "/rally/settings", {
+      token: peddy.admin.accessToken,
+      body: { ...settings, search_radius_m: 400 },
+    });
+
+    const visible = await apiCall<
+      {
+        order: number;
+        latitude: number | null;
+        search_latitude: number | null;
+        search_radius_m: number | null;
+      }[]
+    >("GET", "/checkpoint/", { token: teamToken });
+
+    const first = visible.find((cp) => cp.order === 1)!;
+    expect(first.latitude).toBeNull();
+    expect(first.search_radius_m).toBe(400);
+    // Narrowing the city to a neighbourhood, not handing over the doorway.
+    expect(first.search_latitude).not.toBe(peddy.checkpoints[0]!.latitude);
+  });
+});

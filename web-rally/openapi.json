@@ -4897,6 +4897,76 @@
         }
       }
     },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/proximity": {
+      "post": {
+        "tags": [
+          "Checkpoint Proximity"
+        ],
+        "summary": "Read Checkpoint Proximity",
+        "description": "How close the team is, as a coarse band \u2014 never a metre count.",
+        "operationId": "read_checkpoint_proximity",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProximityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProximityReading"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not enabled, not the team's checkpoint, or no coordinates"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "429": {
+            "description": "Too many proximity checks"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/badge-definitions": {
       "get": {
         "tags": [
@@ -8279,6 +8349,39 @@
             "type": "boolean",
             "title": "Is Redacted",
             "default": false
+          },
+          "search_latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Latitude"
+          },
+          "search_longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Longitude"
+          },
+          "search_radius_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Radius M"
           }
         },
         "type": "object",
@@ -9702,6 +9805,62 @@
         "title": "ProfileResponse",
         "description": "A person's rally profile: identity + participation history."
       },
+      "ProximityReading": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "band": {
+            "type": "string",
+            "title": "Band"
+          },
+          "is_within_radius": {
+            "type": "boolean",
+            "title": "Is Within Radius"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "band",
+          "is_within_radius"
+        ],
+        "title": "ProximityReading"
+      },
+      "ProximityRequest": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "ProximityRequest"
+      },
       "PushSubscriptionCreate": {
         "properties": {
           "endpoint": {
@@ -10288,6 +10447,21 @@
             "title": "Reveal On Arrival",
             "default": true
           },
+          "proximity_enabled": {
+            "type": "boolean",
+            "title": "Proximity Enabled",
+            "default": false
+          },
+          "compass_enabled": {
+            "type": "boolean",
+            "title": "Compass Enabled",
+            "default": false
+          },
+          "search_radius_m": {
+            "type": "integer",
+            "title": "Search Radius M",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -10573,6 +10747,21 @@
             "type": "boolean",
             "title": "Reveal On Arrival",
             "default": true
+          },
+          "proximity_enabled": {
+            "type": "boolean",
+            "title": "Proximity Enabled",
+            "default": false
+          },
+          "compass_enabled": {
+            "type": "boolean",
+            "title": "Compass Enabled",
+            "default": false
+          },
+          "search_radius_m": {
+            "type": "integer",
+            "title": "Search Radius M",
+            "default": 0
           },
           "guide_mode_enabled": {
             "type": "boolean",

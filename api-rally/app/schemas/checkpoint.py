@@ -57,3 +57,10 @@ class DetailedCheckPoint(CheckPointBase):
     # "you have not earned the description yet" — otherwise they have to sniff
     # the placeholder name to tell them apart.
     is_redacted: bool = False
+    # A search circle for a redacted post: wide enough to narrow the city to a
+    # neighbourhood, and deliberately NOT centred on the post (see
+    # CheckpointService._search_area). All three are None when the event does
+    # not use search areas, or the post is already revealed.
+    search_latitude: float | None = None
+    search_longitude: float | None = None
+    search_radius_m: int | None = None
