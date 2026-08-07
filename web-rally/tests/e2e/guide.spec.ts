@@ -104,6 +104,15 @@ async function mockCommonRoutes(page: Page, token: string) {
       body: JSON.stringify(GUIDE_SETTINGS),
     }),
   );
+  // The teams panel inside each checkpoint card. Mocked here rather than
+  // per-test: without it the list route's glob used to swallow this request
+  // and hand the panel an array of checkpoints, which crashed the page.
+  await page.route('**/api/rally/v1/guide/checkpoints/*/teams', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  );
+  await page.route('**/api/rally/v1/team/', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  );
   await page.route('**/api/rally/v1/user/me**', (route) =>
     route.fulfill({
       status: 200,
@@ -124,7 +133,7 @@ test.describe('Guide page', () => {
   test('guide sees checkpoints with indications and media', async ({ page, context }) => {
     await seedSession(context, MOCK_JWT_TOKEN_GUIDE);
     await mockCommonRoutes(page, MOCK_JWT_TOKEN_GUIDE);
-    await page.route('**/api/rally/v1/guide/checkpoints**', (route) =>
+    await page.route('**/api/rally/v1/guide/checkpoints', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -154,7 +163,7 @@ test.describe('Guide page', () => {
   }) => {
     await seedSession(context, MOCK_JWT_TOKEN_GUIDE);
     await mockCommonRoutes(page, MOCK_JWT_TOKEN_GUIDE);
-    await page.route('**/api/rally/v1/guide/checkpoints**', (route) =>
+    await page.route('**/api/rally/v1/guide/checkpoints', (route) =>
       route.fulfill({
         status: 403,
         contentType: 'application/json',
@@ -177,7 +186,7 @@ test.describe('Guide page', () => {
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: "Gestão" dropdown does not exist in the mobile nav');
     await seedSession(context, MOCK_JWT_TOKEN_GUIDE);
     await mockCommonRoutes(page, MOCK_JWT_TOKEN_GUIDE);
-    await page.route('**/api/rally/v1/guide/checkpoints**', (route) =>
+    await page.route('**/api/rally/v1/guide/checkpoints', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -200,7 +209,7 @@ test.describe('Guide page', () => {
   test('staff also gets access to the guide page', async ({ page, context }) => {
     await seedSession(context, MOCK_JWT_TOKEN_STAFF, ['rally-staff']);
     await mockCommonRoutes(page, MOCK_JWT_TOKEN_STAFF);
-    await page.route('**/api/rally/v1/guide/checkpoints**', (route) =>
+    await page.route('**/api/rally/v1/guide/checkpoints', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
