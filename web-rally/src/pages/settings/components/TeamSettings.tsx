@@ -85,8 +85,8 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
           <div>
             <Label htmlFor="allow_staff_registration">Inscrições no local pelo staff</Label>
             <p className="text-xs text-muted-foreground">
-              Permite ao staff acrescentar membros a uma equipa durante o evento, para quem
-              apareça sem se ter inscrito antes.
+              Permite ao staff acrescentar membros a uma equipa durante o evento, para quem apareça
+              sem se ter inscrito antes.
             </p>
           </div>
         </div>

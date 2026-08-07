@@ -124,8 +124,8 @@ export default function ScoringSettings({
             />
             <p className="text-xs text-muted-foreground">
               Uma equipa que não consiga resolver o enigma pode desistir do posto e seguir em
-              frente. Não o pontua e paga isto (deve ser negativo). Sem esta saída, fica presa
-              nesse posto até ao fim do evento.
+              frente. Não o pontua e paga isto (deve ser negativo). Sem esta saída, fica presa nesse
+              posto até ao fim do evento.
             </p>
           </div>
         </div>
