@@ -173,6 +173,18 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
     hints.nextCost === 0 ||
     globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
 
+  // The way out of an unsolvable riddle. Offered only once the hint ladder is
+  // spent, so it reads as a last resort rather than a shortcut — the server
+  // allows it at any point, this is a nudge, not the rule.
+  const skipCost = settings?.skip_penalty ?? 0;
+  const canGiveUp = isRedacted && hints.remaining === 0;
+  const confirmGiveUp = () =>
+    globalThis.confirm(
+      skipCost === 0
+        ? "Desistir deste posto? Não o vais pontuar, e passas ao enigma seguinte."
+        : `Desistir deste posto custa ${Math.abs(skipCost)} pontos e não o vais pontuar. Continuar?`,
+    );
+
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   // The server mirrors the clue into `description` on a redacted checkpoint so
   // description-only clients still show something. Here the clue has its own
@@ -337,6 +349,32 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
                   // silently or queueing.
                   "Sem rede. Pede a pista quando tiveres ligação — não fica guardada para não gastares pontos sem veres o resultado."
                 : getErrorMessage(hints.reveal.error, "Não foi possível revelar a pista.")}
+            </p>
+          )}
+        </div>
+      )}
+
+      {canGiveUp && (
+        <div className="space-y-2 border-t border-border pt-4">
+          <button
+            type="button"
+            disabled={hints.giveUp.isPending}
+            onClick={() => {
+              if (confirmGiveUp()) hints.giveUp.mutate();
+            }}
+            className="rally-press w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition-all hover:bg-accent/30 disabled:opacity-60"
+          >
+            {hints.giveUp.isPending
+              ? "A desistir…"
+              : `Desistir deste posto${skipCost === 0 ? "" : ` (${skipCost} pts)`}`}
+          </button>
+          <p className="text-center text-xs text-muted-foreground">
+            Sem pistas por revelar. Se não conseguem mesmo, desistam e sigam para o próximo — mais
+            vale isso do que ficarem aqui presos o resto do evento.
+          </p>
+          {hints.giveUp.isError && (
+            <p className="text-center text-xs text-red-500">
+              {getErrorMessage(hints.giveUp.error, "Não foi possível desistir do posto.")}
             </p>
           )}
         </div>

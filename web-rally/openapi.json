@@ -4753,6 +4753,63 @@
         }
       }
     },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/skip": {
+      "post": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "Skip Checkpoint",
+        "description": "Give up on this checkpoint: forfeit its score, pay the penalty, move on.\n\nThe way out for a team that cannot solve a riddle. Without it the hint\nladder runs out and the post is theirs for the rest of the event.",
+        "operationId": "skip_checkpoint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointSkipped"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not the team's current checkpoint, or already given up"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/team-auth/hints": {
       "get": {
         "tags": [
@@ -7976,6 +8033,35 @@
         ],
         "title": "CheckpointMediaResponse"
       },
+      "CheckpointSkipped": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "next_checkpoint_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Checkpoint Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "cost"
+        ],
+        "title": "CheckpointSkipped"
+      },
       "ClaimMembershipRequest": {
         "properties": {
           "access_code": {
@@ -10177,6 +10263,11 @@
             "title": "Hint Penalty",
             "default": 0
           },
+          "skip_penalty": {
+            "type": "integer",
+            "title": "Skip Penalty",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -10436,6 +10527,11 @@
           "hint_penalty": {
             "type": "integer",
             "title": "Hint Penalty",
+            "default": 0
+          },
+          "skip_penalty": {
+            "type": "integer",
+            "title": "Skip Penalty",
             "default": 0
           },
           "guide_mode_enabled": {

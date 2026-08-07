@@ -3,6 +3,8 @@ import {
   listCheckpointHints,
   listTeamHints,
   revealCheckpointHint,
+  skipCheckpoint,
+  type CheckpointSkipped,
   type HintReveal,
   type TeamHintSummary,
   type TeamHints,
@@ -50,6 +52,17 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
     },
   });
 
+  const giveUp = useMutation<CheckpointSkipped>({
+    mutationFn: async () => (await skipCheckpoint({ path: { checkpoint_id: checkpointId } })).data,
+    onSuccess: () => {
+      // Giving up forfeits the post and moves the team on, so the route, the
+      // team's score and this post's hint state are all stale at once.
+      void qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      void qc.invalidateQueries({ queryKey: ["team"] });
+      void qc.invalidateQueries({ queryKey });
+    },
+  });
+
   return {
     revealed: data?.revealed ?? [],
     remaining: data?.remaining ?? 0,
@@ -57,6 +70,7 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
     totalSpentInEvent: summary?.total_spent ?? 0,
     isLoading,
     reveal,
+    giveUp,
   };
 }
 

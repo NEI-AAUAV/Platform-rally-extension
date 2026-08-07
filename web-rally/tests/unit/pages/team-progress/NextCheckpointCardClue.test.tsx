@@ -12,6 +12,7 @@ const {
   mockUseArrivalSync,
   mockUseCheckpointHints,
   mockReveal,
+  mockGiveUp,
 } = vi.hoisted(() => ({
   mockUseCheckpointMedia: vi.fn(),
   mockUseRallySettings: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mockUseArrivalSync: vi.fn(),
   mockUseCheckpointHints: vi.fn(),
   mockReveal: vi.fn(),
+  mockGiveUp: vi.fn(),
 }));
 
 vi.mock("@/offline/arrivalQueue", () => ({ enqueueArrival: vi.fn() }));
@@ -66,6 +68,7 @@ const hintState = (overrides: Record<string, unknown> = {}) => ({
   totalSpentInEvent: 0,
   isLoading: false,
   reveal: { mutate: mockReveal, isPending: false, isError: false, error: null },
+  giveUp: { mutate: mockGiveUp, isPending: false, isError: false, error: null },
   ...overrides,
 });
 
@@ -187,6 +190,42 @@ describe("NextCheckpointCard — clue and hints", () => {
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
 
     expect(screen.getByText(/No hints left/)).toBeInTheDocument();
+  });
+
+  it("offers a way out once the hint ladder is spent", async () => {
+    // Without this a team that cannot solve the riddle sits here for the rest
+    // of the event.
+    mockUseRallySettings.mockReturnValue({
+      settings: { gps_checkin_enabled: true, skip_penalty: -25 },
+    });
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({ revealed: [{ indication_id: 7, hint: "Junto ao cais", cost: -10 }] }),
+    );
+    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+    await userEvent.click(screen.getByRole("button", { name: /Desistir deste posto \(-25 pts\)/ }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("25 pontos"));
+    expect(mockGiveUp).toHaveBeenCalledTimes(1);
+    confirmSpy.mockRestore();
+  });
+
+  it("does not offer giving up while hints remain", () => {
+    mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 2, nextCost: -10 }));
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    // Offered as a last resort, not a shortcut past the puzzle.
+    expect(screen.queryByRole("button", { name: /Desistir/ })).not.toBeInTheDocument();
+  });
+
+  it("does not offer giving up on a post already revealed", () => {
+    const revealed = { ...redacted, is_redacted: false } as DetailedCheckPoint;
+
+    render(<NextCheckpointCard checkpoint={revealed} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.queryByRole("button", { name: /Desistir/ })).not.toBeInTheDocument();
   });
 
   it("hides the hint block when the checkpoint has no ladder", () => {

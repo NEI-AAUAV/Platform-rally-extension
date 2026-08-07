@@ -77,6 +77,12 @@ const rallySettingsSchema = z.object({
     .min(-100, "Penalty too severe")
     .max(0, "Penalty must be negative or zero"),
 
+  // Cost of giving up on a checkpoint (negative; 0 = free)
+  skip_penalty: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -146,6 +152,7 @@ function buildFormValues(
     checkpoint_order_matters: settings.checkpoint_order_matters,
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
     hint_penalty: settings.hint_penalty ?? 0,
+    skip_penalty: settings.skip_penalty ?? 0,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
@@ -218,6 +225,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       checkpoint_order_matters: true,
       gps_checkin_enabled: false,
       hint_penalty: 0,
+      skip_penalty: 0,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,
