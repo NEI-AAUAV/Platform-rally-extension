@@ -144,10 +144,23 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
     );
   };
 
+  // The server flags a checkpoint the team has not reached yet: its name is a
+  // placeholder and its coordinates were stripped. Without a clue there is
+  // then nothing in the app to go on, so say so rather than showing a bare
+  // "Posto 3" and no instruction at all.
+  const isRedacted = checkpoint.is_redacted === true;
+
   // Don't offer a button the server will reject: GPS check-in needs the event
-  // setting on *and* a post with coordinates and a real geofence radius.
+  // setting on *and* a real geofence radius. Coordinates are deliberately NOT
+  // required when the post is redacted — that is exactly the peddy-paper case,
+  // where the server withholds them *because* finding the place is the game.
+  // Requiring them here hid the check-in button for the entire mode. The
+  // distance check happens server-side either way; the client never needed the
+  // coordinates to ask.
   const canCheckin =
-    settings?.gps_checkin_enabled === true && hasCoords && (checkpoint.arrival_radius_m ?? 0) > 0;
+    settings?.gps_checkin_enabled === true &&
+    (hasCoords || isRedacted) &&
+    (checkpoint.arrival_radius_m ?? 0) > 0;
 
   // Hints are the peddy-paper safety valve: help toward the riddle, paid for
   // in points. A checkpoint with no guide indications has no ladder and the
@@ -159,12 +172,6 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   const confirmHint = () =>
     hints.nextCost === 0 ||
     globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
-
-  // The server flags a checkpoint the team has not reached yet: its name is a
-  // placeholder and its coordinates were stripped. Without a clue there is
-  // then nothing in the app to go on, so say so rather than showing a bare
-  // "Posto 3" and no instruction at all.
-  const isRedacted = checkpoint.is_redacted === true;
 
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   // The server mirrors the clue into `description` on a redacted checkpoint so

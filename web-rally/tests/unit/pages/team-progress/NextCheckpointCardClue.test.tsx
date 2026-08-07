@@ -136,6 +136,23 @@ describe("NextCheckpointCard — clue and hints", () => {
     expect(screen.queryByText(/aguarda as indicações do guia/i)).not.toBeInTheDocument();
   });
 
+  it("offers GPS check-in even though the coordinates were redacted", () => {
+    // The whole mode withholds coordinates on purpose. Requiring them before
+    // showing the button hid check-in for every peddy paper, making the loop
+    // unplayable; the server does the distance check regardless.
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.getByRole("button", { name: "Check-in GPS" })).toBeVisible();
+  });
+
+  it("still hides check-in when the post has no geofence radius", () => {
+    const noRadius = { ...redacted, arrival_radius_m: 0 } as DetailedCheckPoint;
+
+    render(<NextCheckpointCard checkpoint={noRadius} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.queryByRole("button", { name: "Check-in GPS" })).not.toBeInTheDocument();
+  });
+
   it("hides the hint block when the checkpoint has no ladder", () => {
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
 
