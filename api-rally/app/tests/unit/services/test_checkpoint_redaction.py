@@ -78,6 +78,28 @@ class TestRedactUnreached:
         assert result.clue is None
         assert result.description is None
 
+    def test_arriving_reveals_a_post_that_is_not_completed_yet(self) -> None:
+        # A post with an activity stays "current" until staff scores it. The
+        # team is standing in front of it — withholding the name and photos
+        # then makes arriving unrewarding, which is the whole game.
+        checkpoint = _checkpoint(order=3)
+
+        result = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, has_arrived=True
+        )
+
+        assert result == checkpoint
+        assert result.is_redacted is False
+
+    def test_not_arriving_keeps_the_current_post_redacted(self) -> None:
+        checkpoint = _checkpoint(order=3)
+
+        result = CheckpointService._redact_unreached(
+            checkpoint, current_order=3, has_arrived=False
+        )
+
+        assert result.is_redacted is True
+
     def test_future_checkpoints_are_redacted_too(self) -> None:
         # given a post beyond the one the team is hunting
         checkpoint = _checkpoint(order=5)
@@ -106,6 +128,23 @@ class TestRedactList:
         # then
         assert [cp.name for cp in result] == ["Ponte de Ferro", "Ponte de Ferro"]
         assert all(cp.latitude is not None for cp in result)
+
+    def test_an_arrived_post_is_revealed_within_the_list(self) -> None:
+        # given a team that checked in at post 2 but is still awaiting its
+        # activity to be scored, so post 2 is still "current"
+        checkpoints = [_checkpoint(order=1), _checkpoint(order=2), _checkpoint(order=3)]
+
+        result = self._service()._redact_list(
+            checkpoints,
+            current_order=2,
+            reveal_next=False,
+            arrived_ids=frozenset({2}),
+        )
+
+        assert [cp.name for cp in result] == ["Ponte de Ferro", "Ponte de Ferro", "Posto 3"]
+        assert result[1].latitude is not None
+        # The post ahead is still a secret.
+        assert result[2].latitude is None
 
     def test_reveal_off_splits_the_list_at_the_team_position(self) -> None:
         # given a peddy paper with one post completed

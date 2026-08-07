@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.team import Team
@@ -37,22 +38,42 @@ class CheckpointService:
         adapter = TypeAdapter(list[DetailedCheckPoint])
         return adapter.validate_python(items)
 
+    async def _arrived_checkpoint_ids(self, team_id: int) -> set[int]:
+        """Checkpoints this team has physically checked into.
+
+        Completion and arrival are different things: a post with an activity
+        only *completes* once staff scores it, but the team is standing at it
+        the moment it checks in. Reveal follows arrival — see
+        ``_redact_unreached``.
+        """
+        stmt = select(CheckpointArrival.checkpoint_id).where(CheckpointArrival.team_id == team_id)
+        return set((await self._db.scalars(stmt)).all())
+
     @staticmethod
     def _redact_unreached(
-        checkpoint: DetailedCheckPoint, *, current_order: int
+        checkpoint: DetailedCheckPoint, *, current_order: int, has_arrived: bool = False
     ) -> DetailedCheckPoint:
         """Strip the answer-bearing fields from a checkpoint the team hasn't
         reached yet: name, description, and coordinates. In a peddy paper,
         the checkpoint's location *is* the puzzle answer, so this must not
-        leak through any team-facing list. Completed checkpoints (order <
-        current_order) pass through untouched.
+        leak through any team-facing list.
+
+        Two things earn the reveal, and either is enough:
+
+        * the post is **completed** (order < current_order) — which also covers
+          a staff evaluation recorded without any GPS check-in, since that
+          advances the team past the post;
+        * the team has **arrived** (a CheckpointArrival row). A post with an
+          activity stays "current" until staff scores it, and withholding its
+          name and photos from a team standing in front of it made arriving
+          unrewarding — finding the place is the whole game.
 
         The ``clue`` survives redaction — it is the riddle *pointing at* the
         location, not the location itself, and is the only thing a team is
         meant to have before arriving. It is also mirrored into ``description``
         so clients that only render the description still show something.
         """
-        if checkpoint.order < current_order:
+        if checkpoint.order < current_order or has_arrived:
             return checkpoint
         return checkpoint.model_copy(
             update={
@@ -65,12 +86,22 @@ class CheckpointService:
         )
 
     def _redact_list(
-        self, checkpoints: Sequence[Any], *, current_order: int, reveal_next: bool
+        self,
+        checkpoints: Sequence[Any],
+        *,
+        current_order: int,
+        reveal_next: bool,
+        arrived_ids: frozenset[int] = frozenset(),
     ) -> list[DetailedCheckPoint]:
         validated = self._validate_list(checkpoints)
         if reveal_next:
             return validated
-        return [self._redact_unreached(cp, current_order=current_order) for cp in validated]
+        return [
+            self._redact_unreached(
+                cp, current_order=current_order, has_arrived=cp.id in arrived_ids
+            )
+            for cp in validated
+        ]
 
     async def all_checkpoints(self) -> list[DetailedCheckPoint]:
         """Every checkpoint in the current event, ordered — the admin/staff view."""
@@ -89,7 +120,12 @@ class CheckpointService:
         validated = DetailedCheckPoint.model_validate(checkpoint)
         if getattr(settings, "reveal_next_checkpoint", True):
             return validated
-        return self._redact_unreached(validated, current_order=validated.order)
+        arrived_ids = await self._arrived_checkpoint_ids(team_id)
+        return self._redact_unreached(
+            validated,
+            current_order=validated.order,
+            has_arrived=validated.id in arrived_ids,
+        )
 
     async def visible_checkpoints_for_team(
         self, team_id: int, settings: Any
@@ -112,10 +148,18 @@ class CheckpointService:
             self._db, self._team_crud
         ).compute_checkpoint_progress(team)
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
+        # Skipped entirely when nothing is redacted anyway, so a rally does not
+        # pay for a query it cannot use.
+        arrived_ids = (
+            frozenset() if reveal_next else frozenset(await self._arrived_checkpoint_ids(team_id))
+        )
 
         if settings.show_route_mode == "complete":
             return self._redact_list(
-                all_checkpoints, current_order=current_order, reveal_next=reveal_next
+                all_checkpoints,
+                current_order=current_order,
+                reveal_next=reveal_next,
+                arrived_ids=arrived_ids,
             )
 
         if getattr(settings, "checkpoint_order_matters", True):
@@ -126,7 +170,12 @@ class CheckpointService:
             # checkpoint is visible — completed ones pass through, the rest
             # stay redacted until reached.
             visible = list(all_checkpoints)
-        return self._redact_list(visible, current_order=current_order, reveal_next=reveal_next)
+        return self._redact_list(
+            visible,
+            current_order=current_order,
+            reveal_next=reveal_next,
+            arrived_ids=arrived_ids,
+        )
 
     async def visible_checkpoints_for_public(
         self, settings: Any
@@ -154,6 +203,10 @@ class CheckpointService:
         """Whether a team's own token may see a checkpoint's media (photos,
         fun facts). Media is a stronger reveal than the redacted list entry —
         it must never be visible for a checkpoint the team hasn't reached.
+
+        Reached, not completed: arriving is what earns the photos of the place,
+        the same rule ``_redact_unreached`` applies. A post with an activity
+        stays uncompleted until staff scores it, and the team is already there.
         """
         team = await self._team_crud.get(db=self._db, id=team_id)
         if not team:
@@ -161,6 +214,9 @@ class CheckpointService:
         checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if checkpoint is None:
             return False
+
+        if checkpoint_id in await self._arrived_checkpoint_ids(team_id):
+            return True
 
         _, current_order, _ = await TeamService(
             self._db, self._team_crud
