@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.crud import crud_activity
-from app.schemas.hint import HintReveal, TeamHints
+from app.schemas.hint import HintReveal, TeamHints, TeamHintSummary
 from app.schemas.team_auth import TeamTokenData
 from app.services.audit_service import AuditActor, record_audit
 from app.services.deps import get_hint_service
@@ -41,6 +41,16 @@ class CheckpointHintController:
             },
         )
         self.router.add_api_route(
+            "/team-auth/hints",
+            self.list_team_hints,
+            methods=["GET"],
+            name="list_team_hints",
+            # Under /team-auth, not /team: the team router owns /team/{id} and
+            # would swallow /team/hints as an id. Team-token routes live here
+            # anyway (see team_auth.py's contest endpoint).
+            responses={401: {"description": "Authentication required (Team Token)"}},
+        )
+        self.router.add_api_route(
             "/checkpoint/{checkpoint_id}/hint",
             self.reveal_hint,
             methods=["POST"],
@@ -60,6 +70,19 @@ class CheckpointHintController:
     ) -> TeamHints:
         """Hints this team already paid for at a checkpoint, plus how many are left."""
         return await service.list_hints(team_id=team.team_id, checkpoint_id=checkpoint_id)
+
+    async def list_team_hints(
+        self,
+        team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+        service: Annotated[HintService, Depends(get_hint_service)],
+    ) -> TeamHintSummary:
+        """Every hint this team has bought across the event, and what it cost.
+
+        The per-checkpoint listing only covers one post; a team that spent
+        points at several has no other way to add them up, since the awards
+        carrying the charges are admin-only.
+        """
+        return await service.summary_for_team(team_id=team.team_id)
 
     async def reveal_hint(
         self,

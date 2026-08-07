@@ -25,6 +25,18 @@ class TeamHints(BaseModel):
     next_cost: int
 
 
+class TeamHintSummary(BaseModel):
+    """Every hint this team has bought, across the whole event.
+
+    The per-checkpoint listing only covers the post the team is looking at, so
+    without this a team that spent points at three posts has no way to add
+    them up — the DynamicAward rows carrying the charges are admin-only.
+    """
+
+    revealed: list[RevealedHint]
+    total_spent: int
+
+
 class HintReveal(BaseModel):
     checkpoint_id: int
     indication_id: int

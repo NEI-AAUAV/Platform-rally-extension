@@ -19,7 +19,7 @@ from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
-from app.schemas.hint import HintReveal, RevealedHint, TeamHints
+from app.schemas.hint import HintReveal, RevealedHint, TeamHints, TeamHintSummary
 from app.services.checkin_service import require_same_event
 from app.services.scoring_service import ScoringService
 from app.services.team_service import is_checkpoint_reachable
@@ -54,6 +54,30 @@ class HintService:
             .order_by(CheckpointHintReveal.revealed_at, CheckpointHintReveal.id)
         )
         return list((await self._db.scalars(stmt)).all())
+
+    async def summary_for_team(self, *, team_id: int) -> TeamHintSummary:
+        """Every hint this team has bought so far, newest last, plus the total
+        it cost them."""
+        stmt = (
+            select(CheckpointHintReveal, CheckpointGuideIndication)
+            .join(
+                CheckpointGuideIndication,
+                CheckpointGuideIndication.id == CheckpointHintReveal.indication_id,
+            )
+            .where(CheckpointHintReveal.team_id == team_id)
+            .order_by(CheckpointHintReveal.revealed_at, CheckpointHintReveal.id)
+        )
+        rows = (await self._db.execute(stmt)).all()
+        revealed = [
+            RevealedHint(
+                indication_id=reveal.indication_id,
+                hint=indication.hint,
+                cost=reveal.cost,
+                revealed_at=reveal.revealed_at,
+            )
+            for reveal, indication in rows
+        ]
+        return TeamHintSummary(revealed=revealed, total_spent=sum(item.cost for item in revealed))
 
     async def _require_current_checkpoint(self, team_id: int, checkpoint_id: int) -> None:
         """A team may only buy hints for the post it is currently hunting.

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listCheckpointHints,
+  listTeamHints,
   revealCheckpointHint,
   type HintReveal,
+  type TeamHintSummary,
   type TeamHints,
 } from "@/client";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -26,11 +28,22 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
     staleTime: 30_000,
   });
 
+  // What the team has spent on hints across the whole event. The
+  // per-checkpoint listing above only covers this post, and the awards that
+  // carry the charges are admin-only, so this is the team's only running total.
+  const { data: summary } = useQuery<TeamHintSummary>({
+    queryKey: ["team-hints"],
+    queryFn: async () => (await listTeamHints()).data,
+    enabled: enabled && isTeamAuthenticated,
+    staleTime: 30_000,
+  });
+
   const reveal = useMutation<HintReveal>({
     mutationFn: async () =>
       (await revealCheckpointHint({ path: { checkpoint_id: checkpointId } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey });
+      void qc.invalidateQueries({ queryKey: ["team-hints"] });
       // Buying a hint costs points, so the team's own score is now stale.
       void qc.invalidateQueries({ queryKey: ["team"] });
     },
@@ -40,6 +53,7 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
     revealed: data?.revealed ?? [],
     remaining: data?.remaining ?? 0,
     nextCost: data?.next_cost ?? 0,
+    totalSpentInEvent: summary?.total_spent ?? 0,
     isLoading,
     reveal,
   };

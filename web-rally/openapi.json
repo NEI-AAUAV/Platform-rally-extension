@@ -4753,6 +4753,36 @@
         }
       }
     },
+    "/api/rally/v1/team-auth/hints": {
+      "get": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "List Team Hints",
+        "description": "Every hint this team has bought across the event, and what it cost.\n\nThe per-checkpoint listing only covers one post; a team that spent\npoints at several has no other way to add them up, since the awards\ncarrying the charges are admin-only.",
+        "operationId": "list_team_hints",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamHintSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/checkpoint/{checkpoint_id}/hint": {
       "post": {
         "tags": [
@@ -10623,6 +10653,28 @@
           "name"
         ],
         "title": "TeamCreate"
+      },
+      "TeamHintSummary": {
+        "properties": {
+          "revealed": {
+            "items": {
+              "$ref": "#/components/schemas/RevealedHint"
+            },
+            "type": "array",
+            "title": "Revealed"
+          },
+          "total_spent": {
+            "type": "integer",
+            "title": "Total Spent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revealed",
+          "total_spent"
+        ],
+        "title": "TeamHintSummary",
+        "description": "Every hint this team has bought, across the whole event.\n\nThe per-checkpoint listing only covers the post the team is looking at, so\nwithout this a team that spent points at three posts has no way to add\nthem up \u2014 the DynamicAward rows carrying the charges are admin-only."
       },
       "TeamHints": {
         "properties": {

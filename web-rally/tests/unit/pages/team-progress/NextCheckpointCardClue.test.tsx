@@ -63,6 +63,7 @@ const hintState = (overrides: Record<string, unknown> = {}) => ({
   revealed: [],
   remaining: 0,
   nextCost: 0,
+  totalSpentInEvent: 0,
   isLoading: false,
   reveal: { mutate: mockReveal, isPending: false, isError: false, error: null },
   ...overrides,
@@ -153,6 +154,41 @@ describe("NextCheckpointCard — clue and hints", () => {
     expect(screen.queryByRole("button", { name: "Check-in GPS" })).not.toBeInTheDocument();
   });
 
+  it("explains that an offline hint request is not queued", () => {
+    // A queued arrival is a fact about where the team stood; a queued hint
+    // purchase would spend points nobody was there to read.
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({
+        remaining: 1,
+        nextCost: -10,
+        reveal: { mutate: mockReveal, isPending: false, isError: true, error: {} },
+      }),
+    );
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/Sem rede.*não fica guardada/s)).toBeInTheDocument();
+  });
+
+  it("shows the server's message when the request did reach it", () => {
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({
+        remaining: 1,
+        nextCost: -10,
+        reveal: {
+          mutate: mockReveal,
+          isPending: false,
+          isError: true,
+          error: { body: { detail: "No hints left for this checkpoint" } },
+        },
+      }),
+    );
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/No hints left/)).toBeInTheDocument();
+  });
+
   it("hides the hint block when the checkpoint has no ladder", () => {
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
 
@@ -190,6 +226,7 @@ describe("NextCheckpointCard — clue and hints", () => {
         ],
         remaining: 0,
         nextCost: -10,
+        totalSpentInEvent: -20,
       }),
     );
 
@@ -198,7 +235,24 @@ describe("NextCheckpointCard — clue and hints", () => {
     // The deduction lives in admin-only award rows, so this is the team's
     // only explanation for the points it lost.
     expect(screen.getAllByText("-10 pts")).toHaveLength(2);
-    expect(screen.getByText(/Total gasto em pistas neste posto: -20 pts/)).toBeInTheDocument();
+    expect(screen.getByText(/Neste posto: -20 pts/)).toBeInTheDocument();
+  });
+
+  it("adds the whole route's spend when it differs from this post's", () => {
+    // A team that bought hints at earlier posts needs the running total —
+    // nothing else in its app shows where the points went.
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({
+        revealed: [{ indication_id: 7, hint: "Junto ao cais", cost: -10 }],
+        remaining: 0,
+        nextCost: -10,
+        totalSpentInEvent: -35,
+      }),
+    );
+
+    render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/em todo o percurso: -35 pts/)).toBeInTheDocument();
   });
 
   it("omits the cost when hints are free", () => {

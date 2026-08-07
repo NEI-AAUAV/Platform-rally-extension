@@ -223,6 +223,45 @@ async def test_reveal_is_recorded_in_the_audit_log(pg_session, pg_client):
     assert "cost=-10" in (entries[0].note or "")
 
 
+async def test_team_summary_totals_hints_across_checkpoints(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    second = await _make_checkpoint(pg_session, order=2, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, first.id, count=1)
+    await _make_indications(pg_session, second.id, count=1)
+    await _set_settings(pg_session, hint_penalty=-10)
+
+    with as_team(team.id, "TeamA"):
+        pg_client.post(HINT_URL.format(id=first.id))
+        # Advance to post 2 so its ladder becomes buyable.
+        pg_client.post(
+            f"/api/rally/v1/checkpoint/{first.id}/arrive",
+            json={"latitude": 41.0, "longitude": -8.0},
+        )
+        pg_client.post(HINT_URL.format(id=second.id))
+        summary = pg_client.get("/api/rally/v1/team-auth/hints")
+
+    assert summary.status_code == 200, summary.text
+    data = summary.json()
+    # The per-checkpoint listing only covers one post; this is the only place
+    # a team can see what the whole event's hints cost it.
+    assert len(data["revealed"]) == 2
+    assert data["total_spent"] == -20
+
+
+async def test_team_summary_is_empty_before_any_hint(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, checkpoint.id, count=1)
+
+    with as_team(team.id, "TeamA"):
+        summary = pg_client.get("/api/rally/v1/team-auth/hints")
+
+    assert summary.json() == {"revealed": [], "total_spent": 0}
+
+
 async def test_hints_require_a_team_token(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)

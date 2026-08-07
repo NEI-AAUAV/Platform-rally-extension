@@ -306,7 +306,9 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
           ))}
           {totalSpent !== 0 && (
             <p className="text-xs text-muted-foreground">
-              Total gasto em pistas neste posto: {totalSpent} pts
+              Neste posto: {totalSpent} pts
+              {hints.totalSpentInEvent !== totalSpent &&
+                ` · em todo o percurso: ${hints.totalSpentInEvent} pts`}
             </p>
           )}
           {hints.remaining > 0 && (
@@ -326,7 +328,15 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
           )}
           {hints.reveal.isError && (
             <p className="text-center text-xs text-red-500">
-              {getErrorMessage(hints.reveal.error, "Não foi possível revelar a pista.")}
+              {isOfflineFailure(hints.reveal.error)
+                ? // Deliberately not queued like an arrival. A check-in is a
+                  // fact about where the team stood, safe to replay; buying a
+                  // hint spends points, and replaying it later would charge
+                  // them for a hint nobody was there to read — possibly at a
+                  // post they have since left. Say so instead of failing
+                  // silently or queueing.
+                  "Sem rede. Pede a pista quando tiveres ligação — não fica guardada para não gastares pontos sem veres o resultado."
+                : getErrorMessage(hints.reveal.error, "Não foi possível revelar a pista.")}
             </p>
           )}
         </div>
