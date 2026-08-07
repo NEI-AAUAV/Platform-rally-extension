@@ -31,7 +31,11 @@ async def _make_checkpoint(pg_session, order, event_id=None):
     obj = await crud_checkpoint.create(
         pg_session,
         obj_in=CheckPointCreate(
-            name=f"Tasca {order}", order=order, latitude=41.0, longitude=-8.0, clue=f"Enigma {order}"
+            name=f"Tasca {order}",
+            order=order,
+            latitude=41.0,
+            longitude=-8.0,
+            clue=f"Enigma {order}",
         ),
         commit=True,
     )
@@ -84,9 +88,7 @@ async def test_giving_up_gets_past_a_post_nobody_will_judge(pg_session, pg_clien
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     pg_session.add(
-        Activity(
-            checkpoint_id=first.id, is_active=True, name="Prova", activity_type="generic"
-        )
+        Activity(checkpoint_id=first.id, is_active=True, name="Prova", activity_type="generic")
     )
     await pg_session.commit()
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
