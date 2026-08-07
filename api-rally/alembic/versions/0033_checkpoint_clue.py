@@ -17,8 +17,8 @@ Create Date: 2026-08-06
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from alembic import op
 
+from alembic.migration_utils import add_missing_columns, drop_present_columns
 from app.core.config import settings
 
 # revision identifiers, used by Alembic.
@@ -35,20 +35,9 @@ COLUMNS = {
 }
 
 
-def _existing_columns() -> set[str]:
-    bind = op.get_bind()
-    return {c["name"] for c in sa.inspect(bind).get_columns(TABLE, schema=SCHEMA)}
-
-
 def upgrade() -> None:
-    existing = _existing_columns()
-    for name, column in COLUMNS.items():
-        if name not in existing:
-            op.add_column(TABLE, column, schema=SCHEMA)
+    add_missing_columns(TABLE, COLUMNS, SCHEMA)
 
 
 def downgrade() -> None:
-    existing = _existing_columns()
-    for name in COLUMNS:
-        if name in existing:
-            op.drop_column(TABLE, name, schema=SCHEMA)
+    drop_present_columns(TABLE, COLUMNS, SCHEMA)

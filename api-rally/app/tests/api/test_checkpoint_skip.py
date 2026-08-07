@@ -9,15 +9,11 @@ whose activity nobody will ever judge.
 from sqlalchemy import select
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-from app.crud.crud_rally_settings import rally_settings
-from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, EventType
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.checkpoint import CheckPointCreate
-from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
-from app.schemas.team import TeamCreate
-from app.tests.conftest import as_team, make_event
+from app.tests.conftest import as_team, make_event, make_team, set_rally_settings
 
 SKIP_URL = "/api/rally/v1/checkpoint/{id}/skip"
 ME_URL = "/api/rally/v1/checkpoint/me"
@@ -47,31 +43,13 @@ async def _make_checkpoint(pg_session, order, event_id=None):
     return obj
 
 
-async def _make_team(pg_session, event_id=None):
-    obj = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"), commit=True)
-    if event_id is not None:
-        obj.event_id = event_id
-        pg_session.add(obj)
-        await pg_session.commit()
-        await pg_session.refresh(obj)
-    return obj
-
-
-async def _set_settings(pg_session, **overrides):
-    settings = await rally_settings.get_or_create(pg_session)
-    data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
-    data.update(overrides)
-    return await rally_settings.update(
-        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
-    )
-
 
 async def test_giving_up_moves_the_team_to_the_next_post(pg_session, pg_client):
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
-    await _set_settings(pg_session, skip_penalty=-25)
+    team = await make_team(pg_session, event_id=event.id)
+    await set_rally_settings(pg_session, skip_penalty=-25)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(SKIP_URL.format(id=first.id))
@@ -92,7 +70,7 @@ async def test_giving_up_gets_past_a_post_nobody_will_judge(pg_session, pg_clien
     )
     await pg_session.commit()
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(SKIP_URL.format(id=first.id))
@@ -107,8 +85,8 @@ async def test_the_forfeit_is_charged_once(pg_session, pg_client):
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
-    await _set_settings(pg_session, skip_penalty=-25)
+    team = await make_team(pg_session, event_id=event.id)
+    await set_rally_settings(pg_session, skip_penalty=-25)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(SKIP_URL.format(id=first.id))
@@ -125,8 +103,8 @@ async def test_a_free_forfeit_creates_no_award(pg_session, pg_client):
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
-    await _set_settings(pg_session, skip_penalty=0)
+    team = await make_team(pg_session, event_id=event.id)
+    await set_rally_settings(pg_session, skip_penalty=0)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(SKIP_URL.format(id=first.id))
@@ -142,7 +120,7 @@ async def test_cannot_give_up_on_a_post_the_team_has_not_reached(pg_session, pg_
     event = await _make_event(pg_session)
     await _make_checkpoint(pg_session, order=1, event_id=event.id)
     later = await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(SKIP_URL.format(id=later.id))
@@ -155,7 +133,7 @@ async def test_cannot_give_up_on_a_post_the_team_has_not_reached(pg_session, pg_
 async def test_giving_up_on_the_last_post_ends_the_route(pg_session, pg_client):
     event = await _make_event(pg_session)
     only = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(SKIP_URL.format(id=only.id))
@@ -168,9 +146,9 @@ async def test_the_switch_turns_giving_up_off_server_side(pg_session, pg_client)
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     # A cost of 0 means "free"; this is the separate "off" knob.
-    await _set_settings(pg_session, skip_enabled=False, skip_penalty=-25)
+    await set_rally_settings(pg_session, skip_enabled=False, skip_penalty=-25)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(SKIP_URL.format(id=first.id))

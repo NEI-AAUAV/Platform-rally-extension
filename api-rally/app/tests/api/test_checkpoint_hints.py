@@ -9,25 +9,19 @@ never leaves the server through a team route.
 from sqlalchemy import select
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-from app.crud.crud_team import team as crud_team
-from app.models.activity import EventType, RallyEvent
+from app.models.activity import EventType
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.checkpoint import CheckPointCreate
-from app.schemas.team import TeamCreate
-from app.tests.conftest import as_team
+from app.tests.conftest import as_team, make_event, make_team, set_rally_settings
 
 HINTS_URL = "/api/rally/v1/checkpoint/{id}/hints"
 HINT_URL = "/api/rally/v1/checkpoint/{id}/hint"
 
 
-async def _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value):
-    event = RallyEvent(name="Peddy Paper", is_current=True, event_type=event_type)
-    pg_session.add(event)
-    await pg_session.commit()
-    await pg_session.refresh(event)
-    return event
+async def _make_event(pg_session):
+    return await make_event(pg_session, name="Peddy Paper", event_type=EventType.PEDDY_PAPER.value)
 
 
 async def _make_checkpoint(pg_session, order=1, event_id=None, clue=None):
@@ -38,16 +32,6 @@ async def _make_checkpoint(pg_session, order=1, event_id=None, clue=None):
         ),
         commit=True,
     )
-    if event_id is not None:
-        obj.event_id = event_id
-        pg_session.add(obj)
-        await pg_session.commit()
-        await pg_session.refresh(obj)
-    return obj
-
-
-async def _make_team(pg_session, name="TeamA", event_id=None):
-    obj = await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
     if event_id is not None:
         obj.event_id = event_id
         pg_session.add(obj)
@@ -74,24 +58,12 @@ async def _make_indications(pg_session, checkpoint_id, count=2):
     return created
 
 
-async def _set_settings(pg_session, **overrides):
-    from app.crud.crud_rally_settings import rally_settings
-    from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
-
-    current = await rally_settings.get_or_create(pg_session)
-    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
-    data.update(overrides)
-    return await rally_settings.update(
-        pg_session, id=current.id, obj_in=RallySettingsUpdate(**data), commit=True
-    )
-
-
 async def test_reveal_returns_hints_in_ladder_order(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=2)
-    await _set_settings(pg_session, hint_penalty=-10)
+    await set_rally_settings(pg_session, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         first = pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -107,7 +79,7 @@ async def test_reveal_returns_hints_in_ladder_order(pg_session, pg_client):
 async def test_reveal_never_leaks_question_or_expected_answer(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
 
     with as_team(team.id, "TeamA"):
@@ -123,7 +95,7 @@ async def test_reveal_never_leaks_question_or_expected_answer(pg_session, pg_cli
 async def test_running_out_of_hints_is_a_400(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
 
     with as_team(team.id, "TeamA"):
@@ -137,9 +109,9 @@ async def test_cannot_buy_hints_for_a_future_checkpoint(pg_session, pg_client):
     event = await _make_event(pg_session)
     await _make_checkpoint(pg_session, order=1, event_id=event.id)
     later = await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, later.id, count=1)
-    await _set_settings(pg_session, checkpoint_order_matters=True)
+    await set_rally_settings(pg_session, checkpoint_order_matters=True)
 
     # The team has reached nothing yet, so post 2 is not theirs to hint on —
     # otherwise they could drain the whole route's hints and pre-solve it.
@@ -154,9 +126,9 @@ async def test_cannot_buy_hints_for_a_future_checkpoint(pg_session, pg_client):
 async def test_penalty_is_charged_once_per_hint(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
-    await _set_settings(pg_session, hint_penalty=-10)
+    await set_rally_settings(pg_session, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -172,9 +144,9 @@ async def test_penalty_is_charged_once_per_hint(pg_session, pg_client):
 async def test_free_hints_create_no_award(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
-    await _set_settings(pg_session, hint_penalty=0)
+    await set_rally_settings(pg_session, hint_penalty=0)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -189,9 +161,9 @@ async def test_free_hints_create_no_award(pg_session, pg_client):
 async def test_listing_returns_only_what_the_team_paid_for(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=3)
-    await _set_settings(pg_session, hint_penalty=-5)
+    await set_rally_settings(pg_session, hint_penalty=-5)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -208,9 +180,9 @@ async def test_reveal_is_recorded_in_the_audit_log(pg_session, pg_client):
 
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
-    await _set_settings(pg_session, hint_penalty=-10)
+    await set_rally_settings(pg_session, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -227,10 +199,10 @@ async def test_team_summary_totals_hints_across_checkpoints(pg_session, pg_clien
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
     second = await _make_checkpoint(pg_session, order=2, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, first.id, count=1)
     await _make_indications(pg_session, second.id, count=1)
-    await _set_settings(pg_session, hint_penalty=-10)
+    await set_rally_settings(pg_session, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(HINT_URL.format(id=first.id))
@@ -253,7 +225,7 @@ async def test_team_summary_totals_hints_across_checkpoints(pg_session, pg_clien
 async def test_team_summary_is_empty_before_any_hint(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=1)
 
     with as_team(team.id, "TeamA"):
@@ -265,9 +237,9 @@ async def test_team_summary_is_empty_before_any_hint(pg_session, pg_client):
 async def test_the_switch_turns_hints_off_server_side(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=2)
-    await _set_settings(pg_session, hints_enabled=False, hint_penalty=-10)
+    await set_rally_settings(pg_session, hints_enabled=False, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         resp = pg_client.post(HINT_URL.format(id=checkpoint.id))
@@ -282,13 +254,13 @@ async def test_the_switch_turns_hints_off_server_side(pg_session, pg_client):
 async def test_hints_bought_before_the_switch_stay_readable(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-    team = await _make_team(pg_session, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
     await _make_indications(pg_session, checkpoint.id, count=2)
-    await _set_settings(pg_session, hint_penalty=-10)
+    await set_rally_settings(pg_session, hint_penalty=-10)
 
     with as_team(team.id, "TeamA"):
         pg_client.post(HINT_URL.format(id=checkpoint.id))
-        await _set_settings(pg_session, hints_enabled=False)
+        await set_rally_settings(pg_session, hints_enabled=False)
         listing = pg_client.get(HINTS_URL.format(id=checkpoint.id))
 
     # The team paid for this one; switching the mechanic off must not take it

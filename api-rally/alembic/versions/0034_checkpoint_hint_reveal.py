@@ -17,8 +17,14 @@ Create Date: 2026-08-06
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from alembic import op
 
+from alembic.migration_utils import (
+    backfill_peddy_paper_penalty,
+    column_exists,
+    create_penalty_ledger_table,
+    table_exists,
+)
+from alembic import op
 from app.core.config import settings
 
 # revision identifiers, used by Alembic.
@@ -33,75 +39,36 @@ SETTINGS_TABLE = "rally_settings"
 PENALTY_COLUMN = "hint_penalty"
 
 
-def _table_exists() -> bool:
-    bind = op.get_bind()
-    return TABLE in sa.inspect(bind).get_table_names(schema=SCHEMA)
-
-
-def _penalty_column_exists() -> bool:
-    bind = op.get_bind()
-    columns = sa.inspect(bind).get_columns(SETTINGS_TABLE, schema=SCHEMA)
-    return any(c["name"] == PENALTY_COLUMN for c in columns)
-
-
 def upgrade() -> None:
-    if not _table_exists():
-        op.create_table(
+    if not table_exists(TABLE, SCHEMA):
+        create_penalty_ledger_table(
             TABLE,
-            sa.Column("id", sa.Integer(), primary_key=True),
-            sa.Column(
-                "team_id",
-                sa.Integer(),
-                sa.ForeignKey(f"{SCHEMA}.teams.id", ondelete="CASCADE"),
-                nullable=False,
-                index=True,
-            ),
-            sa.Column(
-                "checkpoint_id",
-                sa.Integer(),
-                sa.ForeignKey(f"{SCHEMA}.checkpoints.id", ondelete="CASCADE"),
-                nullable=False,
-                index=True,
-            ),
-            sa.Column(
-                "indication_id",
-                sa.Integer(),
-                sa.ForeignKey(f"{SCHEMA}.checkpoint_guide_indication.id", ondelete="CASCADE"),
-                nullable=False,
-                index=True,
-            ),
-            sa.Column(
-                "revealed_at",
-                sa.DateTime(timezone=True),
-                server_default=sa.func.now(),
-                nullable=False,
-            ),
-            sa.Column("cost", sa.Integer(), nullable=False, server_default="0"),
-            sa.UniqueConstraint("team_id", "indication_id", name="uq_hint_reveal_team_indication"),
-            schema=SCHEMA,
+            SCHEMA,
+            extra_columns=[
+                sa.Column(
+                    "indication_id",
+                    sa.Integer(),
+                    sa.ForeignKey(f"{SCHEMA}.checkpoint_guide_indication.id", ondelete="CASCADE"),
+                    nullable=False,
+                    index=True,
+                ),
+            ],
+            unique=("team_id", "indication_id"),
+            unique_name="uq_hint_reveal_team_indication",
+            timestamp_column="revealed_at",
         )
 
-    if not _penalty_column_exists():
+    if not column_exists(SETTINGS_TABLE, PENALTY_COLUMN, SCHEMA):
         op.add_column(
             SETTINGS_TABLE,
             sa.Column(PENALTY_COLUMN, sa.Integer(), nullable=False, server_default="0"),
             schema=SCHEMA,
         )
-        op.execute(
-            sa.text(
-                f"""
-                UPDATE {SCHEMA}.{SETTINGS_TABLE} AS s
-                   SET {PENALTY_COLUMN} = -10
-                  FROM {SCHEMA}.rally_events AS e
-                 WHERE s.event_id = e.id
-                   AND e.event_type = 'peddy_paper'
-                """
-            )
-        )
+        backfill_peddy_paper_penalty(SCHEMA, SETTINGS_TABLE, PENALTY_COLUMN, -10)
 
 
 def downgrade() -> None:
-    if _penalty_column_exists():
+    if column_exists(SETTINGS_TABLE, PENALTY_COLUMN, SCHEMA):
         op.drop_column(SETTINGS_TABLE, PENALTY_COLUMN, schema=SCHEMA)
-    if _table_exists():
+    if table_exists(TABLE, SCHEMA):
         op.drop_table(TABLE, schema=SCHEMA)
