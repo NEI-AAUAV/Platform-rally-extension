@@ -259,9 +259,8 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
 
   let giveUpButtonText = "A desistir…";
   if (!hints.giveUp.isPending) {
-    giveUpButtonText = skipCost === 0
-      ? "Desistir deste posto"
-      : `Desistir deste posto (${skipCost} pts)`;
+    giveUpButtonText =
+      skipCost === 0 ? "Desistir deste posto" : `Desistir deste posto (${skipCost} pts)`;
   }
 
   return (
@@ -347,8 +346,8 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
               className="rally-press w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
             >
               {hints.reveal.isPending
-                 ? "A revelar…"
-                 : `Pedir pista${hintCostLabel} · faltam ${hints.remaining}`}
+                ? "A revelar…"
+                : `Pedir pista${hintCostLabel} · faltam ${hints.remaining}`}
             </button>
           )}
           {hints.reveal.isError && (
