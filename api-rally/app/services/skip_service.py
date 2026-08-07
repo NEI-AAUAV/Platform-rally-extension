@@ -24,6 +24,7 @@ from app.services.scoring_service import ScoringService
 from app.services.team_service import is_checkpoint_reachable
 
 ALREADY_SKIPPED = "This checkpoint was already given up on"
+SKIP_DISABLED = "Giving up on a checkpoint is not enabled for this event"
 NOT_CURRENT_CHECKPOINT = "You can only give up on the checkpoint you are heading to"
 
 
@@ -52,6 +53,8 @@ class SkipService:
         require_same_event(team.event_id, checkpoint.event_id)
 
         settings = await rally_settings.get_or_create(self._db)
+        if not getattr(settings, "skip_enabled", True):
+            raise RallyValidationError(SKIP_DISABLED)
         if not is_checkpoint_reachable(
             checkpoint_order=checkpoint.order,
             times_reached=len(team.times),

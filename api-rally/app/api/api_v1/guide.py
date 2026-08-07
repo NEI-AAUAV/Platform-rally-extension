@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_guide
-from app.core.exceptions import RallyForbiddenError
+from app.core.exceptions import RallyForbiddenError, RallyValidationError
+from app.crud.crud_rally_settings import rally_settings
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
@@ -202,6 +203,10 @@ class GuideController:
         is the fallback, and it is audited like every other progress write.
         """
         await self._require_checkpoint_access(guide_service, curr_user, auth, checkpoint_id)
+
+        settings = await rally_settings.get_or_create(db)
+        if not getattr(settings, "guide_manual_arrival_enabled", True):
+            raise RallyValidationError("Guide-recorded arrivals are not enabled for this event")
 
         created = await arrival_service.record_manual_arrival(
             team_id=body.team_id, checkpoint_id=checkpoint_id

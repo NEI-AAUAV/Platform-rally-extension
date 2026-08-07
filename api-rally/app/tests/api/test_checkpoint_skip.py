@@ -164,6 +164,22 @@ async def test_giving_up_on_the_last_post_ends_the_route(pg_session, pg_client):
     assert resp.json()["next_checkpoint_order"] is None
 
 
+async def test_the_switch_turns_giving_up_off_server_side(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    await _make_checkpoint(pg_session, order=2, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    # A cost of 0 means "free"; this is the separate "off" knob.
+    await _set_settings(pg_session, skip_enabled=False, skip_penalty=-25)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(SKIP_URL.format(id=first.id))
+
+    # Hiding the button would not be enough — the endpoint has to refuse.
+    assert resp.status_code == 400, resp.text
+    assert (await pg_session.scalars(select(CheckpointSkip))).all() == []
+
+
 async def test_skipping_requires_a_team_token(pg_session, pg_client):
     event = await _make_event(pg_session)
     first = await _make_checkpoint(pg_session, order=1, event_id=event.id)

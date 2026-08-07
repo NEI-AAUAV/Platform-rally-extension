@@ -149,6 +149,31 @@ async def test_arriving_unlocks_the_media_for_a_post_awaiting_evaluation(pg_sess
     assert after.status_code == 200
 
 
+async def test_the_switch_keeps_an_arrived_post_hidden(pg_session, pg_client):
+    await _make_event(pg_session)
+    await _enable_gps(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    await _make_activity(pg_session, checkpoint.id)
+    team = await _make_team(pg_session)
+
+    from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+
+    settings = await rally_settings.get_or_create(pg_session)
+    data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+    data["reveal_on_arrival"] = False
+    await rally_settings.update(
+        pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+    )
+
+    with as_team(team.id, "TeamA"):
+        _arrive(pg_client, checkpoint)
+        after = pg_client.get(CHECKPOINTS_URL).json()
+
+    # An event that wants the reveal to wait for the evaluation can have that.
+    first = next(cp for cp in after if cp["order"] == 1)
+    assert first["is_redacted"] is True
+
+
 async def test_arriving_does_not_reveal_the_next_post(pg_session, pg_client):
     await _make_event(pg_session)
     await _enable_gps(pg_session)

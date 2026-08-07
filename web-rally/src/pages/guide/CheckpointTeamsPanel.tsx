@@ -9,6 +9,7 @@ import {
   type ListingTeam,
 } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
+import useRallySettings from "@/hooks/useRallySettings";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type Props = Readonly<{
@@ -35,6 +36,8 @@ function arrivalTime(value: string): string {
  */
 export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChange }: Props) {
   const qc = useQueryClient();
+  const { settings } = useRallySettings();
+  const canMarkArrivals = settings?.guide_manual_arrival_enabled !== false;
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const teamsKey = ["guide-teams-at-checkpoint", checkpointId];
 
@@ -120,47 +123,57 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         </ul>
       )}
 
-      <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
-        <label className="sr-only" htmlFor={`arrival-team-${checkpointId}`}>
-          Equipa a marcar como chegada
-        </label>
-        <select
-          id={`arrival-team-${checkpointId}`}
-          value={selectedTeamId}
-          onChange={(event) => setSelectedTeamId(event.target.value)}
-          className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm"
-        >
-          <option value="">Marcar chegada de…</option>
-          {pending.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
-        </select>
-        <BloodyButton
-          type="button"
-          variant="neutral"
-          disabled={!selectedTeamId || markArrived.isPending}
-          onClick={() => markArrived.mutate(Number(selectedTeamId))}
-        >
-          {markArrived.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <UserCheck className="h-4 w-4" />
-          )}
-          <span className="ml-1.5">Marcar chegada</span>
-        </BloodyButton>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Usa isto quando o check-in por GPS falhar — sem bateria, sem rede, ou dentro de um edifício.
-        Ficas tu como prova de que a equipa esteve aqui.
-      </p>
-
-      {markArrived.isError && (
-        <p className="text-xs text-red-500">
-          {getErrorMessage(markArrived.error, "Não foi possível marcar a chegada.")}
+      {!canMarkArrivals && (
+        <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+          As chegadas marcadas por guias estão desligadas nas definições do evento.
         </p>
+      )}
+
+      {canMarkArrivals && (
+        <>
+          <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
+            <label className="sr-only" htmlFor={`arrival-team-${checkpointId}`}>
+              Equipa a marcar como chegada
+            </label>
+            <select
+              id={`arrival-team-${checkpointId}`}
+              value={selectedTeamId}
+              onChange={(event) => setSelectedTeamId(event.target.value)}
+              className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm"
+            >
+              <option value="">Marcar chegada de…</option>
+              {pending.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+            <BloodyButton
+              type="button"
+              variant="neutral"
+              disabled={!selectedTeamId || markArrived.isPending}
+              onClick={() => markArrived.mutate(Number(selectedTeamId))}
+            >
+              {markArrived.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4" />
+              )}
+              <span className="ml-1.5">Marcar chegada</span>
+            </BloodyButton>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Usa isto quando o check-in por GPS falhar — sem bateria, sem rede, ou dentro de um
+            edifício. Ficas tu como prova de que a equipa esteve aqui.
+          </p>
+
+          {markArrived.isError && (
+            <p className="text-xs text-red-500">
+              {getErrorMessage(markArrived.error, "Não foi possível marcar a chegada.")}
+            </p>
+          )}
+        </>
       )}
     </section>
   );

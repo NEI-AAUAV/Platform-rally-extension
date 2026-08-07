@@ -24,6 +24,7 @@ from app.services.checkin_service import require_same_event
 from app.services.scoring_service import ScoringService
 from app.services.team_service import is_checkpoint_reachable
 
+HINTS_DISABLED = "Hints are not enabled for this event"
 NO_HINTS_LEFT = "No hints left for this checkpoint"
 NOT_CURRENT_CHECKPOINT = "Hints are only available for the checkpoint you are heading to"
 
@@ -126,15 +127,21 @@ class HintService:
             if reveal.indication_id in by_id
         ]
         settings = await rally_settings.get_or_create(self._db)
+        # With the mechanic off, hints already bought stay readable — the team
+        # paid for them — but nothing is left to buy.
+        enabled = bool(getattr(settings, "hints_enabled", True))
         return TeamHints(
             checkpoint_id=checkpoint_id,
             revealed=revealed,
-            remaining=len(indications) - len(revealed),
+            remaining=(len(indications) - len(revealed)) if enabled else 0,
             next_cost=int(settings.hint_penalty or 0),
         )
 
     async def reveal_next(self, *, team_id: int, checkpoint_id: int) -> HintReveal:
         """Unlock the next hint in the ladder and charge the team for it."""
+        settings = await rally_settings.get_or_create(self._db)
+        if not getattr(settings, "hints_enabled", True):
+            raise RallyValidationError(HINTS_DISABLED)
         await self._require_current_checkpoint(team_id, checkpoint_id)
 
         indications = await self._indications(checkpoint_id)

@@ -114,6 +114,98 @@ export default function ScoringSettings({
 
         <div className="flex items-center space-x-2">
           <Controller
+            name="hints_enabled"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                id="hints_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="hints_enabled">Permitir pedir pistas</Label>
+            <p className="text-xs text-muted-foreground">
+              Desliga para tirar a escada de pistas às equipas. O custo acima fica guardado — 0
+              pontos torna as pistas gratuitas, isto remove-as por completo.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="skip_enabled"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                id="skip_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="skip_enabled">Permitir desistir de um posto</Label>
+            <p className="text-xs text-muted-foreground">
+              Desliga só se tiveres a certeza: sem esta saída, uma equipa que não resolva o enigma
+              fica presa nesse posto até ao fim do evento.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="reveal_on_arrival"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                id="reveal_on_arrival"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="reveal_on_arrival">Revelar o posto ao chegar</Label>
+            <p className="text-xs text-muted-foreground">
+              Ligado, chegar ao posto revela-o mesmo antes de o staff avaliar a prova. Desligado, só
+              é revelado depois da avaliação.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="guide_manual_arrival_enabled"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                id="guide_manual_arrival_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="guide_manual_arrival_enabled">Guias podem marcar chegadas</Label>
+            <p className="text-xs text-muted-foreground">
+              A alternativa ao check-in por GPS quando este falha — sem bateria, sem rede, ou dentro
+              de um edifício.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
             name="checkpoint_order_matters"
             control={control}
             defaultValue={true}

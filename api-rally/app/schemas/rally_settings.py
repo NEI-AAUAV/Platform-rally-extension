@@ -151,6 +151,13 @@ class RallySettingsBase(BaseModel):
     # Points charged for giving up on a post (negative; 0 disables the cost).
     skip_penalty: int = 0
 
+    # Feature switches, independent of the costs above: 0 points means free,
+    # not off.
+    hints_enabled: bool = True
+    skip_enabled: bool = True
+    guide_manual_arrival_enabled: bool = True
+    reveal_on_arrival: bool = True
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

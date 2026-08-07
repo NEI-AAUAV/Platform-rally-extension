@@ -262,6 +262,41 @@ async def test_team_summary_is_empty_before_any_hint(pg_session, pg_client):
     assert summary.json() == {"revealed": [], "total_spent": 0}
 
 
+async def test_the_switch_turns_hints_off_server_side(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, checkpoint.id, count=2)
+    await _set_settings(pg_session, hints_enabled=False, hint_penalty=-10)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(HINT_URL.format(id=checkpoint.id))
+        listing = pg_client.get(HINTS_URL.format(id=checkpoint.id))
+
+    assert resp.status_code == 400, resp.text
+    # Nothing left to buy, and nothing was bought.
+    assert listing.json()["remaining"] == 0
+    assert listing.json()["revealed"] == []
+
+
+async def test_hints_bought_before_the_switch_stay_readable(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, checkpoint.id, count=2)
+    await _set_settings(pg_session, hint_penalty=-10)
+
+    with as_team(team.id, "TeamA"):
+        pg_client.post(HINT_URL.format(id=checkpoint.id))
+        await _set_settings(pg_session, hints_enabled=False)
+        listing = pg_client.get(HINTS_URL.format(id=checkpoint.id))
+
+    # The team paid for this one; switching the mechanic off must not take it
+    # back, only stop selling more.
+    assert [item["hint"] for item in listing.json()["revealed"]] == ["Pista 1"]
+    assert listing.json()["remaining"] == 0
+
+
 async def test_hints_require_a_team_token(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)

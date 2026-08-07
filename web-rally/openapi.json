@@ -10268,6 +10268,26 @@
             "title": "Skip Penalty",
             "default": 0
           },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": true
+          },
+          "skip_enabled": {
+            "type": "boolean",
+            "title": "Skip Enabled",
+            "default": true
+          },
+          "guide_manual_arrival_enabled": {
+            "type": "boolean",
+            "title": "Guide Manual Arrival Enabled",
+            "default": true
+          },
+          "reveal_on_arrival": {
+            "type": "boolean",
+            "title": "Reveal On Arrival",
+            "default": true
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -10533,6 +10553,26 @@
             "type": "integer",
             "title": "Skip Penalty",
             "default": 0
+          },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": true
+          },
+          "skip_enabled": {
+            "type": "boolean",
+            "title": "Skip Enabled",
+            "default": true
+          },
+          "guide_manual_arrival_enabled": {
+            "type": "boolean",
+            "title": "Guide Manual Arrival Enabled",
+            "default": true
+          },
+          "reveal_on_arrival": {
+            "type": "boolean",
+            "title": "Reveal On Arrival",
+            "default": true
           },
           "guide_mode_enabled": {
             "type": "boolean",

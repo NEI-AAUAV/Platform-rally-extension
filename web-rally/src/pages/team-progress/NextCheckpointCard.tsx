@@ -166,6 +166,8 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   // in points. A checkpoint with no guide indications has no ladder and the
   // whole block stays out of the card.
   const hints = useCheckpointHints(checkpoint.id);
+  // Hints already bought stay readable even with the mechanic off — the team
+  // paid for them; the server just stops offering more.
   const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
   const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
   const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
@@ -177,7 +179,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   // spent, so it reads as a last resort rather than a shortcut — the server
   // allows it at any point, this is a nudge, not the rule.
   const skipCost = settings?.skip_penalty ?? 0;
-  const canGiveUp = isRedacted && hints.remaining === 0;
+  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hints.remaining === 0;
   const confirmGiveUp = () =>
     globalThis.confirm(
       skipCost === 0

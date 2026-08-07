@@ -216,6 +216,26 @@ class TestManualArrival:
 
         assert resp.status_code == 403, resp.text
 
+    async def test_the_switch_turns_manual_arrivals_off_server_side(
+        self, pg_session, pg_client, as_guide
+    ):
+        event = await _make_event(pg_session)
+        await _enable_guide_mode(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        await _assign_guide(pg_session, checkpoint.id)
+        team = await _make_team(pg_session, event_id=event.id)
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+        data["guide_manual_arrival_enabled"] = False
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
+
+        resp = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": team.id})
+
+        # Hiding the button would not be enough — the endpoint has to refuse.
+        assert resp.status_code == 400, resp.text
+
 
 class TestTeamsAtCheckpoint:
     async def test_lists_arrivals_with_the_hints_the_team_bought(

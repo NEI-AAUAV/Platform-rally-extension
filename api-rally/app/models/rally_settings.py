@@ -101,6 +101,16 @@ class RallySettings(Base):
     # to -10 for peddy paper, where asking for help should cost something.
     hint_penalty = Column(Integer, nullable=False, default=0)
 
+    # Feature switches for the peddy-paper toolkit. Each is separate from its
+    # cost: a penalty of 0 means "free", not "off", and an admin mid-event
+    # needs to be able to turn a whole mechanic off without losing its price.
+    hints_enabled = Column(Boolean, nullable=False, default=True)
+    skip_enabled = Column(Boolean, nullable=False, default=True)
+    # Lets a guide vouch for an arrival when GPS check-in fails.
+    guide_manual_arrival_enabled = Column(Boolean, nullable=False, default=True)
+    # Whether arriving reveals a post before its activity has been scored.
+    reveal_on_arrival = Column(Boolean, nullable=False, default=True)
+
     # Points charged when a team gives up on a post it cannot solve. Stored
     # negative; 0 means giving up is free. Steeper than hint_penalty by
     # default, since it forfeits the post's score entirely.

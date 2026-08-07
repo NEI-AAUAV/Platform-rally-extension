@@ -120,7 +120,11 @@ class CheckpointService:
         validated = DetailedCheckPoint.model_validate(checkpoint)
         if getattr(settings, "reveal_next_checkpoint", True):
             return validated
-        arrived_ids = await self._arrived_checkpoint_ids(team_id)
+        arrived_ids = (
+            await self._arrived_checkpoint_ids(team_id)
+            if getattr(settings, "reveal_on_arrival", True)
+            else set()
+        )
         return self._redact_unreached(
             validated,
             current_order=validated.order,
@@ -151,7 +155,9 @@ class CheckpointService:
         # Skipped entirely when nothing is redacted anyway, so a rally does not
         # pay for a query it cannot use.
         arrived_ids = (
-            frozenset() if reveal_next else frozenset(await self._arrived_checkpoint_ids(team_id))
+            frozenset()
+            if reveal_next or not getattr(settings, "reveal_on_arrival", True)
+            else frozenset(await self._arrived_checkpoint_ids(team_id))
         )
 
         if settings.show_route_mode == "complete":
@@ -215,7 +221,9 @@ class CheckpointService:
         if checkpoint is None:
             return False
 
-        if checkpoint_id in await self._arrived_checkpoint_ids(team_id):
+        if getattr(settings, "reveal_on_arrival", True) and checkpoint_id in (
+            await self._arrived_checkpoint_ids(team_id)
+        ):
             return True
 
         _, current_order, _ = await TeamService(

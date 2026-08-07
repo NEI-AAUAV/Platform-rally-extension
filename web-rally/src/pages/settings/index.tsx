@@ -83,6 +83,13 @@ const rallySettingsSchema = z.object({
     .min(-100, "Penalty too severe")
     .max(0, "Penalty must be negative or zero"),
 
+  // Feature switches, separate from the costs above: 0 points means free, off
+  // means the mechanic is gone.
+  hints_enabled: z.boolean(),
+  skip_enabled: z.boolean(),
+  guide_manual_arrival_enabled: z.boolean(),
+  reveal_on_arrival: z.boolean(),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -153,6 +160,10 @@ function buildFormValues(
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
     hint_penalty: settings.hint_penalty ?? 0,
     skip_penalty: settings.skip_penalty ?? 0,
+    hints_enabled: settings.hints_enabled ?? true,
+    skip_enabled: settings.skip_enabled ?? true,
+    guide_manual_arrival_enabled: settings.guide_manual_arrival_enabled ?? true,
+    reveal_on_arrival: settings.reveal_on_arrival ?? true,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
@@ -226,6 +237,10 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       gps_checkin_enabled: false,
       hint_penalty: 0,
       skip_penalty: 0,
+      hints_enabled: true,
+      skip_enabled: true,
+      guide_manual_arrival_enabled: true,
+      reveal_on_arrival: true,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,
