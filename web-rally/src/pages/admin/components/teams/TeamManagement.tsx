@@ -217,9 +217,9 @@ export default function TeamManagement() {
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
-                      Minutos depois do início do evento a que esta equipa pode arrancar. O
-                      percurso é o mesmo para todas — desfasar as partidas evita que se copiem
-                      no mesmo posto. 0 = arranca com toda a gente. O fim do evento não muda.
+                      Minutos depois do início do evento a que esta equipa pode arrancar. O percurso
+                      é o mesmo para todas — desfasar as partidas evita que se copiem no mesmo
+                      posto. 0 = arranca com toda a gente. O fim do evento não muda.
                     </p>
                     <FormMessage />
                   </FormItem>

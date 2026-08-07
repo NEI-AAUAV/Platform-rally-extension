@@ -23,7 +23,8 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
 
   const { data, isLoading } = useQuery<TeamHints>({
     queryKey,
-    queryFn: async () => (await listCheckpointHints({ path: { checkpoint_id: checkpointId } })).data,
+    queryFn: async () =>
+      (await listCheckpointHints({ path: { checkpoint_id: checkpointId } })).data,
     enabled: enabled && isTeamAuthenticated,
     staleTime: 30_000,
   });

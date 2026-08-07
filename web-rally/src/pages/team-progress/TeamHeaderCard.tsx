@@ -64,9 +64,7 @@ export default function TeamHeaderCard({
             {team.access_code && (
               <p className="mt-0.5 text-sm opacity-80">Código: {team.access_code}</p>
             )}
-            {departure && (
-              <p className="mt-0.5 text-sm opacity-80">A vossa partida: {departure}</p>
-            )}
+            {departure && <p className="mt-0.5 text-sm opacity-80">A vossa partida: {departure}</p>}
           </div>
         </div>
         <div className="mt-5 flex gap-6">

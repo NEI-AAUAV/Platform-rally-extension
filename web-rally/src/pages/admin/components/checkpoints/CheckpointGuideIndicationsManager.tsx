@@ -82,8 +82,8 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
       <p className="text-xs text-muted-foreground">
         Servem dois fins: o guia lê-as à equipa no local, e — se o evento tiver custo de pista
         definido — a equipa pode desbloqueá-las uma a uma na app, por esta ordem, pagando pontos.
-        Escreve-as da mais vaga para a mais reveladora. A pergunta e a resposta esperada nunca
-        são enviadas à equipa.
+        Escreve-as da mais vaga para a mais reveladora. A pergunta e a resposta esperada nunca são
+        enviadas à equipa.
       </p>
 
       {indications.length > 0 && (

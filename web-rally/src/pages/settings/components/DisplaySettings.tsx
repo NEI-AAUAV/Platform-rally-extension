@@ -102,8 +102,8 @@ export default function DisplaySettings({
             <Label htmlFor="reveal_next_checkpoint">Revelar o próximo posto antes da chegada</Label>
             <p className="text-xs text-muted-foreground">
               Desliga num peddy paper: o local do próximo posto é a resposta do enigma, por isso
-              nome, descrição e coordenadas ficam escondidos até a equipa fazer check-in. Só a
-              pista é enviada.
+              nome, descrição e coordenadas ficam escondidos até a equipa fazer check-in. Só a pista
+              é enviada.
             </p>
           </div>
         </div>
