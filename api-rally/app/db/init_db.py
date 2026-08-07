@@ -60,6 +60,7 @@ from app.models import (  # noqa: E402, F401
     CheckpointGuideIndication,
     CheckpointHintReveal,
     CheckpointMedia,
+    CheckpointSkip,
     EventParticipation,
     RallyEvent,
     RallyGuideAssignment,

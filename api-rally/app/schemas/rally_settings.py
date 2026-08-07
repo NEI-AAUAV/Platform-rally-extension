@@ -148,6 +148,9 @@ class RallySettingsBase(BaseModel):
     # Points charged for unlocking a hint (negative; 0 disables the cost).
     hint_penalty: int = 0
 
+    # Points charged for giving up on a post (negative; 0 disables the cost).
+    skip_penalty: int = 0
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

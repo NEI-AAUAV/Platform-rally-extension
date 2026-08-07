@@ -89,6 +89,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # Asking for a hint costs points in a peddy paper (the riddle is
             # the game); other formats have no hint economy, so it stays free.
             hint_penalty=-10 if event.event_type == EventType.PEDDY_PAPER.value else 0,
+            # Giving up forfeits the post's score too, so it costs more than a
+            # hint. Only peddy paper can strand a team on a riddle at all.
+            skip_penalty=-25 if event.event_type == EventType.PEDDY_PAPER.value else 0,
             # Staff and scoring
             enable_staff_scoring=True,
             # Display settings

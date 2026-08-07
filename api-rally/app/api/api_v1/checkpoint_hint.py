@@ -14,10 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.crud import crud_activity
 from app.schemas.hint import HintReveal, TeamHints, TeamHintSummary
+from app.schemas.skip import CheckpointSkipped
 from app.schemas.team_auth import TeamTokenData
 from app.services.audit_service import AuditActor, record_audit
-from app.services.deps import get_hint_service
+from app.services.deps import get_hint_service, get_skip_service
 from app.services.hint_service import HintService
+from app.services.skip_service import SkipService
 
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 
@@ -36,6 +38,17 @@ class CheckpointHintController:
             methods=["GET"],
             name="list_checkpoint_hints",
             responses={
+                401: {"description": "Authentication required (Team Token)"},
+                404: {"description": CHECKPOINT_NOT_FOUND},
+            },
+        )
+        self.router.add_api_route(
+            "/checkpoint/{checkpoint_id}/skip",
+            self.skip_checkpoint,
+            methods=["POST"],
+            name="skip_checkpoint",
+            responses={
+                400: {"description": "Not the team's current checkpoint, or already given up"},
                 401: {"description": "Authentication required (Team Token)"},
                 404: {"description": CHECKPOINT_NOT_FOUND},
             },
@@ -83,6 +96,32 @@ class CheckpointHintController:
         carrying the charges are admin-only.
         """
         return await service.summary_for_team(team_id=team.team_id)
+
+    async def skip_checkpoint(
+        self,
+        checkpoint_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        team: Annotated[TeamTokenData, Depends(deps.get_current_team)],
+        service: Annotated[SkipService, Depends(get_skip_service)],
+    ) -> CheckpointSkipped:
+        """Give up on this checkpoint: forfeit its score, pay the penalty, move on.
+
+        The way out for a team that cannot solve a riddle. Without it the hint
+        ladder runs out and the post is theirs for the rest of the event.
+        """
+        result = await service.skip(team_id=team.team_id, checkpoint_id=checkpoint_id)
+
+        event = await crud_activity.rally_event.get_current(db)
+        await record_audit(
+            db,
+            action="checkpoint.skipped",
+            actor=AuditActor(id=str(team.team_id), name=team.team_name, kind="team"),
+            target_type="team",
+            target_id=str(team.team_id),
+            event_id=event.id if event else None,
+            note=f"checkpoint_id={checkpoint_id} cost={result.cost}",
+        )
+        return result
 
     async def reveal_hint(
         self,

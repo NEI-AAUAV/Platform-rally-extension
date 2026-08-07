@@ -7,6 +7,7 @@ from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.checkpoint_media import CheckpointMedia, MediaKind
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward, DynamicRule
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.models.idempotency_key import IdempotencyKey
@@ -29,6 +30,7 @@ __all__ = [
     "MediaKind",
     "CheckpointGuideIndication",
     "CheckpointHintReveal",
+    "CheckpointSkip",
     "Activity",
     "ActivityResult",
     "RallyEvent",

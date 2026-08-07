@@ -101,6 +101,11 @@ class RallySettings(Base):
     # to -10 for peddy paper, where asking for help should cost something.
     hint_penalty = Column(Integer, nullable=False, default=0)
 
+    # Points charged when a team gives up on a post it cannot solve. Stored
+    # negative; 0 means giving up is free. Steeper than hint_penalty by
+    # default, since it forfeits the post's score entirely.
+    skip_penalty = Column(Integer, nullable=False, default=0)
+
     # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)

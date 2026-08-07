@@ -18,6 +18,7 @@ from app.services.hint_service import HintService
 from app.services.profile_service import ProfileService
 from app.services.rally_settings_service import RallySettingsService
 from app.services.scoring_service import ScoringService
+from app.services.skip_service import SkipService
 from app.services.team_member_service import TeamMemberService
 from app.services.team_service import TeamService
 from app.services.user_service import UserService
@@ -49,6 +50,10 @@ def get_checkpoint_arrival_service(db: SessionDep) -> CheckpointArrivalService:
 
 def get_hint_service(db: SessionDep) -> HintService:
     return HintService(db, crud.checkpoint, crud.team)
+
+
+def get_skip_service(db: SessionDep) -> SkipService:
+    return SkipService(db, crud.checkpoint, crud.team)
 
 
 def get_deferred_judging_service(db: SessionDep) -> DeferredJudgingService:

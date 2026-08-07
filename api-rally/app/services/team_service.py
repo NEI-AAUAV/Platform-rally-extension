@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
@@ -23,6 +24,7 @@ from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.team import (
     ListingTeam,
@@ -228,6 +230,18 @@ class TeamService:
         completed_activity_ids = {
             r.activity_id for r in team_results if getattr(r, "is_completed", False)
         }
+        # A post the team gave up on is resolved, not completed: they score
+        # nothing for it, but it must stop blocking the route — otherwise the
+        # escape hatch would not actually let anyone out.
+        skipped_ids = set(
+            (
+                await self._db.scalars(
+                    select(CheckpointSkip.checkpoint_id).where(
+                        CheckpointSkip.team_id == team_obj.id
+                    )
+                )
+            ).all()
+        )
         # Number of checkpoints the team has physically checked into (times grows
         # by one per checkpoint reached, in order).
         checked_in_count = len(team_obj.times)
@@ -235,6 +249,10 @@ class TeamService:
         last_completed_order = 0
         last_completed_name: str | None = None
         for cp in checkpoints:
+            if cp.id in skipped_ids:
+                last_completed_order = cp.order
+                last_completed_name = cp.name
+                continue
             cp_activities = await activity.get_by_checkpoint(self._db, checkpoint_id=cp.id)
             active_ids = [a.id for a in cp_activities if a.is_active]
             if not active_ids:
