@@ -791,6 +791,67 @@
         }
       }
     },
+    "/api/rally/v1/checkpoint/{id}/clue-image": {
+      "put": {
+        "tags": [
+          "CheckPoint"
+        ],
+        "summary": "Upload Clue Image",
+        "description": "Upload the clue's picture-riddle to R2 and persist its URL.\n\nSame shape as the team-photo upload: every other image in the app is\nset this way, and expecting an admin to paste an R2 URL by hand was\nthe odd one out. Replaces (and deletes) any previous clue image.",
+        "operationId": "upload_clue_image",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_clue_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedCheckPoint"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/user/search": {
       "get": {
         "tags": [
@@ -7265,6 +7326,20 @@
           "image"
         ],
         "title": "Body_upload_badge_icon"
+      },
+      "Body_upload_clue_image": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_clue_image"
       },
       "Body_upload_rally_banner": {
         "properties": {

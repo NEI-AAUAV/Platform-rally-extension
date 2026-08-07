@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
+import ClueImageField from "./ClueImageField";
 
 const fieldClassName = "bg-muted border-border";
 
@@ -165,26 +166,17 @@ export default function CheckpointForm({
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="clue_media_url"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Imagem do enigma (opcional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="https://..."
-                    {...field}
-                    className={fieldClassName}
-                  />
-                </FormControl>
-                <p className="text-xs text-muted-foreground">
-                  URL de uma foto-enigma (um detalhe do local, por exemplo).
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FormItem>
+            <FormLabel>Imagem do enigma (opcional)</FormLabel>
+            <p className="text-xs text-muted-foreground">
+              Uma foto-enigma — um detalhe do local, por exemplo.
+            </p>
+            <ClueImageField
+              checkpointId={currentId ?? null}
+              currentUrl={form.watch("clue_media_url") || null}
+              onUploaded={(url) => form.setValue("clue_media_url", url)}
+            />
+          </FormItem>
           <FormField
             control={form.control}
             name="order"

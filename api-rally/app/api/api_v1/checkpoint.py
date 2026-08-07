@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, File, Security, UploadFile
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,8 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_service import CheckpointService
 from app.services.deps import get_checkpoint_service
+from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.storage import storage_client
 
 _team_bearer = HTTPBearer(auto_error=False)
 
@@ -87,6 +89,14 @@ class CheckpointController:
             methods=["PUT"],
             status_code=200,
             name="update_checkpoint",
+        )
+        self.router.add_api_route(
+            "/{id}/clue-image",
+            self.upload_clue_image,
+            methods=["PUT"],
+            status_code=200,
+            name="upload_clue_image",
+            responses={404: {"description": "Checkpoint not found"}},
         )
         self.router.add_api_route(
             "/{id}",
@@ -246,6 +256,33 @@ class CheckpointController:
     ) -> DetailedCheckPoint:
         await crud.checkpoint.get(db=db, id=id, for_update=True)
         updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in, commit=True)
+        return DetailedCheckPoint.model_validate(updated)
+
+    async def upload_clue_image(
+        self,
+        *,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        id: int,
+        image: Annotated[UploadFile, File(...)],
+        _: Annotated[DetailedUser, Depends(deps.get_admin)],
+    ) -> DetailedCheckPoint:
+        """Upload the clue's picture-riddle to R2 and persist its URL.
+
+        Same shape as the team-photo upload: every other image in the app is
+        set this way, and expecting an admin to paste an R2 URL by hand was
+        the odd one out. Replaces (and deletes) any previous clue image.
+        """
+        checkpoint = await crud.checkpoint.get(db=db, id=id, for_update=True)
+        storage_client.delete_image(checkpoint.clue_media_url)
+
+        url = await validate_and_store(
+            image=image,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            key_prefix=f"rally/checkpoints/{id}/clue",
+        )
+        updated = await crud.checkpoint.update(
+            db=db, id=id, obj_in=CheckPointUpdate(clue_media_url=url), commit=True
+        )
         return DetailedCheckPoint.model_validate(updated)
 
     async def delete_checkpoint(
