@@ -91,6 +91,7 @@ the puzzle answer**, so the app must not hand it over. Creating an event with
 | `reveal_next_checkpoint` | off | on | Off redacts name, description and coordinates of any post the team hasn't reached |
 | `gps_checkin_enabled` | on | off | Lets the team check itself in inside the geofence |
 | `hint_penalty` | -10 | 0 | Points charged per hint unlocked |
+| `skip_penalty` | -25 | 0 | Points charged for giving up on a post |
 | `participant_view_enabled` | on | off | Sends teams to `/team-progress` rather than the scoreboard |
 
 All four are plain settings — any event can switch them on or off afterwards.
@@ -126,6 +127,13 @@ clue, guide indications, photos and fun facts, plus who has turned up:
   GPS path, and the arrival is audited as `checkin.guide_arrival`.
 - Indications a team **already unlocked in the app** are flagged, so the guide
   does not read out, for free, a hint the team just paid ten points for.
+
+**When a team gets stuck**, the hint ladder eventually runs out and the riddle
+is still unsolved. Rather than leave them at that post for the rest of the
+event, they can **give up on it**: they pay `skip_penalty`, forfeit that post's
+score, and receive the next clue. The forfeit is recorded in `checkpoint_skips`
+and treated as *resolved, not completed* — which is what lets the route
+continue even past a post whose activity nobody will ever judge.
 
 **The loop:** the team reads the clue → walks → checks in by GPS inside the
 radius → the post reveals itself (name, photos, fun facts) and the next clue
