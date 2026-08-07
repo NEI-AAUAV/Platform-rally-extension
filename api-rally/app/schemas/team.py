@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.user import ListingUser
 
@@ -14,6 +14,9 @@ class TeamBase(BaseModel):
     classification: int
     versus_group_id: int | None = None
     photo_url: str = ""
+    # Minutes after the event's start time that this team is allowed to set
+    # off. 0 (the default) means it starts with everyone else.
+    start_offset_minutes: int = 0
 
 
 class ListingTeam(TeamBase):
@@ -61,6 +64,7 @@ class TeamCreate(BaseModel):
 
 class TeamUpdate(BaseModel):
     name: str | None = None
+    start_offset_minutes: int | None = Field(default=None, ge=0, le=24 * 60)
     times: list[datetime] | None = None
     score_per_checkpoint: list[int] | None = None
     question_scores: list[bool] | None = None

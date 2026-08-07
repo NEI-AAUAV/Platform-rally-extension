@@ -9,7 +9,9 @@ from app.api.api_v1 import (
     checkpoint,
     checkpoint_arrive,
     checkpoint_guide_indication,
+    checkpoint_hint,
     checkpoint_media,
+    checkpoint_proximity,
     deferred_judging,
     dynamic_scoring,
     events,
@@ -51,6 +53,8 @@ api_v1_router.include_router(
     checkpoint_guide_indication.router, prefix="", tags=["Checkpoint Guide Indications"]
 )
 api_v1_router.include_router(checkpoint_arrive.router, prefix="", tags=["Checkpoint Arrive"])
+api_v1_router.include_router(checkpoint_hint.router, prefix="", tags=["Checkpoint Hints"])
+api_v1_router.include_router(checkpoint_proximity.router, prefix="", tags=["Checkpoint Proximity"])
 api_v1_router.include_router(badge_admin.router, prefix="", tags=["Badge Admin"])
 api_v1_router.include_router(deferred_judging.router, prefix="", tags=["Deferred Judging"])
 api_v1_router.include_router(dynamic_scoring.router, prefix="", tags=["Dynamic Scoring"])

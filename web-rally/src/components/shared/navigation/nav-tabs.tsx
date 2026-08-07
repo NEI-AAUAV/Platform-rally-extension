@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import { isNavItemActive } from "./activeRoute";
 import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
-import { useUserStore } from "@/stores/useUserStore";
 import { useState, useRef } from "react";
 import {
   Menu,
@@ -19,11 +18,11 @@ import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
-import useTeamAuth from "@/hooks/useTeamAuth";
+import useNavAudience from "@/hooks/useNavAudience";
+import type { ViewMode } from "@/stores/useViewModeStore";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useClickOutside from "@/hooks/useClickOutside";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
-import { useViewModeStore, type ViewMode } from "@/stores/useViewModeStore";
 
 type NavTabsProps = ComponentProps<"ul">;
 
@@ -100,29 +99,6 @@ function NavGroup({
   );
 }
 
-interface RoleFlags {
-  readonly isAdminOrManager: boolean;
-  readonly isStaff: boolean;
-  readonly isGuide: boolean;
-  readonly isPrivileged: boolean;
-}
-
-function deriveRoleFlags(scopes: readonly string[] | undefined): RoleFlags {
-  const isAdminOrManager = !!(
-    scopes?.includes("admin") ||
-    scopes?.includes("manager-rally") ||
-    scopes?.includes("rally:admin")
-  );
-  const isStaff = !!scopes?.includes("rally-staff");
-  const isGuide = !!scopes?.includes("rally-guide");
-  return {
-    isAdminOrManager,
-    isStaff,
-    isGuide,
-    isPrivileged: isAdminOrManager || isStaff || isGuide,
-  };
-}
-
 function ViewToggle({
   isDualRole,
   viewMode,
@@ -154,27 +130,31 @@ function ViewToggle({
 
 export default function NavTabs({ className, ...props }: NavTabsProps) {
   const location = useLocation();
-  const { scopes } = useUserStore((state) => state);
   const { settings } = useRallySettings();
-  const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const onStaffLogin = useStaffLogin();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDialogElement>(null);
 
-  const { isAdminOrManager, isStaff, isGuide, isPrivileged } = deriveRoleFlags(scopes);
+  const {
+    isAdminOrManager,
+    isStaff,
+    isGuide,
+    isPrivileged,
+    isTeamAuthenticated,
+    isDualRole,
+    viewMode,
+    toggleViewMode: toggleViewModeShared,
+    showTeamView,
+    scopes,
+  } = useNavAudience();
   const { showGuideFeature } = useGuideAccess();
-  const isDualRole = isPrivileged && isTeamAuthenticated;
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
 
-  const { viewMode, toggleViewMode: toggleViewModeStore } = useViewModeStore();
-
   const toggleViewMode = () => {
-    toggleViewModeStore();
+    toggleViewModeShared();
     setIsMobileMenuOpen(false);
   };
 
-  const showTeamView =
-    isTeamAuthenticated && (!isPrivileged || (isDualRole && viewMode === "team"));
   const showScoreMenu = settings?.show_score_mode !== "hidden";
   const terms = useEventTerms();
   const checkpointsLabel = capitalize(terms.checkpoints);

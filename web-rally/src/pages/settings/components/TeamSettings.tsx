@@ -67,6 +67,29 @@ export default function TeamSettings({ className = "", disabled = false }: TeamS
           />
           <Label htmlFor="enable_versus">Ativar modo versus (competição entre equipas)</Label>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="allow_staff_registration"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                id="allow_staff_registration"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="allow_staff_registration">Inscrições no local pelo staff</Label>
+            <p className="text-xs text-muted-foreground">
+              Permite ao staff acrescentar membros a uma equipa durante o evento, para quem apareça
+              sem se ter inscrito antes.
+            </p>
+          </div>
+        </div>
       </CardContent>
     </div>
   );

@@ -63,6 +63,11 @@ export default function CheckpointListItem({
                   {checkpoint.arrival_radius_m ? ` · raio ${checkpoint.arrival_radius_m}m` : ""}
                 </div>
               )}
+              {/* Setting up a route means checking a dozen posts have a riddle;
+                  say so here instead of opening each form to find out. */}
+              <div className="text-xs text-muted-foreground">
+                {checkpoint.clue ? "🧩 Com enigma" : "🧩 Sem enigma — corre guiado"}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">

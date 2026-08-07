@@ -11,9 +11,10 @@ tests) keep working while the logic itself lives here.
 
 import math
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
@@ -23,6 +24,7 @@ from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.team import (
     ListingTeam,
@@ -32,16 +34,25 @@ from app.schemas.team import (
 from app.services.scoring_service import ScoringService
 
 
-def validate_rally_timing(settings: Any, current_time: datetime) -> None:
+def validate_rally_timing(
+    settings: Any, current_time: datetime, *, start_offset_minutes: int = 0
+) -> None:
     """Reject progress recorded outside the event's window.
 
     Module-level so every path that records progress can apply the same rule —
     staff evaluation, QR check-in and GPS arrival alike.
+
+    ``start_offset_minutes`` staggers a single team's departure (see
+    ``Team.start_offset_minutes``). It moves the team's *start* only: the end
+    time is the event's hard boundary — usually a venue closing — and is not
+    pushed out for late starters.
     """
-    if settings.rally_start_time and current_time < settings.rally_start_time:
-        raise RallyValidationError(
-            f"Rally has not started yet. Starts at {settings.rally_start_time.isoformat()}"
-        )
+    start_time = settings.rally_start_time
+    if start_time and start_offset_minutes:
+        start_time = start_time + timedelta(minutes=start_offset_minutes)
+
+    if start_time and current_time < start_time:
+        raise RallyValidationError(f"Rally has not started yet. Starts at {start_time.isoformat()}")
 
     if settings.rally_end_time and current_time > settings.rally_end_time:
         raise RallyValidationError(
@@ -140,9 +151,11 @@ class TeamService:
         await self.update_classification_unlocked()
         await self._db.commit()
 
-    def _validate_rally_timing(self, settings: Any, current_time: datetime) -> None:
+    def _validate_rally_timing(
+        self, settings: Any, current_time: datetime, *, start_offset_minutes: int = 0
+    ) -> None:
         """Validate rally timing constraints."""
-        validate_rally_timing(settings, current_time)
+        validate_rally_timing(settings, current_time, start_offset_minutes=start_offset_minutes)
 
     async def _validate_checkpoint_order(
         self, team: Team, checkpoint_id: int, settings: Any
@@ -185,7 +198,11 @@ class TeamService:
             team = await self._team_crud.get(db=self._db, id=id, for_update=True)
             current_time = datetime.now(UTC)
 
-            self._validate_rally_timing(settings, current_time)
+            self._validate_rally_timing(
+                settings,
+                current_time,
+                start_offset_minutes=team.start_offset_minutes or 0,
+            )
             await self._validate_checkpoint_order(team, checkpoint_id, settings)
 
             team.record_checkpoint(
@@ -213,6 +230,18 @@ class TeamService:
         completed_activity_ids = {
             r.activity_id for r in team_results if getattr(r, "is_completed", False)
         }
+        # A post the team gave up on is resolved, not completed: they score
+        # nothing for it, but it must stop blocking the route — otherwise the
+        # escape hatch would not actually let anyone out.
+        skipped_ids = set(
+            (
+                await self._db.scalars(
+                    select(CheckpointSkip.checkpoint_id).where(
+                        CheckpointSkip.team_id == team_obj.id
+                    )
+                )
+            ).all()
+        )
         # Number of checkpoints the team has physically checked into (times grows
         # by one per checkpoint reached, in order).
         checked_in_count = len(team_obj.times)
@@ -220,6 +249,10 @@ class TeamService:
         last_completed_order = 0
         last_completed_name: str | None = None
         for cp in checkpoints:
+            if cp.id in skipped_ids:
+                last_completed_order = cp.order
+                last_completed_name = cp.name
+                continue
             cp_activities = await activity.get_by_checkpoint(self._db, checkpoint_id=cp.id)
             active_ids = [a.id for a in cp_activities if a.is_active]
             if not active_ids:
@@ -244,13 +277,25 @@ class TeamService:
         )
         return last_completed_order, current_order, last_completed_name
 
-    async def build_listing_team(self, team: Team) -> ListingTeam:
-        """Build team data for listing using strict completion rules."""
+    async def build_listing_team(
+        self, team: Team, *, reveal_next_checkpoint: bool = True, is_privileged: bool = False
+    ) -> ListingTeam:
+        """Build team data for listing using strict completion rules.
+
+        ``last_checkpoint_name`` names a checkpoint this *other* team has
+        completed, which can be ahead of the viewing team's own progress —
+        in a peddy paper that name is the answer to a puzzle the viewer
+        hasn't solved yet. Withheld from non-privileged viewers whenever
+        ``reveal_next_checkpoint`` is off; staff/admin always see it.
+        """
         (
             last_checkpoint_number,
             current_checkpoint_number,
             last_checkpoint_name,
         ) = await self.compute_checkpoint_progress(team)
+
+        if not reveal_next_checkpoint and not is_privileged:
+            last_checkpoint_name = None
 
         return ListingTeam(
             id=team.id,
@@ -258,6 +303,7 @@ class TeamService:
             total=team.total,
             classification=team.classification,
             versus_group_id=team.versus_group_id,
+            start_offset_minutes=team.start_offset_minutes or 0,
             times=team.times,
             last_checkpoint_time=team.last_checkpoint_time,
             last_checkpoint_score=team.last_checkpoint_score,

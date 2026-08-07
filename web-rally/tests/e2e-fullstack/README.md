@@ -52,12 +52,20 @@ files would only confuse.
 | `multi-edicao.spec.ts` | Multi-edition isolation against the real backend: switching the current edition through the admin UI changes which checkpoints/teams are visible; a team from a non-current edition can still log in (access codes are intentionally global per `crud_team.get_by_access_code` — isolation is enforced at listing/check-in, not login) but is absent from the current edition's team listing; checking a team in at a checkpoint from a different edition is rejected (404, `_require_same_event`). This surfaced a real discrepancy with `tests/e2e/multi-edicao.spec.ts`'s mocked "non-current access code is rejected by login" test, which asserts something the real backend does not do. |
 | `olympic-rotation.spec.ts` | The real `POST /events/{id}/rotation-schedule` endpoint (`app/utils/round_robin.py`'s `generate_schedule`): a 3-team/4-checkpoint schedule is checked for the invariants the algorithm guarantees (no team double-booked within a round, every team-checkpoint pair covered at least once, `max(teams, checkpoints)` rounds) rather than one exact ordering, since team/checkpoint query order isn't pinned by an explicit `ORDER BY` server-side. Also: rejected (400) for a non-olympic event or an event with no teams/checkpoints yet. No browser needed — this is a pure-function/API contract check. |
 
+| `peddy-paper.spec.ts` | The peddy-paper game loop against the real backend: the `event_type` bootstraps the mode's settings (asserted, not set by the fixture); the team's real `/checkpoint/` and `/checkpoint/me` payloads carry the clue and *not* the name/coordinates — the actual security property, which a mocked spec cannot check since its fixture author decides the payload; media for an unreached post is 403; the hint ladder charges once per rung, refuses a post the team hasn't reached, and never returns `expected_answer`; a GPS check-in reveals the post and hands over the next riddle; a wrong-place check-in is rejected with a coarse distance band; the guide sees the clue. Also staggered starts (`start_offset_minutes`). This spec caught a real bug: the check-in button required coordinates the server deliberately withholds in this mode, so the loop was unplayable through the UI. |
+
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
 ## Known gaps (not yet covered against a real backend)
 
 None outstanding — every area previously listed here now has fullstack
-coverage. If a new backend-contract-dependent feature area is added without a
+coverage.
+
+Note on `dist/`: the fullstack web server runs `vite preview`, which serves
+whatever is already in `dist/` and never rebuilds. After changing app code,
+run `pnpm build` before these specs or they will silently test a stale
+bundle — the symptom is UI assertions failing while the API-level ones in the
+same file pass. If a new backend-contract-dependent feature area is added without a
 fullstack counterpart, list it here until it's covered.
 
 ## Team-login rate limiting across a full run

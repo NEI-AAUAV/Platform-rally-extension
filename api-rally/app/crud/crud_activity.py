@@ -261,9 +261,13 @@ class CRUDRallyEvent:
             await db.refresh(existing)
             return existing
 
+        # Fixed slug, not a pre-checked unique one: concurrent bootstraps must
+        # collide on the DB's unique constraint so only one insert lands. A
+        # read-then-decide unique slug lets each racer land on a free, distinct
+        # slug and create its own "current" event, breaking the invariant.
         default = RallyEvent(
             name="Rally Tascas",
-            slug=await self._unique_slug(db, "rally-tascas"),
+            slug="rally-tascas",
             description="",
             event_type=EventType.RALLY_TASCAS.value,
             config={},

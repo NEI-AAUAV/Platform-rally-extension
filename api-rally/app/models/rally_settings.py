@@ -91,6 +91,43 @@ class RallySettings(Base):
     # event whose checkpoints have coordinates and a radius can switch it on.
     gps_checkin_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Redact the next checkpoint's name/description/coordinates until a team
+    # checks in. Default on (matches existing rally behaviour); off for peddy
+    # paper, where the checkpoint location is itself the puzzle answer.
+    reveal_next_checkpoint = Column(Boolean, nullable=False, default=True)
+
+    # Points charged when a team unlocks a guide indication as a hint. Stored
+    # negative like every other penalty; 0 means hints are free. Bootstrapped
+    # to -10 for peddy paper, where asking for help should cost something.
+    hint_penalty = Column(Integer, nullable=False, default=0)
+
+    # Feature switches for the peddy-paper toolkit. Each is separate from its
+    # cost: a penalty of 0 means "free", not "off", and an admin mid-event
+    # needs to be able to turn a whole mechanic off without losing its price.
+    hints_enabled = Column(Boolean, nullable=False, default=True)
+    skip_enabled = Column(Boolean, nullable=False, default=True)
+    # Lets a guide vouch for an arrival when GPS check-in fails.
+    guide_manual_arrival_enabled = Column(Boolean, nullable=False, default=True)
+    # Whether arriving reveals a post before its activity has been scored.
+    reveal_on_arrival = Column(Boolean, nullable=False, default=True)
+    # "Am I getting warmer?" — a coarse distance band on demand. Off by
+    # default: it is an aid for teams who do not know the city, not something
+    # every event wants.
+    proximity_enabled = Column(Boolean, nullable=False, default=False)
+    # A coarse bearing alongside the band, and only once the team is already
+    # inside the closest band. Off by default — a bearing is far more
+    # revealing than a distance (see ProximityService).
+    compass_enabled = Column(Boolean, nullable=False, default=False)
+    # Radius (metres) of the search circle drawn for a redacted post. 0 shows
+    # no circle at all. The circle is not centred on the post — see
+    # CheckpointService._search_area.
+    search_radius_m = Column(Integer, nullable=False, default=0)
+
+    # Points charged when a team gives up on a post it cannot solve. Stored
+    # negative; 0 means giving up is free. Steeper than hint_penalty by
+    # default, since it forfeits the post's score entirely.
+    skip_penalty = Column(Integer, nullable=False, default=0)
+
     # Guide mode: tourist-guide pages/checkpoint photos, admin-gated feature
     guide_mode_enabled = Column(Boolean, nullable=False, default=False)
     guide_mode_active = Column(Boolean, nullable=False, default=False)

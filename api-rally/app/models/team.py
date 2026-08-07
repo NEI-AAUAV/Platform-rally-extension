@@ -34,6 +34,11 @@ class Team(Base):
     event_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
     )
+    # Staggered start: minutes added to the event's start time for this team
+    # only. Every team walks the same route, but spreading the departures stops
+    # them all standing at the same post copying each other's answer. 0 (the
+    # default) means the team starts with everyone else, exactly as before.
+    start_offset_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # All arrays are wrapped in MutableList so in-place .append() (e.g. in
     # crud_team.add_checkpoint) marks the column dirty; plain ARRAY columns

@@ -27,7 +27,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -538,7 +543,7 @@
           "CheckPoint"
         ],
         "summary": "Get Next Checkpoint",
-        "description": "Return the next checkpoint a team must head to.",
+        "description": "Return the next checkpoint a team must head to.\n\nStaff/admin bypass redaction (they run the event); a team's own\ntoken is redacted the same as the list endpoint \u2014 this route is not\na way around that.",
         "operationId": "get_next_checkpoint",
         "responses": {
           "200": {
@@ -772,6 +777,67 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/checkpoint/{id}/clue-image": {
+      "put": {
+        "tags": [
+          "CheckPoint"
+        ],
+        "summary": "Upload Clue Image",
+        "description": "Upload the clue's picture-riddle to R2 and persist its URL.\n\nSame shape as the team-photo upload: every other image in the app is\nset this way, and expecting an admin to paste an R2 URL by hand was\nthe odd one out. Replaces (and deletes) any previous clue image.",
+        "operationId": "upload_clue_image",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_clue_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedCheckPoint"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Checkpoint not found"
           },
           "422": {
             "description": "Validation Error",
@@ -4082,7 +4148,13 @@
           "Checkpoint Media"
         ],
         "summary": "List Checkpoint Media",
+        "description": "Checkpoint media (photos, fun facts) \u2014 as strong a reveal as the\ncheckpoint name/coordinates, so it's gated the same way: staff/admin\nsee everything, a team sees only checkpoints it has reached, and the\npublic follow the same rules as the checkpoint map.",
         "operationId": "list_checkpoint_media",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "checkpoint_id",
@@ -4613,6 +4685,274 @@
           },
           "404": {
             "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/hints": {
+      "get": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "List Checkpoint Hints",
+        "description": "Hints this team already paid for at a checkpoint, plus how many are left.",
+        "operationId": "list_checkpoint_hints",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamHints"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/skip": {
+      "post": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "Skip Checkpoint",
+        "description": "Give up on this checkpoint: forfeit its score, pay the penalty, move on.\n\nThe way out for a team that cannot solve a riddle. Without it the hint\nladder runs out and the post is theirs for the rest of the event.",
+        "operationId": "skip_checkpoint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointSkipped"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not the team's current checkpoint, or already given up"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/team-auth/hints": {
+      "get": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "List Team Hints",
+        "description": "Every hint this team has bought across the event, and what it cost.\n\nThe per-checkpoint listing only covers one post; a team that spent\npoints at several has no other way to add them up, since the awards\ncarrying the charges are admin-only.",
+        "operationId": "list_team_hints",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamHintSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/hint": {
+      "post": {
+        "tags": [
+          "Checkpoint Hints"
+        ],
+        "summary": "Reveal Checkpoint Hint",
+        "description": "Unlock the next hint for this checkpoint and charge the team.",
+        "operationId": "reveal_checkpoint_hint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintReveal"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not the team's current checkpoint, or no hints left"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/checkpoint/{checkpoint_id}/proximity": {
+      "post": {
+        "tags": [
+          "Checkpoint Proximity"
+        ],
+        "summary": "Read Checkpoint Proximity",
+        "description": "How close the team is, as a coarse band \u2014 never a metre count.",
+        "operationId": "read_checkpoint_proximity",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProximityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProximityReading"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not enabled, not the team's checkpoint, or no coordinates"
+          },
+          "401": {
+            "description": "Authentication required (Team Token)"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "429": {
+            "description": "Too many proximity checks"
           },
           "422": {
             "description": "Validation Error",
@@ -5511,7 +5851,7 @@
           "Guide"
         ],
         "summary": "List Guide Checkpoints",
-        "description": "Return all checkpoints with their media gallery for the current event.\n\nOrdered by checkpoint order. Guide role, staff, and admins can access this.",
+        "description": "Checkpoints with their media gallery for the current event.\n\nScoped to the guide's own assignment (see GuideService); staff and\nadmins get the whole route. Ordered by checkpoint order.",
         "operationId": "list_guide_checkpoints",
         "responses": {
           "200": {
@@ -5537,6 +5877,128 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/rally/v1/guide/checkpoints/{checkpoint_id}/teams": {
+      "get": {
+        "tags": [
+          "Guide"
+        ],
+        "summary": "List Guide Teams At Checkpoint",
+        "description": "Teams that have arrived at this post, and the hints they bought.",
+        "operationId": "list_guide_teams_at_checkpoint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GuideTeamAtCheckpoint"
+                  },
+                  "title": "Response List Guide Teams At Checkpoint"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not this guide's checkpoint"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/guide/checkpoints/{checkpoint_id}/arrivals": {
+      "post": {
+        "tags": [
+          "Guide"
+        ],
+        "summary": "Record Guide Arrival",
+        "description": "Mark a team as arrived, on the guide's word instead of a GPS fix.\n\nGPS check-in fails for ordinary reasons \u2014 a flat battery, no signal, an\nindoor post \u2014 and the guide is standing there watching the team. This\nis the fallback, and it is audited like every other progress write.",
+        "operationId": "record_guide_arrival",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuideArrivalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideArrivalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Outside the event window, or a cross-edition team"
+          },
+          "403": {
+            "description": "Not this guide's checkpoint"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/rally/v1/events/{event_id}/export": {
@@ -7144,6 +7606,20 @@
         ],
         "title": "Body_upload_badge_icon"
       },
+      "Body_upload_clue_image": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_clue_image"
+      },
       "Body_upload_rally_banner": {
         "properties": {
           "image": {
@@ -7252,6 +7728,28 @@
             "minimum": 0.0,
             "title": "Arrival Radius M",
             "default": 50
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           }
         },
         "type": "object",
@@ -7333,6 +7831,28 @@
               }
             ],
             "title": "Arrival Radius M"
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           }
         },
         "type": "object",
@@ -7583,6 +8103,35 @@
         ],
         "title": "CheckpointMediaResponse"
       },
+      "CheckpointSkipped": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "next_checkpoint_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Checkpoint Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "cost"
+        ],
+        "title": "CheckpointSkipped"
+      },
       "ClaimMembershipRequest": {
         "properties": {
           "access_code": {
@@ -7770,9 +8319,69 @@
             "title": "Arrival Radius M",
             "default": 50
           },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
+          },
+          "is_redacted": {
+            "type": "boolean",
+            "title": "Is Redacted",
+            "default": false
+          },
+          "search_latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Latitude"
+          },
+          "search_longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Longitude"
+          },
+          "search_radius_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Radius M"
           }
         },
         "type": "object",
@@ -7816,6 +8425,11 @@
             "type": "string",
             "title": "Photo Url",
             "default": ""
+          },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
           },
           "times": {
             "items": {
@@ -8290,6 +8904,47 @@
         "title": "GlobalRanking",
         "description": "Schema for global team ranking"
       },
+      "GuideArrivalRequest": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id"
+        ],
+        "title": "GuideArrivalRequest"
+      },
+      "GuideArrivalResponse": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "already_registered": {
+            "type": "boolean",
+            "title": "Already Registered"
+          },
+          "auto_completed": {
+            "type": "boolean",
+            "title": "Auto Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "checkpoint_id",
+          "already_registered",
+          "auto_completed"
+        ],
+        "title": "GuideArrivalResponse"
+      },
       "GuideCheckpointResponse": {
         "properties": {
           "id": {
@@ -8314,6 +8969,28 @@
               }
             ],
             "title": "Description"
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
           },
           "latitude": {
             "anyOf": [
@@ -8452,6 +9129,43 @@
         ],
         "title": "GuideMediaItem"
       },
+      "GuideTeamAtCheckpoint": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "team_name": {
+            "type": "string",
+            "title": "Team Name"
+          },
+          "arrived_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Arrived At"
+          },
+          "arrived_by_guide": {
+            "type": "boolean",
+            "title": "Arrived By Guide"
+          },
+          "revealed_indication_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Revealed Indication Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "team_name",
+          "arrived_at",
+          "arrived_by_guide",
+          "revealed_indication_ids"
+        ],
+        "title": "GuideTeamAtCheckpoint"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -8464,6 +9178,39 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HintReveal": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "indication_id": {
+            "type": "integer",
+            "title": "Indication Id"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "indication_id",
+          "hint",
+          "cost",
+          "remaining"
+        ],
+        "title": "HintReveal"
       },
       "HomeSection": {
         "properties": {
@@ -8540,6 +9287,11 @@
             "type": "string",
             "title": "Photo Url",
             "default": ""
+          },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
           },
           "num_members": {
             "type": "integer",
@@ -8905,6 +9657,11 @@
             "title": "Photo Url",
             "default": ""
           },
+          "start_offset_minutes": {
+            "type": "integer",
+            "title": "Start Offset Minutes",
+            "default": 0
+          },
           "times": {
             "items": {
               "type": "string",
@@ -9047,6 +9804,62 @@
         ],
         "title": "ProfileResponse",
         "description": "A person's rally profile: identity + participation history."
+      },
+      "ProximityReading": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "band": {
+            "type": "string",
+            "title": "Band"
+          },
+          "is_within_radius": {
+            "type": "boolean",
+            "title": "Is Within Radius"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "band",
+          "is_within_radius"
+        ],
+        "title": "ProximityReading"
+      },
+      "ProximityRequest": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "ProximityRequest"
       },
       "PushSubscriptionCreate": {
         "properties": {
@@ -9599,6 +10412,56 @@
             "title": "Gps Checkin Enabled",
             "default": false
           },
+          "reveal_next_checkpoint": {
+            "type": "boolean",
+            "title": "Reveal Next Checkpoint",
+            "default": true
+          },
+          "hint_penalty": {
+            "type": "integer",
+            "title": "Hint Penalty",
+            "default": 0
+          },
+          "skip_penalty": {
+            "type": "integer",
+            "title": "Skip Penalty",
+            "default": 0
+          },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": true
+          },
+          "skip_enabled": {
+            "type": "boolean",
+            "title": "Skip Enabled",
+            "default": true
+          },
+          "guide_manual_arrival_enabled": {
+            "type": "boolean",
+            "title": "Guide Manual Arrival Enabled",
+            "default": true
+          },
+          "reveal_on_arrival": {
+            "type": "boolean",
+            "title": "Reveal On Arrival",
+            "default": true
+          },
+          "proximity_enabled": {
+            "type": "boolean",
+            "title": "Proximity Enabled",
+            "default": false
+          },
+          "compass_enabled": {
+            "type": "boolean",
+            "title": "Compass Enabled",
+            "default": false
+          },
+          "search_radius_m": {
+            "type": "integer",
+            "title": "Search Radius M",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -9850,6 +10713,56 @@
             "title": "Gps Checkin Enabled",
             "default": false
           },
+          "reveal_next_checkpoint": {
+            "type": "boolean",
+            "title": "Reveal Next Checkpoint",
+            "default": true
+          },
+          "hint_penalty": {
+            "type": "integer",
+            "title": "Hint Penalty",
+            "default": 0
+          },
+          "skip_penalty": {
+            "type": "integer",
+            "title": "Skip Penalty",
+            "default": 0
+          },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": true
+          },
+          "skip_enabled": {
+            "type": "boolean",
+            "title": "Skip Enabled",
+            "default": true
+          },
+          "guide_manual_arrival_enabled": {
+            "type": "boolean",
+            "title": "Guide Manual Arrival Enabled",
+            "default": true
+          },
+          "reveal_on_arrival": {
+            "type": "boolean",
+            "title": "Reveal On Arrival",
+            "default": true
+          },
+          "proximity_enabled": {
+            "type": "boolean",
+            "title": "Proximity Enabled",
+            "default": false
+          },
+          "compass_enabled": {
+            "type": "boolean",
+            "title": "Compass Enabled",
+            "default": false
+          },
+          "search_radius_m": {
+            "type": "integer",
+            "title": "Search Radius M",
+            "default": 0
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -10051,6 +10964,35 @@
         "title": "Readiness",
         "description": "Aggregated dependency health.\n\n``redis`` is absent when the realtime subsystem is disabled, in which case\nno Redis connection is expected and its state says nothing about\nreadiness."
       },
+      "RevealedHint": {
+        "properties": {
+          "indication_id": {
+            "type": "integer",
+            "title": "Indication Id"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "revealed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Revealed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indication_id",
+          "hint",
+          "cost",
+          "revealed_at"
+        ],
+        "title": "RevealedHint"
+      },
       "RotationScheduleResponse": {
         "properties": {
           "event_id": {
@@ -10236,6 +11178,59 @@
           "name"
         ],
         "title": "TeamCreate"
+      },
+      "TeamHintSummary": {
+        "properties": {
+          "revealed": {
+            "items": {
+              "$ref": "#/components/schemas/RevealedHint"
+            },
+            "type": "array",
+            "title": "Revealed"
+          },
+          "total_spent": {
+            "type": "integer",
+            "title": "Total Spent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revealed",
+          "total_spent"
+        ],
+        "title": "TeamHintSummary",
+        "description": "Every hint this team has bought, across the whole event.\n\nThe per-checkpoint listing only covers the post the team is looking at, so\nwithout this a team that spent points at three posts has no way to add\nthem up \u2014 the DynamicAward rows carrying the charges are admin-only."
+      },
+      "TeamHints": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "revealed": {
+            "items": {
+              "$ref": "#/components/schemas/RevealedHint"
+            },
+            "type": "array",
+            "title": "Revealed"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          },
+          "next_cost": {
+            "type": "integer",
+            "title": "Next Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "revealed",
+          "remaining",
+          "next_cost"
+        ],
+        "title": "TeamHints"
       },
       "TeamLoginRequest": {
         "properties": {
@@ -10542,6 +11537,19 @@
               }
             ],
             "title": "Name"
+          },
+          "start_offset_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Offset Minutes"
           },
           "times": {
             "anyOf": [

@@ -79,6 +79,12 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
         Indicações do guia
         <span className="text-xs font-normal text-muted-foreground">({indications.length})</span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Servem dois fins: o guia lê-as à equipa no local, e — se o evento tiver custo de pista
+        definido — a equipa pode desbloqueá-las uma a uma na app, por esta ordem, pagando pontos.
+        Escreve-as da mais vaga para a mais reveladora. A pergunta e a resposta esperada nunca são
+        enviadas à equipa.
+      </p>
 
       {indications.length > 0 && (
         <ul className="space-y-2">

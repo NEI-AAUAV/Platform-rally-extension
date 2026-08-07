@@ -71,6 +71,36 @@ const rallySettingsSchema = z.object({
   // GPS geofence self-check-in by the team
   gps_checkin_enabled: z.boolean(),
 
+  // Cost of unlocking a hint (negative; 0 = free)
+  hint_penalty: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
+
+  // Cost of giving up on a checkpoint (negative; 0 = free)
+  skip_penalty: z
+    .number()
+    .min(-100, "Penalty too severe")
+    .max(0, "Penalty must be negative or zero"),
+
+  // Feature switches, separate from the costs above: 0 points means free, off
+  // means the mechanic is gone.
+  hints_enabled: z.boolean(),
+  skip_enabled: z.boolean(),
+  guide_manual_arrival_enabled: z.boolean(),
+  reveal_on_arrival: z.boolean(),
+
+  // Navigation aids for teams who do not know the city
+  proximity_enabled: z.boolean(),
+  compass_enabled: z.boolean(),
+  search_radius_m: z
+    .number()
+    .min(0, "O raio nao pode ser negativo")
+    .max(5000, "Raio demasiado grande"),
+
+  // Walk-up registration: staff can add members during the event
+  allow_staff_registration: z.boolean(),
+
   // Staff and scoring
   enable_staff_scoring: z.boolean(),
 
@@ -78,6 +108,9 @@ const rallySettingsSchema = z.object({
   show_live_leaderboard: z.boolean(),
   show_team_details: z.boolean(),
   show_checkpoint_map: z.boolean(),
+
+  // Redact the next checkpoint until the team checks in (peddy paper)
+  reveal_next_checkpoint: z.boolean(),
   participant_view_enabled: z.boolean(),
   show_route_mode: z.string().min(1, "Route mode is required"),
   show_score_mode: z.string().min(1, "Score mode is required"),
@@ -136,10 +169,21 @@ function buildFormValues(
     max_extra_shots_per_member: settings.max_extra_shots_per_member,
     checkpoint_order_matters: settings.checkpoint_order_matters,
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
+    hint_penalty: settings.hint_penalty ?? 0,
+    skip_penalty: settings.skip_penalty ?? 0,
+    hints_enabled: settings.hints_enabled ?? true,
+    skip_enabled: settings.skip_enabled ?? true,
+    guide_manual_arrival_enabled: settings.guide_manual_arrival_enabled ?? true,
+    reveal_on_arrival: settings.reveal_on_arrival ?? true,
+    proximity_enabled: settings.proximity_enabled ?? false,
+    compass_enabled: settings.compass_enabled ?? false,
+    search_radius_m: settings.search_radius_m ?? 0,
+    allow_staff_registration: settings.allow_staff_registration ?? false,
     enable_staff_scoring: settings.enable_staff_scoring,
     show_live_leaderboard: settings.show_live_leaderboard,
     show_team_details: settings.show_team_details,
     show_checkpoint_map: settings.show_checkpoint_map,
+    reveal_next_checkpoint: settings.reveal_next_checkpoint ?? true,
     participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
     show_route_mode: extendedSettings?.show_route_mode ?? "focused",
     show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
@@ -206,10 +250,21 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       max_extra_shots_per_member: 5,
       checkpoint_order_matters: true,
       gps_checkin_enabled: false,
+      hint_penalty: 0,
+      skip_penalty: 0,
+      hints_enabled: true,
+      skip_enabled: true,
+      guide_manual_arrival_enabled: true,
+      reveal_on_arrival: true,
+      proximity_enabled: false,
+      compass_enabled: false,
+      search_radius_m: 0,
+      allow_staff_registration: false,
       enable_staff_scoring: true,
       show_live_leaderboard: true,
       show_team_details: true,
       show_checkpoint_map: true,
+      reveal_next_checkpoint: true,
       participant_view_enabled: false,
       show_route_mode: "focused",
       show_score_mode: "hidden",

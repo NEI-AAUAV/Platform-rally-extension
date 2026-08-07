@@ -14,6 +14,13 @@ class CheckPointBase(BaseModel):
     longitude: float | None = None
     order: int
     arrival_radius_m: int = 50
+    # Peddy paper riddle whose answer is *this checkpoint's own location*.
+    # Deliberately distinct from CheckpointGuideIndication.hint, which a guide
+    # reads out to a team that has already arrived. The clue is the one field a
+    # redacted checkpoint still carries (see CheckpointService._redact_unreached).
+    clue: str | None = None
+    # Optional picture-riddle accompanying the clue (R2 URL).
+    clue_media_url: str | None = None
 
 
 class CheckPointCreate(CheckPointBase):
@@ -30,6 +37,8 @@ class CheckPointUpdate(BaseModel):
     longitude: float | None = LONGITUDE_FIELD
     order: int | None = None
     arrival_radius_m: int | None = Field(default=None, ge=0)
+    clue: str | None = None
+    clue_media_url: str | None = None
 
 
 class CheckPointResponse(CheckPointBase):
@@ -42,3 +51,16 @@ class DetailedCheckPoint(CheckPointBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # True when the team has not reached this checkpoint and the answer-bearing
+    # fields were stripped (see CheckpointService._redact_unreached). Clients
+    # need to know the difference between "this post has no description" and
+    # "you have not earned the description yet" — otherwise they have to sniff
+    # the placeholder name to tell them apart.
+    is_redacted: bool = False
+    # A search circle for a redacted post: wide enough to narrow the city to a
+    # neighbourhood, and deliberately NOT centred on the post (see
+    # CheckpointService._search_area). All three are None when the event does
+    # not use search areas, or the post is already revealed.
+    search_latitude: float | None = None
+    search_longitude: float | None = None
+    search_radius_m: int | None = None

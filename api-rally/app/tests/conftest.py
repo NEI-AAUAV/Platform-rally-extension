@@ -256,11 +256,37 @@ def pg_client(_pg_engine) -> TestClient:
 
 
 async def make_event(pg_session, **overrides):
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
+    overrides.setdefault("name", "Test Event")
+    event = RallyEvent(is_current=True, **overrides)
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)
     return event
+
+
+async def make_team(pg_session, name="TeamA", event_id=None):
+    from app.crud.crud_team import team as crud_team
+    from app.schemas.team import TeamCreate
+
+    obj = await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
+    if event_id is not None:
+        obj.event_id = event_id
+        pg_session.add(obj)
+        await pg_session.commit()
+        await pg_session.refresh(obj)
+    return obj
+
+
+async def set_rally_settings(pg_session, **overrides):
+    from app.crud.crud_rally_settings import rally_settings
+    from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+
+    current = await rally_settings.get_or_create(pg_session)
+    data = RallySettingsResponse.model_validate(current).model_dump(exclude={"id"})
+    data.update(overrides)
+    return await rally_settings.update(
+        pg_session, id=current.id, obj_in=RallySettingsUpdate(**data), commit=True
+    )
 
 
 def _fake_detailed_user(**overrides):

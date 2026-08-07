@@ -127,6 +127,8 @@ describe('useCheckpointManagement', () => {
         longitude: null,
         arrival_radius_m: 50,
         order: 1,
+        clue: null,
+        clue_media_url: null,
       },
     });
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledWith('Checkpoint criado com sucesso!'));
@@ -188,6 +190,8 @@ describe('useCheckpointManagement', () => {
           longitude: 2.2,
           arrival_radius_m: 50,
           order: 1,
+          clue: null,
+          clue_media_url: null,
         },
       }),
     );

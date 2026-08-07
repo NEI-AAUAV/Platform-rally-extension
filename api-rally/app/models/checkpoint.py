@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -29,6 +29,12 @@ class CheckPoint(Base):
     latitude: Mapped[float | None] = mapped_column(default=None)
     longitude: Mapped[float | None] = mapped_column(default=None)
     order: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Peddy paper: the riddle a team receives *before* setting off, whose
+    # answer is the checkpoint's own location. Distinct from
+    # CheckpointGuideIndication.hint, which a guide reads out on arrival.
+    clue: Mapped[str | None] = mapped_column(Text, default=None)
+    # Optional image/audio accompanying the clue (R2 URL).
+    clue_media_url: Mapped[str | None] = mapped_column(String(500), default=None)
     arrival_radius_m: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     # Event scoping: nullable so existing single-event rows remain valid.
     event_id: Mapped[int | None] = mapped_column(

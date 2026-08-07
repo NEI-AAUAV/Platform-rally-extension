@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -10,6 +10,11 @@ interface Checkpoint {
   latitude?: number | null;
   longitude?: number | null;
   order: number;
+  // Search circle for a post whose coordinates are withheld. Deliberately not
+  // centred on the post — see the API's CheckpointService._search_area.
+  search_latitude?: number | null;
+  search_longitude?: number | null;
+  search_radius_m?: number | null;
 }
 
 type RealMapProps = Readonly<{
@@ -98,7 +103,28 @@ export default function RealMap({ checkpoints, selectedCheckpoint, onSelect }: R
     [checkpoints],
   );
 
-  const center = coords[0]?.pos ?? ([40.6304, -8.6574] as [number, number]); // UA Campus de Santiago
+  // Posts whose coordinates are withheld still get a circle to search in, so
+  // a team that does not know the city has somewhere to start.
+  const searchAreas = useMemo(
+    () =>
+      checkpoints.filter(
+        (c) =>
+          c.latitude == null &&
+          c.search_latitude != null &&
+          c.search_longitude != null &&
+          (c.search_radius_m ?? 0) > 0,
+      ),
+    [checkpoints],
+  );
+
+  const center =
+    coords[0]?.pos ??
+    (searchAreas[0]
+      ? ([searchAreas[0].search_latitude as number, searchAreas[0].search_longitude as number] as [
+          number,
+          number,
+        ])
+      : ([40.6304, -8.6574] as [number, number])); // UA Campus de Santiago
   const accent = useMemo(resolveAccent, []);
 
   return (
@@ -116,6 +142,14 @@ export default function RealMap({ checkpoints, selectedCheckpoint, onSelect }: R
         positions={coords.map((c) => c.pos)}
         pathOptions={{ color: accent, weight: 4, dashArray: "2 10", lineCap: "round" }}
       />
+      {searchAreas.map((cp) => (
+        <Circle
+          key={`search-${cp.id}`}
+          center={[cp.search_latitude as number, cp.search_longitude as number]}
+          radius={cp.search_radius_m as number}
+          pathOptions={{ color: accent, weight: 2, dashArray: "6 8", fillOpacity: 0.08 }}
+        />
+      ))}
       {coords.map(({ cp, pos }) => (
         <Marker
           key={cp.id}

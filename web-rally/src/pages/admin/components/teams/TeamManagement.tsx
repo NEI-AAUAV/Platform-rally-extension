@@ -33,6 +33,10 @@ import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
 
 const teamFormSchema = z.object({
   name: z.string().min(1, "Nome da equipa é obrigatório"),
+  start_offset_minutes: z
+    .number()
+    .min(0, "O desfasamento não pode ser negativo")
+    .max(24 * 60, "Desfasamento demasiado grande"),
 });
 
 type TeamForm = z.infer<typeof teamFormSchema>;
@@ -42,6 +46,7 @@ interface Team {
   name: string;
   total: number;
   num_members: number;
+  start_offset_minutes?: number;
 }
 
 type ExtendedDetailedTeam = Omit<DetailedTeam, "access_code"> & { access_code?: string };
@@ -106,6 +111,7 @@ export default function TeamManagement() {
     mutationFn: async ({ id, data }: { id: number; data: TeamForm }) => {
       const requestBody: TeamUpdate = {
         name: data.name,
+        start_offset_minutes: data.start_offset_minutes,
       };
       return apiUpdateTeam({ path: { id }, body: requestBody });
     },
@@ -138,6 +144,7 @@ export default function TeamManagement() {
     resolver: zodResolver(teamFormSchema),
     defaultValues: {
       name: "",
+      start_offset_minutes: 0,
     },
   });
 
@@ -152,6 +159,7 @@ export default function TeamManagement() {
   const startEditTeam = (team: Team) => {
     setEditingTeam(team);
     teamForm.setValue("name", team.name);
+    teamForm.setValue("start_offset_minutes", team.start_offset_minutes ?? 0);
   };
 
   const cancelEdit = () => {
@@ -191,6 +199,33 @@ export default function TeamManagement() {
                 </FormItem>
               )}
             />
+            {editingTeam && (
+              <FormField
+                control={teamForm.control}
+                name="start_offset_minutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Partida desfasada (minutos)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 20"
+                        {...field}
+                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
+                        className="border-border bg-muted"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Minutos depois do início do evento a que esta equipa pode arrancar. O percurso
+                      é o mesmo para todas — desfasar as partidas evita que se copiem no mesmo
+                      posto. 0 = arranca com toda a gente. O fim do evento não muda.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="flex gap-2">
               <BloodyButton type="submit" disabled={isCreatingTeam || isUpdatingTeam}>
                 {editingTeam ? "Atualizar" : "Criar"} Equipa

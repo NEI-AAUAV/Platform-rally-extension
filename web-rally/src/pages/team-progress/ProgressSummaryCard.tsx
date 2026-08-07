@@ -1,3 +1,5 @@
+import useEventTerms from "@/hooks/useEventTerms";
+
 type ProgressSummaryCardProps = Readonly<{
   completedCount: number;
   totalCount: number;
@@ -11,6 +13,7 @@ export default function ProgressSummaryCard({
   totalScore,
   showScore,
 }: ProgressSummaryCardProps) {
+  const terms = useEventTerms();
   const pct = Math.round((completedCount / (totalCount || 1)) * 100);
 
   return (
@@ -27,7 +30,7 @@ export default function ProgressSummaryCard({
       </div>
       {showScore && (
         <p className="mt-3 text-xs text-muted-foreground">
-          {completedCount} de {totalCount} postos · {totalScore} pontos
+          {completedCount} de {totalCount} {terms.checkpoints} · {totalScore} pontos
         </p>
       )}
     </div>

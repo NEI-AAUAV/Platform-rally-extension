@@ -1,6 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import HowItWorks, { HowItWorks as HowItWorksNamed } from '@/pages/home/HowItWorks';
+
+// useEventTerms pulls from useRallySettings (React Query), which needs a
+// QueryClientProvider this test doesn't set up. Mock it with the fixed terms
+// this copy already assumes.
+vi.mock('@/hooks/useEventTerms', () => ({
+  default: () => ({
+    checkpoint: 'posto',
+    checkpoints: 'postos',
+    activity: 'desafio',
+    activities: 'desafios',
+    event: 'peddy-paper',
+    checkpointGender: 'm',
+  }),
+}));
 
 describe('HowItWorks', () => {
   it('renders the section heading', () => {
@@ -17,7 +31,7 @@ describe('HowItWorks', () => {
 
     expect(screen.getByText('Percorre os postos')).toBeInTheDocument();
     expect(
-      screen.getByText('Vai a cada tasca, completa o desafio e faz check-in com o QR code.'),
+      screen.getByText('Vai a cada posto, completa o desafio e faz check-in com o QR code.'),
     ).toBeInTheDocument();
 
     expect(screen.getByText('Sobe na classificação')).toBeInTheDocument();

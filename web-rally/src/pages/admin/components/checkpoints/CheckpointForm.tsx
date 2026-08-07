@@ -8,9 +8,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
+import ClueImageField from "./ClueImageField";
 
 const fieldClassName = "bg-muted border-border";
 
@@ -141,6 +143,40 @@ export default function CheckpointForm({
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="clue"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Enigma para a equipa (opcional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={3}
+                    placeholder="Ex: Onde o rio encontra a ponte de ferro..."
+                    {...field}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Mostrado à equipa <strong>antes</strong> de chegar — a resposta é este local. É o
+                  único campo do checkpoint que a equipa vê enquanto não faz check-in. Deixa vazio
+                  para o evento correr guiado, com as indicações dadas pelo guia no local.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormItem>
+            <FormLabel>Imagem do enigma (opcional)</FormLabel>
+            <p className="text-xs text-muted-foreground">
+              Uma foto-enigma — um detalhe do local, por exemplo.
+            </p>
+            <ClueImageField
+              checkpointId={currentId ?? null}
+              currentUrl={form.watch("clue_media_url") || null}
+              onUploaded={(url) => form.setValue("clue_media_url", url)}
+            />
+          </FormItem>
           <FormField
             control={form.control}
             name="order"

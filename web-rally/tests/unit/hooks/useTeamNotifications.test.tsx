@@ -13,6 +13,19 @@ vi.mock('@/hooks/use-toast', () => ({
   useAppToast: () => h,
 }))
 
+// useEventTerms pulls from useRallySettings (React Query), which needs a
+// QueryClientProvider this test doesn't set up.
+vi.mock('@/hooks/useEventTerms', () => ({
+  default: () => ({
+    checkpoint: 'posto',
+    checkpoints: 'postos',
+    activity: 'desafio',
+    activities: 'desafios',
+    event: 'peddy-paper',
+    checkpointGender: 'm',
+  }),
+}))
+
 import useTeamNotifications from '@/hooks/useTeamNotifications'
 
 function makeTeam(over: Partial<DetailedTeam>): DetailedTeam {

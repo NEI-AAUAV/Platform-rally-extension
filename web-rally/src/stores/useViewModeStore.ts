@@ -15,27 +15,32 @@ export type ViewMode = "team" | "staff";
  */
 interface ViewModeState {
   viewMode: ViewMode;
-  toggleViewMode: () => void;
+  toggle: () => void;
 }
 
-function readInitialViewMode(): ViewMode {
+function readInitial(): ViewMode {
   if (typeof window === "undefined") return "staff";
   return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode | null) ?? "staff";
 }
 
-export const useViewModeStore = create<ViewModeState>((set) => ({
-  viewMode: readInitialViewMode(),
-  toggleViewMode: () =>
-    set((state) => {
-      const next: ViewMode = state.viewMode === "staff" ? "team" : "staff";
-      localStorage.setItem(VIEW_MODE_KEY, next);
-      return { viewMode: next };
-    }),
+/**
+ * Dual-role users (staff/admin who are also on a team) toggle which nav they
+ * see. Was per-component `useState` in `nav-tabs.tsx` — toggling on desktop
+ * never updated `MobileBottomNav`'s own copy, and vice versa. Shared store
+ * so both read the same value and both re-render on toggle.
+ */
+export const useViewModeStore = create<ViewModeState>((set, get) => ({
+  viewMode: readInitial(),
+  toggle: () => {
+    const next: ViewMode = get().viewMode === "staff" ? "team" : "staff";
+    localStorage.setItem(VIEW_MODE_KEY, next);
+    set({ viewMode: next });
+  },
 }));
 
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key !== VIEW_MODE_KEY) return;
-    useViewModeStore.setState({ viewMode: readInitialViewMode() });
+    useViewModeStore.setState({ viewMode: readInitial() });
   });
 }

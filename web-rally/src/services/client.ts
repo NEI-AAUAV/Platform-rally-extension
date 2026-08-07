@@ -1,6 +1,6 @@
 import { getTeamToken, setTeamToken, clearTeamAuth } from "@/lib/auth/tokenStore";
 import { logger } from "@/lib/logger";
-import { useTeamStore } from "@/stores/useTeamStore";
+import { useTeamAuthStore, hydrateTeamAuthStore } from "@/stores/useTeamAuthStore";
 
 /**
  * HTTP auth glue for the generated OpenAPI client.
@@ -61,13 +61,16 @@ export async function refreshTeamToken(): Promise<string | undefined> {
       // live event on a transient blip.
       if (response.status === 401 || response.status === 403) {
         clearTeamAuth();
-        useTeamStore.getState().clear();
+        useTeamAuthStore.getState().clearAuth();
       }
       return undefined;
     }
     const { access_token } = (await response.json()) as { access_token: string };
     setTeamToken(access_token);
-    useTeamStore.getState().setToken();
+    // Re-sync the store's teamData/isAuthenticated from the (now refreshed)
+    // token in localStorage — the store has no standalone "just the token
+    // changed" setter, and the team id/name are unchanged by a refresh.
+    hydrateTeamAuthStore();
     return access_token;
   } catch (error) {
     // Network failure (offline, timeout, DNS): keep the existing session —

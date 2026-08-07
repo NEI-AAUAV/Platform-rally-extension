@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getTeamById,
@@ -8,15 +7,8 @@ import {
   type PrivilegedDetailedTeam,
 } from "@/client";
 import { ApiError } from "@/services/apiClient";
-import { setSentryUser, clearSentryUser } from "@/lib/sentry";
-import {
-  getTeamToken,
-  setTeamToken,
-  setTeamData,
-  clearTeamAuth,
-  type TeamTokenData,
-} from "@/lib/auth/tokenStore";
-import { useTeamStore } from "@/stores/useTeamStore";
+import { getTeamToken } from "@/lib/auth/tokenStore";
+import { useTeamAuthStore } from "@/stores/useTeamAuthStore";
 
 interface TeamLoginResponse {
   access_token: string;
@@ -26,23 +18,23 @@ interface TeamLoginResponse {
 }
 
 /**
- * Hook for team authentication
- * Provides login, logout, and authentication state management
+ * Hook for team authentication.
+ *
+ * State lives in `useTeamAuthStore` (Zustand) so login/logout in one
+ * component is immediately visible to every other mounted consumer — see
+ * that store's docstring for why. This hook is the thin per-render wrapper:
+ * store state plus the React Query pieces (team fetch, member mutations)
+ * that legitimately need a query client.
  */
 export default function useTeamAuth() {
-  const isAuthenticated = useTeamStore((state) => state.isAuthenticated);
-  const currentTeamData = useTeamStore((state) => state.teamData);
-  const setSession = useTeamStore((state) => state.setSession);
-  const clearStore = useTeamStore((state) => state.clear);
+  const {
+    isAuthenticated,
+    teamData: currentTeamData,
+    isLoadingAuth,
+    setAuth,
+    clearAuth,
+  } = useTeamAuthStore();
   const queryClient = useQueryClient();
-
-  // The store is seeded synchronously from localStorage at module init, so
-  // there is no loading window for team auth itself (unlike the OIDC side,
-  // which waits on a network round-trip). Sentry identity mirrors whatever
-  // the store already holds.
-  useEffect(() => {
-    if (currentTeamData) setSentryUser(currentTeamData.team_id);
-  }, [currentTeamData]);
 
   // Fetch team members data when authenticated
   const { data: team, isLoading: isLoadingTeam } = useQuery<PrivilegedDetailedTeam>({
@@ -73,15 +65,7 @@ export default function useTeamAuth() {
       }
     },
     onSuccess: (data) => {
-      // Store token and team data
-      const teamTokenData: TeamTokenData = {
-        team_id: data.team_id,
-        team_name: data.team_name,
-      };
-      setTeamToken(data.access_token);
-      setTeamData(teamTokenData);
-      setSession(teamTokenData);
-      setSentryUser(data.team_id);
+      setAuth({ team_id: data.team_id, team_name: data.team_name }, data.access_token);
     },
   });
 
@@ -117,9 +101,7 @@ export default function useTeamAuth() {
   };
 
   const logout = () => {
-    clearTeamAuth();
-    clearStore();
-    clearSentryUser();
+    clearAuth();
     void queryClient.invalidateQueries({ queryKey: ["team"] });
   };
 
@@ -131,7 +113,7 @@ export default function useTeamAuth() {
     isAuthenticated,
     teamData: currentTeamData,
     team,
-    isLoading: isLoadingTeam,
+    isLoading: isLoadingAuth || isLoadingTeam,
     login,
     logout,
     getToken,
