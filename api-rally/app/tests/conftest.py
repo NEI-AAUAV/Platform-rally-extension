@@ -256,7 +256,8 @@ def pg_client(_pg_engine) -> TestClient:
 
 
 async def make_event(pg_session, **overrides):
-    event = RallyEvent(name="Test Event", is_current=True, **overrides)
+    overrides.setdefault("name", "Test Event")
+    event = RallyEvent(is_current=True, **overrides)
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)
