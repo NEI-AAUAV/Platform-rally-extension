@@ -84,9 +84,7 @@ class TestRedactUnreached:
         # then makes arriving unrewarding, which is the whole game.
         checkpoint = _checkpoint(order=3)
 
-        result = CheckpointService._redact_unreached(
-            checkpoint, current_order=3, has_arrived=True
-        )
+        result = CheckpointService._redact_unreached(checkpoint, current_order=3, has_arrived=True)
 
         assert result == checkpoint
         assert result.is_redacted is False
@@ -94,9 +92,7 @@ class TestRedactUnreached:
     def test_not_arriving_keeps_the_current_post_redacted(self) -> None:
         checkpoint = _checkpoint(order=3)
 
-        result = CheckpointService._redact_unreached(
-            checkpoint, current_order=3, has_arrived=False
-        )
+        result = CheckpointService._redact_unreached(checkpoint, current_order=3, has_arrived=False)
 
         assert result.is_redacted is True
 

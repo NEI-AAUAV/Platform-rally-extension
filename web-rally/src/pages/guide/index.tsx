@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Sparkles,
 } from "lucide-react";
+import CheckpointTeamsPanel from "./CheckpointTeamsPanel";
 import {
   listGuideCheckpoints,
   type GuideCheckpointResponse,
@@ -108,8 +109,14 @@ function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>)
 
 function IndicationList({
   indications,
-}: Readonly<{ indications: readonly GuideIndicationItem[] }>) {
+  purchasedIds = [],
+}: Readonly<{
+  indications: readonly GuideIndicationItem[];
+  /** Indication ids some team already unlocked in the app, for points. */
+  purchasedIds?: readonly number[];
+}>) {
   if (indications.length === 0) return null;
+  const purchased = new Set(purchasedIds);
 
   return (
     <section className="space-y-2">
@@ -122,6 +129,13 @@ function IndicationList({
           .sort((a, b) => a.order - b.order)
           .map((ind) => (
             <li key={ind.id} className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              {purchased.has(ind.id) && (
+                // Already paid for in the app. Reading it out again hands back,
+                // for free, what the team spent points on.
+                <p className="mb-1 text-xs font-semibold text-amber-600">
+                  Já comprada por uma equipa
+                </p>
+              )}
               <p className="text-sm font-semibold leading-snug text-foreground">{ind.hint}</p>
               {ind.question && (
                 <p className="mt-2 flex items-start gap-1.5 text-sm text-foreground">
@@ -144,6 +158,9 @@ function IndicationList({
 
 function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
   const [open, setOpen] = useState(false);
+  // Which indications teams at this post already unlocked, surfaced from the
+  // teams panel so the ladder above can flag them.
+  const [purchasedIds, setPurchasedIds] = useState<readonly number[]>([]);
 
   return (
     <article className="rally-surface overflow-hidden">
@@ -191,7 +208,8 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
               )}
             </section>
           )}
-          <IndicationList indications={cp.indications} />
+          <IndicationList indications={cp.indications} purchasedIds={purchasedIds} />
+          <CheckpointTeamsPanel checkpointId={cp.id} onPurchasedIdsChange={setPurchasedIds} />
           <MediaGallery media={cp.media} />
         </div>
       )}

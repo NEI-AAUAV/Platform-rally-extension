@@ -58,7 +58,11 @@ async def _enable_gps(pg_session):
     settings = await rally_settings.get_or_create(pg_session)
     data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
     data.update(
-        {"gps_checkin_enabled": True, "reveal_next_checkpoint": False, "show_route_mode": "complete"}
+        {
+            "gps_checkin_enabled": True,
+            "reveal_next_checkpoint": False,
+            "show_route_mode": "complete",
+        }
     )
     return await rally_settings.update(
         pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True

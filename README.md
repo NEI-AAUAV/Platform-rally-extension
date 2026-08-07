@@ -110,6 +110,23 @@ All four are plain settings — any event can switch them on or off afterwards.
    don't cluster at one post and copy each other. It shifts the team's start
    only; the event's end time is unchanged.
 
+**The guide's app** (`/rally/guide`, guide/staff/admin roles) shows each post's
+clue, guide indications, photos and fun facts, plus who has turned up:
+
+- The route is **scoped to the guide's own assignment**, because in this mode
+  the full route is the answer key and a phone showing every post is one glance
+  over the shoulder from handing a team the rest of the game. Staff and admins
+  see everything; a guide with no assignment also sees everything, since an
+  admin who forgot to assign them would otherwise be left with a blank screen
+  mid-event.
+- **Marking a team as arrived** is the fallback for when GPS check-in fails —
+  flat battery, no signal, an indoor post. The guide is the proof, so no
+  geofence is checked; everything else (event window, cross-edition guard,
+  idempotency, auto-complete for a no-activity post) behaves exactly like the
+  GPS path, and the arrival is audited as `checkin.guide_arrival`.
+- Indications a team **already unlocked in the app** are flagged, so the guide
+  does not read out, for free, a hint the team just paid ten points for.
+
 **The loop:** the team reads the clue → walks → checks in by GPS inside the
 radius → the post reveals itself (name, photos, fun facts) and the next clue
 appears. GPS arrival is the only proof of arrival: there is no written answer to

@@ -5724,7 +5724,7 @@
           "Guide"
         ],
         "summary": "List Guide Checkpoints",
-        "description": "Return all checkpoints with their media gallery for the current event.\n\nOrdered by checkpoint order. Guide role, staff, and admins can access this.",
+        "description": "Checkpoints with their media gallery for the current event.\n\nScoped to the guide's own assignment (see GuideService); staff and\nadmins get the whole route. Ordered by checkpoint order.",
         "operationId": "list_guide_checkpoints",
         "responses": {
           "200": {
@@ -5750,6 +5750,128 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/rally/v1/guide/checkpoints/{checkpoint_id}/teams": {
+      "get": {
+        "tags": [
+          "Guide"
+        ],
+        "summary": "List Guide Teams At Checkpoint",
+        "description": "Teams that have arrived at this post, and the hints they bought.",
+        "operationId": "list_guide_teams_at_checkpoint",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GuideTeamAtCheckpoint"
+                  },
+                  "title": "Response List Guide Teams At Checkpoint"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not this guide's checkpoint"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/guide/checkpoints/{checkpoint_id}/arrivals": {
+      "post": {
+        "tags": [
+          "Guide"
+        ],
+        "summary": "Record Guide Arrival",
+        "description": "Mark a team as arrived, on the guide's word instead of a GPS fix.\n\nGPS check-in fails for ordinary reasons \u2014 a flat battery, no signal, an\nindoor post \u2014 and the guide is standing there watching the team. This\nis the fallback, and it is audited like every other progress write.",
+        "operationId": "record_guide_arrival",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Checkpoint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuideArrivalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideArrivalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Outside the event window, or a cross-edition team"
+          },
+          "403": {
+            "description": "Not this guide's checkpoint"
+          },
+          "404": {
+            "description": "Checkpoint not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/rally/v1/events/{event_id}/export": {
@@ -8593,6 +8715,47 @@
         "title": "GlobalRanking",
         "description": "Schema for global team ranking"
       },
+      "GuideArrivalRequest": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id"
+        ],
+        "title": "GuideArrivalRequest"
+      },
+      "GuideArrivalResponse": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "already_registered": {
+            "type": "boolean",
+            "title": "Already Registered"
+          },
+          "auto_completed": {
+            "type": "boolean",
+            "title": "Auto Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "checkpoint_id",
+          "already_registered",
+          "auto_completed"
+        ],
+        "title": "GuideArrivalResponse"
+      },
       "GuideCheckpointResponse": {
         "properties": {
           "id": {
@@ -8776,6 +8939,43 @@
           "display_order"
         ],
         "title": "GuideMediaItem"
+      },
+      "GuideTeamAtCheckpoint": {
+        "properties": {
+          "team_id": {
+            "type": "integer",
+            "title": "Team Id"
+          },
+          "team_name": {
+            "type": "string",
+            "title": "Team Name"
+          },
+          "arrived_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Arrived At"
+          },
+          "arrived_by_guide": {
+            "type": "boolean",
+            "title": "Arrived By Guide"
+          },
+          "revealed_indication_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Revealed Indication Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id",
+          "team_name",
+          "arrived_at",
+          "arrived_by_guide",
+          "revealed_indication_ids"
+        ],
+        "title": "GuideTeamAtCheckpoint"
       },
       "HTTPValidationError": {
         "properties": {

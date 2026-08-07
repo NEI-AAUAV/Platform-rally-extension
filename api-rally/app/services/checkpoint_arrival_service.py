@@ -49,6 +49,70 @@ class CheckpointArrivalService:
         self._checkpoint_crud = checkpoint_crud
         self._team_crud = team_crud
 
+    async def record_manual_arrival(self, *, team_id: int, checkpoint_id: int) -> bool:
+        """Record an arrival witnessed by a guide, with no geofence check.
+
+        GPS check-in fails for real reasons — a flat battery, no signal, an
+        indoor post — and the guide is standing there watching the team. The
+        guide *is* the proof, so there is no distance to validate and no
+        coordinates to store.
+
+        Everything else still applies: the cross-edition guard and the event
+        window, and the insert is idempotent on (team, checkpoint) exactly like
+        the GPS path. Returns True when this call created the arrival.
+        """
+        checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
+        if not checkpoint:
+            raise RallyNotFoundError("Checkpoint not found")
+
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
+        require_same_event(team_obj.event_id, checkpoint.event_id)
+
+        settings = await rally_settings.get_or_create(self._db)
+        validate_rally_timing(
+            settings,
+            datetime.now(UTC),
+            start_offset_minutes=team_obj.start_offset_minutes or 0,
+        )
+
+        return await self._insert_arrival(
+            team_id=team_id, checkpoint_id=checkpoint_id, latitude=None, longitude=None
+        )
+
+    async def _insert_arrival(
+        self,
+        *,
+        team_id: int,
+        checkpoint_id: int,
+        latitude: float | None,
+        longitude: float | None,
+    ) -> bool:
+        """Idempotent insert. Returns True when this call created the row."""
+        existing = await self._db.execute(
+            select(CheckpointArrival).where(
+                CheckpointArrival.team_id == team_id,
+                CheckpointArrival.checkpoint_id == checkpoint_id,
+            )
+        )
+        if existing.scalars().first() is not None:
+            return False
+
+        self._db.add(
+            CheckpointArrival(
+                team_id=team_id,
+                checkpoint_id=checkpoint_id,
+                latitude=latitude,
+                longitude=longitude,
+            )
+        )
+        try:
+            await self._db.commit()
+        except IntegrityError:
+            # Lost a race against a concurrent arrival for the same pair.
+            await self._db.rollback()
+            return False
+        return True
+
     async def record_arrival(
         self, *, team_id: int, checkpoint_id: int, latitude: float, longitude: float
     ) -> tuple[float, bool]:
@@ -97,29 +161,13 @@ class CheckpointArrivalService:
                 f"(max {checkpoint.arrival_radius_m}m)"
             )
 
-        existing = await self._db.execute(
-            select(CheckpointArrival).where(
-                CheckpointArrival.team_id == team_id,
-                CheckpointArrival.checkpoint_id == checkpoint_id,
-            )
+        created = await self._insert_arrival(
+            team_id=team_id,
+            checkpoint_id=checkpoint_id,
+            latitude=latitude,
+            longitude=longitude,
         )
-        already_registered = existing.scalars().first() is not None
-
-        if not already_registered:
-            arrival = CheckpointArrival(
-                team_id=team_id,
-                checkpoint_id=checkpoint_id,
-                latitude=latitude,
-                longitude=longitude,
-            )
-            self._db.add(arrival)
-            try:
-                await self._db.commit()
-            except IntegrityError:
-                await self._db.rollback()
-                already_registered = True
-
-        return dist, already_registered
+        return dist, not created
 
     async def auto_complete_if_no_activities(self, team_id: int, checkpoint_id: int) -> bool:
         """Mark a no-activity checkpoint as completed on GPS arrival and advance.
