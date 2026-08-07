@@ -191,3 +191,27 @@ async def test_arriving_does_not_reveal_the_next_post(pg_session, pg_client):
     assert second["name"] == "Posto 2"
     assert second["latitude"] is None
     assert second["is_redacted"] is True
+
+
+async def test_only_the_current_posts_riddle_is_sent(pg_session, pg_client):
+    """The whole remaining route's riddles must not arrive at once.
+
+    A clue describes its place well enough that a team who knows the city can
+    read post 4's riddle from post 1 and go straight there.
+    """
+    await _make_event(pg_session)
+    await _enable_gps(pg_session)
+    await _make_checkpoint(pg_session, order=1)
+    await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0)
+    await _make_checkpoint(pg_session, order=3, lat=43.0, lon=-9.5)
+    team = await _make_team(pg_session)
+
+    with as_team(team.id, "TeamA"):
+        visible = pg_client.get(CHECKPOINTS_URL).json()
+
+    by_order = {cp["order"]: cp for cp in visible}
+    assert by_order[1]["clue"] == "Enigma 1"
+    assert by_order[2]["clue"] is None
+    assert by_order[3]["clue"] is None
+    # Not through the mirrored description either.
+    assert by_order[2]["description"] is None

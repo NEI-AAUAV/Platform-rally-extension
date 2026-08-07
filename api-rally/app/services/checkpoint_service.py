@@ -97,18 +97,27 @@ class CheckpointService:
           name and photos from a team standing in front of it made arriving
           unrewarding — finding the place is the whole game.
 
-        The ``clue`` survives redaction — it is the riddle *pointing at* the
-        location, not the location itself, and is the only thing a team is
-        meant to have before arriving. It is also mirrored into ``description``
-        so clients that only render the description still show something.
+        The ``clue`` survives redaction, but **only for the post the team is
+        currently hunting** (order == current_order). A riddle describes its
+        place well enough that anyone who knows the city can read it and skip
+        straight there, so handing over the whole route's riddles at once lets
+        a team solve post 4 while standing at post 1. One riddle at a time is
+        the game. It is also mirrored into ``description`` so clients that only
+        render the description still show something.
         """
         if checkpoint.order < current_order or has_arrived:
             return checkpoint
         area = CheckpointService._search_area(checkpoint, search_radius_m)
+        # Only the post they are on. Public callers pass current_order=0, so
+        # they never match and get no riddle at all.
+        is_current = checkpoint.order == current_order
+        clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
             update={
                 "name": f"Posto {checkpoint.order}",
-                "description": checkpoint.clue,
+                "description": clue,
+                "clue": clue,
+                "clue_media_url": checkpoint.clue_media_url if is_current else None,
                 "latitude": None,
                 "longitude": None,
                 "is_redacted": True,

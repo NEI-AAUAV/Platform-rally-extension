@@ -54,6 +54,24 @@ class TestRedactUnreached:
         # Clients must not have to sniff the placeholder name to know this.
         assert result.is_redacted is True
 
+    def test_only_the_current_post_keeps_its_clue(self) -> None:
+        # A riddle describes its place well enough that anyone who knows the
+        # city can read it and go straight there. Handing over the whole
+        # route's riddles lets a team solve post 4 while standing at post 1.
+        checkpoint = _checkpoint(order=5)
+
+        result = CheckpointService._redact_unreached(checkpoint, current_order=3)
+
+        assert result.clue is None
+        assert result.clue_media_url is None
+        assert result.description is None
+
+    def test_the_public_never_gets_a_clue(self) -> None:
+        # Public callers pass current_order=0, which matches no real post.
+        result = CheckpointService._redact_unreached(_checkpoint(order=1), current_order=0)
+
+        assert result.clue is None
+
     def test_clue_survives_redaction(self) -> None:
         # given a post with a participant riddle
         checkpoint = _checkpoint(order=3)
