@@ -237,7 +237,7 @@ export default function ScoringSettings({
             )}
           />
           <div>
-            <Label htmlFor="proximity_enabled">Botao: estou perto?</Label>
+            <Label htmlFor="proximity_enabled">Botão: estou perto?</Label>
             <p className="text-xs text-muted-foreground">
               Da a equipa uma banda de distancia (por exemplo, menos de 500m), nunca metros exatos
               nem coordenadas. Ajuda quem nao conhece a cidade sem entregar o sitio.
@@ -260,7 +260,7 @@ export default function ScoringSettings({
             )}
           />
           <div>
-            <Label htmlFor="compass_enabled">Bussola (so muito perto)</Label>
+            <Label htmlFor="compass_enabled">Bússola (só muito perto)</Label>
             <p className="text-xs text-muted-foreground">
               Acrescenta uma direcao em 8 setores, e so quando a equipa ja esta dentro da banda mais
               proxima. Um rumo preciso, tirado de dois sitios, dava o ponto exato — por isso e
