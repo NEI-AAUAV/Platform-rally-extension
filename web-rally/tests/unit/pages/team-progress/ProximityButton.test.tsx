@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -108,6 +108,6 @@ describe("ProximityButton", () => {
     render(<ProximityButton checkpointId={3} />, { wrapper: createWrapper() });
     await userEvent.click(screen.getByRole("button", { name: /Verificar distância/ }));
 
-    await waitFor(() => expect(screen.getByText(/não suportada pelo browser/)).toBeInTheDocument());
+    expect(await screen.findByText(/não suportada pelo browser/)).toBeInTheDocument();
   });
 });

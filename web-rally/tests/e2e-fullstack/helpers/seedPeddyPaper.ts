@@ -38,8 +38,8 @@ export interface SeededPeddyPaper {
 }
 
 /** Far from any other spec's fixtures, and precise enough to geofence. */
-const BASE_LATITUDE = 40.640_5;
-const BASE_LONGITUDE = -8.653_8;
+const BASE_LATITUDE = 40.6405;
+const BASE_LONGITUDE = -8.6538;
 const ARRIVAL_RADIUS_M = 50;
 
 export async function seedPeddyPaper(): Promise<SeededPeddyPaper> {

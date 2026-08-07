@@ -170,7 +170,7 @@ test.describe("peddy paper", () => {
       { token: peddy.admin.accessToken },
     );
 
-    expect(after.length).toBe(before.length);
+    expect(after).toHaveLength(before.length);
     // One award per rung bought, never more.
     expect(after.length).toBeLessThanOrEqual(peddy.hints.length);
   });

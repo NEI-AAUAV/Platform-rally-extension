@@ -198,61 +198,207 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
       : checkpoint.description;
   const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!discoveryDescription;
 
-  let buttonClasses = "border border-border bg-card text-foreground hover:bg-accent/40";
-  if (gpsState === "done") {
-    buttonClasses = "cursor-default bg-green-500/15 text-green-600";
-  } else if (gpsState === "queued") {
-    buttonClasses = "bg-amber-500/15 text-amber-600";
-  } else if (gpsState === "error") {
-    buttonClasses = "bg-red-500/10 text-red-500";
-  }
+const BUTTON_CLASSES: Record<GpsState, string> = {
+  idle: "border border-border bg-card text-foreground hover:bg-accent/40",
+  locating: "border border-border bg-card text-foreground hover:bg-accent/40",
+  done: "cursor-default bg-green-500/15 text-green-600",
+  queued: "bg-amber-500/15 text-amber-600",
+  error: "bg-red-500/10 text-red-500",
+};
 
-  let messageClasses = "text-red-500";
-  if (gpsState === "done") {
-    messageClasses = "text-green-600";
-  } else if (gpsState === "queued") {
-    messageClasses = "text-amber-600";
-  }
+const MESSAGE_CLASSES: Record<GpsState, string> = {
+  idle: "text-red-500",
+  locating: "text-red-500",
+  done: "text-green-600",
+  queued: "text-amber-600",
+  error: "text-red-500",
+};
 
-  const renderButtonContent = () => {
-    if (gpsState === "locating" || arriveMutation.isPending) {
-      return (
-        <>
-          <Loader2 className="h-5 w-5 animate-spin" />A localizar…
-        </>
-      );
-    }
-    if (gpsState === "done") {
-      return (
-        <>
-          <CheckCircle2 className="h-5 w-5" />
-          Check-in feito
-        </>
-      );
-    }
-    if (gpsState === "queued") {
-      return (
-        <>
-          <CloudOff className="h-5 w-5" />
-          Guardado — tentar novamente
-        </>
-      );
-    }
-    if (gpsState === "error") {
-      return (
-        <>
-          <AlertCircle className="h-5 w-5" />
-          Tentar novamente
-        </>
-      );
-    }
+function ButtonContent({ gpsState, isPending }: { gpsState: GpsState; isPending: boolean }) {
+  if (gpsState === "locating" || isPending) {
     return (
       <>
-        <LocateFixed className="h-5 w-5" />
-        Check-in GPS
+        <Loader2 className="h-5 w-5 animate-spin" />A localizar…
       </>
     );
+  }
+  if (gpsState === "done") {
+    return (
+      <>
+        <CheckCircle2 className="h-5 w-5" />
+        Check-in feito
+      </>
+    );
+  }
+  if (gpsState === "queued") {
+    return (
+      <>
+        <CloudOff className="h-5 w-5" />
+        Guardado — tentar novamente
+      </>
+    );
+  }
+  if (gpsState === "error") {
+    return (
+      <>
+        <AlertCircle className="h-5 w-5" />
+        Tentar novamente
+      </>
+    );
+  }
+  return (
+    <>
+      <LocateFixed className="h-5 w-5" />
+      Check-in GPS
+    </>
+  );
+}
+
+export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {
+  const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
+  const { settings } = useRallySettings();
+  // "posto" for a peddy-paper, "tasca" for a rally — this card renders for
+  // every event type, so the copy follows the event's terminology.
+  const terms = useEventTerms();
+  const feminino = terms.checkpointGender === "f";
+  const [gpsState, setGpsState] = useState<GpsState>("idle");
+  const [gpsMsg, setGpsMsg] = useState("");
+  const qc = useQueryClient();
+  // Replays anything queued by an earlier offline attempt, including from a
+  // previous app launch — iOS kills backgrounded PWAs, so the tab that queued
+  // an arrival is often not the tab that gets to send it.
+  const { queued } = useArrivalSync();
+  const isQueuedHere = queued.some((item) => item.checkpointId === checkpoint.id);
+
+  const arriveMutation = useMutation({
+    mutationFn: async ({ lat, lng }: { lat: number; lng: number }) => {
+      const { data } = await arriveAtCheckpoint({
+        path: { checkpoint_id: checkpoint.id },
+        body: { latitude: lat, longitude: lng },
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.auto_completed) {
+        setGpsMsg(
+          `${capitalize(terms.checkpoint)} concluíd${feminino ? "a" : "o"}! A avançar para ${feminino ? "a próxima" : "o próximo"}…`,
+        );
+        // Progress changed server-side — refresh team + checkpoints so the
+        // route jumps to the next post without a manual reload.
+        void qc.invalidateQueries({ queryKey: ["team"] });
+        void qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      } else if (data.already_registered) {
+        setGpsMsg(`Já registado. Distância: ${Math.round(data.distance_m)} m.`);
+      } else {
+        setGpsMsg(`Check-in registado! Distância: ${Math.round(data.distance_m)} m.`);
+      }
+      setGpsState("done");
+    },
+    onError: async (err: unknown, variables) => {
+      // The request never reached the server: keep the coordinates captured
+      // here and replay them when the signal comes back, so the team is
+      // credited for where they stood rather than losing the post.
+      if (isOfflineFailure(err)) {
+        await enqueueArrival({
+          checkpointId: checkpoint.id,
+          latitude: variables.lat,
+          longitude: variables.lng,
+        });
+        setGpsMsg("Sem rede. Check-in guardado — será enviado assim que houver ligação.");
+        setGpsState("queued");
+        return;
+      }
+      // ApiError.message is a generic "Bad Request"; the useful text
+      // ("Too far from checkpoint: …") lives in body.detail.
+      const raw = getErrorMessage(err, "Erro ao registar check-in.");
+      const msg = raw.startsWith("Too far from checkpoint") ? traduzirDistancia(raw) : raw;
+      setGpsMsg(msg);
+      setGpsState("error");
+    },
+  });
+
+  const handleCheckin = () => {
+    if (!navigator.geolocation) {
+      setGpsMsg("Geolocalização não suportada pelo browser.");
+      setGpsState("error");
+      return;
+    }
+    setGpsState("locating");
+    setGpsMsg("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        arriveMutation.mutate({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      (err) => {
+        setGpsMsg(`Sem acesso à localização: ${err.message}`);
+        setGpsState("error");
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
   };
+
+  // The server flags a checkpoint the team has not reached yet: its name is a
+  // placeholder and its coordinates were stripped. Without a clue there is
+  // then nothing in the app to go on, so say so rather than showing a bare
+  // "Posto 3" and no instruction at all.
+  const isRedacted = checkpoint.is_redacted === true;
+
+  // Don't offer a button the server will reject: GPS check-in needs the event
+  // setting on *and* a real geofence radius. Coordinates are deliberately NOT
+  // required when the post is redacted — that is exactly the peddy-paper case,
+  // where the server withholds them *because* finding the place is the game.
+  // Requiring them here hid the check-in button for the entire mode. The
+  // distance check happens server-side either way; the client never needed the
+  // coordinates to ask.
+  const canCheckin =
+    settings?.gps_checkin_enabled === true &&
+    (hasCoords || isRedacted) &&
+    (checkpoint.arrival_radius_m ?? 0) > 0;
+
+  // Hints are the peddy-paper safety valve: help toward the riddle, paid for
+  // in points. A checkpoint with no guide indications has no ladder and the
+  // whole block stays out of the card.
+  const hints = useCheckpointHints(checkpoint.id);
+  // Hints already bought stay readable even with the mechanic off — the team
+  // paid for them; the server just stops offering more.
+  const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
+  const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
+  const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
+  const confirmHint = () =>
+    hints.nextCost === 0 ||
+    globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
+
+  // The way out of an unsolvable riddle. Offered only once the hint ladder is
+  // spent, so it reads as a last resort rather than a shortcut — the server
+  // allows it at any point, this is a nudge, not the rule.
+  const skipCost = settings?.skip_penalty ?? 0;
+  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hints.remaining === 0;
+  const confirmGiveUp = () =>
+    globalThis.confirm(
+      skipCost === 0
+        ? "Desistir deste posto? Não o vais pontuar, e passas ao enigma seguinte."
+        : `Desistir deste posto custa ${Math.abs(skipCost)} pontos e não o vais pontuar. Continuar?`,
+    );
+
+  const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
+  // The server mirrors the clue into `description` on a redacted checkpoint so
+  // description-only clients still show something. Here the clue has its own
+  // panel, so don't let the discovery block repeat it.
+  const discoveryDescription =
+    checkpoint.description && checkpoint.description === checkpoint.clue
+      ? null
+      : checkpoint.description;
+  const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!discoveryDescription;
+
+  const buttonClasses = BUTTON_CLASSES[gpsState];
+  const messageClasses = MESSAGE_CLASSES[gpsState];
+
+  let giveUpButtonText = "A desistir…";
+  if (!hints.giveUp.isPending) {
+    giveUpButtonText = skipCost === 0
+      ? "Desistir deste posto"
+      : `Desistir deste posto (${skipCost} pts)`;
+  }
 
   return (
     <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
@@ -337,8 +483,8 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
               className="rally-press w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
             >
               {hints.reveal.isPending
-                ? "A revelar…"
-                : `Pedir pista${hintCostLabel} · faltam ${hints.remaining}`}
+                 ? "A revelar…"
+                 : `Pedir pista${hintCostLabel} · faltam ${hints.remaining}`}
             </button>
           )}
           {hints.reveal.isError && (
@@ -371,9 +517,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             }}
             className="rally-press w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition-all hover:bg-accent/30 disabled:opacity-60"
           >
-            {hints.giveUp.isPending
-              ? "A desistir…"
-              : `Desistir deste posto${skipCost === 0 ? "" : ` (${skipCost} pts)`}`}
+            {giveUpButtonText}
           </button>
           <p className="text-center text-xs text-muted-foreground">
             Sem pistas por revelar. Se não conseguem mesmo, desistam e sigam para o próximo — mais
@@ -419,7 +563,7 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
               buttonClasses,
             ].join(" ")}
           >
-            {renderButtonContent()}
+            <ButtonContent gpsState={gpsState} isPending={arriveMutation.isPending} />
           </button>
           {gpsMsg && <p className={["text-center text-xs", messageClasses].join(" ")}>{gpsMsg}</p>}
           {isQueuedHere && gpsState !== "queued" && (

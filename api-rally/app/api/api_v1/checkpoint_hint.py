@@ -22,6 +22,7 @@ from app.services.hint_service import HintService
 from app.services.skip_service import SkipService
 
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
+AUTH_REQUIRED = "Authentication required (Team Token)"
 
 
 class CheckpointHintController:
@@ -38,7 +39,7 @@ class CheckpointHintController:
             methods=["GET"],
             name="list_checkpoint_hints",
             responses={
-                401: {"description": "Authentication required (Team Token)"},
+                401: {"description": AUTH_REQUIRED},
                 404: {"description": CHECKPOINT_NOT_FOUND},
             },
         )
@@ -49,7 +50,7 @@ class CheckpointHintController:
             name="skip_checkpoint",
             responses={
                 400: {"description": "Not the team's current checkpoint, or already given up"},
-                401: {"description": "Authentication required (Team Token)"},
+                401: {"description": AUTH_REQUIRED},
                 404: {"description": CHECKPOINT_NOT_FOUND},
             },
         )
@@ -61,7 +62,7 @@ class CheckpointHintController:
             # Under /team-auth, not /team: the team router owns /team/{id} and
             # would swallow /team/hints as an id. Team-token routes live here
             # anyway (see team_auth.py's contest endpoint).
-            responses={401: {"description": "Authentication required (Team Token)"}},
+            responses={401: {"description": AUTH_REQUIRED}},
         )
         self.router.add_api_route(
             "/checkpoint/{checkpoint_id}/hint",
@@ -70,7 +71,7 @@ class CheckpointHintController:
             name="reveal_checkpoint_hint",
             responses={
                 400: {"description": "Not the team's current checkpoint, or no hints left"},
-                401: {"description": "Authentication required (Team Token)"},
+                401: {"description": AUTH_REQUIRED},
                 404: {"description": CHECKPOINT_NOT_FOUND},
             },
         )
