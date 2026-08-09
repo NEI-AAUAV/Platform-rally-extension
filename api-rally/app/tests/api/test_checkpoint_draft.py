@@ -13,6 +13,7 @@ from app.tests.conftest import as_team, make_event, make_team, set_rally_setting
 
 ROUTE_URL = "/api/rally/v1/checkpoint/admin/route"
 
+
 async def _make_checkpoint(pg_session, order, *, is_draft=False, **overrides):
     return await crud_checkpoint.create(
         pg_session,
