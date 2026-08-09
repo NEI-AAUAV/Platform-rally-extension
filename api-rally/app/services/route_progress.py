@@ -48,7 +48,9 @@ def is_checkpoint_reachable(
     return checkpoint_order > times_reached
 
 
-async def resolved_checkpoint_orders(db: AsyncSession, team: Team) -> frozenset[int]:
+async def resolved_checkpoint_orders(
+    db: AsyncSession, team: Team, *, ignore_arrival_for: int | None = None
+) -> frozenset[int]:
     """The orders of the posts this team is done with.
 
     "Done with" covers all three ways a post stops being the team's problem:
@@ -57,6 +59,14 @@ async def resolved_checkpoint_orders(db: AsyncSession, team: Team) -> frozenset[
     the arrivals table rather than inferred from ``len(team.times)``, because
     in a free-choice stage the count says how many posts a team has done but
     not which ones.
+
+    ``ignore_arrival_for`` (a checkpoint id) exists for one reason: a GPS
+    arrival is recorded — unconditionally, as a fact — *before* this function
+    ever runs to decide whether that same arrival gets to advance the team.
+    For a no-activity post that means its own just-written arrival row would
+    otherwise mark it "already resolved", and the reachability check built on
+    top of this set would then refuse the very checkpoint being evaluated.
+    Every caller checking a specific target passes that target's id here.
     """
     checkpoints = await checkpoint_crud.get_all_ordered(db)
     skipped_ids = set(
@@ -86,7 +96,7 @@ async def resolved_checkpoint_orders(db: AsyncSession, team: Team) -> frozenset[
         if active_ids:
             if all(aid in completed_activity_ids for aid in active_ids):
                 resolved.add(cp.order)
-        elif cp.id in arrived_ids:
+        elif cp.id in arrived_ids and cp.id != ignore_arrival_for:
             resolved.add(cp.order)
     return frozenset(resolved)
 
@@ -171,7 +181,9 @@ async def can_reach_checkpoint(
             return is_reachable_in_stages(
                 checkpoint_order=checkpoint.order,
                 stages=stages,
-                resolved_orders=await resolved_checkpoint_orders(db, team),
+                resolved_orders=await resolved_checkpoint_orders(
+                    db, team, ignore_arrival_for=checkpoint.id
+                ),
             )
 
     return is_checkpoint_reachable(

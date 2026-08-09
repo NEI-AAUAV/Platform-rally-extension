@@ -30,6 +30,11 @@ vi.mock('@/pages/admin/components/checkpoints/RouteImportPanel', () => ({
   default: () => <div data-testid="route-import" />,
 }));
 
+// Same reason as RouteImportPanel: talks to the API and the toast provider.
+vi.mock('@/pages/admin/components/checkpoints/RouteStageManager', () => ({
+  default: () => <div data-testid="route-stages" />,
+}));
+
 vi.mock('@/components/shared', () => ({
   EmptyState: ({ title, description }: any) => (
     <div data-testid="empty-state">

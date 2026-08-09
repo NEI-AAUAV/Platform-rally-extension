@@ -22,6 +22,7 @@ import { useArrivalSync } from "@/offline/useArrivalSync";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import { getErrorMessage } from "@/utils/errorHandling";
+import { checkpointOpeningNotice } from "./checkpointHours";
 
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
