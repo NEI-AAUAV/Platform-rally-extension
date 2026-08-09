@@ -12,6 +12,7 @@ export default function ScoreBasedForm({
   team,
   onSubmit,
   isSubmitting,
+  penaltyCounters = [],
 }: Readonly<BaseActivityFormProps>) {
   const [achievedPoints, setAchievedPoints] = useState<number>(0);
   const [notes, setNotes] = useState<string>("");
@@ -21,6 +22,7 @@ export default function ScoreBasedForm({
     extraShots,
     setExtraShots,
     penalties,
+    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -30,7 +32,7 @@ export default function ScoreBasedForm({
     showNotDrinkingPenalty,
     showPenalties,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult);
+  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -55,7 +57,7 @@ export default function ScoreBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penalties,
+      penalties: penaltiesInPoints,
     });
   };
 
@@ -93,6 +95,7 @@ export default function ScoreBasedForm({
           penalties={penalties}
           onChange={setPenalties}
           penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

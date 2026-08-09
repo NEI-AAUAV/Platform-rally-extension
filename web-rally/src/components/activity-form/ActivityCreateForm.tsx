@@ -17,6 +17,8 @@ import { ActivityType, ActivityCreate, Checkpoint } from "@/types/activityTypes"
 import { AlertCircle } from "lucide-react";
 import ActivityTypeInfo from "@/components/activity-form/ActivityTypeInfo";
 import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigFields";
+import PenaltyCounterConfigFields from "@/components/activity-form/PenaltyCounterConfigFields";
+import { parsePenaltyCounters, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
 
 const activityFormSchema = z.object({
@@ -123,16 +125,23 @@ export default function ActivityForm({
   const [configData, setConfigData] = useState<Record<string, ConfigValue>>(
     initialData?.config ?? {},
   );
+  const [penaltyCounters, setPenaltyCounters] = useState<PenaltyCounterConfig[]>(() =>
+    parsePenaltyCounters(initialData?.config),
+  );
 
   // Synchronize configData with initialData changes (e.g., when switching between create/edit)
   useEffect(() => {
     if (initialData?.config !== undefined) {
       setConfigData(initialData.config);
+      setPenaltyCounters(parsePenaltyCounters(initialData.config));
     }
   }, [initialData?.config]);
 
   const handleSubmit = (data: ActivityForm) => {
-    onSubmit({ ...data, config: configData });
+    // penalty_counters is not activity-type-specific config (unlike
+    // max_points etc.), so it is kept in its own state and merged in here
+    // rather than threaded through ActivityConfigFields' per-type switch.
+    onSubmit({ ...data, config: { ...configData, penalty_counters: penaltyCounters } });
   };
 
   const updateConfig = (key: string, value: ConfigValue) => {
@@ -255,6 +264,8 @@ export default function ActivityForm({
             configData={configData}
             updateConfig={updateConfig}
           />
+
+          <PenaltyCounterConfigFields counters={penaltyCounters} onChange={setPenaltyCounters} />
 
           <div className="flex gap-4 pt-4">
             <BloodyButton type="submit" disabled={isLoading} className="flex-1">

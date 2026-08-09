@@ -55,6 +55,10 @@ export class Checkpoint {
 export interface BaseActivityConfig {
   min_points?: number;
   max_points?: number;
+  // Per-activity "each miss costs X points" counters — orthogonal to the
+  // type-specific scoring above, so it lives on every config regardless of
+  // type. See lib/penaltyCounters.ts for the shape and how it's consumed.
+  penalty_counters?: Array<{ key: string; label: string; points: number }>;
 }
 
 // Activity type configurations with specific properties

@@ -112,11 +112,50 @@ describe("useExtraShotsAndPenalties", () => {
     expect(result.current.showPenalties).toBe(false);
   });
 
-  it("initializes extraShots and penalties from existingResult", () => {
-    const existingResult = { extra_shots: 3, penalties: { vomit: 1 } } as never;
+  it("initializes extraShots from existingResult, converting stored points back to a count", () => {
+    // Fallback vomit rate is 5 pts/occurrence (RALLY_DEFAULTS), so a stored
+    // total of 10 points means the count field should show 2, not 10.
+    const existingResult = { extra_shots: 3, penalties: { vomit: 10 } } as never;
     const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, existingResult));
     expect(result.current.extraShots).toBe(3);
-    expect(result.current.penalties).toEqual({ vomit: 1 });
+    expect(result.current.penalties).toEqual({ vomit: 2 });
+  });
+
+  it("round-trips: submitted penaltiesInPoints matches what was stored", () => {
+    const existingResult = { extra_shots: 0, penalties: { vomit: 10 } } as never;
+    const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, existingResult));
+    expect(result.current.penaltiesInPoints).toEqual({ vomit: 10 });
+  });
+
+  it("converts a typed count into the point total the backend expects", () => {
+    const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, undefined));
+
+    act(() => {
+      result.current.setPenalties({ vomit: 3 });
+    });
+
+    // 3 occurrences * the fallback 5 pts/occurrence rate.
+    expect(result.current.penaltiesInPoints).toEqual({ vomit: 15 });
+  });
+
+  it("scores a custom per-activity counter through the same points conversion", () => {
+    // No built-in penalties configured, so `showPenalties` here can only be
+    // coming from the custom counter's own presence.
+    mockUseRallySettings.mockReturnValue({
+      settings: { penalty_per_puke: 0, penalty_per_not_drinking: 0 },
+    });
+    const { result } = renderHook(() =>
+      useExtraShotsAndPenalties(undefined, undefined, [
+        { key: "falha_baliza", label: "Falha na baliza", points: 4 },
+      ]),
+    );
+
+    act(() => {
+      result.current.setPenalties({ falha_baliza: 3 });
+    });
+
+    expect(result.current.penaltiesInPoints).toEqual({ falha_baliza: 12 });
+    expect(result.current.showPenalties).toBe(true);
   });
 
   it("falls back to 0/{} when existingResult has falsy extra_shots and penalties", () => {

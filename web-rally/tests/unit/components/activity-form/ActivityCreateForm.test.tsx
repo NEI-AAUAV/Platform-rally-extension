@@ -126,6 +126,53 @@ describe("ActivityCreateForm", () => {
     expect(screen.getByText("Configurações de Atividade Baseada em Tempo")).toBeInTheDocument();
   });
 
+  it("merges penalty counters into config on submit", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Tug of War" },
+    });
+    fireEvent.click(screen.getByText("Adicionar contador"));
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Falha na baliza" } });
+    fireEvent.change(screen.getByLabelText("Pontos cada"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            penalty_counters: [{ key: "falha_na_baliza", label: "Falha na baliza", points: 4 }],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("seeds the penalty counter editor from initialData.config when editing", () => {
+    render(
+      <ActivityCreateForm
+        checkpoints={checkpoints}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        initialData={{
+          name: "Existing",
+          checkpoint_id: 1,
+          activity_type: ActivityType.GENERAL,
+          config: {
+            // penalty_counters is an array, which the form schema's config
+            // type (primitives only, matching every other config field)
+            // doesn't model — same shape mismatch the component itself
+            // works around by keeping it in separate state. Cast to match.
+            penalty_counters: [{ key: "falha", label: "Falha na baliza", points: 4 }],
+          } as unknown as Record<string, string | number | boolean>,
+        }}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Falha na baliza")).toBeInTheDocument();
+  });
+
   it("prefills configData from initialData.config", () => {
     render(
       <ActivityCreateForm

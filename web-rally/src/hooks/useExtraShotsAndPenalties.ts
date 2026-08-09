@@ -1,17 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useAppToast } from "@/hooks/use-toast";
 import { getTeamSize } from "@/types/forms";
 import type { BaseActivityFormProps } from "@/types/forms";
+import {
+  buildPenaltyRates,
+  countsToPoints,
+  pointsToCounts,
+  type PenaltyCounterConfig,
+  type PenaltyCountMap,
+} from "@/lib/penaltyCounters";
 
-type PenaltyMap = { [key: string]: number };
+type PenaltyMap = PenaltyCountMap;
 
 export interface UseExtraShotsAndPenaltiesResult {
   extraShots: number;
   setExtraShots: (value: number) => void;
+  /** Raw counts, bound to the input fields — "2 vomits", not "-20 points". */
   penalties: PenaltyMap;
   setPenalties: (value: PenaltyMap) => void;
+  /**
+   * The same counts converted to the point totals the backend scores with.
+   * Pass this, not `penalties`, in the submitted `result_data` — see
+   * `lib/penaltyCounters.ts` for why the two must never be conflated.
+   */
+  penaltiesInPoints: PenaltyMap;
   maxExtraShots: number;
   maxExtraShotsPerMember: number;
   showExtraShots: boolean;
@@ -19,12 +33,15 @@ export interface UseExtraShotsAndPenaltiesResult {
   showVomitPenalty: boolean;
   showNotDrinkingPenalty: boolean;
   showPenalties: boolean;
+  /** This activity's own counters (from config.penalty_counters), if any. */
+  penaltyCounters: readonly PenaltyCounterConfig[];
   validateExtraShots: () => boolean;
 }
 
 export function useExtraShotsAndPenalties(
   team: BaseActivityFormProps["team"],
   existingResult: BaseActivityFormProps["existingResult"],
+  penaltyCounters: readonly PenaltyCounterConfig[] = [],
 ): UseExtraShotsAndPenaltiesResult {
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<PenaltyMap>({});
@@ -37,6 +54,17 @@ export function useExtraShotsAndPenalties(
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
 
   const penaltyValues = getPenaltyValues(settings);
+  const rates = useMemo(
+    () =>
+      buildPenaltyRates(
+        {
+          vomit: Math.abs(penaltyValues.vomit),
+          not_drinking: Math.abs(penaltyValues.not_drinking),
+        },
+        penaltyCounters,
+      ),
+    [penaltyValues.vomit, penaltyValues.not_drinking, penaltyCounters],
+  );
 
   // Drinking mechanics belong to the pub-crawl format. A peddy-paper is a city
   // route game, so its evaluation forms never offer shots or drinking penalties
@@ -49,14 +77,20 @@ export function useExtraShotsAndPenalties(
   const showExtraShots = hasDrinkingMechanics && maxExtraShots > 0;
   const showVomitPenalty = hasDrinkingMechanics && penaltyValues.vomit !== 0;
   const showNotDrinkingPenalty = hasDrinkingMechanics && penaltyValues.not_drinking !== 0;
-  const showPenalties = showVomitPenalty || showNotDrinkingPenalty;
+  const showPenalties = showVomitPenalty || showNotDrinkingPenalty || penaltyCounters.length > 0;
 
   useEffect(() => {
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);
-      setPenalties(existingResult.penalties || {});
+      // Stored value is points; the count fields need the count back.
+      setPenalties(pointsToCounts(existingResult.penalties || {}, rates));
     }
+    // Only re-derive when the result identity changes — `rates` recomputing
+    // (e.g. settings refetch) must not reset what the staff already typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingResult]);
+
+  const penaltiesInPoints = useMemo(() => countsToPoints(penalties, rates), [penalties, rates]);
 
   const validateExtraShots = (): boolean => {
     if (extraShots > maxExtraShots) {
@@ -73,6 +107,7 @@ export function useExtraShotsAndPenalties(
     setExtraShots,
     penalties,
     setPenalties,
+    penaltiesInPoints,
     maxExtraShots,
     maxExtraShotsPerMember,
     showExtraShots,
@@ -80,6 +115,7 @@ export function useExtraShotsAndPenalties(
     showVomitPenalty,
     showNotDrinkingPenalty,
     showPenalties,
+    penaltyCounters,
     validateExtraShots,
   };
 }
