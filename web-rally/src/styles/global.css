@@ -746,6 +746,16 @@
     border-radius: calc(var(--radius) + 0.4rem);
   }
 
+  /* Opt-out for surfaces that sit *over* live scrolling content: the sticky
+     top bar, the fixed tab bar and modal cards. At the default tint the page
+     text underneath stays legible through the material, which reads as two
+     overlapping layouts rather than as glass. Keep the blur, the rim and the
+     sheen — only raise the tint until nothing reads through. */
+  [data-glass="on"] .rally-glass-solid::before {
+    --glass-tint: 0.97;
+    --glass-tint-lens: 0.97;
+  }
+
   /* Reduce transparency: keep the shape and the rim, drop the see-through. */
   [data-glass="on"][data-reduce-transparency="true"] .rally-glass,
   [data-glass="on"][data-reduce-transparency="true"] .rally-surface {

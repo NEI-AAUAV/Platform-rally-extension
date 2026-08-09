@@ -253,14 +253,16 @@ export default function TeamManagement() {
           <ul className="list-none space-y-3">
             {teams.map((team: Team) => (
               <li key={team.id}>
-                <div className="flex items-center justify-between rounded-xl border border-border bg-card/60 p-4 sm:p-6">
-                  <div>
-                    <div className="font-semibold">{team.name}</div>
+                {/* Column on phones: name + stats and four icon buttons do not
+                    fit on one 360px row, and side-by-side they collide. */}
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                  <div className="min-w-0">
+                    <div className="break-words font-semibold">{team.name}</div>
                     <div className="text-sm text-muted-foreground">
                       Pontuação: {team.total || 0} • Membros: {team.num_members || 0}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     <BloodyButton
                       variant="neutral"
                       title="Ver QR code e código de acesso"
@@ -299,9 +301,17 @@ export default function TeamManagement() {
 
       {/* QR Code Modal */}
       {(newlyCreatedTeam || (selectedTeamForQR && teamDetailsForQR)) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="rally-surface w-full max-w-md rounded-2xl">
-            <div className="space-y-6 p-8">
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/70 p-4"
+          style={{
+            paddingTop: "calc(1rem + var(--safe-top))",
+            paddingBottom: "calc(1rem + var(--safe-bottom) + var(--rally-tabbar-height))",
+          }}
+        >
+          {/* my-auto centres it while the overlay still scrolls when the modal
+              is taller than the viewport (small phones in portrait). */}
+          <div className="rally-surface rally-glass-solid my-auto w-full max-w-md rounded-2xl">
+            <div className="space-y-5 p-5 sm:space-y-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">
