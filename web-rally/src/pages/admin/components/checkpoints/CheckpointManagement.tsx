@@ -4,7 +4,6 @@ import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
 import CheckpointForm from "./CheckpointForm";
 import CheckpointListItem from "./CheckpointListItem";
-import RouteImportPanel from "./RouteImportPanel";
 
 type CheckpointManagementProps = Readonly<{
   userStore: UserState;
@@ -29,15 +28,12 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     handleDrop,
     handleDragEnd,
     routeStatus,
-    refetchCheckpoints,
   } = useCheckpointManagement(userStore);
 
   const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
 
   return (
     <div className="space-y-6">
-      <RouteImportPanel onImported={() => void refetchCheckpoints()} />
-
       <CheckpointForm
         form={checkpointForm}
         isEditing={!!editingCheckpoint}

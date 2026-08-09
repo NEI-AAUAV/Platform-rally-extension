@@ -117,26 +117,3 @@ class RouteStatus(BaseModel):
     # half-written unless someone fixes them.
     incomplete_published_ids: list[int] = []
     checkpoints: list[AdminCheckPoint] = []
-
-
-class CheckpointImportRow(BaseModel):
-    """One parsed row of a pasted route table, echoed back for preview."""
-
-    name: str
-    staff_script: str | None = None
-    clue: str | None = None
-    challenge_brief: str | None = None
-    is_placeholder: bool = False
-
-
-class CheckpointImportRequest(BaseModel):
-    # The pasted table: one post per line, cells separated by tabs (or | or ;)
-    # in the order name, staff script, clue, challenge.
-    text: str
-    # Preview without writing anything.
-    dry_run: bool = False
-
-
-class CheckpointImportResult(BaseModel):
-    created: int
-    rows: list[CheckpointImportRow] = []

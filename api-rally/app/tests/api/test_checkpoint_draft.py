@@ -12,8 +12,6 @@ from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import as_team, make_event, make_team, set_rally_settings
 
 ROUTE_URL = "/api/rally/v1/checkpoint/admin/route"
-IMPORT_URL = "/api/rally/v1/checkpoint/import"
-
 
 async def _make_checkpoint(pg_session, order, *, is_draft=False, **overrides):
     return await crud_checkpoint.create(
@@ -192,57 +190,3 @@ class TestPublishing:
         assert response.status_code == 400
         await pg_session.refresh(draft)
         assert draft.is_draft is True
-
-
-class TestRouteImport:
-    PASTE = (
-        "Posto\tAssunto\tPista\tDesafio\n"
-        "Aristides\tFalar de desportos\tA pista seria uma bola\tGirar 5x\n"
-        "Refúgio dos Drinks\tCF DECIDE\tEstás a precisar de energia?\tCF DECIDE\n"
-        "Bar 1"
-    )
-
-    async def test_dry_run_previews_without_writing(self, pg_session, pg_client, as_admin):
-        await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-
-        response = pg_client.post(IMPORT_URL, json={"text": self.PASTE, "dry_run": True})
-
-        assert response.status_code == 200
-        body = response.json()
-        assert body["created"] == 0
-        assert [row["name"] for row in body["rows"]] == [
-            "Aristides",
-            "Refúgio dos Drinks",
-            "Bar 1",
-        ]
-        assert await crud_checkpoint.count(pg_session, include_drafts=True) == 0
-
-    async def test_import_creates_drafts_appended_after_the_existing_route(
-        self, pg_session, pg_client, as_admin
-    ):
-        await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await _make_checkpoint(pg_session, order=1)
-
-        response = pg_client.post(IMPORT_URL, json={"text": self.PASTE})
-
-        assert response.json()["created"] == 3
-        everything = await crud_checkpoint.get_all_ordered(pg_session, include_drafts=True)
-        assert [cp.order for cp in everything] == [1, 2, 3, 4]
-        imported = everything[1]
-        assert imported.is_draft is True
-        assert imported.staff_script == "Falar de desportos"
-        assert imported.clue == "A pista seria uma bola"
-        assert imported.challenge_brief == "Girar 5x"
-        # "CF DECIDE" is an empty cell, not content.
-        assert everything[2].staff_script is None
-        assert everything[3].is_placeholder is True
-
-    async def test_imported_route_stays_invisible_to_teams(self, pg_session, pg_client, as_admin):
-        event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        pg_client.post(IMPORT_URL, json={"text": self.PASTE})
-        team = await make_team(pg_session, event_id=event.id)
-
-        with as_team(team.id):
-            response = pg_client.get("/api/rally/v1/checkpoint/")
-
-        assert response.json() == []
