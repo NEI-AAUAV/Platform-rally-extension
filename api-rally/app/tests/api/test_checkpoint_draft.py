@@ -1,6 +1,6 @@
 """Tests for half-planned routes: draft posts stay out of every team-facing
-path, publishing keeps the route contiguous, the planning columns never reach
-a team, and a pasted route table becomes drafts.
+path, publishing keeps the route contiguous, and the planning columns never
+reach a team.
 """
 
 from datetime import datetime
