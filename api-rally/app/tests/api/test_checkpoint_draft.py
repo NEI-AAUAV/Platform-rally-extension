@@ -3,6 +3,8 @@ path, publishing keeps the route contiguous, the planning columns never reach
 a team, and a pasted route table becomes drafts.
 """
 
+from datetime import datetime
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.models.activity import EventType
 from app.models.checkpoint_arrival import CheckpointArrival
@@ -31,7 +33,9 @@ async def _make_checkpoint(pg_session, order, *, is_draft=False, **overrides):
 class TestDraftVisibility:
     async def test_draft_is_absent_from_the_team_route(self, pg_session, pg_client):
         event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await set_rally_settings(pg_session, show_route_mode="complete")
+        await set_rally_settings(
+            pg_session, show_route_mode="complete", reveal_next_checkpoint=True
+        )
         await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, is_draft=True, name="Bar 1")
         team = await make_team(pg_session, event_id=event.id)
@@ -58,7 +62,7 @@ class TestDraftVisibility:
         await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, is_draft=True, name="Bar 1")
         team = await make_team(pg_session, event_id=event.id)
-        team.times = [10.0]  # already through post 1
+        team.times = [datetime(2026, 8, 9, 10, 0)]  # already through post 1
         pg_session.add(team)
         await pg_session.commit()
 
