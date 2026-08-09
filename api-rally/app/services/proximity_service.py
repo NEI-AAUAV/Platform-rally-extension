@@ -28,7 +28,7 @@ from app.crud.crud_team import CRUDTeam
 from app.schemas.proximity import ProximityReading
 from app.services.checkin_service import require_same_event
 from app.services.checkpoint_arrival_service import _DISTANCE_BUCKETS, _distance_bucket
-from app.services.team_service import is_checkpoint_reachable
+from app.services.route_progress import can_reach_checkpoint
 from app.utils.geo import distance_m
 
 PROXIMITY_DISABLED = "The proximity check is not enabled for this event"
@@ -80,10 +80,8 @@ class ProximityService:
 
         require_same_event(team.event_id, checkpoint.event_id)
 
-        if not is_checkpoint_reachable(
-            checkpoint_order=checkpoint.order,
-            times_reached=len(team.times),
-            order_matters=bool(settings.checkpoint_order_matters),
+        if not await can_reach_checkpoint(
+            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
         ):
             # Sampling distance to a post further down the route would let a
             # team map the whole thing from the start line.

@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.checkpoint_media import CheckpointMedia
     from app.models.rally_guide_assignment import RallyGuideAssignment
     from app.models.rally_staff_assignment import RallyStaffAssignment
+    from app.models.route_stage import RouteStage
 
 
 class CheckPoint(Base):
@@ -52,6 +54,22 @@ class CheckPoint(Base):
     # The challenge in prose, as first written while planning, before (or
     # instead of) a configured Activity. Staff-only.
     challenge_brief: Mapped[str | None] = mapped_column(Text, default=None)
+    # Which block of the route this post belongs to. NULL means the route has
+    # no stages, which is the single-block behaviour every event had before.
+    stage_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey(f"{settings.SCHEMA_NAME}.route_stages.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+    # When this post can be visited at all — the bars that only open late.
+    # Both NULL means always open, which is how every existing post behaves.
+    available_from: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    available_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     arrival_radius_m: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     # Event scoping: nullable so existing single-event rows remain valid.
     event_id: Mapped[int | None] = mapped_column(
@@ -76,6 +94,8 @@ class CheckPoint(Base):
         cascade="all, delete-orphan",
         order_by="CheckpointMedia.order",
     )
+
+    stage: Mapped["RouteStage | None"] = relationship("RouteStage", back_populates="checkpoints")
 
     guide_indications: Mapped[list["CheckpointGuideIndication"]] = relationship(
         "CheckpointGuideIndication",

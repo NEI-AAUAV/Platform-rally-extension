@@ -123,6 +123,18 @@ class RallySettings(Base):
     # CheckpointService._search_area.
     search_radius_m = Column(Integer, nullable=False, default=0)
 
+    # Route stages: blocks of the route with their own ordering rule (see
+    # RouteStage). Off by default — with no stages defined the whole route is
+    # one block governed by checkpoint_order_matters, exactly as before. The
+    # switch exists so an admin can drop the stage rules mid-event (open
+    # everything up near the end) without deleting the stages themselves.
+    route_stages_enabled = Column(Boolean, nullable=False, default=False)
+
+    # Enforce each post's available_from/available_until. On by default, since
+    # a post without hours is unaffected either way; turning it off is the
+    # escape hatch for the bar that opened an hour early.
+    checkpoint_hours_enabled = Column(Boolean, nullable=False, default=True)
+
     # Points charged when a team gives up on a post it cannot solve. Stored
     # negative; 0 means giving up is free. Steeper than hint_penalty by
     # default, since it forfeits the post's score entirely.

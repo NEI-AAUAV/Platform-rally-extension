@@ -17,7 +17,8 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.services.checkin_service import require_same_event
-from app.services.team_service import is_checkpoint_reachable, validate_rally_timing
+from app.services.route_progress import can_reach_checkpoint, closed_message, hours_block_reason
+from app.services.team_service import validate_rally_timing
 from app.utils.geo import distance_m
 
 # Coarse distance bands reported to the client on a rejected arrival, in
@@ -144,6 +145,13 @@ class CheckpointArrivalService:
             start_offset_minutes=team_obj.start_offset_minutes or 0,
         )
 
+        # A post with opening hours refuses arrivals outside them. Rejected
+        # here rather than silently failing to auto-advance further down, so a
+        # team standing at a bar that opens in an hour is told so.
+        closed = hours_block_reason(checkpoint, settings)
+        if closed is not None:
+            raise RallyValidationError(closed_message(checkpoint, closed))
+
         if checkpoint.latitude is None or checkpoint.longitude is None:
             raise RallyValidationError("Checkpoint has no GPS coordinates")
 
@@ -207,10 +215,8 @@ class CheckpointArrivalService:
         # `checkpoint_order_matters` setting instead of assuming strict order —
         # under free-order routes every no-activity post would otherwise stay stuck.
         settings = await rally_settings.get_or_create(self._db)
-        if not is_checkpoint_reachable(
-            checkpoint_order=checkpoint_obj.order,
-            times_reached=len(team_obj.times),
-            order_matters=bool(settings.checkpoint_order_matters),
+        if not await can_reach_checkpoint(
+            self._db, team=team_obj, checkpoint=checkpoint_obj, settings=settings
         ):
             return False
 

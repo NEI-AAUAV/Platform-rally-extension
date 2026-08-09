@@ -31,6 +31,8 @@ from app.schemas.team import (
     PrivilegedDetailedTeam,
     TeamScoresUpdate,
 )
+from app.services.route_progress import can_reach_checkpoint, closed_message, hours_block_reason
+from app.services.route_progress import is_checkpoint_reachable as _is_checkpoint_reachable
 from app.services.scoring_service import ScoringService
 
 
@@ -60,21 +62,11 @@ def validate_rally_timing(
         )
 
 
-def is_checkpoint_reachable(
-    *, checkpoint_order: int, times_reached: int, order_matters: bool
-) -> bool:
-    """Whether a team that has reached ``times_reached`` checkpoints may check
-    into one of order ``checkpoint_order``.
-
-    Single source of truth for the progression rule: with
-    ``checkpoint_order_matters`` on, a team must arrive at posts strictly in
-    sequence; with it off, any not-yet-visited order is fair game. Callers that
-    only want to *know* (GPS auto-advance) use this predicate; callers that must
-    *reject* (``TeamService._validate_checkpoint_order``) raise on a False.
-    """
-    if order_matters:
-        return times_reached == checkpoint_order - 1
-    return checkpoint_order > times_reached
+#: The count-based rule, re-exported from ``route_progress`` where it now
+#: lives alongside the stage and opening-hour rules. Callers that have a
+#: checkpoint row and a team should prefer ``can_reach_checkpoint``, which
+#: applies all three; this predicate alone only knows about ordering.
+is_checkpoint_reachable = _is_checkpoint_reachable
 
 
 class TeamService:
@@ -168,12 +160,16 @@ class TeamService:
         checkpoint_order = checkpoint_obj.order
         order_matters = settings.checkpoint_order_matters
 
-        if is_checkpoint_reachable(
-            checkpoint_order=checkpoint_order,
-            times_reached=len(team.times),
-            order_matters=order_matters,
+        if await can_reach_checkpoint(
+            self._db, team=team, checkpoint=checkpoint_obj, settings=settings
         ):
             return
+
+        # Hours first: "not in order" would be a lie about a post the team is
+        # perfectly entitled to visit, just not yet.
+        closed = hours_block_reason(checkpoint_obj, settings)
+        if closed is not None:
+            raise RallyValidationError(closed_message(checkpoint_obj, closed))
 
         if order_matters:
             raise RallyValidationError(

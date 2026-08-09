@@ -16,6 +16,7 @@ from app.models.push_subscription import PushSubscription
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.rally_settings import RallySettings
 from app.models.rally_staff_assignment import RallyStaffAssignment
+from app.models.route_stage import RouteStage
 from app.models.team import Team
 from app.models.user import User
 
@@ -24,6 +25,7 @@ __all__ = [
     "User",
     "Team",
     "CheckPoint",
+    "RouteStage",
     "RallyStaffAssignment",
     "RallyGuideAssignment",
     "CheckpointMedia",

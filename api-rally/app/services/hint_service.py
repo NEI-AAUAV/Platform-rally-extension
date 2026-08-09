@@ -21,8 +21,8 @@ from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.hint import HintReveal, RevealedHint, TeamHints, TeamHintSummary
 from app.services.checkin_service import require_same_event
+from app.services.route_progress import can_reach_checkpoint
 from app.services.scoring_service import ScoringService
-from app.services.team_service import is_checkpoint_reachable
 
 HINTS_DISABLED = "Hints are not enabled for this event"
 NO_HINTS_LEFT = "No hints left for this checkpoint"
@@ -99,10 +99,12 @@ class HintService:
         require_same_event(team.event_id, checkpoint.event_id)
 
         settings = await rally_settings.get_or_create(self._db)
-        reachable = is_checkpoint_reachable(
-            checkpoint_order=checkpoint.order,
-            times_reached=len(team.times),
-            order_matters=bool(settings.checkpoint_order_matters),
+        # Under a free-choice stage several posts are reachable at once, and
+        # hints for any of them are fair: the team really is choosing between
+        # them. Opening hours do not apply — the riddle is theirs to solve
+        # before the door opens.
+        reachable = await can_reach_checkpoint(
+            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
         )
         if not reachable:
             raise RallyValidationError(NOT_CURRENT_CHECKPOINT)
