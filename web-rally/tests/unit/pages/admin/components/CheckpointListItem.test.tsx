@@ -14,6 +14,12 @@ vi.mock("@/pages/admin/components/checkpoints/CheckpointGuideIndicationsManager"
   ),
 }));
 
+vi.mock("@/pages/admin/components/checkpoints/CheckpointActivitiesManager", () => ({
+  default: ({ checkpointId }: { checkpointId: number }) => (
+    <div data-testid="activities-manager">activities-{checkpointId}</div>
+  ),
+}));
+
 const checkpoint = {
   id: 1,
   name: "Checkpoint A",
@@ -118,6 +124,28 @@ describe("CheckpointListItem", () => {
     expect(screen.getByTestId("media-manager")).toBeInTheDocument();
     expect(screen.getByTestId("guide-manager")).toBeInTheDocument();
     fireEvent.click(buttons[0]!);
+    expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
+  });
+
+  it("also renders the activities manager once expanded", () => {
+    render(
+      <ul>
+        <CheckpointListItem {...baseProps} />
+      </ul>,
+    );
+    fireEvent.click(screen.getAllByRole("button")[0]!);
+    expect(screen.getByTestId("activities-manager")).toBeInTheDocument();
+  });
+
+  it("opens straight away when forceExpanded, and can still be closed", () => {
+    render(
+      <ul>
+        <CheckpointListItem {...baseProps} forceExpanded />
+      </ul>,
+    );
+    expect(screen.getByTestId("media-manager")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button")[0]!);
     expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
   });
 

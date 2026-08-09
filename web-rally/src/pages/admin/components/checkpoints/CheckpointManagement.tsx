@@ -32,6 +32,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     routeStatus,
     refetchCheckpoints,
     stages,
+    justCreatedId,
   } = useCheckpointManagement(userStore);
 
   const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
@@ -86,6 +87,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 onEdit={startEditCheckpoint}
                 onDelete={deleteCheckpoint}
                 stages={stages}
+                forceExpanded={checkpoint.id === justCreatedId}
               />
             ))}
           </ul>

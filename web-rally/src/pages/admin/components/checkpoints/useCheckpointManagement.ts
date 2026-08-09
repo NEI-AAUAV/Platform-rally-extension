@@ -91,6 +91,9 @@ export function useCheckpointManagement(userStore: UserState) {
   const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
+  // The post just created, so its panel opens straight into desafio/media/
+  // indicações instead of making the admin find and click it in the list.
+  const [justCreatedId, setJustCreatedId] = React.useState<number | null>(null);
 
   // The planning view, not GET /checkpoint: it is the only one that returns
   // drafts, the staff-only columns, and what each post still lacks.
@@ -141,9 +144,10 @@ export function useCheckpointManagement(userStore: UserState) {
   const { mutate: createCheckpoint, isPending: isCreatingCheckpoint } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) =>
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       void refetchCheckpoints();
       checkpointForm.reset();
+      if (data?.id) setJustCreatedId(data.id);
       toast.success("Checkpoint criado com sucesso!");
     },
     onError: (error) => {
@@ -311,5 +315,6 @@ export function useCheckpointManagement(userStore: UserState) {
     handleDragOver,
     handleDrop,
     handleDragEnd,
+    justCreatedId,
   };
 }
