@@ -6,7 +6,7 @@ import { useCheckpointManagement } from '@/pages/admin/components/checkpoints/us
 import type { UserState } from '@/stores/useUserStore';
 
 const {
-  mockGetCheckpoints,
+  mockGetRouteStatus,
   mockCreateCheckpoint,
   mockUpdateCheckpoint,
   mockDeleteCheckpoint,
@@ -14,7 +14,7 @@ const {
   mockToastSuccess,
   mockToastError,
 } = vi.hoisted(() => ({
-  mockGetCheckpoints: vi.fn(),
+  mockGetRouteStatus: vi.fn(),
   mockCreateCheckpoint: vi.fn(),
   mockUpdateCheckpoint: vi.fn(),
   mockDeleteCheckpoint: vi.fn(),
@@ -24,7 +24,7 @@ const {
 }));
 
 vi.mock('@/client', () => ({
-  getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
+  getRouteStatus: (...args: unknown[]) => mockGetRouteStatus(...args),
   createCheckpoint: (...args: unknown[]) => mockCreateCheckpoint(...args),
   updateCheckpoint: (...args: unknown[]) => mockUpdateCheckpoint(...args),
   deleteCheckpoint: (...args: unknown[]) => mockDeleteCheckpoint(...args),
@@ -46,6 +46,16 @@ function createWrapper() {
 
 const userStore = { token: 'test-token' } as UserState;
 
+// The hook reads the planning view, which wraps the posts in a route summary.
+const routeStatus = (checkpoints: unknown[] = []) => ({
+  data: {
+    published_count: checkpoints.length,
+    draft_count: 0,
+    incomplete_published_ids: [],
+    checkpoints,
+  },
+});
+
 const checkpoint = (overrides: Partial<any> = {}) => ({
   id: 1,
   name: 'CP One',
@@ -60,7 +70,7 @@ const checkpoint = (overrides: Partial<any> = {}) => ({
 describe('useCheckpointManagement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetCheckpoints.mockResolvedValue({ data: [] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus());
     mockCreateCheckpoint.mockResolvedValue({ data: checkpoint() });
     mockUpdateCheckpoint.mockResolvedValue({ data: checkpoint() });
     mockDeleteCheckpoint.mockResolvedValue({ data: null });
@@ -72,13 +82,11 @@ describe('useCheckpointManagement', () => {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.hasCheckpoints).toBe(false));
-    expect(mockGetCheckpoints).not.toHaveBeenCalled();
+    expect(mockGetRouteStatus).not.toHaveBeenCalled();
   });
 
   it('fetches and sorts checkpoints by order', async () => {
-    mockGetCheckpoints.mockResolvedValue({
-      data: [checkpoint({ id: 2, order: 2, name: 'CP Two' }), checkpoint({ id: 1, order: 1 })],
-    });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 2, order: 2, name: 'CP Two' }), checkpoint({ id: 1, order: 1 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -94,7 +102,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('computes nextOrder as max+1 when checkpoints exist', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint({ id: 1, order: 3 })] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 1, order: 3 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -115,6 +123,8 @@ describe('useCheckpointManagement', () => {
         longitude: '',
         arrival_radius_m: 50,
         order: 1,
+        is_draft: false,
+        is_placeholder: false,
       });
     });
 
@@ -129,6 +139,10 @@ describe('useCheckpointManagement', () => {
         order: 1,
         clue: null,
         clue_media_url: null,
+        staff_script: null,
+        challenge_brief: null,
+        is_draft: false,
+        is_placeholder: false,
       },
     });
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledWith('Checkpoint criado com sucesso!'));
@@ -149,6 +163,8 @@ describe('useCheckpointManagement', () => {
         longitude: '',
         arrival_radius_m: 50,
         order: 1,
+        is_draft: false,
+        is_placeholder: false,
       });
     });
 
@@ -156,7 +172,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('updates a checkpoint when editing', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -177,6 +193,8 @@ describe('useCheckpointManagement', () => {
         longitude: '2.2',
         arrival_radius_m: 50,
         order: 1,
+        is_draft: false,
+        is_placeholder: false,
       });
     });
 
@@ -192,6 +210,10 @@ describe('useCheckpointManagement', () => {
           order: 1,
           clue: null,
           clue_media_url: null,
+          staff_script: null,
+          challenge_brief: null,
+          is_draft: false,
+          is_placeholder: false,
         },
       }),
     );
@@ -200,7 +222,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('shows error toast when update fails', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     mockUpdateCheckpoint.mockRejectedValue(new Error('boom'));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
@@ -219,6 +241,8 @@ describe('useCheckpointManagement', () => {
         longitude: '2.2',
         arrival_radius_m: 50,
         order: 1,
+        is_draft: false,
+        is_placeholder: false,
       });
     });
 
@@ -226,7 +250,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('cancels edit and resets order for new checkpoint', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -244,7 +268,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('deletes a checkpoint and shows success toast', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -261,7 +285,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('shows error toast when delete fails', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     mockDeleteCheckpoint.mockRejectedValue(new Error('boom'));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
@@ -276,9 +300,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('handles drag start, over and end', async () => {
-    mockGetCheckpoints.mockResolvedValue({
-      data: [checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })],
-    });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -306,9 +328,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('reorders checkpoints on drop between two different checkpoints', async () => {
-    mockGetCheckpoints.mockResolvedValue({
-      data: [checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })],
-    });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -337,7 +357,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('does nothing on drop when dragging onto itself', async () => {
-    mockGetCheckpoints.mockResolvedValue({ data: [checkpoint({ id: 1, order: 1 })] });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 1, order: 1 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });
@@ -363,9 +383,7 @@ describe('useCheckpointManagement', () => {
   });
 
   it('does nothing on drop when there is no dragged checkpoint', async () => {
-    mockGetCheckpoints.mockResolvedValue({
-      data: [checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })],
-    });
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint({ id: 1, order: 1 }), checkpoint({ id: 2, order: 2 })]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {
       wrapper: createWrapper(),
     });

@@ -120,4 +120,31 @@ describe('GuidePage', () => {
     await user.click(button);
     expect(screen.getByText('Sem media disponível')).toBeInTheDocument();
   });
+
+  it('shows the staff script and the challenge brief to whoever is at the post', async () => {
+    mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
+    mockListGuideCheckpoints.mockResolvedValue({
+      data: [
+        {
+          id: 3,
+          name: 'Cantina de Santiago',
+          order: 3,
+          latitude: null,
+          longitude: null,
+          description: null,
+          staff_script: 'Relembrar que existem cantinas',
+          challenge_brief: 'Perguntas dois a dois; falha bebe',
+          indications: [],
+          media: [],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderWithClient(<GuidePage />);
+
+    await user.click(await screen.findByText('Cantina de Santiago'));
+
+    expect(screen.getByText('Relembrar que existem cantinas')).toBeInTheDocument();
+    expect(screen.getByText('Perguntas dois a dois; falha bebe')).toBeInTheDocument();
+  });
 });

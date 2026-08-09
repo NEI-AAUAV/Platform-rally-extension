@@ -137,4 +137,42 @@ describe('CheckpointListItem', () => {
     expect(baseProps.onDrop).toHaveBeenCalled();
     expect(baseProps.onDragEnd).toHaveBeenCalled();
   });
+
+  it('marks a draft as invisible to teams', () => {
+    render(
+      <ul>
+        <CheckpointListItem
+          {...baseProps}
+          checkpoint={{ ...checkpoint, is_draft: true, is_placeholder: true }}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByText('Rascunho — invisível para as equipas')).toBeInTheDocument();
+    expect(screen.getByText('Nome provisório')).toBeInTheDocument();
+  });
+
+  it('lists what the post still lacks', () => {
+    render(
+      <ul>
+        <CheckpointListItem
+          {...baseProps}
+          checkpoint={{ ...checkpoint, missing: ['clue', 'staff'] }}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByText('sem pista')).toBeInTheDocument();
+    expect(screen.getByText('sem staff')).toBeInTheDocument();
+  });
+
+  it('shows no readiness list for a complete post', () => {
+    render(
+      <ul>
+        <CheckpointListItem {...baseProps} checkpoint={{ ...checkpoint, missing: [] }} />
+      </ul>,
+    );
+
+    expect(screen.queryByText('sem pista')).not.toBeInTheDocument();
+  });
 });

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
@@ -177,6 +178,89 @@ export default function CheckpointForm({
               onUploaded={(url) => form.setValue("clue_media_url", url)}
             />
           </FormItem>
+          <FormField
+            control={form.control}
+            name="staff_script"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Guião do staff (opcional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={3}
+                    placeholder="Ex: Falar dos diferentes desportos em que se podem inscrever..."
+                    {...field}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Os assuntos a abordar com as equipas neste posto. Só o staff e os guias veem isto
+                  — ao contrário das indicações do guia, <strong>não</strong> é vendido como pista.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="challenge_brief"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Desafio em texto (opcional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={3}
+                    placeholder="Ex: Pirâmide humana. Depois, dois shots por equipa..."
+                    {...field}
+                    className={fieldClassName}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  O desafio tal como foi pensado, antes de existir uma atividade configurada. Serve
+                  para não perder a ideia enquanto o posto está a ser planeado.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="space-y-3 rounded-xl border border-border p-4">
+            <FormField
+              control={form.control}
+              name="is_draft"
+              render={({ field }) => (
+                <FormItem className="flex items-start gap-3 space-y-0">
+                  <FormControl>
+                    <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <div>
+                    <FormLabel>Rascunho</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Fica fora da rota: as equipas não o veem, não conta para o total e nunca é
+                      entregue como próximo posto. Depois de as equipas arrancarem, deixa de ser
+                      possível mudar isto.
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="is_placeholder"
+              render={({ field }) => (
+                <FormItem className="flex items-start gap-3 space-y-0">
+                  <FormControl>
+                    <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <div>
+                    <FormLabel>Nome provisório</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Para postos ainda por decidir ("Bar 1"). Aparece na lista como pendente até o
+                      sítio estar escolhido.
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="order"

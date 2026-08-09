@@ -4,14 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  getCheckpoints,
+  getRouteStatus,
   createCheckpoint as apiCreateCheckpoint,
   updateCheckpoint as apiUpdateCheckpoint,
   deleteCheckpoint as apiDeleteCheckpoint,
   reorderCheckpoints as apiReorderCheckpoints,
+  type AdminCheckPoint,
   type CheckPointCreate,
   type CheckPointUpdate,
-  type DetailedCheckPoint,
+  type RouteStatus,
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import type { UserState } from "@/stores/useUserStore";
@@ -26,10 +27,20 @@ export const checkpointFormSchema = z.object({
   order: z.number().min(1, "Ordem deve ser maior que 0"),
   clue: z.string().optional(),
   clue_media_url: z.string().optional(),
+  // Planning fields. A route is written one cell at a time, so none of these
+  // is required — a post with only a name is a legitimate work in progress.
+  staff_script: z.string().optional(),
+  challenge_brief: z.string().optional(),
+  is_draft: z.boolean(),
+  is_placeholder: z.boolean(),
 });
 
 export type CheckpointForm = z.infer<typeof checkpointFormSchema>;
-export type Checkpoint = DetailedCheckPoint;
+export type Checkpoint = AdminCheckPoint;
+
+function optionalText(value: string | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
 
 function toRequestBody(data: CheckpointForm): CheckPointCreate {
   return {
@@ -41,8 +52,12 @@ function toRequestBody(data: CheckpointForm): CheckPointCreate {
     order: data.order,
     // Empty inputs mean "no clue": send null so the card falls back to the
     // guided flow instead of rendering an empty riddle.
-    clue: data.clue?.trim() ? data.clue.trim() : null,
-    clue_media_url: data.clue_media_url?.trim() ? data.clue_media_url.trim() : null,
+    clue: optionalText(data.clue),
+    clue_media_url: optionalText(data.clue_media_url),
+    staff_script: optionalText(data.staff_script),
+    challenge_brief: optionalText(data.challenge_brief),
+    is_draft: data.is_draft,
+    is_placeholder: data.is_placeholder,
   };
 }
 
@@ -51,14 +66,17 @@ export function useCheckpointManagement(userStore: UserState) {
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
 
-  const { data: checkpoints, refetch: refetchCheckpoints } = useQuery<DetailedCheckPoint[]>({
-    queryKey: ["checkpoints"],
+  // The planning view, not GET /checkpoint: it is the only one that returns
+  // drafts, the staff-only columns, and what each post still lacks.
+  const { data: routeStatus, refetch: refetchCheckpoints } = useQuery<RouteStatus | null>({
+    queryKey: ["route-status"],
     queryFn: async () => {
-      const { data } = await getCheckpoints();
-      return Array.isArray(data) ? data : [];
+      const { data } = await getRouteStatus();
+      return data ?? null;
     },
     enabled: !!userStore.token,
   });
+  const checkpoints = routeStatus?.checkpoints;
 
   const checkpointForm = useForm<CheckpointForm>({
     resolver: zodResolver(checkpointFormSchema),
@@ -71,6 +89,12 @@ export function useCheckpointManagement(userStore: UserState) {
       order: 1,
       clue: "",
       clue_media_url: "",
+      staff_script: "",
+      challenge_brief: "",
+      // New posts start published: drafting is the deliberate choice, and an
+      // import is the path that creates drafts in bulk.
+      is_draft: false,
+      is_placeholder: false,
     },
   });
 
@@ -142,6 +166,10 @@ export function useCheckpointManagement(userStore: UserState) {
     checkpointForm.setValue("order", checkpoint.order || 1);
     checkpointForm.setValue("clue", checkpoint.clue ?? "");
     checkpointForm.setValue("clue_media_url", checkpoint.clue_media_url ?? "");
+    checkpointForm.setValue("staff_script", checkpoint.staff_script ?? "");
+    checkpointForm.setValue("challenge_brief", checkpoint.challenge_brief ?? "");
+    checkpointForm.setValue("is_draft", checkpoint.is_draft ?? false);
+    checkpointForm.setValue("is_placeholder", checkpoint.is_placeholder ?? false);
   };
 
   // Calculate next available order (max order + 1, or 1 if no checkpoints)
@@ -225,6 +253,8 @@ export function useCheckpointManagement(userStore: UserState) {
     editingCheckpoint,
     draggedCheckpoint,
     sortedCheckpoints,
+    routeStatus: routeStatus ?? null,
+    refetchCheckpoints,
     hasCheckpoints: (checkpoints?.length ?? 0) > 0,
     isCreatingCheckpoint,
     isUpdatingCheckpoint,

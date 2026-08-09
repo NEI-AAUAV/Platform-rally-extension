@@ -183,7 +183,7 @@ export function MobileBottomNav() {
 
       <nav
         aria-label="Navegação rápida"
-        className="rally-glass rally-glass-on-background rally-tabbar rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden"
+        className="rally-glass rally-glass-solid rally-glass-on-background rally-tabbar rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden"
       >
         <ul
           ref={listRef}
@@ -211,7 +211,7 @@ export function MobileBottomNav() {
         <dialog
           open
           aria-label="QR de equipa"
-          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center bg-black/70 p-4 pb-[calc(1rem+var(--safe-bottom))] sm:hidden"
+          className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center overflow-y-auto bg-black/70 p-4 pb-[calc(1rem+var(--safe-bottom)+var(--rally-tabbar-height))] sm:hidden"
           onClose={() => setQrOpen(false)}
           onCancel={() => setQrOpen(false)}
         >

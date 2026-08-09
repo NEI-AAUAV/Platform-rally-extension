@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import CheckpointForm from '@/pages/admin/components/checkpoints/CheckpointForm';
@@ -7,6 +7,18 @@ import {
   checkpointFormSchema,
   type CheckpointForm as CheckpointFormValues,
 } from '@/pages/admin/components/checkpoints/useCheckpointManagement';
+
+// Radix's checkbox observes its own size on mount; the global setup's mock is
+// not constructible, so this suite installs the same class-shaped stand-in the
+// other Radix-using suites use.
+beforeAll(() => {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = MockResizeObserver;
+});
 
 vi.mock('@/pages/admin/components/checkpoints/CheckpointLocationPicker', () => ({
   default: ({ latitude, longitude, onChange }: { latitude: number | null; longitude: number | null; onChange: (lat: number, lng: number) => void }) => (
@@ -40,6 +52,8 @@ function Harness({ isEditing, isSubmitting, onSubmit, onCancel, defaultValues, f
       longitude: '',
       arrival_radius_m: 50,
       order: 1,
+      is_draft: false,
+      is_placeholder: false,
       ...defaultValues,
     },
   });

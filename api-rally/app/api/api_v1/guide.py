@@ -79,6 +79,11 @@ class GuideCheckpointResponse(BaseModel):
     # answer.
     clue: str | None = None
     clue_media_url: str | None = None
+    # What whoever is stationed here should talk about, and the challenge as it
+    # was planned. This is the audience the two columns were written for; the
+    # participant schema does not carry them at all.
+    staff_script: str | None = None
+    challenge_brief: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     media: list[GuideMediaItem]
@@ -146,6 +151,8 @@ class GuideController:
                 description=cp.description,
                 clue=cp.clue,
                 clue_media_url=cp.clue_media_url,
+                staff_script=cp.staff_script,
+                challenge_brief=cp.challenge_brief,
                 latitude=cp.latitude,
                 longitude=cp.longitude,
                 media=[

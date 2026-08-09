@@ -5,6 +5,7 @@ import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint } from "./useCheckpointManagement";
 import CheckpointMediaManager from "./CheckpointMediaManager";
 import CheckpointGuideIndicationsManager from "./CheckpointGuideIndicationsManager";
+import { missingLabel } from "./routeReadiness";
 
 type CheckpointListItemProps = Readonly<{
   checkpoint: Checkpoint;
@@ -55,7 +56,19 @@ export default function CheckpointListItem({
               <span className="font-mono text-xs">{checkpoint.order}</span>
             </div>
             <div>
-              <div className="font-semibold">{checkpoint.name}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{checkpoint.name}</span>
+                {checkpoint.is_draft && (
+                  <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                    Rascunho — invisível para as equipas
+                  </span>
+                )}
+                {checkpoint.is_placeholder && (
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                    Nome provisório
+                  </span>
+                )}
+              </div>
               <div className="text-sm text-muted-foreground">{checkpoint.description}</div>
               {(checkpoint.latitude || checkpoint.longitude) && (
                 <div className="text-xs text-muted-foreground">
@@ -68,6 +81,25 @@ export default function CheckpointListItem({
               <div className="text-xs text-muted-foreground">
                 {checkpoint.clue ? "🧩 Com enigma" : "🧩 Sem enigma — corre guiado"}
               </div>
+              {/* What is still to fill in, so planning a route does not mean
+                  opening a dozen forms to find the one with a hole in it. */}
+              {(checkpoint.missing?.length ?? 0) > 0 && (
+                <ul className="mt-1 flex list-none flex-wrap gap-1">
+                  {checkpoint.missing?.map((key) => (
+                    <li
+                      key={key}
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-[11px]",
+                        checkpoint.is_draft
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-destructive/10 text-destructive",
+                      )}
+                    >
+                      {missingLabel(key)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <div className="flex gap-2">

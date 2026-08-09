@@ -483,7 +483,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailedCheckPoint"
+                  "$ref": "#/components/schemas/AdminCheckPoint"
                 }
               }
             }
@@ -684,6 +684,33 @@
         ]
       }
     },
+    "/api/rally/v1/checkpoint/admin/route": {
+      "get": {
+        "tags": [
+          "CheckPoint"
+        ],
+        "summary": "Get Route Status",
+        "description": "The planning view of the route: drafts included, each post with the\nfields it still lacks. Admin/staff only \u2014 it carries the staff script\nand the challenge brief, which are answers as far as a team is\nconcerned.",
+        "operationId": "get_route_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/checkpoint/{id}": {
       "put": {
         "tags": [
@@ -723,7 +750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailedCheckPoint"
+                  "$ref": "#/components/schemas/AdminCheckPoint"
                 }
               }
             }
@@ -6993,6 +7020,168 @@
         "title": "ActivityUpdate",
         "description": "Schema for updating an activity"
       },
+      "AdminCheckPoint": {
+        "properties": {
+          "is_draft": {
+            "type": "boolean",
+            "title": "Is Draft",
+            "default": false
+          },
+          "is_placeholder": {
+            "type": "boolean",
+            "title": "Is Placeholder",
+            "default": false
+          },
+          "staff_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Script"
+          },
+          "challenge_brief": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Brief"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "arrival_radius_m": {
+            "type": "integer",
+            "title": "Arrival Radius M",
+            "default": 50
+          },
+          "clue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue"
+          },
+          "clue_media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clue Media Url"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "is_redacted": {
+            "type": "boolean",
+            "title": "Is Redacted",
+            "default": false
+          },
+          "search_latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Latitude"
+          },
+          "search_longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Longitude"
+          },
+          "search_radius_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Radius M"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "order",
+          "id"
+        ],
+        "title": "AdminCheckPoint",
+        "description": "The admin/staff view of a post: the participant fields plus the\nplanning ones and a readiness verdict.\n\nReturned only by admin-authenticated routes. Teams get\n``DetailedCheckPoint``, which structurally cannot carry these fields."
+      },
       "ArriveRequest": {
         "properties": {
           "latitude": {
@@ -7678,6 +7867,38 @@
       },
       "CheckPointCreate": {
         "properties": {
+          "is_draft": {
+            "type": "boolean",
+            "title": "Is Draft",
+            "default": false
+          },
+          "is_placeholder": {
+            "type": "boolean",
+            "title": "Is Placeholder",
+            "default": false
+          },
+          "staff_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Script"
+          },
+          "challenge_brief": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Brief"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -7853,6 +8074,50 @@
               }
             ],
             "title": "Clue Media Url"
+          },
+          "is_draft": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Draft"
+          },
+          "is_placeholder": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Placeholder"
+          },
+          "staff_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Script"
+          },
+          "challenge_brief": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Brief"
           }
         },
         "type": "object",
@@ -8991,6 +9256,28 @@
               }
             ],
             "title": "Clue Media Url"
+          },
+          "staff_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Script"
+          },
+          "challenge_brief": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Brief"
           },
           "latitude": {
             "anyOf": [
@@ -11017,6 +11304,41 @@
           "rounds"
         ],
         "title": "RotationScheduleResponse"
+      },
+      "RouteStatus": {
+        "properties": {
+          "published_count": {
+            "type": "integer",
+            "title": "Published Count"
+          },
+          "draft_count": {
+            "type": "integer",
+            "title": "Draft Count"
+          },
+          "incomplete_published_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Incomplete Published Ids",
+            "default": []
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCheckPoint"
+            },
+            "type": "array",
+            "title": "Checkpoints",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "published_count",
+          "draft_count"
+        ],
+        "title": "RouteStatus",
+        "description": "Whether the event's route as a whole is ready to run."
       },
       "SetTeamPhotoRequest": {
         "properties": {

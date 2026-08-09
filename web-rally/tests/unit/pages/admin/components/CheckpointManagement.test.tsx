@@ -50,6 +50,8 @@ const baseHookReturn = {
   handleDragOver: vi.fn(),
   handleDrop: vi.fn(),
   handleDragEnd: vi.fn(),
+  routeStatus: null,
+  refetchCheckpoints: vi.fn(),
 };
 
 describe('CheckpointManagement', () => {
@@ -121,5 +123,34 @@ describe('CheckpointManagement', () => {
     });
     render(<CheckpointManagement userStore={{} as any} />);
     expect(screen.getByText('editing')).toBeInTheDocument();
+  });
+
+  it('summarises the route, drafts included', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      routeStatus: {
+        published_count: 4,
+        draft_count: 3,
+        incomplete_published_ids: [],
+        checkpoints: [],
+      },
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByText(/4 na rota · 3 em rascunho/)).toBeInTheDocument();
+    expect(screen.queryByText(/por completar/)).not.toBeInTheDocument();
+  });
+
+  it('flags published posts that are still incomplete', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      routeStatus: {
+        published_count: 4,
+        draft_count: 0,
+        incomplete_published_ids: [1, 2],
+        checkpoints: [],
+      },
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByText(/2 publicado\(s\) por completar/)).toBeInTheDocument();
   });
 });
