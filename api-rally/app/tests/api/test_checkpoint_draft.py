@@ -92,9 +92,7 @@ class TestRouteStatus:
         self, pg_session, pg_client, as_admin
     ):
         await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await set_rally_settings(
-            pg_session, gps_checkin_enabled=True, reveal_next_checkpoint=False
-        )
+        await set_rally_settings(pg_session, gps_checkin_enabled=True, reveal_next_checkpoint=False)
         await _make_checkpoint(pg_session, order=1, clue="Segue o cheiro da comida")
         await _make_checkpoint(
             pg_session,
@@ -153,9 +151,7 @@ class TestPublishing:
 
         # The draft sits between two published posts; publishing it must leave
         # the published orders contiguous from 1, since progress is positional.
-        response = pg_client.put(
-            f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False}
-        )
+        response = pg_client.put(f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False})
 
         assert response.status_code == 200
         published = await crud_checkpoint.get_all_ordered(pg_session)
@@ -187,9 +183,7 @@ class TestPublishing:
         pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id))
         await pg_session.commit()
 
-        response = pg_client.put(
-            f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False}
-        )
+        response = pg_client.put(f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False})
 
         assert response.status_code == 400
         await pg_session.refresh(draft)

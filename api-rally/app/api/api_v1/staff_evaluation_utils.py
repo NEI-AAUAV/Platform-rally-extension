@@ -436,9 +436,7 @@ async def compute_checkpoint_progress(
     skipped_ids = set(
         (
             await db.scalars(
-                select(CheckpointSkip.checkpoint_id).where(
-                    CheckpointSkip.team_id == team_obj.id
-                )
+                select(CheckpointSkip.checkpoint_id).where(CheckpointSkip.team_id == team_obj.id)
             )
         ).all()
     )

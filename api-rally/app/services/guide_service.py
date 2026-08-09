@@ -54,7 +54,9 @@ class GuideService:
         event_filter = CheckPoint.event_id == event.id if event else CheckPoint.event_id.is_(None)
         stmt = (
             select(CheckPoint)
-            .where(event_filter)
+            # Drafts are posts still being planned: nobody is stationed at one
+            # and no team is sent there, so they would only be noise here.
+            .where(event_filter, CheckPoint.is_draft.is_(False))
             .options(
                 selectinload(CheckPoint.media),
                 selectinload(CheckPoint.guide_indications),

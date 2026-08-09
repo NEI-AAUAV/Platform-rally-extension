@@ -290,9 +290,16 @@ class CheckpointController:
         # column write would do.
         if cp_in.is_draft is not None:
             await service.set_draft(id, is_draft=cp_in.is_draft)
-        updated = await crud.checkpoint.update(
-            db=db, id=id, obj_in=cp_in.model_copy(update={"is_draft": None}), commit=True
-        )
+        # Rebuilt without is_draft rather than nulled: the CRUD update writes
+        # every field that was *set*, so a None here would try to null a
+        # NOT NULL column.
+        fields = cp_in.model_dump(exclude_unset=True, exclude={"is_draft"})
+        if fields.get("is_placeholder") is None:
+            # Same reason: the column is NOT NULL, so an explicit null is a
+            # no-op rather than a write.
+            fields.pop("is_placeholder", None)
+        rest = CheckPointUpdate(**fields)
+        updated = await crud.checkpoint.update(db=db, id=id, obj_in=rest, commit=True)
         return AdminCheckPoint.model_validate(updated)
 
     async def get_route_status(
