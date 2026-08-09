@@ -257,34 +257,41 @@ export default function CheckpointForm({
             Fora desta janela o posto recusa check-ins e diz à equipa a que horas abre. Vazio = está
             sempre aberto.
           </p>
-          {stages && stages.length > 0 && (
-            <FormField
-              control={form.control}
-              name="stage_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Etapa</FormLabel>
-                  <FormControl>
-                    <select
-                      {...field}
-                      className="h-10 w-full rounded-md border border-border bg-muted px-3 text-sm"
-                    >
-                      <option value="">Sem etapa</option>
-                      {stages.map((stage) => (
-                        <option key={stage.id} value={String(stage.id)}>
-                          {stage.order}. {stage.name}
-                        </option>
-                      ))}
-                    </select>
-                  </FormControl>
+          <FormField
+            control={form.control}
+            name="stage_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Etapa</FormLabel>
+                {stages && stages.length > 0 ? (
+                  <>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="h-10 w-full rounded-md border border-border bg-muted px-3 text-sm"
+                      >
+                        <option value="">Sem etapa</option>
+                        {stages.map((stage) => (
+                          <option key={stage.id} value={String(stage.id)}>
+                            {stage.order}. {stage.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      A etapa manda na ordem: mudar de etapa renumera o posto dentro da rota.
+                    </p>
+                  </>
+                ) : (
                   <p className="text-xs text-muted-foreground">
-                    A etapa manda na ordem: mudar de etapa renumera o posto dentro da rota.
+                    Ainda não criaste nenhuma etapa — cria uma em "Etapas da rota" acima para
+                    poderes atribuir postos a ela. Sem etapas, a rota corre como um bloco só.
                   </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <div className="space-y-3 rounded-xl border border-border p-4">
             <FormField
               control={form.control}
