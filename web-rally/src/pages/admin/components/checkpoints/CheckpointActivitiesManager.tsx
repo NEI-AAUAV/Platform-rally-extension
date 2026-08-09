@@ -48,11 +48,7 @@ export default function CheckpointActivitiesManager({ checkpointId }: Props) {
   const [showForm, setShowForm] = useState(false);
 
   const { data: activitiesData } = useActivities();
-  const {
-    mutate: createActivity,
-    isPending: isCreating,
-    error: createError,
-  } = useCreateActivity();
+  const { mutate: createActivity, isPending: isCreating, error: createError } = useCreateActivity();
   const { mutate: updateActivity, isPending: isUpdating } = useUpdateActivity();
   const { mutate: deleteActivity } = useDeleteActivity();
 

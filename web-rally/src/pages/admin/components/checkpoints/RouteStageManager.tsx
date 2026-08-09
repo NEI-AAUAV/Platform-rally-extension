@@ -100,8 +100,8 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
       <p className="mb-4 text-sm text-muted-foreground">
         Não precisas disto se a rota for um percurso único do princípio ao fim — nesse caso deixa
         sem etapas. Depois de criar uma etapa aqui, atribui os postos a ela no formulário de cada
-        checkpoint (campo "Etapa"). Só tem efeito com a definição{" "}
-        <strong>Etapas da rota</strong> ligada, em Definições.
+        checkpoint (campo "Etapa"). Só tem efeito com a definição <strong>Etapas da rota</strong>{" "}
+        ligada, em Definições.
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -112,11 +112,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
           aria-label="Nome da nova etapa"
           className="max-w-xs border-border bg-muted"
         />
-        <BloodyButton
-          type="button"
-          disabled={!name.trim() || isAdding}
-          onClick={() => addStage()}
-        >
+        <BloodyButton type="button" disabled={!name.trim() || isAdding} onClick={() => addStage()}>
           Adicionar etapa
         </BloodyButton>
       </div>
@@ -132,7 +128,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold">
-                    <span className="mr-2 font-mono text-xs text-muted-foreground">
+                    <span className="font-mono mr-2 text-xs text-muted-foreground">
                       {stage.order}
                     </span>
                     {stage.name}
@@ -160,13 +156,11 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
                         editStage({ id: stage.id, body: { order_matters: checked } })
                       }
                     />
-                    <Label htmlFor={`stage-order-${stage.id}`}>
-                      Postos desta etapa por ordem
-                    </Label>
+                    <Label htmlFor={`stage-order-${stage.id}`}>Postos desta etapa por ordem</Label>
                   </div>
                   <p className="ml-11 text-xs text-muted-foreground">
-                    Ligado: a equipa visita-os pela sequência definida. Desligado: escolhe livremente
-                    qualquer posto ainda por fazer dentro desta etapa.
+                    Ligado: a equipa visita-os pela sequência definida. Desligado: escolhe
+                    livremente qualquer posto ainda por fazer dentro desta etapa.
                   </p>
                 </div>
                 <div>

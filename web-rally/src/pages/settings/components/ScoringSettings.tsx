@@ -306,9 +306,9 @@ export default function ScoringSettings({
             <Label htmlFor="route_stages_enabled">Etapas da rota</Label>
             <p className="text-xs text-muted-foreground">
               Divide a rota em blocos com regras diferentes — ex: universidade por ordem, depois
-              bares à escolha (3 de 5). Cria e configura as etapas na aba de Checkpoints. Sem
-              etapas criadas, a rota corre como um bloco só e vale a regra geral abaixo. Desligar a
-              meio do evento abre tudo sem apagar as etapas.
+              bares à escolha (3 de 5). Cria e configura as etapas na aba de Checkpoints. Sem etapas
+              criadas, a rota corre como um bloco só e vale a regra geral abaixo. Desligar a meio do
+              evento abre tudo sem apagar as etapas.
             </p>
           </div>
         </div>
@@ -330,8 +330,8 @@ export default function ScoringSettings({
           <div>
             <Label htmlFor="checkpoint_hours_enabled">Respeitar horários dos postos</Label>
             <p className="text-xs text-muted-foreground">
-              Recusa check-ins fora da janela de cada posto. Desliga isto se um bar abriu mais cedo —
-              é mais rápido do que limpar os horários um a um.
+              Recusa check-ins fora da janela de cada posto. Desliga isto se um bar abriu mais cedo
+              — é mais rápido do que limpar os horários um a um.
             </p>
           </div>
         </div>

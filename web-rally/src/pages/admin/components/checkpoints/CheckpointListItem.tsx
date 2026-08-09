@@ -102,9 +102,7 @@ export default function CheckpointListItem({
                   {stage && <span>🧭 {stage.name}</span>}
                   {hasWindow && (
                     <span
-                      className={
-                        checkpointOpeningNotice(checkpoint) ? "text-amber-600" : undefined
-                      }
+                      className={checkpointOpeningNotice(checkpoint) ? "text-amber-600" : undefined}
                     >
                       🕒 {formatWindow(checkpoint.available_from, checkpoint.available_until)}
                     </span>
