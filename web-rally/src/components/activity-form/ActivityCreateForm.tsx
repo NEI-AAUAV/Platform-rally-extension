@@ -48,6 +48,13 @@ type ActivityFormProps = Readonly<{
   error?: string;
   /** Initial form data for editing existing activities */
   initialData?: Partial<ActivityForm>;
+  /**
+   * Fix the activity to one checkpoint and hide the picker. Used when the
+   * form is embedded inside that checkpoint's own admin panel — the
+   * checkpoint is already decided by where the form is, asking again is
+   * just an extra field to fill in.
+   */
+  lockCheckpointId?: number;
 }>;
 
 const activityTypeLabels = {
@@ -97,6 +104,7 @@ export default function ActivityForm({
   isLoading = false,
   error,
   initialData,
+  lockCheckpointId,
 }: ActivityFormProps) {
   const form = useForm<ActivityForm>({
     resolver: zodResolver(activityFormSchema),
@@ -104,7 +112,7 @@ export default function ActivityForm({
       name: "",
       description: "",
       activity_type: ActivityType.GENERAL,
-      checkpoint_id: checkpoints[0]?.id || 0,
+      checkpoint_id: lockCheckpointId ?? checkpoints[0]?.id ?? 0,
       config: {},
       is_active: true,
       ...initialData,
@@ -189,29 +197,31 @@ export default function ActivityForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="checkpoint_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Checkpoint</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
-                  >
-                    {checkpoints.map((checkpoint) => (
-                      <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
-                        {checkpoint.name} - {checkpoint.description}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {lockCheckpointId === undefined && (
+            <FormField
+              control={form.control}
+              name="checkpoint_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Checkpoint</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                    >
+                      {checkpoints.map((checkpoint) => (
+                        <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
+                          {checkpoint.name} - {checkpoint.description}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}

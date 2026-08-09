@@ -162,6 +162,11 @@ class RallySettingsBase(BaseModel):
     compass_enabled: bool = False
     # Radius of the on-map search circle for a redacted post; 0 = no circle.
     search_radius_m: int = 0
+    # Route stages: per-block ordering rules (see RouteStage). Off means the
+    # whole route is one block governed by checkpoint_order_matters.
+    route_stages_enabled: bool = False
+    # Enforce each post's own opening window.
+    checkpoint_hours_enabled: bool = True
 
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event

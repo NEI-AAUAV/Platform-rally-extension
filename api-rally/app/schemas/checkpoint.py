@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 # WGS-84 bounds, and the geofence radius floor. Applied to the *write* schemas
@@ -21,6 +23,13 @@ class CheckPointBase(BaseModel):
     clue: str | None = None
     # Optional picture-riddle accompanying the clue (R2 URL).
     clue_media_url: str | None = None
+    # Which block of the route this post belongs to (None = no stages).
+    stage_id: int | None = None
+    # The post's own opening window. Not redacted: a team standing at a closed
+    # bar has already solved the riddle, and "opens at 22:00" is the one thing
+    # that helps them. None/None means always open.
+    available_from: datetime | None = None
+    available_until: datetime | None = None
 
 
 class CheckPointPlanningFields(BaseModel):
@@ -58,6 +67,9 @@ class CheckPointUpdate(BaseModel):
     arrival_radius_m: int | None = Field(default=None, ge=0)
     clue: str | None = None
     clue_media_url: str | None = None
+    stage_id: int | None = None
+    available_from: datetime | None = None
+    available_until: datetime | None = None
     is_draft: bool | None = None
     is_placeholder: bool | None = None
     staff_script: str | None = None

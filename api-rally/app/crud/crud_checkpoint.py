@@ -8,8 +8,12 @@ from app.core.config import settings
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.models.checkpoint import CheckPoint
+from app.models.route_stage import RouteStage
 from app.models.team import Team
 from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
+
+# Sort key for posts that belong to no stage: they follow every staged post.
+_UNSTAGED_SORT_KEY = 1_000_000
 
 
 def _event_filter(event_id: int) -> "ColumnElement[bool]":
@@ -110,10 +114,16 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         contiguous.
         """
         event_id = await current_event_id(db)
+        # Stage first, then position inside it: a stage is a contiguous block
+        # of orders, which is what lets the stage rules be expressed as order
+        # comparisons at all. Posts outside every stage sort last (the
+        # coalesce), as does anything still in draft.
+        stage_order = func.coalesce(RouteStage.order, _UNSTAGED_SORT_KEY)
         stmt = (
             select(CheckPoint)
+            .outerjoin(RouteStage, CheckPoint.stage_id == RouteStage.id)
             .where(_event_filter(event_id))
-            .order_by(CheckPoint.is_draft, CheckPoint.order)
+            .order_by(CheckPoint.is_draft, stage_order, CheckPoint.order)
         )
         checkpoints = list((await db.scalars(stmt)).all())
         target = {cp.id: position for position, cp in enumerate(checkpoints, start=1)}

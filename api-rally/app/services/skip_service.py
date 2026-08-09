@@ -20,8 +20,8 @@ from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
 from app.services.checkin_service import require_same_event
+from app.services.route_progress import can_reach_checkpoint
 from app.services.scoring_service import ScoringService
-from app.services.team_service import is_checkpoint_reachable
 
 ALREADY_SKIPPED = "This checkpoint was already given up on"
 SKIP_DISABLED = "Giving up on a checkpoint is not enabled for this event"
@@ -55,10 +55,10 @@ class SkipService:
         settings = await rally_settings.get_or_create(self._db)
         if not getattr(settings, "skip_enabled", True):
             raise RallyValidationError(SKIP_DISABLED)
-        if not is_checkpoint_reachable(
-            checkpoint_order=checkpoint.order,
-            times_reached=len(team.times),
-            order_matters=bool(settings.checkpoint_order_matters),
+        # Hours are not enforced here: giving up on a bar that has not opened
+        # yet is exactly what a stuck team wants to do.
+        if not await can_reach_checkpoint(
+            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
         ):
             # Giving up on a post they have not reached would let a team skim
             # the route, paying to fast-forward to the end.

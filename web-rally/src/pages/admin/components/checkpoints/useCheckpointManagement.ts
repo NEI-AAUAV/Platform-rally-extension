@@ -13,6 +13,8 @@ import {
   type CheckPointCreate,
   type CheckPointUpdate,
   type RouteStatus,
+  type RouteStageResponse,
+  listRouteStages,
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import type { UserState } from "@/stores/useUserStore";
@@ -33,6 +35,11 @@ export const checkpointFormSchema = z.object({
   challenge_brief: z.string().optional(),
   is_draft: z.boolean(),
   is_placeholder: z.boolean(),
+  // Empty string means "no stage" / "no window": the <select> and
+  // datetime-local inputs cannot hold null.
+  stage_id: z.string().optional(),
+  available_from: z.string().optional(),
+  available_until: z.string().optional(),
 });
 
 export type CheckpointForm = z.infer<typeof checkpointFormSchema>;
@@ -40,6 +47,22 @@ export type Checkpoint = AdminCheckPoint;
 
 function optionalText(value: string | undefined): string | null {
   return value?.trim() ? value.trim() : null;
+}
+
+/** A datetime-local value carries no zone; treat it as the browser's own. */
+function optionalTimestamp(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function toLocalInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  // datetime-local wants local wall-clock time without a zone suffix.
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function toRequestBody(data: CheckpointForm): CheckPointCreate {
@@ -58,6 +81,9 @@ function toRequestBody(data: CheckpointForm): CheckPointCreate {
     challenge_brief: optionalText(data.challenge_brief),
     is_draft: data.is_draft,
     is_placeholder: data.is_placeholder,
+    stage_id: data.stage_id ? Number.parseInt(data.stage_id, 10) : null,
+    available_from: optionalTimestamp(data.available_from),
+    available_until: optionalTimestamp(data.available_until),
   };
 }
 
@@ -65,6 +91,9 @@ export function useCheckpointManagement(userStore: UserState) {
   const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
+  // The post just created, so its panel opens straight into desafio/media/
+  // indicações instead of making the admin find and click it in the list.
+  const [justCreatedId, setJustCreatedId] = React.useState<number | null>(null);
 
   // The planning view, not GET /checkpoint: it is the only one that returns
   // drafts, the staff-only columns, and what each post still lacks.
@@ -77,6 +106,17 @@ export function useCheckpointManagement(userStore: UserState) {
     enabled: !!userStore.token,
   });
   const checkpoints = routeStatus?.checkpoints;
+
+  // Stages are needed by the form's stage picker, and they are what decides
+  // a post's position in the route.
+  const { data: stages } = useQuery<RouteStageResponse[]>({
+    queryKey: ["route-stages"],
+    queryFn: async () => {
+      const { data } = await listRouteStages();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!userStore.token,
+  });
 
   const checkpointForm = useForm<CheckpointForm>({
     resolver: zodResolver(checkpointFormSchema),
@@ -95,15 +135,19 @@ export function useCheckpointManagement(userStore: UserState) {
       // import is the path that creates drafts in bulk.
       is_draft: false,
       is_placeholder: false,
+      stage_id: "",
+      available_from: "",
+      available_until: "",
     },
   });
 
   const { mutate: createCheckpoint, isPending: isCreatingCheckpoint } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) =>
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       void refetchCheckpoints();
       checkpointForm.reset();
+      if (data?.id) setJustCreatedId(data.id);
       toast.success("Checkpoint criado com sucesso!");
     },
     onError: (error) => {
@@ -170,6 +214,9 @@ export function useCheckpointManagement(userStore: UserState) {
     checkpointForm.setValue("challenge_brief", checkpoint.challenge_brief ?? "");
     checkpointForm.setValue("is_draft", checkpoint.is_draft ?? false);
     checkpointForm.setValue("is_placeholder", checkpoint.is_placeholder ?? false);
+    checkpointForm.setValue("stage_id", checkpoint.stage_id ? String(checkpoint.stage_id) : "");
+    checkpointForm.setValue("available_from", toLocalInputValue(checkpoint.available_from));
+    checkpointForm.setValue("available_until", toLocalInputValue(checkpoint.available_until));
   };
 
   // Calculate next available order (max order + 1, or 1 if no checkpoints)
@@ -254,6 +301,7 @@ export function useCheckpointManagement(userStore: UserState) {
     draggedCheckpoint,
     sortedCheckpoints,
     routeStatus: routeStatus ?? null,
+    stages: stages ?? [],
     refetchCheckpoints,
     hasCheckpoints: (checkpoints?.length ?? 0) > 0,
     isCreatingCheckpoint,
@@ -267,5 +315,6 @@ export function useCheckpointManagement(userStore: UserState) {
     handleDragOver,
     handleDrop,
     handleDragEnd,
+    justCreatedId,
   };
 }

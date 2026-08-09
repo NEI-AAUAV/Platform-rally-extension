@@ -22,6 +22,7 @@ import { useArrivalSync } from "@/offline/useArrivalSync";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import { getErrorMessage } from "@/utils/errorHandling";
+import { checkpointOpeningNotice } from "./checkpointHours";
 
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
@@ -214,10 +215,16 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   // Requiring them here hid the check-in button for the entire mode. The
   // distance check happens server-side either way; the client never needed the
   // coordinates to ask.
+  // A post with its own opening window (the bars) refuses check-ins outside
+  // it server-side. Saying so here — with the hour — is the difference
+  // between "the app is broken" and "come back at ten".
+  const openingNotice = checkpointOpeningNotice(checkpoint);
+
   const canCheckin =
     settings?.gps_checkin_enabled === true &&
     (hasCoords || isRedacted) &&
-    (checkpoint.arrival_radius_m ?? 0) > 0;
+    (checkpoint.arrival_radius_m ?? 0) > 0 &&
+    openingNotice === null;
 
   // Hints are the peddy-paper safety valve: help toward the riddle, paid for
   // in points. A checkpoint with no guide indications has no ladder and the
@@ -413,6 +420,12 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
             </a>
           )}
         </div>
+      )}
+
+      {openingNotice && (
+        <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {openingNotice}
+        </p>
       )}
 
       {canCheckin && (

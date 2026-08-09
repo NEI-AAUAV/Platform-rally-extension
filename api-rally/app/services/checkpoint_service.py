@@ -28,6 +28,8 @@ from app.schemas.checkpoint import (
 )
 from app.schemas.team import ListingTeam
 from app.services.checkpoint_planning import missing_fields
+from app.services.route_progress import load_stages, resolved_checkpoint_orders
+from app.services.route_stages import is_reachable_in_stages
 from app.services.team_service import TeamService
 
 
@@ -88,6 +90,8 @@ class CheckpointService:
         current_order: int,
         has_arrived: bool = False,
         search_radius_m: int = 0,
+        current_orders: frozenset[int] | None = None,
+        resolved_orders: frozenset[int] | None = None,
     ) -> DetailedCheckPoint:
         """Strip the answer-bearing fields from a checkpoint the team hasn't
         reached yet: name, description, and coordinates. In a peddy paper,
@@ -112,12 +116,25 @@ class CheckpointService:
         the game. It is also mirrored into ``description`` so clients that only
         render the description still show something.
         """
-        if checkpoint.order < current_order or has_arrived:
+        # With stages, "done" and "current" stop being a single number: a
+        # free-choice stage leaves several posts open at once, and the team may
+        # have resolved them out of order. The caller passes the two sets when
+        # that is the case; otherwise the sequential comparison stands.
+        is_resolved = (
+            checkpoint.order in resolved_orders
+            if resolved_orders is not None
+            else checkpoint.order < current_order
+        )
+        if is_resolved or has_arrived:
             return checkpoint
         area = CheckpointService._search_area(checkpoint, search_radius_m)
-        # Only the post they are on. Public callers pass current_order=0, so
-        # they never match and get no riddle at all.
-        is_current = checkpoint.order == current_order
+        # Only the posts they may head to now. Public callers pass
+        # current_order=0 and no set, so they never match and get no riddle.
+        is_current = (
+            checkpoint.order in current_orders
+            if current_orders is not None
+            else checkpoint.order == current_order
+        )
         clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
             update={
@@ -142,6 +159,8 @@ class CheckpointService:
         reveal_next: bool,
         arrived_ids: frozenset[int] = frozenset(),
         search_radius_m: int = 0,
+        current_orders: frozenset[int] | None = None,
+        resolved_orders: frozenset[int] | None = None,
     ) -> list[DetailedCheckPoint]:
         validated = self._validate_list(checkpoints)
         if reveal_next:
@@ -152,6 +171,8 @@ class CheckpointService:
                 current_order=current_order,
                 has_arrived=cp.id in arrived_ids,
                 search_radius_m=search_radius_m,
+                current_orders=current_orders,
+                resolved_orders=resolved_orders,
             )
             for cp in validated
         ]
@@ -215,6 +236,12 @@ class CheckpointService:
         )
         search_radius = int(getattr(settings, "search_radius_m", 0) or 0)
 
+        # Under stages there is no single "current" post: an ordered stage has
+        # one, a free stage has several at once. Both sets are computed here
+        # and handed to the redactor, which otherwise compares against a
+        # single order.
+        stage_sets = await self._stage_reveal_sets(team, settings)
+
         if settings.show_route_mode == "complete":
             return self._redact_list(
                 all_checkpoints,
@@ -222,9 +249,15 @@ class CheckpointService:
                 reveal_next=reveal_next,
                 arrived_ids=arrived_ids,
                 search_radius_m=search_radius,
+                **stage_sets,
             )
 
-        if getattr(settings, "checkpoint_order_matters", True):
+        if stage_sets:
+            # Everything the team has finished, plus everything it may head to
+            # now. Posts locked behind a later stage stay out of the list.
+            open_orders = stage_sets["current_orders"] | stage_sets["resolved_orders"]
+            visible = [cp for cp in all_checkpoints if cp.order in open_orders]
+        elif getattr(settings, "checkpoint_order_matters", True):
             visible = [cp for cp in all_checkpoints if cp.order <= current_order]
         else:
             # Free order: a team can reach checkpoint 3 before 2, but a
@@ -238,7 +271,33 @@ class CheckpointService:
             reveal_next=reveal_next,
             arrived_ids=arrived_ids,
             search_radius_m=search_radius,
+            **stage_sets,
         )
+
+    async def _stage_reveal_sets(self, team: Any, settings: Any) -> dict[str, frozenset[int]]:
+        """``{"current_orders", "resolved_orders"}`` when the event runs on
+        stages, or an empty dict when it does not.
+
+        Empty means "fall back to the sequential comparison", which is what
+        every event without stages has always done — the redactor and the
+        visibility filter both read it that way.
+        """
+        if not getattr(settings, "route_stages_enabled", False):
+            return {}
+        stages = await load_stages(self._db)
+        if not stages:
+            return {}
+
+        resolved = await resolved_checkpoint_orders(self._db, team)
+        reachable = frozenset(
+            order
+            for stage in stages
+            for order in stage.checkpoint_orders
+            if is_reachable_in_stages(
+                checkpoint_order=order, stages=stages, resolved_orders=resolved
+            )
+        )
+        return {"current_orders": reachable, "resolved_orders": resolved}
 
     async def visible_checkpoints_for_public(
         self, settings: Any
@@ -361,6 +420,7 @@ class CheckpointService:
         with_staff = await self._checkpoint_ids_with_staff()
         requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
         requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
+        requires_stage = bool(getattr(settings, "route_stages_enabled", False))
 
         adapter = TypeAdapter(list[AdminCheckPoint])
         validated = adapter.validate_python(checkpoints)
@@ -372,6 +432,7 @@ class CheckpointService:
                 has_staff=item.id in with_staff,
                 requires_coordinates=requires_coordinates,
                 requires_clue=requires_clue,
+                requires_stage=requires_stage,
             )
 
         return RouteStatus(

@@ -22,6 +22,7 @@ from app.api.api_v1 import (
     push,
     rally_duration,
     rally_settings,
+    route_stage,
     scoreboard,
     staff_evaluation,
     team,
@@ -55,6 +56,7 @@ api_v1_router.include_router(
 api_v1_router.include_router(checkpoint_arrive.router, prefix="", tags=["Checkpoint Arrive"])
 api_v1_router.include_router(checkpoint_hint.router, prefix="", tags=["Checkpoint Hints"])
 api_v1_router.include_router(checkpoint_proximity.router, prefix="", tags=["Checkpoint Proximity"])
+api_v1_router.include_router(route_stage.router, prefix="", tags=["Route Stages"])
 api_v1_router.include_router(badge_admin.router, prefix="", tags=["Badge Admin"])
 api_v1_router.include_router(deferred_judging.router, prefix="", tags=["Deferred Judging"])
 api_v1_router.include_router(dynamic_scoring.router, prefix="", tags=["Dynamic Scoring"])

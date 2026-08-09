@@ -8,6 +8,7 @@ from app.crud.crud_participation import participation
 from app.crud.crud_push_subscription import push_subscription
 from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.crud.crud_route_stage import route_stage
 from app.crud.crud_team import CRUDTeam, team
 from app.crud.crud_user import user
 from app.models.team import Team
@@ -18,6 +19,7 @@ __all__ = [
     "unique_key_error_regex",
     "team",
     "checkpoint",
+    "route_stage",
     "user",
     "rally_staff_assignment",
     "rally_guide_assignment",

@@ -4,6 +4,7 @@ import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
 import CheckpointForm from "./CheckpointForm";
 import CheckpointListItem from "./CheckpointListItem";
+import RouteStageManager from "./RouteStageManager";
 
 type CheckpointManagementProps = Readonly<{
   userStore: UserState;
@@ -28,12 +29,17 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     handleDrop,
     handleDragEnd,
     routeStatus,
+    refetchCheckpoints,
+    stages,
+    justCreatedId,
   } = useCheckpointManagement(userStore);
 
   const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
 
   return (
     <div className="space-y-6">
+      <RouteStageManager onChanged={() => void refetchCheckpoints()} />
+
       <CheckpointForm
         form={checkpointForm}
         isEditing={!!editingCheckpoint}
@@ -42,6 +48,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         onCancel={cancelEdit}
         checkpoints={sortedCheckpoints}
         currentId={editingCheckpoint?.id ?? null}
+        stages={stages}
       />
 
       <div className="rally-surface rounded-2xl p-6">
@@ -76,6 +83,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 onDragEnd={handleDragEnd}
                 onEdit={startEditCheckpoint}
                 onDelete={deleteCheckpoint}
+                stages={stages}
+                forceExpanded={checkpoint.id === justCreatedId}
               />
             ))}
           </ul>

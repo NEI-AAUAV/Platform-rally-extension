@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import { Edit, Trash2, GripVertical, Images, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
+import type { RouteStageResponse } from "@/client";
 import type { Checkpoint } from "./useCheckpointManagement";
 import CheckpointMediaManager from "./CheckpointMediaManager";
 import CheckpointGuideIndicationsManager from "./CheckpointGuideIndicationsManager";
+import CheckpointActivitiesManager from "./CheckpointActivitiesManager";
 import { missingLabel } from "./routeReadiness";
+import { checkpointOpeningNotice } from "@/pages/team-progress/checkpointHours";
 
 type CheckpointListItemProps = Readonly<{
   checkpoint: Checkpoint;
@@ -17,7 +20,23 @@ type CheckpointListItemProps = Readonly<{
   onDragEnd: () => void;
   onEdit: (checkpoint: Checkpoint) => void;
   onDelete: (id: number) => void;
+  /** To resolve the checkpoint's stage name; empty when the route has none. */
+  stages?: ReadonlyArray<RouteStageResponse>;
+  /**
+   * Force the panel open, e.g. right after this post was created — landing
+   * the admin straight on media/indications/activity instead of a click away.
+   * Uncontrolled (starts closed, toggles freely) when omitted.
+   */
+  forceExpanded?: boolean;
 }>;
+
+function formatWindow(from: string | null | undefined, until: string | null | undefined): string {
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  if (from && until) return `${time(from)}–${time(until)}`;
+  if (from) return `abre ${time(from)}`;
+  return `fecha ${time(until as string)}`;
+}
 
 export default function CheckpointListItem({
   checkpoint,
@@ -29,8 +48,16 @@ export default function CheckpointListItem({
   onDragEnd,
   onEdit,
   onDelete,
+  stages,
+  forceExpanded,
 }: CheckpointListItemProps) {
-  const [showMedia, setShowMedia] = useState(false);
+  // Seeds the initial state only — after mount this is a normal toggle, so a
+  // post that opened itself on creation can still be collapsed like any
+  // other. (Composing `forceExpanded || state` instead would work for
+  // opening but make the toggle button permanently unable to close it.)
+  const [showMedia, setShowMedia] = useState(forceExpanded ?? false);
+  const stage = stages?.find((s) => s.id === checkpoint.stage_id);
+  const hasWindow = Boolean(checkpoint.available_from || checkpoint.available_until);
 
   return (
     <li
@@ -70,6 +97,18 @@ export default function CheckpointListItem({
                 )}
               </div>
               <div className="text-sm text-muted-foreground">{checkpoint.description}</div>
+              {(stage || hasWindow) && (
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {stage && <span>🧭 {stage.name}</span>}
+                  {hasWindow && (
+                    <span
+                      className={checkpointOpeningNotice(checkpoint) ? "text-amber-600" : undefined}
+                    >
+                      🕒 {formatWindow(checkpoint.available_from, checkpoint.available_until)}
+                    </span>
+                  )}
+                </div>
+              )}
               {(checkpoint.latitude || checkpoint.longitude) && (
                 <div className="text-xs text-muted-foreground">
                   📍 {checkpoint.latitude}, {checkpoint.longitude}
@@ -129,6 +168,7 @@ export default function CheckpointListItem({
       </div>
       {showMedia && (
         <div className="rounded-b-xl border border-t-0 border-border bg-card/40 p-4 sm:p-6">
+          <CheckpointActivitiesManager checkpointId={checkpoint.id} />
           <CheckpointMediaManager checkpointId={checkpoint.id} />
           <CheckpointGuideIndicationsManager checkpointId={checkpoint.id} />
         </div>

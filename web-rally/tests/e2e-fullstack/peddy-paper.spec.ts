@@ -23,6 +23,17 @@ test.describe("peddy paper", () => {
     teamToken = await loginTeam(peddy.accessCode);
   });
 
+  // Other describes in this file seed their own peddy-paper event inside the
+  // test body, and seeding sets that event as current. This describe seeds
+  // once in beforeAll, so by the time its tests run the current edition can
+  // belong to another fixture — and a cross-edition check-in is rejected.
+  // Re-assert the edition per test rather than relying on run order.
+  test.beforeEach(async () => {
+    await apiCall("POST", `/events/${peddy.eventId}/set-current`, {
+      token: peddy.admin.accessToken,
+    });
+  });
+
   /** Put a team session in the browser without spending the per-IP login
    *  rate-limit budget on the login form (see this directory's README). */
   async function seedTeamSession(context: BrowserContext): Promise<void> {
