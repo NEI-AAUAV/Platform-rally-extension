@@ -146,6 +146,10 @@ class TestParseRoutePaste:
 
         assert row.staff_script == "Falar, incentivar, e perguntar"
 
+    def test_a_row_whose_first_cell_is_empty_is_not_a_post(self) -> None:
+        # A stray continuation line in the pasted table: cells but no name.
+        assert parse_route_paste("\tpista órfã\tsem posto") == []
+
     def test_blank_lines_are_ignored(self) -> None:
         assert len(parse_route_paste("Aristides\n\n   \nBar 1\n")) == 2
 
