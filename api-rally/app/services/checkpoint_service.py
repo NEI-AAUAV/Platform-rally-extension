@@ -423,6 +423,7 @@ class CheckpointService:
         with_staff = await self._checkpoint_ids_with_staff()
         requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
         requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
+        requires_stage = bool(getattr(settings, "route_stages_enabled", False))
 
         adapter = TypeAdapter(list[AdminCheckPoint])
         validated = adapter.validate_python(checkpoints)
@@ -434,6 +435,7 @@ class CheckpointService:
                 has_staff=item.id in with_staff,
                 requires_coordinates=requires_coordinates,
                 requires_clue=requires_clue,
+                requires_stage=requires_stage,
             )
 
         return RouteStatus(

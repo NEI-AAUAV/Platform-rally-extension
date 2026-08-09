@@ -8,6 +8,7 @@ from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import as_team, make_event, make_team, set_rally_settings
 
 STAGES_URL = "/api/rally/v1/route-stages"
+ROUTE_URL = "/api/rally/v1/checkpoint/admin/route"
 
 
 async def _make_checkpoint(pg_session, order, **overrides):
@@ -224,3 +225,39 @@ class TestCheckpointHours:
             )
 
         assert response.status_code == 200, response.text
+
+
+class TestRouteStatusWithStages:
+    async def test_a_post_with_no_stage_is_flagged_missing_once_stages_are_on(
+        self, pg_session, pg_client, as_admin
+    ):
+        await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, route_stages_enabled=True)
+        await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.get(ROUTE_URL)
+
+        assert response.status_code == 200
+        assert "stage" in response.json()["checkpoints"][0]["missing"]
+
+    async def test_an_assigned_post_is_not_flagged(self, pg_session, pg_client, as_admin):
+        await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, route_stages_enabled=True)
+        stage = await _stage(pg_client, name="Universidade", order=1)
+        cp = await _make_checkpoint(pg_session, order=1)
+        _assign(pg_client, cp.id, stage["id"])
+
+        response = pg_client.get(ROUTE_URL)
+
+        assert "stage" not in response.json()["checkpoints"][0]["missing"]
+
+    async def test_stage_is_not_required_when_the_switch_is_off(
+        self, pg_session, pg_client, as_admin
+    ):
+        await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, route_stages_enabled=False)
+        await _make_checkpoint(pg_session, order=1)
+
+        response = pg_client.get(ROUTE_URL)
+
+        assert "stage" not in response.json()["checkpoints"][0]["missing"]

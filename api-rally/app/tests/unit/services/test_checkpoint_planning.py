@@ -10,6 +10,7 @@ from app.services.checkpoint_planning import (
     MISSING_COORDINATES,
     MISSING_NAME,
     MISSING_STAFF,
+    MISSING_STAGE,
     is_undecided,
     missing_fields,
     next_orders,
@@ -24,6 +25,7 @@ def make_checkpoint(**overrides: object) -> SimpleNamespace:
         "latitude": 40.63,
         "longitude": -8.65,
         "is_placeholder": False,
+        "stage_id": 1,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -82,6 +84,38 @@ class TestMissingFields:
             has_staff=True,
             requires_coordinates=False,
             requires_clue=False,
+        )
+
+        assert missing == []
+
+    def test_missing_stage_only_required_when_the_event_uses_stages(self) -> None:
+        checkpoint = make_checkpoint(stage_id=None)
+
+        assert missing_fields(
+            checkpoint,
+            has_activity=True,
+            has_staff=True,
+            requires_coordinates=True,
+            requires_clue=True,
+            requires_stage=False,
+        ) == []
+        assert missing_fields(
+            checkpoint,
+            has_activity=True,
+            has_staff=True,
+            requires_coordinates=True,
+            requires_clue=True,
+            requires_stage=True,
+        ) == [MISSING_STAGE]
+
+    def test_a_staged_post_with_a_stage_is_not_flagged(self) -> None:
+        missing = missing_fields(
+            make_checkpoint(stage_id=1),
+            has_activity=True,
+            has_staff=True,
+            requires_coordinates=True,
+            requires_clue=True,
+            requires_stage=True,
         )
 
         assert missing == []

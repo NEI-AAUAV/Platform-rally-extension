@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { Edit, Trash2, GripVertical, Images, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
+import type { RouteStageResponse } from "@/client";
 import type { Checkpoint } from "./useCheckpointManagement";
 import CheckpointMediaManager from "./CheckpointMediaManager";
 import CheckpointGuideIndicationsManager from "./CheckpointGuideIndicationsManager";
 import { missingLabel } from "./routeReadiness";
+import { checkpointOpeningNotice } from "@/pages/team-progress/checkpointHours";
 
 type CheckpointListItemProps = Readonly<{
   checkpoint: Checkpoint;
@@ -17,7 +19,17 @@ type CheckpointListItemProps = Readonly<{
   onDragEnd: () => void;
   onEdit: (checkpoint: Checkpoint) => void;
   onDelete: (id: number) => void;
+  /** To resolve the checkpoint's stage name; empty when the route has none. */
+  stages?: ReadonlyArray<RouteStageResponse>;
 }>;
+
+function formatWindow(from: string | null | undefined, until: string | null | undefined): string {
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  if (from && until) return `${time(from)}–${time(until)}`;
+  if (from) return `abre ${time(from)}`;
+  return `fecha ${time(until as string)}`;
+}
 
 export default function CheckpointListItem({
   checkpoint,
@@ -29,8 +41,11 @@ export default function CheckpointListItem({
   onDragEnd,
   onEdit,
   onDelete,
+  stages,
 }: CheckpointListItemProps) {
   const [showMedia, setShowMedia] = useState(false);
+  const stage = stages?.find((s) => s.id === checkpoint.stage_id);
+  const hasWindow = Boolean(checkpoint.available_from || checkpoint.available_until);
 
   return (
     <li
@@ -70,6 +85,20 @@ export default function CheckpointListItem({
                 )}
               </div>
               <div className="text-sm text-muted-foreground">{checkpoint.description}</div>
+              {(stage || hasWindow) && (
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {stage && <span>🧭 {stage.name}</span>}
+                  {hasWindow && (
+                    <span
+                      className={
+                        checkpointOpeningNotice(checkpoint) ? "text-amber-600" : undefined
+                      }
+                    >
+                      🕒 {formatWindow(checkpoint.available_from, checkpoint.available_until)}
+                    </span>
+                  )}
+                </div>
+              )}
               {(checkpoint.latitude || checkpoint.longitude) && (
                 <div className="text-xs text-muted-foreground">
                   📍 {checkpoint.latitude}, {checkpoint.longitude}

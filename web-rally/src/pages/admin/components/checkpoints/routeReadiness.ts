@@ -11,6 +11,7 @@ const MISSING_LABELS: Readonly<Record<string, string>> = {
   coordinates: "sem coordenadas",
   activity: "sem desafio",
   staff: "sem staff",
+  stage: "sem etapa",
 };
 
 /**

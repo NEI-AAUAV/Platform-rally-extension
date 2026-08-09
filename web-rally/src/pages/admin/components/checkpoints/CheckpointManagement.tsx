@@ -85,6 +85,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 onDragEnd={handleDragEnd}
                 onEdit={startEditCheckpoint}
                 onDelete={deleteCheckpoint}
+                stages={stages}
               />
             ))}
           </ul>
