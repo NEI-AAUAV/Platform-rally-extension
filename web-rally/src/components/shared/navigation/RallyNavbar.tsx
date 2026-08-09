@@ -103,7 +103,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
     // but the top edge still swallows touches. It used to be an inline
     // max(20px, …), which put that iOS workaround on every platform — a
     // permanent 20px band above the navbar on desktop and Android.
-    <header className="rally-glass rally-topbar-inset sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]">
+    <header className="rally-glass rally-glass-solid rally-topbar-inset sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]">
       <nav
         aria-label="Navegação principal"
         className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"

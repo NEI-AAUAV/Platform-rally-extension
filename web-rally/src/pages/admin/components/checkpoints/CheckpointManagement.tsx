@@ -4,6 +4,7 @@ import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
 import CheckpointForm from "./CheckpointForm";
 import CheckpointListItem from "./CheckpointListItem";
+import RouteImportPanel from "./RouteImportPanel";
 
 type CheckpointManagementProps = Readonly<{
   userStore: UserState;
@@ -27,10 +28,16 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     handleDragOver,
     handleDrop,
     handleDragEnd,
+    routeStatus,
+    refetchCheckpoints,
   } = useCheckpointManagement(userStore);
+
+  const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
 
   return (
     <div className="space-y-6">
+      <RouteImportPanel onImported={() => void refetchCheckpoints()} />
+
       <CheckpointForm
         form={checkpointForm}
         isEditing={!!editingCheckpoint}
@@ -48,6 +55,17 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
             Arraste pelos ícones <GripVertical className="mx-1 inline h-3 w-3" /> para reordenar
           </p>
         </div>
+        {routeStatus && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            {routeStatus.published_count} na rota · {routeStatus.draft_count} em rascunho
+            {incompleteCount > 0 && (
+              <span className="text-destructive">
+                {" "}
+                · {incompleteCount} publicado(s) por completar
+              </span>
+            )}
+          </p>
+        )}
         {hasCheckpoints ? (
           <ul className="list-none space-y-3">
             {sortedCheckpoints.map((checkpoint) => (
