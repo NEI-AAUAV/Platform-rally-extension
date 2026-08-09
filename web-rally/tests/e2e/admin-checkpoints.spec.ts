@@ -14,6 +14,21 @@ const CHECKPOINTS = [
 ];
 
 async function mockCheckpointList(page: Page, checkpoints: unknown[] = CHECKPOINTS) {
+  await page.route('**/api/rally/v1/checkpoint/admin/route', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          published_count: checkpoints.length,
+          draft_count: 0,
+          incomplete_published_ids: [],
+          checkpoints,
+        }),
+      });
+    }
+    return route.fallback();
+  });
   await page.route('**/api/rally/v1/checkpoint/', (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(checkpoints) });

@@ -49,7 +49,13 @@ test.describe('Multi-edition isolation', () => {
         checkpointsCallCount === 1
           ? [{ id: 1, name: 'Posto da Edição 2025', description: null, latitude: null, longitude: null, order: 1 }]
           : [{ id: 2, name: 'Posto da Edição 2026', description: null, latitude: null, longitude: null, order: 1 }];
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(checkpoints) });
+      // The admin checkpoints tab reads the route-status envelope, not the
+      // bare list — everything else that hits this glob still wants the array.
+      const isRouteStatus = route.request().url().endsWith('/checkpoint/admin/route');
+      const body = isRouteStatus
+        ? { published_count: checkpoints.length, draft_count: 0, incomplete_published_ids: [], checkpoints }
+        : checkpoints;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
 
     let teamsCallCount = 0;
