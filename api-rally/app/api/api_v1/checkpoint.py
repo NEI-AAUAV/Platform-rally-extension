@@ -19,7 +19,15 @@ from app.core.exceptions import (
     RallyValidationError,
 )
 from app.crud.crud_rally_settings import rally_settings
-from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate, DetailedCheckPoint
+from app.schemas.checkpoint import (
+    AdminCheckPoint,
+    CheckPointCreate,
+    CheckpointImportRequest,
+    CheckpointImportResult,
+    CheckPointUpdate,
+    DetailedCheckPoint,
+    RouteStatus,
+)
 from app.schemas.team import AdminCheckPointSelect, ListingTeam
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
@@ -82,6 +90,20 @@ class CheckpointController:
             methods=["PUT"],
             status_code=200,
             name="reorder_checkpoints",
+        )
+        self.router.add_api_route(
+            "/admin/route",
+            self.get_route_status,
+            methods=["GET"],
+            status_code=200,
+            name="get_route_status",
+        )
+        self.router.add_api_route(
+            "/import",
+            self.import_route,
+            methods=["POST"],
+            status_code=200,
+            name="import_route",
         )
         self.router.add_api_route(
             "/{id}",
@@ -220,7 +242,7 @@ class CheckpointController:
         cp_in: CheckPointCreate,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
-    ) -> DetailedCheckPoint:
+    ) -> AdminCheckPoint:
         # Enforce ABAC permission for checkpoint creation
         require_checkpoint_management_permission(auth=auth, curr_user=curr_user)
 
@@ -230,7 +252,11 @@ class CheckpointController:
             raise RallyValidationError(f"Checkpoint with order {cp_in.order} already exists")
 
         cp = await crud.checkpoint.create(db=db, obj_in=cp_in, commit=True)
-        return DetailedCheckPoint.model_validate(cp)
+        # A post created straight into draft state (or a published one added
+        # after existing drafts) would leave the published route with a gap.
+        await crud.checkpoint.resequence(db)
+        await db.refresh(cp)
+        return AdminCheckPoint.model_validate(cp)
 
     async def reorder_checkpoints(
         self,
@@ -242,6 +268,9 @@ class CheckpointController:
         """Reorder checkpoints by updating their order values."""
         try:
             await crud.checkpoint.reorder_checkpoints(db=db, checkpoint_orders=checkpoint_orders)
+            # A reorder that interleaved drafts with published posts would
+            # leave gaps in the running route; drafts always settle at the end.
+            await crud.checkpoint.resequence(db)
             return {"message": "Checkpoints reordered successfully"}
         except Exception as e:
             raise RallyValidationError(f"Cannot reorder checkpoints: {str(e)}") from e
@@ -253,10 +282,44 @@ class CheckpointController:
         id: int,
         cp_in: CheckPointUpdate,
         _: Annotated[DetailedUser, Depends(deps.get_admin)],
-    ) -> DetailedCheckPoint:
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
+    ) -> AdminCheckPoint:
         await crud.checkpoint.get(db=db, id=id, for_update=True)
-        updated = await crud.checkpoint.update(db=db, id=id, obj_in=cp_in, commit=True)
-        return DetailedCheckPoint.model_validate(updated)
+        # Draft state goes through the service: publishing renumbers the route
+        # and is refused once teams are underway, neither of which a plain
+        # column write would do.
+        if cp_in.is_draft is not None:
+            await service.set_draft(id, is_draft=cp_in.is_draft)
+        updated = await crud.checkpoint.update(
+            db=db, id=id, obj_in=cp_in.model_copy(update={"is_draft": None}), commit=True
+        )
+        return AdminCheckPoint.model_validate(updated)
+
+    async def get_route_status(
+        self,
+        *,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        _: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
+    ) -> RouteStatus:
+        """The planning view of the route: drafts included, each post with the
+        fields it still lacks. Admin/staff only — it carries the staff script
+        and the challenge brief, which are answers as far as a team is
+        concerned.
+        """
+        settings = await rally_settings.get_or_create(db)
+        return await service.route_status(settings)
+
+    async def import_route(
+        self,
+        *,
+        payload: CheckpointImportRequest,
+        _: Annotated[DetailedUser, Depends(deps.get_admin)],
+        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
+    ) -> CheckpointImportResult:
+        """Create draft posts from a route table pasted out of a planning
+        document (name, staff script, clue, challenge — tab separated)."""
+        return await service.import_route(text=payload.text, dry_run=payload.dry_run)
 
     async def upload_clue_image(
         self,

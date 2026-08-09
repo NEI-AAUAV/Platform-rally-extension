@@ -24,6 +24,7 @@ from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team
 from app.models.activity import Activity, ActivityResult
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.activity import (
     ActivityResultCreate,
@@ -419,21 +420,51 @@ async def compute_checkpoint_progress(
 ) -> tuple[int, int, list[int]]:
     """
     Calculate last and current checkpoint numbers plus completed orders for a team.
+
+    Mirrors ``TeamService.compute_checkpoint_progress`` exactly (same rule for
+    skips and no-activity/GPS-auto-complete checkpoints), so a staff view of a
+    team's progress never diverges from what the team itself sees. A checkpoint
+    without an activity used to be silently skipped here regardless of whether
+    the team had actually checked in — which meant a peddy-paper post could
+    never register as done for staff, and never blocked one either.
     """
     checkpoints = await checkpoint_crud.get_all_ordered(db)
     team_results = await activity_result.get_by_team(db, team_id=team_obj.id)
     completed_activity_ids = {
         r.activity_id for r in team_results if getattr(r, "is_completed", False)
     }
+    skipped_ids = set(
+        (
+            await db.scalars(
+                select(CheckpointSkip.checkpoint_id).where(
+                    CheckpointSkip.team_id == team_obj.id
+                )
+            )
+        ).all()
+    )
+    checked_in_count = len(team_obj.times)
 
     last_completed_order = 0
     completed_orders: list[int] = []
     for cp in checkpoints:
-        # Skip checkpoints without activities, but continue to check later checkpoints
-        if not await checkpoint_has_activities(db, cp.id):
+        if cp.id in skipped_ids:
+            last_completed_order = cp.order
+            completed_orders.append(cp.order)
             continue
 
-        if await is_checkpoint_completed(db, cp.id, completed_activity_ids):
+        cp_activities = await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
+        active_ids = [a.id for a in cp_activities if a.is_active]
+        if not active_ids:
+            # No activity to judge here: the post counts as done once the
+            # team has checked in (via GPS arrival auto-complete). Otherwise
+            # it is still their current, not-yet-reached post — stop here.
+            if checked_in_count >= cp.order:
+                last_completed_order = cp.order
+                completed_orders.append(cp.order)
+                continue
+            break
+
+        if all(aid in completed_activity_ids for aid in active_ids):
             last_completed_order = cp.order
             completed_orders.append(cp.order)
         else:

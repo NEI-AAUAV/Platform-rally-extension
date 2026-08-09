@@ -23,7 +23,26 @@ class CheckPointBase(BaseModel):
     clue_media_url: str | None = None
 
 
-class CheckPointCreate(CheckPointBase):
+class CheckPointPlanningFields(BaseModel):
+    """The staff-only planning columns.
+
+    Kept off ``CheckPointBase`` on purpose: everything the participant sees
+    inherits from that base, so a briefing or a challenge description written
+    here cannot reach a team by accident. Only ``AdminCheckPoint`` carries
+    them back out.
+    """
+
+    # Draft posts are excluded from every team-facing query.
+    is_draft: bool = False
+    # The name is a stand-in ("Bar 1") rather than a decided venue.
+    is_placeholder: bool = False
+    # What the staff stationed here should talk about.
+    staff_script: str | None = None
+    # The challenge in prose, before (or instead of) a configured Activity.
+    challenge_brief: str | None = None
+
+
+class CheckPointCreate(CheckPointBase, CheckPointPlanningFields):
     latitude: float | None = LATITUDE_FIELD
     longitude: float | None = LONGITUDE_FIELD
     # A negative radius silently rejects every GPS check-in with no UI signal.
@@ -39,6 +58,10 @@ class CheckPointUpdate(BaseModel):
     arrival_radius_m: int | None = Field(default=None, ge=0)
     clue: str | None = None
     clue_media_url: str | None = None
+    is_draft: bool | None = None
+    is_placeholder: bool | None = None
+    staff_script: str | None = None
+    challenge_brief: str | None = None
 
 
 class CheckPointResponse(CheckPointBase):
@@ -64,3 +87,56 @@ class DetailedCheckPoint(CheckPointBase):
     search_latitude: float | None = None
     search_longitude: float | None = None
     search_radius_m: int | None = None
+
+
+class AdminCheckPoint(DetailedCheckPoint, CheckPointPlanningFields):
+    """The admin/staff view of a post: the participant fields plus the
+    planning ones and a readiness verdict.
+
+    Returned only by admin-authenticated routes. Teams get
+    ``DetailedCheckPoint``, which structurally cannot carry these fields.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    # Field keys still to fill in before this post can run (see
+    # app.services.checkpoint_planning.missing_fields). Empty means ready.
+    missing: list[str] = []
+
+    @property
+    def is_ready(self) -> bool:
+        return not self.missing
+
+
+class RouteStatus(BaseModel):
+    """Whether the event's route as a whole is ready to run."""
+
+    published_count: int
+    draft_count: int
+    # Posts that are published but still incomplete — the ones that will run
+    # half-written unless someone fixes them.
+    incomplete_published_ids: list[int] = []
+    checkpoints: list[AdminCheckPoint] = []
+
+
+class CheckpointImportRow(BaseModel):
+    """One parsed row of a pasted route table, echoed back for preview."""
+
+    name: str
+    staff_script: str | None = None
+    clue: str | None = None
+    challenge_brief: str | None = None
+    is_placeholder: bool = False
+
+
+class CheckpointImportRequest(BaseModel):
+    # The pasted table: one post per line, cells separated by tabs (or | or ;)
+    # in the order name, staff script, clue, challenge.
+    text: str
+    # Preview without writing anything.
+    dry_run: bool = False
+
+
+class CheckpointImportResult(BaseModel):
+    created: int
+    rows: list[CheckpointImportRow] = []

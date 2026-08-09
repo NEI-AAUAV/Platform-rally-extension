@@ -12,15 +12,25 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import RallyValidationError
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
+from app.models.activity import Activity
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.team import Team
 from app.models.user import User
-from app.schemas.checkpoint import DetailedCheckPoint
+from app.schemas.checkpoint import (
+    AdminCheckPoint,
+    CheckPointCreate,
+    CheckpointImportResult,
+    CheckpointImportRow,
+    DetailedCheckPoint,
+    RouteStatus,
+)
 from app.schemas.team import ListingTeam
+from app.services.checkpoint_planning import missing_fields, next_orders, parse_route_paste
 from app.services.team_service import TeamService
 
 
@@ -329,6 +339,115 @@ class CheckpointService:
             )
             for team in teams
         ]
+
+    async def _checkpoint_ids_with_activity(self) -> set[int]:
+        stmt = select(Activity.checkpoint_id).where(
+            Activity.checkpoint_id.is_not(None), Activity.is_active.is_(True)
+        )
+        return {cid for cid in (await self._db.scalars(stmt)).all() if cid is not None}
+
+    async def _checkpoint_ids_with_staff(self) -> set[int]:
+        stmt = select(RallyStaffAssignment.checkpoint_id)
+        return set((await self._db.scalars(stmt)).all())
+
+    async def route_status(self, settings: Any) -> RouteStatus:
+        """The admin planning view: every post including drafts, each with the
+        list of fields it still lacks.
+
+        What counts as missing depends on how the event runs — a post with no
+        coordinates is fine in a guided rally and unreachable when teams check
+        themselves in by GPS, and a riddle only matters when the route is
+        redacted. Both are read from settings rather than assumed.
+        """
+        checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db, include_drafts=True)
+        with_activity = await self._checkpoint_ids_with_activity()
+        with_staff = await self._checkpoint_ids_with_staff()
+        requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
+        requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
+
+        adapter = TypeAdapter(list[AdminCheckPoint])
+        validated = adapter.validate_python(checkpoints)
+        by_id = {cp.id: cp for cp in checkpoints}
+        for item in validated:
+            item.missing = missing_fields(
+                by_id[item.id],
+                has_activity=item.id in with_activity,
+                has_staff=item.id in with_staff,
+                requires_coordinates=requires_coordinates,
+                requires_clue=requires_clue,
+            )
+
+        return RouteStatus(
+            published_count=sum(1 for cp in validated if not cp.is_draft),
+            draft_count=sum(1 for cp in validated if cp.is_draft),
+            incomplete_published_ids=[cp.id for cp in validated if not cp.is_draft and cp.missing],
+            checkpoints=validated,
+        )
+
+    async def _event_has_started(self) -> bool:
+        """Whether any team has already checked in.
+
+        Publishing or drafting a post renumbers the route, and progress is
+        positional (``team.times`` is indexed by order), so moving posts
+        around under a team that has already walked part of the route would
+        silently rewrite where it has been.
+        """
+        return bool(await self._db.scalar(select(CheckpointArrival.id).limit(1)))
+
+    async def set_draft(self, checkpoint_id: int, *, is_draft: bool) -> AdminCheckPoint:
+        """Publish a draft post, or pull a published one back into planning."""
+        checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
+        if checkpoint.is_draft == is_draft:
+            return AdminCheckPoint.model_validate(checkpoint)
+        if await self._event_has_started():
+            raise RallyValidationError(
+                "Cannot change a checkpoint's draft state after teams have started"
+            )
+        checkpoint.is_draft = is_draft
+        await self._db.flush()
+        await self._checkpoint_crud.resequence(self._db, commit=True)
+        await self._db.refresh(checkpoint)
+        return AdminCheckPoint.model_validate(checkpoint)
+
+    async def import_route(self, *, text: str, dry_run: bool) -> CheckpointImportResult:
+        """Create draft posts from a route table pasted out of a planning
+        document.
+
+        Everything lands as a draft: an import is a starting point, not a
+        published route, and the readiness checklist is what turns it into
+        one. Rows are appended after the existing posts so an import never
+        disturbs a route already being planned.
+        """
+        rows = parse_route_paste(text)
+        preview = [
+            CheckpointImportRow(
+                name=row.name,
+                staff_script=row.staff_script,
+                clue=row.clue,
+                challenge_brief=row.challenge_brief,
+                is_placeholder=row.is_placeholder,
+            )
+            for row in rows
+        ]
+        if dry_run or not rows:
+            return CheckpointImportResult(created=0, rows=preview)
+
+        start = await self._checkpoint_crud.get_max_order(db=self._db)
+        for row, order in zip(rows, next_orders(start, len(rows)), strict=True):
+            await self._checkpoint_crud.create(
+                db=self._db,
+                obj_in=CheckPointCreate(
+                    name=row.name,
+                    order=order,
+                    clue=row.clue,
+                    staff_script=row.staff_script,
+                    challenge_brief=row.challenge_brief,
+                    is_placeholder=row.is_placeholder,
+                    is_draft=True,
+                ),
+            )
+        await self._db.commit()
+        return CheckpointImportResult(created=len(rows), rows=preview)
 
     async def delete_checkpoint(self, checkpoint_id: int) -> None:
         """Delete a checkpoint and everything that references it: staff/guide
