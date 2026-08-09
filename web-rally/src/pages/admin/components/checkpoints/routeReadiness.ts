@@ -13,15 +13,10 @@ const MISSING_LABELS: Readonly<Record<string, string>> = {
   staff: "sem staff",
 };
 
+/**
+ * Falls back to the raw key: the API may learn a new readiness rule before
+ * this map does, and showing "opening_hours" beats showing nothing.
+ */
 export function missingLabel(key: string): string {
   return MISSING_LABELS[key] ?? key;
-}
-
-/**
- * A post is ready when nothing is missing. Drafts are excluded from the
- * running route regardless, so readiness only decides whether publishing one
- * would put a half-written stop in front of a team.
- */
-export function isReady(missing: ReadonlyArray<string> | undefined): boolean {
-  return (missing?.length ?? 0) === 0;
 }

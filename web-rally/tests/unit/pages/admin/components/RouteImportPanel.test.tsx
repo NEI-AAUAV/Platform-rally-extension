@@ -111,4 +111,28 @@ describe("RouteImportPanel", () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalled());
   });
+
+  it("dashes the cells the planning document left undecided", async () => {
+    mockImportRoute.mockResolvedValue({
+      data: {
+        created: 0,
+        rows: [
+          {
+            name: "Bar 1",
+            staff_script: null,
+            clue: null,
+            challenge_brief: null,
+            is_placeholder: true,
+          },
+        ],
+      },
+    });
+    renderPanel();
+    typeRoute("Bar 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pré-visualizar" }));
+
+    expect(await screen.findByText("(provisório)")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(3);
+  });
 });
