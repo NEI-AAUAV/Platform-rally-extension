@@ -16,6 +16,7 @@ import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import useCheckpointHints from "@/hooks/useCheckpointHints";
 import ProximityButton from "./ProximityButton";
+import { checkpointOpeningNotice } from "./checkpointHours";
 import useRallySettings from "@/hooks/useRallySettings";
 import { enqueueArrival } from "@/offline/arrivalQueue";
 import { useArrivalSync } from "@/offline/useArrivalSync";
