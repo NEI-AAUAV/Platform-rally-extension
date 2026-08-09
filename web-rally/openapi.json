@@ -9395,6 +9395,28 @@
             ],
             "title": "Clue Media Url"
           },
+          "staff_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Script"
+          },
+          "challenge_brief": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Brief"
+          },
           "latitude": {
             "anyOf": [
               {

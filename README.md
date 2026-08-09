@@ -140,6 +140,39 @@ radius → the post reveals itself (name, photos, fun facts) and the next clue
 appears. GPS arrival is the only proof of arrival: there is no written answer to
 submit and no photo evidence, by design.
 
+**Planning a route before it is finished**
+
+A peddy paper is written long before it is complete: some posts have a clue but
+no challenge, some are still only a slot ("Bar 1") while somebody decides which
+bar. The route model holds that state rather than forcing a finished post:
+
+- **Draft posts** (`is_draft`) are invisible to every team-facing path — the
+  route, the checkpoint count, the "next post" lookup and the guide's app all
+  skip them. Publishing or drafting a post **renumbers** the route so published
+  posts stay contiguous from 1, because progress is positional (`team.times` is
+  indexed by order). For that same reason draft state **freezes once any team
+  has checked in**: moving posts under a team mid-event would rewrite where it
+  has been.
+- **`staff_script`** is what whoever is stationed at the post should talk
+  about, and **`challenge_brief`** is the challenge in prose before it becomes
+  a configured Activity. Both are staff-only: the participant schema does not
+  carry the fields at all, so they cannot leak through a team endpoint. The
+  script is deliberately *not* a `CheckpointGuideIndication` — those are sold
+  to teams as the paid hint ladder, so a briefing stored there would be
+  purchasable.
+- **`is_placeholder`** marks a name that is a stand-in, so the admin list can
+  say "still to decide" instead of showing "Bar 1" as if it were settled.
+- `GET /checkpoint/admin/route` is the planning view: every post including
+  drafts, each with a `missing` list (`clue`, `coordinates`, `activity`,
+  `staff`, `name`). What counts as missing follows the event's own settings —
+  coordinates only matter with GPS check-in, a riddle only matters when the
+  route is redacted.
+- **Importing**: paste the planning document's own table into the admin's
+  import panel — one line per post, tab-separated `name`, `staff script`,
+  `clue`, `challenge`. Cells reading "CF DECIDE" (or `TBD`, `-`, …) are stored
+  empty so they show up as missing rather than as content, a line with only a
+  name is still a post, and everything lands as a draft. Preview first.
+
 Two things worth knowing:
 
 - The redaction is server-side. A redacted checkpoint comes back with

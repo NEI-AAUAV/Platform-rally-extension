@@ -12,6 +12,8 @@ import {
   HelpCircle,
   CheckCircle2,
   Sparkles,
+  Megaphone,
+  Flag,
 } from "lucide-react";
 import CheckpointTeamsPanel from "./CheckpointTeamsPanel";
 import {
@@ -206,6 +208,25 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
                   className="mt-2 max-h-48 w-full rounded-lg object-cover"
                 />
               )}
+            </section>
+          )}
+          {/* The two planning columns, for the person actually standing here.
+              Kept above the paid hint ladder: this is what to say, not what
+              the team has to buy. */}
+          {cp.staff_script && (
+            <section className="rounded-xl border border-border bg-card/60 p-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <Megaphone className="h-3.5 w-3.5" /> Assuntos a abordar
+              </p>
+              <p className="whitespace-pre-line text-sm leading-relaxed">{cp.staff_script}</p>
+            </section>
+          )}
+          {cp.challenge_brief && (
+            <section className="rounded-xl border border-border bg-card/60 p-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <Flag className="h-3.5 w-3.5" /> Desafio
+              </p>
+              <p className="whitespace-pre-line text-sm leading-relaxed">{cp.challenge_brief}</p>
             </section>
           )}
           <IndicationList indications={cp.indications} purchasedIds={purchasedIds} />
