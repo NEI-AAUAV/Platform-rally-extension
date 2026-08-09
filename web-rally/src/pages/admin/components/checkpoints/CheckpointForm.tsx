@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { RouteStageResponse } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
@@ -25,6 +26,7 @@ type CheckpointFormProps = Readonly<{
   onCancel: () => void;
   checkpoints?: ReadonlyArray<Checkpoint>;
   currentId?: number | null;
+  stages?: ReadonlyArray<RouteStageResponse>;
 }>;
 
 export default function CheckpointForm({
@@ -35,6 +37,7 @@ export default function CheckpointForm({
   onCancel,
   checkpoints,
   currentId,
+  stages,
 }: CheckpointFormProps) {
   return (
     <div className="rally-surface rounded-2xl p-6">
@@ -222,6 +225,66 @@ export default function CheckpointForm({
               </FormItem>
             )}
           />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="available_from"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Abre a (opcional)</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} className={fieldClassName} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="available_until"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha a (opcional)</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} className={fieldClassName} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Fora desta janela o posto recusa check-ins e diz à equipa a que horas abre. Vazio = está
+            sempre aberto.
+          </p>
+          {stages && stages.length > 0 && (
+            <FormField
+              control={form.control}
+              name="stage_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Etapa</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="h-10 w-full rounded-md border border-border bg-muted px-3 text-sm"
+                    >
+                      <option value="">Sem etapa</option>
+                      {stages.map((stage) => (
+                        <option key={stage.id} value={String(stage.id)}>
+                          {stage.order}. {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    A etapa manda na ordem: mudar de etapa renumera o posto dentro da rota.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <div className="space-y-3 rounded-xl border border-border p-4">
             <FormField
               control={form.control}

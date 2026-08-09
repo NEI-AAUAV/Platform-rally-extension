@@ -5041,6 +5041,187 @@
         }
       }
     },
+    "/api/rally/v1/route-stages": {
+      "get": {
+        "tags": [
+          "Route Stages"
+        ],
+        "summary": "List Route Stages",
+        "operationId": "list_route_stages",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RouteStageResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Route Stages"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Route Stages"
+        ],
+        "summary": "Create Route Stage",
+        "operationId": "create_route_stage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteStageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteStageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/route-stages/{id}": {
+      "put": {
+        "tags": [
+          "Route Stages"
+        ],
+        "summary": "Update Route Stage",
+        "operationId": "update_route_stage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteStageUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteStageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Route Stages"
+        ],
+        "summary": "Delete Route Stage",
+        "description": "Delete a stage. Its posts stay in the route, unstaged \u2014 deleting a\nrule must not delete the places.",
+        "operationId": "delete_route_stage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Route Stage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/badge-definitions": {
       "get": {
         "tags": [
@@ -7169,6 +7350,41 @@
             ],
             "title": "Clue Media Url"
           },
+          "stage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Id"
+          },
+          "available_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available From"
+          },
+          "available_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Until"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -8018,6 +8234,41 @@
               }
             ],
             "title": "Clue Media Url"
+          },
+          "stage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Id"
+          },
+          "available_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available From"
+          },
+          "available_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Until"
           }
         },
         "type": "object",
@@ -8121,6 +8372,41 @@
               }
             ],
             "title": "Clue Media Url"
+          },
+          "stage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Id"
+          },
+          "available_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available From"
+          },
+          "available_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Until"
           },
           "is_draft": {
             "anyOf": [
@@ -8743,6 +9029,41 @@
               }
             ],
             "title": "Clue Media Url"
+          },
+          "stage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Id"
+          },
+          "available_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available From"
+          },
+          "available_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Until"
           },
           "id": {
             "type": "integer",
@@ -10887,6 +11208,16 @@
             "title": "Search Radius M",
             "default": 0
           },
+          "route_stages_enabled": {
+            "type": "boolean",
+            "title": "Route Stages Enabled",
+            "default": false
+          },
+          "checkpoint_hours_enabled": {
+            "type": "boolean",
+            "title": "Checkpoint Hours Enabled",
+            "default": true
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -11188,6 +11519,16 @@
             "title": "Search Radius M",
             "default": 0
           },
+          "route_stages_enabled": {
+            "type": "boolean",
+            "title": "Route Stages Enabled",
+            "default": false
+          },
+          "checkpoint_hours_enabled": {
+            "type": "boolean",
+            "title": "Checkpoint Hours Enabled",
+            "default": true
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -11442,6 +11783,149 @@
           "rounds"
         ],
         "title": "RotationScheduleResponse"
+      },
+      "RouteStageCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Order"
+          },
+          "order_matters": {
+            "type": "boolean",
+            "title": "Order Matters",
+            "default": true
+          },
+          "required_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "order"
+        ],
+        "title": "RouteStageCreate"
+      },
+      "RouteStageResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Order"
+          },
+          "order_matters": {
+            "type": "boolean",
+            "title": "Order Matters",
+            "default": true
+          },
+          "required_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Count"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "checkpoint_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Checkpoint Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "order",
+          "id"
+        ],
+        "title": "RouteStageResponse"
+      },
+      "RouteStageUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "order_matters": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Matters"
+          },
+          "required_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Count"
+          }
+        },
+        "type": "object",
+        "title": "RouteStageUpdate"
       },
       "RouteStatus": {
         "properties": {

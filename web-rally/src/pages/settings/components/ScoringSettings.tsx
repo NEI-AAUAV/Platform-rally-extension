@@ -290,6 +290,53 @@ export default function ScoringSettings({
 
         <div className="flex items-center space-x-2">
           <Controller
+            name="route_stages_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                id="route_stages_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="route_stages_enabled">Etapas da rota</Label>
+            <p className="text-xs text-muted-foreground">
+              Cada etapa tem a sua regra: o bloco da universidade em ordem, os bares à escolha (N de
+              M). Sem etapas definidas, a rota é um bloco só e vale a regra geral abaixo. Desligar a
+              meio abre tudo sem apagar as etapas.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="checkpoint_hours_enabled"
+            control={control}
+            defaultValue={true}
+            render={({ field }) => (
+              <Switch
+                id="checkpoint_hours_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="checkpoint_hours_enabled">Respeitar horários dos postos</Label>
+            <p className="text-xs text-muted-foreground">
+              Recusa check-ins fora da janela de cada posto. Desliga isto se um bar abriu mais cedo —
+              é mais rápido do que limpar os horários um a um.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
             name="checkpoint_order_matters"
             control={control}
             defaultValue={true}
