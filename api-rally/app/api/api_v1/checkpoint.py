@@ -22,8 +22,6 @@ from app.crud.crud_rally_settings import rally_settings
 from app.schemas.checkpoint import (
     AdminCheckPoint,
     CheckPointCreate,
-    CheckpointImportRequest,
-    CheckpointImportResult,
     CheckPointUpdate,
     DetailedCheckPoint,
     RouteStatus,
@@ -97,13 +95,6 @@ class CheckpointController:
             methods=["GET"],
             status_code=200,
             name="get_route_status",
-        )
-        self.router.add_api_route(
-            "/import",
-            self.import_route,
-            methods=["POST"],
-            status_code=200,
-            name="import_route",
         )
         self.router.add_api_route(
             "/{id}",
@@ -316,17 +307,6 @@ class CheckpointController:
         """
         settings = await rally_settings.get_or_create(db)
         return await service.route_status(settings)
-
-    async def import_route(
-        self,
-        *,
-        payload: CheckpointImportRequest,
-        _: Annotated[DetailedUser, Depends(deps.get_admin)],
-        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
-    ) -> CheckpointImportResult:
-        """Create draft posts from a route table pasted out of a planning
-        document (name, staff script, clue, challenge — tab separated)."""
-        return await service.import_route(text=payload.text, dry_run=payload.dry_run)
 
     async def upload_clue_image(
         self,

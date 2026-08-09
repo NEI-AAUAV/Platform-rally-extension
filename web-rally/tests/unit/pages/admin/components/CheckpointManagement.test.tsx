@@ -24,13 +24,8 @@ vi.mock('@/pages/admin/components/checkpoints/CheckpointListItem', () => ({
   ),
 }));
 
-// The import panel talks to the API and the toast provider; this suite is
+// The stage manager talks to the API and the toast provider; this suite is
 // about the list, so it is stubbed out here.
-vi.mock('@/pages/admin/components/checkpoints/RouteImportPanel', () => ({
-  default: () => <div data-testid="route-import" />,
-}));
-
-// Same reason as RouteImportPanel: talks to the API and the toast provider.
 vi.mock('@/pages/admin/components/checkpoints/RouteStageManager', () => ({
   default: () => <div data-testid="route-stages" />,
 }));

@@ -26,7 +26,8 @@ type RouteStageManagerProps = Readonly<{
  * A stage answers two questions for its own posts: must they be visited in
  * order, and how many of them count. That is what lets one route hold a
  * university block walked in sequence and a set of bars where the team picks
- * three.
+ * three. Optional: with no stages the whole route is one block, exactly like
+ * before this feature existed.
  */
 export default function RouteStageManager({ onChanged }: RouteStageManagerProps) {
   const toast = useAppToast();
@@ -90,10 +91,17 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
         <Layers className="h-4 w-4" />
         Etapas da rota
       </h3>
+      <p className="mb-2 text-sm text-muted-foreground">
+        Para quando a rota não é um percurso só: divide-a em blocos com regras diferentes. Exemplo —
+        etapa <strong>"Universidade"</strong> com os postos por ordem, seguida de{" "}
+        <strong>"Bares"</strong> onde a equipa escolhe livremente 3 de 5. Uma equipa só passa para a
+        etapa seguinte depois de cumprir a anterior.
+      </p>
       <p className="mb-4 text-sm text-muted-foreground">
-        Cada etapa tem a sua regra. Uma equipa só entra na etapa seguinte depois de resolver os
-        postos exigidos pela anterior. Só têm efeito com a definição <strong>Etapas da rota</strong>{" "}
-        ligada.
+        Não precisas disto se a rota for um percurso único do princípio ao fim — nesse caso deixa
+        sem etapas. Depois de criar uma etapa aqui, atribui os postos a ela no formulário de cada
+        checkpoint (campo "Etapa"). Só tem efeito com a definição{" "}
+        <strong>Etapas da rota</strong> ligada, em Definições.
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -142,38 +150,53 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
                 </BloodyButton>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id={`stage-order-${stage.id}`}
-                    checked={stage.order_matters}
-                    onCheckedChange={(checked) =>
-                      editStage({ id: stage.id, body: { order_matters: checked } })
-                    }
-                  />
-                  <Label htmlFor={`stage-order-${stage.id}`}>Por ordem</Label>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`stage-order-${stage.id}`}
+                      checked={stage.order_matters}
+                      onCheckedChange={(checked) =>
+                        editStage({ id: stage.id, body: { order_matters: checked } })
+                      }
+                    />
+                    <Label htmlFor={`stage-order-${stage.id}`}>
+                      Postos desta etapa por ordem
+                    </Label>
+                  </div>
+                  <p className="ml-11 text-xs text-muted-foreground">
+                    Ligado: a equipa visita-os pela sequência definida. Desligado: escolhe livremente
+                    qualquer posto ainda por fazer dentro desta etapa.
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor={`stage-required-${stage.id}`} className="whitespace-nowrap">
-                    Postos exigidos
-                  </Label>
-                  <Input
-                    id={`stage-required-${stage.id}`}
-                    type="number"
-                    min={0}
-                    max={stage.checkpoint_ids?.length ?? undefined}
-                    defaultValue={stage.required_count ?? ""}
-                    placeholder="todos"
-                    className="w-24 border-border bg-muted"
-                    onBlur={(e) =>
-                      editStage({
-                        id: stage.id,
-                        body: {
-                          required_count: e.target.value === "" ? null : Number(e.target.value),
-                        },
-                      })
-                    }
-                  />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`stage-required-${stage.id}`} className="whitespace-nowrap">
+                      Quantos postos contam para avançar
+                    </Label>
+                    <Input
+                      id={`stage-required-${stage.id}`}
+                      type="number"
+                      min={0}
+                      max={stage.checkpoint_ids?.length ?? undefined}
+                      defaultValue={stage.required_count ?? ""}
+                      placeholder="todos"
+                      className="w-20 border-border bg-muted"
+                      onBlur={(e) =>
+                        editStage({
+                          id: stage.id,
+                          body: {
+                            required_count: e.target.value === "" ? null : Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Vazio = tem de fazer todos os {stage.checkpoint_ids?.length ?? 0} postos desta
+                    etapa antes de a etapa seguinte abrir. Um número (ex: 3 de 5 bares) deixa os
+                    restantes de fora sem bloquear a rota.
+                  </p>
                 </div>
               </div>
             </li>

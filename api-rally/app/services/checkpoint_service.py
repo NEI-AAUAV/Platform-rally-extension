@@ -23,14 +23,11 @@ from app.models.team import Team
 from app.models.user import User
 from app.schemas.checkpoint import (
     AdminCheckPoint,
-    CheckPointCreate,
-    CheckpointImportResult,
-    CheckpointImportRow,
     DetailedCheckPoint,
     RouteStatus,
 )
 from app.schemas.team import ListingTeam
-from app.services.checkpoint_planning import missing_fields, next_orders, parse_route_paste
+from app.services.checkpoint_planning import missing_fields
 from app.services.route_progress import load_stages, resolved_checkpoint_orders
 from app.services.route_stages import is_reachable_in_stages
 from app.services.team_service import TeamService
@@ -469,46 +466,6 @@ class CheckpointService:
         await self._checkpoint_crud.resequence(self._db, commit=True)
         await self._db.refresh(checkpoint)
         return AdminCheckPoint.model_validate(checkpoint)
-
-    async def import_route(self, *, text: str, dry_run: bool) -> CheckpointImportResult:
-        """Create draft posts from a route table pasted out of a planning
-        document.
-
-        Everything lands as a draft: an import is a starting point, not a
-        published route, and the readiness checklist is what turns it into
-        one. Rows are appended after the existing posts so an import never
-        disturbs a route already being planned.
-        """
-        rows = parse_route_paste(text)
-        preview = [
-            CheckpointImportRow(
-                name=row.name,
-                staff_script=row.staff_script,
-                clue=row.clue,
-                challenge_brief=row.challenge_brief,
-                is_placeholder=row.is_placeholder,
-            )
-            for row in rows
-        ]
-        if dry_run or not rows:
-            return CheckpointImportResult(created=0, rows=preview)
-
-        start = await self._checkpoint_crud.get_max_order(db=self._db)
-        for row, order in zip(rows, next_orders(start, len(rows)), strict=True):
-            await self._checkpoint_crud.create(
-                db=self._db,
-                obj_in=CheckPointCreate(
-                    name=row.name,
-                    order=order,
-                    clue=row.clue,
-                    staff_script=row.staff_script,
-                    challenge_brief=row.challenge_brief,
-                    is_placeholder=row.is_placeholder,
-                    is_draft=True,
-                ),
-            )
-        await self._db.commit()
-        return CheckpointImportResult(created=len(rows), rows=preview)
 
     async def delete_checkpoint(self, checkpoint_id: int) -> None:
         """Delete a checkpoint and everything that references it: staff/guide

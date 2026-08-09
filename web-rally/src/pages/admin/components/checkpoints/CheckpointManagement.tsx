@@ -4,7 +4,6 @@ import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
 import CheckpointForm from "./CheckpointForm";
 import CheckpointListItem from "./CheckpointListItem";
-import RouteImportPanel from "./RouteImportPanel";
 import RouteStageManager from "./RouteStageManager";
 
 type CheckpointManagementProps = Readonly<{
@@ -39,8 +38,6 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
 
   return (
     <div className="space-y-6">
-      <RouteImportPanel onImported={() => void refetchCheckpoints()} />
-
       <RouteStageManager onChanged={() => void refetchCheckpoints()} />
 
       <CheckpointForm

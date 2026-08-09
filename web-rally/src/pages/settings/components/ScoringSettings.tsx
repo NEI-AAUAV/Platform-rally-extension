@@ -305,9 +305,10 @@ export default function ScoringSettings({
           <div>
             <Label htmlFor="route_stages_enabled">Etapas da rota</Label>
             <p className="text-xs text-muted-foreground">
-              Cada etapa tem a sua regra: o bloco da universidade em ordem, os bares à escolha (N de
-              M). Sem etapas definidas, a rota é um bloco só e vale a regra geral abaixo. Desligar a
-              meio abre tudo sem apagar as etapas.
+              Divide a rota em blocos com regras diferentes — ex: universidade por ordem, depois
+              bares à escolha (3 de 5). Cria e configura as etapas na aba de Checkpoints. Sem
+              etapas criadas, a rota corre como um bloco só e vale a regra geral abaixo. Desligar a
+              meio do evento abre tudo sem apagar as etapas.
             </p>
           </div>
         </div>
