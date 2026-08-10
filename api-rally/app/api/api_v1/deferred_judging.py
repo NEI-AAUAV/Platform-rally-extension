@@ -23,6 +23,8 @@ from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.crud.crud_activity import activity as crud_activity
 from app.models.activity import ActivityResult
+
+ACTIVITY_NOT_FOUND_MSG = "Activity not found"
 from app.schemas.activity_types import ActivityType
 from app.services.deferred_judging_service import DeferredJudgingService
 from app.services.deps import get_deferred_judging_service
@@ -87,7 +89,7 @@ class DeferredJudgingController:
             status_code=201,
             name="capture_deferred_result",
             responses={
-                404: {"description": "Activity not found"},
+                404: {"description": ACTIVITY_NOT_FOUND_MSG},
                 400: {"description": "Activity is not deferred-judged type, or team_id is missing"},
             },
         )
@@ -134,7 +136,7 @@ class DeferredJudgingController:
             name="rank_deferred_results",
             dependencies=[Depends(deps.get_admin)],
             responses={
-                404: {"description": "Activity not found"},
+                404: {"description": ACTIVITY_NOT_FOUND_MSG},
                 400: {"description": "A result doesn't belong to this activity, or is duplicated"},
             },
         )
@@ -150,7 +152,7 @@ class DeferredJudgingController:
     ) -> DeferredResultResponse:
         activity = await crud_activity.get(db, activity_id)
         if not activity:
-            raise HTTPException(status_code=404, detail="Activity not found")
+            raise HTTPException(status_code=404, detail=ACTIVITY_NOT_FOUND_MSG)
         if activity.activity_type != ActivityType.DEFERRED_JUDGED.value:
             raise HTTPException(status_code=400, detail="Activity is not deferred-judged type")
         if not team_id:

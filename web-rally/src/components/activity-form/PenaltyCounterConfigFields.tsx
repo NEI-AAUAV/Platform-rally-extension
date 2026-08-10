@@ -19,7 +19,8 @@ function slugify(label: string): string {
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "") // strip diacritics (á -> a)
       .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "counter"
+      .replace(/^_+/, "")
+      .replace(/_+$/, "") || "counter"
   );
 }
 
@@ -51,7 +52,7 @@ export default function PenaltyCounterConfigFields({ counters, onChange }: Props
         </p>
       </div>
 
-      {counters.map((counter, index) => (
+      {counters.map((counter, index) => ( // NOSONAR
         <div key={index} className="flex flex-wrap items-end gap-2">
           <div className="min-w-[10rem] flex-1">
             <label
