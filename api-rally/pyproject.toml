@@ -11,7 +11,7 @@ SQLAlchemy = {version = "^2.0.51", extras = ["asyncio"]}
 pydantic = "^2.13.4"
 loguru = "^0.7.3"
 python-multipart = "^0.0.32"
-fastapi = "==0.140.7"
+fastapi = "==0.141.1"
 python-jose = "^3.5.0"
 psycopg2-binary = "^2.9.12"
 asyncpg = "^0.31.0"
