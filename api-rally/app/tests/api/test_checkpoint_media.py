@@ -202,3 +202,135 @@ async def test_delete_media_404_if_missing(pg_session, pg_client, as_admin):
     resp = pg_client.delete("/api/rally/v1/checkpoint/media/999999")
 
     assert resp.status_code == 404
+
+
+async def test_create_media_qr_success(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "qr", "content_text": "https://example.com/riddle"},
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["content_text"] == "https://example.com/riddle"
+
+
+async def test_create_media_qr_rejects_empty_content(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "qr"},
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_create_media_spotify_success(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={
+            "kind": "spotify",
+            "content_url": "https://open.spotify.com/track/abc123",
+            "title": "Ouve isto",
+        },
+    )
+
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["content_url"] == "https://open.spotify.com/track/abc123"
+    assert body["title"] == "Ouve isto"
+
+
+async def test_create_media_spotify_rejects_invalid_domain(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "spotify", "content_url": "https://evil.com/spotify"},
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_create_media_link_success(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "link", "content_url": "https://example.com"},
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["content_url"] == "https://example.com"
+
+
+async def test_create_media_link_rejects_non_http_scheme(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "link", "content_url": "javascript:alert(1)"},
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_create_media_photo_rejects_content_url_field(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    resp = pg_client.post(
+        f"/api/rally/v1/checkpoint/{checkpoint.id}/media",
+        data={"kind": "photo", "content_url": "https://example.com"},
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_update_media_rejects_field_from_a_different_kind(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.qr, content_text="original"),
+    )
+
+    resp = pg_client.put(
+        f"/api/rally/v1/checkpoint/media/{media.id}",
+        data={"content_url": "https://example.com"},
+    )
+
+    assert resp.status_code == 422
+
+
+async def test_list_media_includes_new_fields(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(
+            kind=MediaKind.spotify,
+            content_url="https://open.spotify.com/track/xyz",
+            title="Faixa",
+        ),
+    )
+
+    resp = pg_client.get(f"/api/rally/v1/checkpoint/{checkpoint.id}/media")
+
+    assert resp.status_code == 200
+    item = resp.json()[0]
+    assert item["content_url"] == "https://open.spotify.com/track/xyz"
+    assert item["title"] == "Faixa"
+    assert item["content_text"] is None

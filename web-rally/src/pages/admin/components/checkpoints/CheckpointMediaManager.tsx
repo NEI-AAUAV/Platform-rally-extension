@@ -1,29 +1,34 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Lightbulb, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import {
   listCheckpointMedia,
   createCheckpointMedia,
   deleteCheckpointMedia,
+  reorderCheckpointMedia,
   type CheckpointMediaResponse,
+  type MediaKind,
 } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
-import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
+import { MEDIA_KIND_CONFIG, MEDIA_KIND_ORDER } from "./media/mediaKindConfig";
+import { EMPTY_DRAFT, type MediaDraft } from "./media/mediaDraft";
+import CheckpointMediaRow from "./media/CheckpointMediaRow";
 
 type CheckpointMediaManagerProps = Readonly<{
   checkpointId: number;
 }>;
 
-const fieldClassName = "bg-muted border-border";
-
+/** Everything a post can carry beyond its riddle text — photos, curiosities,
+ * QR codes, Spotify links, plain links — one ordered mixed list, added
+ * through a kind-dispatched form (see `media/mediaKindConfig.ts`) and
+ * reordered with up/down arrows against the existing reorder endpoint. */
 export default function CheckpointMediaManager({ checkpointId }: CheckpointMediaManagerProps) {
   const toast = useAppToast();
   const qc = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoCaption, setPhotoCaption] = useState("");
-  const [funFact, setFunFact] = useState("");
+  const [kind, setKind] = useState<MediaKind>("photo");
+  const [draft, setDraft] = useState<MediaDraft>(EMPTY_DRAFT);
 
   const queryKey = ["checkpoint-media", checkpointId];
 
@@ -37,40 +42,25 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
 
   const invalidate = () => void qc.invalidateQueries({ queryKey });
 
-  const uploadPhoto = useMutation({
-    mutationFn: (image: Blob) =>
+  const addMedia = useMutation({
+    mutationFn: () =>
       createCheckpointMedia({
         path: { checkpoint_id: checkpointId },
         body: {
-          kind: "photo",
-          caption: photoCaption || null,
-          image,
+          kind,
+          caption: draft.caption || null,
+          title: draft.title || null,
+          content_url: draft.contentUrl || null,
+          content_text: draft.contentText || null,
+          image: draft.image,
         },
       }),
     onSuccess: () => {
       invalidate();
-      setPhotoCaption("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      toast.success("Foto do sítio adicionada!");
+      setDraft(EMPTY_DRAFT);
+      toast.success("Adicionado!");
     },
-    onError: (error) => toast.error(getErrorMessage(error, "Erro ao enviar foto")),
-  });
-
-  const addFunFact = useMutation({
-    mutationFn: (caption: string) =>
-      createCheckpointMedia({
-        path: { checkpoint_id: checkpointId },
-        body: {
-          kind: "fun_fact",
-          caption,
-        },
-      }),
-    onSuccess: () => {
-      invalidate();
-      setFunFact("");
-      toast.success("Curiosidade adicionada!");
-    },
-    onError: (error) => toast.error(getErrorMessage(error, "Erro ao adicionar curiosidade")),
+    onError: (error) => toast.error(getErrorMessage(error, "Erro ao adicionar")),
   });
 
   const deleteMedia = useMutation({
@@ -82,162 +72,99 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
     onError: (error) => toast.error(getErrorMessage(error, "Erro ao remover")),
   });
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadPhoto.mutate(file);
+  const reorder = useMutation({
+    mutationFn: (orderedIds: number[]) =>
+      reorderCheckpointMedia({ path: { checkpoint_id: checkpointId }, body: orderedIds }),
+    onSuccess: (res) => {
+      if (res.data) qc.setQueryData(queryKey, res.data);
+    },
+    onError: () => {
+      invalidate();
+      toast.error("Erro ao reordenar");
+    },
+  });
+
+  const moveItem = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= media.length) return;
+    const next = [...media];
+    [next[index], next[target]] = [next[target]!, next[index]!];
+    reorder.mutate(next.map((m) => m.id));
   };
 
-  const handleAddFunFact = () => {
-    const trimmed = funFact.trim();
-    if (trimmed) addFunFact.mutate(trimmed);
-  };
-
-  const photos = media.filter((m) => m.kind === "photo");
-  const funFacts = media.filter((m) => m.kind === "fun_fact");
-
-  let photosContent;
-  if (isLoading) {
-    photosContent = (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
-      </div>
-    );
-  } else if (photos.length > 0) {
-    photosContent = (
-      <div className="flex flex-wrap gap-3">
-        {photos.map((m) => (
-          <div key={m.id} className="group relative">
-            <img
-              src={m.image_url ?? ""}
-              alt={m.caption ?? "Foto do sítio"}
-              className="h-24 w-24 rounded-lg object-cover ring-1 ring-border"
-            />
-            <button
-              type="button"
-              onClick={() => deleteMedia.mutate(m.id)}
-              disabled={deleteMedia.isPending}
-              className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition group-hover:opacity-100"
-              aria-label="Remover foto"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-            {m.caption && (
-              <p className="mt-1 line-clamp-1 w-24 text-[10px] text-muted-foreground">
-                {m.caption}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  } else {
-    photosContent = (
-      <p className="text-xs text-muted-foreground">
-        Ainda sem fotos. Envie a primeira para a equipa adivinhar o sítio.
-      </p>
-    );
-  }
+  const canSubmit = !addMedia.isPending;
+  const { FieldsComponent } = MEDIA_KIND_CONFIG[kind];
 
   return (
-    <div className="space-y-5 border-t border-border pt-4">
-      {/* Photos */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <ImageIcon className="h-4 w-4 text-primary" />
-          Fotos do sítio
-          <span className="text-xs font-normal text-muted-foreground">({photos.length})</span>
+    <div className="space-y-4 border-t border-border pt-4">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        Media do posto
+        <span className="text-xs font-normal text-muted-foreground">({media.length})</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
         </div>
-
-        {photosContent}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Input
-            value={photoCaption}
-            onChange={(e) => setPhotoCaption(e.target.value)}
-            placeholder="Legenda (opcional)"
-            className={`${fieldClassName} sm:max-w-xs`}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <BloodyButton
-            type="button"
-            variant="neutral"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadPhoto.isPending}
-          >
-            {uploadPhoto.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="h-4 w-4" />
-            )}
-            <span className="ml-1.5">Enviar foto</span>
-          </BloodyButton>
-        </div>
-      </section>
-
-      {/* Fun facts */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Lightbulb className="h-4 w-4 text-amber-500" />
-          Curiosidades
-          <span className="text-xs font-normal text-muted-foreground">({funFacts.length})</span>
-        </div>
-
-        {funFacts.length > 0 && (
+      ) : (
+        media.length > 0 && (
           <ul className="space-y-2">
-            {funFacts.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-start justify-between gap-3 rounded-lg bg-muted/50 px-3 py-2 text-sm"
-              >
-                <span className="flex-1">{m.caption}</span>
-                <button
-                  type="button"
-                  onClick={() => deleteMedia.mutate(m.id)}
-                  disabled={deleteMedia.isPending}
-                  className="shrink-0 text-muted-foreground transition hover:text-destructive"
-                  aria-label="Remover curiosidade"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
+            {media.map((item, index) => (
+              <CheckpointMediaRow
+                key={item.id}
+                item={item}
+                isFirst={index === 0}
+                isLast={index === media.length - 1}
+                onMove={(direction) => moveItem(index, direction)}
+                onDelete={() => deleteMedia.mutate(item.id)}
+                deleteDisabled={deleteMedia.isPending}
+              />
             ))}
           </ul>
-        )}
+        )
+      )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={funFact}
-            onChange={(e) => setFunFact(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAddFunFact();
-              }
-            }}
-            placeholder="Ex: Este edifício foi construído em 1890…"
-            className={`${fieldClassName} flex-1`}
-          />
-          <BloodyButton
-            type="button"
-            variant="neutral"
-            onClick={handleAddFunFact}
-            disabled={addFunFact.isPending || !funFact.trim()}
-          >
-            {addFunFact.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Lightbulb className="h-4 w-4" />
-            )}
-            <span className="ml-1.5">Adicionar</span>
-          </BloodyButton>
+      <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
+        <div className="flex flex-wrap gap-1.5">
+          {MEDIA_KIND_ORDER.map((k) => {
+            const { label, icon: Icon } = MEDIA_KIND_CONFIG[k];
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setKind(k);
+                  setDraft(EMPTY_DRAFT);
+                }}
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                  kind === k
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            );
+          })}
         </div>
-      </section>
+
+        <FieldsComponent draft={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} />
+
+        <BloodyButton
+          type="button"
+          variant="neutral"
+          onClick={() => addMedia.mutate()}
+          disabled={!canSubmit}
+        >
+          {addMedia.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+          <span className="ml-1.5">Adicionar</span>
+        </BloodyButton>
+      </div>
     </div>
   );
 }

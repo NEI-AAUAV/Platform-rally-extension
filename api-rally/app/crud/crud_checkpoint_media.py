@@ -2,7 +2,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.checkpoint_media import CheckpointMedia
-from app.schemas.checkpoint_media import CheckpointMediaCreate, CheckpointMediaUpdate
+from app.schemas.checkpoint_media import (
+    CheckpointMediaCreate,
+    CheckpointMediaUpdate,
+    validate_update_against_kind,
+)
 from app.services.storage import storage_client
 
 
@@ -35,6 +39,9 @@ class CRUDCheckpointMedia:
             caption=obj_in.caption,
             order=obj_in.order,
             image_url=image_url,
+            content_url=str(obj_in.content_url) if obj_in.content_url else None,
+            content_text=obj_in.content_text,
+            title=obj_in.title,
         )
         db.add(db_obj)
         await db.commit()
@@ -49,10 +56,17 @@ class CRUDCheckpointMedia:
         obj_in: CheckpointMediaUpdate,
         image_url: str | None = None,
     ) -> CheckpointMedia:
+        validate_update_against_kind(obj_in, kind=db_obj.kind)
         if obj_in.caption is not None:
             db_obj.caption = obj_in.caption
         if obj_in.order is not None:
             db_obj.order = obj_in.order
+        if obj_in.title is not None:
+            db_obj.title = obj_in.title
+        if obj_in.content_url is not None:
+            db_obj.content_url = str(obj_in.content_url)
+        if obj_in.content_text is not None:
+            db_obj.content_text = obj_in.content_text
         if image_url is not None:
             if db_obj.image_url:
                 storage_client.delete_image(db_obj.image_url)

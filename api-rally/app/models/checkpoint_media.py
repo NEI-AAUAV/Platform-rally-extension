@@ -15,6 +15,13 @@ if TYPE_CHECKING:
 class MediaKind(str, enum.Enum):
     photo = "photo"
     fun_fact = "fun_fact"
+    # Rich clue media: QR code, a Spotify embed, or a plain external link.
+    # TODO: a `document`/PDF kind would need image_upload.py extended with
+    # an ALLOWED_DOCUMENT_CONTENT_TYPES set + a `document_url` column — no
+    # confirmed use case for it yet, so left out of this pass.
+    qr = "qr"
+    spotify = "spotify"
+    link = "link"
 
 
 class CheckpointMedia(Base):
@@ -32,7 +39,14 @@ class CheckpointMedia(Base):
         SAEnum(MediaKind, name="media_kind", schema=settings.SCHEMA_NAME),
         nullable=False,
     )
+    # `photo` only — an R2-uploaded asset, deleted from storage on replace/delete.
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # `spotify`/`link` only — an external URL, never touches R2 storage.
+    content_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # `qr` only — the raw payload (URL or free text) the QR code encodes.
+    content_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # `spotify`/`link` only — short optional label shown above the embed/card.
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
