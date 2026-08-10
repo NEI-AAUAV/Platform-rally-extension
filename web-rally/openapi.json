@@ -6519,6 +6519,56 @@
         ]
       }
     },
+    "/api/rally/v1/push/broadcast": {
+      "post": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Push Broadcast",
+        "description": "Send one notification to every subscribed device \u2014 an admin\nannouncement to all teams at once, not addressed to one participant.",
+        "operationId": "push_broadcast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushBroadcastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushBroadcastResult"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Push notifications are not configured"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/health/ready": {
       "get": {
         "tags": [
@@ -10468,6 +10518,53 @@
           "longitude"
         ],
         "title": "ProximityRequest"
+      },
+      "PushBroadcastRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "PushBroadcastRequest",
+        "description": "An admin announcement sent to every subscribed device at once."
+      },
+      "PushBroadcastResult": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent"
+        ],
+        "title": "PushBroadcastResult"
       },
       "PushSubscriptionCreate": {
         "properties": {

@@ -18,6 +18,7 @@ import {
   Zap,
   History,
   Gauge,
+  BellRing,
   type LucideIcon,
 } from "lucide-react";
 import useUser from "@/hooks/useUser";
@@ -34,6 +35,7 @@ import {
   DynamicScoringTab,
   AuditLogTab,
   MetricsTab,
+  BroadcastTab,
 } from "./components";
 import { getCheckpoints } from "@/client";
 import RallySettings from "@/pages/settings";
@@ -67,6 +69,7 @@ const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> =
   { id: "scoring", label: "Pontuação", icon: Zap },
   { id: "branding", label: "Identidade", icon: Palette },
   { id: "events", label: "Edições", icon: CalendarRange },
+  { id: "notifications", label: "Anúncios", icon: BellRing },
   { id: "settings", label: "Configurações", icon: Settings2 },
   { id: "audit", label: "Auditoria", icon: History },
   { id: "metrics", label: "Métricas", icon: Gauge },
@@ -142,6 +145,7 @@ export default function Admin() {
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
           {activeTab === "branding" && <BrandingSettings />}
           {activeTab === "events" && <EventsManagement />}
+          {activeTab === "notifications" && <BroadcastTab />}
           {activeTab === "members" && <TeamMembers embedded />}
           {activeTab === "assignment" && <Assignment embedded />}
           {activeTab === "guide-assignment" && <GuideAssignment embedded />}

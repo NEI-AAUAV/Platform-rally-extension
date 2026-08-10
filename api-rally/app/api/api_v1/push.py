@@ -11,15 +11,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_admin, get_current_user, get_db
 from app.core.config import settings
 from app.schemas.push_subscription import (
+    PushBroadcastRequest,
+    PushBroadcastResult,
     PushSubscriptionCreate,
     PushSubscriptionRead,
     PushSubscriptionUnsubscribe,
     VapidPublicKey,
 )
 from app.schemas.user import DetailedUser
+from app.services import push_service
 
 
 class PushController:
@@ -47,6 +50,14 @@ class PushController:
             self.unsubscribe,
             methods=["POST"],
             name="push_unsubscribe",
+        )
+        self.router.add_api_route(
+            "/push/broadcast",
+            self.broadcast,
+            methods=["POST"],
+            name="push_broadcast",
+            dependencies=[Depends(get_admin)],
+            responses={503: {"description": "Push notifications are not configured"}},
         )
 
     def get_vapid_public_key(self) -> VapidPublicKey:
@@ -84,6 +95,24 @@ class PushController:
         existing = await crud.push_subscription.get_by_endpoint(db, endpoint=payload.endpoint)
         if existing is not None and existing.user_id == current_user.id:
             await crud.push_subscription.remove_by_endpoint(db, endpoint=payload.endpoint)
+
+    async def broadcast(
+        self,
+        payload: PushBroadcastRequest,
+        *,
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> PushBroadcastResult:
+        """Send one notification to every subscribed device — an admin
+        announcement to all teams at once, not addressed to one participant."""
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Push notifications are not configured",
+            )
+        sent = await push_service.send_to_all(
+            db, title=payload.title, body=payload.body, url=payload.url
+        )
+        return PushBroadcastResult(sent=sent)
 
 
 router = PushController().router

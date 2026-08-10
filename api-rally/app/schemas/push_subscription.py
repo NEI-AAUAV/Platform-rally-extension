@@ -1,6 +1,6 @@
 """Pydantic schemas for Web Push subscriptions."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PushSubscriptionKeys(BaseModel):
@@ -28,3 +28,15 @@ class PushSubscriptionRead(BaseModel):
 
 class VapidPublicKey(BaseModel):
     public_key: str | None
+
+
+class PushBroadcastRequest(BaseModel):
+    """An admin announcement sent to every subscribed device at once."""
+
+    title: str = Field(min_length=1, max_length=100)
+    body: str = Field(min_length=1, max_length=500)
+    url: str | None = None
+
+
+class PushBroadcastResult(BaseModel):
+    sent: int

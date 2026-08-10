@@ -22,6 +22,11 @@ class CRUDPushSubscription(
         stmt = select(self.model).where(self.model.user_id == user_id)
         return (await db.scalars(stmt)).all()
 
+    async def get_all(self, db: AsyncSession) -> Sequence[PushSubscription]:
+        """Every device subscribed, across every user — the fan-out list for
+        an event-wide broadcast (e.g. "chuva a chegar, abrigem-se")."""
+        return (await db.scalars(select(self.model))).all()
+
     async def upsert(
         self, db: AsyncSession, *, user_id: int, obj_in: PushSubscriptionCreate
     ) -> PushSubscription:
