@@ -126,6 +126,91 @@ describe("ActivityCreateForm", () => {
     expect(screen.getByText("Configurações de Atividade Baseada em Tempo")).toBeInTheDocument();
   });
 
+  it("merges penalty counters into config on submit", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Tug of War" },
+    });
+    fireEvent.click(screen.getByText("Adicionar contador"));
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Falha na baliza" } });
+    fireEvent.change(screen.getByLabelText("Pontos cada"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            penalty_counters: [{ key: "falha_na_baliza", label: "Falha na baliza", points: 4 }],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("only shows the quiz editor for score-based activities, and merges it into config", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    expect(screen.queryByText("Adicionar pergunta")).not.toBeInTheDocument();
+
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[1]!, { target: { value: ActivityType.SCORE_BASED } });
+    expect(screen.getByText("Adicionar pergunta")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Quiz do casal" },
+    });
+    fireEvent.click(screen.getByText("Adicionar pergunta"));
+    fireEvent.change(screen.getByLabelText("Pergunta 1"), {
+      target: { value: "Qual é a tuna favorita?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const submitted = onSubmit.mock.calls[0]![0];
+    expect(submitted.config.quiz_questions).toHaveLength(1);
+    expect(submitted.config.quiz_questions[0].text).toBe("Qual é a tuna favorita?");
+  });
+
+  it("drops quiz_questions from the submitted config for a non-score-based activity", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Desafio geral" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0]![0].config.quiz_questions).toBeUndefined();
+  });
+
+  it("seeds the penalty counter editor from initialData.config when editing", () => {
+    render(
+      <ActivityCreateForm
+        checkpoints={checkpoints}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        initialData={{
+          name: "Existing",
+          checkpoint_id: 1,
+          activity_type: ActivityType.GENERAL,
+          config: {
+            // penalty_counters is an array, which the form schema's config
+            // type (primitives only, matching every other config field)
+            // doesn't model — same shape mismatch the component itself
+            // works around by keeping it in separate state. Cast to match.
+            penalty_counters: [{ key: "falha", label: "Falha na baliza", points: 4 }],
+          } as unknown as Record<string, string | number | boolean>,
+        }}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Falha na baliza")).toBeInTheDocument();
+  });
+
   it("prefills configData from initialData.config", () => {
     render(
       <ActivityCreateForm

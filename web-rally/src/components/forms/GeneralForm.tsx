@@ -23,6 +23,7 @@ export default function GeneralForm({
   config,
   onSubmit,
   isSubmitting,
+  penaltyCounters = [],
 }: Readonly<GeneralFormProps>) {
   const [assignedPoints, setAssignedPoints] = useState<number>(getDefaultPoints(config));
   const [notes, setNotes] = useState<string>("");
@@ -32,6 +33,7 @@ export default function GeneralForm({
     extraShots,
     setExtraShots,
     penalties,
+    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -41,7 +43,7 @@ export default function GeneralForm({
     showNotDrinkingPenalty,
     showPenalties,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult);
+  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -68,7 +70,7 @@ export default function GeneralForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penalties,
+      penalties: penaltiesInPoints,
     });
   };
 
@@ -110,6 +112,7 @@ export default function GeneralForm({
           penalties={penalties}
           onChange={setPenalties}
           penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

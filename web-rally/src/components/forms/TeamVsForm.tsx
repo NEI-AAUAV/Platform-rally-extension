@@ -45,6 +45,7 @@ export default function TeamVsForm({
   config = {},
   onSubmit,
   isSubmitting,
+  penaltyCounters = [],
 }: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [completed, setCompleted] = useState<boolean>(true);
@@ -61,6 +62,7 @@ export default function TeamVsForm({
     extraShots,
     setExtraShots,
     penalties,
+    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -70,7 +72,7 @@ export default function TeamVsForm({
     showNotDrinkingPenalty,
     showPenalties,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult);
+  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
   // Fetch opponent when team is available, then fetch teams if needed
   useEffect(() => {
@@ -172,7 +174,7 @@ export default function TeamVsForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penalties,
+      penalties: penaltiesInPoints,
     });
   };
 
@@ -319,6 +321,7 @@ export default function TeamVsForm({
           penalties={penalties}
           onChange={setPenalties}
           penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

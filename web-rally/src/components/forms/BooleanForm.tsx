@@ -11,6 +11,7 @@ export default function BooleanForm({
   team,
   onSubmit,
   isSubmitting,
+  penaltyCounters = [],
 }: BaseActivityFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
   const [attempts, setAttempts] = useState<number>(1);
@@ -20,6 +21,7 @@ export default function BooleanForm({
     extraShots,
     setExtraShots,
     penalties,
+    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -27,7 +29,7 @@ export default function BooleanForm({
     showVomitPenalty,
     showNotDrinkingPenalty,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult);
+  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -49,7 +51,7 @@ export default function BooleanForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penalties,
+      penalties: penaltiesInPoints,
     });
   };
 
@@ -129,6 +131,7 @@ export default function BooleanForm({
         penalties={penalties}
         onChange={setPenalties}
         penaltyValues={penaltyValues}
+        penaltyCounters={penaltyCounters}
         showVomitPenalty={showVomitPenalty}
         showNotDrinkingPenalty={showNotDrinkingPenalty}
       />

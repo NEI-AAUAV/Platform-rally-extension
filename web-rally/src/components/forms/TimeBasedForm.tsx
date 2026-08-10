@@ -14,6 +14,7 @@ export default function TimeBasedForm({
   team,
   onSubmit,
   isSubmitting,
+  penaltyCounters = [],
 }: BaseActivityFormProps) {
   // Keep as string to allow clearing input and typing like ".5" or "03"
   const [completionTime, setCompletionTime] = useState<string>("");
@@ -25,6 +26,7 @@ export default function TimeBasedForm({
     extraShots,
     setExtraShots,
     penalties,
+    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -32,7 +34,7 @@ export default function TimeBasedForm({
     showVomitPenalty,
     showNotDrinkingPenalty,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult);
+  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -67,7 +69,7 @@ export default function TimeBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penalties,
+      penalties: penaltiesInPoints,
     });
   };
 
@@ -121,6 +123,7 @@ export default function TimeBasedForm({
         penalties={penalties}
         onChange={setPenalties}
         penaltyValues={penaltyValues}
+        penaltyCounters={penaltyCounters}
         showVomitPenalty={showVomitPenalty}
         showNotDrinkingPenalty={showNotDrinkingPenalty}
       />

@@ -4,14 +4,16 @@ lifecycle, and the team-photo promotion gate.
 
 import contextlib
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity_result as crud_result
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
-from app.models.activity import ActivityResult
+from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
+from app.services.ranking import linear_rank_points
 from app.services.scoring_service import ScoringService
 
 
@@ -69,6 +71,63 @@ class DeferredJudgingService:
             await ScoringService(self._db).update_team_scores(result.team_id)
 
         return result
+
+    async def list_results_for_activity(self, activity_id: int) -> list[ActivityResult]:
+        """Every capture for one post — pending and already-judged alike, so
+        the judge sees the full field before ranking it, not just what is
+        still outstanding."""
+        stmt = select(ActivityResult).where(ActivityResult.activity_id == activity_id)
+        return list((await self._db.scalars(stmt)).all())
+
+    async def judge_by_ranking(
+        self,
+        *,
+        activity_id: int,
+        ordered_result_ids: list[int],
+        notes: dict[int, str] | None = None,
+    ) -> list[ActivityResult]:
+        """Score every capture for one post by where the judge placed it,
+        instead of typing a point value per photo.
+
+        1st place gets the activity's configured ``max_points``, the last
+        gets ``min_points``, linearly in between (see
+        ``ranking.linear_rank_points``) — the same shape a race gets scored
+        in. Every id must belong to this activity and appear once; anything
+        else means the ranking was built against a stale or wrong list.
+        """
+        if not ordered_result_ids:
+            raise RallyValidationError("Ranking must include at least one result")
+        if len(set(ordered_result_ids)) != len(ordered_result_ids):
+            raise RallyValidationError("Ranking lists the same result more than once")
+
+        activity = await self._db.get(Activity, activity_id)
+        if not activity:
+            raise RallyNotFoundError("Activity not found")
+        max_points = float(activity.config.get("max_points", 100))
+        min_points = float(activity.config.get("min_points", 0))
+        total = len(ordered_result_ids)
+
+        results: list[ActivityResult] = []
+        for rank, result_id in enumerate(ordered_result_ids, start=1):
+            result = await crud_result.get(self._db, result_id)
+            if not result or result.activity_id != activity_id:
+                raise RallyValidationError(f"Result {result_id} does not belong to this activity")
+            points = linear_rank_points(
+                rank=rank, total=total, max_points=max_points, min_points=min_points
+            )
+            result.mark_judged(points=points, notes=(notes or {}).get(result_id))
+            results.append(result)
+
+        await self._db.commit()
+        for result in results:
+            await self._db.refresh(result)
+
+        with contextlib.suppress(Exception):  # score recalc is best-effort here
+            scoring = ScoringService(self._db)
+            for team_id in {r.team_id for r in results}:
+                await scoring.update_team_scores(team_id)
+
+        return results
 
     async def set_team_photo_from_result(self, result_id: int, *, image_url: str) -> Team:
         """Promote one of the result's submitted photos to the team's official photo.

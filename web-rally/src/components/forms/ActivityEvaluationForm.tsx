@@ -8,6 +8,8 @@ import {
 } from "./index";
 import type { ActivityResponse, ActivityResultResponse } from "@/client";
 import type { FormSubmitHandler, Team } from "@/types/forms";
+import { parsePenaltyCounters } from "@/lib/penaltyCounters";
+import { parseQuizQuestions } from "@/lib/quizQuestions";
 
 interface ActivityWithStatus extends ActivityResponse {
   evaluation_status: "pending" | "completed";
@@ -62,6 +64,9 @@ export default function ActivityEvaluationForm({
   isSubmitting,
   onCaptured,
 }: ActivityEvaluationFormProps) {
+  const penaltyCounters = parsePenaltyCounters(activity.config);
+  const quizQuestions = parseQuizQuestions(activity.config);
+
   const renderForm = () => {
     switch (activity.activity_type) {
       case "TimeBasedActivity":
@@ -71,6 +76,7 @@ export default function ActivityEvaluationForm({
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+            penaltyCounters={penaltyCounters}
           />
         );
 
@@ -81,6 +87,8 @@ export default function ActivityEvaluationForm({
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+            penaltyCounters={penaltyCounters}
+            quizQuestions={quizQuestions}
           />
         );
 
@@ -91,6 +99,7 @@ export default function ActivityEvaluationForm({
             team={team}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+            penaltyCounters={penaltyCounters}
           />
         );
 
@@ -102,6 +111,7 @@ export default function ActivityEvaluationForm({
             config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+            penaltyCounters={penaltyCounters}
           />
         );
 
@@ -113,6 +123,7 @@ export default function ActivityEvaluationForm({
             config={activity.config ?? {}}
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
+            penaltyCounters={penaltyCounters}
           />
         );
 

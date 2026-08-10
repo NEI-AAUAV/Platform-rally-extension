@@ -1,4 +1,5 @@
 import type { ActivityResultResponse, ListingTeam, DetailedTeam } from "@/client";
+import type { PenaltyCounterConfig } from "@/lib/penaltyCounters";
 
 /**
  * Result data structure for form submissions
@@ -37,6 +38,8 @@ export interface BaseActivityFormProps {
   readonly team?: Team;
   readonly onSubmit: FormSubmitHandler;
   readonly isSubmitting: boolean;
+  /** This activity's own penalty counters (config.penalty_counters), if any. */
+  readonly penaltyCounters?: readonly PenaltyCounterConfig[];
 }
 
 /**
