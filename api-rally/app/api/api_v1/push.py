@@ -11,11 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.api.deps import get_admin, get_current_user, get_db
 from app.core.config import settings
 from app.schemas.push_subscription import (
     PushBroadcastRequest,
     PushBroadcastResult,
+    PushCheckpointAnnouncementRequest,
     PushSubscriptionCreate,
     PushSubscriptionRead,
     PushSubscriptionUnsubscribe,
@@ -58,6 +60,16 @@ class PushController:
             name="push_broadcast",
             dependencies=[Depends(get_admin)],
             responses={503: {"description": "Push notifications are not configured"}},
+        )
+        self.router.add_api_route(
+            "/push/checkpoint-announcement",
+            self.checkpoint_announcement,
+            methods=["POST"],
+            name="push_checkpoint_announcement",
+            responses={
+                403: {"description": "Staff user has no checkpoint assignment"},
+                503: {"description": "Push notifications are not configured"},
+            },
         )
 
     def get_vapid_public_key(self) -> VapidPublicKey:
@@ -111,6 +123,43 @@ class PushController:
             )
         sent = await push_service.send_to_all(
             db, title=payload.title, body=payload.body, url=payload.url
+        )
+        return PushBroadcastResult(sent=sent)
+
+    async def checkpoint_announcement(
+        self,
+        payload: PushCheckpointAnnouncementRequest,
+        *,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        curr_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+    ) -> PushBroadcastResult:
+        """Let staff announce something about their own post — no admin in
+        the loop. Reaches every team like an admin broadcast does (the whole
+        rally needs to know a post is delayed or closed, not just teams
+        already there); the post's own name is stamped onto the title
+        server-side so a staffer can't post as if they were a different
+        checkpoint or as a generic admin message.
+        """
+        if curr_user.staff_checkpoint_id is None:
+            # get_staff_with_checkpoint_access only enforces this for the
+            # rally-staff scope — an admin or manager calling this route
+            # without ever having a checkpoint assigned would otherwise hit
+            # crud.checkpoint.get(None) and 404 confusingly.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No checkpoint assignment to announce for",
+            )
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Push notifications are not configured",
+            )
+        checkpoint = await crud.checkpoint.get(db, id=curr_user.staff_checkpoint_id)
+        sent = await push_service.send_to_all(
+            db,
+            title=f"📍 {checkpoint.name}",
+            body=payload.body,
+            url=payload.url,
         )
         return PushBroadcastResult(sent=sent)
 

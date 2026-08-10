@@ -84,9 +84,7 @@ async def send_to_user(
     await _send_to_subscriptions(db, subscriptions, payload)
 
 
-async def send_to_all(
-    db: AsyncSession, *, title: str, body: str, url: str | None = None
-) -> int:
+async def send_to_all(db: AsyncSession, *, title: str, body: str, url: str | None = None) -> int:
     """Broadcast one notification to every subscribed device — an admin
     announcement to every team at once ("chuva a chegar", "atraso no
     posto 4"), rather than addressed to a single participant.
