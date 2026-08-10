@@ -30,7 +30,14 @@ const activityFormSchema = z.object({
     errorMap: () => ({ message: "Tipo de atividade é obrigatório" }),
   }),
   checkpoint_id: z.number().min(1, "Checkpoint é obrigatório"),
-  config: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  // Free-form: besides the primitive per-type fields, config also carries
+  // array-shaped extras (penalty_counters, quiz_questions) once those are
+  // configured. This field is never actually submitted — handleSubmit
+  // rebuilds config from configData/penaltyCounters/quizQuestions state —
+  // but zodResolver still validates the whole seeded form on every submit,
+  // so a strict primitive-only shape here silently blocked editing any
+  // activity that already had one of those extras set.
+  config: z.record(z.unknown()).optional(),
   is_active: z.boolean().default(true),
 });
 
@@ -125,7 +132,7 @@ export default function ActivityForm({
 
   const watchActivityType = form.watch("activity_type");
   const [configData, setConfigData] = useState<Record<string, ConfigValue>>(
-    initialData?.config ?? {},
+    (initialData?.config as Record<string, ConfigValue> | undefined) ?? {},
   );
   const [penaltyCounters, setPenaltyCounters] = useState<PenaltyCounterConfig[]>(() =>
     parsePenaltyCounters(initialData?.config),
@@ -137,7 +144,7 @@ export default function ActivityForm({
   // Synchronize configData with initialData changes (e.g., when switching between create/edit)
   useEffect(() => {
     if (initialData?.config !== undefined) {
-      setConfigData(initialData.config);
+      setConfigData(initialData.config as Record<string, ConfigValue>);
       setPenaltyCounters(parsePenaltyCounters(initialData.config));
       setQuizQuestions(parseQuizQuestions(initialData.config));
     }
