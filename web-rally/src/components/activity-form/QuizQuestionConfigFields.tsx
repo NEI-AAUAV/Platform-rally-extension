@@ -9,7 +9,7 @@ type Props = Readonly<{
 }>;
 
 function newKey(): string {
-  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `q_${crypto.randomUUID()}`;
 }
 
 /** Questions the staff asks a team at this post, checked off right/wrong on
