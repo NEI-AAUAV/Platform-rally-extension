@@ -52,56 +52,61 @@ export default function PenaltyCounterConfigFields({ counters, onChange }: Props
         </p>
       </div>
 
-      {counters.map((counter, index) => ( // NOSONAR
-        <div key={index} className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[10rem] flex-1">
-            <label
-              htmlFor={`penalty-counter-label-${index}`}
-              className="mb-1 block text-xs text-muted-foreground"
+      {counters.map(
+        (
+          counter,
+          index, // NOSONAR
+        ) => (
+          <div key={index} className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[10rem] flex-1">
+              <label
+                htmlFor={`penalty-counter-label-${index}`}
+                className="mb-1 block text-xs text-muted-foreground"
+              >
+                Nome
+              </label>
+              <Input
+                id={`penalty-counter-label-${index}`}
+                value={counter.label}
+                placeholder="Ex: Falha na baliza"
+                onChange={(e) =>
+                  updateCounter(index, {
+                    label: e.target.value,
+                    key: slugify(e.target.value),
+                  })
+                }
+                className="border-border bg-card"
+              />
+            </div>
+            <div className="w-28">
+              <label
+                htmlFor={`penalty-counter-points-${index}`}
+                className="mb-1 block text-xs text-muted-foreground"
+              >
+                Pontos cada
+              </label>
+              <Input
+                id={`penalty-counter-points-${index}`}
+                type="number"
+                min={0}
+                value={counter.points}
+                onChange={(e) =>
+                  updateCounter(index, { points: Number.parseInt(e.target.value, 10) || 0 })
+                }
+                className="border-border bg-card"
+              />
+            </div>
+            <BloodyButton
+              type="button"
+              variant="neutral"
+              onClick={() => removeCounter(index)}
+              aria-label={`Remover contador ${counter.label || index + 1}`}
             >
-              Nome
-            </label>
-            <Input
-              id={`penalty-counter-label-${index}`}
-              value={counter.label}
-              placeholder="Ex: Falha na baliza"
-              onChange={(e) =>
-                updateCounter(index, {
-                  label: e.target.value,
-                  key: slugify(e.target.value),
-                })
-              }
-              className="border-border bg-card"
-            />
+              <Trash2 className="h-4 w-4" />
+            </BloodyButton>
           </div>
-          <div className="w-28">
-            <label
-              htmlFor={`penalty-counter-points-${index}`}
-              className="mb-1 block text-xs text-muted-foreground"
-            >
-              Pontos cada
-            </label>
-            <Input
-              id={`penalty-counter-points-${index}`}
-              type="number"
-              min={0}
-              value={counter.points}
-              onChange={(e) =>
-                updateCounter(index, { points: Number.parseInt(e.target.value, 10) || 0 })
-              }
-              className="border-border bg-card"
-            />
-          </div>
-          <BloodyButton
-            type="button"
-            variant="neutral"
-            onClick={() => removeCounter(index)}
-            aria-label={`Remover contador ${counter.label || index + 1}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </BloodyButton>
-        </div>
-      ))}
+        ),
+      )}
 
       <BloodyButton type="button" variant="neutral" onClick={addCounter}>
         <Plus className="h-4 w-4" />
