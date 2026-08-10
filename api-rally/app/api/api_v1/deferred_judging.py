@@ -23,12 +23,12 @@ from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.crud.crud_activity import activity as crud_activity
 from app.models.activity import ActivityResult
-
-ACTIVITY_NOT_FOUND_MSG = "Activity not found"
 from app.schemas.activity_types import ActivityType
 from app.services.deferred_judging_service import DeferredJudgingService
 from app.services.deps import get_deferred_judging_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+
+ACTIVITY_NOT_FOUND_MSG = "Activity not found"
 
 
 class JudgeRequest(BaseModel):
