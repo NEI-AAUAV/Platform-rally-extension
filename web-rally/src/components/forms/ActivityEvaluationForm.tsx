@@ -9,6 +9,7 @@ import {
 import type { ActivityResponse, ActivityResultResponse } from "@/client";
 import type { FormSubmitHandler, Team } from "@/types/forms";
 import { parsePenaltyCounters } from "@/lib/penaltyCounters";
+import { parseQuizQuestions } from "@/lib/quizQuestions";
 
 interface ActivityWithStatus extends ActivityResponse {
   evaluation_status: "pending" | "completed";
@@ -64,6 +65,7 @@ export default function ActivityEvaluationForm({
   onCaptured,
 }: ActivityEvaluationFormProps) {
   const penaltyCounters = parsePenaltyCounters(activity.config);
+  const quizQuestions = parseQuizQuestions(activity.config);
 
   const renderForm = () => {
     switch (activity.activity_type) {
@@ -86,6 +88,7 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            quizQuestions={quizQuestions}
           />
         );
 

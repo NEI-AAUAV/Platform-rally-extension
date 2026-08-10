@@ -18,7 +18,9 @@ import { AlertCircle } from "lucide-react";
 import ActivityTypeInfo from "@/components/activity-form/ActivityTypeInfo";
 import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigFields";
 import PenaltyCounterConfigFields from "@/components/activity-form/PenaltyCounterConfigFields";
+import QuizQuestionConfigFields from "@/components/activity-form/QuizQuestionConfigFields";
 import { parsePenaltyCounters, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
+import { parseQuizQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
 
 const activityFormSchema = z.object({
@@ -128,20 +130,34 @@ export default function ActivityForm({
   const [penaltyCounters, setPenaltyCounters] = useState<PenaltyCounterConfig[]>(() =>
     parsePenaltyCounters(initialData?.config),
   );
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() =>
+    parseQuizQuestions(initialData?.config),
+  );
 
   // Synchronize configData with initialData changes (e.g., when switching between create/edit)
   useEffect(() => {
     if (initialData?.config !== undefined) {
       setConfigData(initialData.config);
       setPenaltyCounters(parsePenaltyCounters(initialData.config));
+      setQuizQuestions(parseQuizQuestions(initialData.config));
     }
   }, [initialData?.config]);
 
   const handleSubmit = (data: ActivityForm) => {
-    // penalty_counters is not activity-type-specific config (unlike
-    // max_points etc.), so it is kept in its own state and merged in here
-    // rather than threaded through ActivityConfigFields' per-type switch.
-    onSubmit({ ...data, config: { ...configData, penalty_counters: penaltyCounters } });
+    // penalty_counters/quiz_questions are arrays, not the primitive
+    // ConfigValue every other config field is — kept in their own state and
+    // merged in here rather than threaded through ActivityConfigFields'
+    // per-type switch.
+    onSubmit({
+      ...data,
+      config: {
+        ...configData,
+        penalty_counters: penaltyCounters,
+        ...(watchActivityType === ActivityType.SCORE_BASED
+          ? { quiz_questions: quizQuestions }
+          : {}),
+      },
+    });
   };
 
   const updateConfig = (key: string, value: ConfigValue) => {
@@ -264,6 +280,10 @@ export default function ActivityForm({
             configData={configData}
             updateConfig={updateConfig}
           />
+
+          {watchActivityType === ActivityType.SCORE_BASED && (
+            <QuizQuestionConfigFields questions={quizQuestions} onChange={setQuizQuestions} />
+          )}
 
           <PenaltyCounterConfigFields counters={penaltyCounters} onChange={setPenaltyCounters} />
 

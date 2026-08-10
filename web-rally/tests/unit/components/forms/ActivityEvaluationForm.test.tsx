@@ -13,7 +13,9 @@ vi.mock("@/components/forms/TimeBasedForm", () => ({
   ),
 }));
 vi.mock("@/components/forms/ScoreBasedForm", () => ({
-  default: () => <div data-testid="score-based-form" />,
+  default: (props: { quizQuestions?: unknown[] }) => (
+    <div data-testid="score-based-form" data-quiz-questions={JSON.stringify(props.quizQuestions)} />
+  ),
 }));
 vi.mock("@/components/forms/BooleanForm", () => ({
   default: () => <div data-testid="boolean-form" />,
@@ -127,5 +129,35 @@ describe("ActivityEvaluationForm", () => {
       />,
     );
     expect(screen.getByTestId("time-based-form").dataset.penaltyCounters).toBe("[]");
+  });
+
+  it("parses config.quiz_questions and passes it to ScoreBasedForm only", () => {
+    render(
+      <ActivityEvaluationForm
+        activity={{
+          ...baseActivity,
+          activity_type: "ScoreBasedActivity",
+          config: { quiz_questions: [{ key: "q1", text: "Qual é a tuna favorita?" }] },
+        }}
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+      />,
+    );
+    expect(screen.getByTestId("score-based-form").dataset.quizQuestions).toBe(
+      JSON.stringify([{ key: "q1", text: "Qual é a tuna favorita?" }]),
+    );
+  });
+
+  it("passes an empty quiz_questions array when none are configured", () => {
+    render(
+      <ActivityEvaluationForm
+        activity={{ ...baseActivity, activity_type: "ScoreBasedActivity" }}
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+      />,
+    );
+    expect(screen.getByTestId("score-based-form").dataset.quizQuestions).toBe("[]");
   });
 });
