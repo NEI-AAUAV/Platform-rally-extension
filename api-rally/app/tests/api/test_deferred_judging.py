@@ -5,6 +5,7 @@ scope; everything else (DB, ABAC, routing, scoring) runs for real.
 """
 
 from app.crud.crud_activity import activity as crud_activity
+from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
 from app.schemas.activity import ActivityCreate, ActivityType
@@ -23,14 +24,16 @@ async def _make_team(pg_session, name="TeamA"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
-async def _make_activity(pg_session, checkpoint_id, activity_type=ActivityType.DEFERRED_JUDGED):
+async def _make_activity(
+    pg_session, checkpoint_id, activity_type=ActivityType.DEFERRED_JUDGED, config=None
+):
     return await crud_activity.create(
         pg_session,
         obj_in=ActivityCreate(
             name="Deferred Activity",
             activity_type=activity_type,
             checkpoint_id=checkpoint_id,
-            config={},
+            config=config or {},
             is_active=True,
         ),
     )
@@ -227,6 +230,174 @@ async def test_list_pending_empty(pg_session, pg_client, as_admin):
 
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ---------- rank ----------
+
+
+class TestListResultsForActivity:
+    async def test_lists_pending_and_judged_together(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team_a = await _make_team(pg_session, name="TeamA")
+        team_b = await _make_team(pg_session, name="TeamB")
+        captured_a = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team_a.id}"
+        ).json()
+        pg_client.post(f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team_b.id}")
+        pg_client.put(
+            f"/api/rally/v1/activities/results/{captured_a['id']}/judge",
+            json={"points": 80},
+        )
+
+        resp = pg_client.get(f"/api/rally/v1/activities/deferred/{act.id}/results")
+
+        assert resp.status_code == 200
+        statuses = {r["judgment_status"] for r in resp.json()}
+        assert statuses == {"judged", "pending_judgment"}
+
+    async def test_empty_for_an_activity_with_no_captures(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.get(f"/api/rally/v1/activities/deferred/{act.id}/results")
+
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+class TestRankDeferredResults:
+    async def _capture_n(self, pg_client, activity_id, teams):
+        results = []
+        for team in teams:
+            body = pg_client.post(
+                f"/api/rally/v1/activities/deferred/{activity_id}/capture?team_id={team.id}"
+            ).json()
+            results.append(body)
+        return results
+
+    async def test_first_place_gets_max_points_last_gets_min(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(
+            pg_session, checkpoint.id, config={"max_points": 100, "min_points": 0}
+        )
+        teams = [await _make_team(pg_session, name=f"Team{i}") for i in range(3)]
+        results = await self._capture_n(pg_client, act.id, teams)
+        ordered = [r["id"] for r in results]
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": ordered},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = {r["id"]: r["final_score"] for r in resp.json()}
+        assert body[ordered[0]] == 100
+        assert body[ordered[1]] == 50
+        assert body[ordered[2]] == 0
+        assert all(r["judgment_status"] == "judged" for r in resp.json())
+
+    async def test_a_single_capture_gets_max_points(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id, config={"max_points": 100})
+        team = await _make_team(pg_session)
+        [result] = await self._capture_n(pg_client, act.id, [team])
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [result["id"]]},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()[0]["final_score"] == 100
+
+    async def test_notes_are_attached_per_result(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        [result] = await self._capture_n(pg_client, act.id, [team])
+
+        pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={
+                "ordered_result_ids": [result["id"]],
+                "notes": {str(result["id"]): "Mais criativo"},
+            },
+        )
+
+        judged = await activity_result_crud.get(pg_session, id=result["id"])
+        assert judged.result_data["notes"] == "Mais criativo"
+
+    async def test_rejects_a_result_from_another_activity(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        other_act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        [result] = await self._capture_n(pg_client, other_act.id, [team])
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [result["id"]]},
+        )
+
+        assert resp.status_code == 400
+
+    async def test_rejects_a_duplicated_result_id(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session)
+        [result] = await self._capture_n(pg_client, act.id, [team])
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [result["id"], result["id"]]},
+        )
+
+        assert resp.status_code == 400
+
+    async def test_rejects_an_empty_ranking(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": []},
+        )
+
+        assert resp.status_code == 400
+
+    async def test_activity_not_found(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        resp = pg_client.post(
+            "/api/rally/v1/activities/deferred/999999/rank",
+            json={"ordered_result_ids": [1]},
+        )
+
+        assert resp.status_code == 404
+
+    async def test_a_re_ranked_result_updates_the_team_total(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id, config={"max_points": 100})
+        team = await _make_team(pg_session)
+        [result] = await self._capture_n(pg_client, act.id, [team])
+
+        pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [result["id"]]},
+        )
+
+        await pg_session.refresh(team)
+        assert team.total == 100
 
 
 # ---------- set-team-photo ----------

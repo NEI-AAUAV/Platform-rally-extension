@@ -38,6 +38,13 @@ class SetTeamPhotoRequest(BaseModel):
     image_url: str
 
 
+class RankRequest(BaseModel):
+    # Best first. Each id must belong to this activity and appear once.
+    ordered_result_ids: list[int]
+    # Optional per-result notes, keyed by result id.
+    notes: dict[int, str] | None = None
+
+
 class SetTeamPhotoResponse(BaseModel):
     team_id: int
     photo_url: str
@@ -113,6 +120,24 @@ class DeferredJudgingController:
             name="list_pending_judgments",
             dependencies=[Depends(deps.get_admin)],
         )
+        self.router.add_api_route(
+            "/activities/deferred/{activity_id}/results",
+            self.list_results_for_activity,
+            methods=["GET"],
+            name="list_deferred_results_for_activity",
+            dependencies=[Depends(deps.get_admin)],
+        )
+        self.router.add_api_route(
+            "/activities/deferred/{activity_id}/rank",
+            self.rank_deferred_results,
+            methods=["POST"],
+            name="rank_deferred_results",
+            dependencies=[Depends(deps.get_admin)],
+            responses={
+                404: {"description": "Activity not found"},
+                400: {"description": "A result doesn't belong to this activity, or is duplicated"},
+            },
+        )
 
     async def capture_deferred_result(
         self,
@@ -182,6 +207,33 @@ class DeferredJudgingController:
         )
         rows = result.scalars().all()
         return [DeferredResultResponse.from_result(r) for r in rows]
+
+    async def list_results_for_activity(
+        self,
+        activity_id: int,
+        service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
+    ) -> list[DeferredResultResponse]:
+        """Every capture for one post, pending and already-judged — the side-
+        by-side view a judge ranks from, with full context instead of just
+        what's still outstanding."""
+        results = await service.list_results_for_activity(activity_id)
+        return [DeferredResultResponse.from_result(r) for r in results]
+
+    async def rank_deferred_results(
+        self,
+        activity_id: int,
+        body: RankRequest,
+        service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
+    ) -> list[DeferredResultResponse]:
+        """Score every capture for this post by where the judge placed it —
+        1st gets the activity's max_points, last gets min_points, linearly
+        in between."""
+        results = await service.judge_by_ranking(
+            activity_id=activity_id,
+            ordered_result_ids=body.ordered_result_ids,
+            notes=body.notes,
+        )
+        return [DeferredResultResponse.from_result(r) for r in results]
 
 
 router = DeferredJudgingController().router

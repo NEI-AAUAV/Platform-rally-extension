@@ -5738,6 +5738,126 @@
         ]
       }
     },
+    "/api/rally/v1/activities/deferred/{activity_id}/results": {
+      "get": {
+        "tags": [
+          "Deferred Judging"
+        ],
+        "summary": "List Deferred Results For Activity",
+        "description": "Every capture for one post, pending and already-judged \u2014 the side-\nby-side view a judge ranks from, with full context instead of just\nwhat's still outstanding.",
+        "operationId": "list_deferred_results_for_activity",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeferredResultResponse"
+                  },
+                  "title": "Response List Deferred Results For Activity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/activities/deferred/{activity_id}/rank": {
+      "post": {
+        "tags": [
+          "Deferred Judging"
+        ],
+        "summary": "Rank Deferred Results",
+        "description": "Score every capture for this post by where the judge placed it \u2014\n1st gets the activity's max_points, last gets min_points, linearly\nin between.",
+        "operationId": "rank_deferred_results",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeferredResultResponse"
+                  },
+                  "title": "Response Rank Deferred Results"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Activity not found"
+          },
+          "400": {
+            "description": "A result doesn't belong to this activity, or is duplicated"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/dynamic-rules": {
       "get": {
         "tags": [
@@ -11553,6 +11673,36 @@
         ],
         "title": "RallyStaffAssignmentWithCheckpoint",
         "description": "Staff assignment with checkpoint details"
+      },
+      "RankRequest": {
+        "properties": {
+          "ordered_result_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ordered Result Ids"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ordered_result_ids"
+        ],
+        "title": "RankRequest"
       },
       "Readiness": {
         "properties": {
