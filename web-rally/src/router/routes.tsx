@@ -97,6 +97,7 @@ const ADMIN_TAB_IDS = [
   "scoring",
   "branding",
   "events",
+  "notifications",
   "settings",
   "audit",
   "metrics",

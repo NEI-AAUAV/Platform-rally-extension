@@ -6639,6 +6639,109 @@
         ]
       }
     },
+    "/api/rally/v1/push/broadcast": {
+      "post": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Push Broadcast",
+        "description": "Send one notification to every subscribed device \u2014 an admin\nannouncement to all teams at once, not addressed to one participant.",
+        "operationId": "push_broadcast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushBroadcastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushBroadcastResult"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Push notifications are not configured"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/push/checkpoint-announcement": {
+      "post": {
+        "tags": [
+          "Push Notifications"
+        ],
+        "summary": "Push Checkpoint Announcement",
+        "description": "Let staff announce something about their own post \u2014 no admin in\nthe loop. Reaches every team like an admin broadcast does (the whole\nrally needs to know a post is delayed or closed, not just teams\nalready there); the post's own name is stamped onto the title\nserver-side so a staffer can't post as if they were a different\ncheckpoint or as a generic admin message.",
+        "operationId": "push_checkpoint_announcement",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushCheckpointAnnouncementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushBroadcastResult"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Staff user has no checkpoint assignment"
+          },
+          "503": {
+            "description": "Push notifications are not configured"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/health/ready": {
       "get": {
         "tags": [
@@ -10588,6 +10691,80 @@
           "longitude"
         ],
         "title": "ProximityRequest"
+      },
+      "PushBroadcastRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "PushBroadcastRequest",
+        "description": "An admin announcement sent to every subscribed device at once."
+      },
+      "PushBroadcastResult": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent"
+        ],
+        "title": "PushBroadcastResult"
+      },
+      "PushCheckpointAnnouncementRequest": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "PushCheckpointAnnouncementRequest",
+        "description": "A staff announcement about their own post. No `title` \u2014 the post's\nname is stamped on automatically, so the announcement can't masquerade\nas being about a different checkpoint or as a generic admin broadcast."
       },
       "PushSubscriptionCreate": {
         "properties": {

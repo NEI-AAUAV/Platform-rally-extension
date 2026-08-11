@@ -1,6 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CheckpointTeamEvaluation from '@/pages/staff-evaluation/components/CheckpointTeamEvaluation';
+
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 const {
   mockUseParams,
@@ -77,12 +85,12 @@ describe('CheckpointTeamEvaluation', () => {
 
   it('renders not-found state when checkpoint is missing', () => {
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, checkpoint: undefined });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('Posto não encontrado')).toBeInTheDocument();
   });
 
   it('renders team sections, splitting by checkpoint status', () => {
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('Equipas para avaliar')).toBeInTheDocument();
     expect(screen.getByText('Team A')).toBeInTheDocument();
     expect(screen.getByText('Team B')).toBeInTheDocument();
@@ -91,7 +99,7 @@ describe('CheckpointTeamEvaluation', () => {
 
   it('shows no-teams message when checkpointTeams is empty', () => {
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, checkpointTeams: [] });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('Nenhuma equipa disponível')).toBeInTheDocument();
   });
 
@@ -101,7 +109,7 @@ describe('CheckpointTeamEvaluation', () => {
       selectedTeam: { id: 1, name: 'Team A' },
       showTeamList: false,
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByTestId('team-activities')).toHaveTextContent('Team A');
   });
 
@@ -112,7 +120,7 @@ describe('CheckpointTeamEvaluation', () => {
       showTeamList: false,
       teamActivitiesLoading: true,
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('A carregar atividades...')).toBeInTheDocument();
   });
 
@@ -124,7 +132,7 @@ describe('CheckpointTeamEvaluation', () => {
       showTeamList: false,
       backToTeams,
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     fireEvent.click(screen.getByText('Voltar às equipas'));
     expect(backToTeams).toHaveBeenCalled();
   });
@@ -132,7 +140,7 @@ describe('CheckpointTeamEvaluation', () => {
   it('selects team when scanner identifies a team', () => {
     const selectTeam = vi.fn();
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, selectTeam });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     fireEvent.click(screen.getByText('scan-team'));
     expect(selectTeam).toHaveBeenCalledWith(baseHookState.checkpointTeams[0]);
   });
@@ -144,7 +152,7 @@ describe('CheckpointTeamEvaluation', () => {
       selectTeam,
       checkpointTeams: [],
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     fireEvent.click(screen.getByText('scan-team'));
     expect(selectTeam).not.toHaveBeenCalled();
   });
@@ -155,7 +163,7 @@ describe('CheckpointTeamEvaluation', () => {
       checkpoint: { id: 1, name: 'CP1' },
       checkpointTeams: undefined,
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('Nenhuma equipa disponível')).toBeInTheDocument();
     expect(screen.getByText('0/0')).toBeInTheDocument();
   });
@@ -167,7 +175,7 @@ describe('CheckpointTeamEvaluation', () => {
       showTeamList: false,
       teamActivities: undefined,
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByTestId('team-activities')).toHaveTextContent('Team A');
   });
 
@@ -184,7 +192,7 @@ describe('CheckpointTeamEvaluation', () => {
         missing_activities: [],
       },
     });
-    render(<CheckpointTeamEvaluation />);
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
     expect(screen.getByText('Incomplete Evaluations Detected')).toBeInTheDocument();
   });
 });

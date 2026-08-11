@@ -10,6 +10,7 @@ import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
 import { useCheckpointEvaluation } from "./useCheckpointEvaluation";
 import { StaffCheckinScanner } from "@/components/checkin/StaffCheckinScanner";
 import OfflineQueueBanner from "./OfflineQueueBanner";
+import CheckpointAnnouncement from "./CheckpointAnnouncement";
 
 const STREAM_QUERY_KEYS = [
   ["checkpointTeams"],
@@ -93,6 +94,8 @@ export default function CheckpointTeamEvaluation() {
           </div>
         </div>
       </div>
+
+      <CheckpointAnnouncement />
 
       {/* Staff scans the arriving team's QR to identify + open its evaluation */}
       <StaffCheckinScanner

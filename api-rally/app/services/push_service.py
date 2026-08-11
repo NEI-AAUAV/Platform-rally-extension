@@ -43,6 +43,26 @@ def _send_one(subscription: PushSubscription, payload: dict[str, object]) -> int
         return status
 
 
+async def _send_to_subscriptions(
+    db: AsyncSession, subscriptions: Sequence[PushSubscription], payload: dict[str, object]
+) -> int:
+    """Deliver one payload to every given subscription, pruning dead
+    endpoints along the way. Returns how many deliveries succeeded."""
+    dead_endpoints: list[str] = []
+    sent = 0
+    for subscription in subscriptions:
+        status = await run_in_threadpool(_send_one, subscription, payload)
+        if status in _DEAD_SUBSCRIPTION_STATUSES:
+            dead_endpoints.append(subscription.endpoint)
+        elif status is None:
+            sent += 1
+
+    for endpoint in dead_endpoints:
+        await crud.push_subscription.remove_by_endpoint(db, endpoint=endpoint)
+
+    return sent
+
+
 async def send_to_user(
     db: AsyncSession, *, user_id: int, title: str, body: str, url: str | None = None
 ) -> None:
@@ -61,11 +81,23 @@ async def send_to_user(
         return
 
     payload: dict[str, object] = {"title": title, "body": body, "url": url}
-    dead_endpoints: list[str] = []
-    for subscription in subscriptions:
-        status = await run_in_threadpool(_send_one, subscription, payload)
-        if status in _DEAD_SUBSCRIPTION_STATUSES:
-            dead_endpoints.append(subscription.endpoint)
+    await _send_to_subscriptions(db, subscriptions, payload)
 
-    for endpoint in dead_endpoints:
-        await crud.push_subscription.remove_by_endpoint(db, endpoint=endpoint)
+
+async def send_to_all(db: AsyncSession, *, title: str, body: str, url: str | None = None) -> int:
+    """Broadcast one notification to every subscribed device — an admin
+    announcement to every team at once ("chuva a chegar", "atraso no
+    posto 4"), rather than addressed to a single participant.
+
+    Returns how many deliveries succeeded, so the admin panel can show
+    "enviado a N dispositivos" instead of a blind "done".
+    """
+    if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+        return 0
+
+    subscriptions = await crud.push_subscription.get_all(db)
+    if not subscriptions:
+        return 0
+
+    payload: dict[str, object] = {"title": title, "body": body, "url": url}
+    return await _send_to_subscriptions(db, subscriptions, payload)
