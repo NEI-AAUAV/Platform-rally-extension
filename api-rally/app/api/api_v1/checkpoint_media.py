@@ -1,6 +1,7 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
@@ -122,13 +123,26 @@ class CheckpointMediaController:
         kind: Annotated[MediaKind, Form()],
         caption: Annotated[str | None, Form()] = None,
         order: Annotated[int, Form()] = 0,
+        title: Annotated[str | None, Form()] = None,
+        content_url: Annotated[str | None, Form()] = None,
+        content_text: Annotated[str | None, Form()] = None,
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
         await self._get_checkpoint_or_404(db, checkpoint_id)
         image_url = await CheckpointMediaService.upload_image_if_provided(
             image, checkpoint_id=checkpoint_id
         )
-        obj_in = CheckpointMediaCreate(kind=kind, caption=caption, order=order)
+        try:
+            obj_in = CheckpointMediaCreate(
+                kind=kind,
+                caption=caption,
+                order=order,
+                title=title,
+                content_url=content_url or None,
+                content_text=content_text,
+            )
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         created = await crud_media.create(
             db, checkpoint_id=checkpoint_id, obj_in=obj_in, image_url=image_url
         )
@@ -140,6 +154,9 @@ class CheckpointMediaController:
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         caption: Annotated[str | None, Form()] = None,
         order: Annotated[int | None, Form()] = None,
+        title: Annotated[str | None, Form()] = None,
+        content_url: Annotated[str | None, Form()] = None,
+        content_text: Annotated[str | None, Form()] = None,
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
         db_obj = await crud_media.get(db, id=media_id)
@@ -148,8 +165,17 @@ class CheckpointMediaController:
         image_url = await CheckpointMediaService.upload_image_if_provided(
             image, checkpoint_id=db_obj.checkpoint_id
         )
-        obj_in = CheckpointMediaUpdate(caption=caption, order=order)
-        updated = await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
+        try:
+            obj_in = CheckpointMediaUpdate(
+                caption=caption,
+                order=order,
+                title=title,
+                content_url=content_url or None,
+                content_text=content_text,
+            )
+            updated = await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
+        except (ValidationError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         return CheckpointMediaResponse.model_validate(updated)
 
     async def delete_checkpoint_media(

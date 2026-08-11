@@ -19,6 +19,23 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(42, 'fallback')).toBe('fallback')
   })
 
+  it('extracts top-level detail (generated client throwOnError shape) when present', () => {
+    const error = { detail: 'Image upload is disabled: R2 storage is not configured.' }
+    expect(getErrorMessage(error, 'fallback')).toBe(
+      'Image upload is disabled: R2 storage is not configured.',
+    )
+  })
+
+  it('prefers top-level detail over body.detail', () => {
+    const error = { detail: 'from top level', body: { detail: 'from body' } }
+    expect(getErrorMessage(error, 'fallback')).toBe('from top level')
+  })
+
+  it('ignores non-string top-level detail', () => {
+    const error = { detail: 123, message: 'Network failure' }
+    expect(getErrorMessage(error, 'fallback')).toBe('Network failure')
+  })
+
   it('extracts body.detail when present', () => {
     const error = { body: { detail: 'Team not found' } }
     expect(getErrorMessage(error, 'fallback')).toBe('Team not found')

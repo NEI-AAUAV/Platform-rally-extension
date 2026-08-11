@@ -4,6 +4,9 @@ import { listCheckpointMedia, type CheckpointMediaResponse } from "@/client";
 export interface CheckpointMediaGrouped {
   photos: CheckpointMediaResponse[];
   funFacts: CheckpointMediaResponse[];
+  /** Every `qr`/`spotify`/`link` item, sorted by order — dispatched one by
+   * one to `CheckpointMediaAttachment`. */
+  attachments: CheckpointMediaResponse[];
   isLoading: boolean;
 }
 
@@ -26,6 +29,9 @@ export function useCheckpointMedia(checkpointId: number, enabled = true): Checkp
 
   const photos = data.filter((m) => m.kind === "photo" && m.image_url).sort(byOrder);
   const funFacts = data.filter((m) => m.kind === "fun_fact" && m.caption).sort(byOrder);
+  const attachments = data
+    .filter((m) => m.kind === "qr" || m.kind === "spotify" || m.kind === "link")
+    .sort(byOrder);
 
-  return { photos, funFacts, isLoading };
+  return { photos, funFacts, attachments, isLoading };
 }

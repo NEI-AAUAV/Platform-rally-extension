@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Lightbulb, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import CheckpointMediaAttachment from "./CheckpointMediaAttachment";
 
 type CheckpointDiscoveryProps = Readonly<{
   checkpointId: number;
@@ -30,10 +31,11 @@ export default function CheckpointDiscovery({
   heading,
   className,
 }: CheckpointDiscoveryProps) {
-  const { photos, funFacts } = useCheckpointMedia(checkpointId, enabled);
+  const { photos, funFacts, attachments } = useCheckpointMedia(checkpointId, enabled);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  const hasContent = !!description || photos.length > 0 || funFacts.length > 0;
+  const hasContent =
+    !!description || photos.length > 0 || funFacts.length > 0 || attachments.length > 0;
   if (!hasContent) return null;
 
   const thumb = compact ? "h-20 w-28" : "h-28 w-40 sm:h-32 sm:w-48";
@@ -95,6 +97,14 @@ export default function CheckpointDiscovery({
             </li>
           ))}
         </ul>
+      )}
+
+      {attachments.length > 0 && (
+        <div className="space-y-2.5">
+          {attachments.map((item) => (
+            <CheckpointMediaAttachment key={item.id} item={item} compact={compact} />
+          ))}
+        </div>
       )}
 
       {lightbox && (

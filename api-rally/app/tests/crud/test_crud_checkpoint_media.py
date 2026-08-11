@@ -6,6 +6,8 @@ out of scope here; everything else (DB writes) is real.
 
 from unittest.mock import patch
 
+import pytest
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_checkpoint_media import checkpoint_media as crud_media
 from app.models.checkpoint_media import MediaKind
@@ -119,3 +121,87 @@ async def test_update_with_no_changes_leaves_fields_untouched(pg_session) -> Non
     assert updated.caption == "Original"
     assert updated.order == 0
     assert updated.image_url == "https://cdn.example.com/original.png"
+
+
+async def test_create_qr_persists_content_text(pg_session) -> None:
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.qr, content_text="https://example.com/riddle"),
+    )
+
+    assert media.kind == MediaKind.qr
+    assert media.content_text == "https://example.com/riddle"
+    assert media.image_url is None
+    assert media.content_url is None
+
+
+async def test_create_spotify_persists_content_url_and_title(pg_session) -> None:
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(
+            kind=MediaKind.spotify,
+            content_url="https://open.spotify.com/track/abc123",
+            title="Ouve isto",
+        ),
+    )
+
+    assert media.content_url == "https://open.spotify.com/track/abc123"
+    assert media.title == "Ouve isto"
+
+
+async def test_create_link_persists_content_url(pg_session) -> None:
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.link, content_url="https://example.com"),
+    )
+
+    assert media.content_url == "https://example.com"
+
+
+async def test_update_link_content_url_does_not_touch_image_storage(pg_session) -> None:
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.link, content_url="https://example.com/old"),
+    )
+
+    with patch("app.crud.crud_checkpoint_media.storage_client.delete_image") as mock_delete:
+        updated = await crud_media.update(
+            pg_session,
+            db_obj=media,
+            obj_in=CheckpointMediaUpdate(content_url="https://example.com/new"),
+        )
+
+    mock_delete.assert_not_called()
+    assert updated.content_url == "https://example.com/new"
+
+
+async def test_update_qr_rejects_field_from_a_different_kind(pg_session) -> None:
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    media = await crud_media.create(
+        pg_session,
+        checkpoint_id=checkpoint.id,
+        obj_in=CheckpointMediaCreate(kind=MediaKind.qr, content_text="original text"),
+    )
+
+    with pytest.raises(ValueError, match="content_url"):
+        await crud_media.update(
+            pg_session,
+            db_obj=media,
+            obj_in=CheckpointMediaUpdate(content_url="https://example.com"),
+        )

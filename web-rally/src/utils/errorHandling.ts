@@ -6,6 +6,7 @@
  * Extracts a user-friendly error message from various error types
  *
  * Handles different error formats:
+ * - Our generated API client's thrown errors: raw `{ detail }` at the top level
  * - API errors with body.detail
  * - Axios errors with response.data.detail
  * - Standard Error objects with message
@@ -30,10 +31,17 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   const candidate = error as {
+    detail?: string;
     body?: { detail?: string };
     response?: { data?: { detail?: string } };
     message?: string;
   };
+
+  // Try top-level detail — our generated client (throwOnError) throws the
+  // parsed JSON error body as-is, e.g. `{ detail: "..." }`.
+  if (typeof candidate.detail === "string") {
+    return candidate.detail;
+  }
 
   // Try body.detail (some API error formats)
   if (typeof candidate.body?.detail === "string") {
