@@ -179,7 +179,7 @@ test.describe('Admin checkpoints', () => {
     await page.getByLabel('Fotos e curiosidades do sítio').click();
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
-    await page.getByRole('button', { name: 'Adicionar' }).click();
+    await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 
     await expect(page.getByText(/R2 storage is not configured/)).toBeVisible();
   });
