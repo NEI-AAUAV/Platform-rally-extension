@@ -117,6 +117,15 @@
      sampling deterministic, and it also colours the overscroll rubber band. */
   html {
     @apply bg-background;
+    /* The navbar is sticky (z-40) and overlaps the top of the scroll area.
+       Without this, scrolling an element into view (native scrollIntoView,
+       and Playwright's auto-scroll-before-click which uses the same
+       mechanism) can land it flush at the viewport top — directly under the
+       header — where its own click lands on the header instead. Sized a
+       comfortable margin above the tallest the navbar gets (mobile: ~56px
+       logo+padding; desktop: a bit more with the inline nav), not tied to
+       an exact measurement since being a bit generous here is free. */
+    scroll-padding-top: 80px;
   }
   body {
     @apply bg-background font-inter text-foreground antialiased;
