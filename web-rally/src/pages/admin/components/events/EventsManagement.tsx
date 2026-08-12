@@ -286,7 +286,14 @@ export default function EventsManagement() {
                   <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
                 )}
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {/* w-full on mobile: a `shrink-0` box sizes to its unwrapped
+                  content width, so `flex-wrap` on it alone is a no-op once
+                  there are enough buttons — the row just overflows the card
+                  sideways instead of wrapping. Forcing the full card width
+                  here gives it something to actually wrap against; sm+
+                  reverts to shrink-to-content since there's room to sit
+                  beside the title there. */}
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                 <ExportResultsButton event={ev} />
                 <ReportButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
