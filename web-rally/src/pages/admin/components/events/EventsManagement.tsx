@@ -122,7 +122,7 @@ function ReportButton({ event }: Readonly<{ event: RallyEvent }>) {
       onClick={() => reportMutation.mutate()}
     >
       <FileText className="mr-1.5 h-3.5 w-3.5" />
-      {reportMutation.isPending ? "A gerar…" : "Relatório final (PDF)"}
+      {reportMutation.isPending ? "A gerar…" : "Relatório (PDF)"}
     </Button>
   );
 }

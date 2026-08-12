@@ -281,7 +281,7 @@ describe("EventsManagement", () => {
     mockDownloadEventReport.mockResolvedValue(undefined);
     renderWithClient();
 
-    fireEvent.click(screen.getByRole("button", { name: /Relatório final \(PDF\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Relatório \(PDF\)/i }));
     await vi.waitFor(() => expect(mockDownloadEventReport).toHaveBeenCalledWith(1, "Rally 2024"));
   });
 
@@ -290,7 +290,7 @@ describe("EventsManagement", () => {
     mockDownloadEventReport.mockRejectedValue(new Error("boom"));
     renderWithClient();
 
-    fireEvent.click(screen.getByRole("button", { name: /Relatório final \(PDF\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Relatório \(PDF\)/i }));
     await vi.waitFor(() => expect(mockToastError).toHaveBeenCalled());
   });
 
