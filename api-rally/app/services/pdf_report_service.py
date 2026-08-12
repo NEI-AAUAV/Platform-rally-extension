@@ -20,8 +20,11 @@ score at a checkpoint is.
 
 from __future__ import annotations
 
+import ipaddress
+import socket
 from datetime import datetime
 from io import BytesIO
+from urllib.parse import urlparse
 
 import requests
 from fastapi.concurrency import run_in_threadpool
@@ -41,6 +44,7 @@ from reportlab.platypus import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.crud.crud_activity import rally_event as crud_rally_event
 from app.models.activity import RallyEvent
 from app.services.event_results_query import (
@@ -188,9 +192,40 @@ class PdfReportService:
         return pairs[:_MAX_PHOTOS]
 
     @staticmethod
-    def _download_image(url: str) -> bytes | None:
+    def _is_safe_photo_url(url: str) -> bool:
+        """Photo URLs come from the DB (Team.photo_url / ActivityResult.
+        media_urls) — every legitimate one was written by validate_and_store
+        pointing at our own R2 bucket, but a fetch-by-URL from server code is
+        an SSRF vector if that ever isn't true (a bad write, a future field
+        that accepts an arbitrary URL). Reject anything not on the
+        configured public bucket host, and reject that host resolving to a
+        private/loopback/link-local address so a misconfigured
+        R2_PUBLIC_BASE_URL can't turn this into an internal-network probe.
+        """
+        allowed_base = settings.R2_PUBLIC_BASE_URL
+        if not allowed_base:
+            return False
+        parsed = urlparse(url)
+        allowed = urlparse(allowed_base)
+        if parsed.scheme != "https" or parsed.netloc != allowed.netloc:
+            return False
         try:
-            resp = requests.get(url, timeout=_PHOTO_FETCH_TIMEOUT_S)
+            addr_infos = socket.getaddrinfo(parsed.hostname, None)
+        except OSError:
+            return False
+        for _family, _type, _proto, _canon, sockaddr in addr_infos:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        return True
+
+    @staticmethod
+    def _download_image(url: str) -> bytes | None:
+        if not PdfReportService._is_safe_photo_url(url):
+            logger.warning(f"Skipping photo in PDF report (URL not allowed): {url[:60]}...")
+            return None
+        try:
+            resp = requests.get(url, timeout=_PHOTO_FETCH_TIMEOUT_S, allow_redirects=False)
             resp.raise_for_status()
             return resp.content
         except requests.RequestException as exc:

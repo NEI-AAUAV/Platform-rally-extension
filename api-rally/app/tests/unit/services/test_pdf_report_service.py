@@ -112,8 +112,78 @@ class TestDownloadImage:
     def test_returns_none_on_request_failure(self):
         import requests
 
-        with patch(
-            "app.services.pdf_report_service.requests.get",
-            side_effect=requests.exceptions.ConnectionError("boom"),
+        with (
+            patch(
+                "app.services.pdf_report_service.PdfReportService._is_safe_photo_url",
+                return_value=True,
+            ),
+            patch(
+                "app.services.pdf_report_service.requests.get",
+                side_effect=requests.exceptions.ConnectionError("boom"),
+            ),
         ):
             assert PdfReportService._download_image("https://x/broken.png") is None
+
+    def test_returns_none_and_never_fetches_a_url_outside_the_allowed_bucket(self):
+        with patch("app.services.pdf_report_service.requests.get") as mock_get:
+            assert PdfReportService._download_image("https://evil.example/pwn.png") is None
+            mock_get.assert_not_called()
+
+
+class TestIsSafePhotoUrl:
+    def test_rejects_url_when_no_public_base_configured(self):
+        with patch("app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL", None):
+            assert PdfReportService._is_safe_photo_url("https://x/a.png") is False
+
+    def test_rejects_url_on_a_different_host(self):
+        with patch(
+            "app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL",
+            "https://pub-abc123.r2.dev",
+        ):
+            assert PdfReportService._is_safe_photo_url("https://attacker.example/a.png") is False
+
+    def test_rejects_non_https_scheme(self):
+        with patch(
+            "app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL",
+            "https://pub-abc123.r2.dev",
+        ):
+            assert PdfReportService._is_safe_photo_url("http://pub-abc123.r2.dev/a.png") is False
+
+    def test_rejects_hostname_resolving_to_a_private_address(self):
+        with (
+            patch(
+                "app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL",
+                "https://internal.example",
+            ),
+            patch(
+                "app.services.pdf_report_service.socket.getaddrinfo",
+                return_value=[(2, 1, 6, "", ("127.0.0.1", 0))],
+            ),
+        ):
+            assert PdfReportService._is_safe_photo_url("https://internal.example/a.png") is False
+
+    def test_accepts_url_matching_the_configured_bucket_host(self):
+        with (
+            patch(
+                "app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL",
+                "https://pub-abc123.r2.dev",
+            ),
+            patch(
+                "app.services.pdf_report_service.socket.getaddrinfo",
+                return_value=[(2, 1, 6, "", ("8.8.8.8", 0))],
+            ),
+        ):
+            assert PdfReportService._is_safe_photo_url("https://pub-abc123.r2.dev/a.png") is True
+
+    def test_rejects_url_whose_hostname_fails_to_resolve(self):
+        with (
+            patch(
+                "app.services.pdf_report_service.settings.R2_PUBLIC_BASE_URL",
+                "https://pub-abc123.r2.dev",
+            ),
+            patch(
+                "app.services.pdf_report_service.socket.getaddrinfo",
+                side_effect=OSError("no such host"),
+            ),
+        ):
+            assert PdfReportService._is_safe_photo_url("https://pub-abc123.r2.dev/a.png") is False
