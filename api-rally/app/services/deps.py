@@ -15,6 +15,7 @@ from app.services.event_service import EventService
 from app.services.export_service import ExportService
 from app.services.guide_service import GuideService
 from app.services.hint_service import HintService
+from app.services.pdf_report_service import PdfReportService
 from app.services.profile_service import ProfileService
 from app.services.proximity_service import ProximityService
 from app.services.rally_settings_service import RallySettingsService
@@ -75,6 +76,10 @@ def get_event_service(db: SessionDep) -> EventService:
 
 def get_export_service(db: SessionDep) -> ExportService:
     return ExportService(db)
+
+
+def get_pdf_report_service(db: SessionDep) -> PdfReportService:
+    return PdfReportService(db)
 
 
 def get_guide_service(db: SessionDep) -> GuideService:

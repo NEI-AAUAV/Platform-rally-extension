@@ -11,9 +11,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Download,
+  FileText,
 } from "lucide-react";
 import { generateRotationSchedule } from "@/client";
-import { downloadEventResults } from "@/services/eventExport";
+import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,27 @@ function ExportResultsButton({ event }: Readonly<{ event: RallyEvent }>) {
     >
       <Download className="mr-1.5 h-3.5 w-3.5" />
       {exportMutation.isPending ? "A exportar…" : "Exportar resultados"}
+    </Button>
+  );
+}
+
+function ReportButton({ event }: Readonly<{ event: RallyEvent }>) {
+  const toast = useAppToast();
+  const reportMutation = useMutation({
+    mutationFn: () => downloadEventReport(event.id, event.name),
+    onSuccess: () => toast.success("Relatório gerado"),
+    onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar relatório")),
+  });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={reportMutation.isPending}
+      onClick={() => reportMutation.mutate()}
+    >
+      <FileText className="mr-1.5 h-3.5 w-3.5" />
+      {reportMutation.isPending ? "A gerar…" : "Relatório final (PDF)"}
     </Button>
   );
 }
@@ -266,6 +288,7 @@ export default function EventsManagement() {
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <ExportResultsButton event={ev} />
+                <ReportButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
                 {!ev.is_current && (
                   <Button

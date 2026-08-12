@@ -20,13 +20,17 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
-from app.models.activity import Activity, ActivityResult
+from app.models.activity import ActivityResult
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
+from app.services.event_results_query import (
+    EventResultsData,
+    EventResultsQuery,
+    result_notes,
+    result_penalty,
+)
 
 # Penalty keys as written by ScoringService.apply_vomit_penalty /
 # apply_drink_penalty. Stored as accumulated positive magnitudes.
@@ -37,26 +41,6 @@ _HEADER_FILL = PatternFill(start_color="FF1F2937", end_color="FF1F2937", fill_ty
 _HEADER_FONT = Font(name="Arial", bold=True, color="FFFFFFFF")
 _BODY_FONT = Font(name="Arial")
 _CENTER = Alignment(horizontal="center")
-
-
-def _team_opponent_map(teams: list[Team]) -> dict[int, str]:
-    """Map team_id -> opponent name via versus_group_id pairing.
-
-    Two teams sharing a non-null ``versus_group_id`` are opponents. Teams with
-    no group (or an unpaired group) map to an empty string.
-    """
-    by_group: dict[int, list[Team]] = {}
-    for team in teams:
-        if team.versus_group_id is not None:
-            by_group.setdefault(team.versus_group_id, []).append(team)
-
-    opponent: dict[int, str] = {t.id: "" for t in teams}
-    for group in by_group.values():
-        if len(group) == 2:
-            a, b = group
-            opponent[a.id] = b.name
-            opponent[b.id] = a.name
-    return opponent
 
 
 def _style_header(ws: Worksheet, ncols: int) -> None:
@@ -82,65 +66,36 @@ class ExportService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self._query = EventResultsQuery(db)
 
     async def _teams(self, event_id: int) -> list[Team]:
-        stmt = select(Team).where(Team.event_id == event_id).order_by(Team.name)
-        return list((await self.db.scalars(stmt)).all())
+        return await self._query.teams(event_id)
 
     async def _checkpoints(self, event_id: int) -> list[CheckPoint]:
-        stmt = select(CheckPoint).where(CheckPoint.event_id == event_id).order_by(CheckPoint.order)
-        return list((await self.db.scalars(stmt)).all())
+        return await self._query.checkpoints(event_id)
 
     async def _results(self, event_id: int) -> list[ActivityResult]:
-        """All results whose checkpoint belongs to this event."""
-        stmt = (
-            select(ActivityResult)
-            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
-            .join(ActivityResult.activity)
-            .join(Activity.checkpoint)
-            .where(CheckPoint.event_id == event_id)
-        )
-        return list((await self.db.scalars(stmt)).all())
+        return await self._query.results(event_id)
 
-    @staticmethod
-    def _penalty(result: ActivityResult, key: str) -> int:
-        value = (result.penalties or {}).get(key, 0)
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return 0
-
-    @staticmethod
-    def _notes(result: ActivityResult) -> str:
-        notes = (result.result_data or {}).get("notes")
-        return str(notes) if notes else ""
+    # Kept as instance-level aliases (rather than importing the shared
+    # functions directly at call sites) so the existing unit tests, which
+    # stub `_teams`/`_checkpoints`/`_results` on the instance, keep working
+    # unchanged — see app/tests/unit/services/test_export_service.py.
+    _penalty = staticmethod(result_penalty)
+    _notes = staticmethod(result_notes)
 
     async def build_workbook(self, event_id: int) -> bytes:
         teams = await self._teams(event_id)
         checkpoints = await self._checkpoints(event_id)
         results = await self._results(event_id)
-
-        opponent_of = _team_opponent_map(teams)
-        team_name = {t.id: t.name for t in teams}
-
-        # (team_id, checkpoint_id) -> summed final_score for the Overall sheet.
-        cp_score: dict[tuple[int, int], float] = {}
-        # (team_id, checkpoint_id) -> the result row for the per-checkpoint sheets.
-        cp_result: dict[tuple[int, int], ActivityResult] = {}
-        for r in results:
-            cp = r.activity.checkpoint if r.activity else None
-            if cp is None or r.team_id not in team_name:
-                continue
-            key = (r.team_id, cp.id)
-            if r.is_completed and r.final_score is not None:
-                cp_score[key] = cp_score.get(key, 0.0) + float(r.final_score)
-            # Keep the last row seen per (team, checkpoint) for the detail sheets.
-            cp_result[key] = r
+        data = EventResultsData(teams=teams, checkpoints=checkpoints, results=results)
 
         wb = Workbook()
-        self._build_overall_sheet(wb, teams, checkpoints, opponent_of, cp_score)
+        self._build_overall_sheet(wb, teams, checkpoints, data.opponent_of, data.cp_score)
         for idx, cp in enumerate(checkpoints, start=1):
-            self._build_checkpoint_sheet(wb, cp, idx, teams, opponent_of, cp_result, cp_score)
+            self._build_checkpoint_sheet(
+                wb, cp, idx, teams, data.opponent_of, data.cp_result, data.cp_score
+            )
 
         buffer = BytesIO()
         wb.save(buffer)

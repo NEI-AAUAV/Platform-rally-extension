@@ -31,6 +31,7 @@ boto3-stubs = "==1.43.67"
 botocore = "==1.43.57"
 prometheus-client = ">=0.21,<0.27"
 pywebpush = "^2.0.3"
+reportlab = "^5.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -148,7 +149,7 @@ module = "sqlalchemy.schema"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*", "authlib.*", "openpyxl.*", "pywebpush.*"]
+module = ["boto3.*", "botocore.*", "authlib.*", "openpyxl.*", "pywebpush.*", "reportlab.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
