@@ -1,5 +1,9 @@
 export { default as TeamSettings } from "./TeamSettings";
 export { default as RallyTimingSettings } from "./RallyTimingSettings";
 export { default as ScoringSettings } from "./ScoringSettings";
+export { default as PeddyPaperSettings } from "./PeddyPaperSettings";
+export { default as SearchAidsSettings } from "./SearchAidsSettings";
+export { default as RouteRulesSettings } from "./RouteRulesSettings";
 export { default as DisplaySettings } from "./DisplaySettings";
 export { default as HomeLayoutSettings } from "./HomeLayoutSettings";
+export { default as EventModeBanner } from "./EventModeBanner";

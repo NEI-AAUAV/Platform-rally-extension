@@ -64,7 +64,7 @@ test.describe('Admin checkpoints', () => {
     await page.getByPlaceholder('Ex: 40.6405').fill('40.6306');
     await page.getByPlaceholder('Ex: -8.6538').fill('-8.6591');
     await page.getByPlaceholder('Ex: 50').fill('30');
-    await page.getByPlaceholder('Ex: 1').fill('1');
+    // order is auto-assigned (max existing order + 1) — no manual field.
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
 
     await expect.poll(() => capturedBody).toMatchObject({ name: 'Posto Novo', arrival_radius_m: 30, order: 1 });
@@ -151,7 +151,6 @@ test.describe('Admin checkpoints', () => {
 
     await gotoCheckpoints(page);
     await page.getByPlaceholder('Ex: Checkpoint Central').fill('Posto Duplicado');
-    await page.getByPlaceholder('Ex: 1').fill('1');
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
 
     await expect(page.getByText(/already exists/)).toBeVisible();

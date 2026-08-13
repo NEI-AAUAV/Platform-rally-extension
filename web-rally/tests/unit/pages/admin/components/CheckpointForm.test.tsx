@@ -200,12 +200,14 @@ describe("CheckpointForm", () => {
     expect(formRef.current?.getValues("arrival_radius_m")).toBe(0);
   });
 
-  it("updates order as a number when input changes", () => {
-    const { formRef } = renderForm();
+  // Position in the route is the drag-and-drop list's job, and the hook keeps
+  // `order` in form state on its own. A second, manual input for the same thing
+  // was two sources of truth, so the field is gone but the value still submits.
+  it("keeps order out of the form while still carrying its value", () => {
+    const { formRef } = renderForm({ defaultValues: { order: 4 } });
 
-    const orderInput = screen.getByPlaceholderText("Ex: 1");
-    fireEvent.change(orderInput, { target: { value: "3" } });
-    expect(formRef.current?.getValues("order")).toBe(3);
+    expect(screen.queryByLabelText("Ordem do Checkpoint")).not.toBeInTheDocument();
+    expect(formRef.current?.getValues("order")).toBe(4);
   });
 
   it("passes current latitude/longitude to the location picker", () => {

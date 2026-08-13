@@ -56,7 +56,6 @@ describe('DisplaySettings', () => {
     expect(screen.getByLabelText('Mostrar leaderboard em tempo real')).toBeInTheDocument();
     expect(screen.getByLabelText('Mostrar detalhes das equipas')).toBeInTheDocument();
     expect(screen.getByLabelText('Mostrar mapa dos checkpoints')).toBeInTheDocument();
-    expect(screen.getByLabelText('Ativar visualização para participantes')).toBeInTheDocument();
     expect(screen.getByLabelText('Permitir acesso público (sem login)')).toBeInTheDocument();
     expect(
       screen.getByLabelText('Permitir staff definir foto de atividade como foto da equipa'),
@@ -64,6 +63,16 @@ describe('DisplaySettings', () => {
     expect(screen.getByLabelText('Ativar funcionalidade de modo guia')).toBeInTheDocument();
     expect(screen.getByLabelText('Modo guia ativo neste evento')).toBeInTheDocument();
     expect(screen.getByLabelText('Ativar crachás / conquistas')).toBeInTheDocument();
+  });
+
+  it('does not carry the treasure-hunt switches, which live in the Enigmas card', () => {
+    render(<Wrapper />);
+    expect(
+      screen.queryByLabelText('Ativar visualização para participantes'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Revelar o próximo posto antes da chegada'),
+    ).not.toBeInTheDocument();
   });
 
   it('toggles a switch value', async () => {

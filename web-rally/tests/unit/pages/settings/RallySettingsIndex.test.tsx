@@ -46,7 +46,11 @@ vi.mock('@/pages/settings/components', () => ({
   TeamSettings: () => <div>TeamSettings</div>,
   RallyTimingSettings: () => <div>RallyTimingSettings</div>,
   ScoringSettings: () => <div>ScoringSettings</div>,
+  PeddyPaperSettings: () => <div>PeddyPaperSettings</div>,
+  SearchAidsSettings: () => <div>SearchAidsSettings</div>,
+  RouteRulesSettings: () => <div>RouteRulesSettings</div>,
   HomeLayoutSettings: () => <div>HomeLayoutSettings</div>,
+  EventModeBanner: () => <div>EventModeBanner</div>,
 }));
 
 function renderWithClient(ui: React.ReactElement) {
@@ -137,6 +141,9 @@ describe('RallySettings index page', () => {
     expect(screen.getByText('TeamSettings')).toBeInTheDocument();
     expect(screen.getByText('RallyTimingSettings')).toBeInTheDocument();
     expect(screen.getByText('ScoringSettings')).toBeInTheDocument();
+    expect(screen.getByText('PeddyPaperSettings')).toBeInTheDocument();
+    expect(screen.getByText('SearchAidsSettings')).toBeInTheDocument();
+    expect(screen.getByText('RouteRulesSettings')).toBeInTheDocument();
     expect(screen.getByText('HomeLayoutSettings')).toBeInTheDocument();
 
     expect(screen.getByText('Configurações')).toBeInTheDocument();

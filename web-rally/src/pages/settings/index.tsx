@@ -19,8 +19,12 @@ import {
   TeamSettings,
   RallyTimingSettings,
   ScoringSettings,
+  PeddyPaperSettings,
+  SearchAidsSettings,
+  RouteRulesSettings,
   DisplaySettings,
   HomeLayoutSettings,
+  EventModeBanner,
 } from "./components";
 import { DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
 import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
@@ -409,13 +413,20 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
         </div>
       )}
 
+      <EventModeBanner eventType={settings?.event_type} />
+
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-6">
+          {/* Ordered by how the event is built: the game mechanic first, then
+              the route it runs on, then scoring, then presentation. */}
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-            <DisplaySettings disabled={!isEditing} />
+            <PeddyPaperSettings disabled={!isEditing} />
+            <SearchAidsSettings disabled={!isEditing} />
+            <RouteRulesSettings disabled={!isEditing} />
+            <ScoringSettings disabled={!isEditing} eventType={settings?.event_type} />
             <TeamSettings disabled={!isEditing} />
             <RallyTimingSettings />
-            <ScoringSettings disabled={!isEditing} />
+            <DisplaySettings disabled={!isEditing} />
             <HomeLayoutSettings disabled={!isEditing} className="xl:col-span-2" />
           </div>
 

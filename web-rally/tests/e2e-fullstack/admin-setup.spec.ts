@@ -96,12 +96,12 @@ test.describe('Admin configures a full event through the real UI', () => {
     await page.getByPlaceholder('Ex: 40.6405').fill('40.6306');
     await page.getByPlaceholder('Ex: -8.6538').fill('-8.6591');
     await page.getByPlaceholder('Ex: 50').fill('75');
-    await page.getByPlaceholder('Ex: 1').fill('1');
+    // order is no longer a manual field — the form auto-assigns
+    // max(existing order) + 1 and reordering happens by dragging the list.
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
     await expect(page.getByText(checkpointAName)).toBeVisible({ timeout: 15_000 });
 
     await page.getByPlaceholder('Ex: Checkpoint Central').fill(checkpointBName);
-    await page.getByPlaceholder('Ex: 1').fill('2');
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
     await expect(page.getByText(checkpointBName)).toBeVisible({ timeout: 15_000 });
 
