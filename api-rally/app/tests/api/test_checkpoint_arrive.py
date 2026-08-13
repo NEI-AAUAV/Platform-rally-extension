@@ -1,5 +1,6 @@
 """Tests for GPS geofence arrive endpoint (A2), against a real Postgres schema."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 from sqlalchemy import select
@@ -7,6 +8,8 @@ from sqlalchemy import select
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, EventType, RallyEvent
+from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.dynamic_scoring import DynamicAward
 from app.models.team import Team
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
@@ -94,6 +97,38 @@ async def _make_activity(pg_session, checkpoint_id, is_active=True):
     return activity_obj
 
 
+async def _seed_leg(pg_session, event, *, minutes_since_cp1):
+    """Two checkpoints + a team that already arrived at the first one
+    `minutes_since_cp1` minutes ago — the shared setup every leg-time test
+    needs before arriving at the second checkpoint."""
+    cp1 = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    cp2 = await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+    pg_session.add(
+        CheckpointArrival(
+            team_id=team.id,
+            checkpoint_id=cp1.id,
+            arrived_at=datetime.now(UTC) - timedelta(minutes=minutes_since_cp1),
+        )
+    )
+    await pg_session.commit()
+    return cp2, team
+
+
+def _arrive_at_cp2(pg_client, team, cp2):
+    with as_team(team.id, "TeamA"):
+        return pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 42.000045, "longitude": -9.0},
+        )
+
+
+async def _awards_for(pg_session, team_id):
+    return (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team_id))
+    ).all()
+
+
 async def test_arrive_within_radius(pg_session, pg_client):
     await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1)
@@ -175,10 +210,6 @@ async def test_arrive_allowed_for_non_peddy_event_when_setting_enabled(pg_sessio
 async def test_arrive_rejected_before_the_event_window_opens(pg_session, pg_client):
     """An arrival is progress, so the event window gates it exactly as it gates
     a staff evaluation — and nothing is written to the arrivals table."""
-    from datetime import UTC, datetime, timedelta
-
-    from app.models.checkpoint_arrival import CheckpointArrival
-
     event = await _make_event(pg_session)
     # Timing lives on the event and is mirrored onto the settings row by
     # get_or_create's _sync_timing_from_event, so set it at the source.
@@ -268,7 +299,6 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
     constraint then raises IntegrityError on the real INSERT/commit)."""
     from app import crud
     from app.api.api_v1.checkpoint_arrive import ArriveRequest, CheckpointArriveController
-    from app.models.checkpoint_arrival import CheckpointArrival
     from app.schemas.team_auth import TeamTokenData
     from app.services.checkpoint_arrival_service import CheckpointArrivalService
 
@@ -378,6 +408,98 @@ async def test_arrive_rejects_out_of_range_coordinates(pg_session, pg_client):
         )
 
     assert resp.status_code == 422
+
+
+async def test_arrive_leg_time_bonus_applied_when_faster_than_target(pg_session, pg_client):
+    """Second arrival, well inside the target: a bonus DynamicAward lands and
+    the team's total reflects it."""
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_target_minutes=10,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    cp2, team = await _seed_leg(pg_session, event, minutes_since_cp1=5)
+
+    resp = _arrive_at_cp2(pg_client, team, cp2)
+
+    assert resp.status_code == 200, resp.text
+    awards = await _awards_for(pg_session, team.id)
+    assert len(awards) == 1
+    # team.total is round()'d; the leg took a hair under 5 minutes (real wall
+    # clock between the two `commit()`s), so the award itself is a hair under
+    # the exact 10-point bonus. Assert the shape, not exact float equality.
+    assert 9 < awards[0].points <= 10  # arrived early -> bonus
+
+    refreshed = await _reread_team(pg_session, team.id)
+    assert refreshed.total == round(awards[0].points)
+
+
+async def test_arrive_leg_time_penalty_applied_when_slower_than_target(pg_session, pg_client):
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_target_minutes=5,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    cp2, team = await _seed_leg(pg_session, event, minutes_since_cp1=20)
+
+    resp = _arrive_at_cp2(pg_client, team, cp2)
+
+    assert resp.status_code == 200, resp.text
+    awards = await _awards_for(pg_session, team.id)
+    assert len(awards) == 1
+    assert awards[0].points < 0  # arrived late -> penalty
+
+
+async def test_arrive_leg_time_no_award_without_a_previous_arrival(pg_session, pg_client):
+    """First checkpoint of the route: nothing to measure a leg against."""
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert await _awards_for(pg_session, team.id) == []
+
+
+async def test_arrive_leg_time_no_award_when_feature_disabled(pg_session, pg_client):
+    """Toggle off (the default): no DynamicAward regardless of timing."""
+    event = await _make_event(pg_session)
+    cp2, team = await _seed_leg(pg_session, event, minutes_since_cp1=5)
+
+    resp = _arrive_at_cp2(pg_client, team, cp2)
+
+    assert resp.status_code == 200, resp.text
+    assert await _awards_for(pg_session, team.id) == []
+
+
+async def test_arrive_leg_time_zero_rate_is_a_no_op(pg_session, pg_client):
+    """Enabled but points_per_minute=0 (the settings default): still nothing
+    to record, matching the "0 cost means free/off" convention."""
+    event = await _make_event(pg_session)
+    await _set_settings(pg_session, leg_time_scoring_enabled=True)
+    cp2, team = await _seed_leg(pg_session, event, minutes_since_cp1=5)
+
+    resp = _arrive_at_cp2(pg_client, team, cp2)
+
+    assert resp.status_code == 200, resp.text
+    assert await _awards_for(pg_session, team.id) == []
 
 
 async def test_arrive_no_activities_out_of_order_does_not_advance(pg_session, pg_client):

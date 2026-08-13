@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
-import { useForm, FormProvider } from 'react-hook-form';
-import ScoringSettings from '@/pages/settings/components/ScoringSettings';
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect } from "vitest";
+import { useForm, FormProvider } from "react-hook-form";
+import ScoringSettings from "@/pages/settings/components/ScoringSettings";
 
 function Wrapper({ disabled }: { readonly disabled?: boolean }) {
   const methods = useForm({
@@ -13,6 +13,10 @@ function Wrapper({ disabled }: { readonly disabled?: boolean }) {
       max_extra_shots_per_member: 3,
       checkpoint_order_matters: true,
       enable_staff_scoring: true,
+      leg_time_scoring_enabled: false,
+      leg_time_target_minutes: 10,
+      leg_time_points_per_minute: 0,
+      leg_time_max_adjustment: 20,
     },
   });
   return (
@@ -22,37 +26,51 @@ function Wrapper({ disabled }: { readonly disabled?: boolean }) {
   );
 }
 
-describe('ScoringSettings', () => {
-  it('renders numeric inputs with initial values', () => {
+describe("ScoringSettings", () => {
+  it("renders numeric inputs with initial values", () => {
     render(<Wrapper />);
-    expect(screen.getByLabelText('Penalização por vómito')).toHaveValue(-10);
-    expect(screen.getByLabelText('Penalização por não beber')).toHaveValue(-5);
-    expect(screen.getByLabelText('Bónus por shot extra')).toHaveValue(5);
-    expect(screen.getByLabelText('Máximo shots extra por membro')).toHaveValue(3);
+    expect(screen.getByLabelText("Penalização por vómito")).toHaveValue(-10);
+    expect(screen.getByLabelText("Penalização por não beber")).toHaveValue(-5);
+    expect(screen.getByLabelText("Bónus por shot extra")).toHaveValue(5);
+    expect(screen.getByLabelText("Máximo shots extra por membro")).toHaveValue(3);
   });
 
-  it('allows editing numeric fields', async () => {
+  it("allows editing numeric fields", async () => {
     const user = userEvent.setup();
     render(<Wrapper />);
-    const input = screen.getByLabelText('Bónus por shot extra');
+    const input = screen.getByLabelText("Bónus por shot extra");
     await user.clear(input);
-    await user.type(input, '15');
+    await user.type(input, "15");
     expect(input).toHaveValue(15);
   });
 
-  it('renders switches for boolean settings', () => {
+  it("renders switches for boolean settings", () => {
     render(<Wrapper />);
-    expect(
-      screen.getByLabelText('A ordem dos checkpoints importa para a pontuação'),
-    ).toBeChecked();
-    expect(screen.getByLabelText('Permitir pontuação manual pelos staff')).toBeChecked();
+    expect(screen.getByLabelText("A ordem dos checkpoints importa para a pontuação")).toBeChecked();
+    expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeChecked();
   });
 
-  it('disables inputs when disabled prop is set', () => {
+  it("renders leg-time scoring fields with initial values", () => {
+    render(<Wrapper />);
+    expect(screen.getByLabelText("Tempo esperado entre postos (min)")).toHaveValue(10);
+    expect(screen.getByLabelText("Pontos por minuto de desvio")).toHaveValue(0);
+    expect(screen.getByLabelText("Limite do ajuste por percurso")).toHaveValue(20);
+    expect(screen.getByLabelText("Pontuar tempo de percurso entre postos")).not.toBeChecked();
+  });
+
+  it("allows toggling leg-time scoring on", async () => {
+    const user = userEvent.setup();
+    render(<Wrapper />);
+    const toggle = screen.getByLabelText("Pontuar tempo de percurso entre postos");
+    await user.click(toggle);
+    expect(toggle).toBeChecked();
+  });
+
+  it("disables inputs when disabled prop is set", () => {
     render(<Wrapper disabled />);
-    expect(screen.getByLabelText('Penalização por vómito')).toBeDisabled();
+    expect(screen.getByLabelText("Penalização por vómito")).toBeDisabled();
     expect(
-      screen.getByLabelText('A ordem dos checkpoints importa para a pontuação'),
+      screen.getByLabelText("A ordem dos checkpoints importa para a pontuação"),
     ).toBeDisabled();
   });
 });
