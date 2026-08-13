@@ -114,6 +114,21 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             await db.refresh(existing)
         return existing
 
+    async def revoke_scope(self, db: AsyncSession, *, user: User, scope: str) -> User:
+        """Remove a scope from a user's locally mirrored scopes list.
+
+        Used to reconcile the mirror when a user is no longer a member of
+        the Authentik group that granted the scope, independent of whether
+        they log in again (login-time sync alone would leave the mirror
+        stale for users who never log back in).
+        """
+        if scope in (user.scopes or []):
+            user.scopes = [s for s in user.scopes if s != scope]
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        return user
+
     async def _create_internal(
         self,
         db: AsyncSession,

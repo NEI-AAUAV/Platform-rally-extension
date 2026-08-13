@@ -32,8 +32,24 @@ class UserService:
         """Shared list/mirror logic behind /staff-assignments and
         /guide-assignments: mirrors the Authentik group live, then joins each
         mirrored user against their (possibly absent) checkpoint assignment.
+
+        Reconciles against live group membership rather than trusting the
+        locally mirrored ``scopes`` column: that column only updates when the
+        user themselves logs in (see ``_sync_scopes``), so a user removed
+        from the Authentik group keeps showing up here indefinitely if they
+        never log back in. Adding and revoking the scope here keeps the list
+        accurate regardless of login activity.
+
+        Revocation only runs when the Authentik call actually returned
+        members. ``list_group_members`` degrades to ``[]`` both when a group
+        is genuinely empty and when the call fails or OIDC is unconfigured
+        (see ``authentik_client``); treating those the same as "everyone was
+        removed" would mass-revoke every mirrored user on a transient API
+        error, so an empty result is left untouched instead.
         """
         group_members = await authentik_client.list_group_members(group)
+        member_emails = {member.email for member in group_members if member.email}
+
         for member in group_members:
             await crud.user.get_or_create_mirror(
                 self._db,
@@ -43,7 +59,17 @@ class UserService:
             )
 
         stmt = select(User).where(User.scopes.contains([scope]))
-        users = (await self._db.scalars(stmt)).all()
+        scoped_users = (await self._db.scalars(stmt)).all()
+
+        users = []
+        for user in scoped_users:
+            if group_members and user.email not in member_emails:
+                # No longer in the Authentik group: revoke the stale local
+                # scope so the mirror stays truthful even if this user never
+                # logs in again.
+                await crud.user.revoke_scope(self._db, user=user, scope=scope)
+                continue
+            users.append(user)
 
         existing_assignments = await assignment_crud.get_multi_with_checkpoint(self._db)
         assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
