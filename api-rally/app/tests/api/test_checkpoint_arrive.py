@@ -380,6 +380,196 @@ async def test_arrive_rejects_out_of_range_coordinates(pg_session, pg_client):
     assert resp.status_code == 422
 
 
+async def test_arrive_leg_time_bonus_applied_when_faster_than_target(pg_session, pg_client):
+    """Second arrival, well inside the target: a bonus DynamicAward lands and
+    the team's total reflects it."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_target_minutes=10,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    cp1 = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    cp2 = await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    pg_session.add(
+        CheckpointArrival(
+            team_id=team.id,
+            checkpoint_id=cp1.id,
+            arrived_at=datetime.now(UTC) - timedelta(minutes=5),
+        )
+    )
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 42.000045, "longitude": -9.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+
+    awards = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).all()
+    assert len(awards) == 1
+    assert awards[0].points > 0  # arrived early -> bonus
+
+    refreshed = await _reread_team(pg_session, team.id)
+    # team.total is round()'d; the leg took a hair under 5 minutes (real wall
+    # clock between the two `commit()`s), so the award itself is a hair under
+    # the exact 10-point bonus. Assert the shape, not exact float equality.
+    assert 9 < awards[0].points <= 10
+    assert refreshed.total == round(awards[0].points)
+
+
+async def test_arrive_leg_time_penalty_applied_when_slower_than_target(pg_session, pg_client):
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_target_minutes=5,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    cp1 = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    cp2 = await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    pg_session.add(
+        CheckpointArrival(
+            team_id=team.id,
+            checkpoint_id=cp1.id,
+            arrived_at=datetime.now(UTC) - timedelta(minutes=20),
+        )
+    )
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 42.000045, "longitude": -9.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+
+    awards = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).all()
+    assert len(awards) == 1
+    assert awards[0].points < 0  # arrived late -> penalty
+
+
+async def test_arrive_leg_time_no_award_without_a_previous_arrival(pg_session, pg_client):
+    """First checkpoint of the route: nothing to measure a leg against."""
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    await _set_settings(
+        pg_session,
+        leg_time_scoring_enabled=True,
+        leg_time_points_per_minute=2,
+        leg_time_max_adjustment=100,
+    )
+    checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    awards = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).all()
+    assert awards == []
+
+
+async def test_arrive_leg_time_no_award_when_feature_disabled(pg_session, pg_client):
+    """Toggle off (the default): no DynamicAward regardless of timing."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    cp1 = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    cp2 = await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    pg_session.add(
+        CheckpointArrival(
+            team_id=team.id,
+            checkpoint_id=cp1.id,
+            arrived_at=datetime.now(UTC) - timedelta(minutes=5),
+        )
+    )
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 42.000045, "longitude": -9.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    awards = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).all()
+    assert awards == []
+
+
+async def test_arrive_leg_time_zero_rate_is_a_no_op(pg_session, pg_client):
+    """Enabled but points_per_minute=0 (the settings default): still nothing
+    to record, matching the "0 cost means free/off" convention."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    await _set_settings(pg_session, leg_time_scoring_enabled=True)
+    cp1 = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    cp2 = await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0, event_id=event.id)
+    team = await _make_team(pg_session, event_id=event.id)
+
+    pg_session.add(
+        CheckpointArrival(
+            team_id=team.id,
+            checkpoint_id=cp1.id,
+            arrived_at=datetime.now(UTC) - timedelta(minutes=5),
+        )
+    )
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 42.000045, "longitude": -9.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    awards = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).all()
+    assert awards == []
+
+
 async def test_arrive_no_activities_out_of_order_does_not_advance(pg_session, pg_client):
     """No-activity checkpoint but team is not yet due here: no auto-advance."""
     await _make_event(pg_session)

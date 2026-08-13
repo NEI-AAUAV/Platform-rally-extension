@@ -336,6 +336,83 @@ export default function ScoringSettings({
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="leg_time_target_minutes">Tempo esperado entre postos (min)</Label>
+            <Input
+              id="leg_time_target_minutes"
+              type="number"
+              min="1"
+              max="240"
+              disabled={disabled}
+              {...register("leg_time_target_minutes", { valueAsNumber: true })}
+              className="border-border bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              Referência para calcular o bónus/penalização de tempo de percurso.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="leg_time_points_per_minute">Pontos por minuto de desvio</Label>
+            <Input
+              id="leg_time_points_per_minute"
+              type="number"
+              min="0"
+              max="50"
+              disabled={disabled}
+              {...register("leg_time_points_per_minute", { valueAsNumber: true })}
+              className="border-border bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              Por cada minuto mais rápido que o esperado, a equipa ganha isto; por cada minuto mais
+              lento, perde isto. 0 desativa o efeito mesmo com o interruptor ligado.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="leg_time_max_adjustment">Limite do ajuste por percurso</Label>
+            <Input
+              id="leg_time_max_adjustment"
+              type="number"
+              min="0"
+              max="500"
+              disabled={disabled}
+              {...register("leg_time_max_adjustment", { valueAsNumber: true })}
+              className="border-border bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              Trava o bónus/penalização de cada percurso neste valor, para uma equipa que parou para
+              jantar entre dois postos não disparar o placar.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Controller
+            name="leg_time_scoring_enabled"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Switch
+                id="leg_time_scoring_enabled"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={disabled}
+              />
+            )}
+          />
+          <div>
+            <Label htmlFor="leg_time_scoring_enabled">Pontuar tempo de percurso entre postos</Label>
+            <p className="text-xs text-muted-foreground">
+              Ao chegar a um posto, compara o tempo desde a chegada anterior com o esperado acima e
+              soma um bónus (mais rápida) ou penalização (mais lenta), com o limite definido.
+            </p>
+          </div>
+        </div>
+
         <div className="flex items-center space-x-2">
           <Controller
             name="checkpoint_order_matters"

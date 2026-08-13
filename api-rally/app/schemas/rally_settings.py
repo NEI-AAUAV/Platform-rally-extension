@@ -168,6 +168,19 @@ class RallySettingsBase(BaseModel):
     # Enforce each post's own opening window.
     checkpoint_hours_enabled: bool = True
 
+    # Leg-time scoring: reward/penalize how long a team takes between two
+    # consecutive checkpoints (see leg_time_service.leg_time_points). Off by
+    # default; points_per_minute at 0 also makes it a no-op even when the
+    # switch is on, same "toggle separate from cost" convention as the rest
+    # of this settings row.
+    leg_time_scoring_enabled: bool = False
+    leg_time_target_minutes: int = 10
+    leg_time_points_per_minute: int = 0
+    # Caps the bonus/penalty magnitude per leg so a team that stops for
+    # dinner (or a phone that died) between two posts doesn't blow up the
+    # scoreboard either direction.
+    leg_time_max_adjustment: int = 20
+
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event
     guide_mode_enabled: bool = False

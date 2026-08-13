@@ -135,6 +135,18 @@ class RallySettings(Base):
     # escape hatch for the bar that opened an hour early.
     checkpoint_hours_enabled = Column(Boolean, nullable=False, default=True)
 
+    # Leg-time scoring: bonus/penalty for how long a team takes between two
+    # consecutive checkpoint arrivals (see leg_time_service.leg_time_points).
+    # Off by default; points_per_minute at 0 is also a no-op even when the
+    # switch is on — same toggle-separate-from-cost convention as everything
+    # else in this settings row.
+    leg_time_scoring_enabled = Column(Boolean, nullable=False, default=False)
+    leg_time_target_minutes = Column(Integer, nullable=False, default=10)
+    leg_time_points_per_minute = Column(Integer, nullable=False, default=0)
+    # Caps the bonus/penalty magnitude per leg, both directions — a team that
+    # stops for dinner between two posts should not blow up the scoreboard.
+    leg_time_max_adjustment = Column(Integer, nullable=False, default=20)
+
     # Points charged when a team gives up on a post it cannot solve. Stored
     # negative; 0 means giving up is free. Steeper than hint_penalty by
     # default, since it forfeits the post's score entirely.

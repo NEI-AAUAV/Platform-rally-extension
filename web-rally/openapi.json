@@ -11479,6 +11479,26 @@
             "title": "Checkpoint Hours Enabled",
             "default": true
           },
+          "leg_time_scoring_enabled": {
+            "type": "boolean",
+            "title": "Leg Time Scoring Enabled",
+            "default": false
+          },
+          "leg_time_target_minutes": {
+            "type": "integer",
+            "title": "Leg Time Target Minutes",
+            "default": 10
+          },
+          "leg_time_points_per_minute": {
+            "type": "integer",
+            "title": "Leg Time Points Per Minute",
+            "default": 0
+          },
+          "leg_time_max_adjustment": {
+            "type": "integer",
+            "title": "Leg Time Max Adjustment",
+            "default": 20
+          },
           "guide_mode_enabled": {
             "type": "boolean",
             "title": "Guide Mode Enabled",
@@ -11789,6 +11809,26 @@
             "type": "boolean",
             "title": "Checkpoint Hours Enabled",
             "default": true
+          },
+          "leg_time_scoring_enabled": {
+            "type": "boolean",
+            "title": "Leg Time Scoring Enabled",
+            "default": false
+          },
+          "leg_time_target_minutes": {
+            "type": "integer",
+            "title": "Leg Time Target Minutes",
+            "default": 10
+          },
+          "leg_time_points_per_minute": {
+            "type": "integer",
+            "title": "Leg Time Points Per Minute",
+            "default": 0
+          },
+          "leg_time_max_adjustment": {
+            "type": "integer",
+            "title": "Leg Time Max Adjustment",
+            "default": 20
           },
           "guide_mode_enabled": {
             "type": "boolean",
