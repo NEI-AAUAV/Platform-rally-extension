@@ -25,6 +25,8 @@ type StaffAssignmentListProps = Readonly<{
   checkpoints: Checkpoint[] | undefined;
   onUpdateAssignment: (userId: number, checkpointId: number) => void;
   className?: string;
+  emptyStateMessage?: string;
+  selectPlaceholder?: string;
 }>;
 
 export default function StaffAssignmentList({
@@ -32,11 +34,13 @@ export default function StaffAssignmentList({
   checkpoints,
   onUpdateAssignment,
   className = "",
+  emptyStateMessage = "Nenhuma atribuição de staff encontrada.",
+  selectPlaceholder = "Reatribuir checkpoint",
 }: StaffAssignmentListProps) {
   if (assignments.length === 0) {
     return (
       <div className={`py-8 text-center text-muted-foreground ${className}`}>
-        Nenhuma atribuição de staff encontrada.
+        {emptyStateMessage}
       </div>
     );
   }
@@ -81,7 +85,7 @@ export default function StaffAssignmentList({
               }}
             >
               <SelectTrigger className="w-48 rounded-xl border border-border bg-muted">
-                <SelectValue placeholder="Reatribuir checkpoint" />
+                <SelectValue placeholder={selectPlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Remover atribuição</SelectItem>

@@ -116,6 +116,8 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
           assignments={rallyGuideAssignments}
           checkpoints={checkpoints}
           onUpdateAssignment={handleUpdateAssignment}
+          emptyStateMessage="Nenhuma atribuição de guia encontrada."
+          selectPlaceholder="Reatribuir posto"
         />
       </AssignmentForm>
     </div>
