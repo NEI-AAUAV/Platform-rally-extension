@@ -73,6 +73,17 @@ export function getEventTerms(eventType?: string | null): EventTerms {
   return TERMS[DEFAULT_EVENT_TYPE];
 }
 
+/**
+ * Whether shots and drinking penalties apply to this format.
+ *
+ * A peddy-paper is a city route game: its evaluation forms and its settings
+ * never offer drinking mechanics, no matter what values the settings row
+ * happens to carry from the seeded defaults.
+ */
+export function hasDrinkingMechanics(eventType?: string | null): boolean {
+  return eventType !== "peddy_paper";
+}
+
 /** Capitalize the first letter (for terms used as standalone labels). */
 export function capitalize(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);

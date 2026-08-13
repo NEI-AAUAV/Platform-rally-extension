@@ -84,46 +84,9 @@ export default function DisplaySettings({
           <Label htmlFor="show_checkpoint_map">Mostrar mapa dos checkpoints</Label>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="reveal_next_checkpoint"
-            control={control}
-            defaultValue={true}
-            render={({ field }) => (
-              <Switch
-                id="reveal_next_checkpoint"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <div>
-            <Label htmlFor="reveal_next_checkpoint">Revelar o próximo posto antes da chegada</Label>
-            <p className="text-xs text-muted-foreground">
-              Desliga num peddy paper: o local do próximo posto é a resposta do enigma, por isso
-              nome, descrição e coordenadas ficam escondidos até a equipa fazer check-in. Só a pista
-              é enviada.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="participant_view_enabled"
-            control={control}
-            defaultValue={false}
-            render={({ field }) => (
-              <Switch
-                id="participant_view_enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="participant_view_enabled">Ativar visualização para participantes</Label>
-        </div>
+        {/* "Revelar o próximo posto" and "visualização para participantes" live
+            in the Enigmas e chegadas card: they define the treasure-hunt
+            mechanic rather than merely styling what is on screen. */}
 
         <div className="space-y-2">
           <Label htmlFor="show_route_mode">Modo de Visualização do Trajeto</Label>

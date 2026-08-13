@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useAppToast } from "@/hooks/use-toast";
+import { hasDrinkingMechanics as formatHasDrinkingMechanics } from "@/lib/eventTerms";
 import { getTeamSize } from "@/types/forms";
 import type { BaseActivityFormProps } from "@/types/forms";
 import {
@@ -66,10 +67,9 @@ export function useExtraShotsAndPenalties(
     [penaltyValues.vomit, penaltyValues.not_drinking, penaltyCounters],
   );
 
-  // Drinking mechanics belong to the pub-crawl format. A peddy-paper is a city
-  // route game, so its evaluation forms never offer shots or drinking penalties
-  // no matter what values the settings row happens to carry.
-  const hasDrinkingMechanics = settings?.event_type !== "peddy_paper";
+  // Drinking mechanics belong to the pub-crawl format; the settings page gates
+  // the same fields on the same predicate.
+  const hasDrinkingMechanics = formatHasDrinkingMechanics(settings?.event_type);
 
   // Penalty amounts are stored negative (the backend applies `abs()`), so
   // "configured" means non-zero, not positive. Gating on `> 0` hid the fields

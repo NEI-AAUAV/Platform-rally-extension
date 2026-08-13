@@ -4,24 +4,25 @@ import { describe, it, expect } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import ScoringSettings from "@/pages/settings/components/ScoringSettings";
 
-function Wrapper({ disabled }: { readonly disabled?: boolean }) {
+function Wrapper({
+  disabled,
+  eventType,
+}: {
+  readonly disabled?: boolean;
+  readonly eventType?: string;
+}) {
   const methods = useForm({
     defaultValues: {
       penalty_per_puke: -10,
       penalty_per_not_drinking: -5,
       bonus_per_extra_shot: 5,
       max_extra_shots_per_member: 3,
-      checkpoint_order_matters: true,
       enable_staff_scoring: true,
-      leg_time_scoring_enabled: false,
-      leg_time_target_minutes: 10,
-      leg_time_points_per_minute: 0,
-      leg_time_max_adjustment: 20,
     },
   });
   return (
     <FormProvider {...methods}>
-      <ScoringSettings disabled={disabled} />
+      <ScoringSettings disabled={disabled} eventType={eventType} />
     </FormProvider>
   );
 }
@@ -46,31 +47,27 @@ describe("ScoringSettings", () => {
 
   it("renders switches for boolean settings", () => {
     render(<Wrapper />);
-    expect(screen.getByLabelText("A ordem dos checkpoints importa para a pontuação")).toBeChecked();
     expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeChecked();
-  });
-
-  it("renders leg-time scoring fields with initial values", () => {
-    render(<Wrapper />);
-    expect(screen.getByLabelText("Tempo esperado entre postos (min)")).toHaveValue(10);
-    expect(screen.getByLabelText("Pontos por minuto de desvio")).toHaveValue(0);
-    expect(screen.getByLabelText("Limite do ajuste por percurso")).toHaveValue(20);
-    expect(screen.getByLabelText("Pontuar tempo de percurso entre postos")).not.toBeChecked();
-  });
-
-  it("allows toggling leg-time scoring on", async () => {
-    const user = userEvent.setup();
-    render(<Wrapper />);
-    const toggle = screen.getByLabelText("Pontuar tempo de percurso entre postos");
-    await user.click(toggle);
-    expect(toggle).toBeChecked();
   });
 
   it("disables inputs when disabled prop is set", () => {
     render(<Wrapper disabled />);
     expect(screen.getByLabelText("Penalização por vómito")).toBeDisabled();
-    expect(
-      screen.getByLabelText("A ordem dos checkpoints importa para a pontuação"),
-    ).toBeDisabled();
+    expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeDisabled();
+  });
+
+  // A peddy paper is a city route game: offering "penalização por vómito" there
+  // is noise from a format this event does not run.
+  it("hides drinking mechanics for a peddy paper", () => {
+    render(<Wrapper eventType="peddy_paper" />);
+    expect(screen.queryByLabelText("Penalização por vómito")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Bónus por shot extra")).not.toBeInTheDocument();
+    // Manual scoring is format-neutral and must survive the gate.
+    expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeInTheDocument();
+  });
+
+  it("shows drinking mechanics for a rally", () => {
+    render(<Wrapper eventType="rally_tascas" />);
+    expect(screen.getByLabelText("Penalização por vómito")).toBeInTheDocument();
   });
 });

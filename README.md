@@ -167,11 +167,12 @@ bar. The route model holds that state rather than forcing a finished post:
   `staff`, `name`). What counts as missing follows the event's own settings —
   coordinates only matter with GPS check-in, a riddle only matters when the
   route is redacted.
-- **Importing**: paste the planning document's own table into the admin's
-  import panel — one line per post, tab-separated `name`, `staff script`,
-  `clue`, `challenge`. Cells reading "CF DECIDE" (or `TBD`, `-`, …) are stored
-  empty so they show up as missing rather than as content, a line with only a
-  name is still a post, and everything lands as a draft. Preview first.
+- **Importing** *(planned, not built)*: a route is usually written in a
+  spreadsheet or a Canva table before it is typed in — one line per post, with
+  columns for the name, the staff script, the clue and the challenge, and cells
+  reading "CF DECIDE" where nobody has decided yet. Pasting that table straight
+  into the admin is the obvious next step; there is no import panel today, so
+  posts are entered one at a time.
 
 Two things worth knowing:
 
