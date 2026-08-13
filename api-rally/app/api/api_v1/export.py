@@ -12,10 +12,12 @@ from app.api.deps import get_admin, get_db
 from app.core.exceptions import RallyNotFoundError
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
-from app.services.deps import get_export_service
+from app.services.deps import get_export_service, get_pdf_report_service
 from app.services.export_service import ExportService
+from app.services.pdf_report_service import PdfReportService
 
 _XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_PDF_MEDIA_TYPE = "application/pdf"
 
 
 def _safe_filename(name: str) -> str:
@@ -37,6 +39,14 @@ class ExportController:
             self.export_event_results,
             methods=["GET"],
             name="export_event_results",
+            tags=["Events"],
+            responses={404: {"description": "Event not found"}},
+        )
+        self.router.add_api_route(
+            "/events/{event_id}/report",
+            self.export_event_report,
+            methods=["GET"],
+            name="export_event_report",
             tags=["Events"],
             responses={404: {"description": "Event not found"}},
         )
@@ -67,6 +77,36 @@ class ExportController:
         return Response(
             content=content,
             media_type=_XLSX_MEDIA_TYPE,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    async def export_event_report(
+        self,
+        event_id: int,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        admin: Annotated[DetailedUser, Depends(get_admin)],
+        _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[PdfReportService, Depends(get_pdf_report_service)],
+    ) -> Response:
+        """Return a .pdf final report of the event (admin/manager only):
+        ranking, per-checkpoint detail, captured photos, event stats."""
+        event = await crud.rally_event.get(db, event_id)
+        if event is None:
+            raise RallyNotFoundError("Event not found")
+
+        content = await service.build_report(event_id)
+        filename = f"{_safe_filename(event.name)}_relatorio.pdf"
+        await record_audit(
+            db,
+            action="export.report",
+            actor=AuditActor(id=str(admin.id), name=admin.name, kind="staff"),
+            target_type="rally_event",
+            target_id=str(event_id),
+            event_id=event_id,
+        )
+        return Response(
+            content=content,
+            media_type=_PDF_MEDIA_TYPE,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 

@@ -6379,6 +6379,56 @@
         }
       }
     },
+    "/api/rally/v1/events/{event_id}/report": {
+      "get": {
+        "tags": [
+          "Export",
+          "Events"
+        ],
+        "summary": "Export Event Report",
+        "description": "Return a .pdf final report of the event (admin/manager only):\nranking, per-checkpoint detail, captured photos, event stats.",
+        "operationId": "export_event_report",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/audit": {
       "get": {
         "tags": [

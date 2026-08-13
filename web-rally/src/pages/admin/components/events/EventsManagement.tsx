@@ -11,9 +11,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Download,
+  FileText,
 } from "lucide-react";
 import { generateRotationSchedule } from "@/client";
-import { downloadEventResults } from "@/services/eventExport";
+import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,27 @@ function ExportResultsButton({ event }: Readonly<{ event: RallyEvent }>) {
     >
       <Download className="mr-1.5 h-3.5 w-3.5" />
       {exportMutation.isPending ? "A exportar…" : "Exportar resultados"}
+    </Button>
+  );
+}
+
+function ReportButton({ event }: Readonly<{ event: RallyEvent }>) {
+  const toast = useAppToast();
+  const reportMutation = useMutation({
+    mutationFn: () => downloadEventReport(event.id, event.name),
+    onSuccess: () => toast.success("Relatório gerado"),
+    onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar relatório")),
+  });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={reportMutation.isPending}
+      onClick={() => reportMutation.mutate()}
+    >
+      <FileText className="mr-1.5 h-3.5 w-3.5" />
+      {reportMutation.isPending ? "A gerar…" : "Relatório (PDF)"}
     </Button>
   );
 }
@@ -264,8 +286,16 @@ export default function EventsManagement() {
                   <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
                 )}
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {/* w-full on mobile: a `shrink-0` box sizes to its unwrapped
+                  content width, so `flex-wrap` on it alone is a no-op once
+                  there are enough buttons — the row just overflows the card
+                  sideways instead of wrapping. Forcing the full card width
+                  here gives it something to actually wrap against; sm+
+                  reverts to shrink-to-content since there's room to sit
+                  beside the title there. */}
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                 <ExportResultsButton event={ev} />
+                <ReportButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
                 {!ev.is_current && (
                   <Button

@@ -32,6 +32,33 @@ export async function downloadEventResults(eventId: number, eventName: string): 
   triggerDownload(blob, `${safeName}_resultados.xlsx`);
 }
 
+/**
+ * Download an event's final report as a .pdf — ranking, per-checkpoint
+ * detail, captured photos, event stats. Same binary-download rationale as
+ * `downloadEventResults` above.
+ */
+export async function downloadEventReport(eventId: number, eventName: string): Promise<void> {
+  const token = useUserStore.getState().token;
+  if (!token) {
+    throw new Error("Sessão de administrador necessária");
+  }
+
+  const response = await fetch(`/api/rally/v1/events/${eventId}/report`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Falha ao gerar relatório (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const safeName =
+    eventName
+      .replace(/[^\p{L}\p{N}_-]/gu, "_")
+      .replace(/_{2,}/g, "_")
+      .replace(/^_|_$/g, "") || "evento";
+  triggerDownload(blob, `${safeName}_relatorio.pdf`);
+}
+
 function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
