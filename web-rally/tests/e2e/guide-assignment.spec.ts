@@ -66,6 +66,6 @@ test.describe('Guide assignment', () => {
 
     await page.goto('/rally/guide-assignment');
 
-    await expect(page.getByText('Nenhuma atribuição de staff encontrada.')).toBeVisible();
+    await expect(page.getByText('Nenhuma atribuição de guia encontrada.')).toBeVisible();
   });
 });
