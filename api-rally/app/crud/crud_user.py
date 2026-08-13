@@ -123,7 +123,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         stale for users who never log back in).
         """
         if scope in (user.scopes or []):
-            user.scopes = [s for s in user.scopes if s != scope]
+            user.scopes = [s for s in (user.scopes or []) if s != scope]
             db.add(user)
             await db.commit()
             await db.refresh(user)
