@@ -60,6 +60,7 @@ jobs:
       OIDC_ADMIN_GROUP: ${{ vars.OIDC_ADMIN_GROUP }}
       OIDC_MANAGER_GROUP: ${{ vars.OIDC_MANAGER_GROUP }}
       OIDC_STAFF_GROUP: ${{ vars.OIDC_STAFF_GROUP }}
+      OIDC_GUIDE_GROUP: ${{ vars.OIDC_GUIDE_GROUP }}
       # Team auth
       TEAM_JWT_SECRET_KEY: ${{ secrets.TEAM_JWT_SECRET_KEY }}
       # General
