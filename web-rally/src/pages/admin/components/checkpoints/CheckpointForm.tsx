@@ -135,7 +135,9 @@ export default function CheckpointForm({
                 form.watch("latitude") ? Number.parseFloat(form.watch("latitude") as string) : null
               }
               longitude={
-                form.watch("longitude") ? Number.parseFloat(form.watch("longitude") as string) : null
+                form.watch("longitude")
+                  ? Number.parseFloat(form.watch("longitude") as string)
+                  : null
               }
               onChange={(lat, lng) => {
                 form.setValue("latitude", lat.toFixed(6), { shouldValidate: true });
@@ -280,8 +282,8 @@ export default function CheckpointForm({
                     />
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    O desafio tal como foi pensado, antes de existir uma atividade configurada. Serve
-                    para não perder a ideia enquanto o posto está a ser planeado.
+                    O desafio tal como foi pensado, antes de existir uma atividade configurada.
+                    Serve para não perder a ideia enquanto o posto está a ser planeado.
                   </p>
                   <FormMessage />
                 </FormItem>
