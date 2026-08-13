@@ -1,6 +1,6 @@
-# Rally Extension
+# Rally Tascas
 
-Rally is the NEI Platform’s competition module. It handles team rosters, checkpoint progress, activity scoring, staff evaluations, and public leaderboards. The extension is split into:
+Rally is a self-contained competition platform for team-based checkpoint events. It handles team rosters, checkpoint progress, activity scoring, staff evaluations, and public leaderboards. It runs standalone — its own database, cache, API, web app, and reverse proxy — and authenticates staff against any Authentik (OIDC) instance. The project is split into:
 
 - `api-rally/` – FastAPI service (Python 3.12, SQLAlchemy, PostgreSQL)
 - `web-rally/` – React/Vite frontend (TypeScript, Tailwind, Zustand)
@@ -197,6 +197,6 @@ Two things worth knowing:
 
 ---
 
-Questions?  
-- Extension repo: https://github.com/NEI-AAUAV/Platform-rally-extension  
-- Platform repo: https://github.com/NEI-AAUAV/Platform
+Questions?
+
+- Repo: <https://github.com/NEI-AAUAV/Platform-rally-extension>
