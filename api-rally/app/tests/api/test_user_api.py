@@ -30,8 +30,8 @@ async def _make_staff_user(pg_session, name="Staff1"):
     return user
 
 
-async def _make_guide_user(pg_session, name="Guide1"):
-    user = await crud_user.create(pg_session, obj_in=UserCreate(name=name))
+async def _make_guide_user(pg_session, name="Guide1", email=None):
+    user = await crud_user.create(pg_session, obj_in=UserCreate(name=name, email=email))
     user.scopes = ["rally-guide"]
     pg_session.add(user)
     await pg_session.commit()
@@ -262,6 +262,43 @@ class TestGuideAssignments:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert any(u["user_name"] == "New Guide" for u in body)
+
+    async def test_get_guide_assignments_drops_user_removed_from_group(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """A user removed from the Authentik guide group must stop showing
+        up here even if they never log back in to trigger `_sync_scopes`."""
+        await _make_event(pg_session)
+        stale_guide = await _make_guide_user(pg_session, email="stale@example.com")
+        checkpoint = await _make_checkpoint(pg_session)
+        pg_client.put(
+            f"/api/rally/v1/user/{stale_guide.id}/guide-checkpoint-assignment",
+            json={"checkpoint_id": checkpoint.id},
+        )
+
+        monkeypatch.setattr(
+            "app.api.api_v1.user.authentik_client.list_group_members",
+            AsyncMock(
+                return_value=[
+                    AuthentikUser(
+                        authentik_sub="sub-current-guide",
+                        name="Current Guide",
+                        username="currentguide",
+                        email="current@example.com",
+                    )
+                ]
+            ),
+        )
+
+        resp = pg_client.get("/api/rally/v1/user/guide-assignments")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert all(u["user_id"] != stale_guide.id for u in body)
+        assert any(u["user_name"] == "Current Guide" for u in body)
+
+        await pg_session.refresh(stale_guide)
+        assert "rally-guide" not in stale_guide.scopes
 
     async def test_update_guide_checkpoint_assignment_db_error_returns_400(
         self, pg_session, pg_client, as_admin
