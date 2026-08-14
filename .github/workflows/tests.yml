@@ -42,10 +42,14 @@ on:
 
 jobs:
   test-api:
-    name: API Tests
+    name: API Tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'api' || github.event.inputs.test_type == '' }}
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
     services:
       postgres:
         image: postgres:15
@@ -100,17 +104,31 @@ jobs:
         POSTGRES_USER: postgres
         POSTGRES_DB: rally
         
-    # -n auto shards the suite across the runner's cores. Each xdist worker gets
-    # its own `${POSTGRES_DB}_test_gwN` database (see app/tests/conftest.py), so
-    # the per-test schema create/drop no longer serialises the whole run.
+    # -n auto shards the suite across the runner's cores (4 on ubuntu-latest);
+    # --splits/--group additionally shards across 4 parallel *jobs* (matrix
+    # above), so the effective fan-out is ~16-way instead of 4-way. Each xdist
+    # worker still gets its own `${POSTGRES_DB}_test_gwN` database (see
+    # app/tests/conftest.py), so the per-test schema create/drop doesn't
+    # serialise within a shard.
     # -q instead of -v: 1100+ verbose lines cost more than they inform.
+    # -o addopts="" clears pytest.ini's default addopts (html report,
+    # unconditional --cov) so a shard writes exactly the raw coverage data
+    # file it needs for the combine job below — no html render, no premature
+    # per-shard --cov-fail-under (a quarter of the suite never hits 80%).
     - name: Run API tests
       working-directory: api-rally
       run: |
         if [ "${{ github.event.inputs.coverage }}" = "true" ] || [ "${{ github.event.inputs.coverage }}" = "" ]; then
-          poetry run pytest app/tests/ -q -n auto --require-pg --cov=app --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+          poetry run pytest app/tests/ -q -n auto --require-pg \
+            -o addopts="" --strict-markers --strict-config \
+            --splits 4 --group ${{ matrix.shard }} \
+            --cov=app --cov-report= \
+            --junitxml=test-results.xml
         else
-          poetry run pytest app/tests/ -q -n auto --require-pg --no-cov --junitxml=test-results.xml
+          poetry run pytest app/tests/ -q -n auto --require-pg \
+            -o addopts="" --strict-markers --strict-config \
+            --splits 4 --group ${{ matrix.shard }} \
+            --no-cov --junitxml=test-results.xml
         fi
       env:
         POSTGRES_SERVER: localhost
@@ -118,13 +136,76 @@ jobs:
         POSTGRES_USER: postgres
         POSTGRES_DB: rally
         TEAM_JWT_SECRET_KEY: test_secret
+        COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
+
+    - name: Upload API test results
+      uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: api-test-results-${{ matrix.shard }}
+        path: api-rally/test-results.xml
+
+    - name: Upload coverage data
+      uses: actions/upload-artifact@v7
+      if: ${{ github.event.inputs.coverage == 'true' || github.event.inputs.coverage == '' }}
+      with:
+        name: api-coverage-data-${{ matrix.shard }}
+        path: api-rally/.coverage.shard${{ matrix.shard }}
+        include-hidden-files: true
+
+  test-api-coverage:
+    name: Enforce coverage floors (combined)
+    runs-on: ubuntu-latest
+    needs: test-api
+    if: ${{ github.event.inputs.coverage == 'true' || github.event.inputs.coverage == '' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached venv
+      uses: actions/cache@v6
+      with:
+        path: api-rally/.venv
+        key: venv-${{ runner.os }}-3.12-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      working-directory: api-rally
+      run: poetry install --no-interaction --no-root
+
+    # Merges the 4 shards' raw coverage data into one picture of the whole
+    # suite — no tests re-run here, this is pure bookkeeping over data the
+    # test-api jobs already produced. Both the global 80% floor and the
+    # scoring/badge engine's dedicated 85% floor (it decides every point on
+    # the leaderboard, so it doesn't get to hide behind well-covered code
+    # elsewhere) are enforced against the same combined data.
+    - name: Download coverage data from all shards
+      uses: actions/download-artifact@v6
+      with:
+        pattern: api-coverage-data-*
+        path: api-rally
+        merge-multiple: true
+
+    - name: Combine coverage and enforce global floor
+      working-directory: api-rally
+      run: |
+        poetry run coverage combine
+        poetry run coverage xml
+        poetry run coverage report --fail-under=80
 
     - name: Enforce scoring/badges coverage floor
-      # The global 80% gate lets low coverage in the scoring/badge engine hide
-      # behind well-covered code elsewhere. These modules decide every point on
-      # the leaderboard, so they get a dedicated, higher floor. Reuses the
-      # .coverage data written by the run above (no re-run).
-      if: ${{ github.event.inputs.coverage == 'true' || github.event.inputs.coverage == '' }}
       working-directory: api-rally
       run: |
         poetry run coverage report --fail-under=85 --include="\
@@ -135,14 +216,12 @@ jobs:
         app/workers/worker_scoring.py,\
         app/workers/worker_badges.py"
 
-    - name: Upload API test results
+    - name: Upload combined coverage report
       uses: actions/upload-artifact@v7
       if: always()
       with:
-        name: api-test-results
-        path: |
-          api-rally/test-results.xml
-          api-rally/coverage/
+        name: api-coverage-combined
+        path: api-rally/coverage.xml
 
   test-frontend:
     name: Frontend Tests
