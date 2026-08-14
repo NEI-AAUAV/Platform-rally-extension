@@ -8,7 +8,7 @@ type AssignmentFormProps = Readonly<{
   updateError: Error | null;
   children: React.ReactNode;
   className?: string;
-    title?: string;
+  title?: string;
 }>;
 
 export default function AssignmentForm({
