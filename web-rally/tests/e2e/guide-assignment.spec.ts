@@ -9,13 +9,11 @@ async function mockSettings(page: Page) {
   );
 }
 
-const CHECKPOINTS = [
-  { id: 3, name: 'Posto 3', description: null, latitude: null, longitude: null, order: 3 },
-];
+const TEAMS = [{ id: 3, name: 'Equipa 3', total: 0, num_members: 0, classification: -1, photo_url: '' }];
 
-async function mockCheckpoints(page: Page) {
-  await page.route('**/api/rally/v1/checkpoint/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CHECKPOINTS) }),
+async function mockTeams(page: Page) {
+  await page.route('**/api/rally/v1/team/', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEAMS) }),
   );
 }
 
@@ -26,26 +24,26 @@ async function mockGuideAssignments(page: Page, assignments: unknown[]) {
 }
 
 const ASSIGNMENTS = [
-  { id: 1, user_id: 20, user_name: 'Beatriz', user_email: 'beatriz@ua.pt', checkpoint_id: null, checkpoint_name: null },
+  { id: 1, user_id: 20, user_name: 'Beatriz', user_email: 'beatriz@ua.pt', team_id: null, team_name: null },
 ];
 
 test.describe('Guide assignment', () => {
-  test('admin assigns a guide to a checkpoint', async ({ page, context }, testInfo) => {
+  test('admin assigns a guide to a team', async ({ page, context }, testInfo) => {
     // Interaction test (combobox click precision), not visual — mobile's
     // narrower viewport packs unrelated text into the combobox's hit area,
     // no extra signal over the desktop run.
     test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await mockSettings(page);
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockCheckpoints(page);
+    await mockTeams(page);
     await mockGuideAssignments(page, ASSIGNMENTS);
     let capturedBody: unknown;
-    await page.route('**/api/rally/v1/user/20/guide-checkpoint-assignment', (route) => {
+    await page.route('**/api/rally/v1/user/20/guide-team-assignment', (route) => {
       capturedBody = route.request().postDataJSON();
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...ASSIGNMENTS[0], checkpoint_id: 3, checkpoint_name: 'Posto 3' }),
+        body: JSON.stringify({ ...ASSIGNMENTS[0], team_id: 3, team_name: 'Equipa 3' }),
       });
     });
 
@@ -53,15 +51,15 @@ test.describe('Guide assignment', () => {
     await expect(page.getByText('Beatriz', { exact: true })).toBeVisible();
 
     await page.getByRole('combobox').click();
-    await page.getByRole('option', { name: 'Posto 3' }).click();
+    await page.getByRole('option', { name: 'Equipa 3' }).click();
 
-    await expect.poll(() => capturedBody).toEqual({ checkpoint_id: 3 });
+    await expect.poll(() => capturedBody).toEqual({ team_id: 3 });
   });
 
   test('shows empty state when there are no guide assignments', async ({ page, context }) => {
     await mockSettings(page);
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockCheckpoints(page);
+    await mockTeams(page);
     await mockGuideAssignments(page, []);
 
     await page.goto('/rally/guide-assignment');

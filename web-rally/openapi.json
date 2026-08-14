@@ -1055,7 +1055,7 @@
           "User"
         ],
         "summary": "Get Guide Assignments",
-        "description": "Get all rally-guide users and their checkpoint assignments.\n\nMirrors the staff-assignment flow: members of the Authentik guide group\nare fetched live and mirrored locally, so an account shows up as soon as\nit is added to the group, with no prior login required.",
+        "description": "Get all rally-guide users and their team assignments.\n\nA guide accompanies one team through the whole route (unlike staff,\nwho are fixed to a post). Mirrors the staff-assignment flow: members\nof the Authentik guide group are fetched live and mirrored locally,\nso an account shows up as soon as it is added to the group, with no\nprior login required.",
         "operationId": "get_guide_assignments",
         "responses": {
           "200": {
@@ -1064,7 +1064,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/RallyGuideAssignmentWithCheckpoint"
+                    "$ref": "#/components/schemas/RallyGuideAssignmentWithTeam"
                   },
                   "type": "array",
                   "title": "Response Get Guide Assignments"
@@ -1080,14 +1080,14 @@
         ]
       }
     },
-    "/api/rally/v1/user/{user_id}/guide-checkpoint-assignment": {
+    "/api/rally/v1/user/{user_id}/guide-team-assignment": {
       "put": {
         "tags": [
           "User"
         ],
-        "summary": "Update Guide Checkpoint Assignment",
-        "description": "Update a guide user's checkpoint assignment.",
-        "operationId": "update_guide_checkpoint_assignment",
+        "summary": "Update Guide Team Assignment",
+        "description": "Update a guide user's team assignment.",
+        "operationId": "update_guide_team_assignment",
         "security": [
           {
             "HTTPBearer": []
@@ -1109,7 +1109,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckpointAssignmentUpdate"
+                "$ref": "#/components/schemas/TeamAssignmentUpdate"
               }
             }
           }
@@ -1120,7 +1120,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RallyGuideAssignmentWithCheckpoint"
+                  "$ref": "#/components/schemas/RallyGuideAssignmentWithTeam"
                 }
               }
             }
@@ -11277,13 +11277,13 @@
         "title": "RallyEventUpdate",
         "description": "Schema for updating a rally event"
       },
-      "RallyGuideAssignmentWithCheckpoint": {
+      "RallyGuideAssignmentWithTeam": {
         "properties": {
           "user_id": {
             "type": "integer",
             "title": "User Id"
           },
-          "checkpoint_id": {
+          "team_id": {
             "anyOf": [
               {
                 "type": "integer"
@@ -11292,13 +11292,13 @@
                 "type": "null"
               }
             ],
-            "title": "Checkpoint Id"
+            "title": "Team Id"
           },
           "id": {
             "type": "integer",
             "title": "Id"
           },
-          "checkpoint_name": {
+          "team_name": {
             "anyOf": [
               {
                 "type": "string"
@@ -11307,18 +11307,7 @@
                 "type": "null"
               }
             ],
-            "title": "Checkpoint Name"
-          },
-          "checkpoint_description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkpoint Description"
+            "title": "Team Name"
           },
           "user_name": {
             "anyOf": [
@@ -11348,8 +11337,8 @@
           "user_id",
           "id"
         ],
-        "title": "RallyGuideAssignmentWithCheckpoint",
-        "description": "Guide assignment with checkpoint details"
+        "title": "RallyGuideAssignmentWithTeam",
+        "description": "Guide assignment with team details"
       },
       "RallySettingsResponse": {
         "properties": {
@@ -12432,6 +12421,23 @@
         ],
         "title": "StaffCheckinResponse",
         "description": "Result of a staff scan: who the team is, plus what happened to arrival.\n\nThe scan's primary job is *identification* \u2014 letting staff jump straight to\nthe correct team's evaluation without mistakes. Marking arrival is a\nsecondary, best-effort side effect, so the team is always returned even when\narrival was not (re)registered (already here, or scanned too early)."
+      },
+      "TeamAssignmentUpdate": {
+        "properties": {
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "type": "object",
+        "title": "TeamAssignmentUpdate"
       },
       "TeamBadgeRead": {
         "properties": {

@@ -6,8 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
-from app.models.checkpoint import CheckPoint
 from app.models.rally_guide_assignment import RallyGuideAssignment
+from app.models.team import Team
 from app.schemas.rally_guide_assignment import (
     RallyGuideAssignmentCreate,
     RallyGuideAssignmentUpdate,
@@ -23,46 +23,49 @@ class CRUDRallyGuideAssignment(
         result: RallyGuideAssignment | None = await db.scalar(stmt)
         return result
 
-    async def get_by_checkpoint_id(
-        self, db: AsyncSession, checkpoint_id: int
+    async def get_by_team_id(
+        self, db: AsyncSession, team_id: int
     ) -> Sequence[RallyGuideAssignment]:
-        """Get all guide assignments for a specific checkpoint"""
-        stmt = select(RallyGuideAssignment).where(
-            RallyGuideAssignment.checkpoint_id == checkpoint_id
-        )
+        """Get all guide assignments for a specific team"""
+        stmt = select(RallyGuideAssignment).where(RallyGuideAssignment.team_id == team_id)
         return (await db.scalars(stmt)).all()
 
-    async def get_multi_with_checkpoint(self, db: AsyncSession) -> Sequence[RallyGuideAssignment]:
-        """Get guide assignments scoped to the current event's checkpoints."""
+    async def get_multi_with_team(self, db: AsyncSession) -> Sequence[RallyGuideAssignment]:
+        """Get guide assignments scoped to the current event's teams.
+
+        Assignments pointing at a team from a different event (or with no
+        team) are excluded, so switching events doesn't leak another event's
+        guide-to-team assignments.
+        """
         event_id = await current_event_id(db)
         stmt = (
             select(RallyGuideAssignment)
-            .join(CheckPoint, RallyGuideAssignment.checkpoint_id == CheckPoint.id)
-            .where((CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)))
-            .options(selectinload(RallyGuideAssignment.checkpoint))
+            .join(Team, RallyGuideAssignment.team_id == Team.id)
+            .where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+            .options(selectinload(RallyGuideAssignment.team))
         )
         return (await db.scalars(stmt)).all()
 
     async def create_or_update(
-        self, db: AsyncSession, *, user_id: int, checkpoint_id: int | None = None
+        self, db: AsyncSession, *, user_id: int, team_id: int | None = None
     ) -> RallyGuideAssignment | None:
         """Create or update guide assignment for a user"""
         existing = await self.get_by_user_id(db, user_id)
 
         if existing:
-            if checkpoint_id is None:
+            if team_id is None:
                 await db.delete(existing)
                 await db.commit()
                 return None
-            existing.checkpoint_id = checkpoint_id
+            existing.team_id = team_id
             await db.commit()
-            await db.refresh(existing, ["checkpoint"])
+            await db.refresh(existing, ["team"])
             return existing
-        if checkpoint_id is not None:
-            assignment = RallyGuideAssignment(user_id=user_id, checkpoint_id=checkpoint_id)
+        if team_id is not None:
+            assignment = RallyGuideAssignment(user_id=user_id, team_id=team_id)
             db.add(assignment)
             await db.commit()
-            await db.refresh(assignment, ["checkpoint"])
+            await db.refresh(assignment, ["team"])
             return assignment
         return None
 

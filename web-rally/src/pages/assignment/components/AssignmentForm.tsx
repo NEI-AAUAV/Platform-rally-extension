@@ -8,6 +8,7 @@ type AssignmentFormProps = Readonly<{
   updateError: Error | null;
   children: React.ReactNode;
   className?: string;
+    title?: string;
 }>;
 
 export default function AssignmentForm({
@@ -17,12 +18,13 @@ export default function AssignmentForm({
   updateError,
   children,
   className = "",
+  title = "Staff Rally (rally-staff)",
 }: AssignmentFormProps) {
   return (
     <div className={`rally-surface rounded-2xl p-6 ${className}`}>
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">Staff Rally (rally-staff)</h3>
+        <h3 className="text-lg font-semibold">{title}</h3>
       </div>
 
       {assignmentsError ? (

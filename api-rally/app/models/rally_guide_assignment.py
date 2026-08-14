@@ -9,10 +9,13 @@ from app.models.base import Base
 
 class RallyGuideAssignment(Base):
     """
-    Links NEI users (guides) to Rally checkpoints.
-    Mirrors RallyStaffAssignment: the row does not grant the guide role
-    (that comes from the authentik group), it only records which checkpoint
-    a guide is accompanying teams through.
+    Links NEI users (guides) to a Rally team.
+    Unlike staff (fixed to one checkpoint/posto, guiding whichever team
+    passes through), a guide is assigned to a single team and accompanies it
+    through the whole route — the checkpoint they may currently act on is
+    derived from that team's progress (see GuideService), not stored here.
+    The row does not grant the guide role (that comes from the authentik
+    group), it only records which team a guide is assigned to.
     """
 
     # One assignment row per guide — create_or_update relies on this.
@@ -26,10 +29,10 @@ class RallyGuideAssignment(Base):
     # Reference to NEI user (by ID, not foreign key to avoid coupling)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Reference to Rally checkpoint
-    checkpoint_id: Mapped[int | None] = mapped_column(
-        ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"), nullable=True
+    # Reference to Rally team
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey(f"{settings.SCHEMA_NAME}.teams.id"), nullable=True
     )
 
-    # Relationship to checkpoint
-    checkpoint = relationship("CheckPoint", back_populates="guide_assignments")
+    # Relationship to team
+    team = relationship("Team", back_populates="guide_assignments")

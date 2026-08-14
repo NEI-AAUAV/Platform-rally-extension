@@ -10,7 +10,7 @@ from app.api.abac_deps import require_team_management_permission
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin, get_db, get_participant
 from app.core.config import SettingsDep
-from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithCheckpoint
+from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithTeam
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
@@ -20,6 +20,10 @@ from app.services.user_service import UserService
 
 class CheckpointAssignmentUpdate(BaseModel):
     checkpoint_id: int | None = None
+
+
+class TeamAssignmentUpdate(BaseModel):
+    team_id: int | None = None
 
 
 class OidcUserSearchResult(BaseModel):
@@ -66,10 +70,10 @@ class UserController:
             name="get_guide_assignments",
         )
         self.router.add_api_route(
-            "/{user_id}/guide-checkpoint-assignment",
-            self.update_guide_checkpoint_assignment,
+            "/{user_id}/guide-team-assignment",
+            self.update_guide_team_assignment,
             methods=["PUT"],
-            name="update_guide_checkpoint_assignment",
+            name="update_guide_team_assignment",
         )
 
     async def search_oidc_users(
@@ -194,35 +198,37 @@ class UserController:
         _: Annotated[DetailedUser, Depends(get_admin)],
         settings: SettingsDep,
         service: Annotated[UserService, Depends(get_user_service)],
-    ) -> list[RallyGuideAssignmentWithCheckpoint]:
+    ) -> list[RallyGuideAssignmentWithTeam]:
         """
-        Get all rally-guide users and their checkpoint assignments.
+        Get all rally-guide users and their team assignments.
 
-        Mirrors the staff-assignment flow: members of the Authentik guide group
-        are fetched live and mirrored locally, so an account shows up as soon as
-        it is added to the group, with no prior login required.
+        A guide accompanies one team through the whole route (unlike staff,
+        who are fixed to a post). Mirrors the staff-assignment flow: members
+        of the Authentik guide group are fetched live and mirrored locally,
+        so an account shows up as soon as it is added to the group, with no
+        prior login required.
         """
-        return await service.list_checkpoint_assignments(
+        return await service.list_guide_team_assignments(
             group=settings.OIDC_GUIDE_GROUP,
             scope="rally-guide",
             assignment_crud=crud.rally_guide_assignment,
-            schema=RallyGuideAssignmentWithCheckpoint,
+            schema=RallyGuideAssignmentWithTeam,
         )
 
-    async def update_guide_checkpoint_assignment(
+    async def update_guide_team_assignment(
         self,
         user_id: int,
-        assignment: CheckpointAssignmentUpdate,
+        assignment: TeamAssignmentUpdate,
         _: Annotated[DetailedUser, Depends(get_admin)],
         service: Annotated[UserService, Depends(get_user_service)],
-    ) -> RallyGuideAssignmentWithCheckpoint:
-        """Update a guide user's checkpoint assignment."""
-        return await service.update_checkpoint_assignment(
+    ) -> RallyGuideAssignmentWithTeam:
+        """Update a guide user's team assignment."""
+        return await service.update_guide_team_assignment(
             user_id=user_id,
-            checkpoint_id=assignment.checkpoint_id,
+            team_id=assignment.team_id,
             assignment_crud=crud.rally_guide_assignment,
-            schema=RallyGuideAssignmentWithCheckpoint,
-            error_message="Failed to update guide checkpoint assignment",
+            schema=RallyGuideAssignmentWithTeam,
+            error_message="Failed to update guide team assignment",
         )
 
 

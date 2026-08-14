@@ -17,7 +17,6 @@ from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
 from app.models.activity import Activity
 from app.models.checkpoint_arrival import CheckpointArrival
-from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.team import Team
 from app.models.user import User
@@ -468,13 +467,12 @@ class CheckpointService:
         return AdminCheckPoint.model_validate(checkpoint)
 
     async def delete_checkpoint(self, checkpoint_id: int) -> None:
-        """Delete a checkpoint and everything that references it: staff/guide
-        assignments, and staff members' assigned-checkpoint pointer."""
+        """Delete a checkpoint and everything that references it: the staff
+        assignment pointing at it, and staff members' assigned-checkpoint
+        pointer. Guide assignments point at a team, not a checkpoint, so
+        deleting a post never touches them."""
         await self._db.execute(
             delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == checkpoint_id)
-        )
-        await self._db.execute(
-            delete(RallyGuideAssignment).where(RallyGuideAssignment.checkpoint_id == checkpoint_id)
         )
         await self._db.execute(
             update(User)

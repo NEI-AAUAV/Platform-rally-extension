@@ -16,6 +16,7 @@ from app.models.activity import RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.rally_guide_assignment import RallyGuideAssignment
+from app.models.team import Team
 from app.schemas.checkpoint_guide_indication import (
     CheckpointGuideIndicationCreate,
     CheckpointGuideIndicationUpdate,
@@ -40,30 +41,32 @@ async def _make_checkpoint(session, event_id=None, order: int = 1, name: str = "
     return cp
 
 
+async def _make_team(session, event_id=None, name: str = "Team") -> Team:
+    team = Team(name=name, access_code=f"code-{name}-{event_id}", event_id=event_id)
+    session.add(team)
+    await session.commit()
+    await session.refresh(team)
+    return team
+
+
 # ---------- guide assignments ----------
 
 
 async def test_guide_assignment_create_update_remove_lifecycle(pg_session) -> None:
     event = await _make_event(pg_session)
-    cp1 = await _make_checkpoint(pg_session, event.id, order=1)
-    cp2 = await _make_checkpoint(pg_session, event.id, order=2)
+    team1 = await _make_team(pg_session, event.id, name="T1")
+    team2 = await _make_team(pg_session, event.id, name="T2")
 
-    created = await rally_guide_assignment.create_or_update(
-        pg_session, user_id=7, checkpoint_id=cp1.id
-    )
+    created = await rally_guide_assignment.create_or_update(pg_session, user_id=7, team_id=team1.id)
     assert created is not None
-    assert created.checkpoint_id == cp1.id
+    assert created.team_id == team1.id
 
-    updated = await rally_guide_assignment.create_or_update(
-        pg_session, user_id=7, checkpoint_id=cp2.id
-    )
+    updated = await rally_guide_assignment.create_or_update(pg_session, user_id=7, team_id=team2.id)
     assert updated is not None
     assert updated.id == created.id  # same row, moved
-    assert updated.checkpoint_id == cp2.id
+    assert updated.team_id == team2.id
 
-    removed = await rally_guide_assignment.create_or_update(
-        pg_session, user_id=7, checkpoint_id=None
-    )
+    removed = await rally_guide_assignment.create_or_update(pg_session, user_id=7, team_id=None)
     assert removed is None
     assert await rally_guide_assignment.get_by_user_id(pg_session, 7) is None
 
@@ -71,12 +74,12 @@ async def test_guide_assignment_create_update_remove_lifecycle(pg_session) -> No
 async def test_guide_assignment_user_id_unique_constraint(pg_session) -> None:
     """The DB itself must refuse two assignment rows for the same guide."""
     event = await _make_event(pg_session)
-    cp = await _make_checkpoint(pg_session, event.id, order=1)
+    team = await _make_team(pg_session, event.id)
 
-    pg_session.add(RallyGuideAssignment(user_id=42, checkpoint_id=cp.id))
+    pg_session.add(RallyGuideAssignment(user_id=42, team_id=team.id))
     await pg_session.commit()
 
-    pg_session.add(RallyGuideAssignment(user_id=42, checkpoint_id=cp.id))
+    pg_session.add(RallyGuideAssignment(user_id=42, team_id=team.id))
     with pytest.raises(IntegrityError):
         await pg_session.commit()
     await pg_session.rollback()
@@ -86,20 +89,20 @@ async def test_guide_assignment_listing_scoped_to_current_event(pg_session) -> N
     current = await _make_event(pg_session, "Current", is_current=True)
     other = await _make_event(pg_session, "Other", is_current=False)
 
-    cp_current = await _make_checkpoint(pg_session, current.id, order=1, name="Cur")
-    cp_other = await _make_checkpoint(pg_session, other.id, order=1, name="Oth")
-    cp_legacy = await _make_checkpoint(pg_session, None, order=9, name="Leg")
+    team_current = await _make_team(pg_session, current.id, name="Cur")
+    team_other = await _make_team(pg_session, other.id, name="Oth")
+    team_legacy = await _make_team(pg_session, None, name="Leg")
 
     pg_session.add_all(
         [
-            RallyGuideAssignment(user_id=1, checkpoint_id=cp_current.id),
-            RallyGuideAssignment(user_id=2, checkpoint_id=cp_other.id),
-            RallyGuideAssignment(user_id=3, checkpoint_id=cp_legacy.id),
+            RallyGuideAssignment(user_id=1, team_id=team_current.id),
+            RallyGuideAssignment(user_id=2, team_id=team_other.id),
+            RallyGuideAssignment(user_id=3, team_id=team_legacy.id),
         ]
     )
     await pg_session.commit()
 
-    listed = await rally_guide_assignment.get_multi_with_checkpoint(pg_session)
+    listed = await rally_guide_assignment.get_multi_with_team(pg_session)
     listed_users = {a.user_id for a in listed}
     # Current event's assignment and the legacy (NULL event) one; never the
     # other edition's.

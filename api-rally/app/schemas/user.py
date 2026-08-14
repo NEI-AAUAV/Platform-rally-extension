@@ -50,5 +50,5 @@ class DetailedUser(UserBase):
     name: str
     disabled: bool
     staff_checkpoint_id: int | None = None
-    guide_checkpoint_id: int | None = None
+    guide_team_id: int | None = None
     scopes: list[str] | None = []

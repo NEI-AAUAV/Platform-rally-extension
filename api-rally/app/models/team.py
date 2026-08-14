@@ -12,6 +12,7 @@ from app.models.user import User
 
 if TYPE_CHECKING:
     from app.models.activity import ActivityResult
+    from app.models.rally_guide_assignment import RallyGuideAssignment
 
 
 class Team(Base):
@@ -70,6 +71,10 @@ class Team(Base):
     # Activity relationships
     activity_results: Mapped[list["ActivityResult"]] = relationship(
         "ActivityResult", back_populates="team"
+    )
+
+    guide_assignments: Mapped[list["RallyGuideAssignment"]] = relationship(
+        "RallyGuideAssignment", back_populates="team"
     )
 
     @property

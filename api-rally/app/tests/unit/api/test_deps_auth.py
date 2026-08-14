@@ -171,10 +171,10 @@ async def test_get_current_user_raises_500_when_race_loser_finds_nothing():
     assert exc.value.status_code == 500
 
 
-async def test_get_current_user_loads_guide_checkpoint_assignment():
+async def test_get_current_user_loads_guide_team_assignment():
     db = AsyncMock()
     user = _user(scopes=["rally-guide"])
-    guide_assignment = Mock(checkpoint_id=42)
+    guide_assignment = Mock(team_id=42)
     with (
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
@@ -184,7 +184,7 @@ async def test_get_current_user_loads_guide_checkpoint_assignment():
         ),
     ):
         result = await deps.get_current_user(_auth(scopes=["rally-guide"]), db)
-    assert result.guide_checkpoint_id == 42
+    assert result.guide_team_id == 42
 
 
 async def test_get_current_user_syncs_scopes_from_provider():

@@ -5,45 +5,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, MapPin } from "lucide-react";
+import { Users, Flag } from "lucide-react";
 
-import type { DetailedCheckPoint } from "@/client";
+import type { ListingTeam } from "@/client";
 
-type Checkpoint = DetailedCheckPoint;
-
-interface StaffAssignment {
+interface GuideAssignment {
   id: number;
   user_id: number;
   user_name?: string;
   user_email?: string;
-  checkpoint_id?: number;
-  checkpoint_name?: string;
+  team_id?: number;
+  team_name?: string;
 }
 
-type StaffAssignmentListProps = Readonly<{
-  assignments: StaffAssignment[];
-  checkpoints: Checkpoint[] | undefined;
-  onUpdateAssignment: (userId: number, checkpointId: number) => void;
+type GuideAssignmentListProps = Readonly<{
+  assignments: GuideAssignment[];
+  teams: ListingTeam[] | undefined;
+  onUpdateAssignment: (userId: number, teamId: number) => void;
   className?: string;
+  emptyStateMessage?: string;
+  selectPlaceholder?: string;
 }>;
 
-export default function StaffAssignmentList({
+export default function GuideAssignmentList({
   assignments,
-  checkpoints,
+  teams,
   onUpdateAssignment,
   className = "",
-}: StaffAssignmentListProps) {
+  emptyStateMessage = "Nenhuma atribuição de guia encontrada.",
+  selectPlaceholder = "Reatribuir equipa",
+}: GuideAssignmentListProps) {
   if (assignments.length === 0) {
     return (
       <div className={`py-8 text-center text-muted-foreground ${className}`}>
-        Nenhuma atribuição de staff encontrada.
+        {emptyStateMessage}
       </div>
     );
   }
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {assignments.map((assignment: StaffAssignment) => (
+      {assignments.map((assignment: GuideAssignment) => (
         <div
           key={assignment.id}
           className="flex scroll-mt-20 flex-col gap-4 rounded-xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6"
@@ -64,14 +66,12 @@ export default function StaffAssignmentList({
 
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              <span className="text-sm">
-                Checkpoint: {assignment.checkpoint_name || "Não atribuído"}
-              </span>
+              <Flag className="h-4 w-4" />
+              <span className="text-sm">Equipa: {assignment.team_name || "Não atribuída"}</span>
             </div>
 
             <Select
-              value={assignment.checkpoint_id ? String(assignment.checkpoint_id) : "none"}
+              value={assignment.team_id ? String(assignment.team_id) : "none"}
               onValueChange={(value: string) => {
                 if (value === "none") {
                   onUpdateAssignment(assignment.user_id, 0); // Use 0 to indicate no assignment
@@ -81,13 +81,13 @@ export default function StaffAssignmentList({
               }}
             >
               <SelectTrigger className="w-48 rounded-xl border border-border bg-muted">
-                <SelectValue placeholder="Reatribuir checkpoint" />
+                <SelectValue placeholder={selectPlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Remover atribuição</SelectItem>
-                {checkpoints?.map((checkpoint: Checkpoint) => (
-                  <SelectItem key={checkpoint.id} value={String(checkpoint.id)}>
-                    {checkpoint.name}
+                {teams?.map((team: ListingTeam) => (
+                  <SelectItem key={team.id} value={String(team.id)}>
+                    {team.name}
                   </SelectItem>
                 ))}
               </SelectContent>

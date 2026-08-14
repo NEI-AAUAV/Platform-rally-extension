@@ -61,7 +61,7 @@ async def _load_checkpoint_assignments(
     if "rally-guide" in scopes:
         guide_assignment = await rally_guide_assignment.get_by_user_id(db, user_id)
         if guide_assignment:
-            detailed_user.guide_checkpoint_id = guide_assignment.checkpoint_id
+            detailed_user.guide_team_id = guide_assignment.team_id
 
 
 async def get_current_user(

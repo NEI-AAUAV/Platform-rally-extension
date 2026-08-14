@@ -1,9 +1,11 @@
 """Guide field tools, against real Postgres.
 
-Three things a guide standing at a post needs and did not have: a route scoped
-to their own checkpoint (in a peddy paper the full route is the answer key), a
-way to mark a team as arrived when GPS fails, and sight of which hints the team
-already paid to unlock.
+Three things a guide accompanying a team needs and did not have: a route
+scoped to their team's current post (in a peddy paper the full route is the
+answer key), a way to mark that team as arrived when GPS fails, and sight of
+which hints the team already paid to unlock. A guide is assigned to one team
+rather than a fixed post; the checkpoint they may act on is whichever one
+their team hasn't resolved yet (see GuideService.current_checkpoint_id).
 """
 
 import pytest
@@ -72,8 +74,8 @@ async def _make_checkpoint(pg_session, order, event_id=None):
     return obj
 
 
-async def _assign_guide(pg_session, checkpoint_id):
-    pg_session.add(RallyGuideAssignment(user_id=GUIDE_USER_ID, checkpoint_id=checkpoint_id))
+async def _assign_guide(pg_session, team_id):
+    pg_session.add(RallyGuideAssignment(user_id=GUIDE_USER_ID, team_id=team_id))
     await pg_session.commit()
 
 
@@ -97,19 +99,21 @@ async def _enable_guide_mode(pg_session):
 
 
 class TestRouteScoping:
-    async def test_an_assigned_guide_sees_only_their_own_post(
+    async def test_an_assigned_guide_sees_only_their_teams_current_post(
         self, pg_session, pg_client, as_guide
     ):
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
-        mine = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        await _make_checkpoint(pg_session, order=1, event_id=event.id)
         await _make_checkpoint(pg_session, order=2, event_id=event.id)
-        await _assign_guide(pg_session, mine.id)
+        team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         resp = pg_client.get(CHECKPOINTS_URL)
 
-        # The rest of the route is the answer key to puzzles teams are still
-        # solving; one glance over the shoulder should not hand it over.
+        # The rest of the route is the answer key to puzzles the team is still
+        # solving; one glance over the shoulder should not hand it over. The
+        # team hasn't resolved anything yet, so the current post is order 1.
         assert resp.status_code == 200, resp.text
         assert [cp["order"] for cp in resp.json()] == [1]
 
@@ -128,9 +132,10 @@ class TestRouteScoping:
     async def test_an_admin_sees_the_whole_route(self, pg_session, pg_client, as_admin):
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
-        mine = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        await _make_checkpoint(pg_session, order=1, event_id=event.id)
         await _make_checkpoint(pg_session, order=2, event_id=event.id)
-        await _assign_guide(pg_session, mine.id)
+        team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         resp = pg_client.get(CHECKPOINTS_URL)
 
@@ -143,8 +148,8 @@ class TestManualArrival:
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-        await _assign_guide(pg_session, checkpoint.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         resp = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": team.id})
 
@@ -169,8 +174,8 @@ class TestManualArrival:
             )
         )
         await pg_session.commit()
-        await _assign_guide(pg_session, checkpoint.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         resp = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": team.id})
 
@@ -181,8 +186,8 @@ class TestManualArrival:
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-        await _assign_guide(pg_session, checkpoint.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": team.id})
         second = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": team.id})
@@ -195,15 +200,17 @@ class TestManualArrival:
     ):
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
-        mine = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        await _make_checkpoint(pg_session, order=1, event_id=event.id)
         other = await _make_checkpoint(pg_session, order=2, event_id=event.id)
-        await _assign_guide(pg_session, mine.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
+        # The team hasn't resolved order 1 yet, so the guide's current post
+        # is order 1 — not `other` (order 2).
         resp = pg_client.post(ARRIVALS_URL.format(id=other.id), json={"team_id": team.id})
 
-        # Writing progress for a post nobody put them at is not something to be
-        # lenient about, unlike the read path.
+        # Writing progress for a post the team is not at is not something to
+        # be lenient about, unlike the read path.
         assert resp.status_code == 403, resp.text
 
     async def test_an_unassigned_guide_cannot_mark_arrivals(self, pg_session, pg_client, as_guide):
@@ -222,8 +229,8 @@ class TestManualArrival:
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-        await _assign_guide(pg_session, checkpoint.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
         settings = await rally_settings.get_or_create(pg_session)
         data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
         data["guide_manual_arrival_enabled"] = False
@@ -244,8 +251,8 @@ class TestTeamsAtCheckpoint:
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-        await _assign_guide(pg_session, checkpoint.id)
         team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
         indication = CheckpointGuideIndication(
             checkpoint_id=checkpoint.id, hint="Segue o rio", order=0
         )
@@ -277,7 +284,8 @@ class TestTeamsAtCheckpoint:
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
-        await _assign_guide(pg_session, checkpoint.id)
+        team = await _make_team(pg_session, event_id=event.id)
+        await _assign_guide(pg_session, team.id)
 
         resp = pg_client.get(TEAMS_URL.format(id=checkpoint.id))
 
