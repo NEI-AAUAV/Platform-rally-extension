@@ -81,13 +81,14 @@ jobs:
           cache-to: type=gha,mode=max,scope=web
           build-args: |
             VITE_OIDC_AUTHORITY=${{ vars.VITE_OIDC_AUTHORITY }}
-            VITE_OIDC_CLIENT_ID=${{ secrets.VITE_OIDC_CLIENT_ID }}
+            VITE_OIDC_CLIENT_ID=${{ vars.OIDC_CLIENT_ID }}
             VITE_OIDC_REDIRECT_URI=${{ vars.VITE_OIDC_REDIRECT_URI }}
             VITE_OIDC_POST_LOGOUT_REDIRECT_URI=${{ vars.VITE_OIDC_POST_LOGOUT_REDIRECT_URI }}
             VITE_OIDC_ADMIN_GROUP=${{ vars.OIDC_ADMIN_GROUP }}
             VITE_OIDC_MANAGER_GROUP=${{ vars.OIDC_MANAGER_GROUP }}
             VITE_OIDC_STAFF_GROUP=${{ vars.OIDC_STAFF_GROUP }}
+            VITE_OIDC_GUIDE_GROUP=${{ vars.OIDC_GUIDE_GROUP }}
             VITE_EVENTS_ENABLED=${{ vars.EVENTS_ENABLED }}
-            VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
             VITE_SENTRY_TRACES_SAMPLE_RATE=${{ vars.VITE_SENTRY_TRACES_SAMPLE_RATE }}
             VITE_RELEASE=${{ github.ref_name }}
