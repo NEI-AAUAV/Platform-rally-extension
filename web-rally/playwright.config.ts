@@ -14,6 +14,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // No explicit workers previously meant Playwright's default of cpus/2 (2
+  // workers on the 4-core CI runner) for chromium+mobile combined — 530 test
+  // runs over 2 workers is what pushed the mocked e2e job past 11 minutes.
+  // ubuntu-latest has 4 cores; use all of them for the mocked (headless,
+  // route-mocked) suite. The fullstack project keeps its own workers: 1 below.
+  workers: process.env.CI ? 4 : undefined,
   reporter: 'html',
 
   use: {
