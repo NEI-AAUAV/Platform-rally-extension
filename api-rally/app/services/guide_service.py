@@ -67,9 +67,7 @@ class GuideService:
         )
 
         current_id = (
-            None
-            if is_privileged or user_id is None
-            else await self.current_checkpoint_id(user_id)
+            None if is_privileged or user_id is None else await self.current_checkpoint_id(user_id)
         )
         if current_id is not None:
             stmt = stmt.where(CheckPoint.id == current_id)
@@ -103,9 +101,7 @@ class GuideService:
                 return cp.id
         return None
 
-    async def _team_progress(
-        self, user_id: int
-    ) -> tuple[list[CheckPoint] | None, frozenset[int]]:
+    async def _team_progress(self, user_id: int) -> tuple[list[CheckPoint] | None, frozenset[int]]:
         """This guide's team's ordered checkpoints and resolved orders, or
         ``(None, frozenset())`` when the guide has no team assigned."""
         team_id = await self.assigned_team_id(user_id)

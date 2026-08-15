@@ -87,28 +87,6 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
     body: { checkpoint_id: checkpoint.id },
   });
 
-  const guideSub = `e2e-guide-user-${runId}`;
-  const guideEmail = `${guideSub}@ua.pt`;
-  const guide = await mintToken({
-    sub: guideSub,
-    name: "E2E Guide User",
-    groups: ["rally-guide"],
-    email: guideEmail,
-  });
-  await apiCall("GET", "/profile/me", { token: guide.accessToken });
-  const [guideLocalUser] = await apiCall<{ id: number }[]>(
-    "GET",
-    `/user/search?q=${encodeURIComponent(guideEmail)}`,
-    { token: admin.accessToken },
-  );
-  if (!guideLocalUser?.id) {
-    throw new Error(`seedGuideAndBadgesScenario: could not resolve guide user for ${guideSub}`);
-  }
-  await apiCall("PUT", `/user/${guideLocalUser.id}/guide-checkpoint-assignment`, {
-    token: admin.accessToken,
-    body: { checkpoint_id: checkpoint.id },
-  });
-
   const badgeDefinition = await apiCall<{ id: number }>("POST", "/badge-definitions", {
     token: admin.accessToken,
     body: {
@@ -134,6 +112,30 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
   const team = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
     token: admin.accessToken,
     body: { name: teamName },
+  });
+
+  const guideSub = `e2e-guide-user-${runId}`;
+  const guideEmail = `${guideSub}@ua.pt`;
+  const guide = await mintToken({
+    sub: guideSub,
+    name: "E2E Guide User",
+    groups: ["rally-guide"],
+    email: guideEmail,
+  });
+  await apiCall("GET", "/profile/me", { token: guide.accessToken });
+  const [guideLocalUser] = await apiCall<{ id: number }[]>(
+    "GET",
+    `/user/search?q=${encodeURIComponent(guideEmail)}`,
+    { token: admin.accessToken },
+  );
+  if (!guideLocalUser?.id) {
+    throw new Error(`seedGuideAndBadgesScenario: could not resolve guide user for ${guideSub}`);
+  }
+  // Team is freshly created (no arrivals yet), so its current post is order
+  // 1 — the same checkpoint the guide's indications live on.
+  await apiCall("PUT", `/user/${guideLocalUser.id}/guide-team-assignment`, {
+    token: admin.accessToken,
+    body: { team_id: team.id },
   });
 
   const currentSettings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {

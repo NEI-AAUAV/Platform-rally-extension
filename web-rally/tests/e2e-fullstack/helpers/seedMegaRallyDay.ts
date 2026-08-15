@@ -105,28 +105,6 @@ export async function seedMegaRallyDay(): Promise<MegaRallyDay> {
     staff.push({ user: staffUser, checkpointId: checkpoints[i].id });
   }
 
-  const guideSub = `e2e-mega-guide-${runId}`;
-  const guideEmail = `${guideSub}@ua.pt`;
-  const guide = await mintToken({
-    sub: guideSub,
-    name: "E2E Mega Guide",
-    groups: ["rally-guide"],
-    email: guideEmail,
-  });
-  await apiCall("GET", "/profile/me", { token: guide.accessToken });
-  const [guideLocalUser] = await apiCall<{ id: number }[]>(
-    "GET",
-    `/user/search?q=${encodeURIComponent(guideEmail)}`,
-    { token: admin.accessToken },
-  );
-  if (!guideLocalUser?.id) {
-    throw new Error(`seedMegaRallyDay: could not resolve local user id for guide sub ${guideSub}`);
-  }
-  await apiCall("PUT", `/user/${guideLocalUser.id}/guide-checkpoint-assignment`, {
-    token: admin.accessToken,
-    body: { checkpoint_id: checkpoints[0].id },
-  });
-
   await apiCall("POST", `/checkpoint/${checkpoints[0].id}/guide-indications`, {
     token: admin.accessToken,
     body: {
@@ -166,6 +144,30 @@ export async function seedMegaRallyDay(): Promise<MegaRallyDay> {
     });
     teams.push({ id: team.id, name: `E2E Mega Equipa ${runId}-${i}`, accessCode: team.access_code });
   }
+
+  const guideSub = `e2e-mega-guide-${runId}`;
+  const guideEmail = `${guideSub}@ua.pt`;
+  const guide = await mintToken({
+    sub: guideSub,
+    name: "E2E Mega Guide",
+    groups: ["rally-guide"],
+    email: guideEmail,
+  });
+  await apiCall("GET", "/profile/me", { token: guide.accessToken });
+  const [guideLocalUser] = await apiCall<{ id: number }[]>(
+    "GET",
+    `/user/search?q=${encodeURIComponent(guideEmail)}`,
+    { token: admin.accessToken },
+  );
+  if (!guideLocalUser?.id) {
+    throw new Error(`seedMegaRallyDay: could not resolve local user id for guide sub ${guideSub}`);
+  }
+  // teams[0] is freshly created (no arrivals yet), so its current post is
+  // order 1 — the same checkpoint the guide's indications live on.
+  await apiCall("PUT", `/user/${guideLocalUser.id}/guide-team-assignment`, {
+    token: admin.accessToken,
+    body: { team_id: teams[0].id },
+  });
 
   const currentSettings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
     token: admin.accessToken,

@@ -153,9 +153,7 @@ class TestGuideAssignmentCreateOrUpdate:
         await _make_event(pg_session)
         user = await _make_user(pg_session, name="Guide")
         team = await _make_team(pg_session)
-        await crud_guide_assignment.create_or_update(
-            pg_session, user_id=user.id, team_id=team.id
-        )
+        await crud_guide_assignment.create_or_update(pg_session, user_id=user.id, team_id=team.id)
 
         results = await crud_guide_assignment.get_by_team_id(pg_session, team_id=team.id)
         assert len(results) == 1
@@ -165,9 +163,7 @@ class TestGuideAssignmentCreateOrUpdate:
         await _make_event(pg_session)
         user = await _make_user(pg_session, name="Guide")
         team = await _make_team(pg_session)
-        await crud_guide_assignment.create_or_update(
-            pg_session, user_id=user.id, team_id=team.id
-        )
+        await crud_guide_assignment.create_or_update(pg_session, user_id=user.id, team_id=team.id)
 
         results = await crud_guide_assignment.get_multi_with_team(pg_session)
         assert len(results) == 1
