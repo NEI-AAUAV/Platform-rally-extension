@@ -4,14 +4,14 @@ import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { LoadingState, PageHeader } from "@/components/shared";
 import { Compass } from "lucide-react";
-import { StaffAssignmentList, AssignmentForm } from "@/pages/assignment/components";
+import { GuideAssignmentList, AssignmentForm } from "@/pages/assignment/components";
 import {
-  getCheckpoints,
+  getTeams,
   getGuideAssignments,
-  updateGuideCheckpointAssignment,
-  type CheckpointAssignmentUpdate,
-  type DetailedCheckPoint,
-  type RallyGuideAssignmentWithCheckpoint,
+  updateGuideTeamAssignment,
+  type TeamAssignmentUpdate,
+  type ListingTeam,
+  type RallyGuideAssignmentWithTeam,
 } from "@/client";
 
 interface GuideAssignment {
@@ -19,8 +19,8 @@ interface GuideAssignment {
   user_id: number;
   user_name?: string;
   user_email?: string;
-  checkpoint_id?: number;
-  checkpoint_name?: string;
+  team_id?: number;
+  team_name?: string;
 }
 
 interface GuideAssignmentProps {
@@ -31,11 +31,11 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
 
-  const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
-    queryKey: ["checkpoints"],
-    queryFn: async (): Promise<DetailedCheckPoint[]> => {
-      const { data: checkpoints } = await getCheckpoints();
-      return Array.isArray(checkpoints) ? checkpoints : [];
+  const { data: teams } = useQuery<ListingTeam[]>({
+    queryKey: ["teams"],
+    queryFn: async (): Promise<ListingTeam[]> => {
+      const { data: teams } = await getTeams();
+      return Array.isArray(teams) ? teams : [];
     },
   });
 
@@ -43,9 +43,9 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
     data: guideAssignments,
     error: assignmentsError,
     refetch: refetchAssignments,
-  } = useQuery<RallyGuideAssignmentWithCheckpoint[]>({
+  } = useQuery<RallyGuideAssignmentWithTeam[]>({
     queryKey: ["guideAssignments"],
-    queryFn: async (): Promise<RallyGuideAssignmentWithCheckpoint[]> => {
+    queryFn: async (): Promise<RallyGuideAssignmentWithTeam[]> => {
       const { data } = await getGuideAssignments();
       return data ?? [];
     },
@@ -59,11 +59,11 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
     error: updateError,
   } = useMutation({
     mutationKey: ["updateGuideAssignment"],
-    mutationFn: async ({ userId, checkpointId }: { userId: number; checkpointId: number }) => {
-      const requestBody: CheckpointAssignmentUpdate = {
-        checkpoint_id: checkpointId === 0 ? null : checkpointId,
+    mutationFn: async ({ userId, teamId }: { userId: number; teamId: number }) => {
+      const requestBody: TeamAssignmentUpdate = {
+        team_id: teamId === 0 ? null : teamId,
       };
-      const { data } = await updateGuideCheckpointAssignment({
+      const { data } = await updateGuideTeamAssignment({
         path: { user_id: userId },
         body: requestBody,
       });
@@ -74,8 +74,8 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
     },
   });
 
-  const handleUpdateAssignment = (userId: number, checkpointId: number) => {
-    updateGuideAssignment({ userId, checkpointId });
+  const handleUpdateAssignment = (userId: number, teamId: number) => {
+    updateGuideAssignment({ userId, teamId });
   };
 
   if (isLoading) {
@@ -91,8 +91,8 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
     user_id: assignment.user_id,
     user_name: assignment.user_name ?? undefined,
     user_email: assignment.user_email ?? undefined,
-    checkpoint_id: assignment.checkpoint_id ?? undefined,
-    checkpoint_name: assignment.checkpoint_name ?? undefined,
+    team_id: assignment.team_id ?? undefined,
+    team_name: assignment.team_name ?? undefined,
   }));
 
   return (
@@ -102,7 +102,7 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
           eyebrow="Guias"
           icon={Compass}
           title="Atribuição de guias"
-          description="Atribuir utilizadores com o papel rally-guide aos postos que acompanham."
+          description="Atribuir utilizadores com o papel rally-guide às equipas que acompanham ao longo de toda a atividade."
         />
       )}
 
@@ -111,13 +111,12 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
         isSuccessUpdate={isSuccessUpdate}
         isErrorUpdate={isErrorUpdate}
         updateError={updateError}
+        title="Guias Rally (rally-guide)"
       >
-        <StaffAssignmentList
+        <GuideAssignmentList
           assignments={rallyGuideAssignments}
-          checkpoints={checkpoints}
+          teams={teams}
           onUpdateAssignment={handleUpdateAssignment}
-          emptyStateMessage="Nenhuma atribuição de guia encontrada."
-          selectPlaceholder="Reatribuir posto"
         />
       </AssignmentForm>
     </div>

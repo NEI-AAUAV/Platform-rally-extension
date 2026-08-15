@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from app.models.activity import Activity
     from app.models.checkpoint_guide_indication import CheckpointGuideIndication
     from app.models.checkpoint_media import CheckpointMedia
-    from app.models.rally_guide_assignment import RallyGuideAssignment
     from app.models.rally_staff_assignment import RallyStaffAssignment
     from app.models.route_stage import RouteStage
 
@@ -79,10 +78,6 @@ class CheckPoint(Base):
     # Relationship to staff assignments
     staff_assignments: Mapped[list["RallyStaffAssignment"]] = relationship(
         "RallyStaffAssignment", back_populates="checkpoint"
-    )
-
-    guide_assignments: Mapped[list["RallyGuideAssignment"]] = relationship(
-        "RallyGuideAssignment", back_populates="checkpoint"
     )
 
     # Relationship to activities

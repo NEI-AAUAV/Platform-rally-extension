@@ -1,4 +1,5 @@
-"""Business rules for user/staff/guide checkpoint assignments."""
+"""Business rules for user/staff checkpoint assignments and user/guide team
+assignments."""
 
 from typing import Any, TypeVar
 
@@ -16,22 +17,14 @@ AssignmentSchemaT = TypeVar("AssignmentSchemaT", bound=BaseModel)
 
 
 class UserService:
-    """Staff/guide checkpoint-assignment lifecycle, mirrored from Authentik groups."""
+    """Staff/guide assignment lifecycle, mirrored from Authentik groups."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    async def list_checkpoint_assignments(
-        self,
-        *,
-        group: str,
-        scope: str,
-        assignment_crud: Any,
-        schema: type[AssignmentSchemaT],
-    ) -> list[AssignmentSchemaT]:
-        """Shared list/mirror logic behind /staff-assignments and
-        /guide-assignments: mirrors the Authentik group live, then joins each
-        mirrored user against their (possibly absent) checkpoint assignment.
+    async def _mirrored_group_users(self, *, group: str, scope: str) -> list[User]:
+        """Mirror an Authentik group live, then return the locally mirrored
+        users who currently hold ``scope``.
 
         Reconciles against live group membership rather than trusting the
         locally mirrored ``scopes`` column: that column only updates when the
@@ -70,6 +63,20 @@ class UserService:
                 await crud.user.revoke_scope(self._db, user=user, scope=scope)
                 continue
             users.append(user)
+        return users
+
+    async def list_checkpoint_assignments(
+        self,
+        *,
+        group: str,
+        scope: str,
+        assignment_crud: Any,
+        schema: type[AssignmentSchemaT],
+    ) -> list[AssignmentSchemaT]:
+        """List/mirror logic behind /staff-assignments: joins each mirrored
+        rally-staff user against their (possibly absent) checkpoint
+        assignment — staff are fixed to one post for the whole event."""
+        users = await self._mirrored_group_users(group=group, scope=scope)
 
         existing_assignments = await assignment_crud.get_multi_with_checkpoint(self._db)
         assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
@@ -116,8 +123,8 @@ class UserService:
         schema: type[AssignmentSchemaT],
         error_message: str,
     ) -> AssignmentSchemaT:
-        """Shared create/update logic behind the staff and guide
-        checkpoint-assignment PUT endpoints."""
+        """Create/update logic behind the staff checkpoint-assignment PUT
+        endpoint."""
         try:
             updated_assignment = await assignment_crud.create_or_update(
                 db=self._db, user_id=user_id, checkpoint_id=checkpoint_id
@@ -141,6 +148,82 @@ class UserService:
                 checkpoint_id=None,
                 checkpoint_name=None,
                 checkpoint_description=None,
+            )
+        except SQLAlchemyError as e:
+            raise RallyValidationError(f"{error_message}: {e!s}") from e
+
+    async def list_guide_team_assignments(
+        self,
+        *,
+        group: str,
+        scope: str,
+        assignment_crud: Any,
+        schema: type[AssignmentSchemaT],
+    ) -> list[AssignmentSchemaT]:
+        """List/mirror logic behind /guide-assignments: joins each mirrored
+        rally-guide user against their (possibly absent) team assignment — a
+        guide accompanies one team through the whole route rather than being
+        fixed to a post."""
+        users = await self._mirrored_group_users(group=group, scope=scope)
+
+        existing_assignments = await assignment_crud.get_multi_with_team(self._db)
+        assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
+
+        result = []
+        for user in users:
+            assignment = assignment_map.get(user.id)
+            if assignment:
+                result.append(
+                    schema(
+                        id=assignment.id,
+                        user_id=user.id,
+                        user_name=user.name,
+                        user_email=user.email,
+                        team_id=assignment.team_id,
+                        team_name=assignment.team.name if assignment.team else None,
+                    )
+                )
+            else:
+                result.append(
+                    schema(
+                        id=0,  # Temporary ID for unassigned users
+                        user_id=user.id,
+                        user_name=user.name,
+                        user_email=user.email,
+                        team_id=None,
+                        team_name=None,
+                    )
+                )
+        return result
+
+    async def update_guide_team_assignment(
+        self,
+        *,
+        user_id: int,
+        team_id: int | None,
+        assignment_crud: Any,
+        schema: type[AssignmentSchemaT],
+        error_message: str,
+    ) -> AssignmentSchemaT:
+        """Create/update logic behind the guide team-assignment PUT
+        endpoint."""
+        try:
+            updated_assignment = await assignment_crud.create_or_update(
+                db=self._db, user_id=user_id, team_id=team_id
+            )
+
+            if updated_assignment:
+                return schema(
+                    id=updated_assignment.id,
+                    user_id=updated_assignment.user_id,
+                    team_id=updated_assignment.team_id,
+                    team_name=updated_assignment.team.name if updated_assignment.team else None,
+                )
+            return schema(
+                id=0,
+                user_id=user_id,
+                team_id=None,
+                team_name=None,
             )
         except SQLAlchemyError as e:
             raise RallyValidationError(f"{error_message}: {e!s}") from e

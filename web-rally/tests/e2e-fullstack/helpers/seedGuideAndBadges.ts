@@ -1,5 +1,13 @@
 import { mintToken, apiCall, type MintedUser } from "./fullstackAuth";
 import { createAndActivateEvent } from "./seedRally";
+import {
+  attachGuideIndications,
+  createCheckpointWithActivity,
+  createFirstCheckpointBadgeDefinition,
+  ensureTeamCapacityAndSettings,
+  mintGuideAssignedToTeam,
+  mintStaffAssignedToCheckpoint,
+} from "./seedGuideScenarioShared";
 
 export interface SeededGuideScenario {
   readonly admin: MintedUser;
@@ -39,96 +47,22 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
   await createAndActivateEvent(admin, "guide");
 
   const checkpointName = `E2E Posto Guia ${runId}`;
-  const checkpoint = await apiCall<{ id: number }>("POST", "/checkpoint/", {
-    token: admin.accessToken,
-    body: { name: checkpointName, order: 1, arrival_radius_m: 9999 },
-  });
-
-  await apiCall("POST", `/checkpoint/${checkpoint.id}/guide-indications`, {
-    token: admin.accessToken,
-    body: {
-      hint: `Aponta para a estátua ${runId}`,
-      question: "Quem é o santo padroeiro?",
-      expected_answer: `Resposta secreta ${runId}`,
-      order: 1,
-    },
-  });
-
-  const activity = await apiCall<{ id: number }>("POST", "/activities/", {
-    token: admin.accessToken,
-    body: {
-      name: `E2E Atividade Guia ${runId}`,
-      activity_type: "BooleanActivity",
-      checkpoint_id: checkpoint.id,
-      config: {},
-      is_active: true,
-    },
-  });
-
-  const staffSub = `e2e-guide-staff-${runId}`;
-  const staffEmail = `${staffSub}@ua.pt`;
-  const staff = await mintToken({
-    sub: staffSub,
-    name: "E2E Guide Staff",
-    groups: ["rally-staff"],
-    email: staffEmail,
-  });
-  await apiCall("GET", "/profile/me", { token: staff.accessToken });
-  const [staffLocalUser] = await apiCall<{ id: number }[]>(
-    "GET",
-    `/user/search?q=${encodeURIComponent(staffEmail)}`,
-    { token: admin.accessToken },
+  const { checkpointId, activityId } = await createCheckpointWithActivity(
+    admin,
+    checkpointName,
+    `E2E Atividade Guia ${runId}`,
+    1,
   );
-  if (!staffLocalUser?.id) {
-    throw new Error(`seedGuideAndBadgesScenario: could not resolve staff user for ${staffSub}`);
-  }
-  await apiCall("PUT", `/user/${staffLocalUser.id}/checkpoint-assignment`, {
-    token: admin.accessToken,
-    body: { checkpoint_id: checkpoint.id },
-  });
+  await attachGuideIndications(admin, checkpointId, runId);
 
-  const guideSub = `e2e-guide-user-${runId}`;
-  const guideEmail = `${guideSub}@ua.pt`;
-  const guide = await mintToken({
-    sub: guideSub,
-    name: "E2E Guide User",
-    groups: ["rally-guide"],
-    email: guideEmail,
-  });
-  await apiCall("GET", "/profile/me", { token: guide.accessToken });
-  const [guideLocalUser] = await apiCall<{ id: number }[]>(
-    "GET",
-    `/user/search?q=${encodeURIComponent(guideEmail)}`,
-    { token: admin.accessToken },
+  const staff = await mintStaffAssignedToCheckpoint(runId, "", "guide", admin, checkpointId);
+
+  const badgeDefinition = await createFirstCheckpointBadgeDefinition(
+    admin,
+    runId,
+    "e2e_first_checkpoint",
+    "E2E Primeiro Posto",
   );
-  if (!guideLocalUser?.id) {
-    throw new Error(`seedGuideAndBadgesScenario: could not resolve guide user for ${guideSub}`);
-  }
-  await apiCall("PUT", `/user/${guideLocalUser.id}/guide-checkpoint-assignment`, {
-    token: admin.accessToken,
-    body: { checkpoint_id: checkpoint.id },
-  });
-
-  const badgeDefinition = await apiCall<{ id: number }>("POST", "/badge-definitions", {
-    token: admin.accessToken,
-    body: {
-      // Badge `code` must match ^[a-z0-9_]+$ — runId's dashes aren't allowed.
-      code: `e2e_first_checkpoint_${runId.replaceAll("-", "_")}`,
-      name: `E2E Primeiro Posto ${runId}`,
-      description: "Concluiu o primeiro checkpoint",
-      is_auto: true,
-      trigger_type: "first_complete_checkpoint",
-      criteria: {},
-    },
-  });
-
-  const settingsForCap = await apiCall<{ max_teams: number } & Record<string, unknown>>(
-    "GET",
-    "/rally/settings",
-    { token: admin.accessToken },
-  );
-  const existingTeams = await apiCall<unknown[]>("GET", "/team/", { token: admin.accessToken });
-  const requiredCap = existingTeams.length + 5;
 
   const teamName = `E2E Equipa Guia ${runId}`;
   const team = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
@@ -136,30 +70,19 @@ export async function seedGuideAndBadgesScenario(): Promise<SeededGuideScenario>
     body: { name: teamName },
   });
 
-  const currentSettings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
-    token: admin.accessToken,
-  });
-  await apiCall("PUT", "/rally/settings", {
-    token: admin.accessToken,
-    body: {
-      ...currentSettings,
-      max_teams: Math.max(settingsForCap.max_teams, requiredCap),
-      participant_view_enabled: true,
-      show_score_mode: "competitive",
-      show_live_leaderboard: true,
-      guide_mode_enabled: true,
-      guide_mode_active: true,
-      badges_enabled: true,
-    },
-  });
+  // Team is freshly created (no arrivals yet), so its current post is order
+  // 1 — the same checkpoint the guide's indications live on.
+  const guide = await mintGuideAssignedToTeam(runId, "guide", admin, team.id);
+
+  await ensureTeamCapacityAndSettings(admin, 5, {});
 
   return {
     admin,
     staff,
     guide,
-    checkpointId: checkpoint.id,
+    checkpointId,
     checkpointName,
-    activityId: activity.id,
+    activityId,
     teamId: team.id,
     teamName,
     accessCode: team.access_code,

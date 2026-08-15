@@ -13,6 +13,7 @@ from app.crud.crud_user import user as crud_user
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.user import UserCreate
 from app.tests.conftest import make_event as _make_event
+from app.tests.conftest import make_team as _make_team
 
 
 async def _make_checkpoint(pg_session, order=1):
@@ -194,19 +195,19 @@ class TestGuideAssignments:
         body = resp.json()
         assert len(body) == 1
         assert body[0]["user_id"] == guide.id
-        assert body[0]["checkpoint_id"] is None
+        assert body[0]["team_id"] is None
 
-    async def test_get_guide_assignments_with_checkpoint(
+    async def test_get_guide_assignments_with_team(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):
         _mock_no_group_members(monkeypatch)
         await _make_event(pg_session)
         guide = await _make_guide_user(pg_session)
-        checkpoint = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
 
         assign_resp = pg_client.put(
-            f"/api/rally/v1/user/{guide.id}/guide-checkpoint-assignment",
-            json={"checkpoint_id": checkpoint.id},
+            f"/api/rally/v1/user/{guide.id}/guide-team-assignment",
+            json={"team_id": team.id},
         )
         assert assign_resp.status_code == 200, assign_resp.text
 
@@ -215,29 +216,28 @@ class TestGuideAssignments:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert len(body) == 1
-        assert body[0]["checkpoint_id"] == checkpoint.id
+        assert body[0]["team_id"] == team.id
+        assert body[0]["team_name"] == team.name
 
-    async def test_update_guide_checkpoint_assignment_removed(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_update_guide_team_assignment_removed(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         guide = await _make_guide_user(pg_session)
-        checkpoint = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
 
         pg_client.put(
-            f"/api/rally/v1/user/{guide.id}/guide-checkpoint-assignment",
-            json={"checkpoint_id": checkpoint.id},
+            f"/api/rally/v1/user/{guide.id}/guide-team-assignment",
+            json={"team_id": team.id},
         )
 
         resp = pg_client.put(
-            f"/api/rally/v1/user/{guide.id}/guide-checkpoint-assignment",
-            json={"checkpoint_id": None},
+            f"/api/rally/v1/user/{guide.id}/guide-team-assignment",
+            json={"team_id": None},
         )
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["id"] == 0
-        assert body["checkpoint_id"] is None
+        assert body["team_id"] is None
 
     async def test_get_guide_assignments_mirrors_group_members(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -270,10 +270,10 @@ class TestGuideAssignments:
         up here even if they never log back in to trigger `_sync_scopes`."""
         await _make_event(pg_session)
         stale_guide = await _make_guide_user(pg_session, email="stale@example.com")
-        checkpoint = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
         pg_client.put(
-            f"/api/rally/v1/user/{stale_guide.id}/guide-checkpoint-assignment",
-            json={"checkpoint_id": checkpoint.id},
+            f"/api/rally/v1/user/{stale_guide.id}/guide-team-assignment",
+            json={"team_id": team.id},
         )
 
         monkeypatch.setattr(
@@ -300,20 +300,20 @@ class TestGuideAssignments:
         await pg_session.refresh(stale_guide)
         assert "rally-guide" not in stale_guide.scopes
 
-    async def test_update_guide_checkpoint_assignment_db_error_returns_400(
+    async def test_update_guide_team_assignment_db_error_returns_400(
         self, pg_session, pg_client, as_admin
     ):
         await _make_event(pg_session)
         guide = await _make_guide_user(pg_session)
-        checkpoint = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
 
         with patch(
             "app.api.api_v1.user.crud.rally_guide_assignment.create_or_update",
             new=AsyncMock(side_effect=SQLAlchemyError("db down")),
         ):
             resp = pg_client.put(
-                f"/api/rally/v1/user/{guide.id}/guide-checkpoint-assignment",
-                json={"checkpoint_id": checkpoint.id},
+                f"/api/rally/v1/user/{guide.id}/guide-team-assignment",
+                json={"team_id": team.id},
             )
 
         assert resp.status_code == 400, resp.text

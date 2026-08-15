@@ -10,17 +10,13 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-const {
-  mockUseUser,
-  mockGetCheckpoints,
-  mockGetGuideAssignments,
-  mockUpdateGuideCheckpointAssignment,
-} = vi.hoisted(() => ({
-  mockUseUser: vi.fn(),
-  mockGetCheckpoints: vi.fn(),
-  mockGetGuideAssignments: vi.fn(),
-  mockUpdateGuideCheckpointAssignment: vi.fn(),
-}));
+const { mockUseUser, mockGetTeams, mockGetGuideAssignments, mockUpdateGuideTeamAssignment } =
+  vi.hoisted(() => ({
+    mockUseUser: vi.fn(),
+    mockGetTeams: vi.fn(),
+    mockGetGuideAssignments: vi.fn(),
+    mockUpdateGuideTeamAssignment: vi.fn(),
+  }));
 
 vi.mock('@/hooks/useUser', () => ({
   default: () => mockUseUser(),
@@ -40,10 +36,9 @@ vi.mock('@/components/shared', () => ({
 }));
 
 vi.mock('@/client', () => ({
-  getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
+  getTeams: (...args: unknown[]) => mockGetTeams(...args),
   getGuideAssignments: (...args: unknown[]) => mockGetGuideAssignments(...args),
-  updateGuideCheckpointAssignment: (...args: unknown[]) =>
-    mockUpdateGuideCheckpointAssignment(...args),
+  updateGuideTeamAssignment: (...args: unknown[]) => mockUpdateGuideTeamAssignment(...args),
 }));
 
 vi.mock('@/pages/assignment/components', async () => {
@@ -52,15 +47,15 @@ vi.mock('@/pages/assignment/components', async () => {
   );
   return {
     ...actual,
-    StaffAssignmentList: ({
+    GuideAssignmentList: ({
       assignments,
       onUpdateAssignment,
     }: {
       assignments: { user_id: number }[];
-      onUpdateAssignment: (userId: number, checkpointId: number) => void;
+      onUpdateAssignment: (userId: number, teamId: number) => void;
     }) =>
       assignments.length === 0 ? (
-        <div>Nenhuma atribuição de staff encontrada.</div>
+        <div>Nenhuma atribuição de guia encontrada.</div>
       ) : (
         <div>
           {assignments.map((a) => (
@@ -77,7 +72,7 @@ vi.mock('@/pages/assignment/components', async () => {
 describe('GuideAssignment index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetCheckpoints.mockResolvedValue({ data: [] });
+    mockGetTeams.mockResolvedValue({ data: [] });
     mockGetGuideAssignments.mockResolvedValue({ data: [] });
   });
 
@@ -102,8 +97,8 @@ describe('GuideAssignment index', () => {
           user_id: 5,
           user_name: 'Carla',
           user_email: null,
-          checkpoint_id: null,
-          checkpoint_name: null,
+          team_id: null,
+          team_name: null,
         },
       ],
     });
@@ -118,7 +113,7 @@ describe('GuideAssignment index', () => {
     mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: false });
     renderWithClient(<GuideAssignment embedded />);
     expect(screen.queryByText('Atribuição de guias')).not.toBeInTheDocument();
-    expect(screen.getByText('Nenhuma atribuição de staff encontrada.')).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma atribuição de guia encontrada.')).toBeInTheDocument();
   });
 
   it('triggers mutation and refetches assignments on successful update', async () => {
@@ -130,12 +125,12 @@ describe('GuideAssignment index', () => {
           user_id: 5,
           user_name: 'Carla',
           user_email: null,
-          checkpoint_id: null,
-          checkpoint_name: null,
+          team_id: null,
+          team_name: null,
         },
       ],
     });
-    mockUpdateGuideCheckpointAssignment.mockResolvedValue({ data: { id: 1 } });
+    mockUpdateGuideTeamAssignment.mockResolvedValue({ data: { id: 1 } });
 
     renderWithClient(<GuideAssignment />);
 
@@ -148,9 +143,9 @@ describe('GuideAssignment index', () => {
     await userEvent.setup().click(removeButton);
 
     await waitFor(() => {
-      expect(mockUpdateGuideCheckpointAssignment).toHaveBeenCalledWith({
+      expect(mockUpdateGuideTeamAssignment).toHaveBeenCalledWith({
         path: { user_id: 5 },
-        body: { checkpoint_id: null },
+        body: { team_id: null },
       });
     });
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RallyForbiddenError
 from app.crud.crud_activity import rally_event
+from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.models.activity import EventType
 from app.models.checkpoint import CheckPoint
@@ -17,6 +18,7 @@ from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.team import Team
+from app.services.route_progress import resolved_checkpoint_orders
 
 
 class GuideService:
@@ -54,8 +56,8 @@ class GuideService:
         event_filter = CheckPoint.event_id == event.id if event else CheckPoint.event_id.is_(None)
         stmt = (
             select(CheckPoint)
-            # Drafts are posts still being planned: nobody is stationed at one
-            # and no team is sent there, so they would only be noise here.
+            # Drafts are posts still being planned: nobody is sent there, so
+            # they would only be noise here.
             .where(event_filter, CheckPoint.is_draft.is_(False))
             .options(
                 selectinload(CheckPoint.media),
@@ -64,24 +66,90 @@ class GuideService:
             .order_by(CheckPoint.order)
         )
 
-        assigned_id = (
-            None if is_privileged or user_id is None else await self.assigned_checkpoint_id(user_id)
+        current_id = (
+            None if is_privileged or user_id is None else await self.current_checkpoint_id(user_id)
         )
-        if assigned_id is not None:
-            stmt = stmt.where(CheckPoint.id == assigned_id)
+        if current_id is not None:
+            stmt = stmt.where(CheckPoint.id == current_id)
 
         return list((await self._db.scalars(stmt)).all())
 
-    async def assigned_checkpoint_id(self, user_id: int) -> int | None:
-        """The checkpoint this guide is accompanying, if any.
+    async def assigned_team_id(self, user_id: int) -> int | None:
+        """The team this guide accompanies, if any.
 
-        RallyGuideAssignment is unique per user and its checkpoint_id is
-        nullable, so "assigned to nothing" and "no row at all" both mean None.
+        RallyGuideAssignment is unique per user and its team_id is nullable,
+        so "assigned to nothing" and "no row at all" both mean None.
         """
-        stmt = select(RallyGuideAssignment.checkpoint_id).where(
-            RallyGuideAssignment.user_id == user_id
-        )
+        stmt = select(RallyGuideAssignment.team_id).where(RallyGuideAssignment.user_id == user_id)
         return (await self._db.scalars(stmt)).first()
+
+    async def current_checkpoint_id(self, user_id: int) -> int | None:
+        """The checkpoint this guide's assigned team is currently working
+        on, if any.
+
+        A guide follows one team through the whole route rather than being
+        fixed to a post, so "their" checkpoint moves as the team progresses:
+        the earliest-order checkpoint the team has not yet resolved (see
+        ``resolved_checkpoint_orders``). ``None`` when the guide has no team
+        assigned, or their team has resolved every checkpoint.
+        """
+        checkpoints, resolved_orders = await self._team_progress(user_id)
+        if checkpoints is None:
+            return None
+        for cp in checkpoints:
+            if cp.order not in resolved_orders:
+                return cp.id
+        return None
+
+    async def _team_progress(self, user_id: int) -> tuple[list[CheckPoint] | None, frozenset[int]]:
+        """This guide's team's ordered checkpoints and resolved orders, or
+        ``(None, frozenset())`` when the guide has no team assigned."""
+        team_id = await self.assigned_team_id(user_id)
+        if team_id is None:
+            return None, frozenset()
+        team = await self._db.get(Team, team_id)
+        if team is None:
+            return None, frozenset()
+
+        checkpoints = list(await checkpoint_crud.get_all_ordered(self._db))
+        if not checkpoints:
+            return None, frozenset()
+        return checkpoints, await resolved_checkpoint_orders(self._db, team)
+
+    async def accessible_checkpoint_ids(self, user_id: int) -> set[int]:
+        """Checkpoints this guide may act on right now: their team's current
+        post, plus the one it just resolved.
+
+        Marking an arrival resolves the checkpoint immediately, which would
+        otherwise strip write access before the guide finishes there (e.g.
+        checking who else arrived, or a duplicate arrival call landing after
+        the state already advanced). Including the just-resolved checkpoint
+        keeps that window open without granting the whole route.
+        """
+        checkpoints, resolved_orders = await self._team_progress(user_id)
+        if checkpoints is None:
+            return set()
+
+        ids: set[int] = set()
+        current_order: int | None = None
+        for cp in checkpoints:
+            if cp.order not in resolved_orders:
+                ids.add(cp.id)
+                current_order = cp.order
+                break
+
+        if resolved_orders:
+            last_resolved_order = max(resolved_orders)
+            # Only the most recently resolved post — resolving order 2 also
+            # implies order 1 is resolved, but that shouldn't reopen access
+            # to a post the team left an arbitrary number of steps ago.
+            if current_order is None or last_resolved_order == current_order - 1:
+                for cp in checkpoints:
+                    if cp.order == last_resolved_order:
+                        ids.add(cp.id)
+                        break
+
+        return ids
 
     async def teams_at_checkpoint(self, checkpoint_id: int) -> list[dict[str, Any]]:
         """Teams that have arrived at this post, with the hints they bought.
@@ -133,4 +201,4 @@ class GuideService:
         """
         if is_privileged:
             return True
-        return await self.assigned_checkpoint_id(user_id) == checkpoint_id
+        return checkpoint_id in await self.accessible_checkpoint_ids(user_id)
