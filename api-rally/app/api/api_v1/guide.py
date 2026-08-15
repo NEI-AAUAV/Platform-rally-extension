@@ -88,6 +88,11 @@ class GuideCheckpointResponse(BaseModel):
     longitude: float | None = None
     media: list[GuideMediaItem]
     indications: list[GuideIndicationItem]
+    # True for the one post the guide's assigned team currently needs.
+    # Always False for a privileged caller (no single "current" post) or a
+    # guide with no team assigned. The client highlights this one;
+    # arrival-marking is still enforced server-side regardless of this flag.
+    is_current: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -135,10 +140,12 @@ class GuideController:
     ) -> list[GuideCheckpointResponse]:
         """Checkpoints with their media gallery for the current event.
 
-        Scoped to the guide's own assignment (see GuideService); staff and
-        admins get the whole route. Ordered by checkpoint order.
+        Every post is returned — a guide accompanies their team through the
+        whole route rather than being fixed to one — with the team's current
+        post flagged via ``is_current`` for the client to highlight. Ordered
+        by checkpoint order.
         """
-        checkpoints = await service.list_checkpoints_with_gallery(
+        checkpoints, current_id = await service.list_checkpoints_with_gallery(
             user_id=curr_user.id,
             is_privileged=deps.is_admin_or_staff(auth.scopes),
         )
@@ -175,6 +182,7 @@ class GuideController:
                     )
                     for i in sorted(cp.guide_indications, key=lambda i: i.order)
                 ],
+                is_current=cp.id == current_id,
             )
             for cp in checkpoints
         ]

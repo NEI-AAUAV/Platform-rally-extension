@@ -121,6 +121,46 @@ describe('GuidePage', () => {
     expect(screen.getByText('Sem media disponível')).toBeInTheDocument();
   });
 
+  it('shows every checkpoint, with the current one highlighted and expanded by default', async () => {
+    mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
+    mockListGuideCheckpoints.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          name: 'Checkpoint A',
+          order: 1,
+          latitude: null,
+          longitude: null,
+          description: 'Já resolvido',
+          indications: [],
+          media: [],
+          is_current: false,
+        },
+        {
+          id: 2,
+          name: 'Checkpoint B',
+          order: 2,
+          latitude: null,
+          longitude: null,
+          description: 'A equipa está aqui agora',
+          indications: [],
+          media: [],
+          is_current: true,
+        },
+      ],
+    });
+    renderWithClient(<GuidePage />);
+
+    expect(await screen.findByText('Checkpoint A')).toBeInTheDocument();
+    expect(screen.getByText('Checkpoint B')).toBeInTheDocument();
+    expect(screen.getByText('Atual')).toBeInTheDocument();
+
+    // Current post starts expanded (its description shows without a click);
+    // the other stays collapsed.
+    expect(screen.getByText('A equipa está aqui agora')).toBeInTheDocument();
+    expect(screen.queryByText('Já resolvido')).not.toBeInTheDocument();
+  });
+
   it('shows the staff script and the challenge brief to whoever is at the post', async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({

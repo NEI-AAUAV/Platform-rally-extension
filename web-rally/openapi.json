@@ -6179,7 +6179,7 @@
           "Guide"
         ],
         "summary": "List Guide Checkpoints",
-        "description": "Checkpoints with their media gallery for the current event.\n\nScoped to the guide's own assignment (see GuideService); staff and\nadmins get the whole route. Ordered by checkpoint order.",
+        "description": "Checkpoints with their media gallery for the current event.\n\nEvery post is returned \u2014 a guide accompanies their team through the\nwhole route rather than being fixed to one \u2014 with the team's current\npost flagged via ``is_current`` for the client to highlight. Ordered\nby checkpoint order.",
         "operationId": "list_guide_checkpoints",
         "responses": {
           "200": {
@@ -10007,6 +10007,11 @@
             },
             "type": "array",
             "title": "Indications"
+          },
+          "is_current": {
+            "type": "boolean",
+            "title": "Is Current",
+            "default": false
           }
         },
         "type": "object",
