@@ -100,9 +100,7 @@ class CheckpointMediaService:
                 curr_team.team_id, checkpoint_id, settings
             )
         else:
-            allowed = await self._checkpoint_service.public_can_view_media(
-                checkpoint_id, settings
-            )
+            allowed = await self._checkpoint_service.public_can_view_media(checkpoint_id, settings)
 
         if not allowed:
             raise RallyForbiddenError("Checkpoint not reached")
