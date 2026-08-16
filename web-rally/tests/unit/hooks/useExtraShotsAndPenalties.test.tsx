@@ -216,23 +216,23 @@ describe("useExtraShotsAndPenalties", () => {
 
       expect(valid).toBe(false);
       expect(mockToast.error).toHaveBeenCalledWith(
-        expect.stringContaining("Extra shots cannot exceed"),
+        expect.stringContaining("Os shots extra não podem exceder"),
       );
     });
   });
 });
 
 describe("getSubmitLabel", () => {
-  it('returns "Saving..." while submitting', () => {
-    expect(getSubmitLabel(true, false)).toBe("Saving...");
-    expect(getSubmitLabel(true, true)).toBe("Saving...");
+  it('returns "A guardar..." while submitting', () => {
+    expect(getSubmitLabel(true, false)).toBe("A guardar...");
+    expect(getSubmitLabel(true, true)).toBe("A guardar...");
   });
 
-  it('returns "Update Evaluation" when not submitting and has existing result', () => {
-    expect(getSubmitLabel(false, true)).toBe("Update Evaluation");
+  it('returns "Atualizar avaliação" when not submitting and has existing result', () => {
+    expect(getSubmitLabel(false, true)).toBe("Atualizar avaliação");
   });
 
-  it('returns "Submit Evaluation" when not submitting and no existing result', () => {
-    expect(getSubmitLabel(false, false)).toBe("Submit Evaluation");
+  it('returns "Submeter avaliação" when not submitting and no existing result', () => {
+    expect(getSubmitLabel(false, false)).toBe("Submeter avaliação");
   });
 });

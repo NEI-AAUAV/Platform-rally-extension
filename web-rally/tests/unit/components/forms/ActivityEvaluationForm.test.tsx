@@ -52,7 +52,7 @@ describe("ActivityEvaluationForm", () => {
         isSubmitting={false}
       />,
     );
-    expect(screen.getByText("Activity Details")).toBeInTheDocument();
+    expect(screen.getByText("Detalhes da atividade")).toBeInTheDocument();
     expect(screen.getByText("TimeBasedActivity")).toBeInTheDocument();
     expect(screen.getByText("Team A")).toBeInTheDocument();
     expect(screen.getByText("Do the thing")).toBeInTheDocument();
@@ -98,8 +98,8 @@ describe("ActivityEvaluationForm", () => {
         isSubmitting={false}
       />,
     );
-    expect(screen.getByText("Unknown activity type: SomeWeirdType")).toBeInTheDocument();
-    expect(screen.getByText("Please contact an administrator.")).toBeInTheDocument();
+    expect(screen.getByText("Tipo de atividade desconhecido: SomeWeirdType")).toBeInTheDocument();
+    expect(screen.getByText("Contacte um administrador.")).toBeInTheDocument();
   });
 
   it("parses config.penalty_counters and passes it down to the type's form", () => {

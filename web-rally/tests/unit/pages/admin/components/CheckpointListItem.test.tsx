@@ -244,7 +244,7 @@ describe("CheckpointListItem", () => {
   });
 
   it("shows the opening window", () => {
-    render(
+    const { container } = render(
       <ul>
         <CheckpointListItem
           {...baseProps}
@@ -257,11 +257,11 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
 
-    expect(screen.getByText(/🕒/)).toBeInTheDocument();
+    expect(container.querySelector(".lucide-clock")).toBeInTheDocument();
   });
 
   it("flags a window that is not open right now", () => {
-    render(
+    const { container } = render(
       <ul>
         <CheckpointListItem
           {...baseProps}
@@ -270,6 +270,8 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
 
-    expect(screen.getByText(/🕒/)).toHaveClass("text-amber-600");
+    // The clock icon and its window text share a span that turns amber when the
+    // window is not currently open.
+    expect(container.querySelector(".lucide-clock")?.parentElement).toHaveClass("text-amber-600");
   });
 });

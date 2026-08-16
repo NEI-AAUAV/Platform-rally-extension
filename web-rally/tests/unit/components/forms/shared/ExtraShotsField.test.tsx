@@ -14,9 +14,9 @@ describe('ExtraShotsField', () => {
         maxExtraShotsPerMember={2}
       />,
     );
-    expect(screen.getByLabelText('Extra Shots')).toHaveValue(2);
-    expect(screen.getByText(/Max: 10 shots/)).toBeInTheDocument();
-    expect(screen.getByText(/2 per team member/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Shots extra')).toHaveValue(2);
+    expect(screen.getByText(/Máx\.: 10 shots/)).toBeInTheDocument();
+    expect(screen.getByText(/2 por membro da equipa/)).toBeInTheDocument();
   });
 
   it('calls onChange with the parsed numeric value when edited', async () => {
@@ -31,7 +31,7 @@ describe('ExtraShotsField', () => {
         maxExtraShotsPerMember={2}
       />,
     );
-    const input = screen.getByLabelText('Extra Shots');
+    const input = screen.getByLabelText('Shots extra');
     await user.clear(input);
     await user.type(input, '5');
     expect(handleChange).toHaveBeenCalledWith(5);
@@ -49,7 +49,7 @@ describe('ExtraShotsField', () => {
         maxExtraShotsPerMember={2}
       />,
     );
-    const input = screen.getByLabelText('Extra Shots');
+    const input = screen.getByLabelText('Shots extra');
     await user.clear(input);
     expect(handleChange).toHaveBeenLastCalledWith(0);
   });
@@ -64,7 +64,7 @@ describe('ExtraShotsField', () => {
         maxExtraShotsPerMember={2}
       />,
     );
-    expect(screen.getByText(/Exceeds maximum allowed extra shots/)).toBeInTheDocument();
+    expect(screen.getByText(/Excede o máximo permitido de shots extra/)).toBeInTheDocument();
   });
 
   it('does not show a warning when extraShots is within the maximum', () => {
@@ -77,6 +77,6 @@ describe('ExtraShotsField', () => {
         maxExtraShotsPerMember={2}
       />,
     );
-    expect(screen.queryByText(/Exceeds maximum allowed extra shots/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Excede o máximo permitido de shots extra/)).not.toBeInTheDocument();
   });
 });
