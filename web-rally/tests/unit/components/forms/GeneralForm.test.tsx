@@ -60,7 +60,7 @@ describe('GeneralForm', () => {
       />
     );
     fireEvent.change(screen.getByLabelText('Assigned Points'), { target: { value: '50' } });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { assigned_points: 50, notes: '' },
       extra_shots: 0,
@@ -78,9 +78,9 @@ describe('GeneralForm', () => {
       />
     );
     fireEvent.change(screen.getByLabelText('Assigned Points'), { target: { value: '-1' } });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).not.toHaveBeenCalled();
-    expect(mockToast.error).toHaveBeenCalledWith('Points must be positive.');
+    expect(mockToast.error).toHaveBeenCalledWith('Os pontos têm de ser positivos.');
   });
 
   it('prefills from existingResult', () => {

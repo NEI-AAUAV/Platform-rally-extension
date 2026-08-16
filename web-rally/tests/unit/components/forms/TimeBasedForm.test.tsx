@@ -48,7 +48,7 @@ describe('TimeBasedForm', () => {
     fireEvent.change(screen.getByLabelText('Completion Time (seconds)'), {
       target: { value: '12.34' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { completion_time_seconds: 12.34, notes: '' },
       extra_shots: 0,
@@ -61,7 +61,7 @@ describe('TimeBasedForm', () => {
     fireEvent.change(screen.getByLabelText('Completion Time (seconds)'), {
       target: { value: '12,5' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { completion_time_seconds: 12.5, notes: '' },
       extra_shots: 0,
@@ -71,10 +71,10 @@ describe('TimeBasedForm', () => {
 
   it('blocks submission for empty/invalid time', () => {
     render(<TimeBasedForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).not.toHaveBeenCalled();
     expect(mockToast.error).toHaveBeenCalledWith(
-      'Please enter a valid non-negative time in seconds.'
+      'Introduz um tempo válido e não negativo, em segundos.'
     );
   });
 
@@ -83,7 +83,7 @@ describe('TimeBasedForm', () => {
     fireEvent.change(screen.getByLabelText('Completion Time (seconds)'), {
       target: { value: '-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 

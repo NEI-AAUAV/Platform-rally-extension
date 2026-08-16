@@ -193,6 +193,6 @@ describe('CheckpointTeamEvaluation', () => {
       },
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Incomplete Evaluations Detected')).toBeInTheDocument();
+    expect(screen.getByText('Avaliações incompletas detetadas')).toBeInTheDocument();
   });
 });
