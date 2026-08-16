@@ -4175,7 +4175,6 @@
           "Checkpoint Media"
         ],
         "summary": "List Checkpoint Media",
-        "description": "Checkpoint media (photos, fun facts) \u2014 as strong a reveal as the\ncheckpoint name/coordinates, so it's gated the same way: staff/admin\nsee everything, a team sees only checkpoints it has reached, and the\npublic follow the same rules as the checkpoint map.",
         "operationId": "list_checkpoint_media",
         "security": [
           {
@@ -7398,6 +7397,17 @@
               }
             ],
             "title": "Description"
+          },
+          "activity_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Activity type enum"
           },
           "checkpoint_id": {
             "anyOf": [
