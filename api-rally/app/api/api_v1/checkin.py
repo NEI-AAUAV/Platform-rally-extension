@@ -14,7 +14,7 @@ Anti-fraud layers, in order of importance:
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,12 @@ from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_current_team, get_db
 from app.core.config import Settings, SettingsDep
-from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
+from app.core.exceptions import (
+    RallyConflictError,
+    RallyForbiddenError,
+    RallyNotFoundError,
+    RallyValidationError,
+)
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_team_crud
 from app.schemas.team_auth import TeamTokenData
@@ -210,13 +215,10 @@ class CheckinController:
         try:
             claims = verify_checkin_token(body.token)
         except CheckinTokenError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise RallyValidationError(str(exc)) from exc
 
         if not await service.claim_nonce(claims.nonce, team.team_id, settings):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="This QR was already used by your team",
-            )
+            raise RallyConflictError("This QR was already used by your team")
 
         checkpoint = await service.get_checkpoint_or_raise(claims.checkpoint_id)
         team_obj = await service.get_team_or_raise(team.team_id)
@@ -227,12 +229,9 @@ class CheckinController:
         # len(times) + 1. Anything else is out of order (skip ahead or repeat).
         expected_order = len(team_obj.times) + 1
         if checkpoint.order != expected_order:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"Out-of-order check-in: expected checkpoint {expected_order}, "
-                    f"scanned {checkpoint.order}"
-                ),
+            raise RallyConflictError(
+                f"Out-of-order check-in: expected checkpoint {expected_order}, "
+                f"scanned {checkpoint.order}"
             )
 
         await service.check_in_and_publish(team.team_id, checkpoint)

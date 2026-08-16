@@ -8,6 +8,7 @@ from app.api.deps import SessionDep
 from app.services.activity_service import ActivityService
 from app.services.checkin_service import CheckinService
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
+from app.services.checkpoint_media_service import CheckpointMediaService
 from app.services.checkpoint_service import CheckpointService
 from app.services.deferred_judging_service import DeferredJudgingService
 from app.services.dynamic_scoring_service import DynamicScoringService
@@ -18,6 +19,7 @@ from app.services.hint_service import HintService
 from app.services.pdf_report_service import PdfReportService
 from app.services.profile_service import ProfileService
 from app.services.proximity_service import ProximityService
+from app.services.push_service import PushService
 from app.services.rally_settings_service import RallySettingsService
 from app.services.scoring_service import ScoringService
 from app.services.skip_service import SkipService
@@ -32,6 +34,12 @@ def get_team_service(db: SessionDep) -> TeamService:
 
 def get_checkpoint_service(db: SessionDep) -> CheckpointService:
     return CheckpointService(db, crud.checkpoint, crud.team)
+
+
+def get_checkpoint_media_service(db: SessionDep) -> CheckpointMediaService:
+    return CheckpointMediaService(
+        db, crud.checkpoint, crud.checkpoint_media, get_checkpoint_service(db)
+    )
 
 
 def get_activity_service(db: SessionDep) -> ActivityService:
@@ -100,3 +108,7 @@ def get_team_member_service(db: SessionDep) -> TeamMemberService:
 
 def get_user_service(db: SessionDep) -> UserService:
     return UserService(db)
+
+
+def get_push_service(db: SessionDep) -> PushService:
+    return PushService(db, crud.push_subscription, crud.checkpoint)
