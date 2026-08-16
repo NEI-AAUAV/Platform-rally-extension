@@ -54,12 +54,26 @@ class ActivityUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
+    activity_type: ActivityType | None = Field(None, description="Activity type enum")
     checkpoint_id: int | None = Field(None, gt=0)
     config: dict[str, Any] | None = None
     is_active: bool | None = None
     is_global: bool | None = None
     available_from: datetime | None = None
     available_until: datetime | None = None
+
+    @field_validator("activity_type")
+    @classmethod
+    def validate_activity_type(cls, v: Any) -> Any:
+        """Validate that activity type is supported by the factory"""
+        if v is None:
+            return v
+        activity_type_str = v.value if isinstance(v, ActivityType) else str(v)
+
+        available_types = ActivityFactory.get_available_types()
+        if activity_type_str not in available_types:
+            raise ValueError(f"Invalid activity type. Available types: {available_types}")
+        return v
 
 
 class ActivityResponse(ActivityBase):
