@@ -16,7 +16,34 @@ import { seedOidcSession, MANAGER_GROUPS, STAFF_GROUPS } from './helpers/session
  * "Moderate" and "minor" are excluded from failure to keep this actionable
  * rather than noisy — tighten once the surfaces are clean at this bar.
  */
+/**
+ * Block until entrance animations have settled.
+ *
+ * axe scores the colours actually painted, and mid-fade an element's computed
+ * colour is a blend of itself and whatever is behind it. The home hero's
+ * countdown labels measure #818792 on #fefefe (3.5:1, failing) while an
+ * ancestor is still at opacity 0.5, and #4b5363 on #ffffff (7.1:1, passing)
+ * once it reaches 1 — so without this the gate reports contrast failures
+ * against colours no user is ever shown.
+ *
+ * `reducedMotion: 'reduce'` is not enough on its own: framer-motion's
+ * equivalent setting deliberately keeps opacity animations (only transform and
+ * layout animations are suppressed, since those are the vestibular triggers).
+ * So sample the opacity of every element until two consecutive readings match.
+ */
+const ENTRANCE_SETTLE_MS = 1_500;
+
+async function waitForVisualStability(page: Page): Promise<void> {
+  // A fixed wait rather than polling for stability: several surfaces animate
+  // continuously (the scoreboard marquee, the home countdown ticking each
+  // second), so "nothing changed between two samples" never becomes true there.
+  // The longest entrance is a 0.5s delay plus a 0.55s fade, so 1.5s clears it.
+  await page.waitForTimeout(ENTRANCE_SETTLE_MS);
+}
+
 async function expectNoSeriousViolations(page: Page): Promise<void> {
+  await waitForVisualStability(page);
+
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     .analyze();
@@ -35,7 +62,48 @@ async function expectNoSeriousViolations(page: Page): Promise<void> {
   expect(serious, summary).toEqual([]);
 }
 
+/**
+ * Routes that need nothing but the public settings call. Table-driven rather
+ * than five near-identical tests, so adding a route to the gate is one line.
+ */
+const PUBLIC_ROUTES: ReadonlyArray<{ name: string; path: string }> = [
+  { name: 'home', path: '/rally/' },
+  { name: 'rules', path: '/rally/rules' },
+  { name: 'checkpoints', path: '/rally/checkpoints' },
+];
+
 test.describe('Accessibility', () => {
+  // Sample colours in the settled state. Mid-fade, an element's computed
+  // colour is a blend of itself and whatever is behind it, and axe scores the
+  // blend — the home hero's countdown labels measure #838994 on #fefefe
+  // (3.43:1, failing) while still animating in, against #4b5363 on #ffffff
+  // (7.1:1, passing) once settled. The app already disables its entrance
+  // animations under prefers-reduced-motion, so asking for it here removes the
+  // transient without adding a sleep, and exercises the reduced-motion path.
+  test.use({ reducedMotion: 'reduce' });
+
+  for (const { name, path } of PUBLIC_ROUTES) {
+    test(`${name} has no serious a11y violations`, async ({ page }) => {
+      await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...MOCK_RALLY_SETTINGS, public_access_enabled: true }),
+        }),
+      );
+      await page.route('**/api/rally/v1/checkpoint/**', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([MOCK_CHECKPOINT]),
+        }),
+      );
+
+      await page.goto(path, { waitUntil: 'networkidle' });
+      await expectNoSeriousViolations(page);
+    });
+  }
+
   test('team login page has no serious a11y violations', async ({ page }) => {
     await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
       route.fulfill({
