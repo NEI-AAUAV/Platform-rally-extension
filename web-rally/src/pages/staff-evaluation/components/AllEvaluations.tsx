@@ -226,7 +226,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
           {hasActiveFilters && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Showing {filteredEvaluations.length} of {evaluations.length} evaluations
+              A mostrar {filteredEvaluations.length} de {evaluations.length} avaliações
             </div>
           )}
         </div>
@@ -389,7 +389,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                               typeof evaluation.result_data.notes === "string" &&
                               evaluation.result_data.notes.trim() !== "" && (
                                 <Badge variant="outline" className="text-xs">
-                                  Note: {evaluation.result_data.notes}
+                                  Nota: {evaluation.result_data.notes}
                                 </Badge>
                               )}
                           </div>
@@ -398,20 +398,20 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-blue-400">Modifiers:</p>
+                          <p className="mb-1 text-xs font-semibold text-blue-400">Modificadores:</p>
                           <div className="flex flex-wrap gap-1">
                             <Badge
                               variant="outline"
                               className="border-blue-500/30 text-xs text-blue-400"
                             >
-                              Extra Shots: +{evaluation.extra_shots}
+                              Shots extra: +{evaluation.extra_shots}
                             </Badge>
                             {(evaluation.team.num_members ?? 0) > 0 && (
                               <Badge
                                 variant="outline"
                                 className="border-blue-500/30 text-xs text-blue-400"
                               >
-                                Team Members: {evaluation.team.num_members}
+                                Membros da equipa: {evaluation.team.num_members}
                               </Badge>
                             )}
                           </div>
@@ -420,7 +420,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-red-400">Penalties:</p>
+                          <p className="mb-1 text-xs font-semibold text-red-400">Penalizações:</p>
                           <div className="flex flex-wrap gap-1">
                             {Object.entries(evaluation.penalties).map(([key, value]) => (
                               <Badge

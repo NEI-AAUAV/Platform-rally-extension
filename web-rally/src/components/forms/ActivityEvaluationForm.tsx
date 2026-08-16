@@ -142,8 +142,8 @@ export default function ActivityEvaluationForm({
       default:
         return (
           <div className="py-8 text-center">
-            <p className="text-muted-foreground">Unknown activity type: {activity.activity_type}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Please contact an administrator.</p>
+            <p className="text-muted-foreground">Tipo de atividade desconhecido: {activity.activity_type}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Contacte um administrador.</p>
           </div>
         );
     }
@@ -152,16 +152,16 @@ export default function ActivityEvaluationForm({
   return (
     <div className="space-y-4">
       <div className="rounded border border-border bg-muted p-4">
-        <h3 className="mb-2 font-semibold text-foreground">Activity Details</h3>
+        <h3 className="mb-2 font-semibold text-foreground">Detalhes da atividade</h3>
         <p className="text-muted-foreground">
-          <strong>Type:</strong> {activity.activity_type}
+          <strong>Tipo:</strong> {activity.activity_type}
         </p>
         <p className="text-muted-foreground">
-          <strong>Team:</strong> {team.name}
+          <strong>Equipa:</strong> {team.name}
         </p>
         {activity.description && (
           <p className="text-muted-foreground">
-            <strong>Description:</strong> {activity.description}
+            <strong>Descrição:</strong> {activity.description}
           </p>
         )}
       </div>

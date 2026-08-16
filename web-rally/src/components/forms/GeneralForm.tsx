@@ -60,7 +60,7 @@ export default function GeneralForm({
     if (!validateExtraShots()) return;
 
     if (assignedPoints < 0) {
-      toast.error("Points must be positive.");
+      toast.error("Os pontos têm de ser positivos.");
       return;
     }
 

@@ -89,7 +89,7 @@ export default function ScoreBasedForm({
     if (!validateExtraShots()) return;
 
     if (achievedPoints < 0) {
-      toast.error("Points must be positive.");
+      toast.error("Os pontos têm de ser positivos.");
       return;
     }
 
@@ -162,7 +162,7 @@ export default function ScoreBasedForm({
             value={achievedPoints}
             onChange={(e) => setAchievedPoints(Number(e.target.value))}
             className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-            placeholder="Enter achieved points"
+            placeholder="Introduz os pontos alcançados"
             required
           />
         </div>

@@ -78,7 +78,7 @@ export default function BooleanForm({
               isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
           >
-            <span className="sr-only">Success</span>
+            <span className="sr-only">Sucesso</span>
             <svg
               className={`h-4 w-4 text-red-500 transition-opacity duration-200 ${
                 isSuccessChecked ? "opacity-100" : "opacity-0"
@@ -97,14 +97,14 @@ export default function BooleanForm({
             htmlFor="success-checkbox"
             className="cursor-pointer font-medium text-muted-foreground"
           >
-            Team succeeded in the activity
+            Equipa teve sucesso na atividade
           </label>
         </div>
       </div>
 
       <div>
         <label htmlFor="attempts-input" className="mb-2 block text-sm font-medium text-foreground">
-          Attempts
+          Tentativas
         </label>
         <input
           id="attempts-input"
@@ -113,9 +113,9 @@ export default function BooleanForm({
           value={attempts}
           onChange={(e) => setAttempts(Number.parseInt(e.target.value, 10) || 1)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Number of attempts"
+          placeholder="Número de tentativas"
         />
-        <p className="mt-1 text-sm text-muted-foreground">How many attempts did the team make?</p>
+        <p className="mt-1 text-sm text-muted-foreground">Quantas tentativas fez a equipa?</p>
       </div>
 
       <ExtraShotsField

@@ -29,7 +29,7 @@ export default function PenaltiesFieldset({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-sm font-medium text-foreground">Penalties</legend>
+      <legend className="mb-2 block text-sm font-medium text-foreground">Penalizações</legend>
       <div className="space-y-2">
         {showVomitPenalty && (
           <div className="flex items-center space-x-3">
@@ -43,10 +43,10 @@ export default function PenaltiesFieldset({
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
-              aria-label="Vomit penalty count"
+              aria-label="Número de vezes que vomitou"
             />
             <label htmlFor={`${idPrefix}-vomit`} className="text-sm text-muted-foreground">
-              Vomit penalty ({penaltyValues.vomit} pts each)
+              Penalização por vómito ({penaltyValues.vomit} pts cada)
             </label>
           </div>
         )}
@@ -65,10 +65,10 @@ export default function PenaltiesFieldset({
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
-              aria-label="Not drinking penalty count"
+              aria-label="Número de vezes que não bebeu"
             />
             <label htmlFor={`${idPrefix}-not-drinking`} className="text-sm text-muted-foreground">
-              Not drinking penalty ({penaltyValues.not_drinking} pts each)
+              Penalização por não beber ({penaltyValues.not_drinking} pts cada)
             </label>
           </div>
         )}
@@ -87,20 +87,20 @@ export default function PenaltiesFieldset({
               }
               className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
               placeholder="0"
-              aria-label={`${counter.label} count`}
+              aria-label={`Contagem de ${counter.label}`}
             />
             <label htmlFor={`${idPrefix}-${counter.key}`} className="text-sm text-muted-foreground">
-              {counter.label} ({Math.abs(counter.points)} pts each)
+              {counter.label} ({Math.abs(counter.points)} pts cada)
             </label>
           </div>
         ))}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Penalties reduce the final score. Total penalty:{" "}
+        As penalizações reduzem a pontuação final. Penalização total:{" "}
         {(penalties.vomit || 0) * Math.abs(penaltyValues.vomit) +
           (penalties.not_drinking || 0) * Math.abs(penaltyValues.not_drinking) +
           customTotal}{" "}
-        points
+        pontos
       </p>
     </fieldset>
   );

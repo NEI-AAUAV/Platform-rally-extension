@@ -24,7 +24,7 @@ export default function ExtraShotsField({
   return (
     <div>
       <label htmlFor={inputId} className="mb-2 block text-sm font-medium text-foreground">
-        Extra Shots
+        Shots extra
       </label>
       <input
         id={inputId}
@@ -34,15 +34,15 @@ export default function ExtraShotsField({
         value={extraShots}
         onChange={handleChange}
         className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-        placeholder="Extra shots taken"
+        placeholder="Shots extra tomados"
       />
       <p className="mt-1 text-sm text-muted-foreground">
-        Bonus shots taken (adds points to final score). Max: {maxExtraShots} shots (
-        {maxExtraShotsPerMember} per team member)
+        Shots bónus tomados (adiciona pontos à pontuação final). Máx.: {maxExtraShots} shots (
+        {maxExtraShotsPerMember} por membro da equipa)
       </p>
       {extraShots > maxExtraShots && (
         <p className="mt-1 text-sm text-red-400">
-          ⚠️ Exceeds maximum allowed extra shots ({maxExtraShots})
+          ⚠️ Excede o máximo permitido de shots extra ({maxExtraShots})
         </p>
       )}
     </div>
