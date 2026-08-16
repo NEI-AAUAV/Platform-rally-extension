@@ -13,6 +13,9 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  Check,
+  Circle,
+  Equal,
 } from "lucide-react";
 import { EvaluationHistory } from "./EvaluationHistory";
 
@@ -52,10 +55,24 @@ type AllEvaluationsProps = Readonly<{
   evaluations: Evaluation[];
 }>;
 
-function getTeamVsResultLabel(result: string): string {
-  if (result === "win") return "✓ Won";
-  if (result === "lose") return "✗ Lost";
-  return "= Draw";
+function TeamVsResultLabel({ result }: { result: string }) {
+  if (result === "win")
+    return (
+      <>
+        <Check className="h-3 w-3" /> Won
+      </>
+    );
+  if (result === "lose")
+    return (
+      <>
+        <X className="h-3 w-3" /> Lost
+      </>
+    );
+  return (
+    <>
+      <Equal className="h-3 w-3" /> Draw
+    </>
+  );
 }
 
 const activityTypeIcons = {
@@ -75,8 +92,8 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
   const badgeClass = TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-400";
   return (
     <>
-      <Badge variant="outline" className={`text-xs ${badgeClass}`}>
-        {getTeamVsResultLabel(result)}
+      <Badge variant="outline" className={`flex items-center gap-1 text-xs ${badgeClass}`}>
+        <TeamVsResultLabel result={result} />
       </Badge>
       {opponentId !== null && (
         <Badge variant="outline" className="text-xs">
@@ -347,13 +364,18 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                             {evaluation.is_completed && (
                               <Badge
                                 variant="outline"
-                                className={`text-xs ${
+                                className={`flex items-center gap-1 text-xs ${
                                   evaluation.final_score > 0
                                     ? "border-green-500/50 bg-green-500/10 text-green-400"
                                     : "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
                                 }`}
                               >
-                                {evaluation.final_score > 0 ? "✓ Completed" : "○ Attempted"}
+                                {evaluation.final_score > 0 ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <Circle className="h-3 w-3" />
+                                )}
+                                {evaluation.final_score > 0 ? "Completed" : "Attempted"}
                               </Badge>
                             )}
 
@@ -371,13 +393,18 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                               evaluation.boolean_score !== undefined && (
                                 <Badge
                                   variant="outline"
-                                  className={`text-xs ${
+                                  className={`flex items-center gap-1 text-xs ${
                                     evaluation.boolean_score
                                       ? "border-green-500/50 text-green-400"
                                       : "border-red-500/50 text-red-400"
                                   }`}
                                 >
-                                  {evaluation.boolean_score ? "✓ Success" : "✗ Failed"}
+                                  {evaluation.boolean_score ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
+                                  {evaluation.boolean_score ? "Success" : "Failed"}
                                 </Badge>
                               )}
 

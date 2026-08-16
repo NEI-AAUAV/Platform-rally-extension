@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
+import { Trophy } from "lucide-react";
 import type { ListingTeam } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
@@ -59,8 +60,8 @@ function renderTeamAvatar(team: ListingTeam, champion: boolean) {
   }
   if (champion) {
     return (
-      <span className="rally-display rally-accent grid h-full w-full place-items-center text-[28px] font-bold sm:text-[34px]">
-        ★
+      <span className="rally-display rally-accent grid h-full w-full place-items-center">
+        <Trophy className="h-7 w-7 sm:h-8 sm:w-8" fill="currentColor" />
       </span>
     );
   }

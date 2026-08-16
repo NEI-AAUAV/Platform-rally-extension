@@ -26,8 +26,9 @@ export function IncompleteEvaluationDialog({
             <div className="space-y-3">
               {summary.checkpoint_mismatch ? (
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">
-                    ⚠️ Esta equipa é de um posto diferente
+                  <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    Esta equipa é de um posto diferente
                   </p>
                   <p className="text-sm">
                     Esta equipa é do posto <strong>{summary.team_checkpoint}</strong>, mas está a

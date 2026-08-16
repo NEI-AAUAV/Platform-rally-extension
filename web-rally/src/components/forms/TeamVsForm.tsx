@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import { Check, X } from "lucide-react";
 import { getTeamOpponent, getTeams } from "@/client";
 import { logger } from "@/lib/logger";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
@@ -228,8 +229,9 @@ export default function TeamVsForm({
                 }`}
               />
             </button>
-            <span className="text-sm text-muted-foreground">
-              {completed ? "✓ Completou o desafio" : "✗ Não completou o desafio"}
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              {completed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {completed ? "Completou o desafio" : "Não completou o desafio"}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">+{completionPoints} pts se completou</p>
@@ -274,8 +276,9 @@ export default function TeamVsForm({
               disabled
               className="w-full cursor-not-allowed rounded border border-border bg-muted p-3 text-foreground opacity-50"
             />
-            <p className="mt-1 text-sm text-muted-foreground">
-              ✓ Adversário definido automaticamente pelo par de confronto
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Check className="h-4 w-4" />
+              Adversário definido automaticamente pelo par de confronto
             </p>
           </div>
         ) : (

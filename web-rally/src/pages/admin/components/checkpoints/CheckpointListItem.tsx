@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Edit, Trash2, GripVertical, Images, ChevronDown } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  GripVertical,
+  Images,
+  ChevronDown,
+  Compass,
+  Clock,
+  MapPin,
+  Puzzle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { RouteStageResponse } from "@/client";
@@ -99,26 +109,37 @@ export default function CheckpointListItem({
               <div className="text-sm text-muted-foreground">{checkpoint.description}</div>
               {(stage || hasWindow) && (
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {stage && <span>🧭 {stage.name}</span>}
+                  {stage && (
+                    <span className="flex items-center gap-1">
+                      <Compass className="h-3 w-3" />
+                      {stage.name}
+                    </span>
+                  )}
                   {hasWindow && (
                     <span
-                      className={checkpointOpeningNotice(checkpoint) ? "text-amber-600" : undefined}
+                      className={cn(
+                        "flex items-center gap-1",
+                        checkpointOpeningNotice(checkpoint) && "text-amber-600",
+                      )}
                     >
-                      🕒 {formatWindow(checkpoint.available_from, checkpoint.available_until)}
+                      <Clock className="h-3 w-3" />
+                      {formatWindow(checkpoint.available_from, checkpoint.available_until)}
                     </span>
                   )}
                 </div>
               )}
               {(checkpoint.latitude || checkpoint.longitude) && (
-                <div className="text-xs text-muted-foreground">
-                  📍 {checkpoint.latitude}, {checkpoint.longitude}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  {checkpoint.latitude}, {checkpoint.longitude}
                   {checkpoint.arrival_radius_m ? ` · raio ${checkpoint.arrival_radius_m}m` : ""}
                 </div>
               )}
               {/* Setting up a route means checking a dozen posts have a riddle;
                   say so here instead of opening each form to find out. */}
-              <div className="text-xs text-muted-foreground">
-                {checkpoint.clue ? "🧩 Com enigma" : "🧩 Sem enigma — corre guiado"}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Puzzle className="h-3 w-3" />
+                {checkpoint.clue ? "Com enigma" : "Sem enigma — corre guiado"}
               </div>
               {/* What is still to fill in, so planning a route does not mean
                   opening a dozen forms to find the one with a hole in it. */}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Info, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Info, X, ChevronDown, ChevronUp, Clock, Target, CheckCircle2, Swords, Dices } from "lucide-react";
 
 export default function ActivityTypeInfo() {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +49,7 @@ export default function ActivityTypeInfo() {
             {[
               {
                 id: 1,
-                icon: "🕐",
+                icon: Clock,
                 name: "Baseada em Tempo",
                 examples: "Corridas, desafios de tempo",
                 calculation: "Ranking relativo entre todas as equipas",
@@ -60,7 +60,7 @@ export default function ActivityTypeInfo() {
               },
               {
                 id: 2,
-                icon: "🎯",
+                icon: Target,
                 name: "Baseada em Pontuação",
                 examples: "Mímica, Tiro ao alvo",
                 calculation: "Pontuação proporcional",
@@ -70,7 +70,7 @@ export default function ActivityTypeInfo() {
               },
               {
                 id: 3,
-                icon: "✅",
+                icon: CheckCircle2,
                 name: "Sim/Não",
                 examples: "Trava-línguas, puzzles",
                 calculation: "Pontuação binária",
@@ -80,7 +80,7 @@ export default function ActivityTypeInfo() {
               },
               {
                 id: 4,
-                icon: "⚔️",
+                icon: Swords,
                 name: "Equipa vs Equipa",
                 examples: "Jogo da corda",
                 calculation: "Baseado no resultado",
@@ -90,7 +90,7 @@ export default function ActivityTypeInfo() {
               },
               {
                 id: 5,
-                icon: "🎲",
+                icon: Dices,
                 name: "Geral",
                 examples: "Desafios criativos, avaliações artísticas",
                 calculation: "Pontos atribuídos pelo staff",
@@ -113,7 +113,7 @@ export default function ActivityTypeInfo() {
                     className="flex w-full items-center justify-between p-4 transition-colors hover:bg-muted"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{type.icon}</span>
+                      <type.icon className="h-6 w-6 text-foreground" />
                       <div className="text-left">
                         <h4 className="font-semibold text-foreground">{type.name}</h4>
                         {!isExpanded && (
