@@ -37,10 +37,10 @@ export default defineConfig({
       // regression rather than a blocker. Raise these as coverage climbs; the
       // backend has enforced floors and the frontend had none.
       thresholds: {
-        statements: 83,
-        branches: 76,
-        functions: 82,
-        lines: 84,
+        statements: 86,
+        branches: 79,
+        functions: 84,
+        lines: 88,
       },
       include: [
         'src/**/*.ts',
