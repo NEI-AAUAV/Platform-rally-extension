@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseQuizQuestions, countCorrect } from "@/lib/quizQuestions";
+import { parseQuizQuestions, parseAnswersPerQuestion, countCorrect } from "@/lib/quizQuestions";
 
 describe("parseQuizQuestions", () => {
   it("reads a well-formed quiz_questions array", () => {
@@ -38,9 +38,26 @@ describe("parseQuizQuestions", () => {
   });
 });
 
+describe("parseAnswersPerQuestion", () => {
+  it("reads a well-formed quiz_answers_per_question", () => {
+    expect(parseAnswersPerQuestion({ quiz_answers_per_question: 3 })).toBe(3);
+  });
+
+  it("defaults to 1 when unset or malformed", () => {
+    expect(parseAnswersPerQuestion({})).toBe(1);
+    expect(parseAnswersPerQuestion(null)).toBe(1);
+    expect(parseAnswersPerQuestion({ quiz_answers_per_question: "oops" })).toBe(1);
+    expect(parseAnswersPerQuestion({ quiz_answers_per_question: 0 })).toBe(1);
+  });
+
+  it("floors fractional values", () => {
+    expect(parseAnswersPerQuestion({ quiz_answers_per_question: 2.7 })).toBe(2);
+  });
+});
+
 describe("countCorrect", () => {
-  it("counts only the true entries", () => {
-    expect(countCorrect({ q1: true, q2: false, q3: true })).toBe(2);
+  it("sums correct counts across questions", () => {
+    expect(countCorrect({ q1: 2, q2: 0, q3: 1 })).toBe(3);
   });
 
   it("returns 0 for an empty map", () => {
@@ -48,6 +65,6 @@ describe("countCorrect", () => {
   });
 
   it("returns 0 when nothing is marked correct", () => {
-    expect(countCorrect({ q1: false, q2: false })).toBe(0);
+    expect(countCorrect({ q1: 0, q2: 0 })).toBe(0);
   });
 });
