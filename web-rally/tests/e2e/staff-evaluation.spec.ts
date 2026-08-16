@@ -972,7 +972,7 @@ test.describe('Staff Evaluation - Empty Data Cases', () => {
     // Should show warning dialog about checkpoint mismatch
     // The dialog shows "This team is from a different checkpoint"
     await expect(
-      page.getByText(/incomplete evaluations detected|this team is from a different checkpoint/i).first(),
+      page.getByText(/avaliações incompletas detetadas|incomplete evaluations detected|this team is from a different checkpoint/i).first(),
     ).toBeVisible({ timeout: 5000 });
 
     // Verify the specific mismatch message
@@ -1343,11 +1343,11 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /detalhes da atividade|activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
-      const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+      const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
       if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await submitButton.click();
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1383,7 +1383,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /detalhes da atividade|activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
@@ -1575,7 +1575,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1624,7 +1624,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1673,7 +1673,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1722,7 +1722,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1771,7 +1771,7 @@ test.describe('Staff Evaluation - Activity Type Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit form
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1904,7 +1904,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Try to submit - should show validation error
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
 
@@ -1937,7 +1937,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Leave time field empty and try to submit
-      const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+      const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
       if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
         await submitButton.click();
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1980,7 +1980,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
         await pointsInput.fill('-5');
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -2018,7 +2018,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
         await pointsInput.fill('-20');
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -2176,7 +2176,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
       // Form should be visible with existing values
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /detalhes da atividade|activity details/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Update the points value
@@ -2191,7 +2191,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Submit update
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -2351,7 +2351,7 @@ test.describe('Staff Evaluation - Multiple Activities Sequence', () => {
         await pointsInput.fill('80');
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const submitButton = page.getByRole('button', { name: /submit|enviar|save|salvar/i }).first();
+        const submitButton = page.getByRole('button', { name: /submeter|submit|enviar|guardar|save|salvar/i }).first();
         if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submitButton.click();
           await new Promise(resolve => setTimeout(resolve, 2000));
