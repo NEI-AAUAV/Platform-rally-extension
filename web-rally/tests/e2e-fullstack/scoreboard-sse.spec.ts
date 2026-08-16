@@ -108,7 +108,7 @@ test.describe('Live scoreboard updates via real SSE', () => {
       await staffPage.getByText(teamName).first().click();
       await staffPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
       await staffPage.getByText('Team succeeded in the activity').first().click();
-      await staffPage.getByRole('button', { name: /submit evaluation/i }).click();
+      await staffPage.getByRole('button', { name: /submeter avalia|submit evaluation/i }).click();
       // Wait for the submission to actually complete server-side before
       // asserting on the scoreboard — otherwise the read below can race the
       // in-flight save.
