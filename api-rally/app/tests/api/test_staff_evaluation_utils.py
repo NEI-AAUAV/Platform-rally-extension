@@ -34,6 +34,7 @@ from app.crud.crud_team import team as crud_team
 from app.schemas.activity import ActivityCreate, ActivityResultEvaluation, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
+from app.services.scoring_service import ScoringService
 from app.tests.conftest import make_event as _make_event
 
 
@@ -487,8 +488,10 @@ class TestCreateOrUpdateActivityResult:
         team = await _make_team(pg_session)
         activity = await _make_activity(pg_session, cp.id)
 
+        scoring_service = ScoringService(pg_session)
         first = await create_or_update_activity_result(
             pg_session,
+            scoring_service,
             team.id,
             activity.id,
             ActivityResultEvaluation(result_data={"assigned_points": 10}),
@@ -497,6 +500,7 @@ class TestCreateOrUpdateActivityResult:
 
         updated = await create_or_update_activity_result(
             pg_session,
+            scoring_service,
             team.id,
             activity.id,
             ActivityResultEvaluation(result_data={"assigned_points": 20}),
@@ -516,8 +520,10 @@ class TestCreateOrUpdateActivityResult:
         activity = await _make_activity(pg_session, cp.id)
 
         # Seed a "winner" result as if a concurrent request created it first.
+        scoring_service = ScoringService(pg_session)
         winner = await create_or_update_activity_result(
             pg_session,
+            scoring_service,
             team.id,
             activity.id,
             ActivityResultEvaluation(result_data={"assigned_points": 1}),
@@ -534,6 +540,7 @@ class TestCreateOrUpdateActivityResult:
 
         result = await create_or_update_activity_result(
             pg_session,
+            scoring_service,
             team.id,
             activity.id,
             ActivityResultEvaluation(result_data={"assigned_points": 99}),
@@ -561,8 +568,11 @@ class TestCreateOrUpdateActivityResult:
         monkeypatch.setattr(utils_module, "create_activity_result", _raise_integrity_error)
 
         eval_obj = ActivityResultEvaluation(result_data={"assigned_points": 5})
+        scoring_service = ScoringService(pg_session)
         with pytest.raises(IntegrityError):
-            await create_or_update_activity_result(pg_session, team.id, activity.id, eval_obj)
+            await create_or_update_activity_result(
+                pg_session, scoring_service, team.id, activity.id, eval_obj
+            )
 
 
 class TestMirrorTeamVsResult:
@@ -573,7 +583,11 @@ class TestMirrorTeamVsResult:
 
         # Should simply return without raising or doing anything.
         await mirror_team_vs_result(
-            pg_session, activity, team_id=1, result_data={"opponent_team_id": 2, "result": "win"}
+            pg_session,
+            ScoringService(pg_session),
+            activity,
+            team_id=1,
+            result_data={"opponent_team_id": 2, "result": "win"},
         )
 
     async def test_no_op_when_missing_opponent_or_result(self, pg_session):
@@ -581,9 +595,13 @@ class TestMirrorTeamVsResult:
         cp = await _make_checkpoint(pg_session, order=1)
         activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
 
-        await mirror_team_vs_result(pg_session, activity, team_id=1, result_data={})
+        scoring_service = ScoringService(pg_session)
+        await mirror_team_vs_result(
+            pg_session, scoring_service, activity, team_id=1, result_data={}
+        )
         await mirror_team_vs_result(
             pg_session,
+            scoring_service,
             activity,
             team_id=1,
             result_data={"opponent_team_id": 2, "result": "invalid"},
@@ -599,6 +617,7 @@ class TestMirrorTeamVsResult:
 
         await mirror_team_vs_result(
             pg_session,
+            ScoringService(pg_session),
             activity,
             team_id=team_a.id,
             result_data={"opponent_team_id": team_b.id, "result": "win"},
