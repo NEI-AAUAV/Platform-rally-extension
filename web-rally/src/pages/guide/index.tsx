@@ -168,9 +168,7 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
 
   return (
     <article
-      className={`rally-surface overflow-hidden ${
-        cp.is_current ? "ring-2 ring-primary" : ""
-      }`}
+      className={`rally-surface overflow-hidden ${cp.is_current ? "ring-2 ring-primary" : ""}`}
     >
       <button
         type="button"

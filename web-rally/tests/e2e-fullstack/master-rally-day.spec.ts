@@ -132,7 +132,9 @@ test.describe('Master rally day — every feature combined under real concurrenc
           await expect(guidePage.getByText('Postos — Visão do Guia')).toBeVisible({
             timeout: 20_000,
           });
-          await guidePage.getByText(checkpoint1.name).click();
+          // The guide's team hasn't checked in anywhere yet, so checkpoint1
+          // (order 1) is the current post and its card is already expanded
+          // by default — no click needed.
           await expect(guidePage.getByText('Quem é o santo padroeiro?')).toBeVisible({
             timeout: 15_000,
           });

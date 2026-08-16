@@ -54,7 +54,9 @@ test.describe('Guide mode and auto-awarded badges against a real backend', () =>
             timeout: 20_000,
           });
           await expect(guidePage.getByText(scenario.checkpointName)).toBeVisible();
-          await guidePage.getByText(scenario.checkpointName).click();
+          // The guide's team hasn't checked in anywhere yet, so this
+          // checkpoint (order 1) is the current post and its card is
+          // already expanded by default — no click needed.
           await expect(guidePage.getByText('Quem é o santo padroeiro?')).toBeVisible({
             timeout: 15_000,
           });
