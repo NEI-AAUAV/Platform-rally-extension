@@ -1,14 +1,19 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { uploadClueImage } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type ClueImageFieldProps = Readonly<{
-  /** Null while creating: an upload needs a checkpoint to attach to. */
+  /** Null while creating: an upload needs a checkpoint to attach to, so the
+   * picked file is staged instead via onFileSelected and sent right after
+   * the checkpoint is created. */
   checkpointId: number | null;
   currentUrl: string | null;
   onUploaded: (url: string) => void;
+  /** The file picked while checkpointId is still null. */
+  pendingFile?: File | null;
+  onFileSelected?: (file: File | null) => void;
 }>;
 
 /**
@@ -17,6 +22,10 @@ type ClueImageFieldProps = Readonly<{
  * Goes to R2 through the API like every other image in the app (team photos,
  * checkpoint media) rather than asking an admin to paste a URL. Uploading
  * replaces the previous image, which the server deletes.
+ *
+ * While creating (checkpointId is null) there is nothing to attach the image
+ * to yet, so the picked file is staged via onFileSelected instead of
+ * uploaded; the caller sends it right after the checkpoint is created.
  *
  * Deliberately plain state rather than react-query + useAppToast: this renders
  * inside the checkpoint form, and either hook would drag a QueryClientProvider
@@ -28,13 +37,18 @@ export default function ClueImageField({
   checkpointId,
   currentUrl,
   onUploaded,
+  pendingFile,
+  onFileSelected,
 }: ClueImageFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = async (image: Blob) => {
-    if (checkpointId === null) return;
+  const handleFile = async (image: File) => {
+    if (checkpointId === null) {
+      onFileSelected?.(image);
+      return;
+    }
     setIsUploading(true);
     setError(null);
     try {
@@ -48,19 +62,31 @@ export default function ClueImageField({
     }
   };
 
-  if (checkpointId === null) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Cria o checkpoint primeiro para lhe juntares uma imagem-enigma.
-      </p>
-    );
-  }
+  // Only staged, unsent files need an object URL preview; once uploaded the
+  // server URL takes over. Revoked on cleanup so previews don't leak memory
+  // across file picks.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (checkpointId !== null || !pendingFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [checkpointId, pendingFile]);
+  const displayUrl = previewUrl ?? currentUrl;
 
   return (
     <div className="space-y-2">
-      {currentUrl && (
+      {checkpointId === null && pendingFile && (
+        <p className="text-xs text-muted-foreground">
+          Enviada assim que o checkpoint for criado.
+        </p>
+      )}
+      {displayUrl && (
         <img
-          src={currentUrl}
+          src={displayUrl}
           alt="Imagem-enigma atual"
           className="max-h-40 rounded-lg object-cover"
         />
@@ -88,7 +114,7 @@ export default function ClueImageField({
         ) : (
           <ImagePlus className="h-4 w-4" />
         )}
-        <span className="ml-1.5">{currentUrl ? "Substituir imagem" : "Enviar imagem"}</span>
+        <span className="ml-1.5">{displayUrl ? "Substituir imagem" : "Enviar imagem"}</span>
       </BloodyButton>
     </div>
   );

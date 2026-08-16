@@ -14,15 +14,44 @@ const file = () => new File(["fake"], "enigma.png", { type: "image/png" });
 describe("ClueImageField", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn().mockReturnValue("blob:mock"),
+      revokeObjectURL: vi.fn(),
+    });
   });
 
-  it("cannot upload before the checkpoint exists", () => {
-    render(<ClueImageField checkpointId={null} currentUrl={null} onUploaded={vi.fn()} />);
+  it("stages the picked file instead of uploading before the checkpoint exists", async () => {
+    const onFileSelected = vi.fn();
+    render(
+      <ClueImageField
+        checkpointId={null}
+        currentUrl={null}
+        onUploaded={vi.fn()}
+        onFileSelected={onFileSelected}
+      />,
+    );
 
-    // An upload needs something to attach to, so say that instead of
-    // offering a button that would fail.
-    expect(screen.getByText(/Cria o checkpoint primeiro/)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    await userEvent.upload(screen.getByLabelText("Imagem do enigma"), file());
+
+    // No checkpoint to attach to yet, so the file is staged for the caller
+    // instead of hitting the upload endpoint.
+    expect(onFileSelected).toHaveBeenCalledWith(expect.any(File));
+    expect(mockUploadClueImage).not.toHaveBeenCalled();
+  });
+
+  it("previews a staged file while the checkpoint doesn't exist yet", () => {
+    render(
+      <ClueImageField
+        checkpointId={null}
+        currentUrl={null}
+        onUploaded={vi.fn()}
+        pendingFile={file()}
+      />,
+    );
+
+    expect(screen.getByAltText("Imagem-enigma atual")).toHaveAttribute("src", "blob:mock");
+    expect(screen.getByText(/Enviada assim que o checkpoint for criado/)).toBeInTheDocument();
   });
 
   it("uploads the picked file and reports the stored URL", async () => {
