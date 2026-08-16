@@ -183,7 +183,9 @@ class TestManualArrival:
         other_team = await _make_team(pg_session, name="OtherTeam", event_id=event.id)
         await _assign_guide(pg_session, my_team.id)
 
-        resp = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": other_team.id})
+        resp = pg_client.post(
+            ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": other_team.id}
+        )
 
         assert resp.status_code == 201, resp.text
         assert resp.json()["team_id"] == other_team.id
