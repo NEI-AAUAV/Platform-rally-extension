@@ -1345,7 +1345,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /activity details|detalhes da atividade/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Submit form (assuming there's a submit button - adjust based on actual form)
@@ -1385,7 +1385,7 @@ test.describe('Staff Evaluation - Happy Path & Form Interactions', () => {
 
       // Form should be visible
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /activity details|detalhes da atividade/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Close form (check for cancel or close button)
@@ -1912,7 +1912,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
 
           // Should show validation error (toast is transient; assert immediately)
           await expect(
-            page.getByText(/valid non-negative time|must be positive|invalid/i).first(),
+            page.getByText(/valid non-negative time|must be positive|invalid|tempo válido/i).first(),
           ).toBeVisible({ timeout: 5000 });
         }
       }
@@ -1989,7 +1989,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
 
           // Should show validation error
           await expect(
-            page.getByText(/points must be positive|must be positive|invalid/i).first(),
+            page.getByText(/points must be positive|must be positive|invalid|pontos têm de ser positivos/i).first(),
           ).toBeVisible({ timeout: 5000 });
         }
       }
@@ -2027,7 +2027,7 @@ test.describe('Staff Evaluation - Form Validation', () => {
 
           // Should show validation error
           await expect(
-            page.getByText(/points must be positive|must be positive|invalid/i).first(),
+            page.getByText(/points must be positive|must be positive|invalid|pontos têm de ser positivos/i).first(),
           ).toBeVisible({ timeout: 5000 });
         }
       }
@@ -2178,7 +2178,7 @@ test.describe('Staff Evaluation - Update Existing Evaluations', () => {
 
       // Form should be visible with existing values
       await expect(
-        page.getByRole('heading', { name: /activity details/i }).first(),
+        page.getByRole('heading', { name: /activity details|detalhes da atividade/i }).first(),
       ).toBeVisible({ timeout: 5000 });
 
       // Update the points value
