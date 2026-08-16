@@ -203,7 +203,12 @@ jobs:
       run: |
         poetry run coverage combine
         poetry run coverage xml
-        poetry run coverage report --fail-under=80
+        # 80 was set when app/tests/ still counted toward its own denominator
+        # (55% of the statements under app/), so the floor was far below what
+        # the suite actually achieves. With the omit in pyproject.toml the
+        # measured figure is 97%; 95 leaves headroom for a legitimately
+        # hard-to-cover branch without letting a real regression through.
+        poetry run coverage report --fail-under=95
 
     - name: Enforce scoring/badges coverage floor
       working-directory: api-rally
