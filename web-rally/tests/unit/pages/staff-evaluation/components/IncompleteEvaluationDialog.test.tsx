@@ -6,7 +6,7 @@ import type { EvaluationSummary } from '@/pages/staff-evaluation/components/chec
 describe('IncompleteEvaluationDialog', () => {
   it('renders nothing extra when summary is null', () => {
     render(<IncompleteEvaluationDialog summary={null} onClose={vi.fn()} />);
-    expect(screen.getByText('Incomplete Evaluations Detected')).toBeInTheDocument();
+    expect(screen.getByText('Avaliações incompletas detetadas')).toBeInTheDocument();
   });
 
   it('renders checkpoint mismatch message', () => {
@@ -22,7 +22,7 @@ describe('IncompleteEvaluationDialog', () => {
       current_checkpoint: 2,
     };
     render(<IncompleteEvaluationDialog summary={summary} onClose={vi.fn()} />);
-    expect(screen.getByText('⚠️ This team is from a different checkpoint')).toBeInTheDocument();
+    expect(screen.getByText('Esta equipa é de um posto diferente')).toBeInTheDocument();
   });
 
   it('renders pending activities and missing list', () => {
@@ -35,7 +35,7 @@ describe('IncompleteEvaluationDialog', () => {
       missing_activities: ['Act A', 'Act B'],
     };
     render(<IncompleteEvaluationDialog summary={summary} onClose={vi.fn()} />);
-    expect(screen.getByText('Missing activities:')).toBeInTheDocument();
+    expect(screen.getByText('Atividades em falta:')).toBeInTheDocument();
     expect(screen.getByText('Act A')).toBeInTheDocument();
     expect(screen.getByText('Act B')).toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe('IncompleteEvaluationDialog', () => {
   it('calls onClose when clicking Close', () => {
     const onClose = vi.fn();
     render(<IncompleteEvaluationDialog summary={null} onClose={onClose} />);
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('Fechar'));
     expect(onClose).toHaveBeenCalled();
   });
 });
