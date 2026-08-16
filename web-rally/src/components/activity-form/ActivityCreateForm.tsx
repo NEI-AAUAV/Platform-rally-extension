@@ -20,7 +20,11 @@ import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigF
 import PenaltyCounterConfigFields from "@/components/activity-form/PenaltyCounterConfigFields";
 import QuizQuestionConfigFields from "@/components/activity-form/QuizQuestionConfigFields";
 import { parsePenaltyCounters, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
-import { parseAnswersPerQuestion, parseQuizQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import {
+  parseAnswersPerQuestion,
+  parseQuizQuestions,
+  type QuizQuestion,
+} from "@/lib/quizQuestions";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
 
 const activityFormSchema = z.object({

@@ -142,7 +142,9 @@ export default function ActivityEvaluationForm({
       default:
         return (
           <div className="py-8 text-center">
-            <p className="text-muted-foreground">Tipo de atividade desconhecido: {activity.activity_type}</p>
+            <p className="text-muted-foreground">
+              Tipo de atividade desconhecido: {activity.activity_type}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">Contacte um administrador.</p>
           </div>
         );
