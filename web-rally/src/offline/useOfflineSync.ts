@@ -36,15 +36,26 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
     await queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
   }, [queryClient]);
 
+  // Every trigger below is fire-and-forget, so a rejected drain (storage
+  // unavailable, an IndexedDB upgrade blocked by another tab) would surface as
+  // an unhandled promise rejection in the console rather than as anything the
+  // user can act on. The queue is durable and the next trigger retries, so log
+  // and move on.
+  const runSync = useCallback(() => {
+    syncNow().catch((error: unknown) => {
+      console.warn("Offline eval queue drain failed; will retry.", error);
+    });
+  }, [syncNow]);
+
   useEffect(() => {
-    void syncNow();
-    const onOnline = () => void syncNow();
+    runSync();
+    const onOnline = () => runSync();
     // iOS kills backgrounded PWAs outright, so the process that queued an item
     // may never see another `online` event. Retrying whenever the app comes
     // back to the foreground covers the kill/relaunch cycle. `syncNow` already
     // no-ops when offline, so no extra guard is needed here.
     const onVisible = () => {
-      if (document.visibilityState === "visible") void syncNow();
+      if (document.visibilityState === "visible") runSync();
     };
     // Background Sync (Chrome only) wakes the service worker, which cannot
     // replay by itself — the auth token and the SDK live here — so it asks the
@@ -52,7 +63,7 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
     // on its own, and drain() is idempotency-keyed, so a doubled run is safe.
     const onSwMessage = (event: MessageEvent) => {
       if ((event.data as { type?: string } | undefined)?.type === "DRAIN_EVAL_QUEUE") {
-        void syncNow();
+        runSync();
       }
     };
 
@@ -66,7 +77,7 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
       window.removeEventListener("pageshow", onVisible);
       navigator.serviceWorker?.removeEventListener("message", onSwMessage);
     };
-  }, [syncNow]);
+  }, [runSync]);
 
   return { syncNow };
 }

@@ -13,7 +13,8 @@
  * does exist it is registered as a supplement (see requestBackgroundSync), so
  * Chrome can also replay after the app is closed; nothing depends on it firing.
  */
-import { get, set, createStore } from "idb-keyval";
+import { get, set } from "idb-keyval";
+import { createQueueStore, EVAL_STORE_NAME } from "./db";
 import type { ActivityResultData } from "@/types/forms";
 
 export type QueuedEvalStatus = "pending" | "synced" | "failed";
@@ -28,7 +29,7 @@ export interface QueuedEval {
   createdAt: number;
 }
 
-const STORE = createStore("rally-offline", "eval-queue");
+const STORE = createQueueStore(EVAL_STORE_NAME);
 const QUEUE_KEY = "queue";
 
 async function readAll(): Promise<QueuedEval[]> {
