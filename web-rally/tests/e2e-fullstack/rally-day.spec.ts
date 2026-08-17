@@ -163,8 +163,8 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
         // checkbox role directly fails Playwright's actionability check (the
         // label div intercepts pointer events), so target the label instead.
         // See src/components/forms/BooleanForm.tsx.
-        await page.getByText('Team succeeded in the activity').first().click();
-        await page.getByRole('button', { name: /submit evaluation/i }).click();
+        await page.getByText('Equipa teve sucesso na atividade').first().click();
+        await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
         // Submitting drills into the team's own activity detail view — return
         // to the checkpoint's team list so the next team is selectable.
         await page.getByText('Voltar às equipas').click();
@@ -180,7 +180,7 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       // reconnect drains it against the real backend.
       await staffBPage.getByText(teamDelta.name).first().click();
       await staffBPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-      await staffBPage.getByText('Team succeeded in the activity').first().click();
+      await staffBPage.getByText('Equipa teve sucesso na atividade').first().click();
 
       // Simulate the device dropping mid-submit: abort just the evaluate call
       // like a lost connection. context.setOffline is unreliable for this —
@@ -190,7 +190,7 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       await staffBPage.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', (route) =>
         route.abort('internetdisconnected'),
       );
-      await staffBPage.getByRole('button', { name: /submit evaluation/i }).click();
+      await staffBPage.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
       await expect(staffBPage.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({
         timeout: 10_000,
       });
