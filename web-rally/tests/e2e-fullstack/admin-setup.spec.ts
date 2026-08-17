@@ -210,11 +210,14 @@ test.describe('Admin configures a full event through the real UI', () => {
     expect(staffAssignment?.checkpoint_id).toBe(checkpointA.id);
 
     // --- 6. Flip a settings toggle via the UI and confirm it persists -----
+    // show_live_leaderboard lives under the "Visualização" section; every
+    // section is always editable now, so the save bar only appears once the
+    // form is dirty (see settings/index.tsx).
     await page.goto('/rally/settings');
-    await page.getByRole('button', { name: 'Editar Configurações' }).click();
+    await page.getByRole('button', { name: 'Visualização' }).click();
     await page.locator('label:has(#show_live_leaderboard)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible({
+    await expect(page.getByRole('button', { name: 'Guardar' })).toBeHidden({
       timeout: 15_000,
     });
 
@@ -226,7 +229,8 @@ test.describe('Admin configures a full event through the real UI', () => {
     // A reload proves the toggle is durable (persisted), not just optimistic
     // client state that would vanish on refresh.
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible({
+    await page.getByRole('button', { name: 'Visualização' }).click();
+    await expect(page.getByRole('button', { name: 'Guardar' })).toBeHidden({
       timeout: 15_000,
     });
     const settingsAfterReload = await apiCall<{ show_live_leaderboard: boolean }>(
