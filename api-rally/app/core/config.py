@@ -127,13 +127,19 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
+    # The port was hardcoded to 5432, which made it impossible to point the
+    # suite at a throwaway Postgres on a spare port without colliding with a
+    # stack already bound to 5432. Defaults to 5432, so existing setups are
+    # unaffected.
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_URI: PostgresDsn = PostgresDsn(
-        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:5432/{POSTGRES_DB}"
+        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+        f"@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
     TEST_POSTGRES_URI: PostgresDsn = PostgresDsn(
         f"postgresql://{POSTGRES_USER}"
         f":{POSTGRES_PASSWORD}@{POSTGRES_SERVER}"
-        f":5432/{POSTGRES_DB}_test"
+        f":{POSTGRES_PORT}/{POSTGRES_DB}_test"
     )
 
     # Database connection pool tuning. Overridable via env for prod sizing.

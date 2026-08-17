@@ -65,6 +65,14 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 concurrency = ["greenlet", "thread"]
+# `--cov=app` would otherwise measure app/tests/ against itself. Test files run
+# at ~100% by construction and are 55% of the statements under app/, so leaving
+# them in silently inflates the combined figure the CI floor is checked against
+# — a suite could lose a third of its real application coverage and still pass.
+omit = [
+    "app/tests/*",
+    "app/alembic/*",
+]
 
 [tool.ruff]
 line-length = 100

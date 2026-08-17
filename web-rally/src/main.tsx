@@ -15,6 +15,7 @@ import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import PWAAppGate from "@/components/pwa/PWAAppGate";
 import PWAUpdatePrompt from "@/components/pwa/PWAUpdatePrompt";
+import { MotionConfig } from "framer-motion";
 
 // Error tracking — no-op unless VITE_SENTRY_DSN is set. Before app render so
 // early exceptions are captured.
@@ -82,20 +83,26 @@ void navigator.storage?.persist?.().then((granted) => {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ColorModeProvider>
-      <GlassFilters />
-      <PWAUpdatePrompt />
-      <PWAAppGate>
-        <AuthProvider {...oidcConfig}>
-          <QueryClientProvider client={queryClient}>
-            <AuthSyncGate>
-              <ToastProvider>
-                <Router />
-              </ToastProvider>
-            </AuthSyncGate>
-          </QueryClientProvider>
-        </AuthProvider>
-      </PWAAppGate>
-    </ColorModeProvider>
+    {/* The CSS layer honours prefers-reduced-motion, but framer-motion runs its
+        animations in JS and ignores the preference unless told to. Without this
+        a user who has asked for reduced motion still gets every entrance
+        transition. */}
+    <MotionConfig reducedMotion="user">
+      <ColorModeProvider>
+        <GlassFilters />
+        <PWAUpdatePrompt />
+        <PWAAppGate>
+          <AuthProvider {...oidcConfig}>
+            <QueryClientProvider client={queryClient}>
+              <AuthSyncGate>
+                <ToastProvider>
+                  <Router />
+                </ToastProvider>
+              </AuthSyncGate>
+            </QueryClientProvider>
+          </AuthProvider>
+        </PWAAppGate>
+      </ColorModeProvider>
+    </MotionConfig>
   </React.StrictMode>,
 );

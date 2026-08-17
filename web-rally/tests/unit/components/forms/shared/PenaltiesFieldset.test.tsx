@@ -252,7 +252,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.queryByLabelText(/count$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Contagem de /)).not.toBeInTheDocument();
   });
 
   it("computes total penalty as 0 when penalties object is empty", () => {
