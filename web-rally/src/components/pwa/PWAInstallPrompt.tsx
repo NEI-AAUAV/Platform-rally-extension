@@ -79,34 +79,42 @@ export default function PWAInstallPrompt() {
 
   return (
     <div
-      className="rally-surface rally-glass fixed left-4 right-4 z-50 p-4 shadow-lg"
-      style={{ bottom: "calc(1rem + var(--safe-bottom))" }}
+      className={[
+        // Solid, opaque glass: the translucent variant put muted text over the
+        // page content behind it, which on iOS renders as unreadable.
+        "rally-surface rally-glass rally-glass-solid rally-glass-on-background",
+        "fixed left-4 right-4 z-50 p-4 shadow-lg",
+        // Must clear the fixed tab bar on phones; from `sm` up the tab bar is
+        // hidden, so only the gesture inset remains.
+        "bottom-[calc(1rem+var(--safe-bottom)+var(--rally-tabbar-height))]",
+        "sm:bottom-[calc(1rem+var(--safe-bottom))]",
+      ].join(" ")}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="rally-bg-accent flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white">
           <Smartphone className="h-6 w-6" />
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[10rem] flex-1">
           <h3 className="text-sm font-semibold text-foreground">Instalar Rally Tascas</h3>
           {showApple ? (
-            <p className="mt-1 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-sm text-foreground/80">
               Toca em <Share className="inline h-4 w-4 shrink-0" aria-label="Partilhar" /> Partilhar
               e depois em <SquarePlus className="inline h-4 w-4 shrink-0" aria-hidden /> Adicionar
               ao Ecrã Principal
             </p>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-foreground/80">
               Instala a aplicação para acesso rápido e notificações
             </p>
           )}
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="ml-auto flex shrink-0 gap-2">
           <button
             type="button"
             onClick={handleDismiss}
-            className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="px-3 py-2 text-sm text-foreground/70 transition-colors hover:text-foreground"
             aria-label="Dispensar sugestão de instalação"
           >
             Agora não
