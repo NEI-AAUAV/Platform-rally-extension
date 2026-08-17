@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { isSafeImageUrl, toSafeImageUrl } from '@/lib/url';
+import { isSafeImageUrl, toSafeImageUrl, toRouterPath } from '@/lib/url';
 
 describe('url utils', () => {
   describe('isSafeImageUrl', () => {
@@ -52,6 +52,27 @@ describe('url utils', () => {
 
     test('returns null for invalid url formats', () => {
       expect(toSafeImageUrl('http://[::1')).toBeNull();
+    });
+  });
+
+  describe('toRouterPath', () => {
+    test('strips the deploy basepath so the router does not double it', () => {
+      expect(toRouterPath('/rally/admin', '/rally')).toBe('/admin');
+      expect(toRouterPath('/rally/team/1', '/rally')).toBe('/team/1');
+    });
+
+    test('maps the bare basepath to the root route', () => {
+      expect(toRouterPath('/rally', '/rally')).toBe('/');
+    });
+
+    test('leaves paths outside the basepath untouched', () => {
+      expect(toRouterPath('/admin', '/rally')).toBe('/admin');
+      expect(toRouterPath('/rallyx/admin', '/rally')).toBe('/rallyx/admin');
+    });
+
+    test('is an identity when the app is served from the root', () => {
+      expect(toRouterPath('/admin', '')).toBe('/admin');
+      expect(toRouterPath('/admin', '/')).toBe('/admin');
     });
   });
 });
