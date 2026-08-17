@@ -77,7 +77,7 @@ describe("MetricsTab", () => {
 
     expect(await screen.findByText("Base de dados")).toBeInTheDocument();
     // 5 errors / 1000 requests
-    await waitFor(() => expect(screen.getByText("0.5%")).toBeInTheDocument());
+    expect(await screen.findByText("0.5%")).toBeInTheDocument();
     // 20s over 1000 requests = 20ms average
     expect(screen.getByText("20 ms")).toBeInTheDocument();
     expect(screen.getByText("2/2")).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("MetricsTab", () => {
     renderTab();
 
     // 0/0 must not surface as NaN% to an admin mid-rally.
-    await waitFor(() => expect(screen.getByText("0.0%")).toBeInTheDocument());
+    expect(await screen.findByText("0.0%")).toBeInTheDocument();
     expect(screen.getByText("0 ms")).toBeInTheDocument();
   });
 
@@ -108,7 +108,7 @@ describe("MetricsTab", () => {
 
     renderTab();
 
-    await waitFor(() => expect(screen.getByText("—")).toBeInTheDocument());
+    expect(await screen.findByText("—")).toBeInTheDocument();
   });
 
   it("counts dead workers and lists each worker's state", async () => {
@@ -123,7 +123,7 @@ describe("MetricsTab", () => {
 
     renderTab();
 
-    await waitFor(() => expect(screen.getByText("1/2")).toBeInTheDocument());
+    expect(await screen.findByText("1/2")).toBeInTheDocument();
     expect(screen.getByText("scoring")).toBeInTheDocument();
     expect(screen.getByText("vivo")).toBeInTheDocument();
     expect(screen.getByText("morto")).toBeInTheDocument();
