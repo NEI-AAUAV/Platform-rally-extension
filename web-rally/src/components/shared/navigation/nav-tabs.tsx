@@ -391,11 +391,7 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="flex min-w-0 items-center gap-2.5">
               {logoSrc ? (
-                <img
-                  src={logoSrc}
-                  alt=""
-                  className="h-8 w-8 shrink-0 rounded-lg object-contain"
-                />
+                <img src={logoSrc} alt="" className="h-8 w-8 shrink-0 rounded-lg object-contain" />
               ) : (
                 eventName && (
                   <span className="rally-bg-accent grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold text-white shadow-[var(--rally-shadow-sm)]">
