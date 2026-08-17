@@ -378,7 +378,12 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
             // 20px floor on top: see RallyNavbar — landscape reports a 0px top
             // inset but iOS still eats touches in that strip.
             paddingTop: "max(20px, var(--safe-top))",
-            paddingBottom: "var(--safe-bottom)",
+            // The drawer runs the full height of a viewport whose bottom strip
+            // already belongs to MobileBottomNav, so it has to clear the tab
+            // bar as well as the home indicator — otherwise the footer's auth
+            // buttons land underneath it. Same idiom as .rally-sticky-actions
+            // and the QR sheet in MobileBottomNav.
+            paddingBottom: "calc(var(--safe-bottom) + var(--rally-tabbar-height))",
             paddingRight: "var(--safe-right)",
             paddingLeft: "var(--safe-left)",
           }}
