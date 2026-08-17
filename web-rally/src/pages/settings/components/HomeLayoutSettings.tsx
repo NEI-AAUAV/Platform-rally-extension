@@ -18,7 +18,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -28,19 +27,16 @@ import React from "react";
 
 type HomeLayoutSettingsProps = Readonly<{
   className?: string;
-  disabled?: boolean;
 }>;
 
 interface SortableRowProps {
   readonly id: string;
-  readonly disabled?: boolean;
   readonly children: React.ReactNode;
 }
 
-function SortableRow({ id, disabled, children }: SortableRowProps) {
+function SortableRow({ id, children }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
-    disabled,
   });
 
   return (
@@ -54,14 +50,10 @@ function SortableRow({ id, disabled, children }: SortableRowProps) {
     >
       <button
         type="button"
-        className={cn(
-          "shrink-0 cursor-grab touch-none text-muted-foreground",
-          disabled && "cursor-not-allowed opacity-40",
-        )}
+        className="shrink-0 cursor-grab touch-none text-muted-foreground"
         aria-label="Reordenar"
         {...attributes}
         {...listeners}
-        disabled={disabled}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -70,10 +62,7 @@ function SortableRow({ id, disabled, children }: SortableRowProps) {
   );
 }
 
-export default function HomeLayoutSettings({
-  className = "",
-  disabled = false,
-}: HomeLayoutSettingsProps) {
+export default function HomeLayoutSettings({ className = "" }: HomeLayoutSettingsProps) {
   const { control } = useFormContext();
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -88,17 +77,17 @@ export default function HomeLayoutSettings({
   } = useFieldArray({ control, name: "ticker_items_list" });
 
   return (
-    <div className={cn("rally-surface rounded-2xl", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LayoutTemplate className="h-5 w-5" />
+    <section className={cn("space-y-4", className)}>
+      <div className="space-y-1">
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <LayoutTemplate className="h-4 w-4" />
           Layout da Página Inicial
-        </CardTitle>
-        <CardDescription>
+        </h3>
+        <p className="text-xs text-muted-foreground">
           Escolher que secções aparecem na Início, a sua ordem, e o texto da faixa de destaques
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+        </p>
+      </div>
+      <div className="space-y-6">
         <div className="space-y-2">
           <Label>Secções</Label>
           <Controller
@@ -128,7 +117,7 @@ export default function HomeLayoutSettings({
                   >
                     <div className="space-y-2">
                       {sections.map((section, index) => (
-                        <SortableRow key={section.key} id={section.key} disabled={disabled}>
+                        <SortableRow key={section.key} id={section.key}>
                           <span className="flex-1 text-sm font-medium">
                             {HOME_SECTION_LABELS[section.key] ?? section.key}
                           </span>
@@ -140,7 +129,6 @@ export default function HomeLayoutSettings({
                               next[index] = { ...section, visible: checked };
                               field.onChange(next);
                             }}
-                            disabled={disabled}
                           />
                         </SortableRow>
                       ))}
@@ -175,7 +163,7 @@ export default function HomeLayoutSettings({
             >
               <div className="space-y-2">
                 {tickerFields.map((field, index) => (
-                  <SortableRow key={field.id} id={field.id} disabled={disabled}>
+                  <SortableRow key={field.id} id={field.id}>
                     <Controller
                       name={`ticker_items_list.${index}.value`}
                       control={control}
@@ -184,7 +172,6 @@ export default function HomeLayoutSettings({
                           aria-label={`Item ${index + 1} da faixa de destaques`}
                           value={textField.value ?? ""}
                           onChange={(e) => textField.onChange(e.target.value)}
-                          disabled={disabled}
                           maxLength={40}
                           className="flex-1"
                         />
@@ -195,7 +182,6 @@ export default function HomeLayoutSettings({
                       variant="ghost"
                       size="icon"
                       onClick={() => removeTicker(index)}
-                      disabled={disabled}
                       aria-label="Remover item"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -210,7 +196,7 @@ export default function HomeLayoutSettings({
             variant="outline"
             size="sm"
             onClick={() => appendTicker({ value: "" })}
-            disabled={disabled || tickerFields.length >= MAX_TICKER_ITEMS}
+            disabled={tickerFields.length >= MAX_TICKER_ITEMS}
           >
             <Plus className="mr-2 h-4 w-4" />
             Adicionar item
@@ -219,7 +205,7 @@ export default function HomeLayoutSettings({
             Máximo {MAX_TICKER_ITEMS} itens, 40 caracteres cada.
           </p>
         </div>
-      </CardContent>
-    </div>
+      </div>
+    </section>
   );
 }

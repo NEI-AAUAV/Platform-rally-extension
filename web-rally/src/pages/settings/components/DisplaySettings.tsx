@@ -1,233 +1,112 @@
-import { cn } from "@/lib/utils";
-import { Eye } from "lucide-react";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useFormContext, Controller } from "react-hook-form";
+/**
+ * What participants and the public get to see.
+ *
+ * Ten switches in one column was the worst offender on the old page: the two
+ * guide-mode gates read as unrelated to each other, and the access switch sat
+ * between feature kill-switches. Grouped by who is looking and at what.
+ */
+import { Lock, Map, Puzzle, Trophy } from "lucide-react";
+import { SettingGroup, SettingSelect, SettingSwitch } from "./SettingFields";
 
 type DisplaySettingsProps = Readonly<{
   className?: string;
-  disabled?: boolean;
 }>;
 
-export default function DisplaySettings({
-  className = "",
-  disabled = false,
-}: DisplaySettingsProps) {
-  const { control } = useFormContext();
+const ROUTE_MODE_OPTIONS = [
+  { value: "focused", label: "Apenas próximo posto" },
+  { value: "complete", label: "Trajeto completo" },
+] as const;
 
+const SCORE_MODE_OPTIONS = [
+  { value: "hidden", label: "Oculto" },
+  { value: "individual", label: "Apenas própria pontuação" },
+  { value: "competitive", label: "Classificação completa" },
+] as const;
+
+export default function DisplaySettings({ className = "" }: DisplaySettingsProps) {
   return (
-    <div className={cn("rally-surface rounded-2xl", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Eye className="h-5 w-5" />
-          Configurações de Visualização
-        </CardTitle>
-        <CardDescription>Controlar o que é visível para os utilizadores</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="show_live_leaderboard"
-            control={control}
-            defaultValue={true}
-            render={({ field }) => (
-              <Switch
-                id="show_live_leaderboard"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="show_live_leaderboard">Mostrar leaderboard em tempo real</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="show_team_details"
-            control={control}
-            defaultValue={true}
-            render={({ field }) => (
-              <Switch
-                id="show_team_details"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="show_team_details">Mostrar detalhes das equipas</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="show_checkpoint_map"
-            control={control}
-            defaultValue={true}
-            render={({ field }) => (
-              <Switch
-                id="show_checkpoint_map"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="show_checkpoint_map">Mostrar mapa dos checkpoints</Label>
-        </div>
-
-        {/* "Revelar o próximo posto" and "visualização para participantes" live
-            in the Enigmas e chegadas card: they define the treasure-hunt
-            mechanic rather than merely styling what is on screen. */}
-
-        <div className="space-y-2">
-          <Label htmlFor="show_route_mode">Modo de Visualização do Trajeto</Label>
-          <Controller
-            name="show_route_mode"
-            control={control}
-            defaultValue="focused"
-            render={({ field }) => (
-              <Select
-                value={field.value || "focused"}
-                onValueChange={field.onChange}
-                disabled={disabled}
-              >
-                <SelectTrigger id="show_route_mode" className="border-border bg-muted">
-                  <SelectValue placeholder="Selecione o modo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="focused">Apenas próximo posto</SelectItem>
-                  <SelectItem value="complete">Trajeto completo</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          <p className="text-xs text-muted-foreground">Controla o que as equipas veem do trajeto</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="show_score_mode">Modo de Visualização da Pontuação</Label>
-          <Controller
+    <div className={className}>
+      <div className="space-y-8">
+        <SettingGroup
+          title="Pontuações"
+          description="Quanto do placar as equipas conseguem ver"
+          icon={<Trophy className="h-4 w-4" />}
+        >
+          <SettingSelect
             name="show_score_mode"
-            control={control}
+            label="Modo de Visualização da Pontuação"
             defaultValue="hidden"
-            render={({ field }) => (
-              <Select
-                value={field.value || "hidden"}
-                onValueChange={field.onChange}
-                disabled={disabled}
-              >
-                <SelectTrigger id="show_score_mode" className="border-border bg-muted">
-                  <SelectValue placeholder="Selecione o modo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hidden">Oculto</SelectItem>
-                  <SelectItem value="individual">Apenas própria pontuação</SelectItem>
-                  <SelectItem value="competitive">Classificação completa</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            options={SCORE_MODE_OPTIONS}
+            help="Controla o que as equipas veem das pontuações"
           />
-          <p className="text-xs text-muted-foreground">
-            Controla o que as equipas veem das pontuações
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="public_access_enabled"
-            control={control}
-            defaultValue={false}
-            render={({ field }) => (
-              <Switch
-                id="public_access_enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="public_access_enabled">Permitir acesso público (sem login)</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="allow_photo_as_team_photo"
-            control={control}
-            defaultValue={false}
-            render={({ field }) => (
-              <Switch
-                id="allow_photo_as_team_photo"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="allow_photo_as_team_photo">
-            Permitir staff definir foto de atividade como foto da equipa
-          </Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="guide_mode_enabled"
-            control={control}
-            defaultValue={false}
-            render={({ field }) => (
-              <Switch
-                id="guide_mode_enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="guide_mode_enabled">Ativar funcionalidade de modo guia</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="guide_mode_active"
-            control={control}
-            defaultValue={false}
-            render={({ field }) => (
-              <Switch
-                id="guide_mode_active"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
-          />
-          <Label htmlFor="guide_mode_active">Modo guia ativo neste evento</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Controller
-            name="badges_enabled"
-            control={control}
+          <SettingSwitch
+            name="show_live_leaderboard"
+            label="Mostrar leaderboard em tempo real"
             defaultValue={true}
-            render={({ field }) => (
-              <Switch
-                id="badges_enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                disabled={disabled}
-              />
-            )}
           />
-          <Label htmlFor="badges_enabled">Ativar crachás / conquistas</Label>
-        </div>
-      </CardContent>
+          <SettingSwitch
+            name="show_team_details"
+            label="Mostrar detalhes das equipas"
+            defaultValue={true}
+          />
+        </SettingGroup>
+
+        <SettingGroup
+          title="Mapa e trajeto"
+          description="O que aparece no mapa das equipas"
+          icon={<Map className="h-4 w-4" />}
+        >
+          <SettingSelect
+            name="show_route_mode"
+            label="Modo de Visualização do Trajeto"
+            defaultValue="focused"
+            options={ROUTE_MODE_OPTIONS}
+            help="Controla o que as equipas veem do trajeto"
+          />
+          <SettingSwitch
+            name="show_checkpoint_map"
+            label="Mostrar mapa dos checkpoints"
+            defaultValue={true}
+          />
+          {/* "Revelar o próximo posto" and "visualização para participantes"
+              live in the Jogo section: they define the treasure-hunt mechanic
+              rather than merely styling what is on screen. */}
+        </SettingGroup>
+
+        <SettingGroup
+          title="Acesso"
+          description="Quem consegue abrir as páginas do rally"
+          icon={<Lock className="h-4 w-4" />}
+        >
+          <SettingSwitch name="public_access_enabled" label="Permitir acesso público (sem login)" />
+        </SettingGroup>
+
+        <SettingGroup
+          title="Funcionalidades"
+          description="Interruptores gerais de módulos do rally"
+          icon={<Puzzle className="h-4 w-4" />}
+        >
+          <SettingSwitch
+            name="guide_mode_enabled"
+            label="Ativar funcionalidade de modo guia"
+            help="Liga o módulo. Sem isto, o interruptor abaixo não tem efeito."
+          />
+          <SettingSwitch
+            name="guide_mode_active"
+            label="Modo guia ativo neste evento"
+            help="Põe o modo guia a correr neste evento em concreto."
+          />
+          <SettingSwitch
+            name="badges_enabled"
+            label="Ativar crachás / conquistas"
+            defaultValue={true}
+          />
+          <SettingSwitch
+            name="allow_photo_as_team_photo"
+            label="Permitir staff definir foto de atividade como foto da equipa"
+          />
+        </SettingGroup>
+      </div>
     </div>
   );
 }

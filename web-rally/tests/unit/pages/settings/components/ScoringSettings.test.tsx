@@ -4,13 +4,7 @@ import { describe, it, expect } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import ScoringSettings from "@/pages/settings/components/ScoringSettings";
 
-function Wrapper({
-  disabled,
-  eventType,
-}: {
-  readonly disabled?: boolean;
-  readonly eventType?: string;
-}) {
+function Wrapper({ eventType }: { readonly eventType?: string }) {
   const methods = useForm({
     defaultValues: {
       penalty_per_puke: -10,
@@ -22,7 +16,7 @@ function Wrapper({
   });
   return (
     <FormProvider {...methods}>
-      <ScoringSettings disabled={disabled} eventType={eventType} />
+      <ScoringSettings eventType={eventType} />
     </FormProvider>
   );
 }
@@ -48,12 +42,6 @@ describe("ScoringSettings", () => {
   it("renders switches for boolean settings", () => {
     render(<Wrapper />);
     expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeChecked();
-  });
-
-  it("disables inputs when disabled prop is set", () => {
-    render(<Wrapper disabled />);
-    expect(screen.getByLabelText("Penalização por vómito")).toBeDisabled();
-    expect(screen.getByLabelText("Permitir pontuação manual pelos staff")).toBeDisabled();
   });
 
   // A peddy paper is a city route game: offering "penalização por vómito" there
