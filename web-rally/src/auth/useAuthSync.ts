@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/useUserStore";
 import { setOnUnauthorized } from "@/services/client";
 import { setResumeValue } from "@/lib/authResumeStore";
+import { toRouterPath } from "@/lib/url";
 import { profileToUser } from "./identity";
 
 /**
@@ -64,10 +65,13 @@ export function useAuthSync() {
     queryClient.clear();
     clearSession();
 
-    // Return to the current page after re-authentication.
+    // Return to the current page after re-authentication. The stored value is
+    // consumed by `navigate({ to })`, which prepends the router basepath — so
+    // strip it from the browser pathname first, or the user lands on
+    // /rally/rally/... after the round trip.
     setResumeValue(
       "rally_auth_return_url",
-      globalThis.location.pathname + globalThis.location.search,
+      toRouterPath(globalThis.location.pathname) + globalThis.location.search,
     );
     await auth.signinRedirect();
   }, [auth, queryClient, clearSession]);

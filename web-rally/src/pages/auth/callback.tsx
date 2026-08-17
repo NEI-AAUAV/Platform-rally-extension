@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "react-oidc-context";
 import { useNavigate } from "@tanstack/react-router";
 import { clearResumeValue, getResumeValue } from "@/lib/authResumeStore";
+import { toRouterPath } from "@/lib/url";
 
 /**
  * OIDC redirect landing. react-oidc-context completes the code exchange; once
@@ -19,7 +20,10 @@ export default function AuthCallback() {
       clearResumeValue("rally_auth_return_url");
       // returnUrl is an arbitrary stored path (pathname+search+hash), so it is
       // not a statically known route — navigate by raw href.
-      void navigate({ to: returnUrl || "/", replace: true });
+      // Defensive: `navigate` prepends the router basepath, so a value that
+      // still carries it (older builds stored the raw browser pathname, and
+      // those entries can outlive a deploy in localStorage) would double it.
+      void navigate({ to: returnUrl ? toRouterPath(returnUrl) : "/", replace: true });
     } else if (auth.error) {
       void navigate({ to: "/", replace: true });
     }
