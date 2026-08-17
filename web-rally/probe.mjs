@@ -8,7 +8,7 @@ await p.route('**/api/rally/v1/rally/settings/public**', r => r.fulfill({status:
 await p.goto('http://localhost:4174/rally/', {waitUntil:'networkidle'});
 console.log(await p.evaluate(() => {
   const out=[];
-  for (const el of document.querySelectorAll('.tracking-\\[0\\.16em\\]')) {
+  for (const el of document.querySelectorAll(String.raw`.tracking-\[0\.16em\]`)) {
     const cs=getComputedStyle(el);
     let n=el.parentElement, bg='rgba(0, 0, 0, 0)';
     while(n){ const c=getComputedStyle(n).backgroundColor; if(c!=='rgba(0, 0, 0, 0)'){bg=c;break;} n=n.parentElement; }
