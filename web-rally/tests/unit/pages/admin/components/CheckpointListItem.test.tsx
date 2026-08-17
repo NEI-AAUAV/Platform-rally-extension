@@ -270,8 +270,6 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
 
-    // The clock icon and its window text share a span that turns amber when the
-    // window is not currently open.
     expect(container.querySelector(".lucide-clock")?.parentElement).toHaveClass("text-amber-600");
   });
 });
