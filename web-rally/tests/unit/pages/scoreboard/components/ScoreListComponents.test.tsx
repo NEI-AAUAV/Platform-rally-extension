@@ -74,8 +74,8 @@ describe('Podium', () => {
 
   it('renders champion star avatar when no photo_url is provided', () => {
     const teams = [makeTeam({ id: 1, name: 'Champ', total: 500 })];
-    render(<Podium teams={teams} />);
-    expect(screen.getByText('★')).toBeInTheDocument();
+    const { container } = render(<Podium teams={teams} />);
+    expect(container.querySelector('.lucide-trophy')).toBeInTheDocument();
   });
 
   it('renders initials avatar for non-champion team without photo', () => {

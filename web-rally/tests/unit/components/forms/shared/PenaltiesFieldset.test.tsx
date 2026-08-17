@@ -16,9 +16,9 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.queryByLabelText("Vomit penalty count")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Not drinking penalty count")).not.toBeInTheDocument();
-    expect(screen.getByText(/Total penalty:/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Número de vezes que vomitou")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Número de vezes que não bebeu")).not.toBeInTheDocument();
+    expect(screen.getByText(/Penalização total:/)).toBeInTheDocument();
   });
 
   it("renders vomit penalty input when showVomitPenalty is true", () => {
@@ -32,8 +32,8 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.getByLabelText("Vomit penalty count")).toBeInTheDocument();
-    expect(screen.getByText(/Vomit penalty \(5 pts each\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Número de vezes que vomitou")).toBeInTheDocument();
+    expect(screen.getByText(/Penalização por vómito \(5 pts cada\)/)).toBeInTheDocument();
   });
 
   it("renders not-drinking penalty input when showNotDrinkingPenalty is true", () => {
@@ -47,8 +47,8 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    expect(screen.getByLabelText("Not drinking penalty count")).toBeInTheDocument();
-    expect(screen.getByText(/Not drinking penalty \(3 pts each\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Número de vezes que não bebeu")).toBeInTheDocument();
+    expect(screen.getByText(/Penalização por não beber \(3 pts cada\)/)).toBeInTheDocument();
   });
 
   it("defaults vomit input value to 0 when penalties.vomit is undefined", () => {
@@ -62,7 +62,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.getByLabelText("Vomit penalty count")).toHaveValue(0);
+    expect(screen.getByLabelText("Número de vezes que vomitou")).toHaveValue(0);
   });
 
   it("uses the provided vomit penalty value", () => {
@@ -76,7 +76,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.getByLabelText("Vomit penalty count")).toHaveValue(2);
+    expect(screen.getByLabelText("Número de vezes que vomitou")).toHaveValue(2);
   });
 
   it("calls onChange with updated vomit value on input change", () => {
@@ -91,7 +91,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Vomit penalty count"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "4" } });
     expect(onChange).toHaveBeenCalledWith({ vomit: 4, not_drinking: 2 });
   });
 
@@ -107,7 +107,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Vomit penalty count"), { target: { value: "abc" } });
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "abc" } });
     expect(onChange).toHaveBeenCalledWith({ vomit: 0 });
   });
 
@@ -122,7 +122,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    expect(screen.getByLabelText("Not drinking penalty count")).toHaveValue(0);
+    expect(screen.getByLabelText("Número de vezes que não bebeu")).toHaveValue(0);
   });
 
   it("calls onChange with updated not_drinking value on input change", () => {
@@ -137,7 +137,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Not drinking penalty count"), {
+    fireEvent.change(screen.getByLabelText("Número de vezes que não bebeu"), {
       target: { value: "7" },
     });
     expect(onChange).toHaveBeenCalledWith({ vomit: 1, not_drinking: 7 });
@@ -155,7 +155,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Not drinking penalty count"), {
+    fireEvent.change(screen.getByLabelText("Número de vezes que não bebeu"), {
       target: { value: "xyz" },
     });
     expect(onChange).toHaveBeenCalledWith({ not_drinking: 0 });
@@ -188,8 +188,8 @@ describe("PenaltiesFieldset", () => {
         penaltyCounters={[{ key: "falha_baliza", label: "Falha na baliza", points: 4 }]}
       />,
     );
-    expect(screen.getByLabelText("Falha na baliza count")).toBeInTheDocument();
-    expect(screen.getByText(/Falha na baliza \(4 pts each\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Contagem de Falha na baliza")).toBeInTheDocument();
+    expect(screen.getByText(/Falha na baliza \(4 pts cada\)/)).toBeInTheDocument();
   });
 
   it("calls onChange with the updated custom counter value, keyed by its own key", () => {
@@ -205,7 +205,7 @@ describe("PenaltiesFieldset", () => {
         penaltyCounters={[{ key: "falha_baliza", label: "Falha na baliza", points: 4 }]}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Falha na baliza count"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Contagem de Falha na baliza"), { target: { value: "3" } });
     expect(onChange).toHaveBeenCalledWith({ vomit: 1, falha_baliza: 3 });
   });
 
@@ -237,8 +237,8 @@ describe("PenaltiesFieldset", () => {
         penaltyCounters={[{ key: "falha_baliza", label: "Falha na baliza", points: -4 }]}
       />,
     );
-    expect(screen.getByText(/Falha na baliza \(4 pts each\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Total penalty: 8 points/)).toBeInTheDocument();
+    expect(screen.getByText(/Falha na baliza \(4 pts cada\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Penalização total: 8 pontos/)).toBeInTheDocument();
   });
 
   it("renders no custom counter inputs when none are configured", () => {
@@ -266,6 +266,6 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.getByText(/Total penalty:/).textContent).toContain("0");
+    expect(screen.getByText(/Penalização total:/).textContent).toContain("0");
   });
 });

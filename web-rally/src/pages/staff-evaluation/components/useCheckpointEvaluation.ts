@@ -213,7 +213,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       const checkpointMatch = checkpoints.find((cp) => cp.id === parsedId);
 
       if (!checkpointMatch) {
-        throw new Error("Checkpoint not found");
+        throw new Error("Posto não encontrado");
       }
 
       return checkpointMatch;

@@ -8,7 +8,7 @@ export default function StaffEvaluation() {
   const { isLoading, isRallyAdmin } = useUser();
 
   if (isLoading) {
-    return <LoadingState message="Carregando..." />;
+    return <LoadingState message="A carregar..." />;
   }
 
   return (

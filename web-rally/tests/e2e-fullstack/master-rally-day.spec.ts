@@ -59,8 +59,8 @@ async function evaluateOnPage(page: Page, teamName: string): Promise<void> {
   await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
   // See rally-day.spec.ts's identical note: BooleanForm's success control is
   // a visually-hidden checkbox with a styled label on top — target the label.
-  await page.getByText('Team succeeded in the activity').first().click();
-  await page.getByRole('button', { name: /submit evaluation/i }).click();
+  await page.getByText('Equipa teve sucesso na atividade').first().click();
+  await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
   // Wait for the exact success toast (useCheckpointEvaluation.ts) before
   // moving on — this scenario runs far more prior activity (admin work,
   // other evaluations, an edition-switch round trip) than rally-day.spec.ts's
@@ -132,7 +132,9 @@ test.describe('Master rally day — every feature combined under real concurrenc
           await expect(guidePage.getByText('Postos — Visão do Guia')).toBeVisible({
             timeout: 20_000,
           });
-          await guidePage.getByText(checkpoint1.name).click();
+          // The guide's team hasn't checked in anywhere yet, so checkpoint1
+          // (order 1) is the current post and its card is already expanded
+          // by default — no click needed.
           await expect(guidePage.getByText('Quem é o santo padroeiro?')).toBeVisible({
             timeout: 15_000,
           });

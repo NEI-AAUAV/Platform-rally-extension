@@ -56,6 +56,7 @@ from app.schemas.activity import (
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.user import DetailedUser
+from app.services.deps import get_scoring_service
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
 _EVALUATE_ENDPOINT = "evaluate_team_activity"
@@ -354,6 +355,7 @@ class StaffEvaluationController:
         activity_id: int,
         result_in: ActivityResultEvaluation,
         db: Annotated[AsyncSession, Depends(get_db)],
+        scoring_service: Annotated[ScoringService, Depends(get_scoring_service)],
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -423,7 +425,9 @@ class StaffEvaluationController:
         # Create or update the result if it already exists. Handles the race
         # where two concurrent requests both see no existing result and try to
         # insert — the loser falls back to an update instead of duplicating.
-        db_result = await create_or_update_activity_result(db, team_id, activity_id, result_in)
+        db_result = await create_or_update_activity_result(
+            db, scoring_service, team_id, activity_id, result_in
+        )
         logger.info(
             f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"
         )
@@ -431,7 +435,9 @@ class StaffEvaluationController:
         # Mirror the result onto the opponent for TeamVsActivity matchups (win
         # <-> lose, draw <-> draw)
         try:
-            await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
+            await mirror_team_vs_result(
+                db, scoring_service, activity_obj, team_id, db_result.result_data or {}
+            )
         except Exception:
             # loguru's `.error(..., exc_info=True)` does NOT attach a
             # traceback (exc_info is stdlib-only); `.exception()` does.
@@ -501,6 +507,7 @@ class StaffEvaluationController:
         self,
         *,
         db: Annotated[AsyncSession, Depends(get_db)],
+        scoring_service: Annotated[ScoringService, Depends(get_scoring_service)],
         team_id: int,
         activity_id: int,
         result_id: int,
@@ -537,13 +544,15 @@ class StaffEvaluationController:
 
         # Update the result, tagging the audit trail with who made the change.
         editor = EvaluationEditor(id=str(current_user.id), name=current_user.name)
-        db_result = await ScoringService(db).update_result(db_result, result_in, editor=editor)
+        db_result = await scoring_service.update_result(db_result, result_in, editor=editor)
 
         # Mirror the result onto the opponent for TeamVsActivity matchups (win
         # <-> lose, draw <-> draw)
         try:
             if activity_obj:
-                await mirror_team_vs_result(db, activity_obj, team_id, db_result.result_data or {})
+                await mirror_team_vs_result(
+                    db, scoring_service, activity_obj, team_id, db_result.result_data or {}
+                )
         except Exception:
             logger.exception(
                 f"Failed to mirror versus result for team {team_id}, activity {activity_id}"

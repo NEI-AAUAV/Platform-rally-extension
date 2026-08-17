@@ -41,12 +41,12 @@ describe("BooleanForm", () => {
   it("renders without crashing", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     expect(screen.getByRole("checkbox")).toBeInTheDocument();
-    expect(screen.getByLabelText("Attempts")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tentativas")).toBeInTheDocument();
   });
 
   it("submits with default values", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { success: false, attempts: 1, notes: "" },
       extra_shots: 0,
@@ -57,8 +57,8 @@ describe("BooleanForm", () => {
   it("toggles success checkbox and updates attempts", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.change(screen.getByLabelText("Attempts"), { target: { value: "3" } });
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+    fireEvent.change(screen.getByLabelText("Tentativas"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { success: true, attempts: 3, notes: "" },
       extra_shots: 0,
@@ -70,8 +70,8 @@ describe("BooleanForm", () => {
     // Fallback vomit rate is 5 pts/occurrence (no penalty_per_puke in this
     // suite's settings shape) — 2 vomits must submit as 10, not 2.
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.change(screen.getByLabelText("Vomit penalty count"), { target: { value: "2" } });
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ penalties: { vomit: 10 } }),
     );
@@ -79,8 +79,8 @@ describe("BooleanForm", () => {
 
   it("falls back to 1 attempt when input is invalid", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.change(screen.getByLabelText("Attempts"), { target: { value: "abc" } });
-    expect(screen.getByLabelText("Attempts")).toHaveValue(1);
+    fireEvent.change(screen.getByLabelText("Tentativas"), { target: { value: "abc" } });
+    expect(screen.getByLabelText("Tentativas")).toHaveValue(1);
   });
 
   it("prefills fields from existingResult", () => {
@@ -98,7 +98,7 @@ describe("BooleanForm", () => {
         }
       />,
     );
-    expect(screen.getByLabelText("Attempts")).toHaveValue(5);
+    expect(screen.getByLabelText("Tentativas")).toHaveValue(5);
     expect(screen.getByDisplayValue("prior notes")).toBeInTheDocument();
   });
 
@@ -129,11 +129,11 @@ describe("BooleanForm", () => {
         }
       />,
     );
-    expect(screen.getByRole("button", { name: /Update Evaluation/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Atualizar avaliação/ })).toBeInTheDocument();
   });
 
   it("shows Saving... label when isSubmitting is true", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={true} />);
-    expect(screen.getByRole("button", { name: /Saving/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /A guardar/ })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lightbulb, Compass } from "lucide-react";
+import { Lightbulb, Compass, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import CheckpointMediaAttachment from "./CheckpointMediaAttachment";
@@ -128,7 +128,7 @@ export default function CheckpointDiscovery({
               className="absolute right-4 top-4 z-20 rounded-full bg-black/60 p-2 text-white hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Fechar"
             >
-              ✕
+              <X className="h-4 w-4" />
             </button>
             <img
               src={lightbox}

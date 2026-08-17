@@ -8,11 +8,9 @@ how badges/notifications are earned per participant.
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api.abac_deps import get_staff_with_checkpoint_access
-from app.api.deps import get_admin, get_current_user, get_db
+from app.api.deps import get_admin, get_current_user
 from app.core.config import settings
 from app.schemas.push_subscription import (
     PushBroadcastRequest,
@@ -24,7 +22,8 @@ from app.schemas.push_subscription import (
     VapidPublicKey,
 )
 from app.schemas.user import DetailedUser
-from app.services import push_service
+from app.services.deps import get_push_service
+from app.services.push_service import PushService
 
 
 class PushController:
@@ -84,54 +83,37 @@ class PushController:
         self,
         payload: PushSubscriptionCreate,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[DetailedUser, Depends(get_current_user)],
+        service: Annotated[PushService, Depends(get_push_service)],
     ) -> PushSubscriptionRead:
-        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Push notifications are not configured",
-            )
-        subscription = await crud.push_subscription.upsert(
-            db, user_id=current_user.id, obj_in=payload
-        )
-        return PushSubscriptionRead.model_validate(subscription)
+        return await service.subscribe(user_id=current_user.id, payload=payload)
 
     async def unsubscribe(
         self,
         payload: PushSubscriptionUnsubscribe,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[DetailedUser, Depends(get_current_user)],
+        service: Annotated[PushService, Depends(get_push_service)],
     ) -> None:
-        existing = await crud.push_subscription.get_by_endpoint(db, endpoint=payload.endpoint)
-        if existing is not None and existing.user_id == current_user.id:
-            await crud.push_subscription.remove_by_endpoint(db, endpoint=payload.endpoint)
+        await service.unsubscribe(user_id=current_user.id, endpoint=payload.endpoint)
 
     async def broadcast(
         self,
         payload: PushBroadcastRequest,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
+        service: Annotated[PushService, Depends(get_push_service)],
     ) -> PushBroadcastResult:
         """Send one notification to every subscribed device — an admin
         announcement to all teams at once, not addressed to one participant."""
-        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Push notifications are not configured",
-            )
-        sent = await push_service.send_to_all(
-            db, title=payload.title, body=payload.body, url=payload.url
-        )
+        sent = await service.broadcast(title=payload.title, body=payload.body, url=payload.url)
         return PushBroadcastResult(sent=sent)
 
     async def checkpoint_announcement(
         self,
         payload: PushCheckpointAnnouncementRequest,
         *,
-        db: Annotated[AsyncSession, Depends(get_db)],
         curr_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+        service: Annotated[PushService, Depends(get_push_service)],
     ) -> PushBroadcastResult:
         """Let staff announce something about their own post — no admin in
         the loop. Reaches every team like an admin broadcast does (the whole
@@ -149,17 +131,8 @@ class PushController:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No checkpoint assignment to announce for",
             )
-        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Push notifications are not configured",
-            )
-        checkpoint = await crud.checkpoint.get(db, id=curr_user.staff_checkpoint_id)
-        sent = await push_service.send_to_all(
-            db,
-            title=f"📍 {checkpoint.name}",
-            body=payload.body,
-            url=payload.url,
+        sent = await service.announce_from_checkpoint(
+            checkpoint_id=curr_user.staff_checkpoint_id, body=payload.body, url=payload.url
         )
         return PushBroadcastResult(sent=sent)
 

@@ -9,14 +9,14 @@ export default function NotesField({ idPrefix, notes, onChange }: Readonly<Notes
   return (
     <div>
       <label htmlFor={inputId} className="mb-2 block text-sm font-medium text-foreground">
-        Notes (Optional)
+        Notas (opcional)
       </label>
       <textarea
         id={inputId}
         value={notes}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-        placeholder="Add any additional notes..."
+        placeholder="Adiciona notas adicionais..."
         rows={3}
       />
     </div>

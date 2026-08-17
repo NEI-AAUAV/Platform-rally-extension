@@ -219,7 +219,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
               <div className="mb-2 text-2xl font-bold text-foreground">
                 {allCheckpoints?.length || 0}
               </div>
-              <div className="text-sm text-muted-foreground">Checkpoints</div>
+              <div className="text-sm text-muted-foreground">Postos</div>
             </div>
           </div>
 

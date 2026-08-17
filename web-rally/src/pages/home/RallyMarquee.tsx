@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { Sparkle } from "lucide-react";
 import { DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
 
 interface RallyMarqueeProps {
@@ -30,7 +31,7 @@ export function RallyMarquee({ items }: RallyMarqueeProps) {
               {/* Separator is its own flex sibling with symmetric margin, so it
                   sits exactly midway between the two adjacent labels. */}
               <span className="mx-[56px] text-white/50" aria-hidden="true">
-                ✦
+                <Sparkle className="h-3 w-3" fill="currentColor" />
               </span>
             </Fragment>
           ))}

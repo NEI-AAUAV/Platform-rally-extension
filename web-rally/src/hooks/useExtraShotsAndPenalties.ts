@@ -95,7 +95,7 @@ export function useExtraShotsAndPenalties(
   const validateExtraShots = (): boolean => {
     if (extraShots > maxExtraShots) {
       toast.error(
-        `Extra shots cannot exceed ${maxExtraShots} (${maxExtraShotsPerMember} per team member)`,
+        `Os shots extra não podem exceder ${maxExtraShots} (${maxExtraShotsPerMember} por membro da equipa)`,
       );
       return false;
     }
@@ -121,6 +121,6 @@ export function useExtraShotsAndPenalties(
 }
 
 export function getSubmitLabel(isSubmitting: boolean, hasExisting: boolean): string {
-  if (isSubmitting) return "Saving...";
-  return hasExisting ? "Update Evaluation" : "Submit Evaluation";
+  if (isSubmitting) return "A guardar...";
+  return hasExisting ? "Atualizar avaliação" : "Submeter avaliação";
 }

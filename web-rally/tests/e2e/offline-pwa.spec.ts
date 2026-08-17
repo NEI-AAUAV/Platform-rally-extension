@@ -121,7 +121,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     // Queue banner appears once the app-side queue has a pending entry.
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
@@ -166,7 +166,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
 
@@ -190,7 +190,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
 

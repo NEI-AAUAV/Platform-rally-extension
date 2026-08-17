@@ -174,7 +174,10 @@ async def check_existing_result(db: AsyncSession, activity_id: int, team_id: int
 
 
 async def create_activity_result(
-    db: AsyncSession, team_id: int, activity_id: int, result_in: ActivityResultEvaluation
+    scoring_service: ScoringService,
+    team_id: int,
+    activity_id: int,
+    result_in: ActivityResultEvaluation,
 ) -> ActivityResult:
     """Create activity result"""
     result_create = ActivityResultCreate(
@@ -184,11 +187,12 @@ async def create_activity_result(
         extra_shots=result_in.extra_shots,
         penalties=result_in.penalties,
     )
-    return await ScoringService(db).create_result(result_create)
+    return await scoring_service.create_result(result_create)
 
 
 async def create_or_update_activity_result(
     db: AsyncSession,
+    scoring_service: ScoringService,
     team_id: int,
     activity_id: int,
     result_in: ActivityResultEvaluation,
@@ -217,16 +221,16 @@ async def create_or_update_activity_result(
 
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
-        return await ScoringService(db).update_result(existing_result, _update_payload())
+        return await scoring_service.update_result(existing_result, _update_payload())
 
     try:
-        return await create_activity_result(db, team_id, activity_id, result_in)
+        return await create_activity_result(scoring_service, team_id, activity_id, result_in)
     except IntegrityError:
         await db.rollback()
         existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
         if existing_result is None:
             raise
-        return await ScoringService(db).update_result(existing_result, _update_payload())
+        return await scoring_service.update_result(existing_result, _update_payload())
 
 
 # Inverse outcome for the opponent's mirrored TeamVsActivity result.
@@ -234,7 +238,11 @@ _OPPOSITE_TEAM_VS_RESULT = {"win": "lose", "lose": "win", "draw": "draw"}
 
 
 async def mirror_team_vs_result(
-    db: AsyncSession, activity_obj: Activity, team_id: int, result_data: dict[str, Any]
+    db: AsyncSession,
+    scoring_service: ScoringService,
+    activity_obj: Activity,
+    team_id: int,
+    result_data: dict[str, Any],
 ) -> None:
     """Keep the opponent's TeamVsActivity result in sync.
 
@@ -258,6 +266,7 @@ async def mirror_team_vs_result(
 
     await create_or_update_activity_result(
         db,
+        scoring_service,
         opponent_team_id,
         activity_obj.id,
         ActivityResultEvaluation(result_data=opponent_result_data),
