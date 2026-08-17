@@ -34,7 +34,7 @@ describe('StaffEvaluation index', () => {
   it('shows loading state', () => {
     mockUseUser.mockReturnValue({ isLoading: true, isRallyAdmin: false });
     render(<StaffEvaluation />);
-    expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    expect(screen.getByText('A carregar...')).toBeInTheDocument();
   });
 
   it('renders manager page for rally admin', () => {

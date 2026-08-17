@@ -151,31 +151,20 @@ class TestCheckpointVisibility:
         assert response.status_code == 200
         assert len(response.json()) == 3
 
-    async def test_logged_in_user_with_team_complete_mode_sees_all(self, pg_session, pg_client):
+    async def test_logged_in_user_with_team_complete_mode_sees_all(
+        self, pg_session, pg_client, as_user
+    ):
         """A logged-in participant (not a team-token request) whose profile is
         linked to a team follows the same `_get_checkpoints_for_team` path as
         a team-token request (checkpoint.py lines 42/92-93)."""
-        from app.api import deps
-        from app.api.auth import api_nei_auth
-        from app.main import app
-        from app.schemas.user import DetailedUser
-        from app.tests.conftest import _fake_auth_data
-
         await _make_event(pg_session)
         await _set_show_route_mode(pg_session, "complete")
         await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, lat=42.0, lon=-9.0)
         team = await _make_team(pg_session)
+        as_user.team_id = team.id
 
-        user = DetailedUser(id=99, name="Linked", disabled=False, team_id=team.id, scopes=[])
-        auth_data = _fake_auth_data(scopes=[])
-        app.dependency_overrides[api_nei_auth] = lambda: auth_data
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: user
-        try:
-            response = pg_client.get("/api/rally/v1/checkpoint/")
-        finally:
-            app.dependency_overrides.pop(api_nei_auth, None)
-            app.dependency_overrides.pop(deps.get_current_user_optional, None)
+        response = pg_client.get("/api/rally/v1/checkpoint/")
 
         assert response.status_code == 200
         assert len(response.json()) == 2

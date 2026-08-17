@@ -94,7 +94,7 @@ test.describe('Idempotency', () => {
 
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
 
-    const submitButton = page.getByRole('button', { name: /submit evaluation/i });
+    const submitButton = page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i });
     await expect(submitButton).toBeVisible();
 
     // First click starts the (slow, mocked) submit; the button disables

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import { Check, X } from "lucide-react";
 import { getTeamOpponent, getTeams } from "@/client";
 import { logger } from "@/lib/logger";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
@@ -93,7 +94,7 @@ export default function TeamVsForm({
           setOpponentTeamName(foundTeam.name);
         }
       } catch (error) {
-        toast.error("Failed to load teams list");
+        toast.error("Falha ao carregar lista de equipas");
         teamsFetchedRef.current = false; // Allow retry on error
       } finally {
         setIsLoadingTeams(false);
@@ -182,7 +183,7 @@ export default function TeamVsForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="teamvs-result" className="mb-2 block text-sm font-medium text-foreground">
-          Match Result
+          Resultado do confronto
         </label>
         <select
           id="teamvs-result"
@@ -192,13 +193,13 @@ export default function TeamVsForm({
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         >
           <option value="win" className="bg-gray-800">
-            Win
+            Vitória
           </option>
           <option value="lose" className="bg-gray-800">
-            Lose
+            Derrota
           </option>
           <option value="draw" className="bg-gray-800">
-            Draw
+            Empate
           </option>
         </select>
       </div>
@@ -210,7 +211,7 @@ export default function TeamVsForm({
             htmlFor="teamvs-toggle-completed"
             className="mb-2 block text-sm font-medium text-foreground"
           >
-            Challenge Completed?
+            Desafio concluído?
           </label>
           <div className="flex items-center gap-3">
             <button
@@ -228,8 +229,9 @@ export default function TeamVsForm({
                 }`}
               />
             </button>
-            <span className="text-sm text-muted-foreground">
-              {completed ? "✓ Completou o desafio" : "✗ Não completou o desafio"}
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              {completed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {completed ? "Completou o desafio" : "Não completou o desafio"}
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">+{completionPoints} pts se completou</p>
@@ -263,7 +265,7 @@ export default function TeamVsForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium text-foreground">
-          Opponent {opponentTeamName && `(${opponentTeamName})`}
+          Adversário {opponentTeamName && `(${opponentTeamName})`}
         </label>
         {isOpponentPreselected && opponentTeamId && opponentTeamName ? (
           // Show read-only display when opponent is automatically preselected
@@ -274,8 +276,9 @@ export default function TeamVsForm({
               disabled
               className="w-full cursor-not-allowed rounded border border-border bg-muted p-3 text-foreground opacity-50"
             />
-            <p className="mt-1 text-sm text-muted-foreground">
-              ✓ Opponent automatically set from versus pair
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Check className="h-4 w-4" />
+              Adversário definido automaticamente pelo par de confronto
             </p>
           </div>
         ) : (
@@ -294,7 +297,7 @@ export default function TeamVsForm({
             required
           >
             <option value="" className="bg-gray-800">
-              {isLoadingTeams ? "Loading teams..." : "Select opponent team"}
+              {isLoadingTeams ? "A carregar equipas..." : "Seleciona a equipa adversária"}
             </option>
             {teams.map((teamOption) => (
               <option key={teamOption.id} value={teamOption.id} className="bg-gray-800">

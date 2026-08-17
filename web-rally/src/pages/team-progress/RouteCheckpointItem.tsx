@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Camera, Sparkles } from "lucide-react";
+import { Lock, Camera, Sparkles, Check } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ function CheckpointTimelineDot({
           isFuture && "bg-secondary text-muted-foreground",
         )}
       >
-        {isCompleted ? "✓" : order}
+        {isCompleted ? <Check className="h-4 w-4" /> : order}
       </div>
       {!isLast && (
         <div

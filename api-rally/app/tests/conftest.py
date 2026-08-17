@@ -342,6 +342,48 @@ def as_admin():
 
 
 @pytest.fixture
+def as_staff():
+    """Override auth dependencies so requests act as rally staff.
+
+    Mirrors `as_admin`'s shape but with the `rally-staff` scope instead of
+    `admin` — the two most commonly needed identities for the ABAC-gated
+    staff routes (`get_staff_with_checkpoint_access`, `get_admin_or_staff`).
+    `staff_checkpoint_id` starts unset; set it on the returned user
+    (`as_staff.staff_checkpoint_id = checkpoint.id`) the same way tests
+    already mutate `as_admin`'s user object, since `get_staff_with_checkpoint_access`
+    accepts a staff-scoped user with that field already populated without
+    needing a real `RallyStaffAssignment` row.
+    """
+    from app.api import deps
+    from app.api.auth import api_nei_auth, api_nei_auth_optional
+
+    user = _fake_detailed_user(id=3, name="Test Staff", scopes=["rally-staff"])
+    auth_data = _fake_auth_data(
+        oidc_sub="test-staff-sub", name="Test Staff", scopes=["rally-staff"]
+    )
+    app.dependency_overrides[api_nei_auth] = lambda: auth_data
+    app.dependency_overrides[api_nei_auth_optional] = lambda: auth_data
+    app.dependency_overrides[deps.get_admin_or_staff] = lambda: user
+    app.dependency_overrides[deps.get_guide] = lambda: user
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+    app.dependency_overrides[deps.get_current_user] = lambda: user
+    try:
+        yield user
+    finally:
+        for dep in (
+            api_nei_auth,
+            api_nei_auth_optional,
+            deps.get_admin_or_staff,
+            deps.get_guide,
+            deps.get_participant,
+            deps.get_current_user_optional,
+            deps.get_current_user,
+        ):
+            app.dependency_overrides.pop(dep, None)
+
+
+@pytest.fixture
 def as_user():
     """Override auth dependencies so requests act as a plain participant."""
     from app.api import deps

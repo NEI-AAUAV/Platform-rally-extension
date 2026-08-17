@@ -13,6 +13,9 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  Check,
+  Circle,
+  Equal,
 } from "lucide-react";
 import { EvaluationHistory } from "./EvaluationHistory";
 
@@ -52,10 +55,24 @@ type AllEvaluationsProps = Readonly<{
   evaluations: Evaluation[];
 }>;
 
-function getTeamVsResultLabel(result: string): string {
-  if (result === "win") return "✓ Won";
-  if (result === "lose") return "✗ Lost";
-  return "= Draw";
+function TeamVsResultLabel({ result }: { result: string }) {
+  if (result === "win")
+    return (
+      <>
+        <Check className="h-3 w-3" /> Won
+      </>
+    );
+  if (result === "lose")
+    return (
+      <>
+        <X className="h-3 w-3" /> Lost
+      </>
+    );
+  return (
+    <>
+      <Equal className="h-3 w-3" /> Draw
+    </>
+  );
 }
 
 const activityTypeIcons = {
@@ -75,8 +92,8 @@ function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId
   const badgeClass = TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-400";
   return (
     <>
-      <Badge variant="outline" className={`text-xs ${badgeClass}`}>
-        {getTeamVsResultLabel(result)}
+      <Badge variant="outline" className={`flex items-center gap-1 text-xs ${badgeClass}`}>
+        <TeamVsResultLabel result={result} />
       </Badge>
       {opponentId !== null && (
         <Badge variant="outline" className="text-xs">
@@ -226,7 +243,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
           {hasActiveFilters && (
             <div className="mt-2 text-xs text-muted-foreground">
-              Showing {filteredEvaluations.length} of {evaluations.length} evaluations
+              A mostrar {filteredEvaluations.length} de {evaluations.length} avaliações
             </div>
           )}
         </div>
@@ -347,13 +364,18 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                             {evaluation.is_completed && (
                               <Badge
                                 variant="outline"
-                                className={`text-xs ${
+                                className={`flex items-center gap-1 text-xs ${
                                   evaluation.final_score > 0
                                     ? "border-green-500/50 bg-green-500/10 text-green-400"
                                     : "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
                                 }`}
                               >
-                                {evaluation.final_score > 0 ? "✓ Completed" : "○ Attempted"}
+                                {evaluation.final_score > 0 ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <Circle className="h-3 w-3" />
+                                )}
+                                {evaluation.final_score > 0 ? "Completed" : "Attempted"}
                               </Badge>
                             )}
 
@@ -371,13 +393,18 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                               evaluation.boolean_score !== undefined && (
                                 <Badge
                                   variant="outline"
-                                  className={`text-xs ${
+                                  className={`flex items-center gap-1 text-xs ${
                                     evaluation.boolean_score
                                       ? "border-green-500/50 text-green-400"
                                       : "border-red-500/50 text-red-400"
                                   }`}
                                 >
-                                  {evaluation.boolean_score ? "✓ Success" : "✗ Failed"}
+                                  {evaluation.boolean_score ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
+                                  {evaluation.boolean_score ? "Success" : "Failed"}
                                 </Badge>
                               )}
 
@@ -389,7 +416,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                               typeof evaluation.result_data.notes === "string" &&
                               evaluation.result_data.notes.trim() !== "" && (
                                 <Badge variant="outline" className="text-xs">
-                                  Note: {evaluation.result_data.notes}
+                                  Nota: {evaluation.result_data.notes}
                                 </Badge>
                               )}
                           </div>
@@ -398,20 +425,20 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-blue-400">Modifiers:</p>
+                          <p className="mb-1 text-xs font-semibold text-blue-400">Modificadores:</p>
                           <div className="flex flex-wrap gap-1">
                             <Badge
                               variant="outline"
                               className="border-blue-500/30 text-xs text-blue-400"
                             >
-                              Extra Shots: +{evaluation.extra_shots}
+                              Shots extra: +{evaluation.extra_shots}
                             </Badge>
                             {(evaluation.team.num_members ?? 0) > 0 && (
                               <Badge
                                 variant="outline"
                                 className="border-blue-500/30 text-xs text-blue-400"
                               >
-                                Team Members: {evaluation.team.num_members}
+                                Membros da equipa: {evaluation.team.num_members}
                               </Badge>
                             )}
                           </div>
@@ -420,7 +447,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-red-400">Penalties:</p>
+                          <p className="mb-1 text-xs font-semibold text-red-400">Penalizações:</p>
                           <div className="flex flex-wrap gap-1">
                             {Object.entries(evaluation.penalties).map(([key, value]) => (
                               <Badge

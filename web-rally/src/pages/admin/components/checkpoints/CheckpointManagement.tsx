@@ -32,6 +32,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     refetchCheckpoints,
     stages,
     justCreatedId,
+    pendingClueImage,
+    setPendingClueImage,
   } = useCheckpointManagement(userStore);
 
   const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
@@ -49,6 +51,8 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
         checkpoints={sortedCheckpoints}
         currentId={editingCheckpoint?.id ?? null}
         stages={stages}
+        pendingClueImage={pendingClueImage}
+        onPendingClueImageChange={setPendingClueImage}
       />
 
       <div className="rally-surface rounded-2xl p-6">

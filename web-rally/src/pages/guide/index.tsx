@@ -159,24 +159,39 @@ function IndicationList({
 }
 
 function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
-  const [open, setOpen] = useState(false);
+  // The current post opens by default — it's the one the guide's team is
+  // actually working on right now.
+  const [open, setOpen] = useState(cp.is_current);
   // Which indications teams at this post already unlocked, surfaced from the
   // teams panel so the ladder above can flag them.
   const [purchasedIds, setPurchasedIds] = useState<readonly number[]>([]);
 
   return (
-    <article className="rally-surface overflow-hidden">
+    <article
+      className={`rally-surface overflow-hidden ${cp.is_current ? "ring-2 ring-primary" : ""}`}
+    >
       <button
         type="button"
         className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-accent/30"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+            cp.is_current ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+          }`}
+        >
           {cp.order}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold leading-tight">{cp.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold leading-tight">{cp.name}</p>
+            {cp.is_current && (
+              <span className="rally-accent shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                Atual
+              </span>
+            )}
+          </div>
           {cp.latitude != null && cp.longitude != null && (
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="h-3 w-3" />
@@ -230,7 +245,12 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
             </section>
           )}
           <IndicationList indications={cp.indications} purchasedIds={purchasedIds} />
-          <CheckpointTeamsPanel checkpointId={cp.id} onPurchasedIdsChange={setPurchasedIds} />
+          {/* Only the current post is writable server-side (see
+              GuideService.can_manage_checkpoint) — other posts would just
+              403 on both the teams list and the arrival call. */}
+          {cp.is_current && (
+            <CheckpointTeamsPanel checkpointId={cp.id} onPurchasedIdsChange={setPurchasedIds} />
+          )}
           <MediaGallery media={cp.media} />
         </div>
       )}

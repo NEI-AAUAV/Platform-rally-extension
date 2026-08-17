@@ -18,7 +18,7 @@ export function IncompleteEvaluationDialog({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
             <AlertTriangle className="h-5 w-5" />
-            Incomplete Evaluations Detected
+            Avaliações incompletas detetadas
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -26,29 +26,30 @@ export function IncompleteEvaluationDialog({
             <div className="space-y-3">
               {summary.checkpoint_mismatch ? (
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">
-                    ⚠️ This team is from a different checkpoint
+                  <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    Esta equipa é de um posto diferente
                   </p>
                   <p className="text-sm">
-                    This team is from checkpoint <strong>{summary.team_checkpoint}</strong>, but
-                    you're evaluating them for checkpoint{" "}
-                    <strong>{summary.current_checkpoint}</strong> activities.
+                    Esta equipa é do posto <strong>{summary.team_checkpoint}</strong>, mas está a
+                    avaliá-la para as atividades do posto{" "}
+                    <strong>{summary.current_checkpoint}</strong>.
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    This allows evaluation of teams from previous checkpoints. Their scores will be
-                    based on the activities shown.
+                    Isto permite avaliar equipas de postos anteriores. As pontuações serão baseadas
+                    nas atividades apresentadas.
                   </p>
                 </div>
               ) : (
                 <>
                   <p className="text-sm">
-                    This team has <strong>{summary.pending_activities}</strong> unevaluated
-                    {summary.pending_activities === 1 ? " activity" : " activities"} out of{" "}
-                    <strong>{summary.total_activities}</strong> total activities.
+                    Esta equipa tem <strong>{summary.pending_activities}</strong>
+                    {summary.pending_activities === 1 ? " atividade" : " atividades"} por avaliar de
+                    um total de <strong>{summary.total_activities}</strong> atividades.
                   </p>
                   {summary.missing_activities && summary.missing_activities.length > 0 && (
                     <div>
-                      <p className="mb-1 text-sm font-semibold">Missing activities:</p>
+                      <p className="mb-1 text-sm font-semibold">Atividades em falta:</p>
                       <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
                         {summary.missing_activities.map((activity: string) => (
                           <li key={activity}>{activity}</li>
@@ -57,7 +58,7 @@ export function IncompleteEvaluationDialog({
                     </div>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    Would you like to proceed anyway? You can evaluate the missing activities later.
+                    Deseja continuar mesmo assim? Pode avaliar as atividades em falta mais tarde.
                   </p>
                 </>
               )}
@@ -66,7 +67,7 @@ export function IncompleteEvaluationDialog({
         </CardContent>
         <div className="flex justify-end gap-3 p-6">
           <Button variant="outline" onClick={onClose}>
-            Close
+            Fechar
           </Button>
         </div>
       </Card>

@@ -67,6 +67,10 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
       void qc.invalidateQueries({ queryKey: teamsKey });
       // The arrival can complete the post outright, which moves the team on.
       void qc.invalidateQueries({ queryKey: ["team"] });
+      // Marking the current post's team can advance which post is "current"
+      // (see GuideService.current_checkpoint_id) — refetch so the highlight
+      // and writable panel move to the next post.
+      void qc.invalidateQueries({ queryKey: ["guide-checkpoints"] });
     },
   });
 

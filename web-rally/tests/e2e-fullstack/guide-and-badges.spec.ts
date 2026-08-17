@@ -54,7 +54,9 @@ test.describe('Guide mode and auto-awarded badges against a real backend', () =>
             timeout: 20_000,
           });
           await expect(guidePage.getByText(scenario.checkpointName)).toBeVisible();
-          await guidePage.getByText(scenario.checkpointName).click();
+          // The guide's team hasn't checked in anywhere yet, so this
+          // checkpoint (order 1) is the current post and its card is
+          // already expanded by default — no click needed.
           await expect(guidePage.getByText('Quem é o santo padroeiro?')).toBeVisible({
             timeout: 15_000,
           });
@@ -70,8 +72,8 @@ test.describe('Guide mode and auto-awarded badges against a real backend', () =>
       await staffPage.goto(`/rally/staff-evaluation/checkpoint/${scenario.checkpointId}`);
       await staffPage.getByText(scenario.teamName).first().click();
       await staffPage.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-      await staffPage.getByText('Team succeeded in the activity').first().click();
-      await staffPage.getByRole('button', { name: /submit evaluation/i }).click();
+      await staffPage.getByText('Equipa teve sucesso na atividade').first().click();
+      await staffPage.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
       // The auto-award runs synchronously with the evaluation on the real
       // backend — the team's own conquistas page (real navigation, real

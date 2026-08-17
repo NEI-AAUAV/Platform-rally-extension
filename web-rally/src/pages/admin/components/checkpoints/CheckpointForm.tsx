@@ -48,6 +48,8 @@ type CheckpointFormProps = Readonly<{
   checkpoints?: ReadonlyArray<Checkpoint>;
   currentId?: number | null;
   stages?: ReadonlyArray<RouteStageResponse>;
+  pendingClueImage?: File | null;
+  onPendingClueImageChange?: (file: File | null) => void;
 }>;
 
 export default function CheckpointForm({
@@ -59,6 +61,8 @@ export default function CheckpointForm({
   checkpoints,
   currentId,
   stages,
+  pendingClueImage,
+  onPendingClueImageChange,
 }: CheckpointFormProps) {
   return (
     <div className="rally-surface rounded-2xl p-6">
@@ -237,6 +241,8 @@ export default function CheckpointForm({
                 checkpointId={currentId ?? null}
                 currentUrl={form.watch("clue_media_url") || null}
                 onUploaded={(url) => form.setValue("clue_media_url", url)}
+                pendingFile={pendingClueImage}
+                onFileSelected={onPendingClueImageChange}
               />
             </FormItem>
           </Section>

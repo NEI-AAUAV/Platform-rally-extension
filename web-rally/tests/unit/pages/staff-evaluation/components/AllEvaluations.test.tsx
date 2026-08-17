@@ -54,7 +54,7 @@ describe('AllEvaluations', () => {
     fireEvent.change(screen.getByLabelText('Equipa'), { target: { value: 'Team A' } });
     expect(screen.getByText('Sprint')).toBeInTheDocument();
     expect(screen.queryByText('Other')).not.toBeInTheDocument();
-    expect(screen.getByText('Showing 1 of 2 evaluations')).toBeInTheDocument();
+    expect(screen.getByText('A mostrar 1 de 2 avaliações')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Limpar filtros'));
     expect(screen.getByText('Other')).toBeInTheDocument();
@@ -68,11 +68,11 @@ describe('AllEvaluations', () => {
     render(<AllEvaluations evaluations={[baseEvaluation]} />);
     const toggle = screen.getByRole('button', { name: /Sprint/ });
     fireEvent.click(toggle);
-    expect(screen.getByText('✓ Completed')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText(/Time: 12.30s/)).toBeInTheDocument();
     expect(screen.getByText(/Points: 5/)).toBeInTheDocument();
-    expect(screen.getByText(/Note: good job/)).toBeInTheDocument();
-    expect(screen.getByText(/Extra Shots: \+2/)).toBeInTheDocument();
+    expect(screen.getByText(/Nota: good job/)).toBeInTheDocument();
+    expect(screen.getByText(/Shots extra: \+2/)).toBeInTheDocument();
     expect(screen.getByText(/vomit: 1/)).toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe('AllEvaluations', () => {
     };
     render(<AllEvaluations evaluations={[winEval]} />);
     fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
-    expect(screen.getByText('✓ Won')).toBeInTheDocument();
+    expect(screen.getByText('Won')).toBeInTheDocument();
     expect(screen.getByText('vs Equipa #5')).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe('AllEvaluations', () => {
     };
     render(<AllEvaluations evaluations={[loseEval]} />);
     fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
-    expect(screen.getByText('✗ Lost')).toBeInTheDocument();
+    expect(screen.getByText('Lost')).toBeInTheDocument();
     expect(screen.queryByText(/vs Equipa/)).not.toBeInTheDocument();
   });
 
@@ -111,16 +111,16 @@ describe('AllEvaluations', () => {
     };
     render(<AllEvaluations evaluations={[drawEval]} />);
     fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
-    expect(screen.getByText('= Draw')).toBeInTheDocument();
+    expect(screen.getByText('Draw')).toBeInTheDocument();
   });
 
   it('collapses an expanded evaluation when toggled again', () => {
     render(<AllEvaluations evaluations={[baseEvaluation]} />);
     const toggle = screen.getByRole('button', { name: /Sprint/ });
     fireEvent.click(toggle);
-    expect(screen.getByText('✓ Completed')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     fireEvent.click(toggle);
-    expect(screen.queryByText('✓ Completed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Completed')).not.toBeInTheDocument();
   });
 
   it('renders BooleanActivity success/failed badge', () => {
@@ -135,7 +135,7 @@ describe('AllEvaluations', () => {
     };
     render(<AllEvaluations evaluations={[boolEval]} />);
     fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));
-    expect(screen.getByText('✗ Failed')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
   });
 
   it('toggles history visibility', () => {

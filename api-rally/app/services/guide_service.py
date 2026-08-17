@@ -29,18 +29,17 @@ class GuideService:
 
     async def list_checkpoints_with_gallery(
         self, *, user_id: int | None = None, is_privileged: bool = False
-    ) -> list[CheckPoint]:
+    ) -> tuple[list[CheckPoint], int | None]:
         """Checkpoints for the current event, with media/indications
-        eager-loaded, ordered by checkpoint order.
+        eager-loaded, ordered by checkpoint order, plus the id of the
+        checkpoint the guide's team currently needs (``None`` for a
+        privileged caller or a guide with no team assigned).
 
-        Scoped to the guide's own assignment. In a peddy paper the route *is*
-        the answer key, and a guide's phone showing every post is one glance
-        over the shoulder away from handing a team the rest of the game. Staff
-        and admins keep the full list — they run the event.
-
-        A guide with no assignment still sees everything: an admin who forgot
-        to assign them would otherwise leave them with a blank screen mid-event,
-        which is worse than the leak it prevents.
+        A guide accompanies their team through the whole route rather than
+        being fixed to one post, so they see every checkpoint — the caller
+        highlights the current one instead of the list being cut down to it.
+        Write access (marking an arrival) stays scoped to the current post
+        via ``can_manage_checkpoint``; this is the read path only.
 
         Raises RallyForbiddenError when guide mode is not active and the
         current event is not Peddy Paper (which always allows the guide view).
@@ -69,10 +68,9 @@ class GuideService:
         current_id = (
             None if is_privileged or user_id is None else await self.current_checkpoint_id(user_id)
         )
-        if current_id is not None:
-            stmt = stmt.where(CheckPoint.id == current_id)
 
-        return list((await self._db.scalars(stmt)).all())
+        checkpoints = list((await self._db.scalars(stmt)).all())
+        return checkpoints, current_id
 
     async def assigned_team_id(self, user_id: int) -> int | None:
         """The team this guide accompanies, if any.

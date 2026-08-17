@@ -1,25 +1,16 @@
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api import deps
 from app.api.abac_deps import require_checkpoint_management_permission
-from app.crud.crud_checkpoint_media import checkpoint_media as crud_media
-from app.crud.crud_rally_settings import rally_settings
 from app.models.checkpoint_media import MediaKind
-from app.schemas.checkpoint_media import (
-    CheckpointMediaCreate,
-    CheckpointMediaResponse,
-    CheckpointMediaUpdate,
-)
+from app.schemas.checkpoint_media import CheckpointMediaResponse
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_media_service import CheckpointMediaService
-from app.services.checkpoint_service import CheckpointService
-from app.services.deps import get_checkpoint_service
+from app.services.deps import get_checkpoint_media_service
 
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 MEDIA_NOT_FOUND = "Media not found"
@@ -75,51 +66,21 @@ class CheckpointMediaController:
             responses={404: {"description": CHECKPOINT_NOT_FOUND}},
         )
 
-    async def _get_checkpoint_or_404(self, db: AsyncSession, checkpoint_id: int) -> Any:
-        # NOTE: CRUDBase.get() raises RallyNotFoundError itself for a missing id
-        # (mapped to 404 by the app's exception handler) rather than returning
-        # None, so the `if not cp` branch below is unreachable in practice; kept
-        # as a defensive guard/type-contract in case `.get()`'s behavior changes.
-        cp = await crud.checkpoint.get(db=db, id=checkpoint_id)
-        if not cp:
-            raise HTTPException(status_code=404, detail="Checkpoint not found")
-        return cp
-
     async def list_checkpoint_media(
         self,
         checkpoint_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
         curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
         curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)],
-        service: Annotated[CheckpointService, Depends(get_checkpoint_service)],
+        service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
     ) -> list[CheckpointMediaResponse]:
-        """Checkpoint media (photos, fun facts) — as strong a reveal as the
-        checkpoint name/coordinates, so it's gated the same way: staff/admin
-        see everything, a team sees only checkpoints it has reached, and the
-        public follow the same rules as the checkpoint map.
-        """
-        await self._get_checkpoint_or_404(db, checkpoint_id)
-        settings = await rally_settings.get_or_create(db)
-
-        if curr_user and deps.is_admin_or_staff(getattr(curr_user, "scopes", [])):
-            allowed = True
-        elif curr_user and curr_user.team_id:
-            allowed = await service.team_can_view_media(curr_user.team_id, checkpoint_id, settings)
-        elif curr_team:
-            allowed = await service.team_can_view_media(curr_team.team_id, checkpoint_id, settings)
-        else:
-            allowed = await service.public_can_view_media(checkpoint_id, settings)
-
-        if not allowed:
-            raise HTTPException(status_code=403, detail="Checkpoint not reached")
-
-        items = await crud_media.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
-        return [CheckpointMediaResponse.model_validate(item) for item in items]
+        return await service.list_visible_media(
+            checkpoint_id, curr_user=curr_user, curr_team=curr_team
+        )
 
     async def create_checkpoint_media(
         self,
         checkpoint_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
         kind: Annotated[MediaKind, Form()],
         caption: Annotated[str | None, Form()] = None,
         order: Annotated[int, Form()] = 0,
@@ -128,30 +89,24 @@ class CheckpointMediaController:
         content_text: Annotated[str | None, Form()] = None,
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
-        await self._get_checkpoint_or_404(db, checkpoint_id)
-        image_url = await CheckpointMediaService.upload_image_if_provided(
-            image, checkpoint_id=checkpoint_id
-        )
         try:
-            obj_in = CheckpointMediaCreate(
+            return await service.create_media(
+                checkpoint_id,
                 kind=kind,
                 caption=caption,
                 order=order,
                 title=title,
-                content_url=content_url or None,
+                content_url=content_url,
                 content_text=content_text,
+                image=image,
             )
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        created = await crud_media.create(
-            db, checkpoint_id=checkpoint_id, obj_in=obj_in, image_url=image_url
-        )
-        return CheckpointMediaResponse.model_validate(created)
 
     async def update_checkpoint_media(
         self,
         media_id: int,
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
         caption: Annotated[str | None, Form()] = None,
         order: Annotated[int | None, Form()] = None,
         title: Annotated[str | None, Form()] = None,
@@ -159,42 +114,33 @@ class CheckpointMediaController:
         content_text: Annotated[str | None, Form()] = None,
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
-        db_obj = await crud_media.get(db, id=media_id)
-        if not db_obj:
-            raise HTTPException(status_code=404, detail=MEDIA_NOT_FOUND)
-        image_url = await CheckpointMediaService.upload_image_if_provided(
-            image, checkpoint_id=db_obj.checkpoint_id
-        )
         try:
-            obj_in = CheckpointMediaUpdate(
+            return await service.update_media(
+                media_id,
                 caption=caption,
                 order=order,
                 title=title,
-                content_url=content_url or None,
+                content_url=content_url,
                 content_text=content_text,
+                image=image,
             )
-            updated = await crud_media.update(db, db_obj=db_obj, obj_in=obj_in, image_url=image_url)
         except (ValidationError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return CheckpointMediaResponse.model_validate(updated)
 
     async def delete_checkpoint_media(
-        self, media_id: int, db: Annotated[AsyncSession, Depends(deps.get_db)]
+        self,
+        media_id: int,
+        service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
     ) -> None:
-        db_obj = await crud_media.get(db, id=media_id)
-        if not db_obj:
-            raise HTTPException(status_code=404, detail=MEDIA_NOT_FOUND)
-        await crud_media.delete(db, db_obj=db_obj)
+        await service.delete_media(media_id)
 
     async def reorder_checkpoint_media(
         self,
         checkpoint_id: int,
         ordered_ids: list[int],
-        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
     ) -> list[CheckpointMediaResponse]:
-        await self._get_checkpoint_or_404(db, checkpoint_id)
-        items = await crud_media.reorder(db, checkpoint_id=checkpoint_id, ordered_ids=ordered_ids)
-        return [CheckpointMediaResponse.model_validate(item) for item in items]
+        return await service.reorder_media(checkpoint_id, ordered_ids)
 
 
 router = CheckpointMediaController().router

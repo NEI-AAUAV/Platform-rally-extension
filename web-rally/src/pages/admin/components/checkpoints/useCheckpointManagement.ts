@@ -9,6 +9,7 @@ import {
   updateCheckpoint as apiUpdateCheckpoint,
   deleteCheckpoint as apiDeleteCheckpoint,
   reorderCheckpoints as apiReorderCheckpoints,
+  uploadClueImage,
   type AdminCheckPoint,
   type CheckPointCreate,
   type CheckPointUpdate,
@@ -94,6 +95,9 @@ export function useCheckpointManagement(userStore: UserState) {
   // The post just created, so its panel opens straight into desafio/media/
   // indicações instead of making the admin find and click it in the list.
   const [justCreatedId, setJustCreatedId] = React.useState<number | null>(null);
+  // A clue image picked while there's still no checkpoint to attach it to;
+  // sent right after the create mutation returns an id.
+  const [pendingClueImage, setPendingClueImage] = React.useState<File | null>(null);
 
   // The planning view, not GET /checkpoint: it is the only one that returns
   // drafts, the staff-only columns, and what each post still lacks.
@@ -144,11 +148,23 @@ export function useCheckpointManagement(userStore: UserState) {
   const { mutate: createCheckpoint, isPending: isCreatingCheckpoint } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) =>
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
-    onSuccess: ({ data }) => {
-      void refetchCheckpoints();
+    onSuccess: async ({ data }) => {
       checkpointForm.reset();
       if (data?.id) setJustCreatedId(data.id);
       toast.success("Checkpoint criado com sucesso!");
+
+      // The image staged before the checkpoint existed goes up now that
+      // there's finally an id to attach it to.
+      if (data?.id && pendingClueImage) {
+        try {
+          await uploadClueImage({ path: { id: data.id }, body: { image: pendingClueImage } });
+        } catch (error) {
+          toast.error(getErrorMessage(error, "Erro ao enviar a imagem do enigma"));
+        } finally {
+          setPendingClueImage(null);
+        }
+      }
+      void refetchCheckpoints();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Erro ao criar checkpoint"));
@@ -242,6 +258,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const cancelEdit = () => {
     setEditingCheckpoint(null);
+    setPendingClueImage(null);
     checkpointForm.reset();
     updateOrderForNewCheckpoint();
   };
@@ -316,5 +333,7 @@ export function useCheckpointManagement(userStore: UserState) {
     handleDrop,
     handleDragEnd,
     justCreatedId,
+    pendingClueImage,
+    setPendingClueImage,
   };
 }

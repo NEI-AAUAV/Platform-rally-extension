@@ -20,7 +20,11 @@ import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigF
 import PenaltyCounterConfigFields from "@/components/activity-form/PenaltyCounterConfigFields";
 import QuizQuestionConfigFields from "@/components/activity-form/QuizQuestionConfigFields";
 import { parsePenaltyCounters, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
-import { parseQuizQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import {
+  parseAnswersPerQuestion,
+  parseQuizQuestions,
+  type QuizQuestion,
+} from "@/lib/quizQuestions";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
 
 const activityFormSchema = z.object({
@@ -140,6 +144,9 @@ export default function ActivityForm({
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() =>
     parseQuizQuestions(initialData?.config),
   );
+  const [answersPerQuestion, setAnswersPerQuestion] = useState<number>(() =>
+    parseAnswersPerQuestion(initialData?.config),
+  );
 
   // Synchronize configData with initialData changes (e.g., when switching between create/edit)
   useEffect(() => {
@@ -147,6 +154,7 @@ export default function ActivityForm({
       setConfigData(initialData.config as Record<string, ConfigValue>);
       setPenaltyCounters(parsePenaltyCounters(initialData.config));
       setQuizQuestions(parseQuizQuestions(initialData.config));
+      setAnswersPerQuestion(parseAnswersPerQuestion(initialData.config));
     }
   }, [initialData?.config]);
 
@@ -161,7 +169,7 @@ export default function ActivityForm({
         ...configData,
         penalty_counters: penaltyCounters,
         ...(watchActivityType === ActivityType.SCORE_BASED
-          ? { quiz_questions: quizQuestions }
+          ? { quiz_questions: quizQuestions, quiz_answers_per_question: answersPerQuestion }
           : {}),
       },
     });
@@ -289,7 +297,12 @@ export default function ActivityForm({
           />
 
           {watchActivityType === ActivityType.SCORE_BASED && (
-            <QuizQuestionConfigFields questions={quizQuestions} onChange={setQuizQuestions} />
+            <QuizQuestionConfigFields
+              questions={quizQuestions}
+              onChange={setQuizQuestions}
+              answersPerQuestion={answersPerQuestion}
+              onAnswersPerQuestionChange={setAnswersPerQuestion}
+            />
           )}
 
           <PenaltyCounterConfigFields counters={penaltyCounters} onChange={setPenaltyCounters} />

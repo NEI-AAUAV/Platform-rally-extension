@@ -8,10 +8,23 @@ import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import { countCorrect, type QuizQuestion } from "@/lib/quizQuestions";
 import type { BaseActivityFormProps } from "@/types/forms";
 
+/** Reads a possibly-legacy `quiz_correct` map — old results stored booleans
+ * (single yes/no answer), current ones store counts (subgroups correct). */
+function normalizeStoredCorrect(stored: Record<string, unknown>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(stored).map(([key, value]) => [
+      key,
+      typeof value === "boolean" ? Number(value) : Number(value) || 0,
+    ]),
+  );
+}
+
 type Props = Readonly<
   BaseActivityFormProps & {
     /** This activity's own quiz questions (config.quiz_questions), if any. */
     quizQuestions?: readonly QuizQuestion[];
+    /** How many subgroups (e.g. pairs) each question is put to. */
+    answersPerQuestion?: number;
   }
 >;
 
@@ -22,11 +35,12 @@ export default function ScoreBasedForm({
   isSubmitting,
   penaltyCounters = [],
   quizQuestions = [],
+  answersPerQuestion = 1,
 }: Props) {
   const [achievedPoints, setAchievedPoints] = useState<number>(0);
-  // Only used when quizQuestions is non-empty — which questions were
-  // answered correctly, staff-checked at the post.
-  const [correct, setCorrect] = useState<Record<string, boolean>>({});
+  // Only used when quizQuestions is non-empty — how many subgroups (e.g.
+  // pairs) got each question right, staff-counted at the post.
+  const [correct, setCorrect] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<string>("");
   const toast = useAppToast();
   const isQuiz = quizQuestions.length > 0;
@@ -52,7 +66,7 @@ export default function ScoreBasedForm({
       setAchievedPoints((existingResult.result_data.achieved_points as number) || 0);
       const storedCorrect = existingResult.result_data.quiz_correct;
       if (storedCorrect && typeof storedCorrect === "object") {
-        setCorrect(storedCorrect as Record<string, boolean>);
+        setCorrect(normalizeStoredCorrect(storedCorrect as Record<string, unknown>));
       }
       setNotes((existingResult.result_data.notes as string) || "");
     }
@@ -64,8 +78,9 @@ export default function ScoreBasedForm({
     if (isQuiz) setAchievedPoints(countCorrect(correct));
   }, [isQuiz, correct]);
 
-  const toggleCorrect = (key: string) => {
-    setCorrect((prev) => ({ ...prev, [key]: !prev[key] }));
+  const setQuestionCorrect = (key: string, value: number) => {
+    const clamped = Math.min(Math.max(0, Math.round(value) || 0), answersPerQuestion);
+    setCorrect((prev) => ({ ...prev, [key]: clamped }));
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -74,7 +89,7 @@ export default function ScoreBasedForm({
     if (!validateExtraShots()) return;
 
     if (achievedPoints < 0) {
-      toast.error("Points must be positive.");
+      toast.error("Os pontos têm de ser positivos.");
       return;
     }
 
@@ -94,20 +109,39 @@ export default function ScoreBasedForm({
       {isQuiz ? (
         <fieldset>
           <legend className="mb-2 block text-sm font-medium text-foreground">
-            Perguntas ({countCorrect(correct)}/{quizQuestions.length} certas)
+            Perguntas ({countCorrect(correct)}/{quizQuestions.length * answersPerQuestion} certas)
           </legend>
+          {answersPerQuestion > 1 && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Indica quantos ({answersPerQuestion === 1 ? "" : `de ${answersPerQuestion}`})
+              acertaram cada pergunta.
+            </p>
+          )}
           <ul className="space-y-2">
             {quizQuestions.map((question) => (
-              <li key={question.key} className="flex items-start gap-2">
-                <input
-                  id={`quiz-${question.key}`}
-                  type="checkbox"
-                  checked={!!correct[question.key]}
-                  onChange={() => toggleCorrect(question.key)}
-                  className="mt-1 h-4 w-4"
-                />
+              <li key={question.key} className="flex items-center gap-2">
+                {answersPerQuestion > 1 ? (
+                  <input
+                    id={`quiz-${question.key}`}
+                    type="number"
+                    min={0}
+                    max={answersPerQuestion}
+                    value={correct[question.key] ?? 0}
+                    onChange={(e) => setQuestionCorrect(question.key, Number(e.target.value))}
+                    className="h-8 w-16 rounded border border-border bg-muted p-1 text-center text-foreground"
+                  />
+                ) : (
+                  <input
+                    id={`quiz-${question.key}`}
+                    type="checkbox"
+                    checked={!!correct[question.key]}
+                    onChange={(e) => setQuestionCorrect(question.key, e.target.checked ? 1 : 0)}
+                    className="h-4 w-4"
+                  />
+                )}
                 <label htmlFor={`quiz-${question.key}`} className="text-sm text-foreground">
                   {question.text}
+                  {answersPerQuestion > 1 && ` (/${answersPerQuestion})`}
                 </label>
               </li>
             ))}
@@ -128,7 +162,7 @@ export default function ScoreBasedForm({
             value={achievedPoints}
             onChange={(e) => setAchievedPoints(Number(e.target.value))}
             className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-            placeholder="Enter achieved points"
+            placeholder="Introduz os pontos alcançados"
             required
           />
         </div>

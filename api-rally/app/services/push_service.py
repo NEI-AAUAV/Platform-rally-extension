@@ -6,11 +6,16 @@ Fire-and-forget by design, mirroring EVENTS_FAIL_SILENTLY: a push failure
 (dead endpoint, missing VAPID config, network error) is logged and never
 propagated to the caller — a lost notification must not fail the request
 that triggered it (e.g. a badge award).
+
+``PushService`` wraps the module-level delivery functions with the
+constructor-injected CRUD access and VAPID/subscription-ownership rules the
+controller used to hold inline.
 """
 
 import json
 from collections.abc import Sequence
 
+from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from loguru import logger
 from pywebpush import WebPushException, webpush
@@ -18,7 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_push_subscription import CRUDPushSubscription
 from app.models.push_subscription import PushSubscription
+from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionRead
+
+VAPID_NOT_CONFIGURED = "Push notifications are not configured"
 
 # Endpoint gone/expired — the browser will never accept another push here.
 _DEAD_SUBSCRIPTION_STATUSES = {404, 410}
@@ -38,9 +48,9 @@ def _send_one(subscription: PushSubscription, payload: dict[str, object]) -> int
         )
         return None
     except WebPushException as exc:
-        status = exc.response.status_code if exc.response is not None else None
+        status_code = exc.response.status_code if exc.response is not None else None
         logger.warning(f"Push delivery failed (endpoint={subscription.endpoint[:40]}...): {exc}")
-        return status
+        return status_code
 
 
 async def _send_to_subscriptions(
@@ -51,10 +61,10 @@ async def _send_to_subscriptions(
     dead_endpoints: list[str] = []
     sent = 0
     for subscription in subscriptions:
-        status = await run_in_threadpool(_send_one, subscription, payload)
-        if status in _DEAD_SUBSCRIPTION_STATUSES:
+        delivery_status = await run_in_threadpool(_send_one, subscription, payload)
+        if delivery_status in _DEAD_SUBSCRIPTION_STATUSES:
             dead_endpoints.append(subscription.endpoint)
-        elif status is None:
+        elif delivery_status is None:
             sent += 1
 
     for endpoint in dead_endpoints:
@@ -101,3 +111,63 @@ async def send_to_all(db: AsyncSession, *, title: str, body: str, url: str | Non
 
     payload: dict[str, object] = {"title": title, "body": body, "url": url}
     return await _send_to_subscriptions(db, subscriptions, payload)
+
+
+class PushService:
+    """Constructor-injected wrapper around web push delivery and
+    subscription lifecycle — the piece the push controller used to do
+    itself (VAPID guard repeated per-endpoint, `crud.push_subscription`
+    calls, and the checkpoint lookup for a staff announcement's title).
+    """
+
+    def __init__(
+        self,
+        db: AsyncSession,
+        push_subscription_crud: CRUDPushSubscription,
+        checkpoint_crud: CRUDCheckPoint,
+    ) -> None:
+        self._db = db
+        self._push_subscription_crud = push_subscription_crud
+        self._checkpoint_crud = checkpoint_crud
+
+    @staticmethod
+    def _require_vapid_configured() -> None:
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=VAPID_NOT_CONFIGURED
+            )
+
+    async def subscribe(
+        self, *, user_id: int, payload: PushSubscriptionCreate
+    ) -> PushSubscriptionRead:
+        self._require_vapid_configured()
+        subscription = await self._push_subscription_crud.upsert(
+            self._db, user_id=user_id, obj_in=payload
+        )
+        return PushSubscriptionRead.model_validate(subscription)
+
+    async def unsubscribe(self, *, user_id: int, endpoint: str) -> None:
+        existing = await self._push_subscription_crud.get_by_endpoint(self._db, endpoint=endpoint)
+        if existing is not None and existing.user_id == user_id:
+            await self._push_subscription_crud.remove_by_endpoint(self._db, endpoint=endpoint)
+
+    async def broadcast(self, *, title: str, body: str, url: str | None) -> int:
+        """Send one notification to every subscribed device — an admin
+        announcement to all teams at once, not addressed to one participant.
+        """
+        self._require_vapid_configured()
+        return await send_to_all(self._db, title=title, body=body, url=url)
+
+    async def announce_from_checkpoint(
+        self, *, checkpoint_id: int, body: str, url: str | None
+    ) -> int:
+        """Staff announcing something about their own post — reaches every
+        team like an admin broadcast does (the whole rally needs to know a
+        post is delayed or closed, not just teams already there); the post's
+        own name is stamped onto the title server-side so a staffer can't
+        post as if they were a different checkpoint or a generic admin
+        message.
+        """
+        self._require_vapid_configured()
+        checkpoint = await self._checkpoint_crud.get(self._db, id=checkpoint_id)
+        return await send_to_all(self._db, title=f"📍 {checkpoint.name}", body=body, url=url)

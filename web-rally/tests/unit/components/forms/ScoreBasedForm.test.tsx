@@ -40,7 +40,7 @@ describe("ScoreBasedForm", () => {
   it("submits achieved points and notes", () => {
     render(<ScoreBasedForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.change(screen.getByLabelText("Achieved Points"), { target: { value: "42" } });
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { achieved_points: 42, notes: "" },
       extra_shots: 0,
@@ -51,9 +51,9 @@ describe("ScoreBasedForm", () => {
   it("shows error and blocks submission for negative points", () => {
     render(<ScoreBasedForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.change(screen.getByLabelText("Achieved Points"), { target: { value: "-5" } });
-    fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).not.toHaveBeenCalled();
-    expect(mockToast.error).toHaveBeenCalledWith("Points must be positive.");
+    expect(mockToast.error).toHaveBeenCalledWith("Os pontos têm de ser positivos.");
   });
 
   it("prefills from existingResult", () => {
@@ -108,9 +108,9 @@ describe("ScoreBasedForm", () => {
       fireEvent.click(screen.getByLabelText("Qual é a tuna favorita?"));
       expect(screen.getByText("Perguntas (1/2 certas)")).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("button", { name: /Submit Evaluation/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
       expect(mockOnSubmit).toHaveBeenCalledWith({
-        result_data: { achieved_points: 1, quiz_correct: { q1: true }, notes: "" },
+        result_data: { achieved_points: 1, quiz_correct: { q1: 1 }, notes: "" },
         extra_shots: 0,
         penalties: {},
       });
@@ -161,6 +161,65 @@ describe("ScoreBasedForm", () => {
         />,
       );
       expect(screen.getByLabelText("Achieved Points")).toBeInTheDocument();
+    });
+  });
+
+  describe("quiz mode with multiple answers per question", () => {
+    const quizQuestions = [
+      { key: "q1", text: "Qual é a tuna favorita?" },
+      { key: "q2", text: "Onde nasceu o colega?" },
+    ];
+
+    it("shows a number input per question instead of a checkbox", () => {
+      render(
+        <ScoreBasedForm
+          team={mockTeam}
+          onSubmit={mockOnSubmit}
+          isSubmitting={false}
+          quizQuestions={quizQuestions}
+          answersPerQuestion={3}
+        />,
+      );
+      expect(screen.getByText("Perguntas (0/6 certas)")).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("sums correct counts across questions into achieved_points", () => {
+      render(
+        <ScoreBasedForm
+          team={mockTeam}
+          onSubmit={mockOnSubmit}
+          isSubmitting={false}
+          quizQuestions={quizQuestions}
+          answersPerQuestion={3}
+        />,
+      );
+      const inputs = screen.getAllByRole("spinbutton");
+      fireEvent.change(inputs[0]!, { target: { value: "2" } });
+      fireEvent.change(inputs[1]!, { target: { value: "1" } });
+      expect(screen.getByText("Perguntas (3/6 certas)")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        result_data: { achieved_points: 3, quiz_correct: { q1: 2, q2: 1 }, notes: "" },
+        extra_shots: 0,
+        penalties: {},
+      });
+    });
+
+    it("clamps a count above the number of answers per question", () => {
+      render(
+        <ScoreBasedForm
+          team={mockTeam}
+          onSubmit={mockOnSubmit}
+          isSubmitting={false}
+          quizQuestions={quizQuestions}
+          answersPerQuestion={3}
+        />,
+      );
+      const input = screen.getAllByRole("spinbutton")[0]!;
+      fireEvent.change(input, { target: { value: "9" } });
+      expect(screen.getByText("Perguntas (3/6 certas)")).toBeInTheDocument();
     });
   });
 });

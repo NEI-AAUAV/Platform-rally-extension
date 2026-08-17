@@ -99,7 +99,7 @@ async def _enable_guide_mode(pg_session):
 
 
 class TestRouteScoping:
-    async def test_an_assigned_guide_sees_only_their_teams_current_post(
+    async def test_an_assigned_guide_sees_the_whole_route_with_current_flagged(
         self, pg_session, pg_client, as_guide
     ):
         event = await _make_event(pg_session)
@@ -111,11 +111,13 @@ class TestRouteScoping:
 
         resp = pg_client.get(CHECKPOINTS_URL)
 
-        # The rest of the route is the answer key to puzzles the team is still
-        # solving; one glance over the shoulder should not hand it over. The
-        # team hasn't resolved anything yet, so the current post is order 1.
+        # A guide accompanies their team through the whole route, so they see
+        # every post — the team hasn't resolved anything yet, so only order 1
+        # is flagged as current.
         assert resp.status_code == 200, resp.text
-        assert [cp["order"] for cp in resp.json()] == [1]
+        body = resp.json()
+        assert [cp["order"] for cp in body] == [1, 2]
+        assert [cp["is_current"] for cp in body] == [True, False]
 
     async def test_an_unassigned_guide_still_sees_the_route(self, pg_session, pg_client, as_guide):
         event = await _make_event(pg_session)
@@ -127,9 +129,14 @@ class TestRouteScoping:
 
         # An admin who forgot to assign them would otherwise leave a guide with
         # a blank screen mid-event, which is worse than the leak it prevents.
-        assert [cp["order"] for cp in resp.json()] == [1, 2]
+        # No team assigned means no post is flagged as current either.
+        body = resp.json()
+        assert [cp["order"] for cp in body] == [1, 2]
+        assert [cp["is_current"] for cp in body] == [False, False]
 
-    async def test_an_admin_sees_the_whole_route(self, pg_session, pg_client, as_admin):
+    async def test_an_admin_sees_the_whole_route_with_nothing_flagged(
+        self, pg_session, pg_client, as_admin
+    ):
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         await _make_checkpoint(pg_session, order=1, event_id=event.id)
@@ -139,8 +146,11 @@ class TestRouteScoping:
 
         resp = pg_client.get(CHECKPOINTS_URL)
 
-        # Staff and admins run the event; scoping them would be pointless.
-        assert [cp["order"] for cp in resp.json()] == [1, 2]
+        # Staff and admins run the event; there is no single "current" post
+        # for them.
+        body = resp.json()
+        assert [cp["order"] for cp in body] == [1, 2]
+        assert [cp["is_current"] for cp in body] == [False, False]
 
 
 class TestManualArrival:
@@ -158,6 +168,27 @@ class TestManualArrival:
         # No activities here, so the post completes on arrival exactly as it
         # would through the GPS path.
         assert resp.json()["auto_completed"] is True
+
+    async def test_guide_can_mark_a_different_team_arrived_at_their_current_post(
+        self, pg_session, pg_client, as_guide
+    ):
+        """A guide isn't limited to marking their own assigned team — any
+        team passing through their current post counts, same as staff at a
+        fixed checkpoint would. Only checkpoint access is gated, not the
+        target team."""
+        event = await _make_event(pg_session)
+        await _enable_guide_mode(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        my_team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
+        other_team = await _make_team(pg_session, name="OtherTeam", event_id=event.id)
+        await _assign_guide(pg_session, my_team.id)
+
+        resp = pg_client.post(
+            ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": other_team.id}
+        )
+
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["team_id"] == other_team.id
 
     async def test_a_post_with_an_activity_still_waits_for_staff(
         self, pg_session, pg_client, as_guide

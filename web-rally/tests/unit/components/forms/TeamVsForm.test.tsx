@@ -70,8 +70,8 @@ describe('TeamVsForm', () => {
       />
     );
 
-    expect(screen.getByText('Match Result')).toBeInTheDocument();
-    expect(screen.getByText('Challenge Completed?')).toBeInTheDocument();
+    expect(screen.getByText('Resultado do confronto')).toBeInTheDocument();
+    expect(screen.getByText('Desafio concluído?')).toBeInTheDocument();
     expect(screen.getByText('Pontuação estimada')).toBeInTheDocument();
     // Base points (10) + Completion (20) + Win (30) = 60
     expect(screen.getByText('60 pts')).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('TeamVsForm', () => {
       />
     );
 
-    expect(screen.queryByText('Challenge Completed?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Desafio concluído?')).not.toBeInTheDocument();
     expect(screen.queryByText('Pontuação estimada')).not.toBeInTheDocument();
   });
 
@@ -116,7 +116,7 @@ describe('TeamVsForm', () => {
     fireEvent.click(screen.getByTestId('toggle-completed'));
 
     // Should now be incomplete -> 40 pts (10 base + 30 win)
-    expect(screen.getByText('✗ Não completou o desafio')).toBeInTheDocument();
+    expect(screen.getByText('Não completou o desafio')).toBeInTheDocument();
     expect(screen.getByText('40 pts')).toBeInTheDocument();
   });
 
@@ -182,7 +182,7 @@ describe('TeamVsForm', () => {
     });
 
     // Submit
-    fireEvent.click(screen.getByText('Submit Evaluation'));
+    fireEvent.click(screen.getByText('Submeter avaliação'));
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: {
@@ -214,7 +214,7 @@ describe('TeamVsForm', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Team C')).toBeInTheDocument();
       // Should see "Opponent automatically set"
-      expect(screen.getByText(/Opponent automatically set/i)).toBeInTheDocument();
+      expect(screen.getByText(/Adversário definido automaticamente/i)).toBeInTheDocument();
     });
   });
 
@@ -228,7 +228,7 @@ describe('TeamVsForm', () => {
     await waitFor(() => {
       expect(mockGetTeams).toHaveBeenCalled();
     });
-    expect(screen.getByText('Select opponent team')).toBeInTheDocument();
+    expect(screen.getByText('Seleciona a equipa adversária')).toBeInTheDocument();
   });
 
   it('shows loading text and disables select while teams are loading', async () => {
@@ -244,13 +244,13 @@ describe('TeamVsForm', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Loading teams...')).toBeInTheDocument();
+      expect(screen.getByText('A carregar equipas...')).toBeInTheDocument();
     });
 
     resolveTeams({ data: [{ id: 2, name: 'Team B' } as ListingTeam] });
 
     await waitFor(() => {
-      expect(screen.getByText('Select opponent team')).toBeInTheDocument();
+      expect(screen.getByText('Seleciona a equipa adversária')).toBeInTheDocument();
     });
   });
 
@@ -262,7 +262,7 @@ describe('TeamVsForm', () => {
     );
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith('Failed to load teams list');
+      expect(mockToast.error).toHaveBeenCalledWith('Falha ao carregar lista de equipas');
     });
   });
 
@@ -341,7 +341,7 @@ describe('TeamVsForm', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Opponent automatically set/i)).toBeInTheDocument();
+      expect(screen.getByText(/Adversário definido automaticamente/i)).toBeInTheDocument();
     });
   });
 });

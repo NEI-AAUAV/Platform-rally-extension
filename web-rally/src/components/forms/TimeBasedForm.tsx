@@ -59,7 +59,7 @@ export default function TimeBasedForm({
     const normalized = (completionTime || "").replace(",", ".").trim();
     const parsed = normalized === "" ? NaN : parseFloat(normalized);
     if (Number.isNaN(parsed) || parsed < 0) {
-      toast.error("Please enter a valid non-negative time in seconds.");
+      toast.error("Introduz um tempo válido e não negativo, em segundos.");
       return;
     }
 
@@ -106,7 +106,7 @@ export default function TimeBasedForm({
           value={completionTime}
           onChange={(e) => setCompletionTime(e.target.value)}
           className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Enter completion time in seconds"
+          placeholder="Introduz o tempo de conclusão em segundos"
         />
       </div>
 

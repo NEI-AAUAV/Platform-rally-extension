@@ -176,7 +176,7 @@ test.describe('Admin checkpoints', () => {
 
     await gotoCheckpoints(page);
     await page.getByLabel('Fotos e curiosidades do sítio').click();
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('input[type="file"]:not([aria-label="Imagem do enigma"])');
     await fileInput.setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
     await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 

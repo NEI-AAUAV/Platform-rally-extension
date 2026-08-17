@@ -48,6 +48,9 @@ export function useCreateActivity() {
     mutationFn: async (activity: ActivityCreate) => (await createActivity({ body: activity })).data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
+      // A new activity can flip a checkpoint's "sem desafio" readiness badge,
+      // which reads from this query rather than ["activities"].
+      void queryClient.invalidateQueries({ queryKey: ["route-status"] });
     },
   });
 }
@@ -75,6 +78,9 @@ export function useUpdateActivity() {
       (await updateActivity({ path: { activity_id: id }, body: activity })).data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
+      // Editing is_active or moving the activity to another checkpoint can
+      // flip the "sem desafio" readiness badge, which reads this query.
+      void queryClient.invalidateQueries({ queryKey: ["route-status"] });
     },
   });
 }
@@ -98,6 +104,9 @@ export function useDeleteActivity() {
     mutationFn: async (id: number) => (await deleteActivity({ path: { activity_id: id } })).data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["activities"] });
+      // Deleting the last activity on a checkpoint should bring back the
+      // "sem desafio" badge, which reads this query, not ["activities"].
+      void queryClient.invalidateQueries({ queryKey: ["route-status"] });
     },
   });
 }
