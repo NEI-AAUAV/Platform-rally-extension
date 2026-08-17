@@ -15,7 +15,7 @@ describe('ExtraShotsField', () => {
       />,
     );
     expect(screen.getByLabelText('Shots extra')).toHaveValue(2);
-    expect(screen.getByText(/Máx\.: 10 shots/)).toBeInTheDocument();
+    expect(screen.getByText(/Máx.: 10 shots/)).toBeInTheDocument();
     expect(screen.getByText(/2 por membro da equipa/)).toBeInTheDocument();
   });
 

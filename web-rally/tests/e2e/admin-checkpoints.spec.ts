@@ -176,10 +176,7 @@ test.describe('Admin checkpoints', () => {
 
     await gotoCheckpoints(page);
     await page.getByLabel('Fotos e curiosidades do sítio').click();
-    // The always-mounted "create checkpoint" form (ClueImageField) has its own
-    // file input above this list, so a bare selector is ambiguous. The media
-    // manager's input renders after it once the row expands.
-    const fileInput = page.locator('input[type="file"]').last();
+    const fileInput = page.locator('input[type="file"]:not([aria-label="Imagem do enigma"])');
     await fileInput.setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from('fake') });
     await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 

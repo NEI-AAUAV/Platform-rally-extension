@@ -67,7 +67,7 @@ describe("ActivityEvaluationForm", () => {
         isSubmitting={false}
       />,
     );
-    expect(screen.queryByText("Description:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Descrição:")).not.toBeInTheDocument();
   });
 
   it.each([

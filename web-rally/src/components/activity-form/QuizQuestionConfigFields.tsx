@@ -46,8 +46,8 @@ export default function QuizQuestionConfigFields({
       <div>
         <h4 className="font-medium text-foreground">Perguntas do quiz (opcional)</h4>
         <p className="mt-1 text-xs text-muted-foreground">
-          O staff marca no local quais a equipa acertou. Pontos Máximos devem ficar iguais a
-          (nº de perguntas × respostas por pergunta), para que cada resposta valha o mesmo.
+          O staff marca no local quais a equipa acertou. Pontos Máximos devem ficar iguais a (nº de
+          perguntas × respostas por pergunta), para que cada resposta valha o mesmo.
         </p>
       </div>
 

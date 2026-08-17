@@ -80,9 +80,7 @@ export default function ClueImageField({
   return (
     <div className="space-y-2">
       {checkpointId === null && pendingFile && (
-        <p className="text-xs text-muted-foreground">
-          Enviada assim que o checkpoint for criado.
-        </p>
+        <p className="text-xs text-muted-foreground">Enviada assim que o checkpoint for criado.</p>
       )}
       {displayUrl && (
         <img

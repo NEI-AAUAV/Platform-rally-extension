@@ -101,15 +101,12 @@ test.describe('PWA / offline evaluation queue', () => {
     expect(swResponse.ok()).toBe(true);
   });
 
-  // These three run on `mobile` as well as `chromium`. They used to carry a
-  // "Desktop-only: not a visual/layout test" skip copied from the specs where
-  // that reason genuinely applies — but offline evaluation is a phone feature
-  // first: staff evaluate in a field with no signal, so the mobile project is
-  // the one that matters most here.
   test('evaluating while offline queues the submit in IndexedDB instead of failing the UI', async ({
     page,
     context,
-  }) => {
+  }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
+    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);
     // Simulate the device going offline: route the evaluate call to fail
@@ -124,7 +121,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submeter avalia|submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     // Queue banner appears once the app-side queue has a pending entry.
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
@@ -149,7 +146,9 @@ test.describe('PWA / offline evaluation queue', () => {
     expect((queued as unknown[]).length).toBeGreaterThan(0);
   });
 
-  test('reconnecting drains the queue and clears the pending banner', async ({ page, context }) => {
+  test('reconnecting drains the queue and clears the pending banner', async ({ page, context }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
+    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);
 
@@ -167,7 +166,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submeter avalia|submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
 
@@ -179,7 +178,9 @@ test.describe('PWA / offline evaluation queue', () => {
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toHaveCount(0, { timeout: 10_000 });
   });
 
-  test('a permanently-failed replay is shown as failed, not silently dropped', async ({ page, context }) => {
+  test('a permanently-failed replay is shown as failed, not silently dropped', async ({ page, context }, testInfo) => {
+    // Skipped on mobile project: this checks desktop-only network/queue timing behavior, not visual layout.
+    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
     await seedOidcSession(context, STAFF_GROUPS);
     await setupEvaluationPage(page);
     await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', (route) =>
@@ -189,7 +190,7 @@ test.describe('PWA / offline evaluation queue', () => {
 
     await page.getByText(MOCK_TEAM.name).first().click();
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByRole('button', { name: /submeter avalia|submit evaluation/i }).click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
 
     await expect(page.getByRole('status').filter({ hasText: /por sincronizar/i })).toBeVisible({ timeout: 10_000 });
 

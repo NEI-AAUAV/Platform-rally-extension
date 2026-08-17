@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Info, X, ChevronDown, ChevronUp, Clock, Target, CheckCircle2, Swords, Dices } from "lucide-react";
+import {
+  Info,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Target,
+  CheckCircle2,
+  Swords,
+  Dices,
+} from "lucide-react";
 
 export default function ActivityTypeInfo() {
   const [isOpen, setIsOpen] = useState(false);

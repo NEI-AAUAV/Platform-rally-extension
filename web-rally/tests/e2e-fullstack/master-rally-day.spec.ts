@@ -59,8 +59,8 @@ async function evaluateOnPage(page: Page, teamName: string): Promise<void> {
   await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
   // See rally-day.spec.ts's identical note: BooleanForm's success control is
   // a visually-hidden checkbox with a styled label on top — target the label.
-  await page.getByText('Team succeeded in the activity').first().click();
-  await page.getByRole('button', { name: /submeter avalia|submit evaluation/i }).click();
+  await page.getByText('Equipa teve sucesso na atividade').first().click();
+  await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
   // Wait for the exact success toast (useCheckpointEvaluation.ts) before
   // moving on — this scenario runs far more prior activity (admin work,
   // other evaluations, an edition-switch round trip) than rally-day.spec.ts's
