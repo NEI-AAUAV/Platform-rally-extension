@@ -38,7 +38,8 @@ async function waitForVisualStability(page: Page): Promise<void> {
   // continuously (the scoreboard marquee, the home countdown ticking each
   // second), so "nothing changed between two samples" never becomes true there.
   // The longest entrance is a 0.5s delay plus a 0.55s fade, so 1.5s clears it.
-  await page.waitForTimeout(ENTRANCE_SETTLE_MS);
+  // NOSONAR: no observable condition exists to sync on (see comment above).
+  await page.waitForTimeout(ENTRANCE_SETTLE_MS); // NOSONAR
 }
 
 async function expectNoSeriousViolations(page: Page): Promise<void> {
@@ -99,7 +100,11 @@ test.describe('Accessibility', () => {
         }),
       );
 
-      await page.goto(path, { waitUntil: 'networkidle' });
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await page
+        .waitForResponse('**/api/rally/v1/rally/settings/public**', { timeout: 10000 })
+        .catch(() => {});
+      await expect(page.locator('body')).toBeVisible();
       await expectNoSeriousViolations(page);
     });
   }
