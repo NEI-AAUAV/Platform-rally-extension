@@ -4,13 +4,7 @@ import { describe, it, expect } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import RouteRulesSettings from "@/pages/settings/components/RouteRulesSettings";
 
-function Wrapper({
-  disabled,
-  legTimeEnabled = false,
-}: {
-  readonly disabled?: boolean;
-  readonly legTimeEnabled?: boolean;
-}) {
+function Wrapper({ legTimeEnabled = false }: { readonly legTimeEnabled?: boolean }) {
   const methods = useForm({
     defaultValues: {
       checkpoint_order_matters: true,
@@ -24,7 +18,7 @@ function Wrapper({
   });
   return (
     <FormProvider {...methods}>
-      <RouteRulesSettings disabled={disabled} />
+      <RouteRulesSettings />
     </FormProvider>
   );
 }
@@ -59,11 +53,5 @@ describe("RouteRulesSettings", () => {
     await user.click(toggle);
     expect(toggle).toBeChecked();
     expect(screen.getByLabelText("Tempo esperado entre postos (min)")).toBeInTheDocument();
-  });
-
-  it("disables inputs when disabled prop is set", () => {
-    render(<Wrapper disabled legTimeEnabled />);
-    expect(screen.getByLabelText("A ordem dos postos importa")).toBeDisabled();
-    expect(screen.getByLabelText("Tempo esperado entre postos (min)")).toBeDisabled();
   });
 });

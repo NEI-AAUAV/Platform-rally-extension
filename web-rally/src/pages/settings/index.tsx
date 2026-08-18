@@ -15,17 +15,9 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
-import {
-  TeamSettings,
-  RallyTimingSettings,
-  ScoringSettings,
-  PeddyPaperSettings,
-  SearchAidsSettings,
-  RouteRulesSettings,
-  DisplaySettings,
-  HomeLayoutSettings,
-  EventModeBanner,
-} from "./components";
+import { EventModeBanner } from "./components";
+import { SETTINGS_SECTIONS, DEFAULT_SECTION_ID, type SettingsSectionId } from "./sections";
+import { cn } from "@/lib/utils";
 import { DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
 import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
 import { useAppToast } from "@/hooks/use-toast";
@@ -71,6 +63,23 @@ const rallySettingsSchema = z.object({
 
   // Checkpoint behavior
   checkpoint_order_matters: z.boolean(),
+  route_stages_enabled: z.boolean(),
+  checkpoint_hours_enabled: z.boolean(),
+
+  // Leg time scoring: the walk between two posts, scored against a target
+  leg_time_scoring_enabled: z.boolean(),
+  leg_time_target_minutes: z
+    .number()
+    .min(1, "Tem de ser pelo menos 1 minuto")
+    .max(240, "Máximo 240 minutos"),
+  leg_time_points_per_minute: z
+    .number()
+    .min(0, "Não pode ser negativo")
+    .max(50, "Máximo 50 pontos por minuto"),
+  leg_time_max_adjustment: z
+    .number()
+    .min(0, "Não pode ser negativo")
+    .max(500, "Limite demasiado alto"),
 
   // GPS geofence self-check-in by the team
   gps_checkin_enabled: z.boolean(),
@@ -172,6 +181,12 @@ function buildFormValues(
     bonus_per_extra_shot: settings.bonus_per_extra_shot,
     max_extra_shots_per_member: settings.max_extra_shots_per_member,
     checkpoint_order_matters: settings.checkpoint_order_matters,
+    route_stages_enabled: settings.route_stages_enabled ?? false,
+    checkpoint_hours_enabled: settings.checkpoint_hours_enabled ?? true,
+    leg_time_scoring_enabled: settings.leg_time_scoring_enabled ?? false,
+    leg_time_target_minutes: settings.leg_time_target_minutes ?? 15,
+    leg_time_points_per_minute: settings.leg_time_points_per_minute ?? 0,
+    leg_time_max_adjustment: settings.leg_time_max_adjustment ?? 0,
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
     hint_penalty: settings.hint_penalty ?? 0,
     skip_penalty: settings.skip_penalty ?? 0,
@@ -218,7 +233,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
   const toast = useAppToast();
   const fallbackPath = useFallbackNavigation();
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [sectionId, setSectionId] = useState<SettingsSectionId>(DEFAULT_SECTION_ID);
 
   // Fetch current settings
   const {
@@ -253,6 +268,12 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       bonus_per_extra_shot: 1,
       max_extra_shots_per_member: 5,
       checkpoint_order_matters: true,
+      route_stages_enabled: false,
+      checkpoint_hours_enabled: true,
+      leg_time_scoring_enabled: false,
+      leg_time_target_minutes: 15,
+      leg_time_points_per_minute: 0,
+      leg_time_max_adjustment: 0,
       gps_checkin_enabled: false,
       hint_penalty: 0,
       skip_penalty: 0,
@@ -302,7 +323,6 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");
       void refetchSettings();
-      setIsEditing(false);
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Erro ao atualizar configurações"));
@@ -346,7 +366,6 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
     if (settings) {
       form.reset(buildFormValues(settings, extendedSettings));
     }
-    setIsEditing(false);
   };
 
   if (isLoading) {
@@ -380,59 +399,77 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
     );
   }
 
+  const activeSection =
+    SETTINGS_SECTIONS.find((section) => section.id === sectionId) ?? SETTINGS_SECTIONS[0]!;
+  const ActiveBody = activeSection.Component;
+  // Nothing is read-only any more, so the save bar is what tells the admin
+  // there is unsaved work — it appears on the first change and not before.
+  const hasChanges = form.formState.isDirty;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        {!embedded && (
-          <PageHeader
-            eyebrow="Gestão"
-            icon={Settings}
-            title="Configurações"
-            description="Gerir configurações globais do rally."
-          />
-        )}
-        {!isEditing && (
-          <Button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            variant="default"
-            size="lg"
-            className="shrink-0"
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Editar Configurações
-          </Button>
-        )}
-      </div>
-
-      {isEditing && (
-        <div className="rally-bg-accent-soft rounded-xl border border-border p-3">
-          <p className="text-center text-sm font-medium text-foreground">
-            Modo de edição ativo — clique em "Guardar" para aplicar as alterações
-          </p>
-        </div>
+      {!embedded && (
+        <PageHeader
+          eyebrow="Gestão"
+          icon={Settings}
+          title="Configurações"
+          description="Gerir configurações globais do rally."
+        />
       )}
 
       <EventModeBanner eventType={settings?.event_type} />
 
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)} className="space-y-6">
-          {/* Ordered by how the event is built: the game mechanic first, then
-              the route it runs on, then scoring, then presentation. */}
-          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-            <PeddyPaperSettings disabled={!isEditing} />
-            <SearchAidsSettings disabled={!isEditing} />
-            <RouteRulesSettings disabled={!isEditing} />
-            <ScoringSettings disabled={!isEditing} eventType={settings?.event_type} />
-            <TeamSettings disabled={!isEditing} />
-            <RallyTimingSettings />
-            <DisplaySettings disabled={!isEditing} />
-            <HomeLayoutSettings disabled={!isEditing} className="xl:col-span-2" />
+        <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)}>
+          <div className="grid gap-6 lg:grid-cols-[13rem_1fr] lg:items-start">
+            {/* Mobile: a scrollable pill strip. Desktop: a vertical rail.
+                Same markup, so the active section is stated once. */}
+            <nav
+              aria-label="Secções das configurações"
+              className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
+            >
+              {SETTINGS_SECTIONS.map((section) => {
+                const Icon = section.icon;
+                const isActive = section.id === activeSection.id;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setSectionId(section.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "rally-bg-accent-soft text-foreground"
+                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {section.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="rally-surface min-w-0 space-y-6 rounded-2xl p-5 sm:p-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold leading-none tracking-tight">
+                  {activeSection.label}
+                </h2>
+                <p className="text-sm text-muted-foreground">{activeSection.description}</p>
+              </div>
+
+              {/* Only the active section is mounted. Values of the hidden ones
+                  survive in the form state, so a save still sends everything. */}
+              <ActiveBody eventType={settings?.event_type} />
+            </div>
           </div>
 
-          {/* Sticky action bar */}
-          {isEditing && (
-            <div className="rally-glass rally-sticky-actions z-10 flex justify-center gap-4 rounded-2xl border border-border p-3">
+          {hasChanges && (
+            <div className="rally-glass rally-sticky-actions z-10 mt-6 flex items-center justify-center gap-4 rounded-2xl border border-border p-3">
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                Alterações por guardar
+              </span>
               <Button type="submit" disabled={isUpdating} variant="default">
                 <Save className="mr-2 h-4 w-4" />
                 {isUpdating ? "A Guardar..." : "Guardar"}

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Navigate, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
@@ -88,7 +88,12 @@ export default function Scoreboard() {
   const accessStatus = getAccessStatus(settings, isPrivileged, isAuthenticated, !!teamData);
 
   if (accessStatus === "hidden") {
-    return <Navigate to="/checkpoints" replace />;
+    return (
+      <NoticeCard
+        title="Pontuação oculta"
+        body="A organização desativou a visualização da pontuação. Volta mais tarde."
+      />
+    );
   }
 
   if (accessStatus === "restricted") {

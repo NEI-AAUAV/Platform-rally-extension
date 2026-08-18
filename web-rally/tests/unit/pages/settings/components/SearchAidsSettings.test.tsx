@@ -3,13 +3,7 @@ import { describe, it, expect } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import SearchAidsSettings from "@/pages/settings/components/SearchAidsSettings";
 
-function Wrapper({
-  disabled,
-  proximityEnabled = true,
-}: {
-  readonly disabled?: boolean;
-  readonly proximityEnabled?: boolean;
-}) {
+function Wrapper({ proximityEnabled = true }: { readonly proximityEnabled?: boolean }) {
   const methods = useForm({
     defaultValues: {
       proximity_enabled: proximityEnabled,
@@ -19,7 +13,7 @@ function Wrapper({
   });
   return (
     <FormProvider {...methods}>
-      <SearchAidsSettings disabled={disabled} />
+      <SearchAidsSettings />
     </FormProvider>
   );
 }
@@ -44,11 +38,5 @@ describe("SearchAidsSettings", () => {
     render(<Wrapper />);
     expect(screen.queryByText(/depende do botão de proximidade acima/i)).not.toBeInTheDocument();
     expect(screen.getByText(/direção em 8 setores/i)).toBeInTheDocument();
-  });
-
-  it("disables inputs when disabled prop is set", () => {
-    render(<Wrapper disabled />);
-    expect(screen.getByLabelText("Botão: estou perto?")).toBeDisabled();
-    expect(screen.getByLabelText("Raio da zona de busca (metros)")).toBeDisabled();
   });
 });

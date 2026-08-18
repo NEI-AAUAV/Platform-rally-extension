@@ -127,8 +127,10 @@ test.describe('Admin tab deep-linking', () => {
     await page.goto('/rally/admin?tab=settings');
 
     // Embedded mode suppresses the page's own header (the admin shell already
-    // has one), so assert on the always-visible edit-mode entry point instead.
-    await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible({ timeout: 20000 });
+    // has one), so assert on a section nav button instead — the Save bar
+    // only mounts once a change makes the form dirty, so it's not a reliable
+    // "the settings tab loaded" marker.
+    await expect(page.getByRole('button', { name: 'Jogo' })).toBeVisible({ timeout: 20000 });
   });
 
   test('non-admin visiting a deep-linked tab is redirected to the fallback path', async ({

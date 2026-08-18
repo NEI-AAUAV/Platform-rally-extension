@@ -136,7 +136,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
         <div className="flex flex-1 items-center justify-end gap-2 sm:justify-center">
           {/* Lamp sits left of the hamburger on mobile */}
           <ColorModeToggle className="sm:hidden" />
-          <NavTabs />
+          <NavTabs branding={branding} />
         </div>
 
         {/* Controls. On mobile the lamp moves next to the hamburger and the

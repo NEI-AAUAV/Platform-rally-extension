@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { useForm, FormProvider } from 'react-hook-form';
-import RallyTimingSettings from '@/pages/settings/components/RallyTimingSettings';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { useForm, FormProvider } from "react-hook-form";
+import RallyTimingSettings from "@/pages/settings/components/RallyTimingSettings";
 
-vi.mock('@tanstack/react-router', () => ({
-  Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
 }));
 
 function Wrapper({
@@ -24,23 +26,23 @@ function Wrapper({
   );
 }
 
-describe('RallyTimingSettings', () => {
+describe("RallyTimingSettings", () => {
   it('renders "Não definido" when times are missing', () => {
     render(<Wrapper />);
-    const notDefined = screen.getAllByText('Não definido');
+    const notDefined = screen.getAllByText("Não definido");
     expect(notDefined).toHaveLength(2);
   });
 
-  it('renders formatted dates when times are set', () => {
+  it("renders formatted dates when times are set", () => {
     render(<Wrapper startTime="2024-05-01T10:00:00Z" endTime="2024-05-02T18:00:00Z" />);
-    expect(screen.getByText('Início')).toBeInTheDocument();
-    expect(screen.getByText('Fim')).toBeInTheDocument();
-    expect(screen.queryByText('Não definido')).not.toBeInTheDocument();
+    expect(screen.getByText("Início")).toBeInTheDocument();
+    expect(screen.getByText("Fim")).toBeInTheDocument();
+    expect(screen.queryByText("Não definido")).not.toBeInTheDocument();
   });
 
-  it('renders a link to the admin event management page', () => {
+  it("renders a link to the admin event management page", () => {
     render(<Wrapper />);
-    const link = screen.getByText('Editar horários na gestão de eventos');
-    expect(link.closest('a')).toHaveAttribute('href', '/admin');
+    const link = screen.getByText("Editar horários na gestão de eventos");
+    expect(link.closest("a")).toHaveAttribute("href", "/admin");
   });
 });

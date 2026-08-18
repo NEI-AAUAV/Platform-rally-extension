@@ -5,11 +5,9 @@ import { useForm, FormProvider } from "react-hook-form";
 import PeddyPaperSettings from "@/pages/settings/components/PeddyPaperSettings";
 
 function Wrapper({
-  disabled,
   hintsEnabled = true,
   skipEnabled = true,
 }: {
-  readonly disabled?: boolean;
   readonly hintsEnabled?: boolean;
   readonly skipEnabled?: boolean;
 }) {
@@ -28,7 +26,7 @@ function Wrapper({
   });
   return (
     <FormProvider {...methods}>
-      <PeddyPaperSettings disabled={disabled} />
+      <PeddyPaperSettings />
     </FormProvider>
   );
 }
@@ -69,11 +67,5 @@ describe("PeddyPaperSettings", () => {
     render(<Wrapper hintsEnabled={false} />);
     await user.click(screen.getByLabelText("Permitir pedir pistas"));
     expect(screen.getByLabelText("Custo de uma pista")).toBeInTheDocument();
-  });
-
-  it("disables inputs when disabled prop is set", () => {
-    render(<Wrapper disabled />);
-    expect(screen.getByLabelText("Check-in por GPS feito pela equipa")).toBeDisabled();
-    expect(screen.getByLabelText("Custo de uma pista")).toBeDisabled();
   });
 });

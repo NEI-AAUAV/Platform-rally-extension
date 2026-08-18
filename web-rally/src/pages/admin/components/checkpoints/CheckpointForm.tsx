@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import type { RouteStageResponse } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCheckpointManagement";
@@ -99,7 +99,7 @@ export default function CheckpointForm({
               render={({ field }) => (
                 <FormItem className="flex items-start gap-3 space-y-0">
                   <FormControl>
-                    <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+                    <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div>
                     <FormLabel>Nome provisório</FormLabel>
@@ -377,7 +377,7 @@ export default function CheckpointForm({
               render={({ field }) => (
                 <FormItem className="flex items-start gap-3 space-y-0">
                   <FormControl>
-                    <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+                    <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div>
                     <FormLabel>Rascunho</FormLabel>

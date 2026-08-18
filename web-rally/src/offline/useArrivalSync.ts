@@ -52,13 +52,26 @@ export function useArrivalSync(): ArrivalSync {
     }
   }, [queryClient, refresh]);
 
+  // Same reasoning as useOfflineSync: these triggers are fire-and-forget, so a
+  // rejected drain would land as an unhandled rejection instead of anything
+  // actionable. The queue is durable and the next trigger retries.
+  const runSync = useCallback(() => {
+    syncNow().catch((error: unknown) => {
+      console.warn("Arrival queue drain failed; will retry.", error);
+    });
+  }, [syncNow]);
+
   useEffect(() => {
-    void syncNow();
-    const onSignal = () => void syncNow();
+    runSync();
+    const onSignal = () => runSync();
     const onVisible = () => {
-      if (document.visibilityState === "visible") void syncNow();
+      if (document.visibilityState === "visible") runSync();
     };
-    const onQueueChanged = () => void refresh();
+    const onQueueChanged = () => {
+      refresh().catch((error: unknown) => {
+        console.warn("Arrival queue read failed.", error);
+      });
+    };
 
     window.addEventListener("online", onSignal);
     document.addEventListener("visibilitychange", onVisible);
@@ -70,7 +83,7 @@ export function useArrivalSync(): ArrivalSync {
       window.removeEventListener("pageshow", onVisible);
       window.removeEventListener(ARRIVAL_QUEUE_CHANGED_EVENT, onQueueChanged);
     };
-  }, [syncNow, refresh]);
+  }, [runSync, refresh]);
 
   return { queued, syncNow };
 }

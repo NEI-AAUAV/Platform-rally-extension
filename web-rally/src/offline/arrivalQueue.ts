@@ -18,7 +18,8 @@
  * (an idb-keyval list with a change event) is small enough that merging them
  * would cost more clarity than it saves.
  */
-import { get, set, createStore } from "idb-keyval";
+import { get, set } from "idb-keyval";
+import { createQueueStore, ARRIVAL_STORE_NAME } from "./db";
 
 export type QueuedArrivalStatus = "pending" | "failed";
 
@@ -31,7 +32,7 @@ export interface QueuedArrival {
   createdAt: number;
 }
 
-const STORE = createStore("rally-offline", "arrival-queue");
+const STORE = createQueueStore(ARRIVAL_STORE_NAME);
 const QUEUE_KEY = "queue";
 
 /** Fired whenever the queue's contents change, so UI can refresh without polling. */
