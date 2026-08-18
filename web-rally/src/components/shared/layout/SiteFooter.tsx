@@ -133,7 +133,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
 
       <div className="relative border-t border-border">
         <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-muted-foreground">
-          © {year} NEI-AAUAv · {branding.eventName}
+          © {year} NEI-AAUAv · Todos os direitos reservados
         </p>
       </div>
     </footer>
