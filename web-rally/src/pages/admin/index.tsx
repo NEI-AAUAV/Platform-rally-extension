@@ -1,5 +1,6 @@
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import {
   Users,
   MapPin,
@@ -19,10 +20,15 @@ import {
   History,
   Gauge,
   BellRing,
+  Menu,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
+import useClickOutside from "@/hooks/useClickOutside";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
 import { PageHeader, LoadingState } from "@/components/shared";
 import {
   TeamManagement,
@@ -82,6 +88,17 @@ export default function Admin() {
   const activeTab: AdminTabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
+  const activeTabMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0]!;
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDialogElement>(null);
+  useClickOutside(drawerRef, isDrawerOpen, () => setIsDrawerOpen(false));
+  useBackDismiss(isDrawerOpen, () => setIsDrawerOpen(false));
+
+  const selectTab = (id: AdminTabId) => {
+    setActiveTab(id);
+    setIsDrawerOpen(false);
+  };
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -110,10 +127,87 @@ export default function Admin() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        {/* Sidebar nav (desktop) / pill strip (mobile) */}
+        {/* Mobile: current-tab bar that opens a drawer with all sections */}
+        <div className="lg:hidden">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            aria-haspopup="menu"
+            aria-expanded={isDrawerOpen}
+            className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
+          >
+            <Menu className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <activeTabMeta.icon className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">{activeTabMeta.label}</span>
+          </button>
+
+          {isDrawerOpen && (
+            <div
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsDrawerOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          <dialog
+            ref={drawerRef}
+            open={isDrawerOpen || undefined}
+            aria-modal="true"
+            aria-label="Secções de administração"
+            className={cn(
+              "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
+              isDrawerOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
+            )}
+            style={{
+              paddingTop: "max(20px, var(--safe-top))",
+              paddingBottom: "calc(var(--safe-bottom) + var(--rally-tabbar-height))",
+              paddingRight: "var(--safe-right)",
+              paddingLeft: "var(--safe-left)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <span className="rally-display truncate text-sm font-black uppercase tracking-tight text-popover-foreground">
+                Administração
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(false)}
+                aria-label="Fechar menu"
+                className="-m-2 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav aria-label="Secções de administração" className="flex-1 space-y-1 overflow-y-auto p-3">
+              {TABS.map(({ id, label, icon: Icon }) => {
+                const active = activeTab === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => selectTab(id)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "rally-press flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+                      active
+                        ? "rally-bg-accent text-white"
+                        : "text-foreground/80 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </dialog>
+        </div>
+
+        {/* Desktop: vertical sticky sidebar */}
         <nav
           aria-label="Secções de administração"
-          className="rally-surface flex gap-1 overflow-x-auto p-1.5 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible"
+          className="rally-surface hidden gap-1 p-1.5 lg:sticky lg:top-24 lg:flex lg:flex-col"
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
@@ -124,7 +218,7 @@ export default function Admin() {
                 onClick={() => setActiveTab(id)}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "rally-press flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors sm:gap-2.5 sm:px-3.5 sm:text-sm lg:w-full",
+                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
                   active
                     ? "rally-bg-accent text-white"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
