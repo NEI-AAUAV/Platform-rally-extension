@@ -34,10 +34,17 @@ async function mockAdminSettings(page: Page, settings = adminSettings()) {
 }
 
 async function gotoSettingsInEditMode(page: Page) {
-  // The settings page reorg dropped the separate view/edit toggle — the
-  // form is always editable, so this just navigates there.
+  // The settings page reorg dropped the separate view/edit toggle — the form
+  // is always editable. The Save/Cancel bar only mounts once a change makes
+  // the form dirty, so just wait for the page itself to be ready.
   await page.goto('/rally/settings');
-  await page.getByRole('button', { name: 'Guardar' }).waitFor();
+  await page.getByRole('heading', { name: 'Configurações', exact: true }).waitFor();
+}
+
+/** Only the active section's fields are mounted — switch to it before
+ *  touching a field that doesn't live in the default "Jogo" section. */
+async function openSection(page: Page, label: string) {
+  await page.getByRole('button', { name: label, exact: true }).click();
 }
 
 async function captureSave(page: Page): Promise<() => unknown> {
@@ -60,6 +67,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#show_live_leaderboard)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -73,6 +81,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#show_team_details)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -86,6 +95,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#show_checkpoint_map)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -98,6 +108,7 @@ test.describe('Settings toggle matrix', () => {
     await mockAdminSettings(page, adminSettings({ participant_view_enabled: false }));
     const getBody = await captureSave(page);
 
+    // participant_view_enabled lives in "Jogo", the default active section.
     await gotoSettingsInEditMode(page);
     await page.locator('label:has(#participant_view_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
@@ -112,6 +123,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('#show_route_mode').click();
     await page.getByRole('option', { name: 'Trajeto completo' }).click();
     await page.getByRole('button', { name: 'Guardar' }).click();
@@ -126,6 +138,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('#show_score_mode').click();
     await page.getByRole('option', { name: 'Classificação completa' }).click();
     await page.getByRole('button', { name: 'Guardar' }).click();
@@ -140,6 +153,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#public_access_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -156,6 +170,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#guide_mode_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -170,6 +185,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#badges_enabled)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -183,6 +199,7 @@ test.describe('Settings toggle matrix', () => {
     const getBody = await captureSave(page);
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     await page.locator('label:has(#allow_photo_as_team_photo)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
@@ -195,6 +212,7 @@ test.describe('Settings toggle matrix', () => {
     await mockAdminSettings(page, adminSettings({ show_live_leaderboard: true }));
 
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
     const toggle = page.locator('#show_live_leaderboard');
     await page.locator('label:has(#show_live_leaderboard)').click();
     await expect(toggle).not.toBeChecked();
@@ -207,7 +225,7 @@ test.describe('Settings toggle matrix', () => {
   test('save error shows a toast and keeps edit mode open', async ({ page, context }) => {
     await mockPublicSettings(page);
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockAdminSettings(page);
+    await mockAdminSettings(page, adminSettings({ show_live_leaderboard: true }));
     await page.route('**/api/rally/v1/rally/settings', (route) => {
       if (route.request().method() === 'PUT') {
         return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
@@ -215,7 +233,10 @@ test.describe('Settings toggle matrix', () => {
       return route.fallback();
     });
 
+    // The Save bar only mounts once the form is dirty.
     await gotoSettingsInEditMode(page);
+    await openSection(page, 'Visualização');
+    await page.locator('label:has(#show_live_leaderboard)').click();
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     // getErrorMessage prefers the API's error.body.detail over the fallback
