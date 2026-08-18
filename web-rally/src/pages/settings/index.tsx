@@ -17,7 +17,11 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { EventModeBanner } from "./components";
 import { SETTINGS_SECTIONS, DEFAULT_SECTION_ID, type SettingsSectionId } from "./sections";
-import { ADMIN_SEARCH_INDEX, SETTINGS_KEY_TO_SECTION, type AdminSearchEntry } from "@/lib/adminSearchIndex";
+import {
+  ADMIN_SEARCH_INDEX,
+  SETTINGS_KEY_TO_SECTION,
+  type AdminSearchEntry,
+} from "@/lib/adminSearchIndex";
 import { useScrollToSearchTarget } from "@/hooks/useScrollToSearchTarget";
 import AdminSearch from "@/pages/admin/components/AdminSearch";
 import { cn } from "@/lib/utils";
@@ -363,9 +367,13 @@ export default function RallySettings({
     if (!effectiveSearchKey) return;
     const entry = ADMIN_SEARCH_INDEX.find((e) => e.key === effectiveSearchKey);
     if (entry?.requiresField) {
-      form.setValue(entry.requiresField.name as keyof RallySettingsForm, entry.requiresField.value, {
-        shouldDirty: false,
-      });
+      form.setValue(
+        entry.requiresField.name as keyof RallySettingsForm,
+        entry.requiresField.value,
+        {
+          shouldDirty: false,
+        },
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSearchKey]);

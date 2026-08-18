@@ -252,7 +252,10 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
       {/* behaviour */}
       <div className="space-y-3 rounded-lg border border-dashed p-3">
-        <label className="flex items-center gap-2 text-sm font-medium" data-admin-search-key="badge_auto_award">
+        <label
+          className="flex items-center gap-2 text-sm font-medium"
+          data-admin-search-key="badge_auto_award"
+        >
           <input
             type="checkbox"
             className="h-4 w-4"
