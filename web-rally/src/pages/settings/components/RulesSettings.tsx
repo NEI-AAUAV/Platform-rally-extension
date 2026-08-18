@@ -178,7 +178,12 @@ function RulesPdfUpload() {
   };
 
   const currentUrl = settings?.rules_pdf_url;
-  const uploadButtonLabel = isPending ? "A carregar..." : currentUrl ? "Substituir" : "Carregar";
+  let uploadButtonLabel = "Carregar";
+  if (isPending) {
+    uploadButtonLabel = "A carregar...";
+  } else if (currentUrl) {
+    uploadButtonLabel = "Substituir";
+  }
 
   return (
     <div className="flex items-center gap-4 rounded-xl border border-border bg-muted p-4">
