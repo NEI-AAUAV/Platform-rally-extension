@@ -67,6 +67,25 @@ class RuleSection(BaseModel):
     body: str = ""
 
 
+def _field(entry: Any, name: str, default: Any = "") -> Any:
+    """Read `name` off a dict-or-object entry, dict form winning."""
+    return entry.get(name) if isinstance(entry, dict) else getattr(entry, name, default)
+
+
+def _normalize_rule_section(entry: Any) -> dict[str, Any] | None:
+    """Build one normalized section dict, or None if it has no id."""
+    section_id = _field(entry, "id", None)
+    if not section_id:
+        return None
+    icon = _field(entry, "icon")
+    return {
+        "id": str(section_id),
+        "title": str(_field(entry, "title") or "").strip()[:MAX_RULE_SECTION_TITLE_LENGTH],
+        "icon": icon if icon in RULE_SECTION_ICONS else DEFAULT_RULE_SECTION_ICON,
+        "body": str(_field(entry, "body") or "").strip()[:MAX_RULE_SECTION_BODY_LENGTH],
+    }
+
+
 def normalize_rule_sections(value: list[Any]) -> list[dict[str, Any]]:
     """Trim/cap each section's text, fall back unknown icons, cap the count.
 
@@ -76,20 +95,10 @@ def normalize_rule_sections(value: list[Any]) -> list[dict[str, Any]]:
     """
     normalized: list[dict[str, Any]] = []
     for entry in value or []:
-        section_id = entry.get("id") if isinstance(entry, dict) else getattr(entry, "id", None)
-        if not section_id:
+        section = _normalize_rule_section(entry)
+        if section is None:
             continue
-        title = entry.get("title") if isinstance(entry, dict) else getattr(entry, "title", "")
-        icon = entry.get("icon") if isinstance(entry, dict) else getattr(entry, "icon", "")
-        body = entry.get("body") if isinstance(entry, dict) else getattr(entry, "body", "")
-        normalized.append(
-            {
-                "id": str(section_id),
-                "title": str(title or "").strip()[:MAX_RULE_SECTION_TITLE_LENGTH],
-                "icon": icon if icon in RULE_SECTION_ICONS else DEFAULT_RULE_SECTION_ICON,
-                "body": str(body or "").strip()[:MAX_RULE_SECTION_BODY_LENGTH],
-            }
-        )
+        normalized.append(section)
         if len(normalized) >= MAX_RULE_SECTIONS:
             break
     return normalized
