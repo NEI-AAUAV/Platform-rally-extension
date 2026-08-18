@@ -174,7 +174,7 @@ export default function AuditLogTab() {
           <Filter className="h-3.5 w-3.5" />
           Filtros
         </div>
-        <div className="w-full sm:min-w-[180px] sm:w-auto">
+        <div className="w-full sm:w-auto sm:min-w-[180px]">
           <Select
             value={action}
             onValueChange={(v) => {
@@ -194,7 +194,7 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:min-w-[180px] sm:w-auto">
+        <div className="w-full sm:w-auto sm:min-w-[180px]">
           <Select
             value={targetType}
             onValueChange={(v) => {

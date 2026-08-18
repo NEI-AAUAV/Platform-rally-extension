@@ -203,7 +203,10 @@ export default function Admin() {
               </button>
             </div>
 
-            <nav aria-label="Secções de administração" className="flex-1 space-y-1 overflow-y-auto p-3">
+            <nav
+              aria-label="Secções de administração"
+              className="flex-1 space-y-1 overflow-y-auto p-3"
+            >
               {TABS.map(({ id, label, icon: Icon }) => {
                 const active = activeTab === id;
                 const disabled = disabledTabIds.has(id);
@@ -295,7 +298,10 @@ export default function Admin() {
             (badgesEnabled ? (
               <BadgeAdminTab />
             ) : (
-              <FeatureDisabledAlert featureName="sistema de crachás / conquistas" settingsPath="/settings" />
+              <FeatureDisabledAlert
+                featureName="sistema de crachás / conquistas"
+                settingsPath="/settings"
+              />
             ))}
           {activeTab === "scoring" && <DynamicScoringTab />}
           {activeTab === "settings" && <RallySettings embedded />}
