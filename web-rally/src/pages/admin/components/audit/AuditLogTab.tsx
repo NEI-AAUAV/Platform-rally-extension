@@ -169,12 +169,12 @@ export default function AuditLogTab() {
       </div>
 
       {/* Filters */}
-      <div className="rally-surface flex flex-wrap items-end gap-3 rounded-xl border border-border p-4">
+      <div className="rally-surface flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" />
           Filtros
         </div>
-        <div className="min-w-[180px]">
+        <div className="w-full sm:min-w-[180px] sm:w-auto">
           <Select
             value={action}
             onValueChange={(v) => {
@@ -182,7 +182,7 @@ export default function AuditLogTab() {
               resetPage();
             }}
           >
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-9 w-full text-xs">
               <SelectValue placeholder="Ação" />
             </SelectTrigger>
             <SelectContent>
@@ -194,7 +194,7 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[180px]">
+        <div className="w-full sm:min-w-[180px] sm:w-auto">
           <Select
             value={targetType}
             onValueChange={(v) => {
@@ -202,7 +202,7 @@ export default function AuditLogTab() {
               resetPage();
             }}
           >
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-9 w-full text-xs">
               <SelectValue placeholder="Alvo" />
             </SelectTrigger>
             <SelectContent>
@@ -214,14 +214,14 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex w-full flex-col gap-1 sm:w-auto">
           <label htmlFor="audit-since" className="text-[11px] text-muted-foreground">
             Desde
           </label>
           <Input
             id="audit-since"
             type="datetime-local"
-            className="h-9 text-xs"
+            className="h-9 w-full text-xs"
             value={since}
             onChange={(e) => {
               setSince(e.target.value);
@@ -229,14 +229,14 @@ export default function AuditLogTab() {
             }}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex w-full flex-col gap-1 sm:w-auto">
           <label htmlFor="audit-until" className="text-[11px] text-muted-foreground">
             Até
           </label>
           <Input
             id="audit-until"
             type="datetime-local"
-            className="h-9 text-xs"
+            className="h-9 w-full text-xs"
             value={until}
             onChange={(e) => {
               setUntil(e.target.value);
