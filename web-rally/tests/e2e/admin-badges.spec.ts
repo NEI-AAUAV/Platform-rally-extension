@@ -94,6 +94,7 @@ test.describe("Admin badges", () => {
 
     await expect.poll(() => (capturedBody as { code?: string })?.code).toBe("melhor_claque");
     await expect.poll(() => (capturedBody as { is_auto?: boolean })?.is_auto).toBe(false);
+    expect(capturedBody).toBeDefined();
   });
 
   test("editing a badge pre-fills the form with a disabled code field", async ({
@@ -134,6 +135,7 @@ test.describe("Admin badges", () => {
     await page.getByRole("button", { name: "Eliminar" }).last().click();
 
     await expect.poll(() => deleteCalled).toBe(true);
+    expect(deleteCalled).toBe(true);
   });
 
   test("toggling active state calls update with the flipped flag", async ({ page, context }) => {
@@ -158,6 +160,7 @@ test.describe("Admin badges", () => {
     await page.getByTitle("Desativar").click();
 
     await expect.poll(() => capturedBody).toEqual({ is_active: false });
+    expect(capturedBody).toBeDefined();
   });
 
   test("manually awards a badge to a team", async ({ page, context }) => {
@@ -187,5 +190,6 @@ test.describe("Admin badges", () => {
     await page.getByRole("button", { name: "Atribuir crachá" }).click();
 
     await expect.poll(() => capturedBody).toEqual({ team_id: 7, badge_code: "first-checkin" });
+    expect(capturedBody).toBeDefined();
   });
 });
