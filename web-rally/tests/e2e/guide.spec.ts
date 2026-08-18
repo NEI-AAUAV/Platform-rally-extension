@@ -196,14 +196,17 @@ test.describe('Guide page', () => {
 
     await page.goto('/rally/scoreboard');
 
-    // Desktop nav groups the guide entry under the "Gestão" dropdown.
+    // From the `lg` breakpoint up there is room to surface management routes
+    // inline; below that they collapse into the "Gestão" dropdown. The
+    // default chromium project viewport is past `lg`, so the link is inline
+    // here — but assert tolerantly in case that viewport ever changes.
+    const guideLink = page.getByRole('link', { name: 'Guia', exact: true }).first();
     const managementMenu = page.getByRole('button', { name: 'Gestão' });
-    await expect(managementMenu).toBeVisible();
-    // The group opens on hover; clicking would toggle it shut again.
-    await managementMenu.hover();
-    await expect(
-      page.getByRole('link', { name: 'Guia', exact: true }).first(),
-    ).toBeVisible();
+    if (await managementMenu.isVisible().catch(() => false)) {
+      // The group opens on hover; clicking would toggle it shut again.
+      await managementMenu.hover();
+    }
+    await expect(guideLink).toBeVisible();
   });
 
   test('staff also gets access to the guide page', async ({ page, context }) => {

@@ -34,8 +34,10 @@ async function mockAdminSettings(page: Page, settings = adminSettings()) {
 }
 
 async function gotoSettingsInEditMode(page: Page) {
+  // The settings page reorg dropped the separate view/edit toggle — the
+  // form is always editable, so this just navigates there.
   await page.goto('/rally/settings');
-  await page.getByRole('button', { name: 'Editar Configurações' }).click();
+  await page.getByRole('button', { name: 'Guardar' }).waitFor();
 }
 
 async function captureSave(page: Page): Promise<() => unknown> {
@@ -193,10 +195,13 @@ test.describe('Settings toggle matrix', () => {
     await mockAdminSettings(page, adminSettings({ show_live_leaderboard: true }));
 
     await gotoSettingsInEditMode(page);
+    const toggle = page.locator('#show_live_leaderboard');
     await page.locator('label:has(#show_live_leaderboard)').click();
+    await expect(toggle).not.toBeChecked();
+
     await page.getByRole('button', { name: 'Cancelar' }).click();
 
-    await expect(page.getByRole('button', { name: 'Editar Configurações' })).toBeVisible();
+    await expect(toggle).toBeChecked();
   });
 
   test('save error shows a toast and keeps edit mode open', async ({ page, context }) => {
