@@ -80,7 +80,7 @@ export default function CheckpointForm({
               control={form.control}
               name="name"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_name">
                   <FormLabel>Nome do Checkpoint</FormLabel>
                   <FormControl>
                     <Input
@@ -97,7 +97,10 @@ export default function CheckpointForm({
               control={form.control}
               name="is_placeholder"
               render={({ field }) => (
-                <FormItem className="flex items-start gap-3 space-y-0">
+                <FormItem
+                  data-admin-search-key="checkpoint_provisional"
+                  className="flex items-start gap-3 space-y-0"
+                >
                   <FormControl>
                     <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>
@@ -115,7 +118,7 @@ export default function CheckpointForm({
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_description">
                   <FormLabel>Descrição (Opcional)</FormLabel>
                   <FormControl>
                     <Input
@@ -156,7 +159,7 @@ export default function CheckpointForm({
                 control={form.control}
                 name="latitude"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-admin-search-key="checkpoint_latitude">
                     <FormLabel>Latitude (opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: 40.6405" {...field} className={fieldClassName} />
@@ -169,7 +172,7 @@ export default function CheckpointForm({
                 control={form.control}
                 name="longitude"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-admin-search-key="checkpoint_longitude">
                     <FormLabel>Longitude (opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: -8.6538" {...field} className={fieldClassName} />
@@ -183,7 +186,7 @@ export default function CheckpointForm({
               control={form.control}
               name="arrival_radius_m"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_radius">
                   <FormLabel>Raio de chegada (metros)</FormLabel>
                   <FormControl>
                     <Input
@@ -213,7 +216,7 @@ export default function CheckpointForm({
               control={form.control}
               name="clue"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_clue">
                   <FormLabel>Enigma para a equipa (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
@@ -255,7 +258,7 @@ export default function CheckpointForm({
               control={form.control}
               name="staff_script"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_staff_script">
                   <FormLabel>Guião do staff (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
@@ -277,7 +280,7 @@ export default function CheckpointForm({
               control={form.control}
               name="challenge_brief"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_challenge_brief">
                   <FormLabel>Desafio em texto (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
@@ -305,7 +308,7 @@ export default function CheckpointForm({
               control={form.control}
               name="stage_id"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="checkpoint_stage">
                   <FormLabel>Etapa</FormLabel>
                   {stages && stages.length > 0 ? (
                     <>
@@ -341,7 +344,7 @@ export default function CheckpointForm({
                 control={form.control}
                 name="available_from"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-admin-search-key="checkpoint_opens_at">
                     <FormLabel>Abre a (opcional)</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} className={fieldClassName} />
@@ -354,7 +357,7 @@ export default function CheckpointForm({
                 control={form.control}
                 name="available_until"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-admin-search-key="checkpoint_closes_at">
                     <FormLabel>Fecha a (opcional)</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} className={fieldClassName} />
@@ -375,7 +378,10 @@ export default function CheckpointForm({
               control={form.control}
               name="is_draft"
               render={({ field }) => (
-                <FormItem className="flex items-start gap-3 space-y-0">
+                <FormItem
+                  data-admin-search-key="checkpoint_draft"
+                  className="flex items-start gap-3 space-y-0"
+                >
                   <FormControl>
                     <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>

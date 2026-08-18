@@ -591,6 +591,23 @@
     animation: rally-flicker-soft 3.4s ease-in-out infinite;
   }
 
+  /* Flashed on a field after the admin/settings search jumps to it, so the
+     landing spot is obvious even when it's already in view. */
+  .rally-search-highlight {
+    animation: rally-search-flash 1.5s ease-out;
+    border-radius: var(--radius);
+  }
+  @keyframes rally-search-flash {
+    0% {
+      background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
+      box-shadow: 0 0 0 2px var(--rally-accent, var(--rally-accent-fallback));
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
   /* --- Soft-depth surfaces (the rally design language) --- */
   .rally-surface {
     background-color: hsl(var(--card));

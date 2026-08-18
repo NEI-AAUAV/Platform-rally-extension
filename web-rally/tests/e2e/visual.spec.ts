@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures';
-import type { Page } from '@playwright/test';
-import { MOCK_RALLY_SETTINGS } from '../mocks/data';
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+import { MOCK_RALLY_SETTINGS } from "../mocks/data";
 
 /**
  * Visual regression for the universal-branding surfaces.
@@ -29,48 +29,46 @@ const FALLBACK_SETTINGS = {
 
 const BRANDED_SETTINGS = {
   ...FALLBACK_SETTINGS,
-  event_name: 'Carnaval 2026',
-  event_subtitle: 'Edição Especial Tascas',
-  accent_color: '#dc2626',
+  event_name: "Carnaval 2026",
+  event_subtitle: "Edição Especial Tascas",
+  accent_color: "#dc2626",
   // No logo_url so the deterministic monogram ("C2") renders instead of a
   // network image, keeping the baseline self-contained.
 };
 
 const BREAKPOINTS = [
-  { name: 'mobile', width: 375, height: 812 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'desktop', width: 1440, height: 900 },
+  { name: "mobile", width: 375, height: 812 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "desktop", width: 1440, height: 900 },
 ] as const;
 
 async function gotoLanding(page: Page, settings: object): Promise<void> {
-  await page.route('**/api/rally/v1/rally/settings/public**', async (route) => {
+  await page.route("**/api/rally/v1/rally/settings/public**", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify(settings),
     });
   });
 
   // No token + non-public path + public access disabled => Landing Gate renders.
-  await page.goto('/rally/scoreboard', { waitUntil: 'domcontentloaded' });
-  await page
-    .waitForResponse('**/api/rally/v1/rally/settings/public**')
-    .catch(() => null);
-  await page.waitForLoadState('networkidle');
+  await page.goto("/rally/scoreboard", { waitUntil: "domcontentloaded" });
+  await page.waitForResponse("**/api/rally/v1/rally/settings/public**").catch(() => null);
+  await page.waitForLoadState("networkidle");
   // Settle entry transitions before capturing.
   await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
-test.describe('Landing Gate visual regression', () => {
+test.describe("Landing Gate visual regression", () => {
   for (const bp of BREAKPOINTS) {
     test(`branded @ ${bp.name}`, async ({ page }) => {
       await page.setViewportSize({ width: bp.width, height: bp.height });
       await gotoLanding(page, BRANDED_SETTINGS);
 
-      await expect(page.getByRole('heading', { name: 'Carnaval 2026' })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Carnaval 2026" })).toBeVisible();
       await expect(page).toHaveScreenshot(`landing-branded-${bp.name}.png`, {
         fullPage: true,
-        animations: 'disabled',
+        animations: "disabled",
         maxDiffPixelRatio: 0.01,
       });
     });
@@ -81,7 +79,7 @@ test.describe('Landing Gate visual regression', () => {
 
       await expect(page).toHaveScreenshot(`landing-fallback-${bp.name}.png`, {
         fullPage: true,
-        animations: 'disabled',
+        animations: "disabled",
         maxDiffPixelRatio: 0.01,
       });
     });

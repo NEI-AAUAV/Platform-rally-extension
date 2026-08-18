@@ -159,7 +159,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
       <p className="text-sm font-semibold">{isEdit ? "Editar crachá" : "Criar crachá"}</p>
 
       <div className="grid grid-cols-2 gap-3">
-        <label className="space-y-1">
+        <label className="space-y-1" data-admin-search-key="badge_code">
           <span className="text-xs text-muted-foreground">Código único *</span>
           <input
             className={inputClass}
@@ -174,7 +174,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
             </span>
           )}
         </label>
-        <label className="space-y-1">
+        <label className="space-y-1" data-admin-search-key="badge_name">
           <span className="text-xs text-muted-foreground">Nome *</span>
           <input
             className={inputClass}
@@ -185,7 +185,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
         </label>
       </div>
 
-      <label className="block space-y-1">
+      <label className="block space-y-1" data-admin-search-key="badge_description">
         <span className="text-xs text-muted-foreground">Descrição</span>
         <textarea
           className={inputClass}
@@ -198,7 +198,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
       {/* visual */}
       <div className="grid grid-cols-[auto_auto_1fr] items-end gap-3">
-        <label className="space-y-1">
+        <label className="space-y-1" data-admin-search-key="badge_color">
           <span className="text-xs text-muted-foreground">Cor</span>
           <input
             type="color"
@@ -207,7 +207,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
             onChange={(e) => setForm({ ...form, color: e.target.value })}
           />
         </label>
-        <label className="space-y-1">
+        <label className="space-y-1" data-admin-search-key="badge_emoji">
           <span className="text-xs text-muted-foreground">Emoji</span>
           <input
             className={`${inputClass} w-16 text-center text-lg`}
@@ -252,7 +252,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
       {/* behaviour */}
       <div className="space-y-3 rounded-lg border border-dashed p-3">
-        <label className="flex items-center gap-2 text-sm font-medium">
+        <label className="flex items-center gap-2 text-sm font-medium" data-admin-search-key="badge_auto_award">
           <input
             type="checkbox"
             className="h-4 w-4"
@@ -264,7 +264,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
 
         {form.isAuto && (
           <div className="space-y-3">
-            <label className="block space-y-1">
+            <label className="block space-y-1" data-admin-search-key="badge_trigger">
               <span className="text-xs text-muted-foreground">Condição de atribuição *</span>
               <Select
                 value={form.triggerType || undefined}

@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
 import { EventModeBanner } from "./components";
 import { SETTINGS_SECTIONS, DEFAULT_SECTION_ID, type SettingsSectionId } from "./sections";
+import { ADMIN_SEARCH_INDEX, SETTINGS_KEY_TO_SECTION, type AdminSearchEntry } from "@/lib/adminSearchIndex";
+import { useScrollToSearchTarget } from "@/hooks/useScrollToSearchTarget";
+import AdminSearch from "@/pages/admin/components/AdminSearch";
 import { cn } from "@/lib/utils";
 import { DEFAULT_HOME_LAYOUT, DEFAULT_TICKER_ITEMS } from "@/lib/homeLayout";
 import { utcISOStringToLocalDatetimeLocal } from "@/utils/timezone";
@@ -243,16 +246,47 @@ import { getErrorMessage } from "@/utils/errorHandling";
 
 interface RallySettingsProps {
   readonly embedded?: boolean;
+  /** A field key from the admin/settings search — jump to its section and scroll to it. */
+  readonly searchTargetKey?: string | null;
+  /** Called once the search target has been scrolled to (or given up on). */
+  readonly onSearchTargetHandled?: () => void;
 }
 
-export default function RallySettings({ embedded = false }: RallySettingsProps) {
+export default function RallySettings({
+  embedded = false,
+  searchTargetKey = null,
+  onSearchTargetHandled,
+}: RallySettingsProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
   const fallbackPath = useFallbackNavigation();
 
   const [sectionId, setSectionId] = useState<SettingsSectionId>(DEFAULT_SECTION_ID);
 
+  // Standalone (/settings) has no admin shell to own a pending search key, so
+  // it keeps its own; embedded mode is driven by the prop from Admin's search.
+  const [localSearchKey, setLocalSearchKey] = useState<string | null>(null);
+  const effectiveSearchKey = embedded ? (searchTargetKey ?? null) : localSearchKey;
+
+  function handleSearchSelect(entry: AdminSearchEntry) {
+    setLocalSearchKey(entry.key);
+  }
+
+  // A search result names a field, not a section — look up which section
+  // holds it and switch there before the scroll hook goes looking for it.
+  useEffect(() => {
+    if (!effectiveSearchKey) return;
+    const targetSection = SETTINGS_KEY_TO_SECTION[effectiveSearchKey];
+    if (targetSection) setSectionId(targetSection);
+  }, [effectiveSearchKey]);
+
+  useScrollToSearchTarget(effectiveSearchKey, () => {
+    setLocalSearchKey(null);
+    onSearchTargetHandled?.();
+  });
+
   // Fetch current settings
+
   const {
     data: settings,
     refetch: refetchSettings,
@@ -321,6 +355,20 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       rules_sections: [],
     },
   });
+
+  // Some search targets sit behind a switch (hint_penalty behind
+  // hints_enabled, etc) — flip it on so the field actually renders before
+  // the scroll hook goes looking for it.
+  useEffect(() => {
+    if (!effectiveSearchKey) return;
+    const entry = ADMIN_SEARCH_INDEX.find((e) => e.key === effectiveSearchKey);
+    if (entry?.requiresField) {
+      form.setValue(entry.requiresField.name as keyof RallySettingsForm, entry.requiresField.value, {
+        shouldDirty: false,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSearchKey]);
 
   // Update form when settings are loaded
   useEffect(() => {
@@ -432,6 +480,14 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
           icon={Settings}
           title="Configurações"
           description="Gerir configurações globais do rally."
+        />
+      )}
+
+      {!embedded && (
+        <AdminSearch
+          onSelect={handleSearchSelect}
+          filterTabId="settings"
+          placeholder="Procurar uma configuração..."
         />
       )}
 

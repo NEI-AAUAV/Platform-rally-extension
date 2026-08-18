@@ -42,9 +42,12 @@ import {
   AuditLogTab,
   MetricsTab,
   BroadcastTab,
+  AdminSearch,
 } from "./components";
 import { getCheckpoints, getVapidPublicKey } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
+import { type AdminSearchEntry } from "@/lib/adminSearchIndex";
+import { useScrollToSearchTarget } from "@/hooks/useScrollToSearchTarget";
 import RallySettings from "@/pages/settings";
 import Assignment from "@/pages/assignment";
 import GuideAssignment from "@/pages/guide-assignment";
@@ -114,6 +117,19 @@ export default function Admin() {
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
   const activeTabMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0]!;
 
+  // A search result switches tab and, where the field has a DOM anchor, asks
+  // the scroll hook to find and highlight it once the new tab has rendered.
+  // The "settings" tab nests its own section switcher, so that case is handed
+  // off to RallySettings instead of resolved here.
+  const [pendingSearchKey, setPendingSearchKey] = useState<string | null>(null);
+  const handleSearchSelect = (entry: AdminSearchEntry) => {
+    setActiveTab(entry.tabId);
+    setPendingSearchKey(entry.tabOnly ? null : entry.key);
+  };
+  useScrollToSearchTarget(activeTab === "settings" ? null : pendingSearchKey, () =>
+    setPendingSearchKey(null),
+  );
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDialogElement>(null);
   useClickOutside(drawerRef, isDrawerOpen, () => setIsDrawerOpen(false));
@@ -149,6 +165,8 @@ export default function Admin() {
         title="Administração"
         description="Gerir equipas, postos, atividades, identidade visual e edições do rally."
       />
+
+      <AdminSearch onSelect={handleSearchSelect} />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
         {/* Mobile: current-tab bar that opens a drawer with all sections */}
@@ -304,7 +322,13 @@ export default function Admin() {
               />
             ))}
           {activeTab === "scoring" && <DynamicScoringTab />}
-          {activeTab === "settings" && <RallySettings embedded />}
+          {activeTab === "settings" && (
+            <RallySettings
+              embedded
+              searchTargetKey={pendingSearchKey}
+              onSearchTargetHandled={() => setPendingSearchKey(null)}
+            />
+          )}
           {activeTab === "audit" && <AuditLogTab />}
           {activeTab === "metrics" && <MetricsTab />}
         </div>

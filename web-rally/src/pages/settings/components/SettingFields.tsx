@@ -33,7 +33,7 @@ type SettingRowProps = Readonly<{
 /** One setting: label + optional help on the left, control on the right. */
 function SettingRow({ name, label, help, children }: SettingRowProps) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
+    <div data-admin-search-key={name} className="flex items-start justify-between gap-4 py-3">
       <div className="min-w-0 flex-1 space-y-0.5">
         <Label htmlFor={name} className="text-sm font-medium leading-snug">
           {label}
@@ -157,7 +157,7 @@ export function SettingTextarea({
   const { register } = useFormContext();
 
   return (
-    <div className="space-y-1.5 py-3">
+    <div data-admin-search-key={name} className="space-y-1.5 py-3">
       <Label htmlFor={name} className="text-sm font-medium leading-snug">
         {label}
       </Label>

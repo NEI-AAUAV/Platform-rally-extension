@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures';
-import type { Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import {
   MOCK_RALLY_SETTINGS,
   MOCK_CHECKPOINT,
@@ -8,8 +8,9 @@ import {
   MOCK_ACTIVITY_LIST,
   MOCK_JWT_TOKEN_MANAGER,
   MOCK_JWT_TOKEN_STAFF,
-} from '../mocks/data';
-import { seedOidcSession, MANAGER_GROUPS, STAFF_GROUPS } from './helpers/session';
+} from "../mocks/data";
+import { seedOidcSession, MANAGER_GROUPS, STAFF_GROUPS } from "./helpers/session";
+import { openAdminNavIfMobile } from "./helpers/nav";
 
 /**
  * Accessibility gate: fails on serious/critical WCAG 2 A/AA violations.
@@ -45,20 +46,18 @@ async function waitForVisualStability(page: Page): Promise<void> {
 async function expectNoSeriousViolations(page: Page): Promise<void> {
   await waitForVisualStability(page);
 
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa'])
-    .analyze();
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
 
   const serious = results.violations.filter(
-    (v) => v.impact === 'serious' || v.impact === 'critical',
+    (v) => v.impact === "serious" || v.impact === "critical",
   );
 
   const summary = serious
     .map(
       (v) =>
-        `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node(s)) — ${v.nodes[0]?.target.join(' ') ?? ''}`,
+        `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node(s)) — ${v.nodes[0]?.target.join(" ") ?? ""}`,
     )
-    .join('\n');
+    .join("\n");
 
   expect(serious, summary).toEqual([]);
 }
@@ -68,12 +67,12 @@ async function expectNoSeriousViolations(page: Page): Promise<void> {
  * than five near-identical tests, so adding a route to the gate is one line.
  */
 const PUBLIC_ROUTES: ReadonlyArray<{ name: string; path: string }> = [
-  { name: 'home', path: '/rally/' },
-  { name: 'rules', path: '/rally/rules' },
-  { name: 'checkpoints', path: '/rally/checkpoints' },
+  { name: "home", path: "/rally/" },
+  { name: "rules", path: "/rally/rules" },
+  { name: "checkpoints", path: "/rally/checkpoints" },
 ];
 
-test.describe('Accessibility', () => {
+test.describe("Accessibility", () => {
   // Sample colours in the settled state. Mid-fade, an element's computed
   // colour is a blend of itself and whatever is behind it, and axe scores the
   // blend — the home hero's countdown labels measure #838994 on #fefefe
@@ -81,192 +80,192 @@ test.describe('Accessibility', () => {
   // (7.1:1, passing) once settled. The app already disables its entrance
   // animations under prefers-reduced-motion, so asking for it here removes the
   // transient without adding a sleep, and exercises the reduced-motion path.
-  test.use({ reducedMotion: 'reduce' });
+  test.use({ reducedMotion: "reduce" });
 
   for (const { name, path } of PUBLIC_ROUTES) {
     test(`${name} has no serious a11y violations`, async ({ page }) => {
-      await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
+      await page.route("**/api/rally/v1/rally/settings/public**", (route) =>
         route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify({ ...MOCK_RALLY_SETTINGS, public_access_enabled: true }),
         }),
       );
-      await page.route('**/api/rally/v1/checkpoint/**', (route) =>
+      await page.route("**/api/rally/v1/checkpoint/**", (route) =>
         route.fulfill({
           status: 200,
-          contentType: 'application/json',
+          contentType: "application/json",
           body: JSON.stringify([MOCK_CHECKPOINT]),
         }),
       );
 
-      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await page.goto(path, { waitUntil: "domcontentloaded" });
       await page
-        .waitForResponse('**/api/rally/v1/rally/settings/public**', { timeout: 10000 })
+        .waitForResponse("**/api/rally/v1/rally/settings/public**", { timeout: 10000 })
         .catch(() => {});
-      await expect(page.locator('body')).toBeVisible();
+      await expect(page.locator("body")).toBeVisible();
       await expectNoSeriousViolations(page);
     });
   }
 
-  test('team login page has no serious a11y violations', async ({ page }) => {
-    await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
+  test("team login page has no serious a11y violations", async ({ page }) => {
+    await page.route("**/api/rally/v1/rally/settings/public**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_RALLY_SETTINGS),
       }),
     );
 
-    await page.goto('/rally/team-login', { waitUntil: 'networkidle' });
+    await page.goto("/rally/team-login", { waitUntil: "networkidle" });
     await expectNoSeriousViolations(page);
   });
 
-  test('scoreboard has no serious a11y violations', async ({ page }) => {
-    await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
+  test("scoreboard has no serious a11y violations", async ({ page }) => {
+    await page.route("**/api/rally/v1/rally/settings/public**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({ ...MOCK_RALLY_SETTINGS, public_access_enabled: true }),
       }),
     );
-    await page.route('**/api/rally/v1/team/**', (route) =>
+    await page.route("**/api/rally/v1/team/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify([MOCK_TEAM]),
       }),
     );
 
-    await page.goto('/rally/scoreboard', { waitUntil: 'networkidle' });
+    await page.goto("/rally/scoreboard", { waitUntil: "networkidle" });
     await expectNoSeriousViolations(page);
   });
 
-  test('settings page has no serious a11y violations', async ({ page, context }) => {
-    await page.route('**/api/nei/v1/auth/refresh/**', (route) =>
+  test("settings page has no serious a11y violations", async ({ page, context }) => {
+    await page.route("**/api/nei/v1/auth/refresh/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({ access_token: MOCK_JWT_TOKEN_MANAGER }),
       }),
     );
-    await page.route('**/api/nei/v1/user/me**', (route) =>
+    await page.route("**/api/nei/v1/user/me**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({
-          id: 'test-user-123',
-          name: 'Test Manager',
-          scopes: ['manager-rally', 'rally-staff'],
+          id: "test-user-123",
+          name: "Test Manager",
+          scopes: ["manager-rally", "rally-staff"],
         }),
       }),
     );
-    await page.route('**/api/rally/v1/rally/settings**', (route) =>
+    await page.route("**/api/rally/v1/rally/settings**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_RALLY_SETTINGS),
       }),
     );
 
     await seedOidcSession(context, MANAGER_GROUPS);
-    await page.goto('/rally/settings', { waitUntil: 'domcontentloaded' });
-    await page.waitForResponse('**/api/nei/v1/user/me**', { timeout: 10000 }).catch(() => {});
-    await page.waitForResponse('**/api/rally/v1/rally/settings**', { timeout: 10000 }).catch(() => {});
-    await expect(
-      page.getByRole('heading', { name: 'Configurações', exact: true }),
-    ).toBeVisible({ timeout: 20000 });
+    await page.goto("/rally/settings", { waitUntil: "domcontentloaded" });
+    await page.waitForResponse("**/api/nei/v1/user/me**", { timeout: 10000 }).catch(() => {});
+    await page
+      .waitForResponse("**/api/rally/v1/rally/settings**", { timeout: 10000 })
+      .catch(() => {});
+    await expect(page.getByRole("heading", { name: "Configurações", exact: true })).toBeVisible({
+      timeout: 20000,
+    });
     await expectNoSeriousViolations(page);
   });
 
-  test('admin panel has no serious a11y violations', async ({ page, context }) => {
+  test("admin panel has no serious a11y violations", async ({ page, context }) => {
     await seedOidcSession(context, MANAGER_GROUPS);
-    await page.route('**/api/rally/v1/rally/settings**', (route) =>
+    await page.route("**/api/rally/v1/rally/settings**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({ ...MOCK_RALLY_SETTINGS, public_access_enabled: true }),
       }),
     );
-    await page.route('**/api/rally/v1/checkpoint/**', (route) =>
+    await page.route("**/api/rally/v1/checkpoint/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify([MOCK_CHECKPOINT]),
       }),
     );
-    await page.route('**/api/rally/v1/team/**', (route) =>
+    await page.route("**/api/rally/v1/team/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify([MOCK_TEAM]),
       }),
     );
-    await page.route('**/api/rally/v1/activities/**', (route) =>
+    await page.route("**/api/rally/v1/activities/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_ACTIVITY_LIST),
       }),
     );
 
-    await page.goto('/rally/admin', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('button', { name: /Equipas/i })).toBeVisible({
+    await page.goto("/rally/admin", { waitUntil: "networkidle" });
+    await openAdminNavIfMobile(page);
+    await expect(page.getByRole("button", { name: /Equipas/i })).toBeVisible({
       timeout: 10000,
     });
     await expectNoSeriousViolations(page);
   });
 
-  test('staff evaluation checkpoint has no serious a11y violations', async ({
-    page,
-    context,
-  }) => {
-    await page.route('**/api/nei/v1/auth/refresh/**', (route) =>
+  test("staff evaluation checkpoint has no serious a11y violations", async ({ page, context }) => {
+    await page.route("**/api/nei/v1/auth/refresh/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify({ access_token: MOCK_JWT_TOKEN_STAFF }),
       }),
     );
-    await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
+    await page.route("**/api/rally/v1/rally/settings/public**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_RALLY_SETTINGS),
       }),
     );
-    await page.route('**/api/rally/v1/checkpoint/**', (route) =>
+    await page.route("**/api/rally/v1/checkpoint/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify([MOCK_CHECKPOINT]),
       }),
     );
-    await page.route('**/api/rally/v1/team/**', (route) =>
+    await page.route("**/api/rally/v1/team/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify([MOCK_TEAM]),
       }),
     );
-    await page.route('**/api/rally/v1/activities/**', (route) =>
+    await page.route("**/api/rally/v1/activities/**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_ACTIVITY_LIST),
       }),
     );
-    await page.route('**/api/rally/v1/staff/my-checkpoint**', (route) =>
+    await page.route("**/api/rally/v1/staff/my-checkpoint**", (route) =>
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(MOCK_CHECKPOINT),
       }),
     );
 
     await seedOidcSession(context, STAFF_GROUPS);
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
-      waitUntil: 'networkidle',
+      waitUntil: "networkidle",
     });
     await expectNoSeriousViolations(page);
   });

@@ -186,7 +186,7 @@ export default function TeamManagement() {
               control={teamForm.control}
               name="name"
               render={({ field }) => (
-                <FormItem>
+                <FormItem data-admin-search-key="team_name">
                   <FormLabel>Nome da Equipa</FormLabel>
                   <FormControl>
                     <Input
@@ -204,7 +204,7 @@ export default function TeamManagement() {
                 control={teamForm.control}
                 name="start_offset_minutes"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-admin-search-key="team_offset_minutes">
                     <FormLabel>Partida desfasada (minutos)</FormLabel>
                     <FormControl>
                       <Input

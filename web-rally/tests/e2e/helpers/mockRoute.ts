@@ -1,5 +1,5 @@
-import type { Page, Route } from '@playwright/test';
-import { assertMatchesOpenApiSchema } from './openapiValidator';
+import type { Page, Route } from "@playwright/test";
+import { assertMatchesOpenApiSchema } from "./openapiValidator";
 
 /**
  * Wraps page.route() + route.fulfill() with an openapi.json schema check on
@@ -21,7 +21,7 @@ export async function mockJson(
   await page.route(urlGlob, async (route: Route) => {
     await route.fulfill({
       status,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify(body),
     });
   });
