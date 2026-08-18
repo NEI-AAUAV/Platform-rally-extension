@@ -12,7 +12,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import RallySettingsResponse
 from app.schemas.user import DetailedUser
-from app.services.image_upload import validate_and_store
+from app.services.image_upload import MAX_IMAGE_SIZE_BYTES, validate_and_store
 from app.services.storage import storage_client
 
 
@@ -40,17 +40,18 @@ class RallySettingsService:
         allowed_content_types: set[str],
         curr_user: DetailedUser,
         auth: AuthData,
+        max_size_bytes: int = MAX_IMAGE_SIZE_BYTES,
     ) -> RallySettingsResponse:
-        """Validate, store an image in R2, and persist its URL on the given column.
+        """Validate, store a file in R2, and persist its URL on the given column.
 
-        Shared by the banner/logo/favicon endpoints (DRY). Replaces any
-        previous R2 image for that field. Note: R2 assets are served from a
+        Shared by the banner/logo/favicon/rules-PDF endpoints (DRY). Replaces
+        any previous R2 file for that field. Note: R2 assets are served from a
         separate public origin (R2_PUBLIC_BASE_URL), so an SVG favicon cannot
         reach app cookies/auth.
         """
         validate_settings_update_access(curr_user, auth)
 
-        # Drop the previous R2 image for this field, if any.
+        # Drop the previous R2 file for this field, if any.
         current = await rally_settings.get_or_create(self._db)
         storage_client.delete_image(getattr(current, field))
 
@@ -58,6 +59,7 @@ class RallySettingsService:
             image=image,
             allowed_content_types=allowed_content_types,
             key_prefix=f"rally/branding/{field}",
+            max_size_bytes=max_size_bytes,
         )
 
         updated = await rally_settings.set_image_url(self._db, field=field, url=url)

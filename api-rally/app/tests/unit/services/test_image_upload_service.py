@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.services import image_upload
 from app.services.image_upload import (
     ALLOWED_PHOTO_CONTENT_TYPES,
+    ALLOWED_REGULATION_CONTENT_TYPES,
     MAX_IMAGE_SIZE_BYTES,
     validate_and_store,
 )
@@ -100,6 +101,51 @@ async def test_happy_path_uploads_with_prefix_and_extension():
     assert "//" not in key.removeprefix("rally/checkpoint_media/")
     assert data == b"binary"
     assert ctype == "image/webp"
+
+
+async def test_accepts_pdf_for_regulation_uploads():
+    storage = _storage(url="https://cdn.example/regulamento.pdf")
+    with patch.object(image_upload, "storage_client", storage):
+        url = await validate_and_store(
+            image=_FakeUpload(b"%PDF-1.4", "application/pdf"),
+            allowed_content_types=ALLOWED_REGULATION_CONTENT_TYPES,
+            key_prefix="rally/branding/rules_pdf_url",
+        )
+    assert url == "https://cdn.example/regulamento.pdf"
+    key, _data, ctype = storage.upload_image.call_args.args
+    assert key.endswith(".pdf")
+    assert ctype == "application/pdf"
+
+
+async def test_rejects_non_pdf_for_regulation_uploads():
+    with patch.object(image_upload, "storage_client", _storage()):
+        call = validate_and_store(
+            image=_FakeUpload(b"\x89PNG", "image/png"),
+            allowed_content_types=ALLOWED_REGULATION_CONTENT_TYPES,
+            key_prefix="rally/branding/rules_pdf_url",
+        )
+        with pytest.raises(HTTPException) as exc:
+            await call
+    assert exc.value.status_code == 400
+
+
+async def test_custom_max_size_bytes_is_enforced():
+    """A caller-supplied cap (e.g. the higher document cap) is honored instead
+    of the default 5MB image cap."""
+    small_cap = 10
+    big = _FakeUpload(b"a" * (small_cap + 5), "application/pdf")
+    with (
+        patch.object(image_upload, "storage_client", _storage()),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await validate_and_store(
+            image=big,
+            allowed_content_types=ALLOWED_REGULATION_CONTENT_TYPES,
+            key_prefix="rally/test",
+            max_size_bytes=small_cap,
+        )
+    assert exc.value.status_code == 400
+    assert "too large" in exc.value.detail.lower()
 
 
 async def test_returns_503_when_upload_fails():

@@ -4,8 +4,10 @@ these branches directly."""
 
 from app.schemas.rally_settings import (
     HOME_SECTION_KEYS,
+    MAX_RULES_SECTION_LENGTH,
     MAX_TICKER_ITEMS,
     normalize_home_layout,
+    normalize_rules_content,
     normalize_ticker_items,
 )
 
@@ -67,3 +69,27 @@ def test_normalize_ticker_items_caps_total_count():
 
 def test_normalize_ticker_items_handles_none():
     assert normalize_ticker_items(None) == []
+
+
+def test_normalize_rules_content_drops_unknown_keys():
+    result = normalize_rules_content({"how": "text", "not_a_real_section": "text"})
+    assert result == {"how": "text"}
+
+
+def test_normalize_rules_content_drops_empty_values():
+    result = normalize_rules_content({"how": "  ", "score": "keep"})
+    assert result == {"score": "keep"}
+
+
+def test_normalize_rules_content_trims_whitespace():
+    result = normalize_rules_content({"how": "  padded text  "})
+    assert result == {"how": "padded text"}
+
+
+def test_normalize_rules_content_caps_length():
+    result = normalize_rules_content({"how": "x" * (MAX_RULES_SECTION_LENGTH + 100)})
+    assert len(result["how"]) == MAX_RULES_SECTION_LENGTH
+
+
+def test_normalize_rules_content_handles_none():
+    assert normalize_rules_content(None) == {}

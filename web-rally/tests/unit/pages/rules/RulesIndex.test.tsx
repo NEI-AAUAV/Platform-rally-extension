@@ -100,4 +100,38 @@ describe('Rules index', () => {
     render(<Rules />);
     expect(screen.getByText('Regras & FAQ')).toBeInTheDocument();
   });
+
+  it('renders an admin override instead of the default copy when set', () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: { rules_content: { how: 'Texto personalizado pelo organizador.' } },
+    });
+    render(<Rules />);
+    expect(screen.getByText('Texto personalizado pelo organizador.')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Cada equipa percorre os postos do rally/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('falls back to the default copy when no override is set', () => {
+    mockUseRallySettings.mockReturnValue({ settings: { rules_content: {} } });
+    render(<Rules />);
+    expect(screen.getByText(/Cada equipa percorre os postos do rally/)).toBeInTheDocument();
+  });
+
+  it('shows a PDF download card when rules_pdf_url is set', () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: { rules_pdf_url: 'https://r2/regulamento.pdf' },
+    });
+    render(<Rules />);
+    const link = screen.getByRole('link', { name: /Descarregar regulamento oficial/i });
+    expect(link).toHaveAttribute('href', 'https://r2/regulamento.pdf');
+  });
+
+  it('hides the PDF download card when rules_pdf_url is empty', () => {
+    mockUseRallySettings.mockReturnValue({ settings: {} });
+    render(<Rules />);
+    expect(
+      screen.queryByRole('link', { name: /Descarregar regulamento oficial/i }),
+    ).not.toBeInTheDocument();
+  });
 });

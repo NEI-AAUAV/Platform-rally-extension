@@ -29,6 +29,12 @@ DEFAULT_TICKER_ITEMS = [
 MAX_TICKER_ITEMS = 20
 MAX_TICKER_ITEM_LENGTH = 40
 
+# Canonical section keys for the public /rules page. Any rules_content entry
+# with an unknown key is dropped; missing keys simply stay absent (the
+# frontend falls back to its built-in copy for those).
+RULES_SECTION_KEYS = ("how", "score", "versus", "badges", "checkin")
+MAX_RULES_SECTION_LENGTH = 4000
+
 
 class HomeSection(BaseModel):
     key: str
@@ -72,6 +78,22 @@ def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
         if key not in seen:
             normalized.append({"key": key, "visible": True})
 
+    return normalized
+
+
+def normalize_rules_content(value: dict[str, Any]) -> dict[str, str]:
+    """Drop unknown keys, coerce to str, trim, and cap each section's length.
+
+    Empty strings are dropped too, so an admin clearing a section back out
+    reverts to the frontend's built-in default rather than persisting "".
+    """
+    normalized: dict[str, str] = {}
+    for key, text in (value or {}).items():
+        if key not in RULES_SECTION_KEYS:
+            continue
+        trimmed = str(text).strip()[:MAX_RULES_SECTION_LENGTH]
+        if trimmed:
+            normalized[key] = trimmed
     return normalized
 
 
@@ -196,6 +218,15 @@ class RallySettingsBase(BaseModel):
     # Home page ticker items, in display order
     ticker_items: list[str] = list(DEFAULT_TICKER_ITEMS)
 
+    # Admin overrides for the public /rules page copy, keyed by section id.
+    # A missing/empty key means "use the frontend's built-in default".
+    rules_content: dict[str, str] = {}
+
+    @field_validator("rules_content", mode="before")
+    @classmethod
+    def _normalize_rules_content(cls, value: dict[str, Any]) -> dict[str, str]:
+        return normalize_rules_content(value)
+
     @field_validator("home_layout", mode="before")
     @classmethod
     def _normalize_home_layout(cls, value: list[Any]) -> list[dict[str, Any]]:
@@ -248,3 +279,4 @@ class RallySettingsResponse(RallySettingsBase):
     banner_url: str = ""
     logo_url: str = ""
     favicon_url: str = ""
+    rules_pdf_url: str = ""

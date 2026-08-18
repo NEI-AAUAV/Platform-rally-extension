@@ -11,7 +11,12 @@ from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdat
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_field_changes, snapshot_fields
 from app.services.deps import get_rally_settings_service
-from app.services.image_upload import ALLOWED_FAVICON_CONTENT_TYPES, ALLOWED_PHOTO_CONTENT_TYPES
+from app.services.image_upload import (
+    ALLOWED_FAVICON_CONTENT_TYPES,
+    ALLOWED_PHOTO_CONTENT_TYPES,
+    ALLOWED_REGULATION_CONTENT_TYPES,
+    MAX_DOCUMENT_SIZE_BYTES,
+)
 from app.services.rally_settings_service import RallySettingsService
 
 INVALID_FILE_ERROR = "Invalid file"
@@ -46,6 +51,8 @@ _SETTINGS_AUDITED_FIELDS = (
     "banner_url",
     "logo_url",
     "favicon_url",
+    "rules_pdf_url",
+    "rules_content",
     "public_access_enabled",
     "allow_staff_registration",
     "allow_photo_as_team_photo",
@@ -116,6 +123,18 @@ class RallySettingsController:
             methods=["PUT"],
             status_code=200,
             name="upload_rally_favicon",
+            responses={
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/regulamento",
+            self.upload_rally_rules_pdf,
+            methods=["PUT"],
+            status_code=200,
+            name="upload_rally_rules_pdf",
             responses={
                 400: {"description": INVALID_FILE_ERROR},
                 403: {"description": NOT_AUTHORIZED_ERROR},
@@ -228,6 +247,23 @@ class RallySettingsController:
             allowed_content_types=ALLOWED_FAVICON_CONTENT_TYPES,
             curr_user=curr_user,
             auth=auth,
+        )
+
+    async def upload_rally_rules_pdf(
+        self,
+        image: Annotated[UploadFile, File(...)],
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Upload the official regulation PDF to Cloudflare R2 (admin only)."""
+        return await service.upload_branding_image(
+            field="rules_pdf_url",
+            image=image,
+            allowed_content_types=ALLOWED_REGULATION_CONTENT_TYPES,
+            curr_user=curr_user,
+            auth=auth,
+            max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
         )
 
 

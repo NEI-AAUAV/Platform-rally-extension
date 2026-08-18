@@ -1400,6 +1400,62 @@
         ]
       }
     },
+    "/api/rally/v1/rally/settings/regulamento": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Upload Rally Rules Pdf",
+        "description": "Upload the official regulation PDF to Cloudflare R2 (admin only).",
+        "operationId": "upload_rally_rules_pdf",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_rally_rules_pdf"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "503": {
+            "description": "R2 storage not configured or upload failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/versus/pair": {
       "post": {
         "tags": [
@@ -8416,6 +8472,20 @@
         ],
         "title": "Body_upload_rally_logo"
       },
+      "Body_upload_rally_rules_pdf": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_rally_rules_pdf"
+      },
       "Body_upload_team_photo": {
         "properties": {
           "image": {
@@ -11619,6 +11689,14 @@
               "PONTUA\u00c7\u00c3O"
             ]
           },
+          "rules_content": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Rules Content",
+            "default": {}
+          },
           "rally_start_time": {
             "anyOf": [
               {
@@ -11661,6 +11739,11 @@
           "favicon_url": {
             "type": "string",
             "title": "Favicon Url",
+            "default": ""
+          },
+          "rules_pdf_url": {
+            "type": "string",
+            "title": "Rules Pdf Url",
             "default": ""
           }
         },
@@ -11949,6 +12032,14 @@
               "POSTOS",
               "PONTUA\u00c7\u00c3O"
             ]
+          },
+          "rules_content": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Rules Content",
+            "default": {}
           }
         },
         "type": "object",

@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Trophy, MapPin, Swords, Award, QrCode, HelpCircle, ChevronDown } from "lucide-react";
+import {
+  Trophy,
+  MapPin,
+  Swords,
+  Award,
+  QrCode,
+  HelpCircle,
+  ChevronDown,
+  FileDown,
+} from "lucide-react";
 import type { ComponentType } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
 import { PageHeader } from "@/components/shared";
@@ -9,6 +18,7 @@ interface RuleSection {
   readonly id: string;
   readonly title: string;
   readonly Icon: ComponentType<{ className?: string }>;
+  /** Built-in copy, used whenever the admin hasn't overridden this section. */
   readonly body: React.ReactNode;
   readonly show: boolean;
 }
@@ -139,9 +149,29 @@ export default function Rules() {
         description="Como decorre o rally, como se pontua e o que precisas de saber."
       />
 
+      {settings?.rules_pdf_url && (
+        <a
+          href={settings.rules_pdf_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rally-surface flex items-center gap-3 rounded-2xl p-5 transition-colors hover:bg-accent/40"
+        >
+          <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+            <FileDown className="rally-accent h-4 w-4" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-semibold text-foreground">
+              Descarregar regulamento oficial
+            </span>
+            <span className="block text-sm text-muted-foreground">Documento completo em PDF</span>
+          </span>
+        </a>
+      )}
+
       <div className="space-y-3">
         {sections.map(({ id, title, Icon, body }) => {
           const isOpen = open === id;
+          const override = settings?.rules_content?.[id];
           return (
             <div key={id} className="rally-surface overflow-hidden rounded-2xl">
               <button
@@ -161,7 +191,15 @@ export default function Rules() {
                   )}
                 />
               </button>
-              {isOpen && <div className="border-t border-border px-5 py-4">{body}</div>}
+              {isOpen && (
+                <div className="border-t border-border px-5 py-4">
+                  {override ? (
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">{override}</p>
+                  ) : (
+                    body
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

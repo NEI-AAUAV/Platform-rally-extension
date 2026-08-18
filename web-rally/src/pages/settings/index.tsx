@@ -149,6 +149,10 @@ const rallySettingsSchema = z.object({
 
   // Ticker items, edited as a field array of { value } for useFieldArray
   ticker_items_list: z.array(z.object({ value: z.string().max(40, "Máximo 40 caracteres") })),
+
+  // Admin overrides for the public /rules page copy, keyed by section id.
+  // Registered as dotted paths (rules_content.how, ...) by SettingTextarea.
+  rules_content: z.record(z.string(), z.string()).optional(),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -219,6 +223,7 @@ function buildFormValues(
       ? settings.ticker_items
       : DEFAULT_TICKER_ITEMS
     ).map((value) => ({ value })),
+    rules_content: settings.rules_content ?? {},
   };
 }
 
@@ -301,6 +306,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       badges_enabled: true,
       home_layout: DEFAULT_HOME_LAYOUT,
       ticker_items_list: DEFAULT_TICKER_ITEMS.map((value) => ({ value })),
+      rules_content: {},
     },
   });
 

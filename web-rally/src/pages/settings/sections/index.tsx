@@ -6,7 +6,7 @@
  * the page short, and makes this list the single place that decides where a
  * setting lives: the nav and the content both derive from it.
  */
-import { Eye, LayoutTemplate, MapPinned, Route, Target, Users } from "lucide-react";
+import { Eye, HelpCircle, LayoutTemplate, MapPinned, Route, Target, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   TeamSettings,
@@ -17,6 +17,7 @@ import {
   RouteRulesSettings,
   DisplaySettings,
   HomeLayoutSettings,
+  RulesSettings,
 } from "../components";
 
 export type SettingsSectionId =
@@ -25,7 +26,8 @@ export type SettingsSectionId =
   | "pontuacao"
   | "equipas"
   | "visualizacao"
-  | "inicio";
+  | "inicio"
+  | "regras";
 
 /** Props every section body receives from the page shell. */
 export type SectionProps = Readonly<{ eventType?: string | null }>;
@@ -72,6 +74,10 @@ function HomeSection() {
   return <HomeLayoutSettings />;
 }
 
+function RulesSection() {
+  return <RulesSettings />;
+}
+
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     id: "jogo",
@@ -114,6 +120,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: LayoutTemplate,
     description: "Secções, ordem e faixa de destaques da Início",
     Component: HomeSection,
+  },
+  {
+    id: "regras",
+    label: "Regras",
+    icon: HelpCircle,
+    description: "Texto das secções e regulamento oficial em PDF da página /regras",
+    Component: RulesSection,
   },
 ] as const;
 

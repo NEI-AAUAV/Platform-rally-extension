@@ -13,9 +13,12 @@ from fastapi import HTTPException, UploadFile
 from app.services.storage import storage_client
 
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+# Regulation PDFs run bigger than branding images; a separate, higher cap.
+MAX_DOCUMENT_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
 
 JPEG_CONTENT_TYPE = "image/jpeg"
 PNG_CONTENT_TYPE = "image/png"
+PDF_CONTENT_TYPE = "application/pdf"
 
 # Map an allowed content type to the file extension used in the R2 key.
 EXT_BY_CONTENT_TYPE: dict[str, str] = {
@@ -26,6 +29,7 @@ EXT_BY_CONTENT_TYPE: dict[str, str] = {
     "image/svg+xml": "svg",
     "image/x-icon": "ico",
     "image/vnd.microsoft.icon": "ico",
+    PDF_CONTENT_TYPE: "pdf",
 }
 
 # Raster photos (banners, logos, checkpoint media, team/badge images).
@@ -37,6 +41,8 @@ ALLOWED_FAVICON_CONTENT_TYPES = {
     "image/x-icon",
     "image/vnd.microsoft.icon",
 }
+# Official regulation document.
+ALLOWED_REGULATION_CONTENT_TYPES = {PDF_CONTENT_TYPE}
 
 
 async def validate_and_store(
@@ -44,14 +50,20 @@ async def validate_and_store(
     image: UploadFile,
     allowed_content_types: set[str],
     key_prefix: str,
+    max_size_bytes: int = MAX_IMAGE_SIZE_BYTES,
 ) -> str:
-    """Validate an uploaded image and store it in R2, returning its public URL.
+    """Validate an uploaded file and store it in R2, returning its public URL.
+
+    Despite the name (kept for the many existing image callers), this also
+    backs non-image uploads (e.g. the PDF regulation) via
+    ``allowed_content_types``/``max_size_bytes``.
 
     Args:
         image: The multipart upload.
         allowed_content_types: Permitted MIME types for this upload.
         key_prefix: R2 key prefix, e.g. ``"rally/checkpoint_media"``. A random
             filename is appended so uploads never collide or overwrite.
+        max_size_bytes: Size cap for this upload; defaults to the 5MB image cap.
 
     Raises:
         HTTPException 503: R2 is not configured, or the upload failed.
@@ -81,10 +93,10 @@ async def validate_and_store(
         if not chunk:
             break
         read_bytes += len(chunk)
-        if read_bytes > MAX_IMAGE_SIZE_BYTES:
+        if read_bytes > max_size_bytes:
             raise HTTPException(
                 status_code=400,
-                detail=f"File too large. Max size is {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+                detail=f"File too large. Max size is {max_size_bytes // (1024 * 1024)}MB",
             )
         chunks.append(chunk)
     data = b"".join(chunks)
