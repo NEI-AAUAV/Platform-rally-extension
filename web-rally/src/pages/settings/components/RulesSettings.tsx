@@ -2,9 +2,10 @@
  * Admin editor for the public /rules page.
  *
  * Two independent write paths, deliberately kept apart:
- *  - Section copy overrides (rules_content) are plain form fields, saved with
+ *  - The section list (rules_sections) is a plain field array, saved with
  *    the rest of the settings form (see ../index.tsx) — same as every other
- *    setting on this page.
+ *    setting on this page. Every section is fully authored here: title,
+ *    icon, and body. Nothing on /rules is hardcoded any more.
  *  - The regulation PDF is uploaded straight to R2 the moment a file is
  *    picked, mirroring the favicon/banner/logo upload pattern in
  *    admin/components/branding/BrandingSettings.tsx (self-contained
@@ -12,26 +13,127 @@
  */
 import { useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Upload, X } from "lucide-react";
+import { useFormContext, useFieldArray, useController } from "react-hook-form";
+import { FileText, GripVertical, Plus, Trash2, Upload } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { viewRallySettings, uploadRallyRulesPdf, type RallySettingsResponse } from "@/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
-import { SettingGroup, SettingTextarea } from "./SettingFields";
+import { cn } from "@/lib/utils";
+import { DEFAULT_RULE_SECTION_ICON, RULE_SECTION_ICON_OPTIONS } from "@/lib/ruleSectionIcons";
+import { SettingGroup } from "./SettingFields";
 
 const ADMIN_KEY = ["rallySettings-admin"] as const;
+const MAX_RULE_SECTIONS = 30;
+const MAX_TITLE_LENGTH = 80;
+const MAX_BODY_LENGTH = 4000;
 
-const RULES_SECTION_PLACEHOLDERS: Record<string, string> = {
-  how: "Cada equipa percorre os postos do rally. Em cada posto há uma ou mais atividades avaliadas pelo staff, que somam pontos à classificação da equipa.",
-  score:
-    "A pontuação de cada equipa resulta das atividades concluídas em cada posto. A classificação atualiza em tempo real no leaderboard.",
-  versus:
-    "Em determinados postos, equipas enfrentam-se diretamente. O resultado do confronto influencia a pontuação de ambas as equipas.",
-  badges:
-    "As equipas ganham distintivos por feitos especiais durante o rally (vitórias em versus, rapidez, liderança). Aparecem no perfil da equipa.",
-  checkin:
-    "Em alguns postos, a equipa faz check-in lendo o código QR apresentado pelo staff — ou o staff lê o código da equipa. Confirma a chegada da equipa ao posto.",
-};
+function newSectionId(): string {
+  return globalThis.crypto.randomUUID();
+}
+
+function SortableSection({
+  id,
+  index,
+  onRemove,
+}: Readonly<{ id: string; index: number; onRemove: () => void }>) {
+  const { control, register } = useFormContext();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "space-y-3 rounded-xl border border-border bg-muted/40 p-4",
+        isDragging && "opacity-60",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="shrink-0 cursor-grab touch-none text-muted-foreground"
+          aria-label="Reordenar secção"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <Input
+          aria-label="Título da secção"
+          placeholder="Título"
+          maxLength={MAX_TITLE_LENGTH}
+          {...register(`rules_sections.${index}.title`)}
+          className="flex-1 border-border bg-background"
+        />
+        <IconSelect control={control} name={`rules_sections.${index}.icon`} />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          aria-label="Remover secção"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+      <Textarea
+        aria-label="Texto da secção"
+        placeholder="Texto desta secção…"
+        rows={4}
+        maxLength={MAX_BODY_LENGTH}
+        {...register(`rules_sections.${index}.body`)}
+        className="border-border bg-background"
+      />
+    </div>
+  );
+}
+
+function IconSelect({
+  control,
+  name,
+}: Readonly<{ control: ReturnType<typeof useFormContext>["control"]; name: string }>) {
+  const { field } = useController({ control, name, defaultValue: DEFAULT_RULE_SECTION_ICON });
+  return (
+    <Select value={field.value || DEFAULT_RULE_SECTION_ICON} onValueChange={field.onChange}>
+      <SelectTrigger
+        aria-label="Ícone da secção"
+        className="w-36 shrink-0 border-border bg-background"
+      >
+        <SelectValue placeholder="Ícone" />
+      </SelectTrigger>
+      <SelectContent>
+        {RULE_SECTION_ICON_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function RulesPdfUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -119,53 +221,80 @@ function RulesPdfUpload() {
         {isPending ? "A carregar..." : currentUrl ? "Substituir" : "Carregar"}
       </Button>
       {fileName && isPending && (
-        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-          <X className="h-3 w-3" />
-          {fileName}
-        </span>
+        <span className="max-w-[10rem] truncate text-xs text-muted-foreground">{fileName}</span>
       )}
     </div>
   );
 }
 
 export default function RulesSettings() {
+  const { control } = useFormContext();
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+
+  const { fields, append, remove, move } = useFieldArray({ control, name: "rules_sections" });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = fields.findIndex((f) => f.id === active.id);
+    const newIndex = fields.findIndex((f) => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    move(oldIndex, newIndex);
+  };
+
   return (
     <div className="space-y-8">
       <SettingGroup
-        title="Texto das secções"
-        description="Substitui o texto de cada secção da página /regras. Deixar em branco mantém o texto por defeito (que inclui valores de pontuação ao vivo)."
+        title="Secções"
+        description="Cada secção da página /regras: título, ícone e texto, totalmente editáveis. Arraste para reordenar."
         icon={<FileText className="h-4 w-4" />}
       >
-        <SettingTextarea
-          name="rules_content.how"
-          label="Como funciona"
-          placeholder={RULES_SECTION_PLACEHOLDERS.how}
-          maxLength={4000}
-        />
-        <SettingTextarea
-          name="rules_content.score"
-          label="Pontuação"
-          placeholder={RULES_SECTION_PLACEHOLDERS.score}
-          maxLength={4000}
-        />
-        <SettingTextarea
-          name="rules_content.versus"
-          label="Modo Versus"
-          placeholder={RULES_SECTION_PLACEHOLDERS.versus}
-          maxLength={4000}
-        />
-        <SettingTextarea
-          name="rules_content.badges"
-          label="Distintivos"
-          placeholder={RULES_SECTION_PLACEHOLDERS.badges}
-          maxLength={4000}
-        />
-        <SettingTextarea
-          name="rules_content.checkin"
-          label="Check-in nos postos"
-          placeholder={RULES_SECTION_PLACEHOLDERS.checkin}
-          maxLength={4000}
-        />
+        <div className="space-y-3 py-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3">
+                {fields.map((field, index) => (
+                  <SortableSection
+                    key={field.id}
+                    id={field.id}
+                    index={index}
+                    onRemove={() => remove(index)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+
+          {fields.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma secção ainda — a página /regras mostra um texto inicial até criares a
+              primeira.
+            </p>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={fields.length >= MAX_RULE_SECTIONS}
+            onClick={() =>
+              append({
+                id: newSectionId(),
+                title: "",
+                icon: DEFAULT_RULE_SECTION_ICON,
+                body: "",
+              })
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar secção
+          </Button>
+          <p className="text-xs text-muted-foreground">Máximo {MAX_RULE_SECTIONS} secções.</p>
+        </div>
       </SettingGroup>
 
       <RulesPdfUpload />

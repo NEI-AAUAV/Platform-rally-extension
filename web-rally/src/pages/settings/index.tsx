@@ -150,9 +150,16 @@ const rallySettingsSchema = z.object({
   // Ticker items, edited as a field array of { value } for useFieldArray
   ticker_items_list: z.array(z.object({ value: z.string().max(40, "Máximo 40 caracteres") })),
 
-  // Admin overrides for the public /rules page copy, keyed by section id.
-  // Registered as dotted paths (rules_content.how, ...) by SettingTextarea.
-  rules_content: z.record(z.string(), z.string()).optional(),
+  // Fully admin-authored sections for the public /rules page, edited as a
+  // field array by RulesSettings (title/icon/body per section, any order).
+  rules_sections: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string().max(80, "Máximo 80 caracteres"),
+      icon: z.string(),
+      body: z.string().max(4000, "Máximo 4000 caracteres"),
+    }),
+  ),
 });
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
@@ -223,7 +230,12 @@ function buildFormValues(
       ? settings.ticker_items
       : DEFAULT_TICKER_ITEMS
     ).map((value) => ({ value })),
-    rules_content: settings.rules_content ?? {},
+    rules_sections: (settings.rules_sections ?? []).map((section) => ({
+      id: section.id,
+      title: section.title ?? "",
+      icon: section.icon ?? "HelpCircle",
+      body: section.body ?? "",
+    })),
   };
 }
 
@@ -306,7 +318,7 @@ export default function RallySettings({ embedded = false }: RallySettingsProps) 
       badges_enabled: true,
       home_layout: DEFAULT_HOME_LAYOUT,
       ticker_items_list: DEFAULT_TICKER_ITEMS.map((value) => ({ value })),
-      rules_content: {},
+      rules_sections: [],
     },
   });
 

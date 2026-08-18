@@ -11689,13 +11689,13 @@
               "PONTUA\u00c7\u00c3O"
             ]
           },
-          "rules_content": {
-            "additionalProperties": {
-              "type": "string"
+          "rules_sections": {
+            "items": {
+              "$ref": "#/components/schemas/RuleSection"
             },
-            "type": "object",
-            "title": "Rules Content",
-            "default": {}
+            "type": "array",
+            "title": "Rules Sections",
+            "default": []
           },
           "rally_start_time": {
             "anyOf": [
@@ -12033,13 +12033,13 @@
               "PONTUA\u00c7\u00c3O"
             ]
           },
-          "rules_content": {
-            "additionalProperties": {
-              "type": "string"
+          "rules_sections": {
+            "items": {
+              "$ref": "#/components/schemas/RuleSection"
             },
-            "type": "object",
-            "title": "Rules Content",
-            "default": {}
+            "type": "array",
+            "title": "Rules Sections",
+            "default": []
           }
         },
         "type": "object",
@@ -12437,6 +12437,35 @@
         ],
         "title": "RouteStatus",
         "description": "Whether the event's route as a whole is ready to run."
+      },
+      "RuleSection": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": "HelpCircle"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "RuleSection",
+        "description": "One admin-authored section of the public /rules page."
       },
       "SetTeamPhotoRequest": {
         "properties": {
