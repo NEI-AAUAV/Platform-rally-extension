@@ -46,7 +46,7 @@ test.describe("Admin Panel", () => {
     });
 
     // Navigate to admin panel
-    await page.goto("/rally/admin", { waitUntil: "networkidle" });
+    await page.goto("/rally/admin", { waitUntil: "domcontentloaded" });
     await openAdminNavIfMobile(page);
   });
 
@@ -108,7 +108,7 @@ test.describe("Admin Panel", () => {
     });
 
     // Navigate to admin panel
-    await page.goto("/rally/admin", { waitUntil: "networkidle" });
+    await page.goto("/rally/admin", { waitUntil: "domcontentloaded" });
 
     // Wait for redirect to scoreboard (React Router Navigate should trigger this)
     // Staff users (without manager-rally scope) should be redirected

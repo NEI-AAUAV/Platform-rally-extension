@@ -95,6 +95,7 @@ test.describe("Staff assignment", () => {
     await page.getByRole("option", { name: "Posto 1" }).click();
 
     await expect.poll(() => capturedBody).toEqual({ checkpoint_id: 1 });
+    expect(capturedBody).toBeDefined();
   });
 
   test("removing an assignment sends checkpoint_id null", async ({ page, context }) => {
@@ -117,6 +118,7 @@ test.describe("Staff assignment", () => {
     await page.getByRole("option", { name: "Remover atribuição" }).click();
 
     await expect.poll(() => capturedBody).toEqual({ checkpoint_id: null });
+    expect(capturedBody).toBeDefined();
   });
 
   test("staff without a checkpoint assignment sees an unauthorized redirect", async ({

@@ -63,8 +63,6 @@ test.describe("Scoreboard", () => {
       page.waitForResponse("**/api/rally/v1/rally/settings/public**").catch(() => null),
       page.waitForResponse("**/api/rally/v1/team/**").catch(() => null),
     ]);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
   });
 
   test("should display scoreboard with teams sorted by classification", async ({ page }) => {
@@ -104,8 +102,6 @@ test.describe("Scoreboard", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForResponse("**/api/rally/v1/rally/settings/public**");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
 
     // Verify disabled message
     await expect(page.getByText(/Leaderboard indisponível|indisponível/i)).toBeVisible();
@@ -122,8 +118,6 @@ test.describe("Scoreboard", () => {
     });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
 
     // Scoreboard should render without teams (no error)
     await expect(page.locator("body")).toBeVisible();
@@ -139,8 +133,6 @@ test.describe("Scoreboard", () => {
     });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
 
     // Should not crash, page should still render
     await expect(page.locator("body")).toBeVisible();

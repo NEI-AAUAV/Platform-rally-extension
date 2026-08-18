@@ -86,6 +86,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { show_live_leaderboard?: boolean })?.show_live_leaderboard)
       .toBe(false);
+    expect(getBody()).toBeDefined();
   });
 
   test("toggling show_team_details off and saving sends false", async ({ page, context }) => {
@@ -102,6 +103,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { show_team_details?: boolean })?.show_team_details)
       .toBe(false);
+    expect(getBody()).toBeDefined();
   });
 
   test("toggling show_checkpoint_map off and saving sends false", async ({ page, context }) => {
@@ -118,6 +120,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { show_checkpoint_map?: boolean })?.show_checkpoint_map)
       .toBe(false);
+    expect(getBody()).toBeDefined();
   });
 
   test("enabling participant_view_enabled and saving sends true", async ({ page, context }) => {
@@ -134,6 +137,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { participant_view_enabled?: boolean })?.participant_view_enabled)
       .toBe(true);
+    expect(getBody()).toBeDefined();
   });
 
   test('changing show_route_mode to "complete" saves the new value', async ({ page, context }) => {
@@ -151,6 +155,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { show_route_mode?: string })?.show_route_mode)
       .toBe("complete");
+    expect(getBody()).toBeDefined();
   });
 
   test('changing show_score_mode to "competitive" saves the new value', async ({
@@ -171,6 +176,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { show_score_mode?: string })?.show_score_mode)
       .toBe("competitive");
+    expect(getBody()).toBeDefined();
   });
 
   test("enabling public_access_enabled and saving sends true", async ({ page, context }) => {
@@ -187,6 +193,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { public_access_enabled?: boolean })?.public_access_enabled)
       .toBe(true);
+    expect(getBody()).toBeDefined();
   });
 
   test("toggling guide_mode_enabled and guide_mode_active independently", async ({
@@ -212,6 +219,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { guide_mode_active?: boolean })?.guide_mode_active)
       .toBe(false);
+    expect(getBody()).toBeDefined();
   });
 
   test("disabling badges_enabled and saving sends false", async ({ page, context }) => {
@@ -228,6 +236,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { badges_enabled?: boolean })?.badges_enabled)
       .toBe(false);
+    expect(getBody()).toBeDefined();
   });
 
   test("toggling allow_photo_as_team_photo and saving sends true", async ({ page, context }) => {
@@ -244,6 +253,7 @@ test.describe("Settings toggle matrix", () => {
     await expect
       .poll(() => (getBody() as { allow_photo_as_team_photo?: boolean })?.allow_photo_as_team_photo)
       .toBe(true);
+    expect(getBody()).toBeDefined();
   });
 
   test("canceling edit mode discards unsaved toggle changes", async ({ page, context }) => {

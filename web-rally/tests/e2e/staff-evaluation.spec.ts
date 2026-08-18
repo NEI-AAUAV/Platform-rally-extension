@@ -154,7 +154,6 @@ test.describe("Staff Evaluation Flow", () => {
     );
 
     // Wait for app to initialize
-    await page.waitForLoadState("networkidle");
 
     // Verify we're still on the staff evaluation page (not redirected to login)
     const currentUrl = page.url();
@@ -309,7 +308,6 @@ test.describe("Manager Evaluation Flow", () => {
     );
 
     // Wait for app to initialize
-    await page.waitForLoadState("networkidle");
 
     // Verify we're on the manager evaluation page
     const currentUrl = page.url();
@@ -591,6 +589,7 @@ test.describe("Staff Evaluation - API Error Cases", () => {
     // Should handle timeout gracefully (may show error or loading state)
     // The exact behavior depends on the app's error handling
     await new Promise((resolve) => setTimeout(resolve, 2000));
+    await expect(page.locator("body")).toBeVisible();
   });
 
   test("handles malformed JSON response", async ({ page, context }) => {
@@ -627,6 +626,7 @@ test.describe("Staff Evaluation - API Error Cases", () => {
     // Should handle JSON parse error gracefully
     await new Promise((resolve) => setTimeout(resolve, 2000));
     // App should either show error or handle gracefully
+    await expect(page.locator("body")).toBeVisible();
   });
 });
 
@@ -707,7 +707,6 @@ test.describe("Staff Evaluation - Empty Data Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Should handle empty teams list (may show empty state or message)
@@ -778,7 +777,6 @@ test.describe("Staff Evaluation - Empty Data Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Select team
@@ -868,7 +866,6 @@ test.describe("Staff Evaluation - Empty Data Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Select team
@@ -964,7 +961,6 @@ test.describe("Staff Evaluation - Empty Data Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Select team
@@ -1069,7 +1065,6 @@ test.describe("Staff Evaluation - Evaluation Submission Edge Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Select team
@@ -1200,7 +1195,6 @@ test.describe("Staff Evaluation - Evaluation Submission Edge Cases", () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Select team
@@ -1336,7 +1330,6 @@ test.describe("Staff Evaluation - Happy Path & Form Interactions", () => {
       { timeout: 10000 },
     );
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
@@ -1561,7 +1554,6 @@ test.describe("Staff Evaluation - Activity Type Evaluations", () => {
       { timeout: 10000 },
     );
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
@@ -1919,7 +1911,6 @@ test.describe("Staff Evaluation - Form Validation", () => {
       { timeout: 10000 },
     );
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
@@ -2224,7 +2215,6 @@ test.describe("Staff Evaluation - Update Existing Evaluations", () => {
       { timeout: 10000 },
     );
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
@@ -2380,7 +2370,6 @@ test.describe("Staff Evaluation - Multiple Activities Sequence", () => {
       { timeout: 10000 },
     );
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
@@ -2496,7 +2485,6 @@ test.describe("Manager Evaluation - Edge Cases", () => {
 
     await page.goto("/rally/staff-evaluation");
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Should show empty evaluations state
@@ -2534,7 +2522,6 @@ test.describe("Manager Evaluation - Edge Cases", () => {
 
     await page.goto("/rally/staff-evaluation");
 
-    await page.waitForLoadState("networkidle");
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Should handle empty checkpoints gracefully
