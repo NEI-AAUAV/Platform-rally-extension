@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Admin from '@/pages/admin/index';
@@ -108,7 +108,7 @@ describe('Admin index page', () => {
     renderWithClient(<Admin />);
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
-    expect(screen.getByText('Administração')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Administração' })).toBeInTheDocument();
     expect(screen.getByTestId('tab-dashboard')).toBeInTheDocument();
   });
 
@@ -116,7 +116,8 @@ describe('Admin index page', () => {
     mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
     renderWithClient(<Admin />);
 
-    const nav = screen.getByRole('navigation', { name: 'Secções de administração' });
+    const navs = screen.getAllByRole('navigation', { name: 'Secções de administração' });
+    const nav = navs[navs.length - 1];
     expect(nav).toBeInTheDocument();
     [
       'Dashboard',
@@ -135,7 +136,7 @@ describe('Admin index page', () => {
       'Edições',
       'Configurações',
     ].forEach((label) => {
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+      expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument();
     });
   });
 
@@ -189,10 +190,13 @@ describe('Admin index page', () => {
     mockUseSearch.mockReturnValue({ tab: 'branding' });
     renderWithClient(<Admin />);
 
-    expect(screen.getByRole('button', { name: 'Identidade' })).toHaveAttribute(
+    const nav = screen.getAllByRole('navigation', { name: 'Secções de administração' })[0];
+    expect(within(nav).getByRole('button', { name: 'Identidade' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(screen.getByRole('button', { name: 'Equipas' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).getByRole('button', { name: 'Equipas' })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 });
