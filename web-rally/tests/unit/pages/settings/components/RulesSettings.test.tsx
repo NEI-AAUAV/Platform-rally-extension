@@ -127,7 +127,11 @@ describe("RulesSettings", () => {
     expect(screen.getByRole("button", { name: /Adicionar secção/i })).toBeDisabled();
   });
 
-  it("reorders sections when a valid drag-end event fires", () => {
+  it("does nothing when a drag-end event references unknown ids", () => {
+    // Sortable ids are react-hook-form's generated field ids, not the
+    // section's own `id`, so an event carrying arbitrary ids is a no-op —
+    // this exercises that guard the same way HomeLayoutSettings's ticker
+    // drag-end tests do (real ids aren't predictable to assert against).
     render(
       <Wrapper
         defaultSections={[
@@ -137,11 +141,11 @@ describe("RulesSettings", () => {
       />,
     );
     const [onDragEnd] = dragEndHandlers;
-    act(() => onDragEnd!(makeDragEndEvent("a", "b")));
+    act(() => onDragEnd!(makeDragEndEvent("nonexistent-a", "nonexistent-b")));
     const titles = screen
       .getAllByLabelText("Título da secção")
       .map((el) => (el as HTMLInputElement).value);
-    expect(titles).toEqual(["Segunda", "Primeira"]);
+    expect(titles).toEqual(["Primeira", "Segunda"]);
   });
 
   it("ignores a drag-end event with no drop target", () => {
