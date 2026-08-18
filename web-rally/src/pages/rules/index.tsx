@@ -150,22 +150,30 @@ export default function Rules() {
       />
 
       {settings?.rules_pdf_url && (
-        <a
-          href={settings.rules_pdf_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rally-surface flex items-center gap-3 rounded-2xl p-5 transition-colors hover:bg-accent/40"
-        >
-          <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
-            <FileDown className="rally-accent h-4 w-4" />
-          </span>
-          <span className="flex-1">
-            <span className="block font-semibold text-foreground">
-              Descarregar regulamento oficial
+        <div className="rally-surface space-y-3 rounded-2xl p-5">
+          <div className="flex items-center gap-3">
+            <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+              <FileDown className="rally-accent h-4 w-4" />
             </span>
-            <span className="block text-sm text-muted-foreground">Documento completo em PDF</span>
-          </span>
-        </a>
+            <span className="flex-1">
+              <span className="block font-semibold text-foreground">Regulamento oficial</span>
+              <span className="block text-sm text-muted-foreground">Documento completo em PDF</span>
+            </span>
+            <a
+              href={settings.rules_pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rally-accent shrink-0 text-sm font-medium underline underline-offset-2"
+            >
+              Abrir numa nova aba
+            </a>
+          </div>
+          <iframe
+            src={settings.rules_pdf_url}
+            title="Regulamento oficial (PDF)"
+            className="h-[70vh] w-full rounded-xl border border-border"
+          />
+        </div>
       )}
 
       <div className="space-y-3">
