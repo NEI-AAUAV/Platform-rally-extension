@@ -29,11 +29,70 @@ DEFAULT_TICKER_ITEMS = [
 MAX_TICKER_ITEMS = 20
 MAX_TICKER_ITEM_LENGTH = 40
 
-# Canonical section keys for the public /rules page. Any rules_content entry
-# with an unknown key is dropped; missing keys simply stay absent (the
-# frontend falls back to its built-in copy for those).
-RULES_SECTION_KEYS = ("how", "score", "versus", "badges", "checkin")
-MAX_RULES_SECTION_LENGTH = 4000
+# The public /rules page is a fully admin-authored list of sections (title +
+# icon + body), not a fixed set of built-in topics. Icons are restricted to
+# this allowlist (must match the lucide-react components the frontend's
+# RULE_SECTION_ICONS map actually renders) so a bad/free-form value can never
+# reach the client as an unrenderable icon key.
+RULE_SECTION_ICONS = (
+    "HelpCircle",
+    "MapPin",
+    "Trophy",
+    "Swords",
+    "Award",
+    "QrCode",
+    "Info",
+    "Clock",
+    "Shield",
+    "Star",
+    "Flag",
+    "Users",
+    "MessageCircle",
+    "AlertTriangle",
+    "CheckCircle",
+    "Ban",
+)
+DEFAULT_RULE_SECTION_ICON = "HelpCircle"
+MAX_RULE_SECTIONS = 30
+MAX_RULE_SECTION_TITLE_LENGTH = 80
+MAX_RULE_SECTION_BODY_LENGTH = 4000
+
+
+class RuleSection(BaseModel):
+    """One admin-authored section of the public /rules page."""
+
+    id: str
+    title: str = ""
+    icon: str = DEFAULT_RULE_SECTION_ICON
+    body: str = ""
+
+
+def normalize_rule_sections(value: list[Any]) -> list[dict[str, Any]]:
+    """Trim/cap each section's text, fall back unknown icons, cap the count.
+
+    A section with a blank id is dropped (the frontend always generates one);
+    everything else is kept as authored — this list *is* the page, there is
+    no separate "unknown key" concept the way home_layout has.
+    """
+    normalized: list[dict[str, Any]] = []
+    for entry in value or []:
+        section_id = entry.get("id") if isinstance(entry, dict) else getattr(entry, "id", None)
+        if not section_id:
+            continue
+        title = entry.get("title") if isinstance(entry, dict) else getattr(entry, "title", "")
+        icon = entry.get("icon") if isinstance(entry, dict) else getattr(entry, "icon", "")
+        body = entry.get("body") if isinstance(entry, dict) else getattr(entry, "body", "")
+        normalized.append(
+            {
+                "id": str(section_id),
+                "title": str(title or "").strip()[:MAX_RULE_SECTION_TITLE_LENGTH],
+                "icon": icon if icon in RULE_SECTION_ICONS else DEFAULT_RULE_SECTION_ICON,
+                "body": str(body or "").strip()[:MAX_RULE_SECTION_BODY_LENGTH],
+            }
+        )
+        if len(normalized) >= MAX_RULE_SECTIONS:
+            break
+    return normalized
 
 
 class HomeSection(BaseModel):
@@ -78,22 +137,6 @@ def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
         if key not in seen:
             normalized.append({"key": key, "visible": True})
 
-    return normalized
-
-
-def normalize_rules_content(value: dict[str, Any]) -> dict[str, str]:
-    """Drop unknown keys, coerce to str, trim, and cap each section's length.
-
-    Empty strings are dropped too, so an admin clearing a section back out
-    reverts to the frontend's built-in default rather than persisting "".
-    """
-    normalized: dict[str, str] = {}
-    for key, text in (value or {}).items():
-        if key not in RULES_SECTION_KEYS:
-            continue
-        trimmed = str(text).strip()[:MAX_RULES_SECTION_LENGTH]
-        if trimmed:
-            normalized[key] = trimmed
     return normalized
 
 
@@ -218,14 +261,15 @@ class RallySettingsBase(BaseModel):
     # Home page ticker items, in display order
     ticker_items: list[str] = list(DEFAULT_TICKER_ITEMS)
 
-    # Admin overrides for the public /rules page copy, keyed by section id.
-    # A missing/empty key means "use the frontend's built-in default".
-    rules_content: dict[str, str] = {}
+    # Fully admin-authored sections for the public /rules page (title, icon,
+    # body), in display order. Empty means the frontend shows its built-in
+    # starter sections instead — see RulesPage.
+    rules_sections: list[RuleSection] = []
 
-    @field_validator("rules_content", mode="before")
+    @field_validator("rules_sections", mode="before")
     @classmethod
-    def _normalize_rules_content(cls, value: dict[str, Any]) -> dict[str, str]:
-        return normalize_rules_content(value)
+    def _normalize_rules_sections(cls, value: list[Any]) -> list[dict[str, Any]]:
+        return normalize_rule_sections(value)
 
     @field_validator("home_layout", mode="before")
     @classmethod

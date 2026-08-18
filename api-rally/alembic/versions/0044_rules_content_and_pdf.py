@@ -1,9 +1,9 @@
-"""rally_settings: rules_content + rules_pdf_url
+"""rally_settings: rules_sections + rules_pdf_url
 
-Adds admin-editable overrides for the public /rules page copy
-(rules_content, JSON keyed by section id) and an official regulation PDF
-URL (rules_pdf_url, written by its own R2 upload endpoint like
-banner/logo/favicon).
+Adds a fully admin-authored list of sections for the public /rules page
+(rules_sections, JSON list of {id, title, icon, body}) and an official
+regulation PDF URL (rules_pdf_url, written by its own R2 upload endpoint
+like banner/logo/favicon).
 
 Revision ID: 0044
 Revises: 0043
@@ -37,10 +37,10 @@ def upgrade() -> None:
             sa.Column("rules_pdf_url", sa.String(500), nullable=False, server_default=""),
             schema=SCHEMA,
         )
-    if not column_exists(TABLE, "rules_content", SCHEMA):
+    if not column_exists(TABLE, "rules_sections", SCHEMA):
         op.add_column(
             TABLE,
-            sa.Column("rules_content", sa.JSON(), nullable=False, server_default="{}"),
+            sa.Column("rules_sections", sa.JSON(), nullable=False, server_default="[]"),
             schema=SCHEMA,
         )
 
@@ -48,7 +48,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     if not table_exists(TABLE, SCHEMA):
         return
-    if column_exists(TABLE, "rules_content", SCHEMA):
-        op.drop_column(TABLE, "rules_content", schema=SCHEMA)
+    if column_exists(TABLE, "rules_sections", SCHEMA):
+        op.drop_column(TABLE, "rules_sections", schema=SCHEMA)
     if column_exists(TABLE, "rules_pdf_url", SCHEMA):
         op.drop_column(TABLE, "rules_pdf_url", schema=SCHEMA)

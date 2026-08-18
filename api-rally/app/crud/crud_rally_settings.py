@@ -114,7 +114,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             logo_url="",
             favicon_url="",
             rules_pdf_url="",
-            rules_content={},
+            rules_sections=[],
             # Access control
             public_access_enabled=True,
             # Home page layout

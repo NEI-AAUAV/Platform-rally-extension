@@ -173,9 +173,7 @@ class RallySettings(Base):
     # Home page ticker (marquee) items, in display order.
     ticker_items = Column(JSON, nullable=False, default=list)
 
-    # Admin overrides for the public /rules page copy, keyed by section id
-    # ("how", "score", "versus", "badges", "checkin"). An empty/missing key
-    # means "use the built-in default text" — the frontend keeps rendering
-    # its hardcoded copy (which stays live-accurate to scoring settings)
-    # until an admin explicitly overrides that section.
-    rules_content = Column(JSON, nullable=False, default=dict)
+    # Fully admin-authored sections for the public /rules page:
+    # [{"id","title","icon","body"}], in display order. Empty means the
+    # frontend falls back to its built-in starter sections.
+    rules_sections = Column(JSON, nullable=False, default=list)

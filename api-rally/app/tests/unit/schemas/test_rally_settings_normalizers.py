@@ -3,11 +3,14 @@ helpers in app.schemas.rally_settings — no test file previously covered
 these branches directly."""
 
 from app.schemas.rally_settings import (
+    DEFAULT_RULE_SECTION_ICON,
     HOME_SECTION_KEYS,
-    MAX_RULES_SECTION_LENGTH,
+    MAX_RULE_SECTION_BODY_LENGTH,
+    MAX_RULE_SECTION_TITLE_LENGTH,
+    MAX_RULE_SECTIONS,
     MAX_TICKER_ITEMS,
     normalize_home_layout,
-    normalize_rules_content,
+    normalize_rule_sections,
     normalize_ticker_items,
 )
 
@@ -71,25 +74,54 @@ def test_normalize_ticker_items_handles_none():
     assert normalize_ticker_items(None) == []
 
 
-def test_normalize_rules_content_drops_unknown_keys():
-    result = normalize_rules_content({"how": "text", "not_a_real_section": "text"})
-    assert result == {"how": "text"}
+def test_normalize_rule_sections_drops_entries_without_id():
+    result = normalize_rule_sections([{"title": "No id"}, {"id": "a", "title": "Kept"}])
+    assert len(result) == 1
+    assert result[0]["id"] == "a"
 
 
-def test_normalize_rules_content_drops_empty_values():
-    result = normalize_rules_content({"how": "  ", "score": "keep"})
-    assert result == {"score": "keep"}
+def test_normalize_rule_sections_trims_and_defaults_fields():
+    result = normalize_rule_sections([{"id": "a", "title": "  Padded  ", "body": "  Text  "}])
+    assert result[0]["title"] == "Padded"
+    assert result[0]["body"] == "Text"
+    assert result[0]["icon"] == DEFAULT_RULE_SECTION_ICON
 
 
-def test_normalize_rules_content_trims_whitespace():
-    result = normalize_rules_content({"how": "  padded text  "})
-    assert result == {"how": "padded text"}
+def test_normalize_rule_sections_falls_back_unknown_icon():
+    result = normalize_rule_sections([{"id": "a", "icon": "NotAnIcon"}])
+    assert result[0]["icon"] == DEFAULT_RULE_SECTION_ICON
 
 
-def test_normalize_rules_content_caps_length():
-    result = normalize_rules_content({"how": "x" * (MAX_RULES_SECTION_LENGTH + 100)})
-    assert len(result["how"]) == MAX_RULES_SECTION_LENGTH
+def test_normalize_rule_sections_keeps_allowed_icon():
+    result = normalize_rule_sections([{"id": "a", "icon": "Trophy"}])
+    assert result[0]["icon"] == "Trophy"
 
 
-def test_normalize_rules_content_handles_none():
-    assert normalize_rules_content(None) == {}
+def test_normalize_rule_sections_caps_title_and_body_length():
+    result = normalize_rule_sections(
+        [
+            {
+                "id": "a",
+                "title": "x" * (MAX_RULE_SECTION_TITLE_LENGTH + 50),
+                "body": "y" * (MAX_RULE_SECTION_BODY_LENGTH + 50),
+            }
+        ]
+    )
+    assert len(result[0]["title"]) == MAX_RULE_SECTION_TITLE_LENGTH
+    assert len(result[0]["body"]) == MAX_RULE_SECTION_BODY_LENGTH
+
+
+def test_normalize_rule_sections_caps_count():
+    entries = [{"id": str(i), "title": f"Section {i}"} for i in range(MAX_RULE_SECTIONS + 10)]
+    result = normalize_rule_sections(entries)
+    assert len(result) == MAX_RULE_SECTIONS
+
+
+def test_normalize_rule_sections_preserves_order():
+    entries = [{"id": "b", "title": "B"}, {"id": "a", "title": "A"}]
+    result = normalize_rule_sections(entries)
+    assert [s["id"] for s in result] == ["b", "a"]
+
+
+def test_normalize_rule_sections_handles_none():
+    assert normalize_rule_sections(None) == []

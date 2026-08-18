@@ -52,7 +52,7 @@ _SETTINGS_AUDITED_FIELDS = (
     "logo_url",
     "favicon_url",
     "rules_pdf_url",
-    "rules_content",
+    "rules_sections",
     "public_access_enabled",
     "allow_staff_registration",
     "allow_photo_as_team_photo",
