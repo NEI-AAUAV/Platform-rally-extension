@@ -178,6 +178,11 @@ function RulesPdfUpload() {
   };
 
   const currentUrl = settings?.rules_pdf_url;
+  const uploadButtonLabel = isPending
+    ? "A carregar..."
+    : currentUrl
+      ? "Substituir"
+      : "Carregar";
 
   return (
     <div className="flex items-center gap-4 rounded-xl border border-border bg-muted p-4">
@@ -218,7 +223,7 @@ function RulesPdfUpload() {
         onClick={() => inputRef.current?.click()}
       >
         <Upload className="mr-2 h-4 w-4" />
-        {isPending ? "A carregar..." : currentUrl ? "Substituir" : "Carregar"}
+        {uploadButtonLabel}
       </Button>
       {fileName && isPending && (
         <span className="max-w-[10rem] truncate text-xs text-muted-foreground">{fileName}</span>
