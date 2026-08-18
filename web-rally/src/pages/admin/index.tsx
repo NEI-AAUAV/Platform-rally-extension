@@ -29,7 +29,7 @@ import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import useClickOutside from "@/hooks/useClickOutside";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
-import { PageHeader, LoadingState } from "@/components/shared";
+import { PageHeader, LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import {
   TeamManagement,
   CheckpointManagement,
@@ -43,7 +43,8 @@ import {
   MetricsTab,
   BroadcastTab,
 } from "./components";
-import { getCheckpoints } from "@/client";
+import { getCheckpoints, getVapidPublicKey } from "@/client";
+import useRallySettings from "@/hooks/useRallySettings";
 import RallySettings from "@/pages/settings";
 import Assignment from "@/pages/assignment";
 import GuideAssignment from "@/pages/guide-assignment";
@@ -84,6 +85,29 @@ const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> =
 export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
+  const { settings } = useRallySettings();
+
+  // Web push needs a VAPID key pair configured on this deploy — with none
+  // set, /push/* 503s on every call. Same "hidden, not broken" contract as
+  // badges_enabled below: no admin surfaces a tab that can only fail.
+  const { data: vapidKey } = useQuery({
+    queryKey: ["vapidPublicKey"],
+    queryFn: async () => (await getVapidPublicKey()).data,
+    staleTime: 5 * 60 * 1000,
+  });
+  const notificationsEnabled = Boolean(vapidKey?.public_key);
+  const badgesEnabled = settings?.badges_enabled ?? true;
+  const guideModeEnabled = settings?.guide_mode_enabled ?? false;
+
+  // Tabs stay visible always — hiding them hid the reason along with the
+  // feature. The nav shows a "desativado" hint; the content area explains
+  // why and, where there's an admin switch for it, links to it.
+  const disabledTabIds = new Set<AdminTabId>([
+    ...(badgesEnabled ? [] : (["badges"] as const)),
+    ...(notificationsEnabled ? [] : (["notifications"] as const)),
+    ...(guideModeEnabled ? [] : (["guide-assignment"] as const)),
+  ]);
+
   const { tab: rawTab } = adminRoute.useSearch();
   const activeTab: AdminTabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
@@ -182,6 +206,7 @@ export default function Admin() {
             <nav aria-label="Secções de administração" className="flex-1 space-y-1 overflow-y-auto p-3">
               {TABS.map(({ id, label, icon: Icon }) => {
                 const active = activeTab === id;
+                const disabled = disabledTabIds.has(id);
                 return (
                   <button
                     key={id}
@@ -196,7 +221,12 @@ export default function Admin() {
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{label}</span>
+                    <span className="flex-1 text-left">{label}</span>
+                    {disabled && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                        desativado
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -211,6 +241,7 @@ export default function Admin() {
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
+            const disabled = disabledTabIds.has(id);
             return (
               <button
                 key={id}
@@ -225,7 +256,12 @@ export default function Admin() {
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
+                <span className="flex-1 text-left">{label}</span>
+                {disabled && (
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                    desativado
+                  </span>
+                )}
               </button>
             );
           })}
@@ -239,14 +275,28 @@ export default function Admin() {
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
           {activeTab === "branding" && <BrandingSettings />}
           {activeTab === "events" && <EventsManagement />}
-          {activeTab === "notifications" && <BroadcastTab />}
+          {activeTab === "notifications" &&
+            (notificationsEnabled ? (
+              <BroadcastTab />
+            ) : (
+              <FeatureDisabledAlert
+                featureName="envio de notificações push"
+                settingsPath="/settings"
+                reason="Sem chave VAPID configurada neste deploy — não é um interruptor de admin, exige variáveis de ambiente no servidor."
+              />
+            ))}
           {activeTab === "members" && <TeamMembers embedded />}
           {activeTab === "assignment" && <Assignment embedded />}
           {activeTab === "guide-assignment" && <GuideAssignment embedded />}
           {activeTab === "versus" && <Versus embedded />}
           {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
           {activeTab === "judging" && <DeferredJudgingTab />}
-          {activeTab === "badges" && <BadgeAdminTab />}
+          {activeTab === "badges" &&
+            (badgesEnabled ? (
+              <BadgeAdminTab />
+            ) : (
+              <FeatureDisabledAlert featureName="sistema de crachás / conquistas" settingsPath="/settings" />
+            ))}
           {activeTab === "scoring" && <DynamicScoringTab />}
           {activeTab === "settings" && <RallySettings embedded />}
           {activeTab === "audit" && <AuditLogTab />}
