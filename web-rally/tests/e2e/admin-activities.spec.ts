@@ -119,6 +119,7 @@ test.describe("Admin activities", () => {
     await page.getByRole("button", { name: /Criar$/ }).click();
 
     await expect.poll(() => (capturedBody as { name?: string })?.name).toBe("Corrida de Sacos");
+    expect(capturedBody).toBeDefined();
   });
 
   test("creates a team-vs activity with base/completion/win/draw/lose points", async ({
@@ -163,6 +164,7 @@ test.describe("Admin activities", () => {
     await expect
       .poll(() => (capturedBody as { config?: Record<string, number> })?.config?.win_points)
       .toBe(80);
+    expect(capturedBody).toBeDefined();
   });
 
   test("editing an activity pre-fills the form", async ({ page, context }) => {
@@ -207,6 +209,7 @@ test.describe("Admin activities", () => {
       .click();
 
     await expect.poll(() => deleteCalled).toBe(true);
+    expect(deleteCalled).toBe(true);
   });
 
   test("shows inline error when create fails", async ({ page, context }) => {
