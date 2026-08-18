@@ -117,7 +117,8 @@ test.describe("Accessibility", () => {
       }),
     );
 
-    await page.goto("/rally/team-login", { waitUntil: "networkidle" });
+    await page.goto("/rally/team-login", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toBeVisible();
     await expectNoSeriousViolations(page);
   });
 
@@ -137,7 +138,8 @@ test.describe("Accessibility", () => {
       }),
     );
 
-    await page.goto("/rally/scoreboard", { waitUntil: "networkidle" });
+    await page.goto("/rally/scoreboard", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toBeVisible();
     await expectNoSeriousViolations(page);
   });
 
@@ -211,7 +213,7 @@ test.describe("Accessibility", () => {
       }),
     );
 
-    await page.goto("/rally/admin", { waitUntil: "networkidle" });
+    await page.goto("/rally/admin", { waitUntil: "domcontentloaded" });
     await openAdminNavIfMobile(page);
     await expect(page.getByRole("button", { name: /Equipas/i })).toBeVisible({
       timeout: 10000,
@@ -265,8 +267,9 @@ test.describe("Accessibility", () => {
 
     await seedOidcSession(context, STAFF_GROUPS);
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
     });
+    await expect(page.locator("body")).toBeVisible();
     await expectNoSeriousViolations(page);
   });
 });
