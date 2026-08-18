@@ -86,6 +86,7 @@ test.describe("Admin events", () => {
     await expect
       .poll(() => (capturedBody as { event_type?: string })?.event_type)
       .toBe("peddy_paper");
+    expect(capturedBody).toBeDefined();
   });
 
   test("marks a non-current edition as current", async ({ page, context }) => {
@@ -106,6 +107,7 @@ test.describe("Admin events", () => {
     await page.getByRole("button", { name: "Tornar atual" }).click();
 
     await expect.poll(() => setCurrentCalled).toBe(true);
+    expect(setCurrentCalled).toBe(true);
   });
 
   test('current edition does not show "Tornar atual" and shows the Atual badge', async ({

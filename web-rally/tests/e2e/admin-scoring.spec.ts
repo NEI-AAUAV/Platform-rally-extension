@@ -91,6 +91,7 @@ test.describe("Admin scoring", () => {
         is_active: true,
         is_automatic: false,
       });
+    expect(capturedBody).toBeDefined();
   });
 
   test("lists rules with type and points", async ({ page, context }) => {
@@ -154,6 +155,7 @@ test.describe("Admin scoring", () => {
     await expect
       .poll(() => capturedBody)
       .toEqual({ team_id: 3, points: -30, reason: "Comportamento antidesportivo" });
+    expect(capturedBody).toBeDefined();
   });
 
   test("deleting an award calls the delete endpoint", async ({ page, context }) => {
@@ -179,6 +181,7 @@ test.describe("Admin scoring", () => {
     await page.getByTitle("Revogar").click();
 
     await expect.poll(() => deleteCalled).toBe(true);
+    expect(deleteCalled).toBe(true);
   });
 
   test("shows empty states for rules and awards", async ({ page, context }) => {

@@ -90,6 +90,7 @@ test.describe("Admin checkpoints", () => {
     await expect
       .poll(() => capturedBody)
       .toMatchObject({ name: "Posto Novo", arrival_radius_m: 30, order: 1 });
+    expect(capturedBody).toBeDefined();
   });
 
   test("shows empty state when no checkpoints exist", async ({ page, context }) => {
@@ -141,6 +142,7 @@ test.describe("Admin checkpoints", () => {
     await page.getByRole("button", { name: "Atualizar Checkpoint" }).click();
 
     await expect.poll(() => (capturedBody as { name?: string })?.name).toBe("Posto 1 Renomeado");
+    expect(capturedBody).toBeDefined();
   });
 
   test("deleting a checkpoint calls the delete endpoint", async ({ page, context }) => {
@@ -161,6 +163,7 @@ test.describe("Admin checkpoints", () => {
     await buttons.nth(2).click();
 
     await expect.poll(() => deleteCalled).toBe(true);
+    expect(deleteCalled).toBe(true);
   });
 
   test("duplicate order on create shows an error toast", async ({ page, context }) => {
@@ -262,5 +265,6 @@ test.describe("Admin checkpoints", () => {
     await expect
       .poll(() => (capturedBody as { hint?: string })?.hint)
       .toBe("Aponta para a estátua");
+    expect(capturedBody).toBeDefined();
   });
 });
