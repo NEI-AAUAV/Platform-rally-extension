@@ -63,6 +63,10 @@ vi.mock("@/pages/admin/components", () => ({
   DeferredJudgingTab: () => <div data-testid="tab-judging">DeferredJudgingTab</div>,
   BadgeAdminTab: () => <div data-testid="tab-badges">BadgeAdminTab</div>,
   DynamicScoringTab: () => <div data-testid="tab-scoring">DynamicScoringTab</div>,
+  AuditLogTab: () => <div data-testid="tab-audit">AuditLogTab</div>,
+  MetricsTab: () => <div data-testid="tab-metrics">MetricsTab</div>,
+  BroadcastTab: () => <div data-testid="tab-notifications">BroadcastTab</div>,
+  AdminSearch: () => <div data-testid="admin-search">AdminSearch</div>,
 }));
 
 vi.mock("@/pages/admin/components/dashboard/LiveDashboard", () => ({
