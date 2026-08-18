@@ -72,6 +72,7 @@ test.describe("Admin branding", () => {
     await expect
       .poll(() => (capturedBody as { max_teams?: number })?.max_teams)
       .toBe(MOCK_RALLY_SETTINGS.max_teams);
+    expect(capturedBody).toBeDefined();
   });
 
   test("uploading a banner without R2 configured shows a 503 error toast", async ({
