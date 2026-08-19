@@ -40,19 +40,18 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
  */
 export async function openAdminNavIfMobile(page: Page): Promise<void> {
   const trigger = page.locator('button[aria-haspopup="menu"][aria-expanded]').first();
-  const sidebar = page.locator('nav[aria-label="Secções de administração"]').first();
+  // admin/index.tsx renders TWO <nav aria-label="Secções de administração">:
+  // the drawer's (mobile) copy first in markup, nested in the same
+  // `lg:hidden` wrapper as the trigger, then the always-in-DOM desktop copy
+  // second. `.first()` here would pin to the drawer's — permanently
+  // display:none on desktop — so both locators would wait out their full
+  // timeout on every desktop call. `.last()` is the desktop one.
+  const sidebar = page.locator('nav[aria-label="Secções de administração"]').last();
 
   // Callers navigate with `waitUntil: "domcontentloaded"`, so the SPA may not
   // have hydrated yet — an immediate `isVisible()` check races the trigger's
   // first paint and silently no-ops. Wait for whichever layout settles first
   // instead (mirrors expectLoggedOutLoginCta's approach for the same race).
-  //
-  // Both elements are always in the DOM (only one is ever CSS-visible, per
-  // breakpoint) and the trigger renders before the sidebar in markup order,
-  // so `trigger.or(sidebar).first()` would deterministically resolve to the
-  // trigger — which never becomes visible on desktop — and burn the full
-  // timeout there every time. Race two independent waits instead so whichever
-  // one actually turns visible wins.
   await Promise.race([
     trigger.waitFor({ state: "visible", timeout: 20000 }),
     sidebar.waitFor({ state: "visible", timeout: 20000 }),
