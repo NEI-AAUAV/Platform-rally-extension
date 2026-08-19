@@ -39,14 +39,22 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
  * with any admin tab button so the same test body works on both projects.
  */
 export async function openAdminNavIfMobile(page: Page): Promise<void> {
-  const trigger = page.locator('button[aria-haspopup="menu"][aria-expanded]').first();
+  // `button[aria-haspopup="menu"][aria-expanded]` also matches the header's
+  // own NavGroup dropdown trigger (nav-tabs.tsx), which renders before
+  // admin/index.tsx's content in DOM order and is itself CSS-hidden below
+  // `sm`. `.first()` on the unscoped selector locks onto that header button
+  // — never the admin drawer trigger — and every wait then times out against
+  // a permanently-hidden element regardless of viewport. The admin trigger
+  // and both copies of the sections nav live inside <main>; scope to it.
+  const main = page.locator("main");
+  const trigger = main.locator('button[aria-haspopup="menu"][aria-expanded]').first();
   // admin/index.tsx renders TWO <nav aria-label="Secções de administração">:
   // the drawer's (mobile) copy first in markup, nested in the same
   // `lg:hidden` wrapper as the trigger, then the always-in-DOM desktop copy
   // second. `.first()` here would pin to the drawer's — permanently
   // display:none on desktop — so both locators would wait out their full
   // timeout on every desktop call. `.last()` is the desktop one.
-  const sidebar = page.locator('nav[aria-label="Secções de administração"]').last();
+  const sidebar = main.locator('nav[aria-label="Secções de administração"]').last();
 
   // Callers navigate with `waitUntil: "domcontentloaded"`, so the SPA may not
   // have hydrated yet — an immediate `isVisible()` check races the trigger's
