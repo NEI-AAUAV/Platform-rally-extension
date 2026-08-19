@@ -39,7 +39,19 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
  * with any admin tab button so the same test body works on both projects.
  */
 export async function openAdminNavIfMobile(page: Page): Promise<void> {
-  const trigger = page.locator('button[aria-haspopup="menu"][aria-expanded]');
+  const trigger = page.locator('button[aria-haspopup="menu"][aria-expanded]').first();
+  const sidebar = page.locator('nav[aria-label="Secções de administração"]').first();
+
+  // Callers navigate with `waitUntil: "domcontentloaded"`, so the SPA may not
+  // have hydrated yet — an immediate `isVisible()` check races the trigger's
+  // first paint and silently no-ops. Wait for whichever layout settles first
+  // instead (mirrors expectLoggedOutLoginCta's approach for the same race).
+  await trigger
+    .or(sidebar)
+    .first()
+    .waitFor({ state: "visible", timeout: 20000 })
+    .catch(() => {});
+
   if (await trigger.isVisible().catch(() => false)) {
     await trigger.click();
   }

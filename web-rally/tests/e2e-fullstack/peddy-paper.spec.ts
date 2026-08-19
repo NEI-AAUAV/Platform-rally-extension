@@ -202,10 +202,18 @@ test.describe("peddy paper", () => {
     await standAt(context, 0);
     await page.goto("/rally/team-progress");
 
-    await page.getByRole("button", { name: "Check-in GPS" }).click();
-    await expect(page.getByText(/Posto concluído|Check-in registado|Já registado/)).toBeVisible({
-      timeout: 15_000,
-    });
+    // The full API-test matrix runs alongside this job and hammers the same
+    // backend, so the first geolocation-gated check-in can land while the
+    // server is still saturated and come back as a transient error instead
+    // of the success text. Retry the click rather than failing outright —
+    // matches the read-after-write flake this suite already works around
+    // elsewhere (see helpers/nav.ts's CI-saturation note).
+    await expect(async () => {
+      await page.getByRole("button", { name: "Check-in GPS" }).click();
+      await expect(page.getByText(/Posto concluído|Check-in registado|Já registado/)).toBeVisible(
+        { timeout: 5_000 },
+      );
+    }).toPass({ timeout: 20_000 });
 
     // Reaching the post is what buys the reveal: the completed checkpoint now
     // comes back whole, and the next riddle takes its place.
