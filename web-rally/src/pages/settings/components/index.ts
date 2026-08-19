@@ -6,4 +6,5 @@ export { default as SearchAidsSettings } from "./SearchAidsSettings";
 export { default as RouteRulesSettings } from "./RouteRulesSettings";
 export { default as DisplaySettings } from "./DisplaySettings";
 export { default as HomeLayoutSettings } from "./HomeLayoutSettings";
+export { default as RulesSettings } from "./RulesSettings";
 export { default as EventModeBanner } from "./EventModeBanner";

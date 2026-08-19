@@ -10,3 +10,4 @@ export { default as DynamicScoringTab } from "./judging/DynamicScoringTab";
 export { default as AuditLogTab } from "./audit/AuditLogTab";
 export { default as MetricsTab } from "./audit/MetricsTab";
 export { default as BroadcastTab } from "./notifications/BroadcastTab";
+export { default as AdminSearch } from "./AdminSearch";

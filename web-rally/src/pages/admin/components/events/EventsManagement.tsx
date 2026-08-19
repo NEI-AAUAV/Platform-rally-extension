@@ -345,7 +345,7 @@ export default function EventsManagement() {
         <div className="rally-surface rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
+              <div data-admin-search-key="ev-name" className="space-y-1.5">
                 <Label htmlFor="ev-name">Nome</Label>
                 <Input
                   id="ev-name"
@@ -355,7 +355,7 @@ export default function EventsManagement() {
                   required
                 />
               </div>
-              <div className="space-y-1.5">
+              <div data-admin-search-key="ev-type" className="space-y-1.5">
                 <Label htmlFor="ev-type">Tipo</Label>
                 <Select
                   value={form.event_type}
@@ -373,7 +373,7 @@ export default function EventsManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div data-admin-search-key="ev-start" className="space-y-1.5">
                 <Label htmlFor="ev-start">Início</Label>
                 <Input
                   id="ev-start"
@@ -382,7 +382,7 @@ export default function EventsManagement() {
                   onChange={(e) => setForm({ ...form, start_time: e.target.value })}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div data-admin-search-key="ev-end" className="space-y-1.5">
                 <Label htmlFor="ev-end">Fim</Label>
                 <Input
                   id="ev-end"
@@ -392,7 +392,7 @@ export default function EventsManagement() {
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div data-admin-search-key="ev-desc" className="space-y-1.5">
               <Label htmlFor="ev-desc">Descrição</Label>
               <Input
                 id="ev-desc"

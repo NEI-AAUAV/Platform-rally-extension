@@ -1,5 +1,6 @@
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import {
   Users,
   MapPin,
@@ -19,11 +20,16 @@ import {
   History,
   Gauge,
   BellRing,
+  Menu,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { PageHeader, LoadingState } from "@/components/shared";
+import useClickOutside from "@/hooks/useClickOutside";
+import { useBackDismiss } from "@/hooks/useBackDismiss";
+import { PageHeader, LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import {
   TeamManagement,
   CheckpointManagement,
@@ -36,8 +42,12 @@ import {
   AuditLogTab,
   MetricsTab,
   BroadcastTab,
+  AdminSearch,
 } from "./components";
-import { getCheckpoints } from "@/client";
+import { getCheckpoints, getVapidPublicKey } from "@/client";
+import useRallySettings from "@/hooks/useRallySettings";
+import { type AdminSearchEntry } from "@/lib/adminSearchIndex";
+import { useScrollToSearchTarget } from "@/hooks/useScrollToSearchTarget";
 import RallySettings from "@/pages/settings";
 import Assignment from "@/pages/assignment";
 import GuideAssignment from "@/pages/guide-assignment";
@@ -78,10 +88,57 @@ const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> =
 export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
   const fallbackPath = useFallbackNavigation();
+  const { settings } = useRallySettings();
+
+  // Web push needs a VAPID key pair configured on this deploy — with none
+  // set, /push/* 503s on every call. Same "hidden, not broken" contract as
+  // badges_enabled below: no admin surfaces a tab that can only fail.
+  const { data: vapidKey } = useQuery({
+    queryKey: ["vapidPublicKey"],
+    queryFn: async () => (await getVapidPublicKey()).data,
+    staleTime: 5 * 60 * 1000,
+  });
+  const notificationsEnabled = Boolean(vapidKey?.public_key);
+  const badgesEnabled = settings?.badges_enabled ?? true;
+  const guideModeEnabled = settings?.guide_mode_enabled ?? false;
+
+  // Tabs stay visible always — hiding them hid the reason along with the
+  // feature. The nav shows a "desativado" hint; the content area explains
+  // why and, where there's an admin switch for it, links to it.
+  const disabledTabIds = new Set<AdminTabId>([
+    ...(badgesEnabled ? [] : (["badges"] as const)),
+    ...(notificationsEnabled ? [] : (["notifications"] as const)),
+    ...(guideModeEnabled ? [] : (["guide-assignment"] as const)),
+  ]);
+
   const { tab: rawTab } = adminRoute.useSearch();
   const activeTab: AdminTabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
+  const activeTabMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0]!;
+
+  // A search result switches tab and, where the field has a DOM anchor, asks
+  // the scroll hook to find and highlight it once the new tab has rendered.
+  // The "settings" tab nests its own section switcher, so that case is handed
+  // off to RallySettings instead of resolved here.
+  const [pendingSearchKey, setPendingSearchKey] = useState<string | null>(null);
+  const handleSearchSelect = (entry: AdminSearchEntry) => {
+    setActiveTab(entry.tabId);
+    setPendingSearchKey(entry.tabOnly ? null : entry.key);
+  };
+  useScrollToSearchTarget(activeTab === "settings" ? null : pendingSearchKey, () =>
+    setPendingSearchKey(null),
+  );
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDialogElement>(null);
+  useClickOutside(drawerRef, isDrawerOpen, () => setIsDrawerOpen(false));
+  useBackDismiss(isDrawerOpen, () => setIsDrawerOpen(false));
+
+  const selectTab = (id: AdminTabId) => {
+    setActiveTab(id);
+    setIsDrawerOpen(false);
+  };
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -109,14 +166,103 @@ export default function Admin() {
         description="Gerir equipas, postos, atividades, identidade visual e edições do rally."
       />
 
+      <AdminSearch onSelect={handleSearchSelect} />
+
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        {/* Sidebar nav (desktop) / pill strip (mobile) */}
+        {/* Mobile: current-tab bar that opens a drawer with all sections */}
+        <div className="lg:hidden">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            aria-haspopup="menu"
+            aria-expanded={isDrawerOpen}
+            className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
+          >
+            <Menu className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <activeTabMeta.icon className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">{activeTabMeta.label}</span>
+          </button>
+
+          {isDrawerOpen && (
+            <div
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsDrawerOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          <dialog
+            ref={drawerRef}
+            open={isDrawerOpen || undefined}
+            aria-modal="true"
+            aria-label="Secções de administração"
+            className={cn(
+              "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
+              isDrawerOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
+            )}
+            style={{
+              paddingTop: "max(20px, var(--safe-top))",
+              paddingBottom: "calc(var(--safe-bottom) + var(--rally-tabbar-height))",
+              paddingRight: "var(--safe-right)",
+              paddingLeft: "var(--safe-left)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <span className="rally-display truncate text-sm font-black uppercase tracking-tight text-popover-foreground">
+                Administração
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(false)}
+                aria-label="Fechar menu"
+                className="-m-2 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav
+              aria-label="Secções de administração"
+              className="flex-1 space-y-1 overflow-y-auto p-3"
+            >
+              {TABS.map(({ id, label, icon: Icon }) => {
+                const active = activeTab === id;
+                const disabled = disabledTabIds.has(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => selectTab(id)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "rally-press flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+                      active
+                        ? "rally-bg-accent text-white"
+                        : "text-foreground/80 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 text-left">{label}</span>
+                    {disabled && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                        desativado
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </dialog>
+        </div>
+
+        {/* Desktop: vertical sticky sidebar */}
         <nav
           aria-label="Secções de administração"
-          className="rally-surface flex gap-1 overflow-x-auto p-1.5 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible"
+          className="rally-surface hidden gap-1 p-1.5 lg:sticky lg:top-24 lg:flex lg:flex-col"
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
+            const disabled = disabledTabIds.has(id);
             return (
               <button
                 key={id}
@@ -124,14 +270,19 @@ export default function Admin() {
                 onClick={() => setActiveTab(id)}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "rally-press flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors sm:gap-2.5 sm:px-3.5 sm:text-sm lg:w-full",
+                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
                   active
                     ? "rally-bg-accent text-white"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
+                <span className="flex-1 text-left">{label}</span>
+                {disabled && (
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                    desativado
+                  </span>
+                )}
               </button>
             );
           })}
@@ -145,16 +296,39 @@ export default function Admin() {
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
           {activeTab === "branding" && <BrandingSettings />}
           {activeTab === "events" && <EventsManagement />}
-          {activeTab === "notifications" && <BroadcastTab />}
+          {activeTab === "notifications" &&
+            (notificationsEnabled ? (
+              <BroadcastTab />
+            ) : (
+              <FeatureDisabledAlert
+                featureName="envio de notificações push"
+                settingsPath="/settings"
+                reason="Sem chave VAPID configurada neste deploy — não é um interruptor de admin, exige variáveis de ambiente no servidor."
+              />
+            ))}
           {activeTab === "members" && <TeamMembers embedded />}
           {activeTab === "assignment" && <Assignment embedded />}
           {activeTab === "guide-assignment" && <GuideAssignment embedded />}
           {activeTab === "versus" && <Versus embedded />}
           {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
           {activeTab === "judging" && <DeferredJudgingTab />}
-          {activeTab === "badges" && <BadgeAdminTab />}
+          {activeTab === "badges" &&
+            (badgesEnabled ? (
+              <BadgeAdminTab />
+            ) : (
+              <FeatureDisabledAlert
+                featureName="sistema de crachás / conquistas"
+                settingsPath="/settings"
+              />
+            ))}
           {activeTab === "scoring" && <DynamicScoringTab />}
-          {activeTab === "settings" && <RallySettings embedded />}
+          {activeTab === "settings" && (
+            <RallySettings
+              embedded
+              searchTargetKey={pendingSearchKey}
+              onSearchTargetHandled={() => setPendingSearchKey(null)}
+            />
+          )}
           {activeTab === "audit" && <AuditLogTab />}
           {activeTab === "metrics" && <MetricsTab />}
         </div>

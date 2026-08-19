@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect } from "@playwright/test";
 
 /**
  * SSE endpoints the app opens via EventSource. These connections never
@@ -7,10 +7,7 @@ import { test as base, expect } from '@playwright/test';
  * close the source on error, so aborting the request is enough to shut the
  * subsystem down without a reconnect loop.
  */
-const SSE_ROUTES = [
-  '**/api/rally/v1/events/stream**',
-  '**/api/rally/v1/scoreboard/stream**',
-];
+const SSE_ROUTES = ["**/api/rally/v1/events/stream**", "**/api/rally/v1/scoreboard/stream**"];
 
 /**
  * The mocked e2e suite's `test`. Identical to Playwright's, except every page

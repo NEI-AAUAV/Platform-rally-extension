@@ -113,6 +113,8 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             banner_url="",
             logo_url="",
             favicon_url="",
+            rules_pdf_url="",
+            rules_sections=[],
             # Access control
             public_access_enabled=True,
             # Home page layout
@@ -208,7 +210,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         Kept separate from update() so image URLs are only ever written by the
         R2 upload endpoints, never by a plain settings PUT.
         """
-        if field not in ("banner_url", "logo_url", "favicon_url"):
+        if field not in ("banner_url", "logo_url", "favicon_url", "rules_pdf_url"):
             raise ValueError(f"Unsupported branding image field: {field}")
 
         settings = await self.get_or_create(db)

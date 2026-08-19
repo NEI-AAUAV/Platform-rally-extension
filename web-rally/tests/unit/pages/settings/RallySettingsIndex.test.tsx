@@ -65,6 +65,7 @@ vi.mock("@/pages/settings/components", () => ({
   SearchAidsSettings: () => <div>SearchAidsSettings</div>,
   RouteRulesSettings: () => <div>RouteRulesSettings</div>,
   HomeLayoutSettings: () => <div>HomeLayoutSettings</div>,
+  RulesSettings: () => <div>RulesSettings</div>,
   EventModeBanner: () => <div>EventModeBanner</div>,
 }));
 

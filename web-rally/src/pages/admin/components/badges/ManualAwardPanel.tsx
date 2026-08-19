@@ -60,7 +60,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1">
+        <label data-admin-search-key="award_manual_team" className="space-y-1">
           <span className="text-xs text-muted-foreground">Equipa</span>
           <Select value={teamId || undefined} onValueChange={setTeamId}>
             <SelectTrigger>
@@ -75,7 +75,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
             </SelectContent>
           </Select>
         </label>
-        <label className="space-y-1">
+        <label data-admin-search-key="award_manual_badge" className="space-y-1">
           <span className="text-xs text-muted-foreground">Crachá</span>
           <Select value={badgeCode || undefined} onValueChange={setBadgeCode}>
             <SelectTrigger>

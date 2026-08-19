@@ -1,30 +1,55 @@
-import { test, expect } from './fixtures';
-import type { Page } from '@playwright/test';
-import { seedOidcSession, STAFF_GROUPS } from './helpers/session';
-import { MOCK_CHECKPOINT, MOCK_TEAM, MOCK_RALLY_SETTINGS, MOCK_BOOLEAN_ACTIVITY } from '../mocks/data';
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+import { seedOidcSession, STAFF_GROUPS } from "./helpers/session";
+import {
+  MOCK_CHECKPOINT,
+  MOCK_TEAM,
+  MOCK_RALLY_SETTINGS,
+  MOCK_BOOLEAN_ACTIVITY,
+} from "../mocks/data";
 
 async function setupEvaluationPage(page: Page): Promise<() => number> {
-  await page.route('**/api/rally/v1/rally/settings/public**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_RALLY_SETTINGS) }),
+  await page.route("**/api/rally/v1/rally/settings/public**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_RALLY_SETTINGS),
+    }),
   );
-  await page.route('**/api/rally/v1/checkpoint/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_CHECKPOINT]) }),
+  await page.route("**/api/rally/v1/checkpoint/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([MOCK_CHECKPOINT]),
+    }),
   );
-  await page.route('**/api/rally/v1/team/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([MOCK_TEAM]) }),
+  await page.route("**/api/rally/v1/team/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([MOCK_TEAM]),
+    }),
   );
-  await page.route('**/api/rally/v1/activities/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ activities: [MOCK_BOOLEAN_ACTIVITY], total: 1, page: 1, size: 100 }) }),
+  await page.route("**/api/rally/v1/activities/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ activities: [MOCK_BOOLEAN_ACTIVITY], total: 1, page: 1, size: 100 }),
+    }),
   );
-  await page.route('**/api/rally/v1/staff/my-checkpoint', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_CHECKPOINT) }),
+  await page.route("**/api/rally/v1/staff/my-checkpoint", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_CHECKPOINT),
+    }),
   );
-  await page.route('**/api/rally/v1/staff/teams/*/activities**', (route) => {
+  await page.route("**/api/rally/v1/staff/teams/*/activities**", (route) => {
     const url = route.request().url();
-    if (url.includes('/evaluate')) return route.fallback();
+    if (url.includes("/evaluate")) return route.fallback();
     return route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify({
         team: MOCK_TEAM,
         activities: [MOCK_BOOLEAN_ACTIVITY],
@@ -45,15 +70,15 @@ async function setupEvaluationPage(page: Page): Promise<() => number> {
 
   let evaluateCallCount = 0;
   const seenKeys = new Set<string>();
-  await page.route('**/api/rally/v1/staff/teams/*/activities/*/evaluate**', async (route) => {
+  await page.route("**/api/rally/v1/staff/teams/*/activities/*/evaluate**", async (route) => {
     evaluateCallCount += 1;
-    const key = route.request().headers()['idempotency-key'];
+    const key = route.request().headers()["idempotency-key"];
     if (key) seenKeys.add(key);
     // Simulate realistic latency so a double-click has a window to race.
     await new Promise((resolve) => setTimeout(resolve, 400));
     await route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify({
         id: 1,
         activity_id: MOCK_BOOLEAN_ACTIVITY.id,
@@ -77,24 +102,29 @@ async function setupEvaluationPage(page: Page): Promise<() => number> {
   return () => evaluateCallCount;
 }
 
-test.describe('Idempotency', () => {
-  test('double-clicking submit on an evaluation form only fires one network request', async ({
+test.describe("Idempotency", () => {
+  test("double-clicking submit on an evaluation form only fires one network request", async ({
     page,
     context,
   }, testInfo) => {
     // Desktop-viewport interaction test (button placement/click precision) —
     // not asserting anything visual, so the mobile project's smaller viewport
     // adds no signal, just layout-driven flakiness (menu overlay intercepts).
-    test.skip(testInfo.project.name === 'mobile', 'Desktop-only: not a visual/layout test');
+    test.skip(testInfo.project.name === "mobile", "Desktop-only: not a visual/layout test");
     await seedOidcSession(context, STAFF_GROUPS);
     const getCallCount = await setupEvaluationPage(page);
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${MOCK_CHECKPOINT.id}`);
     await page.getByText(MOCK_TEAM.name).first().click();
 
-    await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+    await page
+      .getByRole("button", { name: /avaliar|evaluate/i })
+      .first()
+      .click();
 
-    const submitButton = page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i });
+    const submitButton = page.getByRole("button", {
+      name: /submit evaluation|submeter avaliação|atualizar avaliação/i,
+    });
     await expect(submitButton).toBeVisible();
 
     // First click starts the (slow, mocked) submit; the button disables

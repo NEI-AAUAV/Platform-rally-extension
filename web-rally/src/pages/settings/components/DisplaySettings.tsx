@@ -5,7 +5,9 @@
  * guide-mode gates read as unrelated to each other, and the access switch sat
  * between feature kill-switches. Grouped by who is looking and at what.
  */
-import { Lock, Map, Puzzle, Trophy } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { BellRing, Lock, Map, Puzzle, Trophy } from "lucide-react";
+import { getVapidPublicKey } from "@/client";
 import { SettingGroup, SettingSelect, SettingSwitch } from "./SettingFields";
 
 type DisplaySettingsProps = Readonly<{
@@ -24,6 +26,16 @@ const SCORE_MODE_OPTIONS = [
 ] as const;
 
 export default function DisplaySettings({ className = "" }: DisplaySettingsProps) {
+  // Push notifications have no admin switch — they're gated by a VAPID key
+  // pair set at deploy time, not a per-event setting. Surface that status
+  // here so a manager who can't find the "Anúncios" admin tab knows why.
+  const { data: vapidKey } = useQuery({
+    queryKey: ["vapidPublicKey"],
+    queryFn: async () => (await getVapidPublicKey()).data,
+    staleTime: 5 * 60 * 1000,
+  });
+  const notificationsEnabled = Boolean(vapidKey?.public_key);
+
   return (
     <div className={className}>
       <div className="space-y-8">
@@ -89,7 +101,7 @@ export default function DisplaySettings({ className = "" }: DisplaySettingsProps
           <SettingSwitch
             name="guide_mode_enabled"
             label="Ativar funcionalidade de modo guia"
-            help="Liga o módulo. Sem isto, o interruptor abaixo não tem efeito."
+            help="Liga o módulo. Sem isto, o interruptor abaixo não tem efeito, e o separador 'Guias' desaparece do admin."
           />
           <SettingSwitch
             name="guide_mode_active"
@@ -99,8 +111,17 @@ export default function DisplaySettings({ className = "" }: DisplaySettingsProps
           <SettingSwitch
             name="badges_enabled"
             label="Ativar crachás / conquistas"
+            help="Desligado: separador 'Crachás' desaparece do admin, e a navegação/páginas de crachás desaparecem para as equipas."
             defaultValue={true}
           />
+          <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Notificações push: {notificationsEnabled ? "ativas" : "desligadas"} — controladas por
+              chave VAPID no deploy, não por este ecrã. Desligadas: separador &quot;Anúncios&quot;
+              desaparece do admin.
+            </span>
+          </div>
           <SettingSwitch
             name="allow_photo_as_team_photo"
             label="Permitir staff definir foto de atividade como foto da equipa"

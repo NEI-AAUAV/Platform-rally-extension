@@ -29,6 +29,80 @@ DEFAULT_TICKER_ITEMS = [
 MAX_TICKER_ITEMS = 20
 MAX_TICKER_ITEM_LENGTH = 40
 
+# The public /rules page is a fully admin-authored list of sections (title +
+# icon + body), not a fixed set of built-in topics. Icons are restricted to
+# this allowlist (must match the lucide-react components the frontend's
+# RULE_SECTION_ICONS map actually renders) so a bad/free-form value can never
+# reach the client as an unrenderable icon key.
+RULE_SECTION_ICONS = (
+    "HelpCircle",
+    "MapPin",
+    "Trophy",
+    "Swords",
+    "Award",
+    "QrCode",
+    "Info",
+    "Clock",
+    "Shield",
+    "Star",
+    "Flag",
+    "Users",
+    "MessageCircle",
+    "AlertTriangle",
+    "CheckCircle",
+    "Ban",
+)
+DEFAULT_RULE_SECTION_ICON = "HelpCircle"
+MAX_RULE_SECTIONS = 30
+MAX_RULE_SECTION_TITLE_LENGTH = 80
+MAX_RULE_SECTION_BODY_LENGTH = 4000
+
+
+class RuleSection(BaseModel):
+    """One admin-authored section of the public /rules page."""
+
+    id: str
+    title: str = ""
+    icon: str = DEFAULT_RULE_SECTION_ICON
+    body: str = ""
+
+
+def _field(entry: Any, name: str, default: Any = "") -> Any:
+    """Read `name` off a dict-or-object entry, dict form winning."""
+    return entry.get(name) if isinstance(entry, dict) else getattr(entry, name, default)
+
+
+def _normalize_rule_section(entry: Any) -> dict[str, Any] | None:
+    """Build one normalized section dict, or None if it has no id."""
+    section_id = _field(entry, "id", None)
+    if not section_id:
+        return None
+    icon = _field(entry, "icon")
+    return {
+        "id": str(section_id),
+        "title": str(_field(entry, "title") or "").strip()[:MAX_RULE_SECTION_TITLE_LENGTH],
+        "icon": icon if icon in RULE_SECTION_ICONS else DEFAULT_RULE_SECTION_ICON,
+        "body": str(_field(entry, "body") or "").strip()[:MAX_RULE_SECTION_BODY_LENGTH],
+    }
+
+
+def normalize_rule_sections(value: list[Any]) -> list[dict[str, Any]]:
+    """Trim/cap each section's text, fall back unknown icons, cap the count.
+
+    A section with a blank id is dropped (the frontend always generates one);
+    everything else is kept as authored — this list *is* the page, there is
+    no separate "unknown key" concept the way home_layout has.
+    """
+    normalized: list[dict[str, Any]] = []
+    for entry in value or []:
+        section = _normalize_rule_section(entry)
+        if section is None:
+            continue
+        normalized.append(section)
+        if len(normalized) >= MAX_RULE_SECTIONS:
+            break
+    return normalized
+
 
 class HomeSection(BaseModel):
     key: str
@@ -196,6 +270,16 @@ class RallySettingsBase(BaseModel):
     # Home page ticker items, in display order
     ticker_items: list[str] = list(DEFAULT_TICKER_ITEMS)
 
+    # Fully admin-authored sections for the public /rules page (title, icon,
+    # body), in display order. Empty means the frontend shows its built-in
+    # starter sections instead — see RulesPage.
+    rules_sections: list[RuleSection] = []
+
+    @field_validator("rules_sections", mode="before")
+    @classmethod
+    def _normalize_rules_sections(cls, value: list[Any]) -> list[dict[str, Any]]:
+        return normalize_rule_sections(value)
+
     @field_validator("home_layout", mode="before")
     @classmethod
     def _normalize_home_layout(cls, value: list[Any]) -> list[dict[str, Any]]:
@@ -248,3 +332,4 @@ class RallySettingsResponse(RallySettingsBase):
     banner_url: str = ""
     logo_url: str = ""
     favicon_url: str = ""
+    rules_pdf_url: str = ""

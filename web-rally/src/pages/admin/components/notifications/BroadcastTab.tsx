@@ -52,7 +52,7 @@ export default function BroadcastTab() {
       </p>
 
       <form onSubmit={handleSubmit} className="rally-surface space-y-4 p-4">
-        <label className="block space-y-1">
+        <label data-admin-search-key="broadcast_title" className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Título</span>
           <Input
             value={title}
@@ -63,7 +63,7 @@ export default function BroadcastTab() {
           />
         </label>
 
-        <label className="block space-y-1">
+        <label data-admin-search-key="broadcast_message" className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">Mensagem</span>
           <textarea
             value={body}
@@ -75,7 +75,7 @@ export default function BroadcastTab() {
           />
         </label>
 
-        <label className="block space-y-1">
+        <label data-admin-search-key="broadcast_link" className="block space-y-1">
           <span className="text-xs font-medium text-muted-foreground">
             Link ao clicar (opcional)
           </span>

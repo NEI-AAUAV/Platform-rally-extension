@@ -64,6 +64,9 @@ class RallySettings(Base):
     banner_url = Column(String(500), nullable=False, default="")
     logo_url = Column(String(500), nullable=False, default="")
     favicon_url = Column(String(500), nullable=False, default="")
+    # PDF regulation, written by its own R2 upload endpoint (same pattern as
+    # the branding images above), not the settings PUT.
+    rules_pdf_url = Column(String(500), nullable=False, default="")
 
     # Visual-identity axes (applied live). Presettable independently of the
     # accent so identities compose (e.g. green accent + blood buttons).
@@ -169,3 +172,8 @@ class RallySettings(Base):
 
     # Home page ticker (marquee) items, in display order.
     ticker_items = Column(JSON, nullable=False, default=list)
+
+    # Fully admin-authored sections for the public /rules page:
+    # [{"id","title","icon","body"}], in display order. Empty means the
+    # frontend falls back to its built-in starter sections.
+    rules_sections = Column(JSON, nullable=False, default=list)

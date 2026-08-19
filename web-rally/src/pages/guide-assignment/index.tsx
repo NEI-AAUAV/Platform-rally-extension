@@ -2,7 +2,8 @@ import { Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { LoadingState, PageHeader } from "@/components/shared";
+import useRallySettings from "@/hooks/useRallySettings";
+import { FeatureDisabledAlert, LoadingState, PageHeader } from "@/components/shared";
 import { Compass } from "lucide-react";
 import { GuideAssignmentList, AssignmentForm } from "@/pages/assignment/components";
 import {
@@ -30,6 +31,7 @@ interface GuideAssignmentProps {
 export default function GuideAssignment({ embedded = false }: GuideAssignmentProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
+  const { settings } = useRallySettings();
 
   const { data: teams } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
@@ -84,6 +86,10 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
 
   if (!embedded && !isRallyAdmin) {
     return <Navigate to={fallbackPath} />;
+  }
+
+  if (!settings?.guide_mode_enabled) {
+    return <FeatureDisabledAlert featureName="modo guia" settingsPath="/settings" />;
   }
 
   const rallyGuideAssignments: GuideAssignment[] = (guideAssignments || []).map((assignment) => ({

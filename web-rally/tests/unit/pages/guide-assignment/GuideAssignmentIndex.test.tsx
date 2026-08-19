@@ -22,6 +22,10 @@ vi.mock('@/hooks/useUser', () => ({
   default: () => mockUseUser(),
 }));
 
+vi.mock('@/hooks/useRallySettings', () => ({
+  default: () => ({ settings: { guide_mode_enabled: true } }),
+}));
+
 vi.mock('@/hooks/useFallbackNavigation', () => ({
   default: () => '/',
 }));
@@ -33,6 +37,9 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/components/shared', () => ({
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
   PageHeader: ({ title }: { title: string }) => <div>{title}</div>,
+  FeatureDisabledAlert: ({ featureName }: { featureName: string }) => (
+    <div>{featureName} desativado</div>
+  ),
 }));
 
 vi.mock('@/client', () => ({

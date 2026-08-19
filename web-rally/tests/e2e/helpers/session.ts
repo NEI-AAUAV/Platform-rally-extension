@@ -1,4 +1,4 @@
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext } from "@playwright/test";
 
 /**
  * Seed a signed-in OIDC session for e2e tests.
@@ -11,35 +11,35 @@ import type { BrowserContext } from '@playwright/test';
 export async function seedOidcSession(
   context: BrowserContext,
   groups: string[],
-  accessToken = 'e2e-access-token',
+  accessToken = "e2e-access-token",
 ) {
   await context.addInitScript(
     ([token, gs]) => {
       const now = Math.floor(Date.now() / 1000);
       const user = {
         access_token: token,
-        token_type: 'Bearer',
+        token_type: "Bearer",
         profile: {
-          sub: 'e2e-user-1',
-          name: 'E2E User',
-          email: 'e2e@ua.pt',
+          sub: "e2e-user-1",
+          name: "E2E User",
+          email: "e2e@ua.pt",
           groups: gs,
-          iss: '',
-          aud: '',
+          iss: "",
+          aud: "",
           exp: now + 3600,
           iat: now,
         },
         expires_at: now + 3600,
-        scope: 'openid profile email',
+        scope: "openid profile email",
       };
-      localStorage.setItem('oidc.user::', JSON.stringify(user));
+      localStorage.setItem("oidc.user::", JSON.stringify(user));
     },
     [accessToken, groups] as [string, string[]],
   );
 }
 
 /** Groups matching the default VITE_OIDC_*_GROUP names. */
-export const STAFF_GROUPS = ['rally-staff'];
-export const MANAGER_GROUPS = ['manager-rally'];
-export const ADMIN_GROUPS = ['admin'];
-export const GUIDE_GROUPS = ['rally-guide'];
+export const STAFF_GROUPS = ["rally-staff"];
+export const MANAGER_GROUPS = ["manager-rally"];
+export const ADMIN_GROUPS = ["admin"];
+export const GUIDE_GROUPS = ["rally-guide"];

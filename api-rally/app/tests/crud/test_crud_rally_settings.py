@@ -141,6 +141,15 @@ class TestSetImageUrl:
 
         assert updated.banner_url == "https://r2/banner.png"
 
+    async def test_sets_rules_pdf_url(self, pg_session):
+        await _make_event(pg_session)
+
+        updated = await rally_settings.set_image_url(
+            pg_session, field="rules_pdf_url", url="https://r2/regulamento.pdf"
+        )
+
+        assert updated.rules_pdf_url == "https://r2/regulamento.pdf"
+
     async def test_rejects_unsupported_field(self, pg_session):
         await _make_event(pg_session)
 

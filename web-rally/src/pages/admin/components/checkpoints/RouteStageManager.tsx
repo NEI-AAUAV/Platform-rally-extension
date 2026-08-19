@@ -104,7 +104,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
         ligada, em Definições.
       </p>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div data-admin-search-key="new_stage_name" className="mb-4 flex flex-wrap gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}

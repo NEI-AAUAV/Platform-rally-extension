@@ -351,7 +351,7 @@ export default function BrandingSettings() {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+          <div data-admin-search-key="event_name" className="space-y-2">
             <Label htmlFor="event_name">Nome do evento</Label>
             <Input
               id="event_name"
@@ -362,7 +362,7 @@ export default function BrandingSettings() {
               className="border-border bg-muted"
             />
           </div>
-          <div className="space-y-2">
+          <div data-admin-search-key="event_subtitle" className="space-y-2">
             <Label htmlFor="event_subtitle">Subtítulo</Label>
             <Input
               id="event_subtitle"
@@ -375,7 +375,7 @@ export default function BrandingSettings() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div data-admin-search-key="accent_color" className="space-y-2">
           <Label htmlFor="accent_color">Cor de destaque</Label>
           <div className="flex items-center gap-3">
             <Input

@@ -80,7 +80,7 @@ function RulesSection() {
       {showForm && (
         <div className="rally-surface space-y-3 p-4">
           <div className="grid grid-cols-2 gap-3">
-            <label className="space-y-1">
+            <label data-admin-search-key="rule_name" className="space-y-1">
               <span className="text-xs text-muted-foreground">Nome *</span>
               <input
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -89,7 +89,7 @@ function RulesSection() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="rule_type" className="space-y-1">
               <span className="text-xs text-muted-foreground">Tipo</span>
               <select
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -102,7 +102,7 @@ function RulesSection() {
                 <option value="custom">Personalizado</option>
               </select>
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="rule_points" className="space-y-1">
               <span className="text-xs text-muted-foreground">Pontos *</span>
               <input
                 type="number"
@@ -112,7 +112,7 @@ function RulesSection() {
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
               />
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="rule_description" className="space-y-1">
               <span className="text-xs text-muted-foreground">Descrição</span>
               <input
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -255,7 +255,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
       {showForm && (
         <div className="rally-surface space-y-3 p-4">
           <div className="grid grid-cols-2 gap-3">
-            <label className="space-y-1">
+            <label data-admin-search-key="award_team" className="space-y-1">
               <span className="text-xs text-muted-foreground">Equipa *</span>
               <select
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -270,7 +270,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 ))}
               </select>
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="award_points" className="space-y-1">
               <span className="text-xs text-muted-foreground">Pontos *</span>
               <input
                 type="number"
@@ -280,7 +280,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
               />
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="award_rule" className="space-y-1">
               <span className="text-xs text-muted-foreground">Regra (opcional)</span>
               <select
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -295,7 +295,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 ))}
               </select>
             </label>
-            <label className="space-y-1">
+            <label data-admin-search-key="award_reason" className="space-y-1">
               <span className="text-xs text-muted-foreground">Razão</span>
               <input
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"

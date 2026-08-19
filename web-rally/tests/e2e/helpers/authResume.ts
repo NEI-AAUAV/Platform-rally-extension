@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page } from "@playwright/test";
 
 /**
  * Test-side mirror of src/lib/authResumeStore.ts.
@@ -38,10 +38,10 @@ export async function readResumeValue(page: Page, key: string): Promise<string |
     try {
       const parsed: unknown = JSON.parse(raw);
       if (
-        typeof parsed !== 'object' ||
+        typeof parsed !== "object" ||
         parsed === null ||
-        typeof (parsed as { value?: unknown }).value !== 'string' ||
-        typeof (parsed as { expiresAt?: unknown }).expiresAt !== 'number'
+        typeof (parsed as { value?: unknown }).value !== "string" ||
+        typeof (parsed as { expiresAt?: unknown }).expiresAt !== "number"
       ) {
         return null;
       }

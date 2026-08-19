@@ -12,6 +12,10 @@ def _png_upload(field: str = "image") -> dict:
     return {field: ("logo.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 16), "image/png")}
 
 
+def _pdf_upload(field: str = "image") -> dict:
+    return {field: ("regulamento.pdf", io.BytesIO(b"%PDF-1.4" + b"0" * 16), "application/pdf")}
+
+
 def _valid_settings_payload(**overrides) -> dict:
     payload = {
         "max_teams": 20,
@@ -122,6 +126,28 @@ class TestBrandingUploads:
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["favicon_url"] == "https://r2/favicon.ico"
+
+    async def test_admin_can_upload_rules_pdf(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+
+        with (
+            patch(
+                "app.services.rally_settings_service.validate_and_store",
+                new=AsyncMock(return_value="https://r2/regulamento.pdf"),
+            ),
+            patch("app.services.rally_settings_service.storage_client.delete_image"),
+        ):
+            resp = pg_client.put("/api/rally/v1/rally/settings/regulamento", files=_pdf_upload())
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["rules_pdf_url"] == "https://r2/regulamento.pdf"
+
+    async def test_non_admin_cannot_upload_rules_pdf(self, pg_session, pg_client, as_user):
+        await _make_event(pg_session)
+
+        resp = pg_client.put("/api/rally/v1/rally/settings/regulamento", files=_pdf_upload())
+
+        assert resp.status_code == 403
 
     async def test_non_admin_cannot_upload_banner(self, pg_session, pg_client, as_user):
         await _make_event(pg_session)
