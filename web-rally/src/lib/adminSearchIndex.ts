@@ -50,6 +50,11 @@ function tabEntries(tabId: AdminTabId, tuples: readonly TabTuple[]): AdminSearch
   return tuples.map(([key, label]) => ({ key, label, tabId }));
 }
 
+/** Tab-only entry: no single field to jump to, so a match just switches tab. */
+function tabOnlyEntry(tabId: AdminTabId, key: string, label: string): AdminSearchEntry {
+  return { key, label, tabId, tabOnly: true };
+}
+
 const ON_HINTS_ENABLED: RequiresField = { name: "hints_enabled", value: true };
 const ON_SKIP_ENABLED: RequiresField = { name: "skip_enabled", value: true };
 const ON_LEG_TIME_SCORING: RequiresField = { name: "leg_time_scoring_enabled", value: true };
@@ -185,23 +190,10 @@ export const ADMIN_SEARCH_INDEX: readonly AdminSearchEntry[] = [
     ["broadcast_link", "Link ao clicar no anúncio"],
   ]),
 
-  // Tab-only: no single field to jump to, so a match just switches tab.
-  ...tabEntries("dashboard", [["tab:dashboard", "Painel ao vivo"]]).map((e) => ({
-    ...e,
-    tabOnly: true,
-  })),
-  ...tabEntries("metrics", [["tab:metrics", "Métricas do sistema"]]).map((e) => ({
-    ...e,
-    tabOnly: true,
-  })),
-  ...tabEntries("judging", [["tab:judging", "Julgamento diferido"]]).map((e) => ({
-    ...e,
-    tabOnly: true,
-  })),
-  ...tabEntries("audit", [["tab:audit", "Registo de auditoria"]]).map((e) => ({
-    ...e,
-    tabOnly: true,
-  })),
+  tabOnlyEntry("dashboard", "tab:dashboard", "Painel ao vivo"),
+  tabOnlyEntry("metrics", "tab:metrics", "Métricas do sistema"),
+  tabOnlyEntry("judging", "tab:judging", "Julgamento diferido"),
+  tabOnlyEntry("audit", "tab:audit", "Registo de auditoria"),
 ];
 
 function normalize(value: string): string {
