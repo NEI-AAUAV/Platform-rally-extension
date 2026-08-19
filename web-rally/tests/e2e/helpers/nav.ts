@@ -57,7 +57,18 @@ export async function openAdminNavIfMobile(page: Page): Promise<void> {
     sidebar.waitFor({ state: "visible", timeout: 20000 }),
   ]).catch(() => {});
 
-  if (await trigger.isVisible().catch(() => false)) {
-    await trigger.click();
+  if (!(await trigger.isVisible().catch(() => false))) {
+    return;
   }
+
+  // A single `.click()` has occasionally left the drawer closed under CI
+  // load — most likely the click landing before React finished attaching
+  // the handler on a still-settling page. Verify the drawer actually opened
+  // (aria-expanded flips to "true") and retry the click if not, rather than
+  // trusting the click resolved and letting the caller's own assertion fail
+  // downstream with no explanation.
+  await expect(async () => {
+    await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 2000 });
+  }).toPass({ timeout: 15000 });
 }
