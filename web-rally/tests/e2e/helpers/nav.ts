@@ -46,11 +46,17 @@ export async function openAdminNavIfMobile(page: Page): Promise<void> {
   // have hydrated yet — an immediate `isVisible()` check races the trigger's
   // first paint and silently no-ops. Wait for whichever layout settles first
   // instead (mirrors expectLoggedOutLoginCta's approach for the same race).
-  await trigger
-    .or(sidebar)
-    .first()
-    .waitFor({ state: "visible", timeout: 20000 })
-    .catch(() => {});
+  //
+  // Both elements are always in the DOM (only one is ever CSS-visible, per
+  // breakpoint) and the trigger renders before the sidebar in markup order,
+  // so `trigger.or(sidebar).first()` would deterministically resolve to the
+  // trigger — which never becomes visible on desktop — and burn the full
+  // timeout there every time. Race two independent waits instead so whichever
+  // one actually turns visible wins.
+  await Promise.race([
+    trigger.waitFor({ state: "visible", timeout: 20000 }),
+    sidebar.waitFor({ state: "visible", timeout: 20000 }),
+  ]).catch(() => {});
 
   if (await trigger.isVisible().catch(() => false)) {
     await trigger.click();
