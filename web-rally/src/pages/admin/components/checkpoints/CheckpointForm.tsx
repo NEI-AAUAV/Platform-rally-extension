@@ -110,27 +110,6 @@ export default function CheckpointForm({
                 </FormItem>
               )}
             />
-            {!isEditing && !hasPendingDraft && (
-              <div className="space-y-1.5">
-                <BloodyButton
-                  type="button"
-                  variant="neutral"
-                  onClick={onStartDraft}
-                  disabled={!canStartDraft || isStartingDraft}
-                >
-                  {isStartingDraft ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ArrowRight className="h-4 w-4" />
-                  )}
-                  <span className="ml-1.5">Começar a preencher</span>
-                </BloodyButton>
-                <p className="text-xs text-muted-foreground">
-                  Grava já este posto para poderes acrescentar media, atividades e pistas do guia
-                  enquanto preenches o resto.
-                </p>
-              </div>
-            )}
             <FormField
               control={form.control}
               name="is_placeholder"
@@ -436,14 +415,37 @@ export default function CheckpointForm({
             />
           </Section>
 
-          <div className="flex gap-2">
-            <BloodyButton type="submit" disabled={isSubmitting}>
-              {isEditing ? "Atualizar" : "Criar"} Checkpoint
-            </BloodyButton>
-            {(isEditing || hasPendingDraft) && (
-              <BloodyButton type="button" variant="neutral" onClick={onCancel}>
-                Cancelar
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {!isEditing && !hasPendingDraft && (
+                <BloodyButton
+                  type="button"
+                  variant="neutral"
+                  onClick={onStartDraft}
+                  disabled={!canStartDraft || isStartingDraft}
+                >
+                  {isStartingDraft ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                  <span className="ml-1.5">Começar a preencher</span>
+                </BloodyButton>
+              )}
+              <BloodyButton type="submit" disabled={isSubmitting}>
+                {isEditing ? "Atualizar" : "Criar"} Checkpoint
               </BloodyButton>
+              {(isEditing || hasPendingDraft) && (
+                <BloodyButton type="button" variant="neutral" onClick={onCancel}>
+                  Cancelar
+                </BloodyButton>
+              )}
+            </div>
+            {!isEditing && !hasPendingDraft && (
+              <p className="text-xs text-muted-foreground">
+                "Começar a preencher" grava já este posto em fundo para poderes acrescentar media,
+                atividades e pistas do guia enquanto preenches o resto.
+              </p>
             )}
           </div>
         </form>
