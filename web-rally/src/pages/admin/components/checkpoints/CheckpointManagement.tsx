@@ -4,6 +4,7 @@ import type { UserState } from "@/stores/useUserStore";
 import { useCheckpointManagement } from "./useCheckpointManagement";
 import CheckpointForm from "./CheckpointForm";
 import CheckpointListItem from "./CheckpointListItem";
+import CheckpointDetailsPanel from "./CheckpointDetailsPanel";
 import RouteStageManager from "./RouteStageManager";
 
 type CheckpointManagementProps = Readonly<{
@@ -31,29 +32,39 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     routeStatus,
     refetchCheckpoints,
     stages,
-    justCreatedId,
+    selectedCheckpointId,
     pendingClueImage,
     setPendingClueImage,
   } = useCheckpointManagement(userStore);
 
   const incompleteCount = routeStatus?.incomplete_published_ids?.length ?? 0;
+  const selectedCheckpointName = sortedCheckpoints.find(
+    (cp) => cp.id === selectedCheckpointId,
+  )?.name;
 
   return (
     <div className="space-y-6">
       <RouteStageManager onChanged={() => void refetchCheckpoints()} />
 
-      <CheckpointForm
-        form={checkpointForm}
-        isEditing={!!editingCheckpoint}
-        isSubmitting={isCreatingCheckpoint || isUpdatingCheckpoint}
-        onSubmit={handleCheckpointSubmit}
-        onCancel={cancelEdit}
-        checkpoints={sortedCheckpoints}
-        currentId={editingCheckpoint?.id ?? null}
-        stages={stages}
-        pendingClueImage={pendingClueImage}
-        onPendingClueImageChange={setPendingClueImage}
-      />
+      <div>
+        <CheckpointForm
+          form={checkpointForm}
+          isEditing={!!editingCheckpoint}
+          isSubmitting={isCreatingCheckpoint || isUpdatingCheckpoint}
+          onSubmit={handleCheckpointSubmit}
+          onCancel={cancelEdit}
+          checkpoints={sortedCheckpoints}
+          currentId={editingCheckpoint?.id ?? null}
+          stages={stages}
+          pendingClueImage={pendingClueImage}
+          onPendingClueImageChange={setPendingClueImage}
+          hasAttachedPanel
+        />
+        <CheckpointDetailsPanel
+          checkpointId={selectedCheckpointId}
+          checkpointName={selectedCheckpointName}
+        />
+      </div>
 
       <div className="rally-surface rounded-2xl p-6">
         <div className="mb-4 flex items-center justify-between">
@@ -88,7 +99,6 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
                 onEdit={startEditCheckpoint}
                 onDelete={deleteCheckpoint}
                 stages={stages}
-                forceExpanded={checkpoint.id === justCreatedId}
               />
             ))}
           </ul>

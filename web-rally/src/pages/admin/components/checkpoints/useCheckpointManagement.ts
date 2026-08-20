@@ -92,9 +92,13 @@ export function useCheckpointManagement(userStore: UserState) {
   const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
-  // The post just created, so its panel opens straight into desafio/media/
-  // indicações instead of making the admin find and click it in the list.
-  const [justCreatedId, setJustCreatedId] = React.useState<number | null>(null);
+  // The post whose details panel (activities/media/indicações) is attached
+  // to the form: set on create and on "Editar", but — unlike
+  // `editingCheckpoint` — NOT cleared when an update saves. Renaming or
+  // moving a post and then saving the guide hints for it used to mean
+  // clicking "Editar" all over again for every save; keeping this separate
+  // means the panel just stays put across an update.
+  const [selectedCheckpointId, setSelectedCheckpointId] = React.useState<number | null>(null);
   // A clue image picked while there's still no checkpoint to attach it to;
   // sent right after the create mutation returns an id.
   const [pendingClueImage, setPendingClueImage] = React.useState<File | null>(null);
@@ -150,7 +154,7 @@ export function useCheckpointManagement(userStore: UserState) {
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
     onSuccess: async ({ data }) => {
       checkpointForm.reset();
-      if (data?.id) setJustCreatedId(data.id);
+      if (data?.id) setSelectedCheckpointId(data.id);
       toast.success("Checkpoint criado com sucesso!");
 
       // The image staged before the checkpoint existed goes up now that
@@ -176,6 +180,10 @@ export function useCheckpointManagement(userStore: UserState) {
       apiUpdateCheckpoint({ path: { id }, body: toRequestBody(data) as CheckPointUpdate }),
     onSuccess: () => {
       void refetchCheckpoints();
+      // editingCheckpoint clears (the form goes back to "create new"), but
+      // selectedCheckpointId is deliberately left alone — the details panel
+      // stays on this post so activities/media/indicações keep saving
+      // without another click on "Editar".
       setEditingCheckpoint(null);
       checkpointForm.reset();
       toast.success("Checkpoint atualizado com sucesso!");
@@ -187,8 +195,9 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: deleteCheckpoint, isPending: isDeletingCheckpoint } = useMutation({
     mutationFn: async (id: number) => apiDeleteCheckpoint({ path: { id } }),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void refetchCheckpoints();
+      setSelectedCheckpointId((current) => (current === id ? null : current));
       toast.success("Checkpoint deletado com sucesso!");
     },
     onError: (error) => {
@@ -218,6 +227,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
+    setSelectedCheckpointId(checkpoint.id);
     checkpointForm.setValue("name", checkpoint.name);
     checkpointForm.setValue("description", checkpoint.description ?? "");
     checkpointForm.setValue("latitude", checkpoint.latitude?.toString() || "");
@@ -258,6 +268,7 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const cancelEdit = () => {
     setEditingCheckpoint(null);
+    setSelectedCheckpointId(null);
     setPendingClueImage(null);
     checkpointForm.reset();
     updateOrderForNewCheckpoint();
@@ -332,7 +343,7 @@ export function useCheckpointManagement(userStore: UserState) {
     handleDragOver,
     handleDrop,
     handleDragEnd,
-    justCreatedId,
+    selectedCheckpointId,
     pendingClueImage,
     setPendingClueImage,
   };

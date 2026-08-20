@@ -24,6 +24,12 @@ vi.mock('@/pages/admin/components/checkpoints/CheckpointListItem', () => ({
   ),
 }));
 
+vi.mock('@/pages/admin/components/checkpoints/CheckpointDetailsPanel', () => ({
+  default: ({ checkpointId }: any) => (
+    <div data-testid="details-panel">{checkpointId ?? 'none'}</div>
+  ),
+}));
+
 // The stage manager talks to the API and the toast provider; this suite is
 // about the list, so it is stubbed out here.
 vi.mock('@/pages/admin/components/checkpoints/RouteStageManager', () => ({
@@ -144,6 +150,44 @@ describe('CheckpointManagement', () => {
     render(<CheckpointManagement userStore={{} as any} />);
     expect(screen.getByText(/4 na rota · 3 em rascunho/)).toBeInTheDocument();
     expect(screen.queryByText(/por completar/)).not.toBeInTheDocument();
+  });
+
+  it('shows no active checkpoint in the details panel by default', () => {
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('none');
+  });
+
+  it('attaches the details panel to the checkpoint being edited', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      editingCheckpoint: { id: 7, name: 'CP Seven', order: 1 },
+      selectedCheckpointId: 7,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('7');
+  });
+
+  it('attaches the details panel to the selected checkpoint (e.g. just created)', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      selectedCheckpointId: 9,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('9');
+  });
+
+  it('keeps the details panel on the selected checkpoint after editingCheckpoint clears', () => {
+    // Mirrors post-update state: the update mutation resets editingCheckpoint
+    // but deliberately leaves selectedCheckpointId alone.
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      hasCheckpoints: true,
+      sortedCheckpoints: [{ id: 3, name: 'CP Three', order: 1 }],
+      editingCheckpoint: null,
+      selectedCheckpointId: 3,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('3');
   });
 
   it('flags published posts that are still incomplete', () => {

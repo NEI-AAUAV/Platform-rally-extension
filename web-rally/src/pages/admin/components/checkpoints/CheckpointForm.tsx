@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form";
+import { cn } from "@/lib/utils";
 import {
   Form,
   FormControl,
@@ -50,6 +51,9 @@ type CheckpointFormProps = Readonly<{
   stages?: ReadonlyArray<RouteStageResponse>;
   pendingClueImage?: File | null;
   onPendingClueImageChange?: (file: File | null) => void;
+  /** True when a details panel (activities/media/hints) renders right below,
+   * so this card's bottom corners should stay square to join it visually. */
+  hasAttachedPanel?: boolean;
 }>;
 
 export default function CheckpointForm({
@@ -63,9 +67,12 @@ export default function CheckpointForm({
   stages,
   pendingClueImage,
   onPendingClueImageChange,
+  hasAttachedPanel,
 }: CheckpointFormProps) {
   return (
-    <div className="rally-surface rounded-2xl p-6">
+    <div
+      className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}
+    >
       <h3 className="mb-1 text-lg font-semibold">
         {isEditing ? "Editar Checkpoint" : "Criar Novo Checkpoint"}
       </h3>

@@ -134,7 +134,7 @@ test.describe("Admin checkpoints", () => {
     });
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(1).click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     await expect(page.getByText("Editar Checkpoint")).toBeVisible();
     const nameInput = page.getByPlaceholder("Ex: Checkpoint Central");
     await expect(nameInput).toHaveValue("Posto 1");
@@ -160,7 +160,7 @@ test.describe("Admin checkpoints", () => {
 
     await gotoCheckpoints(page);
     const buttons = page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button");
-    await buttons.nth(2).click();
+    await buttons.nth(1).click();
 
     await expect.poll(() => deleteCalled).toBe(true);
     expect(deleteCalled).toBe(true);
@@ -215,7 +215,7 @@ test.describe("Admin checkpoints", () => {
     );
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Fotos e curiosidades do sítio").click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     const fileInput = page.locator('input[type="file"]:not([aria-label="Imagem do enigma"])');
     await fileInput.setInputFiles({
       name: "photo.png",
@@ -255,7 +255,7 @@ test.describe("Admin checkpoints", () => {
     });
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Fotos e curiosidades do sítio").click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     const addButton = page.getByRole("button", { name: "Adicionar indicação" });
     await expect(addButton).toBeDisabled();
     await page.getByPlaceholder(/Indicação a dar à equipa/).fill("Aponta para a estátua");
