@@ -13,9 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RallyValidationError
+from app.crud._event_scope import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
 from app.models.activity import Activity
+from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.team import Team
@@ -442,14 +444,28 @@ class CheckpointService:
         )
 
     async def _event_has_started(self) -> bool:
-        """Whether any team has already checked in.
+        """Whether any team has already checked in **in the current edition**.
 
         Publishing or drafting a post renumbers the route, and progress is
         positional (``team.times`` is indexed by order), so moving posts
         around under a team that has already walked part of the route would
         silently rewrite where it has been.
+
+        Scoped to the current event's posts, which it originally was not: an
+        unfiltered "does any arrival exist" is true forever once a single
+        edition has run, so from the second year on nobody could publish or
+        unpublish a draft post while planning the next route. The rule is
+        about *this* edition's teams being under way, not about the
+        organization ever having run an event.
         """
-        return bool(await self._db.scalar(select(CheckpointArrival.id).limit(1)))
+        event_id = await current_event_id(self._db)
+        started = await self._db.scalar(
+            select(CheckpointArrival.id)
+            .join(CheckPoint, CheckPoint.id == CheckpointArrival.checkpoint_id)
+            .where((CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)))
+            .limit(1)
+        )
+        return bool(started)
 
     async def set_draft(self, checkpoint_id: int, *, is_draft: bool) -> AdminCheckPoint:
         """Publish a draft post, or pull a published one back into planning."""

@@ -54,6 +54,15 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://localhost:${FULLSTACK_PORT}`,
+        // Playwright's default action timeout is 0 — unbounded — so a click or
+        // fill on a selector that never resolves burns the whole test timeout
+        // and reports "test timeout exceeded" pointing at the closing brace,
+        // rather than naming the selector that was never found. These specs
+        // drive long multi-phase scenarios with generous test timeouts, which
+        // makes that failure mode expensive: a mistyped selector costs ten
+        // minutes and tells you nothing. Bound it here so a bad locator fails
+        // in fifteen seconds, with its own call log.
+        actionTimeout: 15_000,
       },
     },
   ],
