@@ -1,22 +1,9 @@
-import React, { useState } from "react";
-import {
-  Edit,
-  Trash2,
-  GripVertical,
-  Images,
-  ChevronDown,
-  Compass,
-  Clock,
-  MapPin,
-  Puzzle,
-} from "lucide-react";
+import React from "react";
+import { Edit, Trash2, GripVertical, Compass, Clock, MapPin, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloodyButton } from "@/components/themes/bloody";
 import type { RouteStageResponse } from "@/client";
 import type { Checkpoint } from "./useCheckpointManagement";
-import CheckpointMediaManager from "./CheckpointMediaManager";
-import CheckpointGuideIndicationsManager from "./CheckpointGuideIndicationsManager";
-import CheckpointActivitiesManager from "./CheckpointActivitiesManager";
 import { missingLabel } from "./routeReadiness";
 import { checkpointOpeningNotice } from "@/pages/team-progress/checkpointHours";
 
@@ -32,12 +19,6 @@ type CheckpointListItemProps = Readonly<{
   onDelete: (id: number) => void;
   /** To resolve the checkpoint's stage name; empty when the route has none. */
   stages?: ReadonlyArray<RouteStageResponse>;
-  /**
-   * Force the panel open, e.g. right after this post was created — landing
-   * the admin straight on media/indications/activity instead of a click away.
-   * Uncontrolled (starts closed, toggles freely) when omitted.
-   */
-  forceExpanded?: boolean;
 }>;
 
 function formatWindow(from: string | null | undefined, until: string | null | undefined): string {
@@ -59,19 +40,13 @@ export default function CheckpointListItem({
   onEdit,
   onDelete,
   stages,
-  forceExpanded,
 }: CheckpointListItemProps) {
-  // Seeds the initial state only — after mount this is a normal toggle, so a
-  // post that opened itself on creation can still be collapsed like any
-  // other. (Composing `forceExpanded || state` instead would work for
-  // opening but make the toggle button permanently unable to close it.)
-  const [showMedia, setShowMedia] = useState(forceExpanded ?? false);
   const stage = stages?.find((s) => s.id === checkpoint.stage_id);
   const hasWindow = Boolean(checkpoint.available_from || checkpoint.available_until);
 
   return (
     <li
-      draggable={!showMedia}
+      draggable
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, checkpoint)}
@@ -80,10 +55,8 @@ export default function CheckpointListItem({
     >
       <div
         className={cn(
-          "rounded-xl border border-border bg-card/60 p-4 transition-all hover:bg-accent sm:p-6",
-          !showMedia && "cursor-move",
+          "cursor-move rounded-xl border border-border bg-card/60 p-4 transition-all hover:bg-accent sm:p-6",
           isDragging && "scale-95 opacity-50",
-          showMedia && "rounded-b-none",
         )}
       >
         <div className="flex items-center justify-between">
@@ -163,17 +136,6 @@ export default function CheckpointListItem({
             </div>
           </div>
           <div className="flex gap-2">
-            <BloodyButton
-              variant="neutral"
-              onClick={() => setShowMedia((v) => !v)}
-              aria-expanded={showMedia}
-              aria-label="Fotos e curiosidades do sítio"
-            >
-              <Images className="h-4 w-4" />
-              <ChevronDown
-                className={cn("ml-1 h-3 w-3 transition-transform", showMedia && "rotate-180")}
-              />
-            </BloodyButton>
             <BloodyButton variant="neutral" onClick={() => onEdit(checkpoint)}>
               <Edit className="h-4 w-4" />
             </BloodyButton>
@@ -187,13 +149,6 @@ export default function CheckpointListItem({
           </div>
         </div>
       </div>
-      {showMedia && (
-        <div className="rounded-b-xl border border-t-0 border-border bg-card/40 p-4 sm:p-6">
-          <CheckpointActivitiesManager checkpointId={checkpoint.id} />
-          <CheckpointMediaManager checkpointId={checkpoint.id} />
-          <CheckpointGuideIndicationsManager checkpointId={checkpoint.id} />
-        </div>
-      )}
     </li>
   );
 }

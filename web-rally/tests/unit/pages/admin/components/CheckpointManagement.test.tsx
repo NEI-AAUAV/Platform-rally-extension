@@ -11,7 +11,13 @@ vi.mock('@/pages/admin/components/checkpoints/useCheckpointManagement', () => ({
 }));
 
 vi.mock('@/pages/admin/components/checkpoints/CheckpointForm', () => ({
-  default: ({ isEditing }: any) => <div data-testid="checkpoint-form">{isEditing ? 'editing' : 'new'}</div>,
+  default: ({ isEditing, currentId, hasPendingDraft }: any) => (
+    <div data-testid="checkpoint-form">
+      {isEditing ? 'editing' : 'new'}
+      <span data-testid="current-id">{currentId ?? 'none'}</span>
+      <span data-testid="has-pending-draft">{hasPendingDraft ? 'yes' : 'no'}</span>
+    </div>
+  ),
 }));
 
 vi.mock('@/pages/admin/components/checkpoints/CheckpointListItem', () => ({
@@ -21,6 +27,12 @@ vi.mock('@/pages/admin/components/checkpoints/CheckpointListItem', () => ({
       <button onClick={() => onEdit(checkpoint)}>edit-{checkpoint.id}</button>
       <button onClick={() => onDelete(checkpoint.id)}>delete-{checkpoint.id}</button>
     </li>
+  ),
+}));
+
+vi.mock('@/pages/admin/components/checkpoints/CheckpointDetailsPanel', () => ({
+  default: ({ checkpointId }: any) => (
+    <div data-testid="details-panel">{checkpointId ?? 'none'}</div>
   ),
 }));
 
@@ -144,6 +156,65 @@ describe('CheckpointManagement', () => {
     render(<CheckpointManagement userStore={{} as any} />);
     expect(screen.getByText(/4 na rota · 3 em rascunho/)).toBeInTheDocument();
     expect(screen.queryByText(/por completar/)).not.toBeInTheDocument();
+  });
+
+  it('shows no active checkpoint in the details panel by default', () => {
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('none');
+  });
+
+  it('attaches the details panel to the checkpoint being edited', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      editingCheckpoint: { id: 7, name: 'CP Seven', order: 1 },
+      selectedCheckpointId: 7,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('7');
+  });
+
+  it('attaches the details panel to the selected checkpoint (e.g. just created)', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      selectedCheckpointId: 9,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('9');
+  });
+
+  it('keeps the details panel on the selected checkpoint after editingCheckpoint clears', () => {
+    // Mirrors post-update state: the update mutation resets editingCheckpoint
+    // but deliberately leaves selectedCheckpointId alone.
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      hasCheckpoints: true,
+      sortedCheckpoints: [{ id: 3, name: 'CP Three', order: 1 }],
+      editingCheckpoint: null,
+      selectedCheckpointId: 3,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('details-panel')).toHaveTextContent('3');
+  });
+
+  it('passes the pending draft id as currentId and flags it, when no real edit is happening', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      pendingDraftId: 11,
+      selectedCheckpointId: 11,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('current-id')).toHaveTextContent('11');
+    expect(screen.getByTestId('has-pending-draft')).toHaveTextContent('yes');
+  });
+
+  it('prefers editingCheckpoint over pendingDraftId for currentId', () => {
+    mockUseCheckpointManagement.mockReturnValue({
+      ...baseHookReturn,
+      editingCheckpoint: { id: 5, name: 'CP Five', order: 1 },
+      pendingDraftId: 11,
+    });
+    render(<CheckpointManagement userStore={{} as any} />);
+    expect(screen.getByTestId('current-id')).toHaveTextContent('5');
   });
 
   it('flags published posts that are still incomplete', () => {

@@ -134,7 +134,7 @@ test.describe("Admin checkpoints", () => {
     });
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(1).click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     await expect(page.getByText("Editar Checkpoint")).toBeVisible();
     const nameInput = page.getByPlaceholder("Ex: Checkpoint Central");
     await expect(nameInput).toHaveValue("Posto 1");
@@ -160,7 +160,7 @@ test.describe("Admin checkpoints", () => {
 
     await gotoCheckpoints(page);
     const buttons = page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button");
-    await buttons.nth(2).click();
+    await buttons.nth(1).click();
 
     await expect.poll(() => deleteCalled).toBe(true);
     expect(deleteCalled).toBe(true);
@@ -215,7 +215,7 @@ test.describe("Admin checkpoints", () => {
     );
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Fotos e curiosidades do sítio").click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     const fileInput = page.locator('input[type="file"]:not([aria-label="Imagem do enigma"])');
     await fileInput.setInputFiles({
       name: "photo.png",
@@ -255,7 +255,7 @@ test.describe("Admin checkpoints", () => {
     });
 
     await gotoCheckpoints(page);
-    await page.getByLabel("Fotos e curiosidades do sítio").click();
+    await page.getByLabel("Checkpoint Posto 1, ordem 1").getByRole("button").nth(0).click();
     const addButton = page.getByRole("button", { name: "Adicionar indicação" });
     await expect(addButton).toBeDisabled();
     await page.getByPlaceholder(/Indicação a dar à equipa/).fill("Aponta para a estátua");
@@ -266,5 +266,66 @@ test.describe("Admin checkpoints", () => {
       .poll(() => (capturedBody as { hint?: string })?.hint)
       .toBe("Aponta para a estátua");
     expect(capturedBody).toBeDefined();
+  });
+
+  test("'Começar a preencher' saves a draft in the background, then a single 'Criar Checkpoint' finalizes it", async ({
+    page,
+    context,
+  }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCheckpointList(page, []);
+    let createCalls = 0;
+    let updateBody: unknown;
+    await page.route("**/api/rally/v1/checkpoint/", (route) => {
+      if (route.request().method() === "POST") {
+        createCalls += 1;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(route.request().postDataJSON() as object) }),
+        });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+    await page.route("**/api/rally/v1/checkpoint/1", (route) => {
+      if (route.request().method() === "PUT") {
+        updateBody = route.request().postDataJSON();
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(updateBody as object) }),
+        });
+      }
+      return route.fallback();
+    });
+    await page.route("**/api/rally/v1/checkpoint/1/media", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) }),
+    );
+    await page.route("**/api/rally/v1/checkpoint/1/guide-indications", (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(route.request().postDataJSON() as object) }),
+        });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+
+    await gotoCheckpoints(page);
+    await page.getByPlaceholder("Ex: Checkpoint Central").fill("Posto com pista");
+    await page.getByRole("button", { name: "Começar a preencher" }).click();
+
+    // The panel attaches without a page reload or a second "Editar" click.
+    await page.getByPlaceholder(/Indicação a dar à equipa/).fill("Aponta para a estátua");
+    await page.getByRole("button", { name: "Adicionar indicação" }).click();
+
+    await page.getByRole("button", { name: "Criar Checkpoint" }).click();
+
+    await expect
+      .poll(() => (updateBody as { name?: string })?.name)
+      .toBe("Posto com pista");
+    expect(createCalls).toBe(1); // only the background draft-create, never a second POST
   });
 });

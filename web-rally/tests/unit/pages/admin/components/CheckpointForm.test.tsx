@@ -50,6 +50,9 @@ type Harness = Readonly<{
   defaultValues?: Partial<CheckpointFormValues>;
   formRef?: { current: UseFormReturn<CheckpointFormValues> | null };
   stages?: ReadonlyArray<RouteStageResponse>;
+  hasPendingDraft?: boolean;
+  onStartDraft?: () => void;
+  isStartingDraft?: boolean;
 }>;
 
 function Harness({
@@ -60,6 +63,9 @@ function Harness({
   defaultValues,
   formRef,
   stages,
+  hasPendingDraft,
+  onStartDraft,
+  isStartingDraft,
 }: Harness) {
   const form = useForm<CheckpointFormValues>({
     resolver: zodResolver(checkpointFormSchema),
@@ -88,6 +94,9 @@ function Harness({
       onSubmit={onSubmit}
       onCancel={onCancel}
       stages={stages}
+      hasPendingDraft={hasPendingDraft}
+      onStartDraft={onStartDraft}
+      isStartingDraft={isStartingDraft}
     />
   );
 }
@@ -96,6 +105,7 @@ function renderForm(overrides: Partial<Harness> = {}) {
   const formRef: { current: UseFormReturn<CheckpointFormValues> | null } = { current: null };
   const onSubmit = overrides.onSubmit ?? vi.fn();
   const onCancel = overrides.onCancel ?? vi.fn();
+  const onStartDraft = overrides.onStartDraft ?? vi.fn();
   const view = render(
     <Harness
       isEditing={overrides.isEditing ?? false}
@@ -105,9 +115,12 @@ function renderForm(overrides: Partial<Harness> = {}) {
       defaultValues={overrides.defaultValues}
       formRef={formRef}
       stages={overrides.stages}
+      hasPendingDraft={overrides.hasPendingDraft}
+      onStartDraft={onStartDraft}
+      isStartingDraft={overrides.isStartingDraft}
     />,
   );
-  return { ...view, formRef, onSubmit, onCancel };
+  return { ...view, formRef, onSubmit, onCancel, onStartDraft };
 }
 
 describe("CheckpointForm", () => {
@@ -222,6 +235,36 @@ describe("CheckpointForm", () => {
     expect(screen.getByText("Etapa")).toBeInTheDocument();
     expect(screen.getByText(/Ainda não criaste nenhuma etapa/)).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Etapa" })).not.toBeInTheDocument();
+  });
+
+  it("disables 'Começar a preencher' until a name is typed, and calls onStartDraft", () => {
+    const { onStartDraft } = renderForm();
+
+    const startButton = screen.getByRole("button", { name: /Começar a preencher/i });
+    expect(startButton).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Checkpoint Central"), {
+      target: { value: "Novo posto" },
+    });
+    expect(startButton).toBeEnabled();
+
+    fireEvent.click(startButton);
+    expect(onStartDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides 'Começar a preencher' once a draft is pending or while editing", () => {
+    renderForm({ hasPendingDraft: true });
+    expect(
+      screen.queryByRole("button", { name: /Começar a preencher/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the cancel button once a draft is pending, even though not editing", () => {
+    renderForm({ hasPendingDraft: true });
+    expect(screen.getByRole("button", { name: /Cancelar/i })).toBeInTheDocument();
+    // Still says "Criar", not "Atualizar" — from the admin's perspective
+    // nothing has been consciously saved yet.
+    expect(screen.getByRole("button", { name: /^Criar Checkpoint$/i })).toBeInTheDocument();
   });
 
   it("shows the stage picker once stages exist", () => {

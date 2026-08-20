@@ -3,7 +3,20 @@
 import pytest
 from sqlalchemy import text
 
+from app.core.config import settings
 from app.workers.session import worker_session
+
+
+@pytest.fixture(autouse=True)
+def _use_test_postgres_uri(monkeypatch):
+    """Point worker_session at the test database, not the app's real one.
+
+    worker_session() builds its own engine straight from settings.POSTGRES_URI
+    (by design — see its docstring), so it doesn't pick up the sqlite/test-pg
+    overrides the rest of the suite uses. Redirect it to TEST_POSTGRES_URI for
+    the duration of these tests.
+    """
+    monkeypatch.setattr(settings, "POSTGRES_URI", settings.TEST_POSTGRES_URI)
 
 
 async def test_worker_session_yields_working_session_and_disposes():
