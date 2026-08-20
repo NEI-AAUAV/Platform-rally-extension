@@ -58,6 +58,12 @@ files would only confuse.
 
 | `peddy-paper-aveiro.spec.ts` | A **real past edition**, rebuilt from the organizers' own planning sheet and then run. Where `master-peddy-tascas-day.spec.ts` invents a route to exercise the mode, this one is fixed by what actually happened and the test has to cope — which reaches corners a synthetic route never does. Setup transcribes the sheet through the admin UI: every post's three columns (`staff_script` / `clue` / `challenge_brief` — the first and third had never been filled by any test, and are asserted absent from every participant payload), the route's **two stages** (university in order, outside as a set where 3 of 4 suffice), a venue still undecided when the sheet was written ("CF DECIDE" — `is_draft` + `is_placeholder`, invisible to teams and guides until it is settled), and **four different activity types** with each one's own config inputs plus the "cada falha bebe" counters. The day then runs with 4 teams, 2 guides, the staffed posts, the admin and an anonymous viewer all acting at once: pass/fail with a miss counter, a scored challenge, a race against the clock, free choice inside the second stage, and — for "mais criativo recebe uma salva de palmas", which nobody at a post can judge alone — capture at the post and ranking afterwards. |
 
+| `versus.spec.ts` | Head-to-head, where a post is a match rather than a solo challenge. Pairing is checked for the property a mocked test cannot see — that it is *mutual*, and that re-pairing an already-paired team is refused rather than orphaning its opponent. Scoring goes through the real `TeamVsActivity`: base + completion + outcome, three tiers priced differently so a dropped or doubled one cannot hide, asserted for both sides of a decided match and of a draw. Also pins a product gap: the staff member running the match **cannot record it** (403) — see the known gaps below. |
+
+| `scoring-levers.spec.ts` | Every way points move that is not a staff member scoring an activity. **Leg-time** is the only scoring nobody triggers — it fires off the arrival itself — so a fast leg is checked to pay out at its cap, and the "priced at zero means free, not off" convention is checked to leave no award rows at all. **Dynamic rules** are the named prices behind discretionary awards, including that repricing a rule does not retroactively move a total somebody already earned. **Badges** by hand: awarded, showing as earned on the team's board, revoked, refused for an unknown or inactive code, and the `badges_enabled` kill-switch checked to *empty the payload* rather than merely hide the nav. Plus admin metrics as monotonic counters. |
+
+| `ops-and-judging.spec.ts` | Running the event rather than scoring it. **Push** is worth checking here precisely because the smoke stack has no VAPID keypair — which is the state CI runs in: every sending endpoint must fail closed the same way (503), while `unsubscribe` deliberately stays open so a device can always detach. The tests branch on whether keys are present, so a stack that configures them gets stronger assertions instead of being skipped. **Deferred judging by hand** — the other half of the ranking path `peddy-paper-aveiro.spec.ts` covers: a capture waits with `judgment_status: pending_judgment` and no score (`is_completed` is already true, and means the team *did* it, not that anyone judged it), judging is the admin's even at the staff's own post, and a team photo cannot be pointed at a URL the team never submitted. |
+
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
 ## Known gaps (not yet covered against a real backend)
@@ -66,26 +72,33 @@ files would only confuse.
 mocked suite in `tests/e2e/` only, so a drift between those fixtures and the
 real API would go unnoticed:
 
-- versus / team-vs pairings (`/versus/*`, `/team-vs/{activity_id}`)
-- leg-time scoring (`leg_time_*`)
-- push notifications (`/push/broadcast`, `/push/checkpoint-announcement`)
-- admin metrics (`/admin/metrics`)
-- dynamic scoring rules (`/dynamic-rules`)
-- manual badge award and badge showcase (`/badges/award`,
-  `/teams/{id}/badge-showcase`)
-- checkpoint media *upload*, and the clue image (the media read path and its
-  403 are covered; uploads need object storage the smoke stack has none of)
-- judging a single deferred capture by hand (`/activities/results/{id}/judge`)
-  and promoting one to the team photo (`/set-team-photo`) — the *ranking*
-  path is covered by `peddy-paper-aveiro.spec.ts`
+- **Anything that needs object storage.** Checkpoint media upload, the clue
+  image, and the *successful* half of promoting a deferred photo to the team's
+  photo (`/set-team-photo`) all write to R2, which the smoke stack does not
+  run. The read paths, the 403s and the "that URL is not one of this result's
+  own photos" refusal are covered; the uploads themselves are not, and cannot
+  be until the stack grows a MinIO or equivalent.
+- **The *configured* push path.** Sending is covered only in its fails-closed
+  state, because the smoke stack has no VAPID keypair. Adding one to
+  `docker-compose.smoke.yml` would switch `ops-and-judging.spec.ts` onto its
+  stronger assertions automatically — it already branches on the key.
 
 **Reachable only through the API, not the UI.** `<ContestButton>`
 (`src/pages/team-progress`) has a unit test but is rendered nowhere in the app,
 so contesting an evaluation is currently unreachable for a participant.
 `master-rally-day.spec.ts` therefore contests via the API.
 
-**Two smaller things `peddy-paper-aveiro.spec.ts` ran into**, neither fixed
-here:
+**Smaller findings these specs ran into**, none fixed here:
+
+- **A staff member cannot record a versus result at their own post** (403).
+  `POST /activities/team-vs/{id}` guards with `require(CREATE_ACTIVITY_RESULT,
+  ...)`, and that dependency passes no checkpoint context — `abac_deps.require`'s
+  own docstring says endpoints needing context should call `require_permission`
+  inside the body instead. The staff rule for the action is
+  `_staff_own_checkpoint`, false whenever `checkpoint_id` is None, so *every*
+  rally-staff member is denied, including the one watching the match. The same
+  person can score every other activity type at that post, which is what makes
+  it look like an oversight. Pinned by `versus.spec.ts`.
 
 - The admin checkpoint list's **edit and delete buttons carry no accessible
   name** — they are icon-only, while the media button beside them has an
