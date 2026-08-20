@@ -54,12 +54,31 @@ files would only confuse.
 
 | `peddy-paper.spec.ts` | The peddy-paper game loop against the real backend: the `event_type` bootstraps the mode's settings (asserted, not set by the fixture); the team's real `/checkpoint/` and `/checkpoint/me` payloads carry the clue and *not* the name/coordinates — the actual security property, which a mocked spec cannot check since its fixture author decides the payload; media for an unreached post is 403; the hint ladder charges once per rung, refuses a post the team hasn't reached, and never returns `expected_answer`; a GPS check-in reveals the post and hands over the next riddle; a wrong-place check-in is rejected with a coarse distance band; the guide sees the clue. Also staggered starts (`start_offset_minutes`). This spec caught a real bug: the check-in button required coordinates the server deliberately withholds in this mode, so the loop was unplayable through the UI. |
 
+| `master-peddy-tascas-day.spec.ts` | The whole peddy-tascas day, end to end. Phase 1 builds the event through the **real admin UI** — event type, three posts with their riddles/coordinates/geofence, the hint ladder, activities, five teams, staff and guide assignments, and the mode's settings — then reads every row back from the API. Phases 2-4 play it out with 11 concurrent contexts and every role the system has (admin, `manager-rally`, 2× `rally-staff`, 2× `rally-guide`, 5 teams, an anonymous public viewer), with the five teams taking five different routes through the same riddle: solved outright, found with the proximity aid, found after buying the hint ladder, given up on, and — for the team whose phone died — vouched for by its guide. `manager-rally` and the guide's manual-arrival fallback were exercised by no fullstack spec before this one. Also, at the last post: a closed door (`available_from`) telling a team when it opens and the `checkpoint_hours_enabled` escape hatch that overrides it, arrival by scanning the post's rotating QR (plus the replay, out-of-order, forged-token and foreign-post-mint refusals), and walk-up registration refused until `allow_staff_registration` is switched on mid-event. Ends on the scoring arithmetic (what each exit cost, exactly, on both the team's total and the public board), the audit trail behind the vouched-for arrival, and the XLSX/PDF exports. |
+
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
 ## Known gaps (not yet covered against a real backend)
 
-None outstanding — every area previously listed here now has fullstack
-coverage.
+**Feature areas with no fullstack counterpart yet.** Each is covered by the
+mocked suite in `tests/e2e/` only, so a drift between those fixtures and the
+real API would go unnoticed:
+
+- deferred judging (`/activities/deferred/*`, `/activities/results/{id}/judge`)
+- versus / team-vs pairings (`/versus/*`, `/team-vs/{activity_id}`)
+- route stages (`/route-stages`, `route_stages_enabled`)
+- leg-time scoring (`leg_time_*`)
+- push notifications (`/push/broadcast`, `/push/checkpoint-announcement`)
+- admin metrics and route planning (`/admin/metrics`, `/admin/route`)
+- dynamic scoring rules (`/dynamic-rules`)
+- manual badge award and badge showcase (`/badges/award`,
+  `/teams/{id}/badge-showcase`)
+- checkpoint media *upload* (the read path and its 403 are covered)
+
+**Reachable only through the API, not the UI.** `<ContestButton>`
+(`src/pages/team-progress`) has a unit test but is rendered nowhere in the app,
+so contesting an evaluation is currently unreachable for a participant.
+`master-rally-day.spec.ts` therefore contests via the API.
 
 Note on `dist/`: the fullstack web server runs `vite preview`, which serves
 whatever is already in `dist/` and never rebuilds. After changing app code,
