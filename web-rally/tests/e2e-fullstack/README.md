@@ -64,6 +64,8 @@ files would only confuse.
 
 | `ops-and-judging.spec.ts` | Running the event rather than scoring it. **Push** is worth checking here precisely because the smoke stack has no VAPID keypair — which is the state CI runs in: every sending endpoint must fail closed the same way (503), while `unsubscribe` deliberately stays open so a device can always detach. The tests branch on whether keys are present, so a stack that configures them gets stronger assertions instead of being skipped. **Deferred judging by hand** — the other half of the ranking path `peddy-paper-aveiro.spec.ts` covers: a capture waits with `judgment_status: pending_judgment` and no score (`is_completed` is already true, and means the team *did* it, not that anyone judged it), judging is the admin's even at the staff's own post, and a team photo cannot be pointed at a URL the team never submitted. |
 
+| `activity-result-permissions.spec.ts` | One rule across every route that writes an activity result: **staff score at their own post, and nowhere else.** All five used to guard with the context-free `require(...)` dependency, whose missing checkpoint context made the staff rule (`_staff_own_checkpoint`) false for everyone — so they denied every rally-staff member, including the one at the post with the team in front of them. Both halves are asserted per route, because simply dropping the guard would have let any staff member score any post in the event: create, correct, extra shots, penalty and head-to-head each get a "their own post" and a "not somebody else's". Plus that an admin is not confined to a post, and that a bad activity id still reads as 404 rather than as a permission problem. |
+
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
 ## Known gaps (not yet covered against a real backend)
@@ -89,16 +91,6 @@ so contesting an evaluation is currently unreachable for a participant.
 `master-rally-day.spec.ts` therefore contests via the API.
 
 **Smaller findings these specs ran into**, none fixed here:
-
-- **A staff member cannot record a versus result at their own post** (403).
-  `POST /activities/team-vs/{id}` guards with `require(CREATE_ACTIVITY_RESULT,
-  ...)`, and that dependency passes no checkpoint context — `abac_deps.require`'s
-  own docstring says endpoints needing context should call `require_permission`
-  inside the body instead. The staff rule for the action is
-  `_staff_own_checkpoint`, false whenever `checkpoint_id` is None, so *every*
-  rally-staff member is denied, including the one watching the match. The same
-  person can score every other activity type at that post, which is what makes
-  it look like an oversight. Pinned by `versus.spec.ts`.
 
 - The admin checkpoint list's **edit and delete buttons carry no accessible
   name** — they are icon-only, while the media button beside them has an

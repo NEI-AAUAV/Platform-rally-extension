@@ -281,7 +281,7 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
     expect(expected).toBeGreaterThan(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
   });
 
-  test("the staff member running the match cannot record it — only an admin can", async () => {
+  test("the staff member running the match records it themselves, at their own post", async () => {
     const world = await seedVersus();
     const [teamA, teamB] = world.teams;
     await apiCall("POST", "/versus/pair", {
@@ -289,20 +289,52 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
       body: { team_a_id: teamA!.id, team_b_id: teamB!.id },
     });
 
-    // Pinned deliberately, because it is a product gap rather than a rule:
-    // `POST /activities/team-vs/{id}` guards with `require(CREATE_ACTIVITY_RESULT,
-    // ...)`, whose dependency passes no checkpoint context (see abac_deps.require's
-    // own docstring: endpoints needing context are supposed to call
-    // require_permission inside the body). The staff rule for that action is
-    // `_staff_own_checkpoint`, which is false whenever checkpoint_id is None —
-    // so *every* rally-staff member is denied, including the one standing at
-    // the post with the two teams in front of them. They have to call an admin
-    // over to record a result they just watched.
-    //
-    // The same staff member can score every other activity type at that post,
-    // which is what makes this look like an oversight rather than a decision.
-    const asStaff = await fetch(
+    // The person who watched the match settles it. This used to be a 403 for
+    // every rally-staff member — the route guarded with the context-free
+    // `require(...)` dependency, and the staff rule for the action
+    // (`_staff_own_checkpoint`) is false whenever checkpoint_id is None — so
+    // whoever was refereeing had to fetch an admin to record a result they
+    // had just seen with their own eyes.
+    const settle = await fetch(
       `${API_V1}/activities/team-vs/${world.activityId}` +
+        `?team1_id=${teamA!.id}&team2_id=${teamB!.id}&winner_id=${teamB!.id}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${world.staffToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ completed: true, notes: "arbitrado no posto" }),
+      },
+    );
+    expect(settle.status, await settle.clone().text()).toBe(200);
+
+    const evaluations = await apiCall<{
+      evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
+    }>("GET", "/staff/all-evaluations", { token: world.adminToken });
+    const scoreOf = (teamId: number) =>
+      evaluations.evaluations.find(
+        (e) => e.team_id === teamId && e.activity_id === world.activityId,
+      )?.final_score;
+    expect(scoreOf(teamB!.id)).toBe(BASE_POINTS + COMPLETION_POINTS + WIN_POINTS);
+    expect(scoreOf(teamA!.id)).toBe(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
+  });
+
+  test("but not at a post that is not theirs", async () => {
+    // The other half of the same rule, and the reason resolving the
+    // checkpoint matters rather than dropping the guard: "staff may score"
+    // has to keep meaning "at their own post".
+    const world = await seedVersus();
+    const other = await seedVersus();
+    const [teamA, teamB] = other.teams;
+    await apiCall("POST", "/versus/pair", {
+      token: other.adminToken,
+      body: { team_a_id: teamA!.id, team_b_id: teamB!.id },
+    });
+
+    // world's staff is assigned to world's arena, not to other's.
+    const trespass = await fetch(
+      `${API_V1}/activities/team-vs/${other.activityId}` +
         `?team1_id=${teamA!.id}&team2_id=${teamB!.id}&winner_id=${teamA!.id}`,
       {
         method: "POST",
@@ -313,15 +345,13 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
         body: JSON.stringify({ completed: true }),
       },
     );
-    expect(asStaff.status).toBe(403);
-    expect(await asStaff.text()).toContain("create_activity_result");
+    expect(trespass.status).toBe(403);
 
-    // Nothing was written by the refused call.
     const evaluations = await apiCall<{
-      evaluations: { team_id: number; activity_id: number }[];
-    }>("GET", "/staff/all-evaluations", { token: world.adminToken });
+      evaluations: { activity_id: number }[];
+    }>("GET", "/staff/all-evaluations", { token: other.adminToken });
     expect(
-      evaluations.evaluations.filter((e) => e.activity_id === world.activityId),
+      evaluations.evaluations.filter((e) => e.activity_id === other.activityId),
     ).toHaveLength(0);
   });
 
