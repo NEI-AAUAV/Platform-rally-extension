@@ -80,9 +80,7 @@ export default function CheckpointForm({
   const name = form.watch("name");
   const canStartDraft = !isEditing && !hasPendingDraft && !!name?.trim();
   return (
-    <div
-      className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}
-    >
+    <div className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}>
       <h3 className="mb-1 text-lg font-semibold">
         {isEditing ? "Editar Checkpoint" : "Criar Novo Checkpoint"}
       </h3>
