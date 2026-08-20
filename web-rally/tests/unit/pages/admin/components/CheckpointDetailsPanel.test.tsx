@@ -24,7 +24,7 @@ describe("CheckpointDetailsPanel", () => {
   it("shows a disabled hint when there is no checkpoint yet", () => {
     render(<CheckpointDetailsPanel checkpointId={null} />);
     expect(
-      screen.getByText(/Grava o checkpoint primeiro/i),
+      screen.getByText(/Começar a preencher/i),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
   });

@@ -32,7 +32,8 @@ export default function CheckpointDetailsPanel({
       <div className="flex items-start gap-2 rounded-b-2xl border border-t-0 border-border bg-muted/30 p-4 text-sm text-muted-foreground sm:p-6">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
-          Grava o checkpoint primeiro para poderes configurar atividades, media e pistas do guia.
+          Escreve um nome e clica em "Começar a preencher" para já poderes configurar atividades,
+          media e pistas do guia.
         </p>
       </div>
     );

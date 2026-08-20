@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Form,
@@ -54,6 +55,10 @@ type CheckpointFormProps = Readonly<{
   /** True when a details panel (activities/media/hints) renders right below,
    * so this card's bottom corners should stay square to join it visually. */
   hasAttachedPanel?: boolean;
+  /** True once "Começar a preencher" has silently saved this new post. */
+  hasPendingDraft?: boolean;
+  onStartDraft?: () => void;
+  isStartingDraft?: boolean;
 }>;
 
 export default function CheckpointForm({
@@ -68,7 +73,12 @@ export default function CheckpointForm({
   pendingClueImage,
   onPendingClueImageChange,
   hasAttachedPanel,
+  hasPendingDraft,
+  onStartDraft,
+  isStartingDraft,
 }: CheckpointFormProps) {
+  const name = form.watch("name");
+  const canStartDraft = !isEditing && !hasPendingDraft && !!name?.trim();
   return (
     <div
       className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}
@@ -100,6 +110,27 @@ export default function CheckpointForm({
                 </FormItem>
               )}
             />
+            {!isEditing && !hasPendingDraft && (
+              <div className="space-y-1.5">
+                <BloodyButton
+                  type="button"
+                  variant="neutral"
+                  onClick={onStartDraft}
+                  disabled={!canStartDraft || isStartingDraft}
+                >
+                  {isStartingDraft ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                  <span className="ml-1.5">Começar a preencher</span>
+                </BloodyButton>
+                <p className="text-xs text-muted-foreground">
+                  Grava já este posto para poderes acrescentar media, atividades e pistas do guia
+                  enquanto preenches o resto.
+                </p>
+              </div>
+            )}
             <FormField
               control={form.control}
               name="is_placeholder"
@@ -409,7 +440,7 @@ export default function CheckpointForm({
             <BloodyButton type="submit" disabled={isSubmitting}>
               {isEditing ? "Atualizar" : "Criar"} Checkpoint
             </BloodyButton>
-            {isEditing && (
+            {(isEditing || hasPendingDraft) && (
               <BloodyButton type="button" variant="neutral" onClick={onCancel}>
                 Cancelar
               </BloodyButton>

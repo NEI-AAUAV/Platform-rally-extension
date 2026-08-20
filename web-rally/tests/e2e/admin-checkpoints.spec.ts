@@ -267,4 +267,65 @@ test.describe("Admin checkpoints", () => {
       .toBe("Aponta para a estátua");
     expect(capturedBody).toBeDefined();
   });
+
+  test("'Começar a preencher' saves a draft in the background, then a single 'Criar Checkpoint' finalizes it", async ({
+    page,
+    context,
+  }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockCheckpointList(page, []);
+    let createCalls = 0;
+    let updateBody: unknown;
+    await page.route("**/api/rally/v1/checkpoint/", (route) => {
+      if (route.request().method() === "POST") {
+        createCalls += 1;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(route.request().postDataJSON() as object) }),
+        });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+    await page.route("**/api/rally/v1/checkpoint/1", (route) => {
+      if (route.request().method() === "PUT") {
+        updateBody = route.request().postDataJSON();
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(updateBody as object) }),
+        });
+      }
+      return route.fallback();
+    });
+    await page.route("**/api/rally/v1/checkpoint/1/media", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) }),
+    );
+    await page.route("**/api/rally/v1/checkpoint/1/guide-indications", (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ id: 1, ...(route.request().postDataJSON() as object) }),
+        });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+
+    await gotoCheckpoints(page);
+    await page.getByPlaceholder("Ex: Checkpoint Central").fill("Posto com pista");
+    await page.getByRole("button", { name: "Começar a preencher" }).click();
+
+    // The panel attaches without a page reload or a second "Editar" click.
+    await page.getByPlaceholder(/Indicação a dar à equipa/).fill("Aponta para a estátua");
+    await page.getByRole("button", { name: "Adicionar indicação" }).click();
+
+    await page.getByRole("button", { name: "Criar Checkpoint" }).click();
+
+    await expect
+      .poll(() => (updateBody as { name?: string })?.name)
+      .toBe("Posto com pista");
+    expect(createCalls).toBe(1); // only the background draft-create, never a second POST
+  });
 });

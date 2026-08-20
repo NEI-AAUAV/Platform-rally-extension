@@ -33,6 +33,9 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
     refetchCheckpoints,
     stages,
     selectedCheckpointId,
+    pendingDraftId,
+    startDraftCheckpoint,
+    isStartingDraft,
     pendingClueImage,
     setPendingClueImage,
   } = useCheckpointManagement(userStore);
@@ -54,11 +57,14 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           onSubmit={handleCheckpointSubmit}
           onCancel={cancelEdit}
           checkpoints={sortedCheckpoints}
-          currentId={editingCheckpoint?.id ?? null}
+          currentId={editingCheckpoint?.id ?? pendingDraftId ?? null}
           stages={stages}
           pendingClueImage={pendingClueImage}
           onPendingClueImageChange={setPendingClueImage}
           hasAttachedPanel
+          hasPendingDraft={!!pendingDraftId}
+          onStartDraft={startDraftCheckpoint}
+          isStartingDraft={isStartingDraft}
         />
         <CheckpointDetailsPanel
           checkpointId={selectedCheckpointId}
