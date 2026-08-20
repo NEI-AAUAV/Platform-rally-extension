@@ -63,6 +63,11 @@ export default defineConfig({
         // minutes and tells you nothing. Bound it here so a bad locator fails
         // in fifteen seconds, with its own call log.
         actionTimeout: 15_000,
+        // Opt-in slowdown for watching a run with --headed:
+        // PW_SLOWMO=300 pnpm exec playwright test --project=fullstack ... --headed
+        launchOptions: {
+          slowMo: process.env.PW_SLOWMO ? Number(process.env.PW_SLOWMO) : undefined,
+        },
       },
     },
   ],
