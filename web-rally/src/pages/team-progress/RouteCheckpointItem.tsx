@@ -291,9 +291,7 @@ export default function RouteCheckpointItem({
             <button
               type="button"
               disabled={
-                arrival.gpsState === "locating" ||
-                arrival.isPending ||
-                arrival.gpsState === "done"
+                arrival.gpsState === "locating" || arrival.isPending || arrival.gpsState === "done"
               }
               onClick={arrival.handleCheckin}
               className="rally-press w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"

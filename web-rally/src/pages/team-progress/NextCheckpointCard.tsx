@@ -18,11 +18,7 @@ import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { checkpointOpeningNotice } from "./checkpointHours";
-import {
-  useCheckpointArrival,
-  isOfflineFailure,
-  type GpsState,
-} from "./useCheckpointArrival";
+import { useCheckpointArrival, isOfflineFailure, type GpsState } from "./useCheckpointArrival";
 
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
