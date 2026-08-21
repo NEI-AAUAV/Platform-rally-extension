@@ -68,6 +68,36 @@ files would only confuse.
 
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
+## Everything is a click, except three things
+
+These specs drive the app, not the API. A team logs in on the login form,
+presses the check-in button, buys a hint and gives up from its own screen; a
+guide reads the post's script and marks an arrival from the guide view; staff
+score on the real evaluation forms; the organizer builds the event, pairs
+teams, writes rules, awards badges, orders the deferred captures and reads the
+metrics on the admin tabs. Where a screen exists, the test uses it.
+
+Three kinds of assertion stay at the API, and each one is commented where it
+appears:
+
+1. **Permission boundaries.** Staff at post A getting a 403 at post B. The UI
+   never offers that action — the staff screen shows only their own post — so
+   a UI test here would only prove the app hides a button. What matters is
+   that the server refuses *even when the request arrives anyway*: a stale
+   token, a forged call, a future change that shows the control to more
+   people. Every matching positive ("staff can, at their own post") is driven
+   through the form.
+2. **What the UI cannot express.** A team turning up at a post it was never
+   sent to; a QR token replayed, forged, or minted for someone else's post.
+   The participant screen offers exactly one next post and no way to type a
+   token, so these are unreachable by clicking — and they are precisely the
+   cases worth knowing the server handles, because they happen on a real day.
+3. **Fixtures and readbacks.** Seeding a scenario, and reading a row back to
+   confirm what a form just wrote. Building an event twice over through the UI
+   in every spec would spend the suite's runtime re-testing `admin-setup`; and
+   a readback that went through the same screen that did the write would not
+   be independent evidence.
+
 ## Known gaps (not yet covered against a real backend)
 
 **Feature areas with no fullstack counterpart yet.** Each is covered by the

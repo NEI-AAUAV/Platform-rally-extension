@@ -298,20 +298,24 @@ async function buyEveryHint(page: Page): Promise<void> {
   }
 }
 
-/** A team's own GPS arrival, straight at the real endpoint. */
-async function arriveByGps(
-  token: string,
-  checkpoint: BuiltCheckpoint,
-): Promise<{ status: number; body: string }> {
-  const response = await fetch(`${API_V1}/checkpoint/${checkpoint.id}/arrive`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      latitude: checkpoint.latitude,
-      longitude: checkpoint.longitude,
-    }),
-  });
-  return { status: response.status, body: await response.text() };
+/**
+ * Reach a post the way a team does: standing there and pressing the button.
+ *
+ * Idempotent, because a successful press relabels the control to "Check-in
+ * feito" — a retry that went looking for the actionable label again would
+ * fail a check-in that had already landed. The name is anchored because the
+ * route list carries a "Check-in GPS aqui" button for every other post a
+ * free-choice stage leaves open, and this is about the main card's post.
+ */
+async function checkInWithGpsButton(page: Page): Promise<void> {
+  const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+  await expect(async () => {
+    if (await registered.isVisible().catch(() => false)) return;
+    await page
+      .getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ })
+      .click({ timeout: 5_000 });
+    await expect(registered).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
 }
 
 test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
@@ -846,10 +850,10 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       expect(betaFirst.latitude).toBeNull();
       expect(betaFirst.search_latitude).not.toBe(ponte!.latitude);
 
-      // Having narrowed it down, Beta walks in and checks in for real.
+      // Having narrowed it down, Beta walks in and presses check-in.
       await standAt(betaPage.context(), ponte!);
-      const betaArrival = await arriveByGps(tokens[beta!.id]!, ponte!);
-      expect(betaArrival.status).toBe(200);
+      await betaPage.goto("/rally/team-progress");
+      await checkInWithGpsButton(betaPage);
 
       // --- Gama: can't solve it, buys the whole hint ladder ---------------
       // Through the UI, because the confirm dialog and the price shown to the
@@ -869,8 +873,9 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         world.hints.length,
       );
 
-      // With the ladder spent, Gama finally finds it.
-      expect((await arriveByGps(tokens[gama!.id]!, ponte!)).status).toBe(200);
+      // With the ladder spent, Gama finally finds it — on the same screen it
+      // just bought the hints from.
+      await checkInWithGpsButton(gamaPage);
 
       // --- Delta: buys everything, still can't find it, gives up ----------
       // Through the UI, and in that order, because the UI only offers the
@@ -1034,18 +1039,23 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
 
     const staffPage = await newAuthedPage(browser, staffMercado.user);
     const managerPage = await newAuthedPage(browser, cast.manager.user);
+    const teamPages = await Promise.all(teams.map(() => newPage(browser)));
+    for (const [index, team] of teams.entries()) {
+      await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
+      await standAt(teamPages[index]!.context(), mercado!);
+    }
 
     try {
       // Everyone converges on post 2. Delta arrives too: giving up on post 1
       // resolved it, so post 2 is legitimately its next post — the escape
       // hatch has to leave a team able to keep playing, or it is not an
       // escape at all.
-      const arrivals = await Promise.all(
-        teams.map((team) => arriveByGps(tokens[team.id]!, mercado!)),
+      await Promise.all(
+        teamPages.map(async (page) => {
+          await page.goto("/rally/team-progress");
+          await checkInWithGpsButton(page);
+        }),
       );
-      for (const [index, arrival] of arrivals.entries()) {
-        expect(arrival.status, `${teams[index]!.name} could not reach post 2`).toBe(200);
-      }
 
       // --- The manager watches the whole route while the staff scores one --
       // `manager-rally` has its own cross-checkpoint evaluation page
@@ -1113,7 +1123,11 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const betaCard = publicPage.locator("a", { hasText: beta!.name });
       await expect(betaCard.getByText(/pts/)).not.toHaveText("0 pts", { timeout: 30_000 });
     } finally {
-      await Promise.all([staffPage.context().close(), managerPage.context().close()]);
+      await Promise.all([
+        staffPage.context().close(),
+        managerPage.context().close(),
+        ...teamPages.map((page) => page.context().close()),
+      ]);
     }
   });
 
@@ -1136,15 +1150,22 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
     ) as Record<number, string>;
 
     const adminPage = await newAuthedPage(browser, cast.admin.user);
+    const alphaPage = await newPage(browser);
+    await seedTeamSession(alphaPage.context(), alpha!, tokens[alpha!.id]!);
+    await standAt(alphaPage.context(), se!);
 
     try {
       // --- The door isn't open yet ----------------------------------------
-      // Alpha is standing at the right place with a valid fix, and is still
-      // refused — and told when it opens, because a team at a closed door
-      // already knows where the post is, so the hour is not worth redacting.
-      const tooEarly = await arriveByGps(tokens[alpha!.id]!, se!);
-      expect(tooEarly.status).toBe(400);
-      expect(tooEarly.body).toContain("not open yet");
+      // Alpha is standing at the right place with a valid fix, and the app
+      // does not even offer the button: it reads the post's window itself and
+      // says when it opens. That is the difference between "the app is
+      // broken" and "come back at ten" — and a team at a closed door already
+      // knows where the post is, so the hour is not worth redacting.
+      await alphaPage.goto("/rally/team-progress");
+      await expect(alphaPage.getByText(/ainda não abriu\. Abre às \d{2}:\d{2}/)).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(alphaPage.getByRole("button", { name: /^Check-in GPS$/ })).toHaveCount(0);
 
       // The organizer's escape hatch, reached through the real settings form:
       // faster than clearing the hours post by post when a place opens early.
@@ -1155,10 +1176,14 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await saveSettings(adminPage);
       await waitForSetting(cast.admin.user.accessToken, "checkpoint_hours_enabled", false);
 
-      // Same team, same place, same fix — now let in. One call, not a poll:
-      // an arrival is a write.
-      const letIn = await arriveByGps(tokens[alpha!.id]!, se!);
-      expect(letIn.status, letIn.body).toBe(200);
+      // Same team, same place — and now the app offers the button, because
+      // the notice reads the event's switch rather than the post's window
+      // alone. Without that the organizer's escape hatch worked on the server
+      // and nowhere else: check-ins were being accepted while every team still
+      // saw "ainda não abriu" and had nothing to press.
+      await alphaPage.reload();
+      await expect(alphaPage.getByText(/ainda não abriu/)).toHaveCount(0);
+      await checkInWithGpsButton(alphaPage);
 
       // --- Beta arrives the other way: by scanning the post's QR -----------
       // The staff member at the post shows a rotating QR; the team scans it
@@ -1244,7 +1269,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // walk-up would otherwise pass.
       expect(members.filter((member) => member.name === walkUpName)).toHaveLength(1);
     } finally {
-      await adminPage.context().close();
+      await Promise.all([adminPage.context().close(), alphaPage.context().close()]);
     }
   });
 

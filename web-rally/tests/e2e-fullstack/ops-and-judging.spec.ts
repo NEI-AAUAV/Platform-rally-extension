@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { mintToken, apiCall, API_V1 } from "./helpers/fullstackAuth";
+import {
+  mintToken,
+  seedRealOidcSession,
+  apiCall,
+  API_V1,
+  type MintedUser,
+} from "./helpers/fullstackAuth";
 import { createAndActivateEvent, waitForApi } from "./helpers/seedRally";
 import {
   ensureTeamCapacityAndSettings,
@@ -17,6 +23,7 @@ import {
  */
 
 interface OpsWorld {
+  readonly admin: MintedUser;
   readonly adminToken: string;
   readonly staffToken: string;
   readonly checkpointId: number;
@@ -67,6 +74,7 @@ async function seedOps(): Promise<OpsWorld> {
   const staff = await mintStaffAssignedToCheckpoint(runId, "-ops", "ops", admin, checkpoint.id);
 
   return {
+    admin,
     adminToken: admin.accessToken,
     staffToken: staff.accessToken,
     checkpointId: checkpoint.id,
@@ -180,6 +188,97 @@ test.describe("Operação — avisar toda a gente, e julgar o que ficou por julg
       body: JSON.stringify({ title: "Aviso", body: "vou mandar isto a toda a gente" }),
     });
     expect(staffBroadcast.status).toBe(403);
+  });
+
+  test("the broadcast form tells the organizer push is not configured", async ({
+    page,
+    context,
+  }) => {
+    const world = await seedOps();
+    test.skip(await vapidConfigured(world.adminToken), "this stack has push configured");
+    await seedRealOidcSession(context, world.admin);
+
+    // The screen an organizer reaches for when it starts raining. With no
+    // VAPID keypair the tab does the right thing: it explains that this is a
+    // deploy-time setting rather than an admin switch, and offers no compose
+    // form at all — better than a form that appears to send. A notification
+    // everybody believes went out and nobody received is worse than a visible
+    // refusal.
+    await page.goto("/rally/admin?tab=notifications");
+    await expect(page.getByText(/Sem chave VAPID configurada/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByPlaceholder("Ex: Atenção equipas!")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Enviar a todas as equipas/ })).toHaveCount(0);
+  });
+
+  test("the judge orders the captures on screen, and the scores follow that order", async ({
+    page,
+    context,
+  }) => {
+    const world = await seedOps();
+    await seedRealOidcSession(context, world.admin);
+    const [teamA, teamB] = world.teams;
+    await capture(world, teamA!.id);
+    await capture(world, teamB!.id);
+
+    // "Mais criativo" is decided by putting the teams in an order, not by
+    // typing a number — so the tab is a list with arrows and one confirm.
+    await page.goto("/rally/admin?tab=judging");
+    // Scoped to this run's activity: the shared disposable Postgres keeps
+    // every previous run's unjudged captures, and the tab groups them by
+    // activity, so an unscoped locator picks up other groups' rows.
+    // Walk up from this run's own team row to the nearest ancestor that also
+    // holds a "Confirmar ordenação" — that is the group card for this
+    // activity. Structural filters do not work here: `hasText` matches every
+    // ancestor, and `filter({has})` + `.last()` picks the last in DOM order
+    // rather than the innermost, both of which land on a container holding
+    // every group at once. The shared disposable Postgres keeps every previous
+    // run's unjudged captures, so there are always many.
+    const group = page.locator(
+      // normalize-space(.) rather than (text()): React renders
+      // `Equipa #{id}` as two text nodes, so text() sees only "Equipa #".
+      `xpath=//*[normalize-space(.)="Equipa #${teamA!.id}"]` +
+        // The group root is an <li>, not a div — the rows inside it are
+        // <li> too, but a row holds no confirm button, so the predicate
+        // picks the card.
+        `/ancestor::li[.//button[normalize-space()="Confirmar ordenação"]][1]`,
+    );
+    await expect(group.getByText(`Equipa #${teamA!.id}`)).toBeVisible({ timeout: 30_000 });
+
+    // Promote whoever is last, which is never the row whose up-arrow is
+    // disabled — the final order is then one the judge chose rather than the
+    // one the captures arrived in.
+    const upArrows = group.getByRole("button", { name: /^Subir equipa #/ });
+    await upArrows.last().click();
+    await group.getByRole("button", { name: "Confirmar ordenação" }).click();
+
+    await expect
+      .poll(
+        async () => {
+          const results = await apiCall<{ team_id: number; final_score: number | null }[]>(
+            "GET",
+            `/activities/deferred/${world.activityId}/results`,
+            { token: world.adminToken },
+          );
+          const a = results.find((r) => r.team_id === teamA!.id)?.final_score;
+          const b = results.find((r) => r.team_id === teamB!.id)?.final_score;
+          // Both scored, and not equally: a ranking that gave everyone the
+          // same number would not be a ranking.
+          return a != null && b != null ? a !== b : null;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+
+    // And nothing is left waiting: confirming an order judges every capture in
+    // it, so the queue a judge works through actually empties.
+    const stillPending = await apiCall<{ team_id: number }[]>(
+      "GET",
+      "/activities/deferred/pending",
+      { token: world.adminToken },
+    );
+    expect(stillPending.some((r) => r.team_id === teamA!.id || r.team_id === teamB!.id)).toBe(
+      false,
+    );
   });
 
   test("a captured attempt waits unscored until a judge gives it a number", async () => {

@@ -5,6 +5,13 @@
  * `api-rally/app/services/route_progress.py`); this is the same rule read
  * client-side so the button is not offered in the first place. Returns null
  * when the post has no window, or is inside it.
+ *
+ * `hoursEnforced` mirrors the event's `checkpoint_hours_enabled`, which is the
+ * organizer's escape hatch for the bar that opened early — its own help text
+ * says it is "mais rápido do que limpar os horários um a um". Without it here
+ * the switch was honoured by the server and ignored by the client: the
+ * organizer flipped it, the server started accepting check-ins, and the teams
+ * still saw "ainda não abriu" with no button to press.
  */
 export function checkpointOpeningNotice(
   checkpoint: {
@@ -12,7 +19,9 @@ export function checkpointOpeningNotice(
     available_until?: string | null;
   },
   now: Date = new Date(),
+  hoursEnforced = true,
 ): string | null {
+  if (!hoursEnforced) return null;
   const from = parseDate(checkpoint.available_from);
   const until = parseDate(checkpoint.available_until);
 

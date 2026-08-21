@@ -111,7 +111,11 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   // A post with its own opening window (the bars) refuses check-ins outside
   // it server-side. Saying so here — with the hour — is the difference
   // between "the app is broken" and "come back at ten".
-  const openingNotice = checkpointOpeningNotice(checkpoint);
+  const openingNotice = checkpointOpeningNotice(
+    checkpoint,
+    undefined,
+    settings?.checkpoint_hours_enabled !== false,
+  );
 
   const canCheckin =
     settings?.gps_checkin_enabled === true &&

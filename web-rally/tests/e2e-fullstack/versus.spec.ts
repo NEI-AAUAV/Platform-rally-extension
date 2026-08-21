@@ -1,5 +1,11 @@
-import { test, expect } from "@playwright/test";
-import { mintToken, seedRealOidcSession, apiCall, API_V1 } from "./helpers/fullstackAuth";
+import { test, expect, type Page } from "@playwright/test";
+import {
+  mintToken,
+  seedRealOidcSession,
+  apiCall,
+  API_V1,
+  type MintedUser,
+} from "./helpers/fullstackAuth";
 import { createAndActivateEvent, waitForApi } from "./helpers/seedRally";
 import {
   ensureTeamCapacityAndSettings,
@@ -26,11 +32,13 @@ const DRAW_POINTS = 50;
 const LOSE_POINTS = 0;
 
 interface VersusWorld {
+  readonly admin: MintedUser;
   readonly adminToken: string;
+  readonly staff: MintedUser;
   readonly staffToken: string;
   readonly checkpointId: number;
   readonly activityId: number;
-  readonly teams: readonly { id: number; name: string }[];
+  readonly teams: readonly { id: number; name: string; accessCode: string }[];
 }
 
 async function seedVersus(): Promise<VersusWorld> {
@@ -69,25 +77,49 @@ async function seedVersus(): Promise<VersusWorld> {
 
   await ensureTeamCapacityAndSettings(admin, 6, { enable_versus: true });
 
-  const teams: { id: number; name: string }[] = [];
+  const teams: { id: number; name: string; accessCode: string }[] = [];
   for (const label of ["A", "B", "C", "D"]) {
     const name = `E2E Versus ${label} ${runId}`;
-    const created = await apiCall<{ id: number }>("POST", "/team/", {
+    const created = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
       token: admin.accessToken,
       body: { name },
     });
-    teams.push({ id: created.id, name });
+    teams.push({ id: created.id, name, accessCode: created.access_code });
   }
 
   const staff = await mintStaffAssignedToCheckpoint(runId, "-vs", "versus", admin, checkpoint.id);
 
   return {
+    admin,
     adminToken: admin.accessToken,
+    staff,
     staffToken: staff.accessToken,
     checkpointId: checkpoint.id,
     activityId: activity.id,
     teams,
   };
+}
+
+/**
+ * Pair two teams the way an organizer does: on /rally/versus, picking each
+ * side from its own dropdown and pressing the button.
+ *
+ * The form filters team B's list by whoever is already selected as A, which is
+ * the UI's own guard against a team facing itself — worth going through rather
+ * than posting the pair, since that guard exists nowhere else.
+ */
+async function pairThroughUi(page: Page, teamAName: string, teamBName: string): Promise<void> {
+  await page.goto("/rally/versus");
+  await page.locator("#team-a-select").click();
+  await page.getByRole("option", { name: new RegExp(escapeForRegExp(teamAName)) }).click();
+  await page.locator("#team-b-select").click();
+  await page.getByRole("option", { name: new RegExp(escapeForRegExp(teamBName)) }).click();
+  await page.getByRole("button", { name: "Criar Par Versus" }).click();
+}
+
+/** Team names carry a run id with regex-significant characters. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 test.describe("Versus — equipa contra equipa, contra o backend real", () => {
@@ -97,16 +129,18 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
     await waitForApi();
   });
 
-  test("pairing is mutual and listed, and re-pairing a paired team is refused rather than orphaning its opponent", async () => {
+  test("pairing is mutual and listed, and re-pairing a paired team is refused rather than orphaning its opponent", async ({
+    page,
+    context,
+  }) => {
     const world = await seedVersus();
+    await seedRealOidcSession(context, world.admin);
     const [teamA, teamB, teamC] = world.teams;
 
-    const pair = await apiCall<{ group_id: number; team_a_id: number; team_b_id: number }>(
-      "POST",
-      "/versus/pair",
-      { token: world.adminToken, body: { team_a_id: teamA!.id, team_b_id: teamB!.id } },
-    );
-    expect(pair.group_id).toBeGreaterThan(0);
+    await pairThroughUi(page, teamA!.name, teamB!.name);
+    // The pair shows up on the same page it was made on.
+    await expect(page.getByText(teamA!.name).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(teamB!.name).first()).toBeVisible();
 
     // The property a mocked test cannot check: the relationship is mutual.
     // A fixture that returns B for A says nothing about what A returns for B.
@@ -353,6 +387,80 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
     expect(
       evaluations.evaluations.filter((e) => e.activity_id === other.activityId),
     ).toHaveLength(0);
+  });
+
+  test("staff scores the match on the real form, and the opponent gets the mirror image", async ({
+    browser,
+  }) => {
+    const world = await seedVersus();
+    const [teamA, teamB] = world.teams;
+    await apiCall("POST", "/versus/pair", {
+      token: world.adminToken,
+      body: { team_a_id: teamA!.id, team_b_id: teamB!.id },
+    });
+    // Both sides have to be standing at the post before either can be scored.
+    for (const team of [teamA!, teamB!]) {
+      await apiCall("POST", "/checkpoint/staff-check-in", {
+        token: world.staffToken,
+        body: { team_code: team.accessCode, checkpoint_id: world.checkpointId },
+      });
+    }
+
+    const staffContext = await browser.newContext();
+    await seedRealOidcSession(staffContext, world.staff);
+    const staffPage = await staffContext.newPage();
+
+    try {
+      // The form a referee actually uses. Note this is *not* the endpoint the
+      // other tests in this file drive: the UI submits through the ordinary
+      // evaluation route, which mirrors the outcome onto the opponent, while
+      // `POST /activities/team-vs/{id}` settles both sides in one call. Two
+      // paths into the same match, and only one of them has a screen.
+      await staffPage.goto(`/rally/staff-evaluation/checkpoint/${world.checkpointId}`);
+      await staffPage.getByText(teamA!.name).first().click();
+      await staffPage
+        .getByRole("button", { name: /avaliar|evaluate/i })
+        .first()
+        .click();
+      await staffPage.locator("#teamvs-result").selectOption("win");
+      await staffPage
+        .getByRole("button", {
+          name: /submit evaluation|submeter avaliação|atualizar avaliação/i,
+        })
+        .click();
+      await expect(staffPage.getByText("Atividade avaliada com sucesso!").first()).toBeVisible({
+        timeout: 20_000,
+      });
+
+      // The half a referee never fills in: scoring the winner has to settle
+      // the loser too, or the opponent sits unscored at a match that is over.
+      await expect
+        .poll(
+          async () => {
+            const evaluations = await apiCall<{
+              evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
+            }>("GET", "/staff/all-evaluations", { token: world.adminToken });
+            return evaluations.evaluations.find(
+              (e) => e.team_id === teamB!.id && e.activity_id === world.activityId,
+            )?.final_score;
+          },
+          { timeout: 30_000 },
+        )
+        // Completion counts too: the form records the challenge as done as
+        // well as decided, so both sides get the participation and completion
+        // tiers and only the outcome tier differs.
+        .toBe(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
+
+      const evaluations = await apiCall<{
+        evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
+      }>("GET", "/staff/all-evaluations", { token: world.adminToken });
+      const winner = evaluations.evaluations.find(
+        (e) => e.team_id === teamA!.id && e.activity_id === world.activityId,
+      );
+      expect(winner?.final_score).toBe(BASE_POINTS + COMPLETION_POINTS + WIN_POINTS);
+    } finally {
+      await staffContext.close();
+    }
   });
 
   test("the admin's versus page shows the real pairings", async ({ page, context }) => {

@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { mintToken, apiCall, API_V1 } from "./helpers/fullstackAuth";
+import {
+  mintToken,
+  seedRealOidcSession,
+  apiCall,
+  API_V1,
+  type MintedUser,
+} from "./helpers/fullstackAuth";
 import { createAndActivateEvent, waitForApi } from "./helpers/seedRally";
 import { ensureTeamCapacityAndSettings } from "./helpers/seedGuideScenarioShared";
 
@@ -22,6 +28,7 @@ import { ensureTeamCapacityAndSettings } from "./helpers/seedGuideScenarioShared
  */
 
 interface LeverWorld {
+  readonly admin: MintedUser;
   readonly adminToken: string;
   readonly checkpoints: readonly { id: number; order: number }[];
   readonly teamId: number;
@@ -83,6 +90,7 @@ async function seedLevers(options: {
   );
 
   return {
+    admin,
     adminToken: admin.accessToken,
     checkpoints,
     teamId: team.id,
@@ -181,42 +189,40 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     expect(awards).toHaveLength(0);
   });
 
-  test("a dynamic rule is the named price behind a discretionary award", async () => {
+  test("a dynamic rule is the named price behind a discretionary award", async ({
+    page,
+    context,
+  }) => {
     const world = await seedLevers({});
+    await seedRealOidcSession(context, world.admin);
+    const ruleName = `Melhor claque ${world.runId}`;
 
-    const rule = await apiCall<{ id: number; name: string; points: number; is_active: boolean }>(
-      "POST",
+    // Both halves through the organizer's own tab: the rule is written on the
+    // form, then spent on a team from the awards form right below it, with the
+    // rule picked from the dropdown so the award carries it.
+    await page.goto("/rally/admin?tab=scoring");
+    await page.getByRole("button", { name: "Nova regra" }).click();
+    await page.getByPlaceholder("Nome da regra").fill(ruleName);
+    await page.getByPlaceholder("ex: 50").fill("50");
+    await page.getByPlaceholder("Opcional").first().fill("A equipa que mais apoiou as outras");
+    await page.getByRole("button", { name: /^Criar$/ }).first().click();
+    await expect(page.getByText(ruleName).first()).toBeVisible({ timeout: 20_000 });
+
+    const listed = await apiCall<{ id: number; name: string; points: number }[]>(
+      "GET",
       "/dynamic-rules",
-      {
-        token: world.adminToken,
-        body: {
-          name: `Melhor claque ${world.runId}`,
-          description: "A equipa que mais apoiou as outras",
-          rule_type: "bonus",
-          points: 50,
-          is_active: true,
-          is_automatic: false,
-        },
-      },
+      { token: world.adminToken },
     );
-    expect(rule.points).toBe(50);
-
-    const listed = await apiCall<{ id: number; name: string }[]>("GET", "/dynamic-rules", {
-      token: world.adminToken,
-    });
-    expect(listed.some((r) => r.id === rule.id)).toBe(true);
+    const rule = listed.find((r) => r.name === ruleName);
+    expect(rule, "the rule form did not create a rule").toBeDefined();
+    expect(rule!.points).toBe(50);
 
     // The award carries the rule, so the scoreboard's arithmetic can be
     // explained afterwards by pointing at a rule rather than at a memory.
-    await apiCall("POST", "/dynamic-awards", {
-      token: world.adminToken,
-      body: {
-        team_id: world.teamId,
-        points: rule.points,
-        reason: rule.name,
-        rule_id: rule.id,
-      },
-    });
+    await page.getByRole("button", { name: "Novo prémio" }).click();
+    await page.locator("select").first().selectOption(String(world.teamId));
+    await page.getByPlaceholder("ex: -10 ou 50").fill("50");
+    await page.getByRole("button", { name: /^Criar$/ }).last().click();
     await expect
       .poll(
         async () =>
@@ -231,9 +237,9 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
 
     // Repricing the rule does not silently reprice awards already handed out —
     // a team's total must not move because someone edited a rule afterwards.
-    await apiCall("PUT", `/dynamic-rules/${rule.id}`, {
+    await apiCall("PUT", `/dynamic-rules/${rule!.id}`, {
       token: world.adminToken,
-      body: { name: rule.name, rule_type: "bonus", points: 10, is_active: true },
+      body: { name: rule!.name, rule_type: "bonus", points: 10, is_active: true },
     });
     const stillFifty = await apiCall<{ total: number }>("GET", `/team/${world.teamId}`, {
       token: world.adminToken,
@@ -241,7 +247,7 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     expect(stillFifty.total).toBe(50);
 
     // Deleting the rule is a 204 and takes it out of the list.
-    const deleted = await fetch(`${API_V1}/dynamic-rules/${rule.id}`, {
+    const deleted = await fetch(`${API_V1}/dynamic-rules/${rule!.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${world.adminToken}` },
     });
@@ -249,23 +255,34 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     const afterDelete = await apiCall<{ id: number }[]>("GET", "/dynamic-rules", {
       token: world.adminToken,
     });
-    expect(afterDelete.some((r) => r.id === rule.id)).toBe(false);
+    expect(afterDelete.some((r) => r.id === rule!.id)).toBe(false);
   });
 
-  test("a badge awarded by hand shows as earned on the team's board", async () => {
+  test("a badge awarded by hand shows as earned on the team's board", async ({
+    page,
+    context,
+  }) => {
     const world = await seedLevers({});
+    await seedRealOidcSession(context, world.admin);
     const code = `e2e_lever_badge_${world.runId.replace(/-/g, "_")}`.slice(0, 60);
+    const badgeName = `Melhor Disfarce ${world.runId}`;
 
-    const definition = await apiCall<{ id: number; code: string }>("POST", "/badge-definitions", {
-      token: world.adminToken,
-      body: {
-        code,
-        name: `Melhor Disfarce ${world.runId}`,
-        description: "Dado à mão pela organização",
-        is_active: true,
-      },
-    });
-    expect(definition.code).toBe(code);
+    // The catalogue entry, written on the organizer's own form.
+    await page.goto("/rally/admin?tab=badges");
+    await page.getByRole("button", { name: "Novo crachá" }).click();
+    await page.getByPlaceholder("ex: first_arrival").fill(code);
+    await page.getByPlaceholder("Nome do crachá").fill(badgeName);
+    await page.getByPlaceholder("Descrição opcional…").fill("Dado à mão pela organização");
+    await page.getByRole("button", { name: /^Criar$/ }).click();
+    await expect(page.getByText(badgeName).first()).toBeVisible({ timeout: 20_000 });
+
+    const definitions = await apiCall<{ id: number; code: string }[]>(
+      "GET",
+      "/badge-definitions",
+      { token: world.adminToken },
+    );
+    const definition = definitions.find((d) => d.code === code);
+    expect(definition, "the badge form did not create a definition").toBeDefined();
 
     // Before the award the badge is in the catalogue but not earned — the
     // locked half of the grid a team sees.
@@ -276,11 +293,37 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     expect(before.definitions.some((d) => d.code === code)).toBe(true);
     expect(before.earned.some((e) => e.code === code)).toBe(false);
 
-    const awarded = await apiCall<{ id: number }>("POST", "/badges/award", {
-      token: world.adminToken,
-      body: { team_id: world.teamId, badge_code: code },
-    });
-    expect(awarded.id).toBeGreaterThan(0);
+    // Handed out from the panel below the catalogue: pick the team, pick the
+    // badge, press the button.
+    await page.getByRole("combobox").filter({ hasText: "Escolher equipa…" }).click();
+    await page.getByRole("option", { name: world.teamName }).click();
+    await page.getByRole("combobox").filter({ hasText: "Escolher crachá…" }).click();
+    await page.getByRole("option", { name: badgeName }).click();
+    await page.getByRole("button", { name: "Atribuir crachá" }).click();
+
+    await expect
+      .poll(
+        async () =>
+          (
+            await apiCall<{ earned: { code: string }[] }>(
+              "GET",
+              `/teams/${world.teamId}/badge-showcase`,
+              { token: world.adminToken },
+            )
+          ).earned.some((e) => e.code === code),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+    // `badge_type` here, not `badge_code` — the award row names the badge by
+    // its type, which is the definition's code.
+    const awarded = (
+      await apiCall<{ id: number; badge_type: string }[]>(
+        "GET",
+        `/teams/${world.teamId}/badges`,
+        { token: world.adminToken },
+      )
+    ).find((b) => b.badge_type === code);
+    expect(awarded, "the award panel did not award the badge").toBeDefined();
 
     const after = await apiCall<{ earned: { code: string }[] }>(
       "GET",
@@ -290,7 +333,7 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     expect(after.earned.some((e) => e.code === code)).toBe(true);
 
     // Revoking takes it back off the board.
-    const revoked = await fetch(`${API_V1}/badges/${awarded.id}`, {
+    const revoked = await fetch(`${API_V1}/badges/${awarded!.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${world.adminToken}` },
     });
@@ -366,8 +409,24 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
       .toBe(0);
   });
 
-  test("admin metrics report real counters that only move forwards", async () => {
+  test("admin metrics report real counters that only move forwards", async ({
+    page,
+    context,
+  }) => {
     const world = await seedLevers({});
+    await seedRealOidcSession(context, world.admin);
+
+    // The panel an organizer watches during the event, rendered from the real
+    // counters rather than a fixture.
+    await page.goto("/rally/admin?tab=metrics");
+    await expect(page.getByText("Pedidos totais")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Taxa de erro 5xx")).toBeVisible();
+    await expect(page.getByText("Rejeições rate-limit")).toBeVisible();
+    // Health, not just traffic: the panel is also where a dead worker or a
+    // Redis outage shows up, which is the thing that silently staleness the
+    // leaderboard.
+    await expect(page.getByText("Base de dados")).toBeVisible();
+    await expect(page.getByText("Workers vivos")).toBeVisible();
 
     const first = await apiCall<{
       requests_total: number;
