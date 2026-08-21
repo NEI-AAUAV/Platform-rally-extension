@@ -24,9 +24,7 @@ describe("TeamMembersErrorBanners", () => {
   });
 
   it("renders both banners when both errors are present", () => {
-    render(
-      <TeamMembersErrorBanners teamsError={new Error("a")} membersError={new Error("b")} />,
-    );
+    render(<TeamMembersErrorBanners teamsError={new Error("a")} membersError={new Error("b")} />);
     expect(screen.getByText("Erro ao carregar equipas:")).toBeInTheDocument();
     expect(screen.getByText("Erro ao carregar membros:")).toBeInTheDocument();
   });
