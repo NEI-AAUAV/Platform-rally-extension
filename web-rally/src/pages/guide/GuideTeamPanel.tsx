@@ -9,7 +9,11 @@ import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
  * itself, scoped server-side to the one team this guide is assigned to.
  */
 export default function GuideTeamPanel() {
-  const { data: team, isLoading, isError } = useQuery({
+  const {
+    data: team,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["guide-team"],
     queryFn: async () => (await getGuideTeam()).data,
     retry: false,

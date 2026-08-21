@@ -330,9 +330,7 @@ export default function GuidePage() {
           </div>
         ))}
 
-      {tab === "mapa" && (
-        <MapSection checkpoints={checkpoints} selectedCheckpoint={null} showMap />
-      )}
+      {tab === "mapa" && <MapSection checkpoints={checkpoints} selectedCheckpoint={null} showMap />}
 
       {tab === "equipa" && <GuideTeamPanel />}
     </div>

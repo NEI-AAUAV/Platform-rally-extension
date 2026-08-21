@@ -169,7 +169,9 @@ class TestManualArrival:
         # would through the GPS path.
         assert resp.json()["auto_completed"] is True
 
-    async def test_guide_cannot_mark_a_different_team_arrived(self, pg_session, pg_client, as_guide):
+    async def test_guide_cannot_mark_a_different_team_arrived(
+        self, pg_session, pg_client, as_guide
+    ):
         """A guide accompanies a single assigned team, and may only vouch for
         that team's arrival — never another team passing through the same
         post."""
