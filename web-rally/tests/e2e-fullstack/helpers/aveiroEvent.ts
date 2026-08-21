@@ -43,6 +43,14 @@ export interface AveiroActivity {
   readonly typeLabel: string;
   readonly apiType: string;
   /**
+   * The type-specific number inputs the admin activity form shows for this
+   * type, keyed by the input's own id (see `CONFIG_KEY_BY_FIELD_ID` in
+   * `peddy-paper-aveiro.spec.ts`). The spec fills them from here and later
+   * asserts the scores against the same numbers, so the sheet's values and the
+   * expectations cannot drift apart.
+   */
+  readonly configFields: Readonly<Record<string, number>>;
+  /**
    * Extra counters for challenges that punish a failed attempt.
    *
    * `points` is a magnitude, not a negative number: the admin form's input has

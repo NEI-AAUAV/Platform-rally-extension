@@ -273,6 +273,53 @@ test.describe("peddy paper", () => {
 
 /** Staggered starts: same route for everyone, departures spread out. */
 test.describe("staggered starts", () => {
+  test("a team waiting for its own departure is told the hour, and offered no button", async ({
+    page,
+    context,
+  }) => {
+    await waitForApi();
+    const peddy = await seedPeddyPaper();
+    const teamToken = await loginTeam(peddy.accessCode);
+
+    // Timing lives on the *event*, not the settings row (see the next test).
+    // The event started a minute ago; this team leaves an hour after that.
+    await apiCall("PUT", `/events/${peddy.eventId}`, {
+      token: peddy.admin.accessToken,
+      body: { start_time: new Date(Date.now() - 60_000).toISOString() },
+    });
+    await apiCall("PUT", `/team/${peddy.teamId}`, {
+      token: peddy.admin.accessToken,
+      body: { name: peddy.teamName, start_offset_minutes: 60 },
+    });
+
+    await context.addInitScript(
+      ([token, teamId, teamName]) => {
+        localStorage.setItem("rally_team_token", token as string);
+        localStorage.setItem(
+          "rally_team_data",
+          JSON.stringify({ team_id: Number(teamId), team_name: teamName }),
+        );
+      },
+      [teamToken, String(peddy.teamId), peddy.teamName] as [string, string, string],
+    );
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: peddy.checkpoints[0]!.latitude,
+      longitude: peddy.checkpoints[0]!.longitude,
+    });
+
+    // Standing at the right place, an hour early. The screen says when they
+    // leave and offers nothing to press — the server would refuse anyway, and
+    // it refuses in English, so a button here buys the team a rejection it
+    // cannot read. A staggered start is the normal case for a peddy paper,
+    // where everyone walks the same route.
+    await page.goto("/rally/team-progress");
+    await expect(page.getByText(/A vossa partida é às \d{2}:\d{2}/)).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("button", { name: /^Check-in GPS$/ })).toHaveCount(0);
+  });
+
   test("a team cannot register progress before its own start time", async () => {
     await waitForApi();
     const peddy = await seedPeddyPaper();

@@ -23,6 +23,8 @@ import { useCheckpointArrival, isOfflineFailure, type GpsState } from "./useChec
 type NextCheckpointCardProps = Readonly<{
   checkpoint: DetailedCheckPoint;
   showMap: boolean;
+  /** Set while the team's own departure is still ahead; see departureNotice. */
+  notYetDeparted?: string | null;
 }>;
 
 const BUTTON_CLASSES: Record<GpsState, string> = {
@@ -81,7 +83,11 @@ function ButtonContent({ gpsState, isPending }: { gpsState: GpsState; isPending:
   );
 }
 
-export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpointCardProps) {
+export default function NextCheckpointCard({
+  checkpoint,
+  showMap,
+  notYetDeparted = null,
+}: NextCheckpointCardProps) {
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
   const { settings } = useRallySettings();
   // "posto" for a peddy-paper, "tasca" for a rally — this card renders for
@@ -107,11 +113,11 @@ export default function NextCheckpointCard({ checkpoint, showMap }: NextCheckpoi
   // A post with its own opening window (the bars) refuses check-ins outside
   // it server-side. Saying so here — with the hour — is the difference
   // between "the app is broken" and "come back at ten".
-  const openingNotice = checkpointOpeningNotice(
-    checkpoint,
-    undefined,
-    settings?.checkpoint_hours_enabled !== false,
-  );
+  // Two ways a post can be shut to this team right now: the post's own hours,
+  // and the team's own departure. Either one hides the button and says why.
+  const openingNotice =
+    notYetDeparted ??
+    checkpointOpeningNotice(checkpoint, undefined, settings?.checkpoint_hours_enabled !== false);
 
   const canCheckin =
     settings?.gps_checkin_enabled === true &&

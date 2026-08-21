@@ -227,6 +227,24 @@ class TestStaffScoreTheirOwnPost:
         assert response.status_code == 404
 
 
+class TestNobodyElseWrites:
+    async def test_a_participant_with_no_rally_role_is_refused(
+        self, pg_session, pg_client, as_user, two_posts
+    ):
+        """A logged-in student is not staff at nowhere; they are not staff.
+
+        The guard resolves a post in order to *narrow* staff, so it has to keep
+        refusing everyone who was never in the table to begin with.
+        """
+        response = _create_result(
+            pg_client,
+            activity_id=two_posts["mine_activity"].id,
+            team_id=two_posts["team"].id,
+        )
+
+        assert response.status_code >= 400
+
+
 class TestTeamVsFollowsTheSameRule:
     def _settle(self, pg_client, *, activity_id, team1, team2, winner):
         return pg_client.post(

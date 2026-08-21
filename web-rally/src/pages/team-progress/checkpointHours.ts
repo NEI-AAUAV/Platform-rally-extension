@@ -45,3 +45,26 @@ function formatTime(date: Date): string {
   // date would be noise.
   return date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 }
+
+
+/**
+ * What to tell a team whose own departure has not come round yet.
+ *
+ * Same shape as the opening notice above, and the same reason: the server
+ * refuses progress before a team's start (`TeamService.validate_rally_timing`),
+ * so offering the check-in button until then means the team presses it and
+ * gets a raw English rejection back. A staggered start is the normal case for
+ * a peddy paper — everyone walks the same route, so the departures are spread
+ * out — and "sais às 10:20" is an answer where "Rally has not started" is not.
+ */
+export function departureNotice(
+  rallyStartTime: string | null | undefined,
+  startOffsetMinutes: number,
+  now: Date = new Date(),
+): string | null {
+  const start = parseDate(rallyStartTime);
+  if (!start) return null;
+  const departure = new Date(start.getTime() + startOffsetMinutes * 60_000);
+  if (now >= departure) return null;
+  return `A vossa partida é às ${formatTime(departure)}. Até lá não há check-in.`;
+}

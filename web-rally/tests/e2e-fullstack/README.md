@@ -54,9 +54,9 @@ files would only confuse.
 
 | `peddy-paper.spec.ts` | The peddy-paper game loop against the real backend: the `event_type` bootstraps the mode's settings (asserted, not set by the fixture); the team's real `/checkpoint/` and `/checkpoint/me` payloads carry the clue and *not* the name/coordinates — the actual security property, which a mocked spec cannot check since its fixture author decides the payload; media for an unreached post is 403; the hint ladder charges once per rung, refuses a post the team hasn't reached, and never returns `expected_answer`; a GPS check-in reveals the post and hands over the next riddle; a wrong-place check-in is rejected with a coarse distance band; the guide sees the clue. Also staggered starts (`start_offset_minutes`). This spec caught a real bug: the check-in button required coordinates the server deliberately withholds in this mode, so the loop was unplayable through the UI. |
 
-| `master-peddy-tascas-day.spec.ts` | The whole peddy-tascas day, end to end. Phase 1 builds the event through the **real admin UI** — event type, three posts with their riddles/coordinates/geofence, the hint ladder, activities, five teams, staff and guide assignments, and the mode's settings — then reads every row back from the API. Phases 2-4 play it out with 11 concurrent contexts and every role the system has (admin, `manager-rally`, 2× `rally-staff`, 2× `rally-guide`, 5 teams, an anonymous public viewer), with the five teams taking five different routes through the same riddle: solved outright, found with the proximity aid, found after buying the hint ladder, given up on, and — for the team whose phone died — vouched for by its guide. `manager-rally` and the guide's manual-arrival fallback were exercised by no fullstack spec before this one. Also, at the last post: a closed door (`available_from`) telling a team when it opens and the `checkpoint_hours_enabled` escape hatch that overrides it, arrival by scanning the post's rotating QR (plus the replay, out-of-order, forged-token and foreign-post-mint refusals), and walk-up registration refused until `allow_staff_registration` is switched on mid-event. Ends on the scoring arithmetic (what each exit cost, exactly, on both the team's total and the public board), the audit trail behind the vouched-for arrival, and the XLSX/PDF exports. |
+| `master-peddy-tascas-day.spec.ts` | The whole peddy-tascas day, end to end, every step of it a click. Phase 1 builds the event through the **real admin UI** — event type, three posts with their riddles/coordinates/geofence, the hint ladder, activities, five teams, staff and guide assignments, and the mode's settings. Phases 2-4 play it out with 11 concurrent contexts and every role the system has (admin, `manager-rally`, 2× `rally-staff`, 2× `rally-guide`, 5 teams — each logged in on the real form with the code off its own creation modal — and an anonymous public viewer), with the five teams taking five different routes through the same riddle: solved outright, found by pressing "estou perto?" until the band warms up, found after buying the hint ladder, given up on, and — for the team whose phone died — vouched for by its guide on the guide screen, which also shows what each arrival already paid for. `manager-rally` and the guide's manual-arrival fallback were exercised by no fullstack spec before this one. Also, at the last post: a closed door (`available_from`) telling a team when it opens, and the `checkpoint_hours_enabled` escape hatch flipped in the settings form mid-event so the queue outside can finally press check-in. Ends on the scoring arithmetic read off the two screens that show it — each team's own total and the public board, which must agree — the guide-vouched arrival found on the Auditoria tab, and both exports downloaded by pressing their buttons. |
 
-| `peddy-paper-aveiro.spec.ts` | A **real past edition**, rebuilt from the organizers' own planning sheet and then run. Where `master-peddy-tascas-day.spec.ts` invents a route to exercise the mode, this one is fixed by what actually happened and the test has to cope — which reaches corners a synthetic route never does. Setup transcribes the sheet through the admin UI: every post's three columns (`staff_script` / `clue` / `challenge_brief` — the first and third had never been filled by any test, and are asserted absent from every participant payload), the route's **two stages** (university in order, outside as a set where 3 of 4 suffice), a venue still undecided when the sheet was written ("CF DECIDE" — `is_draft` + `is_placeholder`, invisible to teams and guides until it is settled), and **four different activity types** with each one's own config inputs plus the "cada falha bebe" counters. The day then runs with 4 teams, 2 guides, the staffed posts, the admin and an anonymous viewer all acting at once: pass/fail with a miss counter, a scored challenge, a race against the clock, free choice inside the second stage, and — for "mais criativo recebe uma salva de palmas", which nobody at a post can judge alone — capture at the post and ranking afterwards. |
+| `peddy-paper-aveiro.spec.ts` | A **real past edition**, rebuilt from the organizers' own planning sheet and then run. Where `master-peddy-tascas-day.spec.ts` invents a route to exercise the mode, this one is fixed by what actually happened and the test has to cope — which reaches corners a synthetic route never does. Setup transcribes the sheet through the admin UI: every post's three columns (`staff_script` / `clue` / `challenge_brief` — the first and third had never been filled by any test), the route's **two stages** with their rules set on the stage cards (university in order, outside as a free-choice set), a venue still undecided when the sheet was written ("CF DECIDE" — `is_draft` + `is_placeholder`, published only once it was settled), **four different activity types** with each one's own config inputs plus the "cada falha bebe" counters, and staff and guides assigned on their assignment pages. The day then runs with 4 teams, 2 guides, the staffed posts, the admin and an anonymous viewer all acting at once: pass/fail with a miss counter, a scored challenge, a race against the clock, free choice inside the second stage, and — for "mais criativo recebe uma salva de palmas", which nobody at a post can judge alone — capture at the post and ranking afterwards on the Julgamento tab, with the arrows and the confirm. Every score is checked where a team would notice it: as the jump in the number on its own screen. |
 
 | `versus.spec.ts` | Head-to-head, where a post is a match rather than a solo challenge. Pairing is checked for the property a mocked test cannot see — that it is *mutual*, and that re-pairing an already-paired team is refused rather than orphaning its opponent. Scoring goes through the real `TeamVsActivity`: base + completion + outcome, three tiers priced differently so a dropped or doubled one cannot hide, asserted for both sides of a decided match and of a draw. Also pins a product gap: the staff member running the match **cannot record it** (403) — see the known gaps below. |
 
@@ -64,39 +64,46 @@ files would only confuse.
 
 | `ops-and-judging.spec.ts` | Running the event rather than scoring it. **Push** is worth checking here precisely because the smoke stack has no VAPID keypair — which is the state CI runs in: every sending endpoint must fail closed the same way (503), while `unsubscribe` deliberately stays open so a device can always detach. The tests branch on whether keys are present, so a stack that configures them gets stronger assertions instead of being skipped. **Deferred judging by hand** — the other half of the ranking path `peddy-paper-aveiro.spec.ts` covers: a capture waits with `judgment_status: pending_judgment` and no score (`is_completed` is already true, and means the team *did* it, not that anyone judged it), judging is the admin's even at the staff's own post, and a team photo cannot be pointed at a URL the team never submitted. |
 
-| `activity-result-permissions.spec.ts` | One rule across every route that writes an activity result: **staff score at their own post, and nowhere else.** All five used to guard with the context-free `require(...)` dependency, whose missing checkpoint context made the staff rule (`_staff_own_checkpoint`) false for everyone — so they denied every rally-staff member, including the one at the post with the team in front of them. Both halves are asserted per route, because simply dropping the guard would have let any staff member score any post in the event: create, correct, extra shots, penalty and head-to-head each get a "their own post" and a "not somebody else's". Plus that an admin is not confined to a post, and that a bad activity id still reads as 404 rather than as a permission problem. |
+| `activity-result-permissions.spec.ts` | What a staff member who lands on **another post's** evaluation screen is told. The screen takes its post from the URL, so a stale bookmark or a link passed around the staff group gets there; before the guard added with this spec it rendered the other post in full and the refusal arrived as a toast on the first submitted evaluation — after the team had already been put through the challenge. Now it refuses up front, names the post the person is supposed to be at, offers one button back to it, and offers none of the other post's tools. Admins are exempt and that is asserted too, because narrowing them would break the manager view. The rule itself — five write routes, both halves per route, a bad activity id still reading as 404 — lives in `app/tests/api/test_activity_result_permissions.py`. |
 
 | `pwa.spec.ts` | The manifest and service worker are served by the real `vite preview` production build (`dist/`) this project runs against, not a route-mocked `/manifest.json` — and the app shell itself renders successfully against the real backend through the proxy. The offline evaluation *queue* against a real backend (the part that actually depends on backend behavior) is already covered by `rally-day.spec.ts`'s incident 3, so this spec only covers what that one and the mocked `tests/e2e/offline-pwa.spec.ts` don't: that the built PWA artifacts are actually served correctly. |
 
-## Everything is a click, except three things
+## Everything is a click
 
 These specs drive the app, not the API. A team logs in on the login form,
-presses the check-in button, buys a hint and gives up from its own screen; a
-guide reads the post's script and marks an arrival from the guide view; staff
-score on the real evaluation forms; the organizer builds the event, pairs
-teams, writes rules, awards badges, orders the deferred captures and reads the
-metrics on the admin tabs. Where a screen exists, the test uses it.
+presses the check-in button, asks "estou perto?", buys a hint and gives up
+from its own screen; a guide reads the post's script and marks an arrival from
+the guide view; staff score on the real evaluation forms; the organizer builds
+the event, pairs teams, writes rules, awards badges, orders the deferred
+captures and reads the metrics on the admin tabs. Where a screen exists, the
+test uses it — including for the readback, because a number a participant
+cannot see is a number the event does not have.
 
-Three kinds of assertion stay at the API, and each one is commented where it
-appears:
+**A rule with nothing to click is asserted in `api-rally/app/tests/`, not
+here.** That is not an exemption; it is the correct layer. A staff member
+cannot type a QR token into any screen, a team cannot post an arrival at a
+post the app never offers it, and no page anywhere renders the field-by-field
+shape of a redacted payload. Driving those from a browser test means going
+around the browser, which is the thing this suite exists not to do. Where an
+e2e spec used to make one of those assertions, it now carries a comment naming
+the backend test that does:
 
-1. **Permission boundaries.** Staff at post A getting a 403 at post B. The UI
-   never offers that action — the staff screen shows only their own post — so
-   a UI test here would only prove the app hides a button. What matters is
-   that the server refuses *even when the request arrives anyway*: a stale
-   token, a forged call, a future change that shows the control to more
-   people. Every matching positive ("staff can, at their own post") is driven
-   through the form.
-2. **What the UI cannot express.** A team turning up at a post it was never
-   sent to; a QR token replayed, forged, or minted for someone else's post.
-   The participant screen offers exactly one next post and no way to type a
-   token, so these are unreachable by clicking — and they are precisely the
-   cases worth knowing the server handles, because they happen on a real day.
-3. **Fixtures and readbacks.** Seeding a scenario, and reading a row back to
-   confirm what a form just wrote. Building an event twice over through the UI
-   in every spec would spend the suite's runtime re-testing `admin-setup`; and
-   a readback that went through the same screen that did the write would not
-   be independent evidence.
+| Rule | Where it lives |
+|---|---|
+| QR check-in replayed / out of order / forged / minted for another post | `app/tests/api/test_checkin_api.py` |
+| Which fields a redacted post may carry, and when they are revealed | `app/tests/unit/services/test_checkpoint_redaction.py`, `app/tests/api/test_checkpoint_reveal_on_arrival.py` |
+| An arrival outside an ordered stage is recorded but does not advance | `app/tests/api/test_route_stage.py` |
+| A hint or a forfeit is charged exactly once | `app/tests/api/test_checkpoint_hints.py`, `app/tests/api/test_checkpoint_skip.py` |
+| Staff write a result at their own post and nowhere else (all five routes) | `app/tests/api/test_activity_result_permissions.py` |
+| Walk-up registration by staff, gated on `allow_staff_registration` | `app/tests/api/test_team_members.py` |
+| The guide's arrival list, with the hints each team already bought | `app/tests/api/test_guide_field_tools.py` |
+
+**What is still seeded through `apiCall`:** the world before the day starts —
+the event, its posts, its activities, its teams. Two specs build that through
+the admin forms instead (`admin-setup.spec.ts` and phase 1 of
+`master-peddy-tascas-day.spec.ts`), which is what proves those forms work;
+repeating it in every spec would spend the suite's runtime re-testing them.
+Nothing that happens *during* the day is seeded.
 
 ## Known gaps (not yet covered against a real backend)
 
@@ -115,10 +122,23 @@ real API would go unnoticed:
   `docker-compose.smoke.yml` would switch `ops-and-judging.spec.ts` onto its
   stronger assertions automatically — it already branches on the key.
 
-**Reachable only through the API, not the UI.** `<ContestButton>`
-(`src/pages/team-progress`) has a unit test but is rendered nowhere in the app,
-so contesting an evaluation is currently unreachable for a participant.
-`master-rally-day.spec.ts` therefore contests via the API.
+**Backend features with no screen.** Three endpoints work and are tested in
+`api-rally/app/tests/`, but nothing in the app calls them, so no fullstack
+spec can reach them by clicking. Listed as product gaps rather than test gaps:
+
+- **Contesting an evaluation.** `<ContestButton>` (`src/pages/team-progress`)
+  has a unit test but is rendered nowhere, so a participant cannot contest.
+  `master-rally-day.spec.ts` therefore contests via the API.
+- **The team-scans-the-post direction of QR check-in.**
+  `CheckinService.checkIn(token)` exists in `src/services/` and no component
+  calls it; only the staff-scans-the-team direction
+  (`StaffCheckinScanner` + `TeamQrCard`) is built. A post's rotating QR is
+  therefore unscannable by a team, however well `POST /checkpoint/check-in`
+  behaves.
+- **Walk-up registration by staff.** `allow_staff_registration` gates
+  `POST /team/{id}/members` for a `rally-staff` token, but the staff team view
+  (`src/pages/team-members/staff-view.tsx`) is read-only — there is no form for
+  the person at the post to add the latecomer standing in front of them.
 
 **Smaller findings these specs ran into**, none fixed here:
 
@@ -146,12 +166,13 @@ fullstack counterpart, list it here until it's covered.
 ## Team-login rate limiting across a full run
 
 `check_login_rate_limit` (`app/api/rate_limit.py`) is keyed **per client IP**,
-not per access code, with a real Redis-backed fixed window (10 attempts /
-5 min by default). Every spec here runs from the same test-runner IP against
-the same backend, so UI-driven team logins accumulate *across the whole
-suite* — `rally-day.spec.ts` alone logs in 4 teams. Prefer `POST
-/team-auth/login` via `fetch` (see `security-abac.spec.ts`'s "team
-access-token" test) over driving `/rally/team-login` through the browser
-when a spec doesn't specifically need to prove the *login form* works — the
-resulting JWT is equally real either way, and it keeps the full-suite budget
-from tipping over into a spurious "Too many requests" failure.
+not per access code, with a real Redis-backed fixed window — 10 attempts /
+5 min by default. Every spec here runs from the same test-runner IP against
+the same backend, so browser logins accumulate across the whole suite.
+
+The stack these specs run against raises it (`TEAM_LOGIN_RATE_LIMIT_ATTEMPTS:
+"200"` in `api-rally/docker-compose.smoke.yml`), which is why teams can log in
+the way teams do — typing the code into `/rally/team-login`. If you point this
+project at a backend that does not raise it, the symptom is a spurious "Too
+many requests" partway through a run, and the fix is the environment variable,
+not a spec that skips the login form.

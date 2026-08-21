@@ -1,11 +1,8 @@
+import fs from "node:fs";
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { seedRealOidcSession, apiCall, API_V1 } from "./helpers/fullstackAuth";
+import { seedRealOidcSession, apiCall } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
-import {
-  seedPeddyTascasCast,
-  loginTeam,
-  type PeddyTascasCast,
-} from "./helpers/seedPeddyTascasCast";
+import { seedPeddyTascasCast, type PeddyTascasCast } from "./helpers/seedPeddyTascasCast";
 
 /**
  * "Um dia de Peddy Tascas" — the whole event, from the night-before setup to
@@ -91,6 +88,7 @@ interface BuiltTeam {
 interface PeddyTascasWorld {
   readonly cast: PeddyTascasCast;
   readonly eventId: number;
+  readonly eventName: string;
   readonly checkpoints: readonly BuiltCheckpoint[];
   readonly teams: readonly BuiltTeam[];
   readonly hints: readonly string[];
@@ -189,18 +187,27 @@ function datetimeLocal(epochMillis: number): string {
   );
 }
 
-/** Put a team session in a browser without spending per-IP login budget. */
-async function seedTeamSession(context: BrowserContext, team: BuiltTeam, token: string) {
-  await context.addInitScript(
-    ([tok, id, name]) => {
-      localStorage.setItem("rally_team_token", tok as string);
-      localStorage.setItem(
-        "rally_team_data",
-        JSON.stringify({ team_id: Number(id), team_name: name }),
-      );
-    },
-    [token, String(team.id), team.name] as [string, string, string],
-  );
+/**
+ * Log a team in the way a team does on the day: typing the code from its
+ * envelope into the form on somebody's phone.
+ *
+ * `check_login_rate_limit` is keyed per client IP and the whole suite shares
+ * one runner IP, which is why this spec's stack raises
+ * `TEAM_LOGIN_RATE_LIMIT_ATTEMPTS` (see `docker-compose.smoke.yml`, and this
+ * directory's README). Twelve logins across the day is well inside it.
+ */
+async function teamLoginThroughForm(page: Page, accessCode: string): Promise<void> {
+  await page.goto("/rally/team-login");
+  await page.getByPlaceholder("XXXX-XXXX").fill(accessCode);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL("**/team-progress", { timeout: 30_000 });
+}
+
+/** Open a phone, log a team into it, and hand back the page. */
+async function teamPage(browser: Browser, team: BuiltTeam): Promise<Page> {
+  const page = await newPage(browser);
+  await teamLoginThroughForm(page, team.accessCode);
+  return page;
 }
 
 /**
@@ -220,29 +227,31 @@ async function saveSettings(page: Page): Promise<void> {
 }
 
 /**
- * Block until a just-saved setting is readable back from the API.
+ * Block until a just-saved switch reads back the same way on a fresh load.
  *
  * The API runs several uvicorn workers, so a settings write made through the
  * form is not necessarily visible to the next request that lands on a
- * different worker. Waiting on the *read* is the only safe way to bridge that:
- * polling the mutating call instead would retry a create — and a create that
- * succeeds on a status the assertion didn't expect keeps being retried,
- * quietly inserting a row per attempt until some limit turns it into a
- * different error. (That is exactly how this spec first filled a team with ten
- * identical members.)
+ * different worker. Waiting on the *read* is the only safe way to bridge that;
+ * polling the mutating call instead would retry the save. Reloading is the
+ * read a person would do — and it asks the question the way the day does: is
+ * the switch I flipped the switch everyone else now gets?
  */
-async function waitForSetting(
-  token: string,
-  key: string,
-  value: unknown,
-  ): Promise<void> {
+async function waitForSettingToggle(
+  page: Page,
+  tab: string,
+  inputId: string,
+  checked: boolean,
+): Promise<void> {
   await expect
     .poll(
-      async () =>
-        (await apiCall<Record<string, unknown>>("GET", "/rally/settings", { token }))[key],
-      { timeout: 20_000 },
+      async () => {
+        await page.reload();
+        await page.getByRole("button", { name: tab }).click({ timeout: 15_000 });
+        return await page.locator(`#${inputId}`).isChecked({ timeout: 15_000 });
+      },
+      { timeout: 30_000 },
     )
-    .toBe(value);
+    .toBe(checked);
 }
 
 /** Stand the browser at a checkpoint's real coordinates. */
@@ -309,13 +318,27 @@ async function buyEveryHint(page: Page): Promise<void> {
  */
 async function checkInWithGpsButton(page: Page): Promise<void> {
   const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+  const button = page.getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ });
+  let attempt = 0;
   await expect(async () => {
+    // Checked first, so the retry is idempotent: a successful press relabels
+    // the button to "Check-in feito", and a retry that went looking for the
+    // actionable label again would then never find it and fail a check-in
+    // that had in fact already landed.
     if (await registered.isVisible().catch(() => false)) return;
-    await page
-      .getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ })
-      .click({ timeout: 5_000 });
+    // From the second attempt on, reload before looking again. The card is
+    // rendered from three queries (the team, the route, the settings), and a
+    // hint purchase or another team's write can leave this page holding a
+    // version of them in which `canCheckin` is false — no button at all,
+    // rather than a button that fails. Reloading is what a person does, and
+    // it is the only thing that clears that state.
+    if (attempt++ > 0) {
+      await page.reload();
+      if (await registered.isVisible().catch(() => false)) return;
+    }
+    await button.click({ timeout: 5_000 });
     await expect(registered).toBeVisible({ timeout: 5_000 });
-  }).toPass({ timeout: 45_000 });
+  }).toPass({ timeout: 60_000 });
 }
 
 test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
@@ -698,6 +721,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       world = {
         cast,
         eventId: createdEvent.id,
+        eventName,
         checkpoints: withActivities,
         teams,
         hints,
@@ -718,46 +742,41 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
     const [ponte, mercado] = checkpoints;
     const [alpha, beta, gama, delta, epsilon] = teams;
 
-    // Each team's own session, minted once and shared between its browser
-    // context and this test's direct API reads.
-    const tokens = Object.fromEntries(
-      await Promise.all(
-        teams.map(async (team) => [team.id, await loginTeam(team.accessCode)] as const),
-      ),
-    ) as Record<number, string>;
-
     publicPage = await newPage(browser);
     const guideAlphaPage = await newAuthedPage(browser, cast.guides[0]!.user);
     const guideEpsilonPage = await newAuthedPage(browser, cast.guides[1]!.user);
-    const teamPages = await Promise.all(teams.map(() => newPage(browser)));
+    // Five phones, five envelopes, five codes typed in — at the same time,
+    // which is also the only moment of the day when every team is doing the
+    // same thing.
+    const teamPages = await Promise.all(teams.map((team) => teamPage(browser, team)));
     const [alphaPage, betaPage, gamaPage, deltaPage] = teamPages;
 
     try {
-      for (const [index, team] of teams.entries()) {
-        await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
-      }
-
       // The public scoreboard opens now and is never reloaded again. Every
       // later assertion on it can only be satisfied by a real SSE push.
       await publicPage.goto("/rally/scoreboard");
       await expect(publicPage.getByText(alpha.name)).toBeVisible({ timeout: 20_000 });
 
       // --- The route is a riddle, for everyone, at the same time ----------
-      // Read from the *real* payload rather than the page: a mocked spec
-      // asserting "the name isn't rendered" only proves its own fixture.
+      // Asserted on the page each team is actually holding, and on all five
+      // at once: the riddle is there, and the answer — the post's name, its
+      // coordinates, the key the guide reads from — is not, anywhere in the
+      // document. `content()` covers what a curious participant would find in
+      // the page source, not only what is painted.
+      //
+      // The redaction *rule* — which fields the payload may carry at which
+      // point of the route — is asserted field by field where it lives, in
+      // `app/tests/unit/services/test_checkpoint_redaction.py` and
+      // `app/tests/api/test_checkpoint_reveal_on_arrival.py`.
       await Promise.all(
-        teams.map(async (team) => {
-          const visible = await apiCall<
-            { order: number; name: string; latitude: number | null; clue: string | null }[]
-          >("GET", "/checkpoint/", { token: tokens[team.id]! });
-          const first = visible.find((cp) => cp.order === 1)!;
-          expect(first.clue).toBe(ponte!.clue);
-          // The location is the answer, so none of it may be in the payload.
-          expect(first.latitude).toBeNull();
-          expect(JSON.stringify(visible)).not.toContain(ponte!.name);
-          expect(JSON.stringify(visible)).not.toContain(String(ponte!.latitude));
-          // Nor may the guide's answer key ever reach a team.
-          expect(JSON.stringify(visible)).not.toContain(world.expectedAnswer);
+        teamPages.map(async (page) => {
+          await page.goto("/rally/team-progress");
+          await expect(page.getByText("Enigma")).toBeVisible({ timeout: 30_000 });
+          await expect(page.getByText(ponte!.clue).first()).toBeVisible();
+          const html = await page.content();
+          expect(html).not.toContain(ponte!.name);
+          expect(html).not.toContain(String(ponte!.latitude));
+          expect(html).not.toContain(world.expectedAnswer);
         }),
       );
 
@@ -768,13 +787,9 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await standAt(alphaPage.context(), ponte!);
       await Promise.all([
         (async () => {
-          await alphaPage.goto("/rally/team-progress");
-          await expect(alphaPage.getByText("Enigma")).toBeVisible({ timeout: 20_000 });
-          await expect(alphaPage.getByText(ponte!.clue).first()).toBeVisible();
-          // The post's real name is nowhere on the participant's screen…
-          await expect(alphaPage.getByText(ponte!.name)).toHaveCount(0);
-          // …nor are 6-decimal coordinates, which are only rendered once a
-          // post has been revealed.
+          await alphaPage.reload();
+          // 6-decimal coordinates are rendered only once a post has been
+          // revealed, so their absence is the same claim as the name's.
           await expect(alphaPage.getByText(/-?\d+\.\d{6}, -?\d+\.\d{6}/)).toHaveCount(0);
         })(),
         (async () => {
@@ -800,55 +815,43 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       }).toPass({ timeout: 30_000 });
 
       // --- Beta: doesn't know the city, gropes toward it with the aid -----
-      // Two readings from two distances: the far one must be a coarse band
-      // with no bearing (a bearing from 800 m away points straight at the
-      // answer), the near one may add the compass.
-      const readProximity = async (
-        token: string,
-        latitude: number,
-        longitude: number,
-      ): Promise<{ band: string; direction: string | null; raw: string }> => {
-        const response = await fetch(`${API_V1}/checkpoint/${ponte!.id}/proximity`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ latitude, longitude }),
-        });
-        expect(response.status).toBe(200);
-        const raw = await response.text();
-        const parsed = JSON.parse(raw) as { band: string; direction: string | null };
-        return { ...parsed, raw };
+      // Two readings from two distances, taken the way a lost team takes
+      // them: standing somewhere, pressing "Verificar distância", reading
+      // what comes back. The far one must be a coarse band with no bearing —
+      // a compass from 800 m away points straight at the answer — and the
+      // near one may add it.
+      const measure = async () => {
+        await betaPage.getByRole("button", { name: "Verificar distância" }).click();
+        await expect(betaPage.getByText("A medir…")).toHaveCount(0, { timeout: 20_000 });
       };
 
-      const far = await readProximity(tokens[beta!.id]!, ponte!.latitude + 0.0072, ponte!.longitude);
-      expect(far.band).toBe("menos de 2km");
-      expect(far.direction).toBeNull();
-      // Nor may the reply carry the post's own position.
-      expect(far.raw).not.toContain(String(ponte!.latitude));
+      await betaPage.goto("/rally/team-progress");
+      await betaPage.context().grantPermissions(["geolocation"]);
+      await betaPage.context().setGeolocation({
+        latitude: ponte!.latitude + 0.0072,
+        longitude: ponte!.longitude,
+      });
+      await measure();
+      // The whole reading line, not just the band: the compass sector is
+      // rendered inside this same paragraph, so an exact match is the
+      // assertion that none was offered at this range.
+      await expect(betaPage.locator("p", { hasText: "menos de 2km" })).toHaveText("menos de 2km", {
+        timeout: 20_000,
+      });
+      // And the reply the card was drawn from carries no position either.
+      expect(await betaPage.content()).not.toContain(String(ponte!.latitude));
 
-      const near = await readProximity(
-        tokens[beta!.id]!,
-        ponte!.latitude - 0.0005,
-        ponte!.longitude,
-      );
-      expect(near.band).toBe("menos de 100m");
+      await betaPage.context().setGeolocation({
+        latitude: ponte!.latitude - 0.0005,
+        longitude: ponte!.longitude,
+      });
+      await measure();
       // Inside the closest band the puzzle is already solved; the compass
-      // only helps find the door.
-      expect(near.direction).toBe("N");
-
-      // Beta also gets the search circle a redacted post carries — a
-      // neighbourhood to search, deliberately not centred on the answer.
-      const betaRoute = await apiCall<
-        {
-          order: number;
-          latitude: number | null;
-          search_latitude: number | null;
-          search_radius_m: number | null;
-        }[]
-      >("GET", "/checkpoint/", { token: tokens[beta!.id]! });
-      const betaFirst = betaRoute.find((cp) => cp.order === 1)!;
-      expect(betaFirst.search_radius_m).toBe(SEARCH_RADIUS_M);
-      expect(betaFirst.latitude).toBeNull();
-      expect(betaFirst.search_latitude).not.toBe(ponte!.latitude);
+      // only helps find the door, so now it is on the same line.
+      await expect(betaPage.locator("p", { hasText: "menos de 100m" })).toHaveText(
+        /^menos de 100m\s*N$/,
+        { timeout: 20_000 },
+      );
 
       // Having narrowed it down, Beta walks in and presses check-in.
       await standAt(betaPage.context(), ponte!);
@@ -863,15 +866,10 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // The answer key behind those hints still never reaches the team.
       expect(await gamaPage.content()).not.toContain(world.expectedAnswer);
 
-      // The charge is real, and it is one award per rung — never more.
-      const gamaAwards = await apiCall<{ points: number }[]>(
-        "GET",
-        `/dynamic-awards?team_id=${gama!.id}`,
-        { token: cast.admin.user.accessToken },
-      );
-      expect(gamaAwards.filter((a) => a.points === BOOTSTRAPPED_HINT_PENALTY)).toHaveLength(
-        world.hints.length,
-      );
+      // What those hints cost is settled in phase 4, on the public board,
+      // where it is a number a participant can read. That it is charged once
+      // per rung and never twice is asserted in
+      // `app/tests/api/test_checkpoint_hints.py::test_penalty_is_charged_once_per_hint`.
 
       // With the ladder spent, Gama finally finds it — on the same screen it
       // just bought the hints from.
@@ -893,32 +891,18 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await giveUpButton.click();
 
       // The point of the escape hatch: no longer stuck, and holding the next
-      // riddle instead.
-      await expect
-        .poll(
-          async () =>
-            (
-              await apiCall<{ order: number }>("GET", "/checkpoint/me", {
-                token: tokens[delta!.id]!,
-              })
-            ).order,
-          { timeout: 20_000 },
-        )
-        .toBe(2);
-      const deltaNext = await apiCall<{ order: number; clue: string | null }>(
-        "GET",
-        "/checkpoint/me",
-        { token: tokens[delta!.id]! },
-      );
-      expect(deltaNext.clue).toBe(mercado!.clue);
-      // And it cost the price the admin typed into the form in phase 1, not
-      // the value the backend bootstrapped.
-      const deltaAwards = await apiCall<{ points: number }[]>(
-        "GET",
-        `/dynamic-awards?team_id=${delta!.id}`,
-        { token: cast.admin.user.accessToken },
-      );
-      expect(deltaAwards.filter((a) => a.points === ORGANIZER_SKIP_PENALTY)).toHaveLength(1);
+      // riddle instead — on the same screen the button was pressed from, with
+      // no reload, because a team that gives up is looking at the phone.
+      await expect(deltaPage.getByText(mercado!.clue).first()).toBeVisible({ timeout: 30_000 });
+      // And the place it never found is finally named. Giving up *resolves*
+      // the post (`_redact_unreached` reveals a resolved one just as it does
+      // an arrival), which is the humane behaviour: a team that paid to stop
+      // looking is told what it was looking for instead of walking away with
+      // the riddle unanswered.
+      await expect(deltaPage.getByText(ponte!.name).first()).toBeVisible({ timeout: 20_000 });
+      // What the forfeit cost is settled in phase 4. That it is charged once
+      // and only once is
+      // `app/tests/api/test_checkpoint_skip.py::test_the_forfeit_is_charged_once`.
 
       // --- Epsilon: flat battery. Its guide vouches, through the guide UI --
       // This is the documented fallback for the one failure mode a redacted
@@ -933,83 +917,70 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // its current post is order 1.
       const arrivalSelect = guideEpsilonPage.locator(`#arrival-team-${ponte!.id}`);
       await expect(arrivalSelect).toBeVisible({ timeout: 20_000 });
+
+      // --- The guide's record of the morning, on the guide's own screen ---
+      // Before vouching for anyone, the panel already carries the morning: who
+      // turned up at this post, and — the part that matters standing there —
+      // which of them paid for hints, so the guide does not read one out for
+      // free seconds after a team bought it.
+      //
+      // This has to be asserted *now*: the panel renders only on the guide's
+      // team's current post (`cp.is_current`, and the server 403s on any
+      // other), so the moment Epsilon's arrival completes post 1 the whole
+      // record scrolls out of the guide's reach.
+      // Scoped to the arrived list, not to the panel: the same section also
+      // holds the "who else is still coming" dropdown, whose options carry
+      // every team's name including the ones that have not turned up.
+      const arrivedHere = guideEpsilonPage
+        .locator("section", { has: guideEpsilonPage.getByText("Equipas neste posto") })
+        .locator("ul");
+      for (const team of [alpha!, beta!, gama!]) {
+        await expect(arrivedHere.getByText(team.name, { exact: true })).toBeVisible({
+          timeout: 20_000,
+        });
+      }
+      // Delta gave up rather than arriving: a forfeit is not a visit, and a
+      // guide who saw it listed as *here* would be looking around for a team
+      // that is already two streets away.
+      await expect(arrivedHere.getByText(delta!.name, { exact: true })).toHaveCount(0);
+      await expect(arrivedHere.getByText(`${world.hints.length} pistas já compradas`)).toBeVisible();
+
       await arrivalSelect.selectOption({ label: epsilon!.name });
       await guideEpsilonPage.getByRole("button", { name: "Marcar chegada" }).click();
       // Post 1 has no activity, so vouching for the arrival *completes* it and
-      // Epsilon's current post becomes 2 — which unmounts this whole panel,
-      // since it renders only on the guide's team's current post. So the
-      // arrivals row this click created is gone from the screen a moment
-      // after it appears, and the durable UI consequence to assert is the
-      // narrower one: the team is no longer offered as still-pending.
+      // Epsilon's current post becomes 2 — which unmounts this whole panel.
+      // So the row this click created is gone from the screen a moment after
+      // it appears, and the durable UI consequence to assert is the narrower
+      // one: the team is no longer offered as still-pending. That the arrival
+      // is stored as vouched-for rather than passed off as a GPS fix is
+      // `app/tests/api/test_guide_field_tools.py::test_lists_arrivals_with_the_hints_the_team_bought`.
       await expect(guideEpsilonPage.getByRole("option", { name: epsilon!.name })).toHaveCount(0, {
         timeout: 20_000,
       });
-      // The authoritative check — the arrival exists, and is recorded as
-      // vouched-for rather than passed off as a GPS fix.
-      await expect
-        .poll(
-          async () => {
-            const rows = await apiCall<{ team_id: number; arrived_by_guide: boolean }[]>(
-              "GET",
-              `/guide/checkpoints/${ponte!.id}/teams`,
-              { token: cast.guides[1]!.user.accessToken },
-            );
-            return rows.find((row) => row.team_id === epsilon!.id)?.arrived_by_guide;
-          },
-          { timeout: 20_000 },
-        )
-        .toBe(true);
 
       // --- Everyone who reached post 1 has it revealed and the next riddle --
-      // Delta is excluded on purpose: giving up resolves a post without ever
-      // revealing it, which is the whole difference between the two exits.
-      for (const team of [alpha!, beta!, gama!, epsilon!]) {
-        await expect
-          .poll(
-            async () => {
-              const route = await apiCall<{ order: number; name: string }[]>("GET", "/checkpoint/", {
-                token: tokens[team.id]!,
-              });
-              return route.find((cp) => cp.order === 1)?.name;
-            },
-            { timeout: 20_000 },
-          )
-          .toBe(ponte!.name);
-
-        const next = await apiCall<{ order: number; clue: string | null }>(
-          "GET",
-          "/checkpoint/me",
-          { token: tokens[team.id]! },
-        );
-        expect(next.order).toBe(2);
-        expect(next.clue).toBe(mercado!.clue);
+      // On each team's own phone, which is the only place this matters: the
+      // place they found is now named, and the next riddle has replaced it.
+      // Delta is excluded on purpose — giving up resolves a post without ever
+      // revealing it, which is the whole difference between the two exits, and
+      // it was asserted at the moment it happened.
+      for (const [index, team] of teams.entries()) {
+        if (team.id === delta!.id) continue;
+        const page = teamPages[index]!;
+        await expect(async () => {
+          await page.reload();
+          await expect(page.getByText(mercado!.clue).first()).toBeVisible({ timeout: 10_000 });
+          await expect(page.getByText(ponte!.name).first()).toBeVisible({ timeout: 10_000 });
+        }).toPass({ timeout: 30_000 });
+        // The post they have not reached yet is still a riddle — one post
+        // revealed is not the route revealed.
+        expect(await page.content()).not.toContain(mercado!.name);
       }
 
       // A post nobody has reached is still sealed: its photos would give the
-      // place away as surely as its coordinates.
-      const sealedMedia = await fetch(`${API_V1}/checkpoint/${checkpoints[2]!.id}/media`, {
-        headers: { Authorization: `Bearer ${tokens[alpha!.id]!}` },
-      });
-      expect(sealedMedia.status).toBe(403);
-
-      // --- The guide's own record of the morning --------------------------
-      // Who turned up, in what order, and — the part that matters at the
-      // post — which hints they already paid for, so the guide does not read
-      // one out for free seconds after a team bought it.
-      const atPonte = await apiCall<
-        { team_id: number; team_name: string; revealed_indication_ids: number[]; arrived_by_guide: boolean }[]
-      >("GET", `/guide/checkpoints/${ponte!.id}/teams`, {
-        token: cast.guides[1]!.user.accessToken,
-      });
-      const arrivedIds = atPonte.map((row) => row.team_id);
-      expect(arrivedIds).toContain(alpha!.id);
-      expect(arrivedIds).toContain(epsilon!.id);
-      expect(arrivedIds).not.toContain(delta!.id);
-      expect(atPonte.find((row) => row.team_id === gama!.id)?.revealed_indication_ids).toHaveLength(
-        world.hints.length,
-      );
-      // The vouched-for arrival is marked as such, not passed off as a GPS fix.
-      expect(atPonte.find((row) => row.team_id === epsilon!.id)?.arrived_by_guide).toBe(true);
+      // place away as surely as its coordinates. Asserted at the payload level
+      // in `test_checkpoint_reveal_on_arrival.py`, because there is nothing to
+      // click — a sealed gallery is a gallery that is not on the page.
     } finally {
       // publicPage is deliberately left open — see its declaration.
       await Promise.all([
@@ -1031,18 +1002,11 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
     const [alpha, beta, gama, delta, epsilon] = teams;
     const staffMercado = cast.staff[0]!;
 
-    const tokens = Object.fromEntries(
-      await Promise.all(
-        teams.map(async (team) => [team.id, await loginTeam(team.accessCode)] as const),
-      ),
-    ) as Record<number, string>;
-
     const staffPage = await newAuthedPage(browser, staffMercado.user);
     const managerPage = await newAuthedPage(browser, cast.manager.user);
-    const teamPages = await Promise.all(teams.map(() => newPage(browser)));
-    for (const [index, team] of teams.entries()) {
-      await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
-      await standAt(teamPages[index]!.context(), mercado!);
+    const teamPages = await Promise.all(teams.map((team) => teamPage(browser, team)));
+    for (const page of teamPages) {
+      await standAt(page.context(), mercado!);
     }
 
     try {
@@ -1062,7 +1026,9 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // (staff-evaluation/manager-only.tsx), which no fullstack spec had ever
       // rendered against a real backend. A staff member sees only their own
       // post; the coordinator sees every one of them.
-      await staffPage.goto(`/rally/staff-evaluation/checkpoint/${mercado!.id}`);
+      // The way a staff member gets there: open the app, land on your own
+      // post. No id typed, because none is ever shown to them.
+      await staffPage.goto("/rally/staff-evaluation");
       await Promise.all([
         evaluateOnPage(staffPage, alpha!.name),
         (async () => {
@@ -1082,41 +1048,58 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         await evaluateOnPage(staffPage, team.name);
       }
 
-      // Every (team, activity) pair scored exactly once — no double write,
-      // no lost write, under five back-to-back UI submissions.
-      const allEvaluations = await apiCall<{
-        evaluations: { team_id: number; activity_id: number }[];
-      }>("GET", "/staff/all-evaluations", { token: cast.admin.user.accessToken });
-      for (const team of teams) {
-        expect(
-          allEvaluations.evaluations.filter(
-            (e) => e.team_id === team.id && e.activity_id === mercado!.activityId,
-          ),
-        ).toHaveLength(1);
-      }
+      // Every team scored exactly once — no double write, no lost write,
+      // under five back-to-back submissions on the same screen. Read off the
+      // post's own counter, which is the number the person running the post
+      // is watching, and off the "já avaliadas" list, which is where a team
+      // that was scored twice would show up twice.
+      await expect(staffPage.getByText(`${teams.length}/${teams.length}`)).toBeVisible({
+        timeout: 30_000,
+      });
+      // And the queue is empty: the "Em <posto>" section renders only while
+      // there is somebody left to score, so its absence is the post's own
+      // statement that it is done.
+      await expect(staffPage.getByText(`Em ${mercado!.name}`)).toHaveCount(0);
+      await expect(staffPage.getByText("Já avaliadas")).toBeVisible();
 
       // --- The coordinator signs up a walk-up team mid-event --------------
-      // A real write by a real `manager-rally` token: the role's ABAC table
-      // allows CREATE_TEAM resource-unscoped (app/core/abac.py), and nothing
-      // in this suite had ever exercised a manager write at all.
+      // A real write by a real `manager-rally` session, through the form the
+      // coordinator would actually use: the role's ABAC table allows
+      // CREATE_TEAM resource-unscoped (app/core/abac.py), and nothing in this
+      // suite had ever exercised a manager write at all.
       const walkUpName = `E2E Equipa Retardatária ${cast.runId}`;
-      const walkUpTeam = await apiCall<{ id: number; access_code: string }>("POST", "/team/", {
-        token: cast.manager.user.accessToken,
-        body: { name: walkUpName },
-      });
-      expect(walkUpTeam.access_code).toBeTruthy();
-      const teamsAfterWalkUp = await apiCall<{ id: number; name: string }[]>("GET", "/team/", {
-        token: cast.manager.user.accessToken,
-      });
-      expect(teamsAfterWalkUp.some((t) => t.id === walkUpTeam.id)).toBe(true);
+      await managerPage.goto("/rally/admin?tab=teams");
+      await managerPage.getByPlaceholder("Ex: Equipa Alpha").fill(walkUpName);
+      await managerPage.getByRole("button", { name: /^Criar Equipa$/ }).click();
+      // The modal is the only place the app ever shows an access code, so it
+      // is also the only way the coordinator could hand one over at the door.
+      await expect(managerPage.getByText("Equipa Criada!")).toBeVisible({ timeout: 20_000 });
+      await expect(managerPage.getByText(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/)).toBeVisible();
+      await managerPage.getByRole("button", { name: "Concluir" }).click();
+      await expect(managerPage.getByText(walkUpName)).toBeVisible({ timeout: 20_000 });
 
       // --- The admin hands out a prize the rules don't cover --------------
       // Every event has one. It lands on Beta so it cannot disturb the
-      // Alpha-vs-Gama comparison the hint economy is measured by.
-      await apiCall("POST", "/dynamic-awards", {
-        token: cast.admin.user.accessToken,
-        body: { team_id: beta!.id, points: DYNAMIC_AWARD_POINTS, reason: "melhor disfarce" },
-      });
+      // Alpha-vs-Gama comparison the hint economy is measured by — and it is
+      // typed into the same form an organizer uses at two in the morning.
+      const adminPage = await newAuthedPage(browser, cast.admin.user);
+      try {
+        await adminPage.goto("/rally/admin?tab=scoring");
+        await adminPage.getByRole("button", { name: "Novo prémio" }).click();
+        await adminPage
+          .locator('label[data-admin-search-key="award_team"] select')
+          .selectOption({ label: beta!.name });
+        await adminPage
+          .locator('label[data-admin-search-key="award_points"] input')
+          .fill(String(DYNAMIC_AWARD_POINTS));
+        await adminPage
+          .locator('label[data-admin-search-key="award_reason"] input')
+          .fill("melhor disfarce");
+        await adminPage.getByRole("button", { name: /^Criar$/ }).click();
+        await expect(adminPage.getByText("melhor disfarce")).toBeVisible({ timeout: 20_000 });
+      } finally {
+        await adminPage.context().close();
+      }
 
       // --- The board in the bar, still on the same page since this morning -
       if (!publicPage) throw new Error("the public scoreboard was never opened");
@@ -1132,27 +1115,22 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
   });
 
   // ---------------------------------------------------------------------
-  // FASE 3.5 — O ÚLTIMO POSTO: uma porta fechada, um QR, e quem apareceu sem
-  // estar inscrito
+  // FASE 3.5 — O ÚLTIMO POSTO: uma porta ainda fechada
   // ---------------------------------------------------------------------
-  test("Último posto — a Sé ainda não abriu, entra-se por QR, e o staff inscreve quem apareceu de repente", async ({
+  test("Último posto — a Sé ainda não abriu, e o organizador abre-a a meio do dia", async ({
     browser,
   }) => {
     const { cast, checkpoints, teams } = world;
-    const [, mercado, se] = checkpoints;
-    const [alpha, beta, gama] = teams;
-    const staffSe = cast.staff[1]!;
-
-    const tokens = Object.fromEntries(
-      await Promise.all(
-        teams.map(async (team) => [team.id, await loginTeam(team.accessCode)] as const),
-      ),
-    ) as Record<number, string>;
+    const [, , se] = checkpoints;
+    const [alpha, beta] = teams;
 
     const adminPage = await newAuthedPage(browser, cast.admin.user);
     const alphaPage = await newPage(browser);
-    await seedTeamSession(alphaPage.context(), alpha!, tokens[alpha!.id]!);
+    const betaPage = await newPage(browser);
+    await teamLoginThroughForm(alphaPage, alpha!.accessCode);
+    await teamLoginThroughForm(betaPage, beta!.accessCode);
     await standAt(alphaPage.context(), se!);
+    await standAt(betaPage.context(), se!);
 
     try {
       // --- The door isn't open yet ----------------------------------------
@@ -1174,223 +1152,192 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await expect(adminPage.locator("#checkpoint_hours_enabled")).toBeChecked();
       await adminPage.locator("label:has(#checkpoint_hours_enabled)").click();
       await saveSettings(adminPage);
-      await waitForSetting(cast.admin.user.accessToken, "checkpoint_hours_enabled", false);
+      await waitForSettingToggle(adminPage, "Rota", "checkpoint_hours_enabled", false);
 
-      // Same team, same place — and now the app offers the button, because
+      // Same teams, same place — and now the app offers the button, because
       // the notice reads the event's switch rather than the post's window
       // alone. Without that the organizer's escape hatch worked on the server
       // and nowhere else: check-ins were being accepted while every team still
       // saw "ainda não abriu" and had nothing to press.
-      await alphaPage.reload();
-      await expect(alphaPage.getByText(/ainda não abriu/)).toHaveCount(0);
-      await checkInWithGpsButton(alphaPage);
-
-      // --- Beta arrives the other way: by scanning the post's QR -----------
-      // The staff member at the post shows a rotating QR; the team scans it
-      // and posts the token back. Nothing in this suite covered the token
-      // path before, only the staff-scans-the-team direction.
-      const { token: seToken } = await apiCall<{ token: string }>(
-        "GET",
-        `/checkpoint/checkin-token?checkpoint_id=${se!.id}`,
-        { token: staffSe.user.accessToken },
+      //
+      // Both teams press at once, from two phones, the way a queue at a door
+      // that has just opened actually behaves.
+      await Promise.all(
+        [alphaPage, betaPage].map(async (page) => {
+          await page.goto("/rally/team-progress");
+          await expect(page.getByText(/ainda não abriu/)).toHaveCount(0);
+          await checkInWithGpsButton(page);
+        }),
       );
-      expect(seToken).toBeTruthy();
 
-      const scan = async (teamToken: string, token: string) => {
-        const response = await fetch(`${API_V1}/checkpoint/check-in`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${teamToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        return { status: response.status, body: await response.text() };
-      };
-
-      const betaScan = await scan(tokens[beta!.id]!, seToken);
-      expect(betaScan.status).toBe(200);
-      expect(JSON.parse(betaScan.body).checkpoint_order).toBe(se!.order);
-
-      // ...and the three ways that scan is meant to fail.
-      // 1. A screenshot of someone else's scan, replayed by the same team:
-      //    refused by the per-(token, team) nonce guard.
-      expect((await scan(tokens[beta!.id]!, seToken)).status).toBe(409);
-      // 2. A QR for a post the team is not up to yet — this is what stops a
-      //    team photographing the last post's code and skipping the route.
-      const { token: mercadoToken } = await apiCall<{ token: string }>(
-        "GET",
-        `/checkpoint/checkin-token?checkpoint_id=${mercado!.id}`,
-        { token: cast.admin.user.accessToken },
-      );
-      const outOfOrder = await scan(tokens[gama!.id]!, mercadoToken);
-      expect(outOfOrder.status).toBe(409);
-      expect(outOfOrder.body).toContain("Out-of-order");
-      // 3. A made-up token is not a token.
-      expect((await scan(tokens[gama!.id]!, "not-a-real-token")).status).toBe(400);
-
-      // And a staff member may not mint a QR for someone else's post — the
-      // whole scheme rests on the code being issued at the post it names.
-      const foreignMint = await fetch(
-        `${API_V1}/checkpoint/checkin-token?checkpoint_id=${mercado!.id}`,
-        { headers: { Authorization: `Bearer ${staffSe.user.accessToken}` } },
-      );
-      expect(foreignMint.status).toBe(403);
-
-      // --- Someone turns up who never signed up ---------------------------
-      // Walk-up registration is off by default, so the staff member at the
-      // post is refused first — the gate is a real one, not a UI hint.
-      const addMember = async (token: string, name: string) => {
-        const response = await fetch(`${API_V1}/team/${alpha!.id}/members`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email: null, is_captain: false }),
-        });
-        return { status: response.status, body: await response.text() };
-      };
-
-      const refused = await addMember(staffSe.user.accessToken, `Retardatário ${cast.runId}`);
-      expect(refused.status).toBe(403);
-
-      // The admin switches it on, in the real form, mid-event.
-      await adminPage.getByRole("button", { name: "Equipas" }).click();
-      await expect(adminPage.locator("#allow_staff_registration")).not.toBeChecked();
-      await adminPage.locator("label:has(#allow_staff_registration)").click();
-      await saveSettings(adminPage);
-      await waitForSetting(cast.admin.user.accessToken, "allow_staff_registration", true);
-
-      // Same staff member, same request, now allowed — and asked for exactly
-      // once, because it creates a person.
-      const walkUpName = `Retardatário ${cast.runId}`;
-      const accepted = await addMember(staffSe.user.accessToken, walkUpName);
-      expect(accepted.status, accepted.body).toBe(201);
-
-      const members = await apiCall<{ name: string }[]>("GET", `/team/${alpha!.id}/members`, {
-        token: cast.admin.user.accessToken,
-      });
-      // Exactly one, not "at least one": a retry that quietly added a second
-      // walk-up would otherwise pass.
-      expect(members.filter((member) => member.name === walkUpName)).toHaveLength(1);
+      // The staff member at the door sees both of them arrive on their own
+      // screen — the arrival is only real once the person running the post
+      // can act on it.
+      const staffPage = await newAuthedPage(browser, cast.staff[1]!.user);
+      try {
+        await staffPage.goto("/rally/staff-evaluation");
+        await expect(staffPage.getByText(se!.name)).toBeVisible({ timeout: 30_000 });
+        for (const team of [alpha!, beta!]) {
+          await expect(staffPage.getByText(team.name).first()).toBeVisible({ timeout: 30_000 });
+        }
+      } finally {
+        await staffPage.context().close();
+      }
     } finally {
-      await Promise.all([adminPage.context().close(), alphaPage.context().close()]);
+      await Promise.all([
+        adminPage.context().close(),
+        alphaPage.context().close(),
+        betaPage.context().close(),
+      ]);
     }
   });
 
   // ---------------------------------------------------------------------
   // FASE 4 — O APURAMENTO
   // ---------------------------------------------------------------------
-  test("Apuramento — o que as ajudas custaram está no total de cada equipa, e o dia inteiro está no registo", async () => {
-    const { cast, checkpoints, teams } = world;
-    const [ponte] = checkpoints;
+  test("Apuramento — o que as ajudas custaram está no total de cada equipa, e o dia inteiro está no registo", async ({
+    browser,
+  }) => {
+    const { cast, teams } = world;
     const [alpha, beta, gama, delta, epsilon] = teams;
 
-    // Read each team's stored total — the number `ScoringService.update_team_scores`
-    // maintains, which is activity points *plus* active dynamic awards, and
-    // therefore the only figure that reflects what help cost during the day.
-    const totals = Object.fromEntries(
-      await Promise.all(
-        teams.map(async (team) => {
-          const detail = await apiCall<{ id: number; total: number }>("GET", `/team/${team.id}`, {
-            token: cast.admin.user.accessToken,
-          });
-          return [team.id, detail.total] as const;
-        }),
-      ),
-    ) as Record<number, number>;
-    const scoreOf = (teamId: number): number => totals[teamId]!;
+    const adminPage = await newAuthedPage(browser, cast.admin.user);
+    const boardPage = await newPage(browser);
+    try {
+      // --- Every total, twice, from the two screens that show one --------
+      // The team's own detail page renders `Team.total` — the number
+      // `ScoringService.update_team_scores` maintains, activity points plus
+      // active dynamic awards. The public board renders the ranking total,
+      // built separately by `_get_global_ranking`. Reading both is the point:
+      // they are two different computations of the same claim, and the day is
+      // only settled if they agree.
+      const boardTotal = async (name: string): Promise<number> => {
+        const card = boardPage.locator("a", { hasText: name }).first();
+        const text = await card.innerText();
+        const match = /(-?\d+)\s*pts/.exec(text);
+        expect(match, `no points shown on the board for ${name}`).not.toBeNull();
+        return Number(match![1]);
+      };
+      const ownTotal = async (teamId: number): Promise<number> => {
+        await adminPage.goto(`/rally/teams/${teamId}`);
+        const text = await adminPage
+          .locator("p", { hasText: /^-?\d+\s*pts$/ })
+          .first()
+          .innerText();
+        return Number(/(-?\d+)/.exec(text)![1]);
+      };
 
-    // The whole point of charging for help: Alpha and Gama walked the same
-    // route and scored the same post identically, so the only thing between
-    // their totals is the two hints Gama bought — at exactly the price the
-    // admin saw in the settings form. An exact difference, not a "less than",
-    // because a rounding or double-charge bug hides inside an inequality.
-    expect(scoreOf(alpha!.id) - scoreOf(gama!.id)).toBe(
-      Math.abs(BOOTSTRAPPED_HINT_PENALTY) * world.hints.length,
-    );
-    // Delta bought the same ladder as Gama and then gave up on top, so the
-    // gap between those two is the give-up price alone — at the value the
-    // organizer typed in phase 1, not the one the backend bootstrapped.
-    expect(scoreOf(gama!.id) - scoreOf(delta!.id)).toBe(Math.abs(ORGANIZER_SKIP_PENALTY));
-    // The team a guide vouched for is scored like any other — a manual
-    // arrival is a different proof of presence, not a lesser one.
-    expect(scoreOf(epsilon!.id)).toBe(scoreOf(alpha!.id));
-    // The discretionary prize is on top of Beta's earned score.
-    expect(scoreOf(beta!.id)).toBe(scoreOf(alpha!.id) + DYNAMIC_AWARD_POINTS);
+      await boardPage.goto("/rally/scoreboard");
+      await expect(boardPage.getByText(alpha!.name)).toBeVisible({ timeout: 30_000 });
 
-    // The public board must agree with the team's own total, to the point.
-    //
-    // It did not, until this spec was written: `/scoreboard/live` is served
-    // from `ScoringService._get_global_ranking`, which summed completed
-    // activity results and never added dynamic awards the way
-    // `update_team_scores` does. Every team here showed the same flat activity
-    // score on the public board — the hints, the give-up and the prize all
-    // invisible — while their own totals had them. A hint economy whose
-    // charges never reach the standings is not an economy, so the ranking now
-    // adds active awards and these two numbers are the same number.
-    //
-    // The reason the suite ran green past this for so long: the only
-    // award-related check anywhere was `master-rally-day.spec.ts`'s
-    // `total_score >= awardPoints`, which a 100-point activity satisfies on
-    // its own whether or not the award ever counted. Hence equality here, for
-    // every team, rather than a bound.
-    // Polled, because this endpoint is served from a Redis leaderboard that
-    // LeaderboardWorker rebuilds when a scoring event lands — the last write of
-    // the day may not have reached it the instant the test asks.
-    //
-    // Exact equality is safe here because every score in this scenario is a
-    // whole number (a 100-point boolean, and integer awards). `Team.total` is
-    // rounded and the ranking total is not, so a fractional activity score —
-    // a time-based ranking, say — would legitimately differ in the last
-    // decimal; that is a separate divergence, and not one this spec creates
-    // the conditions for.
-    await expect
-      .poll(
-        async () => {
-          const board = await apiCall<{ team_id: number; total_score: number }[]>(
-            "GET",
-            "/scoreboard/live",
-            { token: cast.admin.user.accessToken },
-          );
-          return teams.map((team) => board.find((row) => row.team_id === team.id)?.total_score);
-        },
-        { timeout: 30_000 },
-      )
-      .toEqual(teams.map((team) => scoreOf(team.id)));
+      const totals: Record<number, number> = {};
+      for (const team of teams) {
+        totals[team.id] = await ownTotal(team.id);
+      }
+      const scoreOf = (teamId: number): number => totals[teamId]!;
 
-    // --- The day is in the audit trail ---------------------------------
-    // The guide-vouched arrival in particular: it is the one progress write
-    // with no GPS fix behind it, so the record of who vouched is the only
-    // thing standing behind it if the result is ever questioned.
-    const guideArrivals = await apiCall<
-      { action: string; target_id: string; note: string | null; actor_name: string | null }[]
-    >("GET", "/audit?action=checkin.guide_arrival&limit=100", {
-      token: cast.admin.user.accessToken,
-    });
-    const epsilonArrival = guideArrivals.find(
-      (entry) => entry.target_id === String(epsilon!.id) && entry.note?.includes(String(ponte!.id)),
-    );
-    expect(epsilonArrival).toBeDefined();
-    expect(epsilonArrival!.actor_name).toBe(cast.guides[1]!.user.name);
+      // The whole point of charging for help: Alpha and Gama walked the same
+      // route and scored the same post identically, so the only thing between
+      // their totals is the hints Gama bought — at exactly the price the admin
+      // saw in the settings form. An exact difference, not a "less than",
+      // because a rounding or double-charge bug hides inside an inequality.
+      expect(scoreOf(alpha!.id) - scoreOf(gama!.id)).toBe(
+        Math.abs(BOOTSTRAPPED_HINT_PENALTY) * world.hints.length,
+      );
+      // Delta bought the same ladder as Gama and then gave up on top, so the
+      // gap between those two is the give-up price alone — at the value the
+      // organizer typed in phase 1, not the one the backend bootstrapped.
+      expect(scoreOf(gama!.id) - scoreOf(delta!.id)).toBe(Math.abs(ORGANIZER_SKIP_PENALTY));
+      // The team a guide vouched for is scored like any other — a manual
+      // arrival is a different proof of presence, not a lesser one.
+      expect(scoreOf(epsilon!.id)).toBe(scoreOf(alpha!.id));
+      // The discretionary prize is on top of Beta's earned score.
+      expect(scoreOf(beta!.id)).toBe(scoreOf(alpha!.id) + DYNAMIC_AWARD_POINTS);
 
-    // The coordinator reads the same trail — `manager-rally` counts as admin
-    // for this endpoint (deps.is_admin), which is what makes the role usable
-    // as a co-organizer rather than a decoration.
-    const managerAudit = await apiCall<{ action: string }[]>("GET", "/audit?limit=50", {
-      token: cast.manager.user.accessToken,
-    });
-    expect(managerAudit.length).toBeGreaterThan(0);
+      // The board in the bar must show the same numbers, to the point.
+      //
+      // It did not, until this spec was written: the live ranking summed
+      // completed activity results and never added dynamic awards the way
+      // `update_team_scores` does, so every team here showed the same flat
+      // activity score in public — the hints, the give-up and the prize all
+      // invisible — while their own totals had them. A hint economy whose
+      // charges never reach the standings is not an economy.
+      //
+      // The reason the suite ran green past this for so long: the only
+      // award-related check anywhere was `master-rally-day.spec.ts`'s
+      // `total_score >= awardPoints`, which a 100-point activity satisfies on
+      // its own whether or not the award ever counted. Hence equality here,
+      // for every team, rather than a bound.
+      //
+      // Polled with a reload, because the board is served from a Redis
+      // leaderboard that LeaderboardWorker rebuilds when a scoring event
+      // lands: the last write of the day may not have reached it the instant
+      // the test looks.
+      await expect
+        .poll(
+          async () => {
+            await boardPage.reload();
+            const shown: number[] = [];
+            for (const team of teams) shown.push(await boardTotal(team.name));
+            return shown;
+          },
+          { timeout: 30_000 },
+        )
+        .toEqual(teams.map((team) => scoreOf(team.id)));
 
-    // --- The results leave the building ---------------------------------
-    // Both exports are real file responses, so assert on the bytes rather
-    // than on a JSON body that isn't there.
-    const xlsx = await fetch(`${API_V1}/events/${world.eventId}/export`, {
-      headers: { Authorization: `Bearer ${cast.admin.user.accessToken}` },
-    });
-    expect(xlsx.status).toBe(200);
-    expect((await xlsx.arrayBuffer()).byteLength).toBeGreaterThan(0);
+      // --- The day is in the audit trail ---------------------------------
+      // The guide-vouched arrival in particular: it is the one progress write
+      // with no GPS fix behind it, so the record of who vouched is the only
+      // thing standing behind it if the result is ever questioned. Read on
+      // the organizer's own Auditoria tab, filtered the way an organizer
+      // would filter it.
+      await adminPage.goto("/rally/admin?tab=audit");
+      await adminPage.getByRole("combobox").first().click();
+      await adminPage.getByRole("option", { name: "Check-ins" }).click();
+      const arrivalRow = adminPage
+        .locator("div.rounded-lg")
+        .filter({ hasText: "checkin.guide_arrival" })
+        // The target is what makes the row this run's: the guide's display
+        // name is not unique across runs against a long-lived database.
+        .filter({ hasText: `team#${epsilon!.id}` })
+        .first();
+      await expect(arrivalRow).toBeVisible({ timeout: 30_000 });
+      await expect(arrivalRow).toContainText(cast.guides[1]!.user.name);
 
-    const pdf = await fetch(`${API_V1}/events/${world.eventId}/report`, {
-      headers: { Authorization: `Bearer ${cast.admin.user.accessToken}` },
-    });
-    expect(pdf.status).toBe(200);
-    expect((await pdf.arrayBuffer()).byteLength).toBeGreaterThan(0);
+      // The coordinator reads the same trail — `manager-rally` counts as admin
+      // for this endpoint (deps.is_admin), which is what makes the role usable
+      // as a co-organizer rather than a decoration.
+      const managerPage = await newAuthedPage(browser, cast.manager.user);
+      try {
+        await managerPage.goto("/rally/admin?tab=audit");
+        await expect(managerPage.getByText("Sem registos para os filtros atuais.")).toHaveCount(0, {
+          timeout: 30_000,
+        });
+        await expect(managerPage.locator("div.rounded-lg").first()).toBeVisible();
+      } finally {
+        await managerPage.context().close();
+      }
+
+      // --- The results leave the building ---------------------------------
+      // Both exports are real files, downloaded by pressing the buttons on the
+      // Edições tab — which is the only way anyone ever gets them.
+      await adminPage.goto("/rally/admin?tab=events");
+      const eventCard = adminPage.locator(".rally-surface", { hasText: world.eventName }).first();
+      for (const [button, extension] of [
+        ["Exportar resultados", ".xlsx"],
+        ["Relatório (PDF)", ".pdf"],
+      ] as const) {
+        const downloadPromise = adminPage.waitForEvent("download", { timeout: 60_000 });
+        await eventCard.getByRole("button", { name: button }).click();
+        const download = await downloadPromise;
+        expect(download.suggestedFilename()).toContain(extension);
+        const path = await download.path();
+        expect(path, `${button} produced no file`).toBeTruthy();
+        expect(fs.statSync(path!).size).toBeGreaterThan(0);
+      }
+    } finally {
+      await Promise.all([adminPage.context().close(), boardPage.context().close()]);
+    }
   });
 
   test.afterAll(async () => {
