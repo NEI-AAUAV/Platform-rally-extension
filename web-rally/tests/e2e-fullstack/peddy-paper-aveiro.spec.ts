@@ -258,6 +258,83 @@ async function evaluateGeneral(page: Page, teamName: string, points: number): Pr
   await submitEvaluation(page);
 }
 
+/**
+ * Log a team in the way a team actually does: typing its access code into the
+ * form on the phone.
+ *
+ * Kept for the teams that are proving the login screen works. The rest get a
+ * seeded session instead, because `check_login_rate_limit` is keyed per client
+ * IP rather than per access code (see this directory's README) and the whole
+ * suite shares one runner IP.
+ */
+async function teamLoginThroughForm(page: Page, accessCode: string): Promise<void> {
+  await page.goto("/rally/team-login");
+  await page.getByPlaceholder("XXXX-XXXX").fill(accessCode);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL("**/team-progress");
+}
+
+/**
+ * Reach a post the way a team does: standing there and pressing the button.
+ *
+ * Retried as a whole because the geolocation-gated check-in can come back as a
+ * transient error while the rest of the suite is hammering the same backend,
+ * and because the button relabels itself between states ("Check-in GPS" →
+ * "Tentar novamente") — so the retry has to re-find it rather than hold a
+ * stale handle.
+ */
+async function checkInWithGpsButton(page: Page): Promise<void> {
+  const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+  await expect(async () => {
+    // Checked first, so the retry is idempotent: a successful press relabels
+    // the button to "Check-in feito", and a retry that went looking for the
+    // actionable label again would then never find it and fail a check-in
+    // that had in fact already landed.
+    if (await registered.isVisible().catch(() => false)) return;
+    await page
+      .getByRole("button", { name: /Check-in GPS|Tentar novamente/ })
+      .click({ timeout: 5_000 });
+    await expect(registered).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
+}
+
+/**
+ * Walk a team to whichever post the app is currently offering, and check in
+ * there by pressing the button.
+ *
+ * The post is read from the team's own progress rather than chosen by the
+ * test, because that is the only post the participant screen will let them
+ * check into — `NextCheckpointCard` renders one "próximo posto" and nothing
+ * else on the page can register an arrival.
+ */
+async function walkToPostAndCheckIn(
+  page: Page,
+  teamId: number,
+  target: BuiltPost,
+  adminToken: string,
+): Promise<void> {
+  // Waits for the app to actually be offering this post before standing at
+  // it. Scoring a challenge is what advances a team, and that lands
+  // asynchronously — pressing check-in before it does would register at the
+  // post the team is already standing on, succeed, and quietly leave the team
+  // one post behind for the rest of the phase.
+  await expect
+    .poll(
+      async () =>
+        (
+          await apiCall<{ current_checkpoint_number: number }>("GET", `/team/${teamId}`, {
+            token: adminToken,
+          })
+        ).current_checkpoint_number,
+      { timeout: 30_000 },
+    )
+    .toBe(target.order);
+
+  await standAt(page.context(), target);
+  await page.goto("/rally/team-progress");
+  await checkInWithGpsButton(page);
+}
+
 /** See master-peddy-tascas-day.spec.ts — the save bar exists only while dirty. */
 async function saveSettings(page: Page): Promise<void> {
   const save = page.getByRole("button", { name: "Guardar" });
@@ -727,14 +804,21 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
     const teamPages = await Promise.all(teams.map(() => newPage(browser)));
 
     try {
+      // The first two teams get the seeded session; the last two type their
+      // access code into the real login form. Split on purpose: the login
+      // screen has to be proven to work, but every browser login spends from
+      // a per-IP rate-limit budget the whole suite shares.
       for (const [index, team] of teams.entries()) {
-        await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
+        if (index < 2) {
+          await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
+        }
         await standAt(teamPages[index]!.context(), aristides);
       }
 
       // Everything opens at once — the board in the bar, both guides, both
-      // staffed posts and all four teams. This is the part the brief is
-      // about: on a real day nobody waits their turn.
+      // staffed posts and all four teams, two of them signing in by hand.
+      // This is the part the brief is about: on a real day nobody waits their
+      // turn.
       await Promise.all([
         (async () => {
           await publicPage.goto("/rally/scoreboard");
@@ -750,11 +834,33 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         (async () => {
           await staffCantina.goto(`/rally/staff-evaluation/checkpoint/${cantina.id}`);
         })(),
-        ...teamPages.map(async (page) => {
-          await page.goto("/rally/team-progress");
+        ...teamPages.map(async (page, index) => {
+          if (index < 2) {
+            await page.goto("/rally/team-progress");
+          } else {
+            await teamLoginThroughForm(page, teams[index]!.accessCode);
+          }
           await expect(page.getByText("Enigma")).toBeVisible({ timeout: 30_000 });
         }),
       ]);
+
+      // --- What the guide is holding, on screen -----------------------------
+      // The planning sheet's other two columns, rendered for the person
+      // standing at the post: "Assuntos a abordar" and "Desafio". Asserted
+      // here rather than only in the payload, because the whole reason those
+      // fields exist is that somebody reads them off a phone at the post.
+      const guideCard = guidePages[0]!.locator("section, div").filter({
+        hasText: aristides.staffScript.slice(0, 40),
+      });
+      await expect(guidePages[0]!.getByText("Assuntos a abordar")).toBeVisible({ timeout: 30_000 });
+      await expect(guideCard.first()).toBeVisible();
+      await expect(guidePages[0]!.getByText("Desafio", { exact: true })).toBeVisible();
+      await expect(
+        guidePages[0]!.getByText(aristides.challengeBrief.slice(0, 40), { exact: false }).first(),
+      ).toBeVisible();
+      // And the riddle the team was given, so the guide knows what they are
+      // stuck on.
+      await expect(guidePages[0]!.getByText("Enigma dado à equipa")).toBeVisible();
 
       // The first clue is the one the sheet says it is, and the post's real
       // name is nowhere near a participant.
@@ -778,12 +884,24 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       expect(guideAristides?.staff_script).toBe(aristides.staffScript);
       expect(guideAristides?.challenge_brief).toBe(aristides.challengeBrief);
 
-      // All four teams reach the first post at once.
-      const arrivals = await Promise.all(
-        teams.map((team) => arriveByGps(tokens[team.id]!, aristides)),
-      );
-      for (const [index, arrival] of arrivals.entries()) {
-        expect(arrival.status, `${teams[index]!.name}: ${arrival.body}`).toBe(200);
+      // All four teams reach the first post at once — each pressing the
+      // check-in button on its own phone, which is the participant's single
+      // most-used control and the only proof of arrival a redacted route
+      // leaves them.
+      await Promise.all(teamPages.map((page) => checkInWithGpsButton(page)));
+
+      // Proven from the guide's screen rather than from the team's own: the
+      // panel at the post lists who has turned up, which is what the person
+      // standing there actually reads. Note this is *arrival*, not progress —
+      // a post with a challenge is not resolved until it is scored, so the
+      // teams are here without having advanced, which is exactly the state
+      // the staff member is about to work through.
+      await guidePages[0]!.reload();
+      for (const team of teams) {
+        await expect(
+          guidePages[0]!.getByText(team.name).first(),
+          `${team.name} is not listed at the post`,
+        ).toBeVisible({ timeout: 30_000 });
       }
 
       // --- The ball at the goal, scored with its miss counter --------------
@@ -814,6 +932,13 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       }
 
       // --- On to the cantina, in order ------------------------------------
+      // The one call in this spec that is deliberately not a button press,
+      // because there is no button for it: the participant screen offers
+      // exactly one "próximo posto", so wandering off to a post in the next
+      // block is not something the UI can express. Driving it at the API is
+      // the only way to ask what the backend does when a team turns up
+      // somewhere it was not sent — which happens on a real day, app or no app.
+      //
       // A team wanders off to a post in the next block. The arrival is
       // *recorded* — standing somewhere is a fact, and the API says so with a
       // 200 — but it must not move the team on: "Universidade" runs in order,
@@ -836,7 +961,20 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         cantina.order,
       );
 
-      await Promise.all(teams.map((team) => arriveByGps(tokens[team.id]!, cantina)));
+      // On to the cantina — the teams walk there and press the button again,
+      // rather than the test posting an arrival on their behalf.
+      await Promise.all(
+        teamPages.map(async (page) => {
+          await standAt(page.context(), cantina);
+          await page.reload();
+          // .first(): the clue legitimately appears twice on this screen — in
+          // the riddle panel and again in the route list below it.
+          await expect(page.getByText(cantina.clue.slice(0, 30)).first()).toBeVisible({
+            timeout: 30_000,
+          });
+          await checkInWithGpsButton(page);
+        }),
+      );
       await staffCantina.reload();
       // Questions in pairs, scored out of the max the form was configured with,
       // and a penalty for each pair that got it wrong.
@@ -902,47 +1040,37 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
     const staffFaina = await newAuthedPage(browser, cast.staff[2]!.user);
     const staffMuseu = await newAuthedPage(browser, cast.staff[3]!.user);
     const adminPage = await newAuthedPage(browser, cast.admin.user);
+    const teamPages = await Promise.all(teams.map(() => newPage(browser)));
+    for (const [index, team] of teams.entries()) {
+      await seedTeamSession(teamPages[index]!.context(), team, tokens[team.id]!);
+    }
 
     try {
-      // --- Free choice inside the block -----------------------------------
-      // "Fora da Uni" runs with order_matters off, so the four teams fan out
-      // and each starts at a different post. Under the university block's
-      // rule this would be impossible for three of them; that difference is
-      // the entire reason stages exist.
-      const firstChoice = [museu, ponte, praca, faina];
-      const spread = await Promise.all(
-        teams.map((team, index) => arriveByGps(tokens[team.id]!, firstChoice[index]!)),
-      );
-      for (const [index, arrival] of spread.entries()) {
-        expect(
-          arrival.status,
-          `${teams[index]!.name} could not start at ${firstChoice[index]!.name}: ${arrival.body}`,
-        ).toBe(200);
-      }
-
-      // --- The pyramid and the line of shots, against the clock -----------
-      // "Sem reação em menos de 3 min": a time-based challenge, scored on the
-      // seconds it took, ranked against the other teams.
-      await Promise.all(teams.map((team) => arriveByGps(tokens[team.id]!, faina)));
-      await staffFaina.goto(`/rally/staff-evaluation/checkpoint/${faina.id}`);
-      const seconds = [95, 140, 172, 178];
-      for (const [index, team] of teams.entries()) {
-        await evaluateTimeBased(staffFaina, team.name, seconds[index]!);
-      }
-      // Fastest gets the configured maximum; slowest the minimum.
-      const timeResults = await apiCall<{
-        evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
-      }>("GET", "/staff/all-evaluations", { token: cast.admin.user.accessToken });
-      const fainaScore = (teamId: number) =>
-        timeResults.evaluations.find(
-          (e) => e.team_id === teamId && e.activity_id === faina.activityId,
-        )?.final_score ?? 0;
-      expect(fainaScore(teams[0]!.id)).toBe(faina.activity.configFields["config-tb-max-points"]);
-      expect(fainaScore(teams[3]!.id)).toBe(faina.activity.configFields["config-tb-min-points"]);
-      expect(fainaScore(teams[0]!.id)).toBeGreaterThan(fainaScore(teams[1]!.id));
+      // --- The block the teams work through -------------------------------
+      // "Fora da Uni" runs with order_matters off, so the backend will take a
+      // team at any of its posts in any order. The participant screen does not
+      // offer that choice, though: `NextCheckpointCard` renders exactly one
+      // "próximo posto" and the route list below it has no check-in control at
+      // all, so a team can only ever press the button for the post the app
+      // picked. That gap is noted in this directory's README.
+      //
+      // So the block is walked in the app's own order. Note that is *not* the
+      // order the sheet lists: the Faina was the undecided venue, and
+      // publishing a draft appends it to the end of its stage, so it comes
+      // last. Following the app rather than the sheet here is the point —
+      // this is the route a team actually gets.
+      const blockOrder = [museu, ponte, praca, faina];
+      expect(
+        blockOrder.map((post) => post.order),
+        "the block is not in the order this phase assumes",
+      ).toEqual([...blockOrder.map((post) => post.order)].sort((a, b) => a - b));
 
       // --- Recriar uma obra, pontuada à mão -------------------------------
-      await Promise.all(teams.map((team) => arriveByGps(tokens[team.id]!, museu)));
+      await Promise.all(
+        teamPages.map((page, index) =>
+          walkToPostAndCheckIn(page, teams[index]!.id, museu, cast.admin.user.accessToken),
+        ),
+      );
       await staffMuseu.goto(`/rally/staff-evaluation/checkpoint/${museu.id}`);
       const museuPoints = [55, 40, 30, 20];
       for (const [index, team] of teams.entries()) {
@@ -954,8 +1082,12 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // member can give on the spot: it only means anything once every team
       // has had its turn. So the post captures the attempt and the judging
       // happens afterwards — which is what a deferred-judged activity is.
+      await Promise.all(
+        teamPages.map((page, index) =>
+          walkToPostAndCheckIn(page, teams[index]!.id, ponte, cast.admin.user.accessToken),
+        ),
+      );
       for (const team of teams) {
-        await arriveByGps(tokens[team.id]!, ponte);
         const captured = await fetch(
           `${API_V1}/activities/deferred/${ponte.activityId}/capture?team_id=${team.id}`,
           {
@@ -1000,21 +1132,106 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       expect(scoreFor(teams[2]!.id)).toBeGreaterThan(scoreFor(teams[0]!.id));
       expect(scoreFor(teams[0]!.id)).toBeGreaterThan(scoreFor(teams[3]!.id));
 
-      // --- The block closes after three of its four posts ------------------
-      // required_count: 3. Every team has now done Faina, Museu and Ponte, so
-      // the Praça is optional — the route is finished without it, which is
-      // exactly how the real one ran when teams were running late.
+      // --- The Titanic scene, captured the same way -------------------------
+      await Promise.all(
+        teamPages.map((page, index) =>
+          walkToPostAndCheckIn(page, teams[index]!.id, praca, cast.admin.user.accessToken),
+        ),
+      );
       for (const team of teams) {
-        const progress = await apiCall<{ current_checkpoint_number: number }>(
+        const captured = await fetch(
+          `${API_V1}/activities/deferred/${praca.activityId}/capture?team_id=${team.id}`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${cast.staff[5]!.user.accessToken}` },
+            body: new FormData(),
+          },
+        );
+        expect(captured.status, `praça capture for ${team.name} failed`).toBe(201);
+      }
+      await apiCall("POST", `/activities/deferred/${praca.activityId}/rank`, {
+        token: cast.admin.user.accessToken,
+        body: {
+          ordered_result_ids: (
+            await apiCall<{ id: number; team_id: number }[]>(
+              "GET",
+              `/activities/deferred/${praca.activityId}/results`,
+              { token: cast.admin.user.accessToken },
+            )
+          ).map((row) => row.id),
+        },
+      });
+
+      // --- The pyramid and the line of shots, against the clock ------------
+      // "Sem reação em menos de 3 min": scored on the seconds it took, ranked
+      // against the other teams. Last in the block, because the venue for it
+      // was the one still undecided when the sheet was written.
+      await Promise.all(
+        teamPages.map((page, index) =>
+          walkToPostAndCheckIn(page, teams[index]!.id, faina, cast.admin.user.accessToken),
+        ),
+      );
+      await staffFaina.goto(`/rally/staff-evaluation/checkpoint/${faina.id}`);
+      const seconds = [95, 140, 172, 178];
+      for (const [index, team] of teams.entries()) {
+        await evaluateTimeBased(staffFaina, team.name, seconds[index]!);
+      }
+      // Fastest gets the configured maximum; slowest the minimum.
+      const timeResults = await apiCall<{
+        evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
+      }>("GET", "/staff/all-evaluations", { token: cast.admin.user.accessToken });
+      const fainaScore = (teamId: number) =>
+        timeResults.evaluations.find(
+          (e) => e.team_id === teamId && e.activity_id === faina.activityId,
+        )?.final_score ?? 0;
+      expect(fainaScore(teams[0]!.id)).toBe(faina.activity.configFields["config-tb-max-points"]);
+      expect(fainaScore(teams[3]!.id)).toBe(faina.activity.configFields["config-tb-min-points"]);
+      expect(fainaScore(teams[0]!.id)).toBeGreaterThan(fainaScore(teams[1]!.id));
+
+      // --- The route is finished ------------------------------------------
+      // Every post of both blocks is done, so the app stops handing out a next
+      // one — asserted on the participant's own screen, which is where a team
+      // finds out the route is over.
+      // Every post of both blocks is resolved for every team, so the server
+      // has no next one left to hand out.
+      for (const team of teams) {
+        const progress = await apiCall<{ last_checkpoint_number: number }>(
           "GET",
           `/team/${team.id}`,
           { token: cast.admin.user.accessToken },
         );
         expect(
-          progress.current_checkpoint_number,
-          `${team.name} is still being sent somewhere`,
-        ).toBeGreaterThanOrEqual(praca.order);
+          progress.last_checkpoint_number,
+          `${team.name} has posts left`,
+        ).toBe(world.posts.length);
       }
+
+      // ------------------------------------------------------------------
+      // PINNED KNOWN ISSUE — a team that finishes is never told it finished.
+      //
+      // `RouteFinishedCard` ("Chegaram ao fim!") renders on
+      // `isFinished = !nextCheckpoint && checkpoints.length > 0`, and
+      // `useTeamProgress` derives the next post as
+      // `checkpoints.find(cp => cp.order === team.current_checkpoint_number)`.
+      // But `TeamService` clamps that number: `current_order = last + 1 if
+      // last < max_order else last`. So once every post is resolved it stays
+      // pinned to the *last* post's order, the client finds that checkpoint,
+      // `nextCheckpoint` stays truthy, and the team is shown the post it has
+      // already finished as its "próximo posto" — forever. The finished card
+      // is unreachable.
+      //
+      // Only visible by driving the participant screen to the end of a route,
+      // which is why it survived: the API says 6 of 6 and is right.
+      //
+      // Asserted rather than described so it cannot change silently. When it
+      // is fixed, this block fails — replace it with the positive assertion
+      // and drop the note from this directory's README.
+      // ------------------------------------------------------------------
+      await teamPages[0]!.goto("/rally/team-progress");
+      await expect(teamPages[0]!.getByText("Chegaram ao fim!")).toHaveCount(0);
+      await expect(teamPages[0]!.getByText(/Próximo|Próxima/).first()).toBeVisible({
+        timeout: 30_000,
+      });
 
       // --- Standings --------------------------------------------------------
       // The public board agrees with each team's own total.
@@ -1073,6 +1290,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         staffFaina.context().close(),
         staffMuseu.context().close(),
         adminPage.context().close(),
+        ...teamPages.map((page) => page.context().close()),
       ]);
     }
   });

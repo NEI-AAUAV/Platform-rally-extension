@@ -205,7 +205,9 @@ export const AVEIRO_POSTS: readonly AveiroPost[] = [...UNIVERSIDADE_POSTS, ...FO
 /** The two blocks of the real route, with the rule each ran under. */
 export const AVEIRO_STAGES = [
   { name: "Universidade", orderMatters: true, requiredCount: null },
-  // Outside the university the teams spread out; the plan never required
-  // every post, and the guides steered teams to whatever was free.
-  { name: "Fora da Uni", orderMatters: false, requiredCount: 3 },
+  // Outside the university the order stops mattering — the guides steered
+  // teams to whatever was free. Every post is still required: the sheet lists
+  // four and the teams did four, and a partial count would strand the last
+  // one, since a satisfied stage with nothing after it ends the route.
+  { name: "Fora da Uni", orderMatters: false, requiredCount: null },
 ] as const;
