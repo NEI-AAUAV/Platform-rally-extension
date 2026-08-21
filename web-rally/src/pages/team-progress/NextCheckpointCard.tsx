@@ -89,7 +89,7 @@ export default function NextCheckpointCard({
   notYetDeparted = null,
 }: NextCheckpointCardProps) {
   const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
-  const { settings } = useRallySettings();
+  const { settings, error: settingsError, refetch: refetchSettings } = useRallySettings();
   // "posto" for a peddy-paper, "tasca" for a rally — this card renders for
   // every event type, so the copy follows the event's terminology.
   const terms = useEventTerms();
@@ -124,6 +124,14 @@ export default function NextCheckpointCard({
     (hasCoords || isRedacted) &&
     (checkpoint.arrival_radius_m ?? 0) > 0 &&
     openingNotice === null;
+
+  // Every condition above reads the event settings, so a settings fetch that
+  // failed leaves this card with no button and nothing to explain it — a team
+  // standing at the post, looking at a screen that offers nothing. The hook
+  // gives up after two retries and `retryOnMount: false` means nothing brings
+  // it back, so the state is permanent until the page is reloaded. Say what
+  // happened and offer the retry, rather than looking broken in silence.
+  const settingsUnavailable = !settings && !!settingsError;
 
   // Hints are the peddy-paper safety valve: help toward the riddle, paid for
   // in points. A checkpoint with no guide indications has no ladder and the
@@ -325,6 +333,19 @@ export default function NextCheckpointCard({
         <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           {openingNotice}
         </p>
+      )}
+
+      {settingsUnavailable && (
+        <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <p>Não foi possível carregar as definições da prova, por isso o check-in está indisponível.</p>
+          <button
+            type="button"
+            onClick={() => void refetchSettings()}
+            className="rally-press w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-all hover:bg-accent/40"
+          >
+            Tentar novamente
+          </button>
+        </div>
       )}
 
       {canCheckin && (

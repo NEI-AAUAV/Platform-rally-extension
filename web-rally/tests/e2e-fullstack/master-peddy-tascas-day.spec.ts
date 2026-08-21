@@ -1092,11 +1092,15 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         await adminPage
           .locator('label[data-admin-search-key="award_points"] input')
           .fill(String(DYNAMIC_AWARD_POINTS));
+        // Run-scoped, because the disposable Postgres keeps every previous
+        // run's awards and the tab lists them all: a bare "melhor disfarce"
+        // matches seventeen rows and none of them is this one.
+        const awardReason = `melhor disfarce ${cast.runId}`;
         await adminPage
           .locator('label[data-admin-search-key="award_reason"] input')
-          .fill("melhor disfarce");
+          .fill(awardReason);
         await adminPage.getByRole("button", { name: /^Criar$/ }).click();
-        await expect(adminPage.getByText("melhor disfarce")).toBeVisible({ timeout: 20_000 });
+        await expect(adminPage.getByText(awardReason)).toBeVisible({ timeout: 20_000 });
       } finally {
         await adminPage.context().close();
       }

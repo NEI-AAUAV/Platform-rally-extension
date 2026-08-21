@@ -117,6 +117,35 @@ describe("team-progress NextCheckpointCard", () => {
     expect(screen.queryByRole("button", { name: /Check-in GPS/ })).not.toBeInTheDocument();
   });
 
+  it("explains itself and offers a retry when the event settings could not be loaded", async () => {
+    // Every condition behind the check-in button reads the settings, so a
+    // failed settings fetch removes the button. The hook gives up after two
+    // retries and does not retry on mount, so without this the team is left
+    // standing at the post looking at a card that offers nothing and says
+    // nothing — and only a page reload brings the button back.
+    const refetch = vi.fn();
+    mockUseRallySettings.mockReturnValue({
+      settings: undefined,
+      error: new Error("500"),
+      refetch,
+    });
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+
+    expect(screen.queryByRole("button", { name: /^Check-in GPS$/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/não foi possível carregar as definições/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it("says nothing about settings while they are merely still loading", () => {
+    // No data and no error is the first render of every visit; a notice there
+    // would flash on a page that is about to work perfectly well.
+    mockUseRallySettings.mockReturnValue({ settings: undefined, refetch: vi.fn() });
+    render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
+    expect(screen.queryByText(/não foi possível carregar as definições/i)).not.toBeInTheDocument();
+  });
+
   it("does not render the checkin button when GPS check-in is disabled for the event", () => {
     mockUseRallySettings.mockReturnValue({ settings: { gps_checkin_enabled: false } });
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
