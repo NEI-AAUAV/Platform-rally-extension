@@ -92,26 +92,6 @@ so contesting an evaluation is currently unreachable for a participant.
 
 **Smaller findings these specs ran into**, none fixed here:
 
-- **A team that finishes the route is never told it finished.**
-  `RouteFinishedCard` ("Chegaram ao fim!") renders only when `useTeamProgress`
-  finds no next post, and that hook derives the next post from
-  `team.current_checkpoint_number`. `TeamService` clamps that number to the
-  last post's order once everything is resolved instead of moving past it, so
-  the client always finds a checkpoint, and a finished team is shown the post
-  it just completed as its "próximo posto" indefinitely. The card is
-  effectively dead code. Pinned by `peddy-paper-aveiro.spec.ts`, which is the
-  only spec that drives a participant screen to the end of a route — the API
-  says 6 of 6 and is perfectly right, which is why this survived.
-
-- **A free-choice stage's choice is not offered to the team.** With
-  `order_matters: false` the backend accepts a team at any of the stage's
-  posts in any order, but the participant screen renders exactly one "próximo
-  posto" (`NextCheckpointCard`) and the route list beneath it has no check-in
-  control — so a team can only ever press the button for the post the app
-  picked. The rule is real and enforced server-side; the freedom it grants is
-  unreachable through the UI. `peddy-paper-aveiro.spec.ts` therefore walks its
-  teams through the block in the app's order.
-
 - The admin checkpoint list's **edit and delete buttons carry no accessible
   name** — they are icon-only, while the media button beside them has an
   `aria-label`. There is nothing to select them by, so that spec falls back to

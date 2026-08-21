@@ -291,8 +291,11 @@ async function checkInWithGpsButton(page: Page): Promise<void> {
     // actionable label again would then never find it and fail a check-in
     // that had in fact already landed.
     if (await registered.isVisible().catch(() => false)) return;
+    // Anchored: the route list now carries a "Check-in GPS aqui" button for
+    // every other post a free-choice stage leaves open, so a loose match hits
+    // all of them at once. This helper is about the main card's post.
     await page
-      .getByRole("button", { name: /Check-in GPS|Tentar novamente/ })
+      .getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ })
       .click({ timeout: 5_000 });
     await expect(registered).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 45_000 });
@@ -1047,18 +1050,29 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
 
     try {
       // --- The block the teams work through -------------------------------
-      // "Fora da Uni" runs with order_matters off, so the backend will take a
-      // team at any of its posts in any order. The participant screen does not
-      // offer that choice, though: `NextCheckpointCard` renders exactly one
-      // "próximo posto" and the route list below it has no check-in control at
-      // all, so a team can only ever press the button for the post the app
-      // picked. That gap is noted in this directory's README.
+      // "Fora da Uni" runs with order_matters off, so the backend takes a team
+      // at any of its posts in any order — and now the team's own screen says
+      // so. The server marks every open post `is_reachable`, and the route
+      // list puts a check-in button on each one, so the block is a real choice
+      // rather than whichever post the app happened to name as next.
       //
-      // So the block is walked in the app's own order. Note that is *not* the
-      // order the sheet lists: the Faina was the undecided venue, and
-      // publishing a draft appends it to the end of its stage, so it comes
-      // last. Following the app rather than the sheet here is the point —
-      // this is the route a team actually gets.
+      // Asserted below on the participant screen. The teams are then walked in
+      // the app's own order, which is *not* the sheet's: the Faina was the
+      // undecided venue, and publishing a draft appends it to the end of its
+      // stage.
+      // The choice, on the team's phone: more than one post in this block
+      // offers a check-in button at the same time. Under the university
+      // block's ordered rule there is exactly one, which is the difference
+      // stages exist to express — and which the team could not see at all
+      // until the server started marking reachability.
+      await teamPages[0]!.goto("/rally/team-progress");
+      await expect
+        .poll(
+          async () => teamPages[0]!.getByRole("button", { name: "Check-in GPS aqui" }).count(),
+          { timeout: 30_000 },
+        )
+        .toBeGreaterThan(0);
+
       const blockOrder = [museu, ponte, praca, faina];
       expect(
         blockOrder.map((post) => post.order),
@@ -1206,32 +1220,18 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         ).toBe(world.posts.length);
       }
 
-      // ------------------------------------------------------------------
-      // PINNED KNOWN ISSUE — a team that finishes is never told it finished.
+      // And the team's own screen says so. This is the assertion that found
+      // the bug where it could not: `current_checkpoint_number` used to clamp
+      // to the last post's order when everything was done, so the client kept
+      // finding a "next" post and a finished team was shown the post it had
+      // just completed, forever. The API said 6 of 6 and was right, which is
+      // why only walking a participant screen to the end of a route caught it.
       //
-      // `RouteFinishedCard` ("Chegaram ao fim!") renders on
-      // `isFinished = !nextCheckpoint && checkpoints.length > 0`, and
-      // `useTeamProgress` derives the next post as
-      // `checkpoints.find(cp => cp.order === team.current_checkpoint_number)`.
-      // But `TeamService` clamps that number: `current_order = last + 1 if
-      // last < max_order else last`. So once every post is resolved it stays
-      // pinned to the *last* post's order, the client finds that checkpoint,
-      // `nextCheckpoint` stays truthy, and the team is shown the post it has
-      // already finished as its "próximo posto" — forever. The finished card
-      // is unreachable.
-      //
-      // Only visible by driving the participant screen to the end of a route,
-      // which is why it survived: the API says 6 of 6 and is right.
-      //
-      // Asserted rather than described so it cannot change silently. When it
-      // is fixed, this block fails — replace it with the positive assertion
-      // and drop the note from this directory's README.
-      // ------------------------------------------------------------------
-      await teamPages[0]!.goto("/rally/team-progress");
-      await expect(teamPages[0]!.getByText("Chegaram ao fim!")).toHaveCount(0);
-      await expect(teamPages[0]!.getByText(/Próximo|Próxima/).first()).toBeVisible({
-        timeout: 30_000,
-      });
+      // Reloaded inside the retry: the last score lands asynchronously.
+      await expect(async () => {
+        await teamPages[0]!.goto("/rally/team-progress");
+        await expect(teamPages[0]!.getByText("Chegaram ao fim!")).toBeVisible({ timeout: 5_000 });
+      }).toPass({ timeout: 60_000 });
 
       // --- Standings --------------------------------------------------------
       // The public board agrees with each team's own total.

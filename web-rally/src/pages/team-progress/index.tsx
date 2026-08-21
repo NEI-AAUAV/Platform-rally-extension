@@ -152,6 +152,13 @@ export default function TeamProgress() {
                   isExpanded={expandedCheckpoints.has(index)}
                   onToggle={toggleCheckpoint}
                   isLast={index === checkpoints.length - 1}
+                  // The main card already offers the post it renders; this is
+                  // for the *other* posts a free-choice stage leaves open, so
+                  // the team is not funnelled into whichever one the app
+                  // happened to pick.
+                  offerCheckIn={
+                    checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
+                  }
                 />
               ))}
             </div>

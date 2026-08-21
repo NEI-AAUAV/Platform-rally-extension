@@ -214,11 +214,22 @@ class TeamService:
         await self._db.refresh(team)
         return team
 
-    async def compute_checkpoint_progress(self, team_obj: Team) -> tuple[int, int, str | None]:
+    async def compute_checkpoint_progress(
+        self, team_obj: Team
+    ) -> tuple[int, int | None, str | None]:
         """Compute last fully completed checkpoint and current checkpoint.
 
         A checkpoint is considered completed only when all its activities have
         a completed result for this team.
+
+        ``current_order`` is None when there is no post left to send the team
+        to — the route is finished, or there is no route. It used to clamp to
+        the last post's order instead, which reads as "still working on the
+        final post" and is indistinguishable from a team that genuinely is.
+        The participant screen builds its next-post card from this number, so
+        a finished team was shown the post it had just completed as its
+        "próximo posto", for good, and never saw the finished card at all.
+
         Returns: (last_completed_order, current_order, last_checkpoint_name)
         """
         checkpoints = await checkpoint_crud.get_all_ordered(self._db)
@@ -268,9 +279,7 @@ class TeamService:
                 break
 
         max_order = checkpoints[-1].order if checkpoints else 0
-        current_order = (
-            last_completed_order + 1 if last_completed_order < max_order else last_completed_order
-        )
+        current_order = last_completed_order + 1 if last_completed_order < max_order else None
         return last_completed_order, current_order, last_completed_name
 
     async def build_listing_team(

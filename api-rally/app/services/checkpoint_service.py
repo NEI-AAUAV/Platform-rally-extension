@@ -88,7 +88,7 @@ class CheckpointService:
     def _redact_unreached(
         checkpoint: DetailedCheckPoint,
         *,
-        current_order: int,
+        current_order: int | None,
         has_arrived: bool = False,
         search_radius_m: int = 0,
         current_orders: frozenset[int] | None = None,
@@ -121,10 +121,13 @@ class CheckpointService:
         # free-choice stage leaves several posts open at once, and the team may
         # have resolved them out of order. The caller passes the two sets when
         # that is the case; otherwise the sequential comparison stands.
+        # current_order None means the team has no post left to go to: the
+        # route is finished, so every post is behind them and nothing is
+        # current. (Public callers pass 0, which resolves nothing.)
         is_resolved = (
             checkpoint.order in resolved_orders
             if resolved_orders is not None
-            else checkpoint.order < current_order
+            else current_order is None or checkpoint.order < current_order
         )
         if is_resolved or has_arrived:
             return checkpoint
@@ -134,7 +137,7 @@ class CheckpointService:
         is_current = (
             checkpoint.order in current_orders
             if current_orders is not None
-            else checkpoint.order == current_order
+            else current_order is not None and checkpoint.order == current_order
         )
         clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
@@ -156,14 +159,23 @@ class CheckpointService:
         self,
         checkpoints: Sequence[Any],
         *,
-        current_order: int,
+        current_order: int | None,
         reveal_next: bool,
         arrived_ids: frozenset[int] = frozenset(),
         search_radius_m: int = 0,
         current_orders: frozenset[int] | None = None,
         resolved_orders: frozenset[int] | None = None,
     ) -> list[DetailedCheckPoint]:
-        validated = self._validate_list(checkpoints)
+        validated = [
+            cp.model_copy(
+                update={
+                    "is_reachable": self._is_reachable(
+                        cp, current_order=current_order, current_orders=current_orders
+                    )
+                }
+            )
+            for cp in self._validate_list(checkpoints)
+        ]
         if reveal_next:
             return validated
         return [
@@ -177,6 +189,25 @@ class CheckpointService:
             )
             for cp in validated
         ]
+
+    @staticmethod
+    def _is_reachable(
+        checkpoint: DetailedCheckPoint,
+        *,
+        current_order: int | None,
+        current_orders: frozenset[int] | None,
+    ) -> bool:
+        """Whether this team may check in here right now.
+
+        Same rule the redactor uses to decide who gets a riddle, surfaced as a
+        flag: a free-choice stage opens several posts at once, and the team's
+        own screen otherwise had no way to know that more than one was
+        available. Set on both the redacted and unredacted paths, since a
+        fully-revealed rally can have free-choice stages too.
+        """
+        if current_orders is not None:
+            return checkpoint.order in current_orders
+        return current_order is not None and checkpoint.order == current_order
 
     async def all_checkpoints(self) -> list[DetailedCheckPoint]:
         """Every checkpoint in the current event, ordered — the admin/staff view."""
@@ -259,7 +290,10 @@ class CheckpointService:
             open_orders = stage_sets["current_orders"] | stage_sets["resolved_orders"]
             visible = [cp for cp in all_checkpoints if cp.order in open_orders]
         elif getattr(settings, "checkpoint_order_matters", True):
-            visible = [cp for cp in all_checkpoints if cp.order <= current_order]
+            # None = finished, so the prefix is the whole route.
+            visible = [
+                cp for cp in all_checkpoints if current_order is None or cp.order <= current_order
+            ]
         else:
             # Free order: a team can reach checkpoint 3 before 2, but a
             # sequential prefix would hide that it exists at all. Every
@@ -346,7 +380,8 @@ class CheckpointService:
         _, current_order, _ = await TeamService(
             self._db, self._team_crud
         ).compute_checkpoint_progress(team)
-        if checkpoint.order < current_order:
+        # Finished route: every post is behind them, so every gallery is open.
+        if current_order is None or checkpoint.order < current_order:
             return True
         if checkpoint.order == current_order:
             return getattr(settings, "reveal_next_checkpoint", True)

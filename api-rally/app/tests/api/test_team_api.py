@@ -266,7 +266,11 @@ class TestGetTeamById:
         # no-active-activity branch also counts as done
         # (checked_in_count=2 >= cp2.order=2) — both checkpoints complete.
         assert body["last_checkpoint_number"] == 2
-        assert body["current_checkpoint_number"] == 2
+        # Every post done, so there is no current one — the field is None
+        # rather than clamped to the last order, which the participant screen
+        # would otherwise read as "still on post 2" and never show the
+        # finished card. See determine_current_order.
+        assert body["current_checkpoint_number"] is None
 
     async def test_get_team_by_id_checkpoint_progress_all_completed(self, pg_session, pg_client):
         """When every checkpoint counts as done, current == last (no +1)."""
@@ -291,7 +295,7 @@ class TestGetTeamById:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["last_checkpoint_number"] == 1
-        assert body["current_checkpoint_number"] == 1
+        assert body["current_checkpoint_number"] is None
 
     async def test_get_team_by_id_checkpoint_progress_stops_at_incomplete_activity(
         self, pg_session, pg_client, as_admin

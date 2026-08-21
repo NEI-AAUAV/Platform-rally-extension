@@ -5,6 +5,7 @@ import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
 import { CheckpointDiscoveryModal } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import { useCheckpointArrival } from "./useCheckpointArrival";
 
 type RouteCheckpointItemProps = Readonly<{
   checkpoint: DetailedCheckPoint;
@@ -16,6 +17,8 @@ type RouteCheckpointItemProps = Readonly<{
   isExpanded: boolean;
   onToggle: (index: number) => void;
   isLast?: boolean;
+  /** Render a check-in button on this row (see the component's note). */
+  offerCheckIn?: boolean;
 }>;
 
 interface CheckpointTimelineDotProps {
@@ -196,11 +199,17 @@ export default function RouteCheckpointItem({
   showScore,
   showMap,
   isLast = false,
+  offerCheckIn = false,
 }: RouteCheckpointItemProps) {
   const order = checkpoint.order;
   const isCompleted = order <= completedCount;
-  const isCurrent = order === completedCount + 1;
-  const isFuture = order > completedCount + 1;
+  // `is_reachable` comes from the server, which is the only thing that knows
+  // the stage rules — a free-choice stage has several posts open at once, and
+  // the positional guess below can only ever name one. Kept as the fallback
+  // for a payload that predates the field.
+  const isCurrent = checkpoint.is_reachable ?? order === completedCount + 1;
+  const isFuture = !isCompleted && !isCurrent;
+  const arrival = useCheckpointArrival(checkpoint);
 
   const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[order - 1] ?? 0) : 0;
   const canReveal = isCompleted || isCurrent;
@@ -272,6 +281,30 @@ export default function RouteCheckpointItem({
             teamTime={team.times[order - 1]}
           />
         </CardElement>
+
+        {/* A second way in, for the posts the main card cannot offer. That card
+            renders one post; a free-choice stage opens several, so without a
+            button here the rest of the stage is unreachable for the team even
+            though the server would take them. */}
+        {offerCheckIn && (
+          <div className="mt-2 space-y-1.5">
+            <button
+              type="button"
+              disabled={
+                arrival.gpsState === "locating" ||
+                arrival.isPending ||
+                arrival.gpsState === "done"
+              }
+              onClick={arrival.handleCheckin}
+              className="rally-press w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
+            >
+              {arrival.gpsState === "done" ? "Check-in feito" : "Check-in GPS aqui"}
+            </button>
+            {arrival.gpsMsg && (
+              <p className="text-center text-xs text-muted-foreground">{arrival.gpsMsg}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <CheckpointDiscoveryModal
