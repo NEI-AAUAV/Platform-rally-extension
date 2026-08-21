@@ -4,16 +4,20 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CheckpointTeamsPanel from "@/pages/guide/CheckpointTeamsPanel";
 
-const { mockListTeamsAt, mockGetTeams, mockRecordArrival } = vi.hoisted(() => ({
+const { mockListTeamsAt, mockGetGuideTeam, mockRecordArrival } = vi.hoisted(() => ({
   mockListTeamsAt: vi.fn(),
-  mockGetTeams: vi.fn(),
+  mockGetGuideTeam: vi.fn(),
   mockRecordArrival: vi.fn(),
 }));
 
 vi.mock("@/client", () => ({
   listGuideTeamsAtCheckpoint: (...args: unknown[]) => mockListTeamsAt(...args),
-  getTeams: (...args: unknown[]) => mockGetTeams(...args),
+  getGuideTeam: (...args: unknown[]) => mockGetGuideTeam(...args),
   recordGuideArrival: (...args: unknown[]) => mockRecordArrival(...args),
+}));
+
+vi.mock("@/hooks/useRallySettings", () => ({
+  default: () => ({ settings: { guide_manual_arrival_enabled: true } }),
 }));
 
 const createWrapper = () => {
@@ -36,7 +40,7 @@ describe("CheckpointTeamsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListTeamsAt.mockResolvedValue({ data: [] });
-    mockGetTeams.mockResolvedValue({ data: [] });
+    mockGetGuideTeam.mockResolvedValue({ data: { id: 2, name: "Os Rápidos" } });
     mockRecordArrival.mockResolvedValue({ data: { already_registered: false } });
   });
 
@@ -59,31 +63,25 @@ describe("CheckpointTeamsPanel", () => {
     expect(screen.getByText(/manual/)).toBeInTheDocument();
   });
 
-  it("offers only teams that have not arrived yet", async () => {
+  it("offers to mark arrival only for the guide's own team", async () => {
     mockListTeamsAt.mockResolvedValue({ data: [arrival({ team_id: 1 })] });
-    mockGetTeams.mockResolvedValue({
-      data: [
-        { id: 1, name: "Os Perdidos" },
-        { id: 2, name: "Os Rápidos" },
-      ],
-    });
+    mockGetGuideTeam.mockResolvedValue({ data: { id: 2, name: "Os Rápidos" } });
 
     render(<CheckpointTeamsPanel checkpointId={3} />, { wrapper: createWrapper() });
 
     await screen.findByText("Os Perdidos");
-    const options = screen.getByRole("combobox");
-    expect(options).toHaveTextContent("Os Rápidos");
-    expect(options).not.toHaveTextContent(/Marcar chegada de…Os Perdidos/);
+    expect(
+      await screen.findByRole("button", { name: /Marcar chegada de Os Rápidos/ }),
+    ).toBeInTheDocument();
   });
 
-  it("marks the chosen team as arrived", async () => {
-    mockGetTeams.mockResolvedValue({ data: [{ id: 2, name: "Os Rápidos" }] });
+  it("marks the guide's own team as arrived", async () => {
+    mockGetGuideTeam.mockResolvedValue({ data: { id: 2, name: "Os Rápidos" } });
 
     render(<CheckpointTeamsPanel checkpointId={3} />, { wrapper: createWrapper() });
-    // The option only exists once the teams query resolves.
-    await screen.findByRole("option", { name: "Os Rápidos" });
-    await userEvent.selectOptions(screen.getByRole("combobox"), "2");
-    await userEvent.click(screen.getByRole("button", { name: /Marcar chegada/ }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Marcar chegada de Os Rápidos/ }),
+    );
 
     await waitFor(() =>
       expect(mockRecordArrival).toHaveBeenCalledWith({
@@ -93,22 +91,24 @@ describe("CheckpointTeamsPanel", () => {
     );
   });
 
-  it("cannot submit without picking a team", async () => {
-    mockGetTeams.mockResolvedValue({ data: [{ id: 2, name: "Os Rápidos" }] });
+  it("hides the arrival button once the guide's own team already arrived", async () => {
+    mockGetGuideTeam.mockResolvedValue({ data: { id: 2, name: "Os Rápidos" } });
+    mockListTeamsAt.mockResolvedValue({ data: [arrival({ team_id: 2, team_name: "Os Rápidos" })] });
 
     render(<CheckpointTeamsPanel checkpointId={3} />, { wrapper: createWrapper() });
 
-    expect(await screen.findByRole("button", { name: /Marcar chegada/ })).toBeDisabled();
+    await screen.findByText("Os Rápidos");
+    expect(screen.queryByRole("button", { name: /Marcar chegada/ })).not.toBeInTheDocument();
   });
 
   it("reports a failed arrival", async () => {
-    mockGetTeams.mockResolvedValue({ data: [{ id: 2, name: "Os Rápidos" }] });
+    mockGetGuideTeam.mockResolvedValue({ data: { id: 2, name: "Os Rápidos" } });
     mockRecordArrival.mockRejectedValue(new Error("Rally has ended"));
 
     render(<CheckpointTeamsPanel checkpointId={3} />, { wrapper: createWrapper() });
-    await screen.findByRole("option", { name: "Os Rápidos" });
-    await userEvent.selectOptions(screen.getByRole("combobox"), "2");
-    await userEvent.click(screen.getByRole("button", { name: /Marcar chegada/ }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Marcar chegada de Os Rápidos/ }),
+    );
 
     expect(await screen.findByText(/Rally has ended/)).toBeInTheDocument();
   });

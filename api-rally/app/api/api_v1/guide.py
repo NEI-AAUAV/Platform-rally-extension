@@ -17,13 +17,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_guide
-from app.core.exceptions import RallyForbiddenError, RallyValidationError
+from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_team import CRUDTeam
+from app.crud.deps import get_team_crud
+from app.schemas.team import PrivilegedDetailedTeam
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
-from app.services.deps import get_checkpoint_arrival_service, get_guide_service
+from app.services.deps import get_checkpoint_arrival_service, get_guide_service, get_team_service
 from app.services.guide_service import GuideService
+from app.services.team_service import TeamService
 
 
 class GuideMediaItem(BaseModel):
@@ -127,9 +131,16 @@ class GuideController:
             name="record_guide_arrival",
             responses={
                 400: {"description": "Outside the event window, or a cross-edition team"},
-                403: {"description": "Not this guide's checkpoint"},
+                403: {"description": "Not this guide's checkpoint, or not this guide's team"},
                 404: {"description": "Checkpoint not found"},
             },
+        )
+        self.router.add_api_route(
+            "/guide/team",
+            self.get_guide_team,
+            methods=["GET"],
+            name="get_guide_team",
+            responses={404: {"description": "No team assigned to this guide"}},
         )
 
     async def list_guide_checkpoints(
@@ -219,6 +230,11 @@ class GuideController:
         """
         await self._require_checkpoint_access(guide_service, curr_user, auth, checkpoint_id)
 
+        if not deps.is_admin_or_staff(auth.scopes):
+            assigned_team_id = await guide_service.assigned_team_id(curr_user.id)
+            if assigned_team_id != body.team_id:
+                raise RallyForbiddenError("Not this guide's team")
+
         settings = await rally_settings.get_or_create(db)
         if not getattr(settings, "guide_manual_arrival_enabled", True):
             raise RallyValidationError("Guide-recorded arrivals are not enabled for this event")
@@ -246,6 +262,31 @@ class GuideController:
             checkpoint_id=checkpoint_id,
             already_registered=not created,
             auto_completed=auto_completed,
+        )
+
+    async def get_guide_team(
+        self,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(get_guide)],
+        guide_service: Annotated[GuideService, Depends(get_guide_service)],
+        team_service: Annotated[TeamService, Depends(get_team_service)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
+    ) -> PrivilegedDetailedTeam:
+        """The guide's own assigned team — name, members, and access-code QR.
+
+        Scoped to the single team this guide is assigned to; a guide never
+        sees another team's roster or access code through this endpoint.
+        """
+        team_id = await guide_service.assigned_team_id(curr_user.id)
+        if team_id is None:
+            raise RallyNotFoundError("No team assigned to this guide")
+
+        team_obj = await team_crud.get(db=db, id=team_id)
+        if team_obj is None:
+            raise RallyNotFoundError("Assigned team not found")
+
+        return await team_service.build_detailed_team(
+            team_obj, with_progress=True, with_access_code=True
         )
 
     @staticmethod

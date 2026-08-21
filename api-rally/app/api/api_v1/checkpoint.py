@@ -132,7 +132,7 @@ class CheckpointController:
 
         if curr_user:
             scopes = getattr(curr_user, "scopes", [])
-            if deps.is_admin_or_staff(scopes):
+            if deps.is_admin_staff_or_guide(scopes):
                 return await service.all_checkpoints()
             if curr_user.team_id:
                 return await service.visible_checkpoints_for_team(curr_user.team_id, settings)
