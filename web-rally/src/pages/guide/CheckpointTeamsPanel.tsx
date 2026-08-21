@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, UserCheck, Users } from "lucide-react";
 import {
-  getTeams,
+  getGuideTeam,
   listGuideTeamsAtCheckpoint,
   recordGuideArrival,
   type GuideTeamAtCheckpoint,
-  type ListingTeam,
 } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -38,7 +37,6 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
   const qc = useQueryClient();
   const { settings } = useRallySettings();
   const canMarkArrivals = settings?.guide_manual_arrival_enabled !== false;
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const teamsKey = ["guide-teams-at-checkpoint", checkpointId];
 
   const { data: arrived = [], isLoading } = useQuery<GuideTeamAtCheckpoint[]>({
@@ -48,10 +46,13 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
     refetchInterval: 30_000,
   });
 
-  const { data: allTeams = [] } = useQuery<ListingTeam[]>({
-    queryKey: ["teams"],
-    queryFn: async () => (await getTeams()).data,
+  // A guide is assigned to exactly one team — this is the only team they may
+  // vouch an arrival for, enforced server-side as well.
+  const { data: myTeam } = useQuery({
+    queryKey: ["guide-team"],
+    queryFn: async () => (await getGuideTeam()).data,
     staleTime: 60_000,
+    retry: false,
   });
 
   const markArrived = useMutation({
@@ -63,7 +64,6 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         })
       ).data,
     onSuccess: () => {
-      setSelectedTeamId("");
       void qc.invalidateQueries({ queryKey: teamsKey });
       // The arrival can complete the post outright, which moves the team on.
       void qc.invalidateQueries({ queryKey: ["team"] });
@@ -83,7 +83,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
   }, [purchasedIds.join(","), onPurchasedIdsChange]);
 
   const arrivedIds = new Set(arrived.map((row) => row.team_id));
-  const pending = allTeams.filter((team) => !arrivedIds.has(team.id));
+  const myTeamAlreadyArrived = myTeam ? arrivedIds.has(myTeam.id) : false;
 
   return (
     <section className="space-y-3">
@@ -133,37 +133,21 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         </p>
       )}
 
-      {canMarkArrivals && (
+      {canMarkArrivals && myTeam && !myTeamAlreadyArrived && (
         <>
           <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
-            <label className="sr-only" htmlFor={`arrival-team-${checkpointId}`}>
-              Equipa a marcar como chegada
-            </label>
-            <select
-              id={`arrival-team-${checkpointId}`}
-              value={selectedTeamId}
-              onChange={(event) => setSelectedTeamId(event.target.value)}
-              className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm"
-            >
-              <option value="">Marcar chegada de…</option>
-              {pending.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
             <BloodyButton
               type="button"
               variant="neutral"
-              disabled={!selectedTeamId || markArrived.isPending}
-              onClick={() => markArrived.mutate(Number(selectedTeamId))}
+              disabled={markArrived.isPending}
+              onClick={() => markArrived.mutate(myTeam.id)}
             >
               {markArrived.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <UserCheck className="h-4 w-4" />
               )}
-              <span className="ml-1.5">Marcar chegada</span>
+              <span className="ml-1.5">Marcar chegada de {myTeam.name}</span>
             </BloodyButton>
           </div>
 

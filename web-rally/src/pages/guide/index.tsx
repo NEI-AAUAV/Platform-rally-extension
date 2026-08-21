@@ -14,8 +14,11 @@ import {
   Sparkles,
   Megaphone,
   Flag,
+  Map as MapIcon,
+  Users,
 } from "lucide-react";
 import CheckpointTeamsPanel from "./CheckpointTeamsPanel";
+import GuideTeamPanel from "./GuideTeamPanel";
 import {
   listGuideCheckpoints,
   type GuideCheckpointResponse,
@@ -25,6 +28,7 @@ import {
 import { LoadingState } from "@/components/shared";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
+import MapSection from "@/pages/checkpoints/components/MapSection";
 
 function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>) {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -258,8 +262,17 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
   );
 }
 
+type GuideTab = "postos" | "mapa" | "equipa";
+
+const TABS: Readonly<{ id: GuideTab; label: string; icon: typeof BookOpen }[]> = [
+  { id: "postos", label: "Postos", icon: BookOpen },
+  { id: "mapa", label: "Mapa", icon: MapIcon },
+  { id: "equipa", label: "Equipa", icon: Users },
+];
+
 export default function GuidePage() {
   const { isAllowed, isLoading: accessLoading } = useGuideAccess();
+  const [tab, setTab] = useState<GuideTab>("postos");
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({
     queryKey: ["guide-checkpoints"],
@@ -285,18 +298,43 @@ export default function GuidePage() {
         </p>
       </header>
 
-      {checkpoints.length === 0 ? (
-        <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
-          <BookOpen className="h-10 w-10 text-muted-foreground/40" />
-          <p className="font-semibold text-muted-foreground">Sem postos disponíveis</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {checkpoints.map((cp) => (
-            <CheckpointCard key={cp.id} cp={cp} />
-          ))}
-        </div>
+      <nav className="flex gap-2 border-b border-border">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+              tab === id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "postos" &&
+        (checkpoints.length === 0 ? (
+          <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
+            <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+            <p className="font-semibold text-muted-foreground">Sem postos disponíveis</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {checkpoints.map((cp) => (
+              <CheckpointCard key={cp.id} cp={cp} />
+            ))}
+          </div>
+        ))}
+
+      {tab === "mapa" && (
+        <MapSection checkpoints={checkpoints} selectedCheckpoint={null} showMap />
       )}
+
+      {tab === "equipa" && <GuideTeamPanel />}
     </div>
   );
 }

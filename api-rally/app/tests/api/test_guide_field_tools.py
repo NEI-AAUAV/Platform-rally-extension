@@ -169,13 +169,10 @@ class TestManualArrival:
         # would through the GPS path.
         assert resp.json()["auto_completed"] is True
 
-    async def test_guide_can_mark_a_different_team_arrived_at_their_current_post(
-        self, pg_session, pg_client, as_guide
-    ):
-        """A guide isn't limited to marking their own assigned team — any
-        team passing through their current post counts, same as staff at a
-        fixed checkpoint would. Only checkpoint access is gated, not the
-        target team."""
+    async def test_guide_cannot_mark_a_different_team_arrived(self, pg_session, pg_client, as_guide):
+        """A guide accompanies a single assigned team, and may only vouch for
+        that team's arrival — never another team passing through the same
+        post."""
         event = await _make_event(pg_session)
         await _enable_guide_mode(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
@@ -187,8 +184,21 @@ class TestManualArrival:
             ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": other_team.id}
         )
 
+        assert resp.status_code == 403, resp.text
+
+    async def test_guide_can_mark_their_own_assigned_team_arrived(
+        self, pg_session, pg_client, as_guide
+    ):
+        event = await _make_event(pg_session)
+        await _enable_guide_mode(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+        my_team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
+        await _assign_guide(pg_session, my_team.id)
+
+        resp = pg_client.post(ARRIVALS_URL.format(id=checkpoint.id), json={"team_id": my_team.id})
+
         assert resp.status_code == 201, resp.text
-        assert resp.json()["team_id"] == other_team.id
+        assert resp.json()["team_id"] == my_team.id
 
     async def test_a_post_with_an_activity_still_waits_for_staff(
         self, pg_session, pg_client, as_guide
@@ -321,3 +331,24 @@ class TestTeamsAtCheckpoint:
         resp = pg_client.get(TEAMS_URL.format(id=checkpoint.id))
 
         assert resp.json() == []
+
+
+class TestGuideOwnTeam:
+    async def test_guide_sees_their_assigned_team_with_access_code(
+        self, pg_session, pg_client, as_guide
+    ):
+        event = await _make_event(pg_session)
+        team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
+        await _assign_guide(pg_session, team.id)
+
+        resp = pg_client.get("/api/rally/v1/guide/team")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["name"] == "MyTeam"
+        assert body["access_code"]
+
+    async def test_guide_with_no_assignment_gets_404(self, pg_session, pg_client, as_guide):
+        resp = pg_client.get("/api/rally/v1/guide/team")
+
+        assert resp.status_code == 404

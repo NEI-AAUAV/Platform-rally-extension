@@ -35,7 +35,8 @@ export default function Postos() {
     (scopes.includes("admin") ||
       scopes.includes("manager-rally") ||
       scopes.includes("rally:admin") ||
-      scopes.includes("rally-staff"));
+      scopes.includes("rally-staff") ||
+      scopes.includes("rally-guide"));
 
   const canViewPostos = isPrivileged || settings?.show_checkpoint_map === true;
 
