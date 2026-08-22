@@ -559,7 +559,6 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // What the day below adds is the half that does have a screen: no team
       // page ever renders a post's staff script, and the guide view does.
       const faina = withIds.find((post) => post.undecided)!;
-      const aristides = withIds.find((p) => p.key === "aristides")!;
 
       // --- CF decide ------------------------------------------------------
       // The venue is settled, so the post gets its real name and goes live.

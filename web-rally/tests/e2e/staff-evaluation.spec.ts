@@ -16,7 +16,7 @@ import {
 } from "../mocks/data";
 import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from "./helpers/session";
 
-test.beforeEach(async ({ page, context }) => {
+test.beforeEach(async ({ page }) => {
   // Set up route mocks BEFORE navigation (Playwright route mocking works in browser)
   await page.route("**/api/nei/v1/auth/refresh/**", async (route) => {
     await route.fulfill({
