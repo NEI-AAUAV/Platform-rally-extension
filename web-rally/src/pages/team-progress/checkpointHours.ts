@@ -46,7 +46,6 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 }
 
-
 /**
  * What to tell a team whose own departure has not come round yet.
  *

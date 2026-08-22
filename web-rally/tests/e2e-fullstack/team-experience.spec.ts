@@ -128,7 +128,7 @@ test.describe("Fase 2: Páginas e Funcionalidades da Equipa", () => {
       // Adicionar Membro 1 (Capitão)
       await adminPage.locator("#name").fill("Capitão Pedro");
       await adminPage.locator("#email").fill(`pedro-${runId}@ua.pt`);
-      await adminPage.locator("label:has(input[role='switch'])").click();
+      await adminPage.locator("input[role='switch'], input[type='checkbox']").first().check({ force: true });
       await adminPage.getByRole("button", { name: "Adicionar Membro" }).click();
       await expect(adminPage.getByText("Capitão Pedro")).toBeVisible({ timeout: 15_000 });
 
@@ -235,12 +235,12 @@ test.describe("Fase 2: Páginas e Funcionalidades da Equipa", () => {
       });
 
       // Secções padrão de arranque
-      await expect(page.getByText("Como funciona")).toBeVisible();
-      await expect(page.getByText("Pontuação")).toBeVisible();
-      await expect(page.getByText("Check-in nos postos")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Como funciona" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Pontuação" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Check-in nos postos" })).toBeVisible();
 
       // Clicar numa secção para expandir / fechar
-      await page.getByRole("button", { name: /Como funciona/i }).click();
+      await page.getByRole("button", { name: "Como funciona" }).click();
       await expect(
         page.getByText("Cada equipa percorre os postos do rally", { exact: false }),
       ).toBeVisible();

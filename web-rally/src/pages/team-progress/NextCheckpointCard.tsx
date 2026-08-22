@@ -337,7 +337,9 @@ export default function NextCheckpointCard({
 
       {settingsUnavailable && (
         <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          <p>Não foi possível carregar as definições da prova, por isso o check-in está indisponível.</p>
+          <p>
+            Não foi possível carregar as definições da prova, por isso o check-in está indisponível.
+          </p>
           <button
             type="button"
             onClick={() => void refetchSettings()}

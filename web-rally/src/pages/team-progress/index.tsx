@@ -72,10 +72,7 @@ export default function TeamProgress() {
     <NextCheckpointCard
       checkpoint={nextCheckpoint}
       showMap={showMap}
-      notYetDeparted={departureNotice(
-        settings?.rally_start_time,
-        team.start_offset_minutes ?? 0,
-      )}
+      notYetDeparted={departureNotice(settings?.rally_start_time, team.start_offset_minutes ?? 0)}
     />
   ) : (
     isFinished && (
