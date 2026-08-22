@@ -115,6 +115,24 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
     }
   });
 
+async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Promise<void> {
+  const switchLocator = adminPage.locator(`input#${id}`);
+  const isChecked = await switchLocator.isChecked();
+  if (isChecked !== targetValue) {
+    if (targetValue) {
+      await switchLocator.check({ force: true });
+    } else {
+      await switchLocator.uncheck({ force: true });
+    }
+    const saveBtn = adminPage.getByRole("button", { name: /Guardar/i });
+    await expect(saveBtn).toBeVisible({ timeout: 5_000 });
+    await saveBtn.click();
+    await expect(
+      adminPage.getByText("Configurações guardadas com sucesso!"),
+    ).toBeVisible({ timeout: 15_000 });
+  }
+}
+
   // -------------------------------------------------------------------
   // 3.1 — show_live_leaderboard ON vs OFF
   // -------------------------------------------------------------------
@@ -137,34 +155,27 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
       await adminPage.goto("/rally/settings");
       await adminPage.getByRole("button", { name: "Visualização" }).click();
 
-      // Desativar "Mostrar leaderboard em tempo real"
-      const switchLeaderboard = adminPage.locator("input#show_live_leaderboard");
-      await switchLeaderboard.uncheck({ force: true });
+      // Mudar modo para "Classificação completa" e ativar leaderboard
+      await adminPage.locator("#show_score_mode").click();
+      await adminPage.getByRole("option", { name: "Classificação completa" }).click();
+      await setSwitch(adminPage, "show_live_leaderboard", true);
 
-      // Guardar alterações
-      await adminPage.getByRole("button", { name: "Guardar" }).click();
-      await expect(
-        adminPage.getByText("Configurações guardadas com sucesso!"),
-      ).toBeVisible({ timeout: 15_000 });
-
-      // 2. Visitante acede a /rally/scoreboard
+      // 2. Visitante acede a /rally/scoreboard e vê a equipa
       await pubPage.goto("/rally/scoreboard");
-      // Quando leaderboard está desligado, o placar oculta ou mostra aviso de congelado/oculto
       await expect(pubPage.getByRole("heading", { name: /Classificação|Placar/i })).toBeVisible({
         timeout: 15_000,
       });
-
-      // 3. Reativar "Mostrar leaderboard em tempo real"
-      await adminPage.getByRole("button", { name: "Visualização" }).click();
-      await switchLeaderboard.check({ force: true });
-      await adminPage.getByRole("button", { name: "Guardar" }).click();
-      await expect(
-        adminPage.getByText("Configurações guardadas com sucesso!"),
-      ).toBeVisible({ timeout: 15_000 });
-
-      // Verificar que equipa aparece no scoreboard
-      await pubPage.reload();
       await expect(pubPage.getByText(world.teamName)).toBeVisible({ timeout: 15_000 });
+
+      // 3. Desativar "Mostrar leaderboard em tempo real"
+      await adminPage.getByRole("button", { name: "Visualização" }).click();
+      await setSwitch(adminPage, "show_live_leaderboard", false);
+
+      // Recarregar o scoreboard do visitante -> mostra "Leaderboard indisponível"
+      await pubPage.reload();
+      await expect(pubPage.getByText("Leaderboard indisponível")).toBeVisible({
+        timeout: 15_000,
+      });
     } finally {
       await adminPage.context().close();
       await pubPage.context().close();
@@ -198,12 +209,7 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
       // 1. Admin desativa "Mostrar mapa dos checkpoints"
       await adminPage.goto("/rally/settings");
       await adminPage.getByRole("button", { name: "Visualização" }).click();
-      const switchMap = adminPage.locator("input#show_checkpoint_map");
-      await switchMap.uncheck({ force: true });
-      await adminPage.getByRole("button", { name: "Guardar" }).click();
-      await expect(
-        adminPage.getByText("Configurações guardadas com sucesso!"),
-      ).toBeVisible({ timeout: 15_000 });
+      await setSwitch(adminPage, "show_checkpoint_map", false);
 
       // Equipa tenta aceder a /rally/checkpoints (deve redirecionar para /team-progress se mapa desligado)
       await teamPage.goto("/rally/checkpoints");
@@ -213,11 +219,7 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
 
       // 2. Admin reativa "Mostrar mapa dos checkpoints"
       await adminPage.getByRole("button", { name: "Visualização" }).click();
-      await switchMap.check({ force: true });
-      await adminPage.getByRole("button", { name: "Guardar" }).click();
-      await expect(
-        adminPage.getByText("Configurações guardadas com sucesso!"),
-      ).toBeVisible({ timeout: 15_000 });
+      await setSwitch(adminPage, "show_checkpoint_map", true);
 
       // Equipa acede agora a /rally/checkpoints com sucesso
       await teamPage.goto("/rally/checkpoints");
