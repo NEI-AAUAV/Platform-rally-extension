@@ -72,7 +72,9 @@ test.describe("Fase 5: Separadores de Administração e Identidade Visual", () =
       await adminPage.getByPlaceholder("Ex: 40.6405").fill("40.6443");
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6455");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(`Posto Tabs ${runId}`)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(`Posto Tabs ${runId}`).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // 3. Criar Equipa
       await adminPage.goto("/rally/admin?tab=teams");

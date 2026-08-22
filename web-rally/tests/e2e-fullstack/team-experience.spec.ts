@@ -98,7 +98,9 @@ test.describe("Fase 2: Páginas e Funcionalidades da Equipa", () => {
         .getByPlaceholder("Ex: Onde o rio encontra a ponte de ferro...")
         .fill("Enigma da equipa");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(`Posto Central ${runId}`)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(`Posto Central ${runId}`).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // 3. Criar Equipa
       await adminPage.goto("/rally/admin?tab=teams");

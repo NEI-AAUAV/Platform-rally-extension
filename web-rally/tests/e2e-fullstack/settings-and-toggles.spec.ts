@@ -92,7 +92,9 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6455");
       await adminPage.getByPlaceholder("Ex: 50").fill("50");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(`Posto Config ${runId}`)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(`Posto Config ${runId}`).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // Equipa
       await adminPage.goto("/rally/admin?tab=teams");
