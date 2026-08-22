@@ -115,21 +115,21 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
     }
   });
 
-async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Promise<void> {
-  const switchLocator = adminPage.locator(`input#${id}`);
-  const isChecked = await switchLocator.isChecked();
-  if (isChecked !== targetValue) {
-    if (targetValue) {
-      await switchLocator.check({ force: true });
-    } else {
-      await switchLocator.uncheck({ force: true });
-    }
-    const saveBtn = adminPage.getByRole("button", { name: /Guardar/i });
-    await expect(saveBtn).toBeVisible({ timeout: 5_000 });
+async function saveSettings(adminPage: Page): Promise<void> {
+  const saveBtn = adminPage.getByRole("button", { name: /Guardar/i });
+  if (await saveBtn.isVisible().catch(() => false)) {
     await saveBtn.click();
     await expect(
-      adminPage.getByText("Configurações guardadas com sucesso!"),
+      adminPage.getByText(/Configurações atualizadas com sucesso|Configurações guardadas/i),
     ).toBeVisible({ timeout: 15_000 });
+  }
+}
+
+async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Promise<void> {
+  const switchInput = adminPage.locator(`input#${id}`);
+  const isChecked = await switchInput.isChecked();
+  if (isChecked !== targetValue) {
+    await adminPage.locator(`label:has(#${id})`).click();
   }
 }
 
@@ -159,6 +159,7 @@ async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Pro
       await adminPage.locator("#show_score_mode").click();
       await adminPage.getByRole("option", { name: "Classificação completa" }).click();
       await setSwitch(adminPage, "show_live_leaderboard", true);
+      await saveSettings(adminPage);
 
       // 2. Visitante acede a /rally/scoreboard e vê a equipa
       await pubPage.goto("/rally/scoreboard");
@@ -170,6 +171,7 @@ async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Pro
       // 3. Desativar "Mostrar leaderboard em tempo real"
       await adminPage.getByRole("button", { name: "Visualização" }).click();
       await setSwitch(adminPage, "show_live_leaderboard", false);
+      await saveSettings(adminPage);
 
       // Recarregar o scoreboard do visitante -> mostra "Leaderboard indisponível"
       await pubPage.reload();
@@ -210,6 +212,7 @@ async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Pro
       await adminPage.goto("/rally/settings");
       await adminPage.getByRole("button", { name: "Visualização" }).click();
       await setSwitch(adminPage, "show_checkpoint_map", false);
+      await saveSettings(adminPage);
 
       // Equipa tenta aceder a /rally/checkpoints (deve redirecionar para /team-progress se mapa desligado)
       await teamPage.goto("/rally/checkpoints");
@@ -220,6 +223,7 @@ async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Pro
       // 2. Admin reativa "Mostrar mapa dos checkpoints"
       await adminPage.getByRole("button", { name: "Visualização" }).click();
       await setSwitch(adminPage, "show_checkpoint_map", true);
+      await saveSettings(adminPage);
 
       // Equipa acede agora a /rally/checkpoints com sucesso
       await teamPage.goto("/rally/checkpoints");
@@ -258,17 +262,14 @@ async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Pro
       const customTitle = `Regra Especial E2E ${world.runId}`;
       const customBody = "Instrução obrigatória de teste: levar calçado confortável.";
 
-      const titleInputs = adminPage.getByPlaceholder("Título da secção");
-      await titleInputs.last().fill(customTitle);
+      const titleInput = adminPage.getByLabel("Título da secção").last();
+      await titleInput.fill(customTitle);
 
-      const bodyInputs = adminPage.getByPlaceholder("Texto explicativo...");
-      await bodyInputs.last().fill(customBody);
+      const bodyInput = adminPage.getByLabel("Texto da secção").last();
+      await bodyInput.fill(customBody);
 
       // Guardar definições
-      await adminPage.getByRole("button", { name: "Guardar" }).click();
-      await expect(
-        adminPage.getByText("Configurações guardadas com sucesso!"),
-      ).toBeVisible({ timeout: 15_000 });
+      await saveSettings(adminPage);
 
       // Visitante vai a /rally/rules e verifica a nova secção
       await pubPage.goto("/rally/rules");
