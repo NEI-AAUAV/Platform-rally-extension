@@ -295,7 +295,7 @@ test.describe("Fase 2: Páginas e Funcionalidades da Equipa", () => {
 
       // Visitar /profile
       await page.goto("/rally/profile");
-      await expect(page.getByText(/Perfil|Conta NEI|Sessão/i).first()).toBeVisible({
+      await expect(page.getByText(/Inicia sessão|Login NEI|O meu perfil/i).first()).toBeVisible({
         timeout: 15_000,
       });
     } finally {
