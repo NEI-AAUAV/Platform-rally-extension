@@ -275,44 +275,59 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
     expect(scoreOf(teamB!.id)).toBe(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
   });
 
-  test("a draw pays both teams the draw tier, which is neither a win nor a loss", async () => {
+  test("a draw pays both teams the draw tier, which is neither a win nor a loss", async ({
+    browser,
+  }) => {
     const world = await seedVersus();
     const [teamA, teamB] = world.teams;
     await apiCall("POST", "/versus/pair", {
       token: world.adminToken,
       body: { team_a_id: teamA!.id, team_b_id: teamB!.id },
     });
+    for (const team of [teamA!, teamB!]) {
+      await apiCall("POST", "/checkpoint/staff-check-in", {
+        token: world.staffToken,
+        body: { team_code: team.accessCode, checkpoint_id: world.checkpointId },
+      });
+    }
 
-    // winner_id 0 is the documented "draw" sentinel.
-    const settle = await fetch(
-      `${API_V1}/activities/team-vs/${world.activityId}` +
-        `?team1_id=${teamA!.id}&team2_id=${teamB!.id}&winner_id=0`,
-      {
-        method: "POST",
-        headers: {
-          // Admin, not staff — see "the staff member running the match
-          // cannot record it" below. This is the only token that works.
-          Authorization: `Bearer ${world.adminToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ completed: true }),
-      },
-    );
-    expect(settle.status, await settle.text()).toBe(200);
+    const staffContext = await browser.newContext();
+    await seedRealOidcSession(staffContext, world.staff);
+    const staffPage = await staffContext.newPage();
 
-    const evaluations = await apiCall<{
-      evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
-    }>("GET", "/staff/all-evaluations", { token: world.adminToken });
-    const scoreOf = (teamId: number) =>
-      evaluations.evaluations.find(
-        (e) => e.team_id === teamId && e.activity_id === world.activityId,
-      )?.final_score;
+    try {
+      await staffPage.goto(`/rally/staff-evaluation/checkpoint/${world.checkpointId}`);
+      await staffPage.getByText(teamA!.name).first().click();
+      await staffPage
+        .getByRole("button", { name: /avaliar|evaluate/i })
+        .first()
+        .click();
+      await staffPage.locator("#teamvs-result").selectOption("draw");
+      await staffPage
+        .getByRole("button", {
+          name: /submit evaluation|submeter avaliação|atualizar avaliação/i,
+        })
+        .click();
+      await expect(staffPage.getByText("Atividade avaliada com sucesso!").first()).toBeVisible({
+        timeout: 20_000,
+      });
 
-    const expected = BASE_POINTS + COMPLETION_POINTS + DRAW_POINTS;
-    expect(scoreOf(teamA!.id)).toBe(expected);
-    expect(scoreOf(teamB!.id)).toBe(expected);
-    expect(expected).toBeLessThan(BASE_POINTS + COMPLETION_POINTS + WIN_POINTS);
-    expect(expected).toBeGreaterThan(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
+      const evaluations = await apiCall<{
+        evaluations: { team_id: number; activity_id: number; final_score: number | null }[];
+      }>("GET", "/staff/all-evaluations", { token: world.adminToken });
+      const scoreOf = (teamId: number) =>
+        evaluations.evaluations.find(
+          (e) => e.team_id === teamId && e.activity_id === world.activityId,
+        )?.final_score;
+
+      const expected = BASE_POINTS + COMPLETION_POINTS + DRAW_POINTS;
+      expect(scoreOf(teamA!.id)).toBe(expected);
+      expect(scoreOf(teamB!.id)).toBe(expected);
+      expect(expected).toBeLessThan(BASE_POINTS + COMPLETION_POINTS + WIN_POINTS);
+      expect(expected).toBeGreaterThan(BASE_POINTS + COMPLETION_POINTS + LOSE_POINTS);
+    } finally {
+      await staffContext.close();
+    }
   });
 
   test("the staff member running the match records it themselves, at their own post", async () => {

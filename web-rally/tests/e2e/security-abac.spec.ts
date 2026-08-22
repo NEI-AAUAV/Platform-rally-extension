@@ -146,6 +146,20 @@ test.describe("Security / ABAC boundaries", () => {
   }) => {
     await mockSettings(page);
     await seedOidcSession(context, STAFF_GROUPS);
+    await page.route("**/api/rally/v1/staff/my-checkpoint**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          name: "Meu Posto",
+          description: null,
+          latitude: null,
+          longitude: null,
+          order: 1,
+        }),
+      }),
+    );
     await page.route("**/api/rally/v1/checkpoint/**", (route) =>
       route.fulfill({
         status: 200,
@@ -168,20 +182,13 @@ test.describe("Security / ABAC boundaries", () => {
     await page.route("**/api/rally/v1/activities/**", (route) =>
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) }),
     );
-    await page.route("**/api/rally/v1/staff/teams/*/activities/*/evaluate", (route) =>
-      route.fulfill({
-        status: 403,
-        contentType: "application/json",
-        body: JSON.stringify({ detail: "Not assigned to this checkpoint" }),
-      }),
-    );
 
     // Direct navigation to a checkpoint the staff member isn't assigned to:
-    // the frontend doesn't client-side gate this (relies on backend 403), so
-    // the page renders — the enforcement point is the evaluate call itself.
+    // the frontend gates this on-screen and refuses access.
     await page.goto("/rally/staff-evaluation/checkpoint/9");
 
-    await expect(page.getByText("Posto Alheio").first()).toBeVisible();
+    await expect(page.getByText("Este não é o teu posto")).toBeVisible();
+    await expect(page.getByText(/Meu Posto/)).toBeVisible();
   });
 
   test("public_access_enabled=false blocks every public page for an anonymous visitor", async ({

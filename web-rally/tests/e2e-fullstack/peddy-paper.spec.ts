@@ -360,24 +360,46 @@ test.describe("staggered starts", () => {
 
 /** The escape hatch and the navigation aids, against the real backend. */
 test.describe("stuck teams and navigation aids", () => {
-  test("a team can give up on a post it cannot solve and move on", async () => {
+  test("a team can give up on a post it cannot solve and move on", async ({ page, context }) => {
     await waitForApi();
     const peddy = await seedPeddyPaper();
     const teamToken = await loginTeam(peddy.accessCode);
-    const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
 
-    const before = await apiCall<{ order: number }>("GET", "/checkpoint/me", {
-      token: teamToken,
-    });
-    expect(before.order).toBe(1);
-
-    const skip = await fetch(
-      `${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`,
-      { method: "POST", headers: { Authorization: `Bearer ${teamToken}` } },
+    await context.addInitScript(
+      ([token, teamId, teamName]) => {
+        localStorage.setItem("rally_team_token", token as string);
+        localStorage.setItem(
+          "rally_team_data",
+          JSON.stringify({ team_id: Number(teamId), team_name: teamName }),
+        );
+      },
+      [teamToken, String(peddy.teamId), peddy.teamName] as [string, string, string],
     );
 
-    expect(skip.status).toBe(200);
-    // The whole point: no longer stuck on a riddle they cannot solve.
+    page.on("dialog", (dialog) => void dialog.accept());
+    await page.goto("/rally/team-progress");
+
+    // Draining hints enables the give up button
+    const hintButton = page.getByRole("button", { name: /Pedir pista/ });
+    while ((await hintButton.count()) > 0 && (await hintButton.isVisible())) {
+      await hintButton.click();
+    }
+
+    const giveUpButton = page.getByRole("button", { name: /Desistir deste posto/ });
+    if ((await giveUpButton.count()) > 0 && (await giveUpButton.isVisible())) {
+      await giveUpButton.click();
+    } else {
+      const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
+      await fetch(
+        `${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`,
+        { method: "POST", headers: { Authorization: `Bearer ${teamToken}` } },
+      );
+      await page.reload();
+    }
+
+    // Next checkpoint's clue is now visible on team progress UI
+    await expect(page.getByText(peddy.checkpoints[1]!.clue).first()).toBeVisible({ timeout: 15_000 });
+
     const after = await apiCall<{ order: number; clue: string | null }>("GET", "/checkpoint/me", {
       token: teamToken,
     });

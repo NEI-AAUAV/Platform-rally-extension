@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CheckpointTeamEvaluation from '@/pages/staff-evaluation/components/CheckpointTeamEvaluation';
+import { useUserStore } from '@/stores/useUserStore';
 
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -12,18 +13,37 @@ function renderWithQueryClient(ui: React.ReactElement) {
 
 const {
   mockUseParams,
+  mockUseNavigate,
   mockUseRallySettings,
   mockUseRallyEventStream,
   mockUseCheckpointEvaluation,
+  mockUseUser,
+  mockGetMyCheckpoint,
 } = vi.hoisted(() => ({
   mockUseParams: vi.fn(),
+  mockUseNavigate: vi.fn(),
   mockUseRallySettings: vi.fn(),
   mockUseRallyEventStream: vi.fn(),
   mockUseCheckpointEvaluation: vi.fn(),
+  mockUseUser: vi.fn(),
+  mockGetMyCheckpoint: vi.fn(),
 }));
+
+vi.mock('@/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/client')>();
+  return {
+    ...actual,
+    getMyCheckpoint: () => mockGetMyCheckpoint(),
+  };
+});
 
 vi.mock('@tanstack/react-router', () => ({
   useParams: (...args: unknown[]) => mockUseParams(...args),
+  useNavigate: () => mockUseNavigate,
+}));
+
+vi.mock('@/hooks/useUser', () => ({
+  default: () => mockUseUser(),
 }));
 
 vi.mock('@/hooks/useRallySettings', () => ({
@@ -78,9 +98,18 @@ const baseHookState = {
 describe('CheckpointTeamEvaluation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseUser.mockReturnValue({ isRallyAdmin: true });
     mockUseParams.mockReturnValue({ checkpointId: '1' });
     mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'visible' } });
     mockUseCheckpointEvaluation.mockReturnValue(baseHookState);
+  });
+
+  it('renders foreign post warning when non-admin accesses another post', async () => {
+    useUserStore.setState({ token: 'staff-token' });
+    mockUseUser.mockReturnValue({ isRallyAdmin: false });
+    mockGetMyCheckpoint.mockResolvedValue({ data: { id: 2, name: 'Outro Posto' } });
+    renderWithQueryClient(<CheckpointTeamEvaluation />);
+    expect(await screen.findByText('Este não é o teu posto')).toBeInTheDocument();
   });
 
   it('renders not-found state when checkpoint is missing', () => {

@@ -494,7 +494,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         }
 
         await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-        await expect(adminPage.getByText(fullName)).toBeVisible({ timeout: 15_000 });
+        await expect(adminPage.getByText(fullName).first()).toBeVisible({ timeout: 15_000 });
         built.push({ ...post, id: 0, fullName, order: index + 1, activityId: 0 });
       }
 

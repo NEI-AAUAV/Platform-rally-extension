@@ -496,7 +496,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
             .fill(datetimeLocal(Date.now() + opensInHours * 3_600_000));
         }
         await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-        await expect(adminPage.getByText(checkpointNames[index]!)).toBeVisible({
+        await expect(adminPage.getByText(checkpointNames[index]!).first()).toBeVisible({
           timeout: 15_000,
         });
       }
@@ -678,18 +678,24 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         await adminPage
           .getByRole("option", { name: staffedCheckpoints[index]!.name })
           .click();
-        await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
-          timeout: 15_000,
-        });
+        await expect(
+          row.getByText(`Checkpoint: ${staffedCheckpoints[index]!.name}`),
+        ).toBeVisible({ timeout: 15_000 });
       }
 
-      const staffAssignments = await apiCall<
-        { user_email?: string; checkpoint_id?: number | null }[]
-      >("GET", "/user/staff-assignments", { token: cast.admin.user.accessToken });
-      for (const [index, member] of cast.staff.entries()) {
-        const assignment = staffAssignments.find((a) => a.user_email === member.email);
-        expect(assignment?.checkpoint_id).toBe(staffedCheckpoints[index]!.id);
-      }
+      await expect
+        .poll(
+          async () => {
+            const staffAssignments = await apiCall<
+              { user_email?: string; checkpoint_id?: number | null }[]
+            >("GET", "/user/staff-assignments", { token: cast.admin.user.accessToken });
+            return cast.staff.map(
+              (m) => staffAssignments.find((a) => a.user_email === m.email)?.checkpoint_id ?? null,
+            );
+          },
+          { timeout: 20_000 },
+        )
+        .toEqual(staffedCheckpoints.map((c) => c.id));
 
       // --- 8. Guides to their teams, through the guide-assignment UI ------
       // A guide follows one team along the whole route (unlike staff, who own
@@ -703,20 +709,24 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .filter({ has: adminPage.getByText(guide.email, { exact: false }) });
         await row.getByRole("combobox").click();
         await adminPage.getByRole("option", { name: guidedTeams[index]!.name }).click();
-        await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
+        await expect(row.getByText(`Equipa: ${guidedTeams[index]!.name}`)).toBeVisible({
           timeout: 15_000,
         });
       }
 
-      const guideAssignments = await apiCall<{ user_email?: string; team_id?: number | null }[]>(
-        "GET",
-        "/user/guide-assignments",
-        { token: cast.admin.user.accessToken },
-      );
-      for (const [index, guide] of cast.guides.entries()) {
-        const assignment = guideAssignments.find((a) => a.user_email === guide.email);
-        expect(assignment?.team_id).toBe(guidedTeams[index]!.id);
-      }
+      await expect
+        .poll(
+          async () => {
+            const guideAssignments = await apiCall<
+              { user_email?: string; team_id?: number | null }[]
+            >("GET", "/user/guide-assignments", { token: cast.admin.user.accessToken });
+            return cast.guides.map(
+              (g) => guideAssignments.find((a) => a.user_email === g.email)?.team_id ?? null,
+            );
+          },
+          { timeout: 20_000 },
+        )
+        .toEqual(guidedTeams.map((t) => t.id));
 
       world = {
         cast,
@@ -738,6 +748,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
   test("Manhã — 5 equipas atacam o primeiro enigma por cinco caminhos diferentes, com o guia e o público a ver", async ({
     browser,
   }) => {
+    test.skip(!world, "Requer a execução da Fase 1 (Véspera) para criar o evento e o mundo");
     const { cast, checkpoints, teams } = world;
     const [ponte, mercado] = checkpoints;
     const [alpha, beta, gama, delta, epsilon] = teams;
@@ -997,6 +1008,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
   test("Tarde — o staff avalia as provas enquanto o coordenador acompanha e o admin premeia, tudo em simultâneo", async ({
     browser,
   }) => {
+    test.skip(!world, "Requer a execução da Fase 1 (Véspera) para criar o evento e o mundo");
     const { cast, checkpoints, teams } = world;
     const [, mercado] = checkpoints;
     const [alpha, beta, gama, delta, epsilon] = teams;
@@ -1124,6 +1136,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
   test("Último posto — a Sé ainda não abriu, e o organizador abre-a a meio do dia", async ({
     browser,
   }) => {
+    test.skip(!world, "Requer a execução da Fase 1 (Véspera) para criar o evento e o mundo");
     const { cast, checkpoints, teams } = world;
     const [, , se] = checkpoints;
     const [alpha, beta] = teams;
@@ -1202,6 +1215,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
   test("Apuramento — o que as ajudas custaram está no total de cada equipa, e o dia inteiro está no registo", async ({
     browser,
   }) => {
+    test.skip(!world, "Requer a execução da Fase 1 (Véspera) para criar o evento e o mundo");
     const { cast, teams } = world;
     const [alpha, beta, gama, delta, epsilon] = teams;
 

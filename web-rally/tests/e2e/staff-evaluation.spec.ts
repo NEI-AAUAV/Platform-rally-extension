@@ -16,128 +16,130 @@ import {
 } from "../mocks/data";
 import { seedOidcSession, STAFF_GROUPS, MANAGER_GROUPS } from "./helpers/session";
 
+test.beforeEach(async ({ page, context }) => {
+  // Set up route mocks BEFORE navigation (Playwright route mocking works in browser)
+  await page.route("**/api/nei/v1/auth/refresh/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: MOCK_JWT_TOKEN_STAFF,
+      }),
+    });
+  });
+
+  await page.route("**/api/rally/v1/rally/settings/public**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_RALLY_SETTINGS),
+    });
+  });
+
+  await page.route("**/api/rally/v1/checkpoint/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([MOCK_CHECKPOINT]),
+    });
+  });
+
+  await page.route("**/api/rally/v1/team/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([MOCK_TEAM]),
+    });
+  });
+
+  await page.route("**/api/rally/v1/activities/**", async (route) => {
+    const url = new URL(route.request().url());
+    const checkpointId = url.searchParams.get("checkpoint_id");
+
+    const activities = checkpointId
+      ? MOCK_ACTIVITY_LIST.activities.filter(
+          (activity) => activity.checkpoint_id === Number(checkpointId),
+        )
+      : MOCK_ACTIVITY_LIST.activities;
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...MOCK_ACTIVITY_LIST,
+        activities,
+        total: activities.length,
+      }),
+    });
+  });
+
+  await page.route("**/api/rally/v1/activities/results**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([MOCK_ACTIVITY_RESULT]),
+    });
+  });
+
+  // Staff-specific endpoint: get my checkpoint
+  await page.route("**/api/rally/v1/staff/my-checkpoint**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_CHECKPOINT),
+    });
+  });
+
+  await page.route("**/api/rally/v1/staff/teams/*/activities**", async (route) => {
+    const url = new URL(route.request().url());
+    const teamIdMatch = /\/teams\/(\d+)\/activities/.exec(url.pathname);
+    const teamId = teamIdMatch ? Number(teamIdMatch[1]) : null;
+
+    if (teamId === MOCK_TEAM.id) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          team: MOCK_TEAM,
+          activities: MOCK_ACTIVITY_LIST.activities,
+          evaluation_summary: {
+            total_activities: 1,
+            completed_activities: 0,
+            pending_activities: 1,
+            completion_rate: 0,
+            has_incomplete: true,
+            missing_activities: ["Test Activity"],
+            checkpoint_mismatch: false,
+            team_checkpoint: 1,
+            current_checkpoint: 1,
+          },
+        }),
+      });
+    } else {
+      await route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Not found" }),
+      });
+    }
+  });
+
+  // Submit evaluation endpoint
+  await page.route("**/api/rally/v1/staff/teams/*/activities/*/evaluate**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...MOCK_ACTIVITY_RESULT,
+        is_completed: true,
+        completed_at: new Date().toISOString(),
+      }),
+    });
+  });
+});
+
 test.describe("Staff Evaluation Flow", () => {
   test.beforeEach(async ({ page, context }) => {
-    // Set up route mocks BEFORE navigation (Playwright route mocking works in browser)
-    await page.route("**/api/nei/v1/auth/refresh/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          access_token: MOCK_JWT_TOKEN_STAFF,
-        }),
-      });
-    });
-
-    await page.route("**/api/rally/v1/rally/settings/public**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_RALLY_SETTINGS),
-      });
-    });
-
-    await page.route("**/api/rally/v1/checkpoint/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([MOCK_CHECKPOINT]),
-      });
-    });
-
-    await page.route("**/api/rally/v1/team/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([MOCK_TEAM]),
-      });
-    });
-
-    await page.route("**/api/rally/v1/activities/**", async (route) => {
-      const url = new URL(route.request().url());
-      const checkpointId = url.searchParams.get("checkpoint_id");
-
-      const activities = checkpointId
-        ? MOCK_ACTIVITY_LIST.activities.filter(
-            (activity) => activity.checkpoint_id === Number(checkpointId),
-          )
-        : MOCK_ACTIVITY_LIST.activities;
-
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ...MOCK_ACTIVITY_LIST,
-          activities,
-          total: activities.length,
-        }),
-      });
-    });
-
-    await page.route("**/api/rally/v1/activities/results**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([MOCK_ACTIVITY_RESULT]),
-      });
-    });
-
-    // Staff-specific endpoint: get my checkpoint
-    await page.route("**/api/rally/v1/staff/my-checkpoint**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_CHECKPOINT),
-      });
-    });
-
-    await page.route("**/api/rally/v1/staff/teams/*/activities**", async (route) => {
-      const url = new URL(route.request().url());
-      const teamIdMatch = /\/teams\/(\d+)\/activities/.exec(url.pathname);
-      const teamId = teamIdMatch ? Number(teamIdMatch[1]) : null;
-
-      if (teamId === MOCK_TEAM.id) {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            team: MOCK_TEAM,
-            activities: MOCK_ACTIVITY_LIST.activities,
-            evaluation_summary: {
-              total_activities: 1,
-              completed_activities: 0,
-              pending_activities: 1,
-              completion_rate: 0,
-              has_incomplete: true,
-              missing_activities: ["Test Activity"],
-              checkpoint_mismatch: false,
-              team_checkpoint: 1,
-              current_checkpoint: 1,
-            },
-          }),
-        });
-      } else {
-        await route.fulfill({
-          status: 404,
-          contentType: "application/json",
-          body: JSON.stringify({ detail: "Not found" }),
-        });
-      }
-    });
-
-    // Submit evaluation endpoint
-    await page.route("**/api/rally/v1/staff/teams/*/activities/*/evaluate**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          ...MOCK_ACTIVITY_RESULT,
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-        }),
-      });
-    });
-
     // Seed a signed-in staff OIDC session before navigation
     await seedOidcSession(context, STAFF_GROUPS);
 
@@ -152,8 +154,6 @@ test.describe("Staff Evaluation Flow", () => {
         response.url().includes("/api/rally/v1/rally/settings/public") && response.status() === 200,
       { timeout: 10000 },
     );
-
-    // Wait for app to initialize
 
     // Verify we're still on the staff evaluation page (not redirected to login)
     const currentUrl = page.url();
@@ -224,7 +224,7 @@ test.describe("Staff Evaluation Flow", () => {
     await page.goto("/rally/staff-evaluation/checkpoint/999");
 
     // Should show error message
-    await expect(page.getByText(/not found|não encontrado|erro/i).first()).toBeVisible({
+    await expect(page.getByText(/este não é o teu posto|not found|não encontrado|erro/i).first()).toBeVisible({
       timeout: 5000,
     });
   });
