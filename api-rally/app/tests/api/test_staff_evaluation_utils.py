@@ -357,7 +357,8 @@ class TestCheckpointProgressCalculation:
         last, current, completed = await compute_checkpoint_progress(pg_session, team)
 
         assert last == 2
-        assert current == 2
+        # No post left to send them to — see determine_current_order.
+        assert current is None
         assert completed == [1, 2]
 
     async def test_build_team_for_staff(self, pg_session):
@@ -424,16 +425,32 @@ class TestCheckpointProgressCalculation:
 
 
 class TestDetermineCurrentOrder:
-    def test_no_checkpoints_returns_last_completed(self):
-        assert determine_current_order([], 0) == 0
+    class _CP:
+        def __init__(self, order):
+            self.order = order
 
-    def test_all_checkpoints_completed_stays_at_max(self):
-        class _CP:
-            def __init__(self, order):
-                self.order = order
+    def test_no_route_has_no_current_post(self):
+        assert determine_current_order([], 0) is None
 
-        checkpoints = [_CP(1), _CP(2)]
-        assert determine_current_order(checkpoints, 2) == 2
+    def test_all_checkpoints_completed_has_no_current_post(self):
+        """None, not the last post's order.
+
+        Clamping to the last order is indistinguishable from a team still
+        working on that post, and the participant screen builds its next-post
+        card from this number — so a finished team was shown the post it had
+        just completed as its "próximo posto" and never reached the finished
+        card.
+        """
+        checkpoints = [self._CP(1), self._CP(2)]
+        assert determine_current_order(checkpoints, 2) is None
+
+    def test_mid_route_points_at_the_next_post(self):
+        checkpoints = [self._CP(1), self._CP(2), self._CP(3)]
+        assert determine_current_order(checkpoints, 1) == 2
+
+    def test_a_team_that_has_started_nothing_is_sent_to_the_first_post(self):
+        checkpoints = [self._CP(1), self._CP(2)]
+        assert determine_current_order(checkpoints, 0) == 1
 
 
 class TestSerializers:

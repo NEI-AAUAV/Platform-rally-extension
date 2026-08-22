@@ -98,8 +98,18 @@ export function useTeamProgress() {
   // since times is appended when staff registers a pass but not all
   // activities may be done yet).
   const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
-  const nextCheckpointOrder = team?.current_checkpoint_number ?? completedCheckpointsCount + 1;
-  const nextCheckpoint = checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
+  // A loaded team's `current_checkpoint_number` is authoritative *including*
+  // when it is null, which the server sends to mean "no post left to go to" —
+  // the route is finished. That is why this cannot be a `??` fallback: null
+  // would fall through to `completed + 1` and resurrect a next post, which is
+  // exactly the bug that left a finished team staring at the post it had just
+  // completed as its "próximo posto" and never seeing RouteFinishedCard. The
+  // fallback is only for the moment before the team has loaded at all.
+  const nextCheckpointOrder = team ? team.current_checkpoint_number : completedCheckpointsCount + 1;
+  const nextCheckpoint =
+    nextCheckpointOrder == null
+      ? undefined
+      : checkpoints?.find((cp) => cp.order === nextCheckpointOrder);
 
   // Show score mode: 'hidden', 'individual', or 'competitive'
   const showScore = settings?.show_score_mode !== "hidden";

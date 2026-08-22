@@ -426,7 +426,7 @@ async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> Non
 
 async def compute_checkpoint_progress(
     db: AsyncSession, team_obj: Team
-) -> tuple[int, int, list[int]]:
+) -> tuple[int, int | None, list[int]]:
     """
     Calculate last and current checkpoint numbers plus completed orders for a team.
 
@@ -495,13 +495,21 @@ async def is_checkpoint_completed(
     return all(act.id in completed_activity_ids for act in checkpoint_activities)
 
 
-def determine_current_order(checkpoints: Sequence[Any], last_completed_order: int) -> int:
+def determine_current_order(checkpoints: Sequence[Any], last_completed_order: int) -> int | None:
+    """The order of the post the team is working on, or None if there is none.
+
+    None means the route is finished (or there is no route). Clamping to the
+    last post's order instead — which this used to do — is indistinguishable
+    from a team still working on that post, and it is what left a finished team
+    being shown its final post as "próximo posto" forever. See
+    TeamService.compute_checkpoint_progress, which carries the same rule.
+    """
     if not checkpoints:
-        return last_completed_order
+        return None
     max_order = checkpoints[-1].order
     if last_completed_order < max_order:
         return last_completed_order + 1
-    return last_completed_order
+    return None
 
 
 async def build_team_for_staff(

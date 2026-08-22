@@ -840,6 +840,58 @@ async def test_get_global_ranking_orders_and_ranks(pg_session):
     assert bottom["rank"] > top["rank"]
 
 
+async def test_get_global_ranking_counts_active_dynamic_awards(pg_session):
+    """The public ranking must agree with the total stored on the team.
+
+    ``/scoreboard/live`` is served from this ranking, while ``Team.total`` comes
+    from ``update_team_scores`` — which has always added active awards. When the
+    two disagreed, every hint charge, give-up charge and admin prize was
+    invisible on the public board, which in peddy-paper means the hint economy
+    never reached the standings at all.
+    """
+    activity = await _make_activity(pg_session)
+    charged = await _make_team(pg_session, "Bought hints")
+    clean = await _make_team(pg_session, "Solved it")
+    for team in (charged, clean):
+        await _make_result(
+            pg_session,
+            team=team,
+            activity=activity,
+            result_data={"assigned_points": 100},
+            final_score=100,
+        )
+    # Two hints at -10, and one revoked award that must not count.
+    pg_session.add(DynamicAward(team_id=charged.id, points=-10, is_active=True))
+    pg_session.add(DynamicAward(team_id=charged.id, points=-10, is_active=True))
+    pg_session.add(DynamicAward(team_id=charged.id, points=-50, is_active=False))
+    await pg_session.flush()
+
+    svc = ScoringService(pg_session)
+    ranking = await svc.get_team_ranking()
+
+    charged_row = next(r for r in ranking if r["team_id"] == charged.id)
+    clean_row = next(r for r in ranking if r["team_id"] == clean.id)
+    assert charged_row["total_score"] == pytest.approx(80)
+    assert clean_row["total_score"] == pytest.approx(100)
+    # Paying for help costs you position, which is the whole point of charging.
+    assert clean_row["rank"] < charged_row["rank"]
+    # An award is not an activity the team completed.
+    assert charged_row["activities_completed"] == 1
+
+
+async def test_get_global_ranking_scores_a_team_with_only_awards(pg_session):
+    """A team whose only points are a penalty still appears, below zero."""
+    penalised = await _make_team(pg_session, "Gave up immediately")
+    pg_session.add(DynamicAward(team_id=penalised.id, points=-30, is_active=True))
+    await pg_session.flush()
+
+    ranking = await ScoringService(pg_session).get_team_ranking()
+
+    row = next(r for r in ranking if r["team_id"] == penalised.id)
+    assert row["total_score"] == pytest.approx(-30)
+    assert row["activities_completed"] == 0
+
+
 async def test_get_activity_statistics_empty(pg_session):
     activity = await _make_activity(pg_session)
     svc = ScoringService(pg_session)

@@ -777,9 +777,32 @@ class ScoringService:
         return float(score) if score is not None else 0.0
 
     async def _get_global_ranking(self) -> list[dict[str, Any]]:
-        """Rank teams by total score across all activities ("1224" ranking)."""
+        """Rank teams by total score across all activities ("1224" ranking).
+
+        The total is activity points *plus* active dynamic awards, which is what
+        ``update_team_scores`` already stores on ``Team.total``. The two have to
+        agree: this method is what ``/scoreboard/live`` serves (through the
+        cached leaderboard the worker rebuilds), and it used to sum activity
+        results alone. Every charge and prize was therefore invisible on the
+        public board while being present in the team's own total — hint
+        purchases, give-ups and admin awards all land as ``DynamicAward`` rows,
+        so a peddy-paper hint economy never reached the standings at all.
+        """
         team_stmt = select(Team).options(selectinload(Team.activity_results))
         teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
+
+        # One query for every team's awards, folded into a lookup — the same
+        # batched shape recalculate_all_team_scores uses, since this method is
+        # deliberately written to avoid a per-team query.
+        awards_stmt = select(DynamicAward).where(
+            DynamicAward.team_id.in_([team.id for team in teams]),
+            DynamicAward.is_active.is_(True),
+        )
+        award_points_by_team: dict[int, float] = {}
+        for award in (await self.db.scalars(awards_stmt)).all():
+            award_points_by_team[award.team_id] = award_points_by_team.get(
+                award.team_id, 0.0
+            ) + float(award.points)
 
         ranking = []
         for team in teams:
@@ -787,11 +810,14 @@ class ScoringService:
             # the total from them instead of a per-team query (avoids N+1).
             completed = [r for r in team.activity_results if r.is_completed]
             total_score = sum(float(r.final_score) for r in completed if r.final_score is not None)
+            total_score += award_points_by_team.get(team.id, 0.0)
             ranking.append(
                 {
                     "team_id": team.id,
                     "team_name": team.name,
                     "total_score": total_score,
+                    # Still a count of scored activities, not of awards: an
+                    # award is not something the team completed.
                     "activities_completed": len(completed),
                 }
             )

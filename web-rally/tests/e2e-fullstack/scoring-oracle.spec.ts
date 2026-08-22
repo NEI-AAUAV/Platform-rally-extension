@@ -1,15 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { apiCall } from './helpers/fullstackAuth';
+import { apiCall, seedRealOidcSession } from './helpers/fullstackAuth';
 import { seedRally, waitForApi } from './helpers/seedRally';
 
 /**
  * Scoring-arithmetic-vs-oracle: reimplements api-rally's scoring formulas
  * (app/models/activities/{boolean,score_based}.py + base.py's apply_modifiers)
- * independently in TS, seeds real evaluations against the live backend, and
- * asserts the server-computed final_score matches the oracle exactly. Catches
- * silent scoring-formula drift between backend and any docs/frontend
- * assumption about how points are computed, which unit tests within api-rally
- * alone can't — those only assert the implementation against itself.
+ * independently in TS, drives real evaluations through the staff UI against
+ * the live backend, and asserts the server-computed final_score matches the
+ * oracle both via API and rendered on the scoreboard UI.
  */
 
 const EXTRA_SHOT_BONUS = 5; // app/core/config.py default; overridden per-test via rally settings when needed.
@@ -53,26 +51,40 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     await waitForApi();
   });
 
-  test('boolean activity success score matches the oracle exactly', async ({ page }) => {
+  test('boolean activity success score matches the oracle exactly on UI and API', async ({ page, context }) => {
     const rally = await seedRally();
+    await seedRealOidcSession(context, rally.admin);
 
     await apiCall('POST', '/checkpoint/staff-check-in', {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
-    await apiCall('POST', `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`, {
-      token: rally.admin.accessToken,
-      body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+
+    await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
+    await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
+    await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+    await page.getByText('Equipa teve sucesso na atividade').first().click();
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
+    await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({
+      timeout: 15_000,
     });
 
+    const expected = booleanOracle(true);
     const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
+    expect(actual).toBe(expected);
 
-    expect(actual).toBe(booleanOracle(true));
-    void page;
+    // Verify scoreboard UI renders the expected score
+    await page.goto('/rally/scoreboard');
+    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('extra-shots bonus and penalties combine exactly as apply_modifiers computes server-side', async () => {
+  test('extra-shots bonus and penalties combine exactly as apply_modifiers computes server-side', async ({
+    page,
+    context,
+  }) => {
     const rally = await seedRally();
+    await seedRealOidcSession(context, rally.admin);
 
     await apiCall('POST', '/checkpoint/staff-check-in', {
       token: rally.admin.accessToken,
@@ -106,10 +118,19 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       penalties: { vomit: 10 },
     });
     expect(actual).toBe(expected);
+
+    // Verify scoreboard UI shows the modified total score
+    await page.goto('/rally/scoreboard');
+    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('penalties cannot drive a score below zero — server clamps exactly like the oracle', async () => {
+  test('penalties cannot drive a score below zero — server clamps exactly like the oracle', async ({
+    page,
+    context,
+  }) => {
     const rally = await seedRally();
+    await seedRealOidcSession(context, rally.admin);
 
     await apiCall('POST', '/checkpoint/staff-check-in', {
       token: rally.admin.accessToken,
@@ -131,14 +152,20 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     expect(actual).toBe(applyModifiersOracle(booleanOracle(true), { penalties: { not_drinking: 500 } }));
     expect(actual).toBe(0);
+
+    // Scoreboard UI should show 0 pts, clamped
+    await page.goto('/rally/scoreboard');
+    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    await expect(teamRow.getByText('0')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('score-based activity applies the percentage-of-max formula exactly', async () => {
-    // Reuses seedRally's checkpoint (correctly ordered — see its comment on
-    // why order must be sequential from 1) rather than minting a second
-    // checkpoint with a random order, which broke staff-check-in the same
-    // way the other oracle tests here did.
+  test('score-based activity applies the percentage-of-max formula exactly and shows on UI', async ({
+    page,
+    context,
+  }) => {
     const rally = await seedRally();
+    await seedRealOidcSession(context, rally.admin);
+
     const activity = await apiCall<{ id: number }>('POST', '/activities/', {
       token: rally.admin.accessToken,
       body: {
@@ -154,13 +181,25 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
-    await apiCall('POST', `/staff/teams/${rally.teamId}/activities/${activity.id}/evaluate`, {
-      token: rally.admin.accessToken,
-      body: { result_data: { achieved_points: 75 }, extra_shots: 0, penalties: {} },
+
+    await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
+    await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
+    await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+    await page.locator('#score-achieved').fill('75');
+    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
+    await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({
+      timeout: 15_000,
     });
 
+    const expected = scoreBasedOracle(75, 100, 50);
     const actual = await getFinalScore(rally.teamId, activity.id, rally.admin.accessToken);
 
-    expect(actual).toBe(scoreBasedOracle(75, 100, 50));
+    expect(actual).toBe(expected);
+
+    // Verify scoreboard UI shows computed points
+    await page.goto('/rally/scoreboard');
+    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 });
+

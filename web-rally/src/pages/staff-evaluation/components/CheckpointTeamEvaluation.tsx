@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Users, ArrowLeft, MapPin, Loader2 } from "lucide-react";
-import { useParams } from "@tanstack/react-router";
+import { Users, ArrowLeft, MapPin, Loader2, Lock } from "lucide-react";
+import { useParams, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
 import useRallyEventStream from "@/hooks/useRallyEventStream";
-import type { ListingTeam } from "@/client";
+import useUser from "@/hooks/useUser";
+import { useUserStore } from "@/stores/useUserStore";
+import { getMyCheckpoint, type ListingTeam } from "@/client";
 import { TeamActivitiesList } from "./TeamActivitiesList";
 import { TeamSection } from "./TeamSection";
 import { IncompleteEvaluationDialog } from "./IncompleteEvaluationDialog";
@@ -21,7 +24,30 @@ const STREAM_QUERY_KEYS = [
 export default function CheckpointTeamEvaluation() {
   const { checkpointId } = useParams({ strict: false }) as { checkpointId: string };
   const { settings } = useRallySettings();
+  const { isRallyAdmin } = useUser();
+  const navigate = useNavigate();
+  const token = useUserStore((state) => state.token);
   useRallyEventStream(STREAM_QUERY_KEYS);
+
+  // The post comes from the URL, so nothing stops a staff member reaching
+  // another post's screen — a stale bookmark, a link passed around the group,
+  // an id typed by hand. The server refuses their writes there (ABAC's
+  // `_staff_own_checkpoint`), but it used to refuse them one submitted
+  // evaluation at a time, after the team had already been asked to do the
+  // challenge. Ask the same question the server asks, up front.
+  // Admins and coordinators are deliberately exempt: they have no post of
+  // their own and reach every post's screen from the manager view.
+  const { data: myCheckpoint, isPending: myCheckpointPending } = useQuery({
+    queryKey: ["myCheckpoint"],
+    queryFn: async () => (await getMyCheckpoint()).data,
+    enabled: !isRallyAdmin && !!token,
+    retry: false,
+    // An admin may reassign this staff member's post at any time, and the
+    // answer decides whether they can work at all.
+    staleTime: 0,
+  });
+  const isForeignPost =
+    !isRallyAdmin && !myCheckpointPending && myCheckpoint?.id !== Number(checkpointId);
   const {
     checkpoint,
     checkpointTeams,
@@ -38,6 +64,33 @@ export default function CheckpointTeamEvaluation() {
     backToTeams,
     dismissWarning,
   } = useCheckpointEvaluation(checkpointId);
+
+  if (isForeignPost) {
+    return (
+      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+        <Lock className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+        <h2 className="rally-display text-xl font-bold text-foreground">Este não é o teu posto</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {myCheckpoint
+            ? `Só podes avaliar no posto que te foi atribuído: ${myCheckpoint.name}.`
+            : "Ainda não foste atribuído a um posto. Contacta um administrador."}
+        </p>
+        {myCheckpoint && (
+          <Button
+            className="mt-4"
+            onClick={() =>
+              void navigate({
+                to: "/staff-evaluation/checkpoint/$checkpointId",
+                params: { checkpointId: String(myCheckpoint.id) },
+              })
+            }
+          >
+            Ir para o meu posto
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (!checkpoint) {
     return (

@@ -7749,6 +7749,11 @@
             ],
             "title": "Search Radius M"
           },
+          "is_reachable": {
+            "type": "boolean",
+            "title": "Is Reachable",
+            "default": false
+          },
           "missing": {
             "items": {
               "type": "string"
@@ -9450,6 +9455,11 @@
               }
             ],
             "title": "Search Radius M"
+          },
+          "is_reachable": {
+            "type": "boolean",
+            "title": "Is Reachable",
+            "default": false
           }
         },
         "type": "object",

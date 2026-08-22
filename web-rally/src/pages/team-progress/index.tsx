@@ -9,6 +9,7 @@ import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
+import { departureNotice } from "./checkpointHours";
 import MapSection from "@/pages/checkpoints/components/MapSection";
 
 export default function TeamProgress() {
@@ -68,7 +69,11 @@ export default function TeamProgress() {
   // no checkpoints at all has not been "finished", it just has no route.
   const isFinished = !nextCheckpoint && (checkpoints?.length ?? 0) > 0;
   const nextCheckpointCard = nextCheckpoint ? (
-    <NextCheckpointCard checkpoint={nextCheckpoint} showMap={showMap} />
+    <NextCheckpointCard
+      checkpoint={nextCheckpoint}
+      showMap={showMap}
+      notYetDeparted={departureNotice(settings?.rally_start_time, team.start_offset_minutes ?? 0)}
+    />
   ) : (
     isFinished && (
       <RouteFinishedCard
@@ -152,6 +157,13 @@ export default function TeamProgress() {
                   isExpanded={expandedCheckpoints.has(index)}
                   onToggle={toggleCheckpoint}
                   isLast={index === checkpoints.length - 1}
+                  // The main card already offers the post it renders; this is
+                  // for the *other* posts a free-choice stage leaves open, so
+                  // the team is not funnelled into whichever one the app
+                  // happened to pick.
+                  offerCheckIn={
+                    checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
+                  }
                 />
               ))}
             </div>
