@@ -569,14 +569,12 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       const fainaRow = adminPage.getByRole("listitem", {
         name: `Checkpoint ${faina.fullName}, ordem ${faina.order}`,
       });
-      // By position, not by name: of the three action buttons on a checkpoint
-      // row (media, edit, delete) only the media one carries an aria-label —
-      // the edit and delete buttons are icon-only with no accessible name at
-      // all, so there is nothing to select them by. That is a real
-      // accessibility gap in the admin list, noted in this directory's README;
-      // this locator is the workaround, not an endorsement. dispatchEvent
+      // Target the edit button specifically via its icon/aria-label. dispatchEvent
       // because the row is draggable and swallows a synthesized click.
-      await fainaRow.locator("button").nth(1).dispatchEvent("click");
+      await fainaRow
+        .locator("button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']")
+        .first()
+        .dispatchEvent("click");
       await expect(adminPage.getByText("Editar Checkpoint")).toBeVisible({ timeout: 15_000 });
 
       const decidedName = `${faina.name} ${runId}`;
@@ -584,7 +582,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       await toggleFormSwitch(adminPage, "checkpoint_provisional");
       await toggleFormSwitch(adminPage, "checkpoint_draft");
       await adminPage.getByRole("button", { name: "Atualizar Checkpoint" }).click();
-      await expect(adminPage.getByText(decidedName)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(decidedName).first()).toBeVisible({ timeout: 15_000 });
 
       const settledRoute = await apiCall<{
         published_count: number;

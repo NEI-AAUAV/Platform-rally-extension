@@ -118,7 +118,7 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
         .getByPlaceholder("Ex: Onde o rio encontra a ponte de ferro...")
         .fill("Enigma de teste negativo 1");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cpName)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cpName).first()).toBeVisible({ timeout: 15_000 });
 
       // Criar Checkpoint 2
       const cp2Name = `E2E Neg Posto Dois ${runId}`;
@@ -130,7 +130,7 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
         .getByPlaceholder("Ex: Onde o rio encontra a ponte de ferro...")
         .fill("Enigma de teste negativo 2");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cp2Name)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cp2Name).first()).toBeVisible({ timeout: 15_000 });
 
       // Criar Equipa e capturar o código de acesso
       await adminPage.goto("/rally/admin?tab=teams");

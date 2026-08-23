@@ -122,7 +122,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
           Sem etapas — a rota corre como um bloco único.
         </p>
       ) : (
-        <ul className="list-none space-y-3">
+        <ul role="list" className="list-none space-y-3">
           {stages?.map((stage) => (
             <li key={stage.id} className="rounded-xl border border-border bg-card/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">

@@ -80,7 +80,7 @@ test.describe("Fase 6: Atividades Avançadas e Avaliação", () => {
       await adminPage.getByPlaceholder("Ex: 40.6405").fill("40.6443");
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6455");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cpName)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cpName).first()).toBeVisible({ timeout: 15_000 });
 
       // 3. Criar Equipas
       await adminPage.goto("/rally/admin?tab=teams");

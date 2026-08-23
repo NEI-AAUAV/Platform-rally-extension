@@ -184,7 +184,11 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
     await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
-    await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
+    await page
+      .locator('div', { hasText: 'E2E Score Activity' })
+      .getByRole('button', { name: /avaliar|evaluate/i })
+      .first()
+      .click();
     await page.locator('#score-achieved').fill('75');
     await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
     await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({

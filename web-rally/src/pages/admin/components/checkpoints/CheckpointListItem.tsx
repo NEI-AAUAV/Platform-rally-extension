@@ -71,6 +71,7 @@ export default function CheckpointListItem({
 
   return (
     <li
+      role="listitem"
       draggable={!showMedia}
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
@@ -174,13 +175,18 @@ export default function CheckpointListItem({
                 className={cn("ml-1 h-3 w-3 transition-transform", showMedia && "rotate-180")}
               />
             </BloodyButton>
-            <BloodyButton variant="neutral" onClick={() => onEdit(checkpoint)}>
+            <BloodyButton
+              variant="neutral"
+              onClick={() => onEdit(checkpoint)}
+              aria-label={`Editar checkpoint ${checkpoint.name}`}
+            >
               <Edit className="h-4 w-4" />
             </BloodyButton>
             <BloodyButton
               variant="neutral"
               onClick={() => onDelete(checkpoint.id)}
               disabled={isDeleting}
+              aria-label={`Eliminar checkpoint ${checkpoint.name}`}
             >
               <Trash2 className="h-4 w-4" />
             </BloodyButton>

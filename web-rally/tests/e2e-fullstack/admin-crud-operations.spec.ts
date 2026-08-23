@@ -61,14 +61,14 @@ test.describe("Fase 4: Operações CRUD Completas de Admin", () => {
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6455");
       await adminPage.getByPlaceholder("Ex: 50").fill("40");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cp1Name)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cp1Name).first()).toBeVisible({ timeout: 15_000 });
 
       await adminPage.getByPlaceholder("Ex: Checkpoint Central").fill(cp2Name);
       await adminPage.getByPlaceholder("Ex: 40.6405").fill("40.6450");
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6460");
       await adminPage.getByPlaceholder("Ex: 50").fill("50");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cp2Name)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cp2Name).first()).toBeVisible({ timeout: 15_000 });
 
       // 3. Editar Posto 1
       const cp1Item = adminPage.locator("li", { hasText: cp1Name });
@@ -83,7 +83,7 @@ test.describe("Fase 4: Operações CRUD Completas de Admin", () => {
       await adminPage.getByRole("button", { name: "Atualizar Checkpoint" }).click();
 
       // Verificar que nome e novo raio estão visíveis na lista
-      await expect(adminPage.getByText(cp1NewName)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cp1NewName).first()).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.locator("li", { hasText: cp1NewName }).getByText(/raio 75m/i)).toBeVisible({ timeout: 15_000 });
 
       // 4. Eliminar Posto 2
@@ -186,7 +186,7 @@ test.describe("Fase 4: Operações CRUD Completas de Admin", () => {
       await adminPage.getByPlaceholder("Ex: -8.6538").fill("-8.6455");
       await adminPage.getByPlaceholder("Ex: 50").fill("50");
       await adminPage.getByRole("button", { name: "Criar Checkpoint" }).click();
-      await expect(adminPage.getByText(cpName)).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(cpName).first()).toBeVisible({ timeout: 15_000 });
 
       // 2. Criar Atividade
       await adminPage.goto("/rally/admin?tab=activities");
