@@ -208,11 +208,18 @@ test.describe("peddy paper", () => {
     // of the success text. Retry the click rather than failing outright —
     // matches the read-after-write flake this suite already works around
     // elsewhere (see helpers/nav.ts's CI-saturation note).
+    //
+    // Checked first on every attempt: a click can succeed server-side while
+    // the UI is still catching up, and the card advances to the *next* post
+    // as soon as it does. A retry that skipped this check would then click
+    // that post's own "Check-in GPS" button while the team is still standing
+    // at the first post's coordinates — and get rejected as too far away,
+    // exactly the failure this loop exists to paper over.
+    const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
     await expect(async () => {
+      if (await registered.isVisible().catch(() => false)) return;
       await page.getByRole("button", { name: "Check-in GPS" }).click();
-      await expect(page.getByText(/Posto concluído|Check-in registado|Já registado/)).toBeVisible(
-        { timeout: 5_000 },
-      );
+      await expect(registered).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 20_000 });
 
     // Reaching the post is what buys the reveal: the completed checkpoint now
