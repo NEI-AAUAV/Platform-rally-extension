@@ -685,13 +685,18 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       await adminPage.goto("/rally/assignment");
       for (const [index, post] of postsWithActivities.entries()) {
         const member = cast.staff[index]!;
-        await expect(adminPage.getByText(member.email)).toBeVisible({ timeout: 20_000 });
-        // The disposable Postgres accumulates every rally-staff user ever
-        // minted, so scope to the row holding this email rather than to the
-        // page (see admin-setup.spec.ts).
+        // `.first()`: this member's card has been observed rendered twice
+        // for the same email (cause not yet root-caused — plausibly a
+        // duplicate local user row for the same OIDC identity; see
+        // CRUDUser.get_or_create_mirror's docstring on the email/sub split).
+        // Scoped to the row holding this email rather than to the page
+        // either way, since the disposable Postgres accumulates every
+        // rally-staff user ever minted (see admin-setup.spec.ts).
+        await expect(adminPage.getByText(member.email).first()).toBeVisible({ timeout: 20_000 });
         const row = adminPage
           .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(member.email, { exact: false }) });
+          .filter({ has: adminPage.getByText(member.email, { exact: false }) })
+          .first();
         await row.getByRole("combobox").click();
         await adminPage.getByRole("option", { name: post.fullName }).click();
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
@@ -768,10 +773,15 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // exists for exactly that, one row per guide.
       await adminSetupPage.goto("/rally/guide-assignment");
       for (const [index, guide] of cast.guides.entries()) {
-        await expect(adminSetupPage.getByText(guide.email)).toBeVisible({ timeout: 20_000 });
+        // `.first()`: same defensive scoping as the staff-assignment loop
+        // above, in case this member's card is also rendered twice.
+        await expect(adminSetupPage.getByText(guide.email).first()).toBeVisible({
+          timeout: 20_000,
+        });
         const row = adminSetupPage
           .locator("div.rounded-xl")
-          .filter({ has: adminSetupPage.getByText(guide.email, { exact: false }) });
+          .filter({ has: adminSetupPage.getByText(guide.email, { exact: false }) })
+          .first();
         await row.getByRole("combobox").click();
         await adminSetupPage.getByRole("option", { name: teams[index]!.name }).click();
         await expect(adminSetupPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({

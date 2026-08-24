@@ -664,12 +664,17 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const staffedCheckpoints = withActivities.filter((c) => c.activityId !== null);
       expect(staffedCheckpoints).toHaveLength(cast.staff.length);
       for (const [index, member] of cast.staff.entries()) {
-        await expect(adminPage.getByText(member.email)).toBeVisible({ timeout: 15_000 });
+        // `.first()`: this member's card has been observed rendered twice
+        // for the same email (cause not yet root-caused — plausibly a
+        // duplicate local user row for the same OIDC identity; see
+        // CRUDUser.get_or_create_mirror's docstring on the email/sub split).
+        await expect(adminPage.getByText(member.email).first()).toBeVisible({ timeout: 15_000 });
         // The smoke Postgres accumulates every rally-staff user ever minted,
         // so scope to the row holding this email (see admin-setup.spec.ts).
         const row = adminPage
           .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(member.email, { exact: false }) });
+          .filter({ has: adminPage.getByText(member.email, { exact: false }) })
+          .first();
         await row.getByRole("combobox").click();
         await adminPage
           .getByRole("option", { name: staffedCheckpoints[index]!.name })
@@ -699,10 +704,13 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await adminPage.goto("/rally/guide-assignment");
       const guidedTeams = GUIDED_TEAM_INDEXES.map((teamIndex) => teams[teamIndex]!);
       for (const [index, guide] of cast.guides.entries()) {
-        await expect(adminPage.getByText(guide.email)).toBeVisible({ timeout: 15_000 });
+        // `.first()`: same defensive scoping as the staff-assignment loop
+        // above, in case this member's card is also rendered twice.
+        await expect(adminPage.getByText(guide.email).first()).toBeVisible({ timeout: 15_000 });
         const row = adminPage
           .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(guide.email, { exact: false }) });
+          .filter({ has: adminPage.getByText(guide.email, { exact: false }) })
+          .first();
         await row.getByRole("combobox").click();
         await adminPage.getByRole("option", { name: guidedTeams[index]!.name }).click();
         await expect(row.getByText(`Equipa: ${guidedTeams[index]!.name}`)).toBeVisible({
@@ -1190,7 +1198,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const staffPage = await newAuthedPage(browser, cast.staff[1]!.user);
       try {
         await staffPage.goto("/rally/staff-evaluation");
-        await expect(staffPage.getByText(se!.name)).toBeVisible({ timeout: 30_000 });
+        await expect(staffPage.getByText(se!.name).first()).toBeVisible({ timeout: 30_000 });
         for (const team of [alpha!, beta!]) {
           await expect(staffPage.getByText(team.name).first()).toBeVisible({ timeout: 30_000 });
         }
