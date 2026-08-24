@@ -47,7 +47,7 @@ export default function CheckpointListItem({
   return (
     <li
       role="listitem"
-      draggable={!showMedia}
+      draggable
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, checkpoint)}
@@ -137,17 +137,6 @@ export default function CheckpointListItem({
             </div>
           </div>
           <div className="flex gap-2">
-            <BloodyButton
-              variant="neutral"
-              onClick={() => setShowMedia((v) => !v)}
-              aria-expanded={showMedia}
-              aria-label="Fotos e curiosidades do sítio"
-            >
-              <Images className="h-4 w-4" />
-              <ChevronDown
-                className={cn("ml-1 h-3 w-3 transition-transform", showMedia && "rotate-180")}
-              />
-            </BloodyButton>
             <BloodyButton
               variant="neutral"
               onClick={() => onEdit(checkpoint)}

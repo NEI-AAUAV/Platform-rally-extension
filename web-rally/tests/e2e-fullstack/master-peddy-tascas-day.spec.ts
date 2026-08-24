@@ -570,29 +570,25 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const firstPostRow = adminPage.getByRole("listitem", {
         name: `Checkpoint ${checkpoints[0]!.name}, ordem ${checkpoints[0]!.order}`,
       });
-      const expandFirstPost = firstPostRow.getByRole("button", {
-        name: "Fotos e curiosidades do sítio",
-      });
-      // dispatchEvent, not click(): the whole row is `draggable` while
-      // collapsed (the list is reordered by dragging), so the browser reads
-      // Playwright's synthesized mousedown/move/up as the start of a drag and
-      // never delivers the click to the button inside it. Dispatching the
-      // event directly is the reliable way past a draggable ancestor — and
-      // aria-expanded is then the proof the panel really opened, rather than
-      // an assumption that the click landed.
-      await expandFirstPost.dispatchEvent("click");
-      await expect(expandFirstPost).toHaveAttribute("aria-expanded", "true");
+      // Edit the first post to attach its details panel (activities, media, guide hints)
+      await firstPostRow
+        .locator("button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']")
+        .first()
+        .dispatchEvent("click");
+      await expect(
+        adminPage.getByText(`A configurar ${checkpoints[0]!.name}`).first(),
+      ).toBeVisible({ timeout: 15_000 });
 
       for (const hint of hints) {
-        await firstPostRow
+        await adminPage
           .getByPlaceholder("Indicação a dar à equipa (ex: Aponta para a estátua e pergunta…)")
           .fill(hint);
-        await firstPostRow
+        await adminPage
           .getByPlaceholder("Pergunta (opcional)")
           .fill("Em que ano foi construída?");
-        await firstPostRow.getByPlaceholder("Resposta esperada (opcional)").fill(expectedAnswer);
-        await firstPostRow.getByRole("button", { name: "Adicionar indicação" }).click();
-        await expect(firstPostRow.getByText(hint)).toBeVisible({ timeout: 15_000 });
+        await adminPage.getByPlaceholder("Resposta esperada (opcional)").fill(expectedAnswer);
+        await adminPage.getByRole("button", { name: "Adicionar indicação" }).click();
+        await expect(adminPage.getByText(hint).first()).toBeVisible({ timeout: 15_000 });
       }
 
       const indications = await apiCall<{ hint: string; expected_answer: string | null }[]>(
