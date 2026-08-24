@@ -1,4 +1,6 @@
 import type { UseFormReturn } from "react-hook-form";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Form,
   FormControl,
@@ -50,6 +52,13 @@ type CheckpointFormProps = Readonly<{
   stages?: ReadonlyArray<RouteStageResponse>;
   pendingClueImage?: File | null;
   onPendingClueImageChange?: (file: File | null) => void;
+  /** True when a details panel (activities/media/hints) renders right below,
+   * so this card's bottom corners should stay square to join it visually. */
+  hasAttachedPanel?: boolean;
+  /** True once "Começar a preencher" has silently saved this new post. */
+  hasPendingDraft?: boolean;
+  onStartDraft?: () => void;
+  isStartingDraft?: boolean;
 }>;
 
 export default function CheckpointForm({
@@ -63,9 +72,15 @@ export default function CheckpointForm({
   stages,
   pendingClueImage,
   onPendingClueImageChange,
+  hasAttachedPanel,
+  hasPendingDraft,
+  onStartDraft,
+  isStartingDraft,
 }: CheckpointFormProps) {
+  const name = form.watch("name");
+  const canStartDraft = !isEditing && !hasPendingDraft && !!name?.trim();
   return (
-    <div className="rally-surface rounded-2xl p-6">
+    <div className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}>
       <h3 className="mb-1 text-lg font-semibold">
         {isEditing ? "Editar Checkpoint" : "Criar Novo Checkpoint"}
       </h3>
@@ -398,14 +413,37 @@ export default function CheckpointForm({
             />
           </Section>
 
-          <div className="flex gap-2">
-            <BloodyButton type="submit" disabled={isSubmitting}>
-              {isEditing ? "Atualizar" : "Criar"} Checkpoint
-            </BloodyButton>
-            {isEditing && (
-              <BloodyButton type="button" variant="neutral" onClick={onCancel}>
-                Cancelar
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {!isEditing && !hasPendingDraft && (
+                <BloodyButton
+                  type="button"
+                  variant="neutral"
+                  onClick={onStartDraft}
+                  disabled={!canStartDraft || isStartingDraft}
+                >
+                  {isStartingDraft ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                  <span className="ml-1.5">Começar a preencher</span>
+                </BloodyButton>
+              )}
+              <BloodyButton type="submit" disabled={isSubmitting}>
+                {isEditing ? "Atualizar" : "Criar"} Checkpoint
               </BloodyButton>
+              {(isEditing || hasPendingDraft) && (
+                <BloodyButton type="button" variant="neutral" onClick={onCancel}>
+                  Cancelar
+                </BloodyButton>
+              )}
+            </div>
+            {!isEditing && !hasPendingDraft && (
+              <p className="text-xs text-muted-foreground">
+                "Começar a preencher" grava já este posto em fundo para poderes acrescentar media,
+                atividades e pistas do guia enquanto preenches o resto.
+              </p>
             )}
           </div>
         </form>

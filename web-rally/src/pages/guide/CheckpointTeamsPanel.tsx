@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, UserCheck, Users } from "lucide-react";
 import {
+  getGuideTeam,
   getTeams,
   listGuideTeamsAtCheckpoint,
   recordGuideArrival,
@@ -10,7 +11,10 @@ import {
 } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useUserStore } from "@/stores/useUserStore";
 import { getErrorMessage } from "@/utils/errorHandling";
+
+const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally:admin", "rally-staff"];
 
 type Props = Readonly<{
   checkpointId: number;
@@ -37,9 +41,15 @@ function arrivalTime(value: string): string {
 export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChange }: Props) {
   const qc = useQueryClient();
   const { settings } = useRallySettings();
+  const scopes = useUserStore((state) => state.scopes);
+  // Admin/staff/manager run the whole event and never have a guide
+  // assignment of their own — they may vouch for any team. A plain guide
+  // accompanies a single team and may only vouch for that one, enforced
+  // server-side as well.
+  const isPrivileged = scopes !== undefined && PRIVILEGED_SCOPES.some((s) => scopes.includes(s));
   const canMarkArrivals = settings?.guide_manual_arrival_enabled !== false;
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const teamsKey = ["guide-teams-at-checkpoint", checkpointId];
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
 
   const { data: arrived = [], isLoading } = useQuery<GuideTeamAtCheckpoint[]>({
     queryKey: teamsKey,
@@ -48,10 +58,19 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
     refetchInterval: 30_000,
   });
 
+  const { data: myTeam } = useQuery({
+    queryKey: ["guide-team"],
+    queryFn: async () => (await getGuideTeam()).data,
+    staleTime: 60_000,
+    retry: false,
+    enabled: !isPrivileged,
+  });
+
   const { data: allTeams = [] } = useQuery<ListingTeam[]>({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
     staleTime: 60_000,
+    enabled: isPrivileged,
   });
 
   const markArrived = useMutation({
@@ -63,7 +82,6 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         })
       ).data,
     onSuccess: () => {
-      setSelectedTeamId("");
       void qc.invalidateQueries({ queryKey: teamsKey });
       // The arrival can complete the post outright, which moves the team on.
       void qc.invalidateQueries({ queryKey: ["team"] });
@@ -83,7 +101,8 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
   }, [purchasedIds.join(","), onPurchasedIdsChange]);
 
   const arrivedIds = new Set(arrived.map((row) => row.team_id));
-  const pending = allTeams.filter((team) => !arrivedIds.has(team.id));
+  const myTeamAlreadyArrived = myTeam ? arrivedIds.has(myTeam.id) : false;
+  const pendingTeams = allTeams.filter((team) => !arrivedIds.has(team.id));
 
   return (
     <section className="space-y-3">
@@ -133,7 +152,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         </p>
       )}
 
-      {canMarkArrivals && (
+      {canMarkArrivals && isPrivileged && (
         <>
           <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
             <label className="sr-only" htmlFor={`arrival-team-${checkpointId}`}>
@@ -146,7 +165,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
               className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm"
             >
               <option value="">Marcar chegada de…</option>
-              {pending.map((team) => (
+              {pendingTeams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.name}
                 </option>
@@ -164,6 +183,37 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
                 <UserCheck className="h-4 w-4" />
               )}
               <span className="ml-1.5">Marcar chegada</span>
+            </BloodyButton>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Usa isto quando o check-in por GPS falhar — sem bateria, sem rede, ou dentro de um
+            edifício.
+          </p>
+
+          {markArrived.isError && (
+            <p className="text-xs text-red-500">
+              {getErrorMessage(markArrived.error, "Não foi possível marcar a chegada.")}
+            </p>
+          )}
+        </>
+      )}
+
+      {canMarkArrivals && !isPrivileged && myTeam && !myTeamAlreadyArrived && (
+        <>
+          <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
+            <BloodyButton
+              type="button"
+              variant="neutral"
+              disabled={markArrived.isPending}
+              onClick={() => markArrived.mutate(myTeam.id)}
+            >
+              {markArrived.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4" />
+              )}
+              <span className="ml-1.5">Marcar chegada de {myTeam.name}</span>
             </BloodyButton>
           </div>
 

@@ -98,12 +98,20 @@ test.describe('Admin configures a full event through the real UI', () => {
     await page.getByPlaceholder('Ex: 50').fill('75');
     // order is no longer a manual field — the form auto-assigns
     // max(existing order) + 1 and reordering happens by dragging the list.
+    // Scoped to the list item (not getByText): creating a checkpoint
+    // auto-selects it, which opens the details panel's own "A configurar
+    // <name>" heading — a bare text match resolves to both and violates
+    // Playwright's strict mode.
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
-    await expect(page.getByText(checkpointAName)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('listitem', { name: `Checkpoint ${checkpointAName},` })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.getByPlaceholder('Ex: Checkpoint Central').fill(checkpointBName);
     await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
-    await expect(page.getByText(checkpointBName)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('listitem', { name: `Checkpoint ${checkpointBName},` })).toBeVisible({
+      timeout: 15_000,
+    });
 
     const checkpointsAfterCreate = await apiCall<
       { id: number; name: string; order: number; arrival_radius_m: number }[]

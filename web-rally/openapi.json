@@ -6366,7 +6366,7 @@
             "description": "Outside the event window, or a cross-edition team"
           },
           "403": {
-            "description": "Not this guide's checkpoint"
+            "description": "Not this guide's checkpoint, or not this guide's team"
           },
           "404": {
             "description": "Checkpoint not found"
@@ -6382,6 +6382,36 @@
             }
           }
         }
+      }
+    },
+    "/api/rally/v1/guide/team": {
+      "get": {
+        "tags": [
+          "Guide"
+        ],
+        "summary": "Get Guide Team",
+        "description": "The guide's own assigned team \u2014 name, members, and access-code QR.\n\nScoped to the single team this guide is assigned to; a guide never\nsees another team's roster or access code through this endpoint.",
+        "operationId": "get_guide_team",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivilegedDetailedTeam"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No team assigned to this guide"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/rally/v1/events/{event_id}/export": {

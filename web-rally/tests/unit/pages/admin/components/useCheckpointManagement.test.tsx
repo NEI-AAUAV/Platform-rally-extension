@@ -274,6 +274,129 @@ describe("useCheckpointManagement", () => {
     await waitFor(() => expect(mockToastError).toHaveBeenCalled());
   });
 
+  it("starts a draft in the background without resetting the form", async () => {
+    mockCreateCheckpoint.mockResolvedValue({ data: checkpoint({ id: 42, name: "Draft CP" }) });
+    const { result } = renderHook(() => useCheckpointManagement(userStore), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.hasCheckpoints).toBe(false));
+
+    act(() => {
+      result.current.checkpointForm.setValue("name", "Draft CP");
+    });
+
+    await act(async () => {
+      result.current.startDraftCheckpoint();
+    });
+
+    await waitFor(() => expect(result.current.pendingDraftId).toBe(42));
+    expect(result.current.selectedCheckpointId).toBe(42);
+    // Unlike a real submit, the rest of what the admin typed stays put.
+    expect(result.current.checkpointForm.getValues("name")).toBe("Draft CP");
+  });
+
+  it("does nothing when starting a draft with an empty name", async () => {
+    const { result } = renderHook(() => useCheckpointManagement(userStore), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.hasCheckpoints).toBe(false));
+
+    act(() => {
+      result.current.startDraftCheckpoint();
+    });
+
+    expect(mockCreateCheckpoint).not.toHaveBeenCalled();
+    expect(result.current.pendingDraftId).toBeNull();
+  });
+
+  it("finalizes a pending draft on submit instead of creating or updating", async () => {
+    mockCreateCheckpoint.mockResolvedValue({ data: checkpoint({ id: 7, name: "Draft CP" }) });
+    const { result } = renderHook(() => useCheckpointManagement(userStore), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.hasCheckpoints).toBe(false));
+
+    act(() => {
+      result.current.checkpointForm.setValue("name", "Draft CP");
+    });
+    await act(async () => {
+      result.current.startDraftCheckpoint();
+    });
+    await waitFor(() => expect(result.current.pendingDraftId).toBe(7));
+
+    await act(async () => {
+      result.current.handleCheckpointSubmit({
+        name: "Draft CP finalizado",
+        description: "",
+        latitude: "",
+        longitude: "",
+        arrival_radius_m: 50,
+        order: 1,
+        is_draft: false,
+        is_placeholder: false,
+        stage_id: "",
+        available_from: "",
+        available_until: "",
+      });
+    });
+
+    await waitFor(() =>
+      expect(mockUpdateCheckpoint).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { id: 7 } }),
+      ),
+    );
+    expect(mockCreateCheckpoint).toHaveBeenCalledTimes(1); // only the initial draft-create
+    await waitFor(() => expect(result.current.pendingDraftId).toBeNull());
+    // The panel stays attached to the now-finalized post.
+    expect(result.current.selectedCheckpointId).toBe(7);
+    await waitFor(() =>
+      expect(mockToastSuccess).toHaveBeenCalledWith("Checkpoint criado com sucesso!"),
+    );
+  });
+
+  it("cancelling a pending draft deletes it", async () => {
+    mockCreateCheckpoint.mockResolvedValue({ data: checkpoint({ id: 9, name: "Draft CP" }) });
+    const { result } = renderHook(() => useCheckpointManagement(userStore), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.hasCheckpoints).toBe(false));
+
+    act(() => {
+      result.current.checkpointForm.setValue("name", "Draft CP");
+    });
+    await act(async () => {
+      result.current.startDraftCheckpoint();
+    });
+    await waitFor(() => expect(result.current.pendingDraftId).toBe(9));
+
+    await act(async () => {
+      result.current.cancelEdit();
+    });
+
+    await waitFor(() => expect(mockDeleteCheckpoint).toHaveBeenCalledWith({ path: { id: 9 } }));
+    expect(result.current.pendingDraftId).toBeNull();
+    expect(result.current.selectedCheckpointId).toBeNull();
+  });
+
+  it("cancelling a real edit never deletes the checkpoint", async () => {
+    mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
+    const { result } = renderHook(() => useCheckpointManagement(userStore), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.hasCheckpoints).toBe(true));
+
+    act(() => {
+      result.current.startEditCheckpoint(checkpoint());
+    });
+
+    act(() => {
+      result.current.cancelEdit();
+    });
+
+    expect(mockDeleteCheckpoint).not.toHaveBeenCalled();
+    expect(result.current.editingCheckpoint).toBeNull();
+  });
+
   it("cancels edit and resets order for new checkpoint", async () => {
     mockGetRouteStatus.mockResolvedValue(routeStatus([checkpoint()]));
     const { result } = renderHook(() => useCheckpointManagement(userStore), {

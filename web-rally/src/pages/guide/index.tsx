@@ -14,8 +14,11 @@ import {
   Sparkles,
   Megaphone,
   Flag,
+  Map as MapIcon,
+  Users,
 } from "lucide-react";
 import CheckpointTeamsPanel from "./CheckpointTeamsPanel";
+import GuideTeamPanel from "./GuideTeamPanel";
 import {
   listGuideCheckpoints,
   type GuideCheckpointResponse,
@@ -25,6 +28,10 @@ import {
 import { LoadingState } from "@/components/shared";
 import useGuideAccess from "@/hooks/useGuideAccess";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
+import MapSection from "@/pages/checkpoints/components/MapSection";
+import { useUserStore } from "@/stores/useUserStore";
+
+const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally:admin", "rally-staff"];
 
 function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>) {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -165,6 +172,13 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
   // Which indications teams at this post already unlocked, surfaced from the
   // teams panel so the ladder above can flag them.
   const [purchasedIds, setPurchasedIds] = useState<readonly number[]>([]);
+  const scopes = useUserStore((state) => state.scopes);
+  // Admin/staff/manager run the whole event: every post is theirs to manage,
+  // unlike a guide who is only writable at their team's current post (see
+  // GuideService.can_manage_checkpoint).
+  const isPrivileged = scopes !== undefined && PRIVILEGED_SCOPES.some((s) => scopes.includes(s));
+  const canManageTeamsHere = cp.is_current || isPrivileged;
+  const hasCoordinates = cp.latitude != null && cp.longitude != null;
 
   return (
     <article
@@ -245,10 +259,19 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
             </section>
           )}
           <IndicationList indications={cp.indications} purchasedIds={purchasedIds} />
-          {/* Only the current post is writable server-side (see
-              GuideService.can_manage_checkpoint) — other posts would just
-              403 on both the teams list and the arrival call. */}
-          {cp.is_current && (
+          {hasCoordinates && (
+            <section className="space-y-2">
+              <p className="rally-accent flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">
+                <MapPin className="h-3.5 w-3.5" /> Localização deste posto
+              </p>
+              <MapSection checkpoints={[cp]} selectedCheckpoint={cp} showMap />
+            </section>
+          )}
+          {/* Only the current post is writable server-side for a guide (see
+              GuideService.can_manage_checkpoint) — an unassigned post would
+              just 403 on both the teams list and the arrival call. Admin and
+              staff manage every team directly, so every post is theirs. */}
+          {canManageTeamsHere && (
             <CheckpointTeamsPanel checkpointId={cp.id} onPurchasedIdsChange={setPurchasedIds} />
           )}
           <MediaGallery media={cp.media} />
@@ -258,8 +281,23 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
   );
 }
 
+type GuideTab = "postos" | "mapa" | "equipa";
+
+const TABS: Readonly<{ id: GuideTab; label: string; icon: typeof BookOpen }[]> = [
+  { id: "postos", label: "Postos", icon: BookOpen },
+  { id: "mapa", label: "Mapa", icon: MapIcon },
+  { id: "equipa", label: "Equipa", icon: Users },
+];
+
 export default function GuidePage() {
   const { isAllowed, isLoading: accessLoading } = useGuideAccess();
+  const scopes = useUserStore((state) => state.scopes);
+  // A manager/admin/staff never has a single assigned team — they manage
+  // every team directly from the Postos tab — so "Equipa" only makes sense
+  // for a plain guide, who accompanies exactly one.
+  const isPrivileged = scopes !== undefined && PRIVILEGED_SCOPES.some((s) => scopes.includes(s));
+  const tabs = isPrivileged ? TABS.filter((t) => t.id !== "equipa") : TABS;
+  const [tab, setTab] = useState<GuideTab>("postos");
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({
     queryKey: ["guide-checkpoints"],
@@ -285,18 +323,41 @@ export default function GuidePage() {
         </p>
       </header>
 
-      {checkpoints.length === 0 ? (
-        <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
-          <BookOpen className="h-10 w-10 text-muted-foreground/40" />
-          <p className="font-semibold text-muted-foreground">Sem postos disponíveis</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {checkpoints.map((cp) => (
-            <CheckpointCard key={cp.id} cp={cp} />
-          ))}
-        </div>
-      )}
+      <nav className="flex gap-2 border-b border-border">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+              tab === id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "postos" &&
+        (checkpoints.length === 0 ? (
+          <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
+            <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+            <p className="font-semibold text-muted-foreground">Sem postos disponíveis</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {checkpoints.map((cp) => (
+              <CheckpointCard key={cp.id} cp={cp} />
+            ))}
+          </div>
+        ))}
+
+      {tab === "mapa" && <MapSection checkpoints={checkpoints} selectedCheckpoint={null} showMap />}
+
+      {tab === "equipa" && !isPrivileged && <GuideTeamPanel />}
     </div>
   );
 }

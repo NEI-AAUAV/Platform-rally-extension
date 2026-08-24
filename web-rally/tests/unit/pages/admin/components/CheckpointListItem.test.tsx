@@ -2,24 +2,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CheckpointListItem from "@/pages/admin/components/checkpoints/CheckpointListItem";
 
-vi.mock("@/pages/admin/components/checkpoints/CheckpointMediaManager", () => ({
-  default: ({ checkpointId }: { checkpointId: number }) => (
-    <div data-testid="media-manager">media-{checkpointId}</div>
-  ),
-}));
-
-vi.mock("@/pages/admin/components/checkpoints/CheckpointGuideIndicationsManager", () => ({
-  default: ({ checkpointId }: { checkpointId: number }) => (
-    <div data-testid="guide-manager">guide-{checkpointId}</div>
-  ),
-}));
-
-vi.mock("@/pages/admin/components/checkpoints/CheckpointActivitiesManager", () => ({
-  default: ({ checkpointId }: { checkpointId: number }) => (
-    <div data-testid="activities-manager">activities-{checkpointId}</div>
-  ),
-}));
-
 const checkpoint = {
   id: 1,
   name: "Checkpoint A",
@@ -87,7 +69,7 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
     const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[1]!);
+    fireEvent.click(buttons[0]!);
     expect(baseProps.onEdit).toHaveBeenCalledWith(checkpoint);
   });
 
@@ -98,7 +80,7 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
     const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[2]!);
+    fireEvent.click(buttons[1]!);
     expect(baseProps.onDelete).toHaveBeenCalledWith(1);
   });
 
@@ -109,44 +91,7 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
     const buttons = screen.getAllByRole("button");
-    expect(buttons[2]).toBeDisabled();
-  });
-
-  it("toggles media/guide managers on click of the photos button", () => {
-    render(
-      <ul>
-        <CheckpointListItem {...baseProps} />
-      </ul>,
-    );
-    expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]!);
-    expect(screen.getByTestId("media-manager")).toBeInTheDocument();
-    expect(screen.getByTestId("guide-manager")).toBeInTheDocument();
-    fireEvent.click(buttons[0]!);
-    expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
-  });
-
-  it("also renders the activities manager once expanded", () => {
-    render(
-      <ul>
-        <CheckpointListItem {...baseProps} />
-      </ul>,
-    );
-    fireEvent.click(screen.getAllByRole("button")[0]!);
-    expect(screen.getByTestId("activities-manager")).toBeInTheDocument();
-  });
-
-  it("opens straight away when forceExpanded, and can still be closed", () => {
-    render(
-      <ul>
-        <CheckpointListItem {...baseProps} forceExpanded />
-      </ul>,
-    );
-    expect(screen.getByTestId("media-manager")).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole("button")[0]!);
-    expect(screen.queryByTestId("media-manager")).not.toBeInTheDocument();
+    expect(buttons[1]).toBeDisabled();
   });
 
   it("calls drag handlers", () => {

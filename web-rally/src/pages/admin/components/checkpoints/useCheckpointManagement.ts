@@ -92,9 +92,18 @@ export function useCheckpointManagement(userStore: UserState) {
   const toast = useAppToast();
   const [editingCheckpoint, setEditingCheckpoint] = React.useState<Checkpoint | null>(null);
   const [draggedCheckpoint, setDraggedCheckpoint] = React.useState<Checkpoint | null>(null);
-  // The post just created, so its panel opens straight into desafio/media/
-  // indicações instead of making the admin find and click it in the list.
-  const [justCreatedId, setJustCreatedId] = React.useState<number | null>(null);
+  // The post whose details panel (activities/media/indicações) is attached
+  // to the form: set on create and on "Editar", but — unlike
+  // `editingCheckpoint` — NOT cleared when an update saves. Renaming or
+  // moving a post and then saving the guide hints for it used to mean
+  // clicking "Editar" all over again for every save; keeping this separate
+  // means the panel just stays put across an update.
+  const [selectedCheckpointId, setSelectedCheckpointId] = React.useState<number | null>(null);
+  // Set by "Começar a preencher": a checkpoint created in the background so
+  // the details panel can attach before the admin finishes the rest of the
+  // form. Unlike `editingCheckpoint`, cancelling while this is set deletes
+  // the row — it was never a deliberate save, just plumbing for the FK.
+  const [pendingDraftId, setPendingDraftId] = React.useState<number | null>(null);
   // A clue image picked while there's still no checkpoint to attach it to;
   // sent right after the create mutation returns an id.
   const [pendingClueImage, setPendingClueImage] = React.useState<File | null>(null);
@@ -145,29 +154,55 @@ export function useCheckpointManagement(userStore: UserState) {
     },
   });
 
+  // The image staged before the checkpoint existed goes up now that there's
+  // finally an id to attach it to — shared by both paths that can be the
+  // first thing to give a brand-new post an id (the classic full create,
+  // and "Começar a preencher").
+  const flushPendingClueImage = React.useCallback(
+    async (id: number) => {
+      if (!pendingClueImage) return;
+      try {
+        await uploadClueImage({ path: { id }, body: { image: pendingClueImage } });
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Erro ao enviar a imagem do enigma"));
+      } finally {
+        setPendingClueImage(null);
+      }
+    },
+    [pendingClueImage, toast],
+  );
+
   const { mutate: createCheckpoint, isPending: isCreatingCheckpoint } = useMutation({
     mutationFn: async (checkpointData: CheckpointForm) =>
       apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
     onSuccess: async ({ data }) => {
       checkpointForm.reset();
-      if (data?.id) setJustCreatedId(data.id);
+      if (data?.id) setSelectedCheckpointId(data.id);
       toast.success("Checkpoint criado com sucesso!");
-
-      // The image staged before the checkpoint existed goes up now that
-      // there's finally an id to attach it to.
-      if (data?.id && pendingClueImage) {
-        try {
-          await uploadClueImage({ path: { id: data.id }, body: { image: pendingClueImage } });
-        } catch (error) {
-          toast.error(getErrorMessage(error, "Erro ao enviar a imagem do enigma"));
-        } finally {
-          setPendingClueImage(null);
-        }
-      }
+      if (data?.id) await flushPendingClueImage(data.id);
       void refetchCheckpoints();
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Erro ao criar checkpoint"));
+    },
+  });
+
+  // "Começar a preencher": creates the post in the background so the
+  // details panel (activities/media/indicações) can attach right away,
+  // without waiting for the admin to finish and submit the whole form.
+  const { mutate: startDraftCheckpointMutation, isPending: isStartingDraft } = useMutation({
+    mutationFn: async (checkpointData: CheckpointForm) =>
+      apiCreateCheckpoint({ body: toRequestBody(checkpointData) }),
+    onSuccess: async ({ data }) => {
+      if (!data?.id) return;
+      setPendingDraftId(data.id);
+      setSelectedCheckpointId(data.id);
+      toast.success("Rascunho gravado — continua a preencher.");
+      await flushPendingClueImage(data.id);
+      void refetchCheckpoints();
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao gravar o rascunho"));
     },
   });
 
@@ -176,6 +211,10 @@ export function useCheckpointManagement(userStore: UserState) {
       apiUpdateCheckpoint({ path: { id }, body: toRequestBody(data) as CheckPointUpdate }),
     onSuccess: () => {
       void refetchCheckpoints();
+      // editingCheckpoint clears (the form goes back to "create new"), but
+      // selectedCheckpointId is deliberately left alone — the details panel
+      // stays on this post so activities/media/indicações keep saving
+      // without another click on "Editar".
       setEditingCheckpoint(null);
       checkpointForm.reset();
       toast.success("Checkpoint atualizado com sucesso!");
@@ -187,8 +226,9 @@ export function useCheckpointManagement(userStore: UserState) {
 
   const { mutate: deleteCheckpoint, isPending: isDeletingCheckpoint } = useMutation({
     mutationFn: async (id: number) => apiDeleteCheckpoint({ path: { id } }),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void refetchCheckpoints();
+      setSelectedCheckpointId((current) => (current === id ? null : current));
       toast.success("Checkpoint deletado com sucesso!");
     },
     onError: (error) => {
@@ -208,16 +248,9 @@ export function useCheckpointManagement(userStore: UserState) {
     },
   });
 
-  const handleCheckpointSubmit = (data: CheckpointForm) => {
-    if (editingCheckpoint) {
-      updateCheckpoint({ id: editingCheckpoint.id, data });
-    } else {
-      createCheckpoint(data);
-    }
-  };
-
   const startEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditingCheckpoint(checkpoint);
+    setSelectedCheckpointId(checkpoint.id);
     checkpointForm.setValue("name", checkpoint.name);
     checkpointForm.setValue("description", checkpoint.description ?? "");
     checkpointForm.setValue("latitude", checkpoint.latitude?.toString() || "");
@@ -256,8 +289,45 @@ export function useCheckpointManagement(userStore: UserState) {
     updateOrderForNewCheckpoint();
   }, [updateOrderForNewCheckpoint]);
 
+  // Closes the loop started by "Começar a preencher": same PUT as a normal
+  // update, but from the admin's perspective this finishes a creation, not
+  // an edit — so it clears `pendingDraftId` (not `editingCheckpoint`, which
+  // was never set) and talks about "criado", not "atualizado".
+  const { mutate: finalizeDraftCheckpoint, isPending: isFinalizingDraft } = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CheckpointForm }) =>
+      apiUpdateCheckpoint({ path: { id }, body: toRequestBody(data) as CheckPointUpdate }),
+    onSuccess: () => {
+      void refetchCheckpoints();
+      setPendingDraftId(null);
+      checkpointForm.reset();
+      updateOrderForNewCheckpoint();
+      toast.success("Checkpoint criado com sucesso!");
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Erro ao criar checkpoint"));
+    },
+  });
+
+  const handleCheckpointSubmit = (data: CheckpointForm) => {
+    if (editingCheckpoint) {
+      updateCheckpoint({ id: editingCheckpoint.id, data });
+    } else if (pendingDraftId) {
+      finalizeDraftCheckpoint({ id: pendingDraftId, data });
+    } else {
+      createCheckpoint(data);
+    }
+  };
+
+  const startDraftCheckpoint = () => {
+    if (!checkpointForm.getValues("name")?.trim()) return;
+    startDraftCheckpointMutation(checkpointForm.getValues());
+  };
+
   const cancelEdit = () => {
+    if (pendingDraftId) deleteCheckpoint(pendingDraftId);
     setEditingCheckpoint(null);
+    setPendingDraftId(null);
+    setSelectedCheckpointId(null);
     setPendingClueImage(null);
     checkpointForm.reset();
     updateOrderForNewCheckpoint();
@@ -322,7 +392,7 @@ export function useCheckpointManagement(userStore: UserState) {
     refetchCheckpoints,
     hasCheckpoints: (checkpoints?.length ?? 0) > 0,
     isCreatingCheckpoint,
-    isUpdatingCheckpoint,
+    isUpdatingCheckpoint: isUpdatingCheckpoint || isFinalizingDraft,
     isDeletingCheckpoint,
     handleCheckpointSubmit,
     startEditCheckpoint,
@@ -332,7 +402,10 @@ export function useCheckpointManagement(userStore: UserState) {
     handleDragOver,
     handleDrop,
     handleDragEnd,
-    justCreatedId,
+    selectedCheckpointId,
+    pendingDraftId,
+    startDraftCheckpoint,
+    isStartingDraft,
     pendingClueImage,
     setPendingClueImage,
   };
