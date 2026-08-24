@@ -812,23 +812,13 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
 
       // The whole suite's API tests hammer this backend at once, so a
       // geolocation-gated check-in can come back as a transient error under
-      // saturation. Retry the click rather than failing outright (the same
-      // workaround peddy-paper.spec.ts already carries).
-      //
-      // Checked first on every attempt: a click can succeed server-side while
-      // the UI is still catching up, and the card advances to the *next*
-      // post as soon as it does. A retry that skipped this check would then
-      // click that post's own "Check-in GPS" button while Alpha is still
-      // standing at the first post's coordinates — and get rejected as too
-      // far away, exactly the failure this loop exists to paper over.
-      const alphaRegistered = alphaPage.getByText(
-        /Posto concluído|Check-in registado|Já registado/,
-      );
-      await expect(async () => {
-        if (await alphaRegistered.isVisible().catch(() => false)) return;
-        await alphaPage.getByRole("button", { name: "Check-in GPS" }).click();
-        await expect(alphaRegistered).toBeVisible({ timeout: 5_000 });
-      }).toPass({ timeout: 30_000 });
+      // saturation. `checkInWithGpsButton` already carries the fix for that:
+      // it checks for the success text before every click (a click can land
+      // server-side while the UI is still catching up) and matches the
+      // button under both its labels ("Check-in GPS" the first time,
+      // "Tentar novamente" after a rejected attempt) — a fixed-name locator
+      // would hang forever once the button relabels itself.
+      await checkInWithGpsButton(alphaPage);
 
       // --- Beta: doesn't know the city, gropes toward it with the aid -----
       // Two readings from two distances, taken the way a lost team takes

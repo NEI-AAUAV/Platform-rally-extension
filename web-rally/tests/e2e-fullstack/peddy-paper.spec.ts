@@ -216,9 +216,14 @@ test.describe("peddy paper", () => {
     // at the first post's coordinates — and get rejected as too far away,
     // exactly the failure this loop exists to paper over.
     const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+    // Matched under both labels: the button is "Check-in GPS" the first
+    // time, but relabels to "Tentar novamente" after a rejected attempt —
+    // a fixed-name locator would hang forever waiting for a label the
+    // button no longer carries.
+    const gpsButton = page.getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ });
     await expect(async () => {
       if (await registered.isVisible().catch(() => false)) return;
-      await page.getByRole("button", { name: "Check-in GPS" }).click();
+      await gpsButton.click();
       await expect(registered).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 20_000 });
 
