@@ -921,9 +921,13 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       });
       // The teams panel renders only on the guide's team's current post, and
       // that card is already expanded — Epsilon has resolved nothing yet, so
-      // its current post is order 1.
-      const arrivalSelect = guideEpsilonPage.locator(`#arrival-team-${ponte!.id}`);
-      await expect(arrivalSelect).toBeVisible({ timeout: 20_000 });
+      // its current post is order 1. A guide only vouches for their own team
+      // (enforced server-side too), so this renders as a single button
+      // rather than the any-team dropdown staff/admin get.
+      const arrivalButton = guideEpsilonPage.getByRole("button", {
+        name: `Marcar chegada de ${epsilon!.name}`,
+      });
+      await expect(arrivalButton).toBeVisible({ timeout: 20_000 });
 
       // --- The guide's record of the morning, on the guide's own screen ---
       // Before vouching for anyone, the panel already carries the morning: who
@@ -936,8 +940,8 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // other), so the moment Epsilon's arrival completes post 1 the whole
       // record scrolls out of the guide's reach.
       // Scoped to the arrived list, not to the panel: the same section also
-      // holds the "who else is still coming" dropdown, whose options carry
-      // every team's name including the ones that have not turned up.
+      // holds the "mark my team's arrival" button, which carries Epsilon's
+      // own name even before it has turned up.
       const arrivedHere = guideEpsilonPage
         .locator("section", { has: guideEpsilonPage.getByText("Equipas neste posto") })
         .locator("ul");
@@ -952,18 +956,16 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await expect(arrivedHere.getByText(delta!.name, { exact: true })).toHaveCount(0);
       await expect(arrivedHere.getByText(`${world.hints.length} pistas já compradas`)).toBeVisible();
 
-      await arrivalSelect.selectOption({ label: epsilon!.name });
-      await guideEpsilonPage.getByRole("button", { name: "Marcar chegada" }).click();
+      await arrivalButton.click();
       // Post 1 has no activity, so vouching for the arrival *completes* it and
       // Epsilon's current post becomes 2 — which unmounts this whole panel.
       // So the row this click created is gone from the screen a moment after
       // it appears, and the durable UI consequence to assert is the narrower
-      // one: the team is no longer offered as still-pending. That the arrival
-      // is stored as vouched-for rather than passed off as a GPS fix is
+      // one: the button is no longer offered, since Epsilon has now arrived.
+      // That the arrival is stored as vouched-for rather than passed off as a
+      // GPS fix is
       // `app/tests/api/test_guide_field_tools.py::test_lists_arrivals_with_the_hints_the_team_bought`.
-      await expect(guideEpsilonPage.getByRole("option", { name: epsilon!.name })).toHaveCount(0, {
-        timeout: 20_000,
-      });
+      await expect(arrivalButton).toHaveCount(0, { timeout: 20_000 });
 
       // --- Everyone who reached post 1 has it revealed and the next riddle --
       // On each team's own phone, which is the only place this matters: the
