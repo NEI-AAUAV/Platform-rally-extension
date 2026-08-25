@@ -1,0 +1,30 @@
+import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
+
+/**
+ * Open a Radix Select (rendered as `role="combobox"`) and pick an option by
+ * its accessible name.
+ *
+ * Clicking the trigger occasionally lands while the *previous* Select's
+ * dismiss-layer is still unmounting: the click is swallowed, `aria-expanded`
+ * never flips to `"true"`, and the option search below hangs for the full
+ * action timeout since the option genuinely never renders (confirmed via
+ * trace: `data-state="closed"` at the moment the wait gave up). Bumping the
+ * timeout doesn't help a click that was never delivered, so this checks
+ * `aria-expanded` after the first click and clicks again once if needed
+ * before searching for the option.
+ */
+export async function selectComboboxOption(
+  page: Page,
+  combobox: Locator,
+  optionName: string,
+): Promise<void> {
+  await combobox.click();
+  try {
+    await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 2_000 });
+  } catch {
+    await combobox.click();
+    await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 5_000 });
+  }
+  await page.getByRole("option", { name: optionName }).click();
+}

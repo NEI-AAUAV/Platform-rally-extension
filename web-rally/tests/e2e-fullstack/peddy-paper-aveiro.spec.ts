@@ -3,6 +3,7 @@ import { test, expect, type Browser, type BrowserContext, type Page } from "@pla
 import { seedRealOidcSession, apiCall, API_V1 } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
 import { seedPeddyTascasCast } from "./helpers/seedPeddyTascasCast";
+import { selectComboboxOption } from "./helpers/comboboxSelect";
 import {
   AVEIRO_POSTS,
   AVEIRO_STAGES,
@@ -697,13 +698,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click({ timeout: 25_000 });
-        // 25s rather than the file's usual 15s default action timeout: this
-        // waits on a real (not mocked) backend, which has landed right at
-        // the 15s edge under CI load.
-        await adminPage.getByRole("option", { name: post.fullName }).click({ timeout: 25_000 });
+        await selectComboboxOption(adminPage, row.getByRole("combobox"), post.fullName);
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
-          timeout: 25_000,
+          timeout: 20_000,
         });
       }
 

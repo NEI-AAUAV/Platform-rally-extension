@@ -3,6 +3,7 @@ import { test, expect, type Browser, type BrowserContext, type Page } from "@pla
 import { seedRealOidcSession, apiCall } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
 import { seedPeddyTascasCast, type PeddyTascasCast } from "./helpers/seedPeddyTascasCast";
+import { selectComboboxOption } from "./helpers/comboboxSelect";
 
 /**
  * "Um dia de Peddy Tascas" — the whole event, from the night-before setup to
@@ -675,16 +676,14 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click({ timeout: 25_000 });
-        await adminPage
-          .getByRole("option", { name: staffedCheckpoints[index]!.name })
-          .click({ timeout: 25_000 });
-        // 25s rather than the file's usual 15s: this waits on the PUT +
-        // refetch round-trip landing on a real (not mocked) backend, which
-        // has landed right at the 15s edge under CI load.
+        await selectComboboxOption(
+          adminPage,
+          row.getByRole("combobox"),
+          staffedCheckpoints[index]!.name,
+        );
         await expect(
           row.getByText(`Checkpoint: ${staffedCheckpoints[index]!.name}`),
-        ).toBeVisible({ timeout: 25_000 });
+        ).toBeVisible({ timeout: 20_000 });
       }
 
       await expect
