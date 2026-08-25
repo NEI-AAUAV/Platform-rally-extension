@@ -675,13 +675,16 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click();
+        await row.getByRole("combobox").click({ timeout: 25_000 });
         await adminPage
           .getByRole("option", { name: staffedCheckpoints[index]!.name })
-          .click();
+          .click({ timeout: 25_000 });
+        // 25s rather than the file's usual 15s: this waits on the PUT +
+        // refetch round-trip landing on a real (not mocked) backend, which
+        // has landed right at the 15s edge under CI load.
         await expect(
           row.getByText(`Checkpoint: ${staffedCheckpoints[index]!.name}`),
-        ).toBeVisible({ timeout: 15_000 });
+        ).toBeVisible({ timeout: 25_000 });
       }
 
       await expect

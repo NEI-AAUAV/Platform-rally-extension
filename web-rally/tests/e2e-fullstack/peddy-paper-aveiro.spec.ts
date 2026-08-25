@@ -697,10 +697,13 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click();
-        await adminPage.getByRole("option", { name: post.fullName }).click();
+        await row.getByRole("combobox").click({ timeout: 25_000 });
+        // 25s rather than the file's usual 15s default action timeout: this
+        // waits on a real (not mocked) backend, which has landed right at
+        // the 15s edge under CI load.
+        await adminPage.getByRole("option", { name: post.fullName }).click({ timeout: 25_000 });
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
-          timeout: 20_000,
+          timeout: 25_000,
         });
       }
 
