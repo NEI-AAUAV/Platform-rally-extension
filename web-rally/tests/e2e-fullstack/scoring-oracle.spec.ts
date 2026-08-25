@@ -200,10 +200,14 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     expect(actual).toBe(expected);
 
-    // Verify scoreboard UI shows computed points
+    // Verify scoreboard UI shows computed points. The scoreboard shows the
+    // team's *rounded* total (scoring_service.update_team_scores rounds,
+    // never truncates, so 99.999… doesn't silently lose a point) while
+    // getFinalScore above reads the exact per-activity float — so the UI
+    // assertion compares against the rounded value, not `expected` itself.
     await page.goto('/rally/scoreboard');
     const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
-    await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
+    await expect(teamRow.getByText(`${Math.round(expected)}`)).toBeVisible({ timeout: 15_000 });
   });
 });
 
