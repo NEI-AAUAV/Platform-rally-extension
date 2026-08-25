@@ -316,6 +316,17 @@ async function buyEveryHint(page: Page): Promise<void> {
  * fail a check-in that had already landed. The name is anchored because the
  * route list carries a "Check-in GPS aqui" button for every other post a
  * free-choice stage leaves open, and this is about the main card's post.
+ *
+ * Success is read off the `/checkpoint/*\/arrive` response itself, not the
+ * transient "Posto concluído"/"Check-in registado" text: confirmed via trace
+ * that a check-in which auto-completes the post (`auto_completed: true`)
+ * triggers `invalidateQueries` in the same tick as the success state, and the
+ * refetch it kicks off can land — and swap the card to the *next* checkpoint
+ * — before that transient text ever paints. A retry that then found no
+ * "registered" text went looking for the button again, got the next
+ * checkpoint's (same generic label), and clicked *that* — silently checking
+ * in against the wrong post's coordinates. Reading the network response
+ * instead is immune to that render race by construction.
  */
 async function checkInWithGpsButton(page: Page): Promise<void> {
   const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
@@ -337,8 +348,16 @@ async function checkInWithGpsButton(page: Page): Promise<void> {
       await page.reload();
       if (await registered.isVisible().catch(() => false)) return;
     }
-    await button.click({ timeout: 5_000 });
-    await expect(registered).toBeVisible({ timeout: 5_000 });
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (res) => /\/checkpoint\/\d+\/arrive$/.test(new URL(res.url()).pathname) && res.request().method() === "POST",
+        { timeout: 5_000 },
+      ),
+      button.click({ timeout: 5_000 }),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`arrive request rejected: ${response.status()} ${await response.text()}`);
+    }
   }).toPass({ timeout: 60_000 });
 }
 
@@ -1365,7 +1384,13 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         await expect(managerPage.getByText("Sem registos para os filtros atuais.")).toHaveCount(0, {
           timeout: 30_000,
         });
-        await expect(managerPage.locator("div.rounded-lg").first()).toBeVisible();
+        // Not a bare `div.rounded-lg`: AuditLogTab's own rows use that class
+        // (`rounded-lg border border-border bg-background/50 p-3`), but so
+        // does a closed Select's hidden popover portal mounted elsewhere on
+        // the page — `.first()` in DOM order can land on that hidden one
+        // instead of a real row. `bg-background/50` is the row's own class,
+        // not shared with the popover (`bg-popover`).
+        await expect(managerPage.locator('div[class*="bg-background/50"]').first()).toBeVisible();
       } finally {
         await managerPage.context().close();
       }

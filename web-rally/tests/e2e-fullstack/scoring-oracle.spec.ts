@@ -65,7 +65,13 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
     await page.getByText('Equipa teve sucesso na atividade').first().click();
     await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
-    await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({
+    // Only the success toast, not "Voltar às equipas": that back button is
+    // always on screen once a team is selected (CheckpointTeamEvaluation.tsx),
+    // well before submission — matching it too made this assertion pass
+    // instantly regardless of whether the save actually completed, letting
+    // the test race ahead to read the score via API while the mutation was
+    // still pending ("A guardar...", confirmed via trace).
+    await expect(page.getByText('Atividade avaliada com sucesso!')).toBeVisible({
       timeout: 15_000,
     });
 
@@ -184,8 +190,16 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
     await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
+    // `div.rounded-xl` rather than a bare `div`: a bare-`div` + `hasText`
+    // filter also matches the whole activities-list *container* div (the
+    // text is a descendant of it too), so `.getByRole("button").first()`
+    // picked up the first *other* activity's "Avaliar" button instead of
+    // this one's — confirmed via the real backend (both activities were
+    // genuinely there; this was a pure locator-scoping bug, not a product
+    // bug). `.rounded-xl` is the specific activity-card's own class
+    // (TeamActivitiesList.tsx), so this scopes to just that card.
     const evaluateButton = page
-      .locator('div', { hasText: 'E2E Score Activity' })
+      .locator('div.rounded-xl', { hasText: 'E2E Score Activity' })
       .getByRole('button', { name: /avaliar|evaluate/i })
       .first();
     const scoreInput = page.locator('#score-achieved');
@@ -206,7 +220,13 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     }
     await scoreInput.fill('75');
     await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
-    await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({
+    // Only the success toast, not "Voltar às equipas": that back button is
+    // always on screen once a team is selected (CheckpointTeamEvaluation.tsx),
+    // well before submission — matching it too made this assertion pass
+    // instantly regardless of whether the save actually completed, letting
+    // the test race ahead to read the score via API while the mutation was
+    // still pending ("A guardar...", confirmed via trace).
+    await expect(page.getByText('Atividade avaliada com sucesso!')).toBeVisible({
       timeout: 15_000,
     });
 
