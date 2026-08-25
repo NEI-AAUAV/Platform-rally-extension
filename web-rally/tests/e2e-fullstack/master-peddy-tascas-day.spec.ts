@@ -665,6 +665,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const staffedCheckpoints = withActivities.filter((c) => c.activityId !== null);
       expect(staffedCheckpoints).toHaveLength(cast.staff.length);
       for (const [index, member] of cast.staff.entries()) {
+        const checkpointName = staffedCheckpoints[index]!.name;
         // `.first()`: this member's card has been observed rendered twice
         // for the same email (cause not yet root-caused — plausibly a
         // duplicate local user row for the same OIDC identity; see
@@ -676,13 +677,27 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
+        // 25s rather than the helper's 5s default: this waits on the real
+        // (not mocked) backend's row data fetch, which can land right at
+        // the default under CI load.
         await selectComboboxOption(
           adminPage,
-          row.getByRole("combobox"),
-          staffedCheckpoints[index]!.name,
+          row.locator('button[role="combobox"]'),
+          checkpointName,
+          25_000,
         );
+        // Not `row.getByText(...)`: the update lands on *a* card for this
+        // email, but not necessarily the one `.first()` picked above — the
+        // same duplicate-card behaviour noted there means the row that just
+        // got assigned is sometimes a second, distinct card for the same
+        // user rather than the one whose combobox was clicked. Matching on
+        // email + the new checkpoint text together, without pinning to a
+        // specific card, finds it either way.
         await expect(
-          row.getByText(`Checkpoint: ${staffedCheckpoints[index]!.name}`),
+          adminPage
+            .locator("div.rounded-xl")
+            .filter({ has: adminPage.getByText(member.email, { exact: false }) })
+            .filter({ hasText: `Checkpoint: ${checkpointName}` }),
         ).toBeVisible({ timeout: 20_000 });
       }
 
@@ -706,6 +721,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await adminPage.goto("/rally/guide-assignment");
       const guidedTeams = GUIDED_TEAM_INDEXES.map((teamIndex) => teams[teamIndex]!);
       for (const [index, guide] of cast.guides.entries()) {
+        const teamName = guidedTeams[index]!.name;
         // `.first()`: same defensive scoping as the staff-assignment loop
         // above, in case this member's card is also rendered twice.
         await expect(adminPage.getByText(guide.email).first()).toBeVisible({ timeout: 15_000 });
@@ -713,11 +729,22 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(guide.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click();
-        await adminPage.getByRole("option", { name: guidedTeams[index]!.name }).click();
-        await expect(row.getByText(`Equipa: ${guidedTeams[index]!.name}`)).toBeVisible({
-          timeout: 15_000,
-        });
+        // `button[role="combobox"]` rather than getByRole("combobox"): see
+        // comboboxSelect.ts's doc comment — once open, this element stops
+        // matching Playwright's role query even though the DOM attribute is
+        // still there, so every later getByRole call against it hangs.
+        await selectComboboxOption(adminPage, row.locator('button[role="combobox"]'), teamName);
+        // Not `row.getByText(...)`: same duplicate-card behaviour as the
+        // staff-assignment loop above — the update can land on a second,
+        // distinct card for this email rather than the one `.first()`
+        // picked. Matching email + the new team text together, without
+        // pinning to a specific card, finds it either way.
+        await expect(
+          adminPage
+            .locator("div.rounded-xl")
+            .filter({ has: adminPage.getByText(guide.email, { exact: false }) })
+            .filter({ hasText: `Equipa: ${teamName}` }),
+        ).toBeVisible({ timeout: 15_000 });
       }
 
       await expect

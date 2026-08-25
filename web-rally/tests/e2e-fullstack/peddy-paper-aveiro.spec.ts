@@ -698,7 +698,15 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminPage.getByText(member.email, { exact: false }) })
           .first();
-        await selectComboboxOption(adminPage, row.getByRole("combobox"), post.fullName);
+        // 25s rather than the helper's 5s default: this waits on the real
+        // (not mocked) backend's row data fetch, which can land right at
+        // the default under CI load.
+        await selectComboboxOption(
+          adminPage,
+          row.locator('button[role="combobox"]'),
+          post.fullName,
+          25_000,
+        );
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
           timeout: 20_000,
         });
@@ -782,8 +790,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
           .locator("div.rounded-xl")
           .filter({ has: adminSetupPage.getByText(guide.email, { exact: false }) })
           .first();
-        await row.getByRole("combobox").click();
-        await adminSetupPage.getByRole("option", { name: teams[index]!.name }).click();
+        await selectComboboxOption(
+          adminSetupPage,
+          row.locator('button[role="combobox"]'),
+          teams[index]!.name,
+        );
         await expect(adminSetupPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
           timeout: 20_000,
         });
