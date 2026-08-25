@@ -191,14 +191,18 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     const scoreInput = page.locator('#score-achieved');
     // The evaluate dialog opens via a Radix dismiss-layer; the click occasionally
     // lands while a previous layer is still unmounting and gets swallowed (same
-    // race documented in helpers/comboboxSelect.ts). Retry the click once if the
-    // dialog's score input never shows up.
-    await evaluateButton.click();
-    try {
-      await expect(scoreInput).toBeVisible({ timeout: 3_000 });
-    } catch {
-      await evaluateButton.click();
-      await expect(scoreInput).toBeVisible({ timeout: 5_000 });
+    // race documented in helpers/comboboxSelect.ts). Retry the click itself too —
+    // not just the score-input wait — since the click's own actionability timeout
+    // can throw before the dialog ever opens.
+    let dialogOpen = false;
+    for (let attempt = 1; attempt <= 3 && !dialogOpen; attempt++) {
+      try {
+        await evaluateButton.click({ timeout: 5_000 });
+        await expect(scoreInput).toBeVisible({ timeout: 3_000 });
+        dialogOpen = true;
+      } catch (error) {
+        if (attempt === 3) throw error;
+      }
     }
     await scoreInput.fill('75');
     await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();

@@ -13,6 +13,11 @@ import { expect } from "@playwright/test";
  * timeout doesn't help a click that was never delivered, so this retries
  * the click until `aria-expanded` flips to `"true"` before searching for
  * the option.
+ *
+ * Both steps of an attempt — the click and the `aria-expanded` check — must
+ * be inside the retry loop's `try`. Leaving the click unguarded let its own
+ * timeout (the trigger row not yet stable/actionable, same underlying race)
+ * escape the loop on attempt 1 and fail the whole call instead of retrying.
  */
 export async function selectComboboxOption(
   page: Page,
@@ -21,8 +26,8 @@ export async function selectComboboxOption(
 ): Promise<void> {
   const maxAttempts = 4;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await combobox.click();
     try {
+      await combobox.click({ timeout: 5_000 });
       await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 3_000 });
       break;
     } catch (error) {
