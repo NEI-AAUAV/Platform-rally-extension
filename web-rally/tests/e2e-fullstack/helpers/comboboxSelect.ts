@@ -10,21 +10,24 @@ import { expect } from "@playwright/test";
  * never flips to `"true"`, and the option search below hangs for the full
  * action timeout since the option genuinely never renders (confirmed via
  * trace: `data-state="closed"` at the moment the wait gave up). Bumping the
- * timeout doesn't help a click that was never delivered, so this checks
- * `aria-expanded` after the first click and clicks again once if needed
- * before searching for the option.
+ * timeout doesn't help a click that was never delivered, so this retries
+ * the click until `aria-expanded` flips to `"true"` before searching for
+ * the option.
  */
 export async function selectComboboxOption(
   page: Page,
   combobox: Locator,
   optionName: string,
 ): Promise<void> {
-  await combobox.click();
-  try {
-    await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 2_000 });
-  } catch {
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await combobox.click();
-    await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 5_000 });
+    try {
+      await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: 3_000 });
+      break;
+    } catch (error) {
+      if (attempt === maxAttempts) throw error;
+    }
   }
   await page.getByRole("option", { name: optionName }).click();
 }

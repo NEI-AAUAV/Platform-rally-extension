@@ -184,12 +184,23 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
     await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
-    await page
+    const evaluateButton = page
       .locator('div', { hasText: 'E2E Score Activity' })
       .getByRole('button', { name: /avaliar|evaluate/i })
-      .first()
-      .click();
-    await page.locator('#score-achieved').fill('75');
+      .first();
+    const scoreInput = page.locator('#score-achieved');
+    // The evaluate dialog opens via a Radix dismiss-layer; the click occasionally
+    // lands while a previous layer is still unmounting and gets swallowed (same
+    // race documented in helpers/comboboxSelect.ts). Retry the click once if the
+    // dialog's score input never shows up.
+    await evaluateButton.click();
+    try {
+      await expect(scoreInput).toBeVisible({ timeout: 3_000 });
+    } catch {
+      await evaluateButton.click();
+      await expect(scoreInput).toBeVisible({ timeout: 5_000 });
+    }
+    await scoreInput.fill('75');
     await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
     await expect(page.getByText(/Atividade avaliada com sucesso|Voltar às equipas/i).first()).toBeVisible({
       timeout: 15_000,
