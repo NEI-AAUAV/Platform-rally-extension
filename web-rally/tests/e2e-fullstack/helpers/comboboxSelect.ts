@@ -38,6 +38,15 @@ import { expect } from "@playwright/test";
  * site (25s, see git history) before this helper existed; that widening was
  * silently lost when the call sites were consolidated here. Pass an
  * explicit `timeoutMs` for any caller against the real backend.
+ *
+ * The option click is inside the same retry loop as the trigger open, not
+ * a one-shot call after it: the same dismiss-layer/portal race that can
+ * swallow the trigger click can also detach the option mid-click once the
+ * trigger *does* open reliably (confirmed via CI trace — "element was
+ * detached from the DOM, retrying" on the option, not the trigger, on
+ * every attempt for the full timeout). A failed option click re-opens the
+ * combobox from scratch on the next attempt rather than re-querying a
+ * stale option locator, since closing may have been part of what failed.
  */
 export async function selectComboboxOption(
   page: Page,
@@ -70,10 +79,15 @@ export async function selectComboboxOption(
       await combobox.scrollIntoViewIfNeeded({ timeout: timeoutMs });
       await combobox.click({ timeout: timeoutMs, force: attempt > 1 });
       await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: timeoutMs });
-      break;
+      await page.getByRole("option", { name: optionName }).click({ timeout: timeoutMs });
+      return;
     } catch (error) {
       if (attempt === maxAttempts) throw error;
+      // The combobox may have closed as part of whatever failed (a detached
+      // option, an intercepted click) — best-effort nudge it shut so the
+      // next attempt's open click starts from a known "closed" state
+      // instead of possibly toggling an already-open one closed.
+      await combobox.press("Escape").catch(() => {});
     }
   }
-  await page.getByRole("option", { name: optionName }).click({ timeout: timeoutMs });
 }
