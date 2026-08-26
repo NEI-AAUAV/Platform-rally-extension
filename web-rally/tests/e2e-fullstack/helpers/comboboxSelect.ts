@@ -58,6 +58,16 @@ export async function selectComboboxOption(
       // entire wait, i.e. the click genuinely never reached it. Not used on
       // attempt 1, so a real actionability problem (row not yet rendered)
       // still surfaces normally first.
+      //
+      // `force` also skips Playwright's own auto-scroll-into-view (part of
+      // its actionability check). Pages that accumulate many rows over a
+      // long single-worker suite run can have the target start off-screen,
+      // so a force click on a retry can dispatch to a trigger that was
+      // never scrolled into view and silently miss — confirmed via trace:
+      // `aria-expanded` stuck at "false" for the full wait on every retry,
+      // not just the first. Scroll explicitly first so force-clicking never
+      // depends on the checks it's bypassing.
+      await combobox.scrollIntoViewIfNeeded({ timeout: timeoutMs });
       await combobox.click({ timeout: timeoutMs, force: attempt > 1 });
       await expect(combobox).toHaveAttribute("aria-expanded", "true", { timeout: timeoutMs });
       break;
