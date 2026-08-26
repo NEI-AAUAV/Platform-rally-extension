@@ -216,6 +216,17 @@ test.describe("peddy paper", () => {
     // at the first post's coordinates — and get rejected as too far away,
     // exactly the failure this loop exists to paper over.
     const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+    // A second, independent success signal: with reveal_next_checkpoint off,
+    // an unreached post is always shown as the placeholder "Posto 2" (see
+    // the server-side assertion on `next.name` below) — so once checkpoint 0
+    // is done, that heading appearing is proof of it even if the ephemeral
+    // `registered` toast above has already faded by the time this checks.
+    // Without this, a retry that only trusted the toast could find neither
+    // it nor an error, conclude the previous click hadn't landed, and click
+    // the *new* post's own GPS button while geolocation was still parked on
+    // checkpoint 0's coordinates — rejected as too far away, which is the
+    // exact failure this whole retry loop exists to paper over.
+    const advancedToNextPost = page.getByText("Posto 2", { exact: true });
     // Matched under both labels: the button is "Check-in GPS" the first
     // time, but relabels to "Tentar novamente" after a rejected attempt —
     // a fixed-name locator would hang forever waiting for a label the
@@ -223,8 +234,9 @@ test.describe("peddy paper", () => {
     const gpsButton = page.getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ });
     await expect(async () => {
       if (await registered.isVisible().catch(() => false)) return;
+      if (await advancedToNextPost.isVisible().catch(() => false)) return;
       await gpsButton.click();
-      await expect(registered).toBeVisible({ timeout: 5_000 });
+      await expect(registered.or(advancedToNextPost)).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 20_000 });
 
     // Reaching the post is what buys the reveal: the completed checkpoint now
@@ -272,9 +284,13 @@ test.describe("peddy paper", () => {
   });
 
   test("the guide sees the clue its team was given", async () => {
-    const guide = await apiCall<{ name: string; clue: string | null }[]>("GET", "/guide/checkpoints", {
-      token: peddy.admin.accessToken,
-    });
+    const guide = await apiCall<{ name: string; clue: string | null }[]>(
+      "GET",
+      "/guide/checkpoints",
+      {
+        token: peddy.admin.accessToken,
+      },
+    );
 
     // Nothing is redacted for a guide — they are standing at the answer, and
     // cannot help a stuck team without knowing what it was asked.
@@ -402,15 +418,17 @@ test.describe("stuck teams and navigation aids", () => {
       await giveUpButton.click();
     } else {
       const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
-      await fetch(
-        `${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`,
-        { method: "POST", headers: { Authorization: `Bearer ${teamToken}` } },
-      );
+      await fetch(`${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${teamToken}` },
+      });
       await page.reload();
     }
 
     // Next checkpoint's clue is now visible on team progress UI
-    await expect(page.getByText(peddy.checkpoints[1]!.clue).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(peddy.checkpoints[1]!.clue).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     const after = await apiCall<{ order: number; clue: string | null }>("GET", "/checkpoint/me", {
       token: teamToken,
@@ -435,14 +453,11 @@ test.describe("stuck teams and navigation aids", () => {
 
     const post = peddy.checkpoints[0]!;
     const read = async (latitude: number, longitude: number) => {
-      const response = await fetch(
-        `${apiBase}/api/rally/v1/checkpoint/${post.id}/proximity`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${teamToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ latitude, longitude }),
-        },
-      );
+      const response = await fetch(`${apiBase}/api/rally/v1/checkpoint/${post.id}/proximity`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${teamToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude, longitude }),
+      });
       return { status: response.status, text: await response.text() };
     };
 
