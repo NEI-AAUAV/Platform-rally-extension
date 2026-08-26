@@ -15,15 +15,28 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * that exists but isn't on the current page — searching by the target's own
  * (unique per test) email sidesteps pagination entirely instead of trying
  * to outguess how many pages there might be.
+ *
+ * `timeoutMs` defaults to 25s rather than Playwright's own 15s action
+ * timeout: every other wait in this suite against the real (non-mocked)
+ * backend after a page navigation uses 20-30s (see selectComboboxOption,
+ * peddy-paper-aveiro.spec.ts), and this is typically called right after
+ * `page.goto("/rally/assignment" | "/rally/guide-assignment")` — the
+ * search box itself doesn't exist until that navigation's first render
+ * completes, which can occasionally run past 15s under CI load.
  */
-export async function searchAssignmentRow(page: Page, email: string): Promise<Locator> {
+export async function searchAssignmentRow(
+  page: Page,
+  email: string,
+  timeoutMs = 25_000,
+): Promise<Locator> {
   const searchBox = page.getByPlaceholder("Procurar por nome ou email…");
+  await expect(searchBox).toBeVisible({ timeout: timeoutMs });
   await searchBox.fill(email);
 
   const row = page
     .locator("div.rounded-xl")
     .filter({ has: page.getByText(email, { exact: false }) });
-  // 15s covers the search debounce (300ms) plus a real (non-mocked) fetch.
-  await expect(row).toBeVisible({ timeout: 15_000 });
+  // Covers the search debounce (300ms) plus a real (non-mocked) fetch.
+  await expect(row).toBeVisible({ timeout: timeoutMs });
   return row;
 }
