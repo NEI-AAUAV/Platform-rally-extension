@@ -686,27 +686,45 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       await adminPage.goto("/rally/assignment");
       for (const [index, post] of postsWithActivities.entries()) {
         const member = cast.staff[index]!;
-        // `.first()`: this member's card has been observed rendered twice
-        // for the same email (cause not yet root-caused — plausibly a
-        // duplicate local user row for the same OIDC identity; see
+        // This member's card has been observed rendered twice for the same
+        // email (cause not yet root-caused — plausibly a duplicate local
+        // user row for the same OIDC identity; see
         // CRUDUser.get_or_create_mirror's docstring on the email/sub split).
-        // Scoped to the row holding this email rather than to the page
+        // Scoped to the row(s) holding this email rather than to the page
         // either way, since the disposable Postgres accumulates every
         // rally-staff user ever minted (see admin-setup.spec.ts).
+        //
+        // When duplicated, one of the two rows' combobox never opens
+        // (confirmed via trace: `aria-expanded` stuck at "false" for the
+        // full 25s on every attempt, i.e. not a timing race but a dead
+        // row) — `.first()` alone could pin the test to the dead one every
+        // time. Try every matching row in turn instead of assuming which
+        // duplicate, if any, is the live one.
         await expect(adminPage.getByText(member.email).first()).toBeVisible({ timeout: 20_000 });
-        const row = adminPage
+        const rows = adminPage
           .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(member.email, { exact: false }) })
-          .first();
-        // 25s rather than the helper's 5s default: this waits on the real
-        // (not mocked) backend's row data fetch, which can land right at
-        // the default under CI load.
-        await selectComboboxOption(
-          adminPage,
-          row.locator('button[role="combobox"]'),
-          post.fullName,
-          25_000,
-        );
+          .filter({ has: adminPage.getByText(member.email, { exact: false }) });
+        const rowCount = await rows.count();
+        let selected = false;
+        let lastError: unknown;
+        for (let i = 0; i < rowCount; i++) {
+          try {
+            // 25s rather than the helper's 5s default: this waits on the
+            // real (not mocked) backend's row data fetch, which can land
+            // right at the default under CI load.
+            await selectComboboxOption(
+              adminPage,
+              rows.nth(i).locator('button[role="combobox"]'),
+              post.fullName,
+              25_000,
+            );
+            selected = true;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (!selected) throw lastError;
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
           timeout: 20_000,
         });
