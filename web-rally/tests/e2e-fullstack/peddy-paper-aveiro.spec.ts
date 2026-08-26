@@ -801,8 +801,15 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       for (const [index, guide] of cast.guides.entries()) {
         // `.first()`: same defensive scoping as the staff-assignment loop
         // above, in case this member's card is also rendered twice.
+        // 30s rather than the previous 20s: by the time this file runs, the
+        // guide-assignment page is rendering every rally-staff/guide user
+        // minted so far in this single-worker CI job (the backend lists
+        // them un-scoped by event — see UserService._mirrored_group_users
+        // — and nothing purges them between spec files sharing one job).
+        // The page keeps getting slower to fetch/render as the run
+        // progresses; 20s started missing near the end of a full run.
         await expect(adminSetupPage.getByText(guide.email).first()).toBeVisible({
-          timeout: 20_000,
+          timeout: 30_000,
         });
         const row = adminSetupPage
           .locator("div.rounded-xl")
