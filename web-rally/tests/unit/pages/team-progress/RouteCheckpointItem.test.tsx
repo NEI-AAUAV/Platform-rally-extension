@@ -1,8 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import RouteCheckpointItem from "@/pages/team-progress/RouteCheckpointItem";
 import type { DetailedCheckPoint, DetailedTeam } from "@/client";
+
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 const { mockUseCheckpointMedia } = vi.hoisted(() => ({
   mockUseCheckpointMedia: vi.fn(),
@@ -36,7 +44,7 @@ describe("RouteCheckpointItem", () => {
   });
 
   it("renders as completed with score and time when order <= completedCount", () => {
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}
@@ -53,7 +61,7 @@ describe("RouteCheckpointItem", () => {
   });
 
   it("renders as current when order === completedCount + 1", () => {
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}
@@ -70,7 +78,7 @@ describe("RouteCheckpointItem", () => {
 
   it("renders as future/pending and locked when order is beyond current", () => {
     const futureCheckpoint = { ...checkpoint, order: 3 } as DetailedCheckPoint;
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={futureCheckpoint}
         index={2}
@@ -88,7 +96,7 @@ describe("RouteCheckpointItem", () => {
 
   it("opens the discovery modal on click when revealable", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}
@@ -105,7 +113,7 @@ describe("RouteCheckpointItem", () => {
   });
 
   it("hides score pill when showScore is false", () => {
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}
@@ -125,7 +133,7 @@ describe("RouteCheckpointItem", () => {
       photos: [{ image_url: "http://x/y.jpg", caption: "Cover" }],
       funFacts: [],
     });
-    render(
+    renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}

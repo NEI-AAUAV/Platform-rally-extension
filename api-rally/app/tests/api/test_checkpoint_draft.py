@@ -176,6 +176,41 @@ class TestPublishing:
         await pg_session.refresh(second)
         assert second.order == 3
 
+    async def test_a_previous_edition_s_arrivals_do_not_freeze_the_next_route(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Planning next year's route must not be blocked by last year's rally.
+
+        The freeze exists because publishing renumbers the route under teams
+        that are already walking it. That is a statement about the *current*
+        edition — but the check used to ask "does any arrival exist at all",
+        which is true forever once a single event has run. From the second
+        edition onwards nobody could publish a draft post again.
+        """
+        # Last year's rally, with a team that walked it. Created first so that
+        # crud_checkpoint.create files its post under it — new posts always go
+        # to whichever edition is current at the time.
+        old_event = await make_event(pg_session, name="Last year")
+        finished_post = await _make_checkpoint(pg_session, order=1, name="Last year's post")
+        old_team = await make_team(pg_session, name="Last year's team", event_id=old_event.id)
+        pg_session.add(CheckpointArrival(team_id=old_team.id, checkpoint_id=finished_post.id))
+        await pg_session.commit()
+
+        # This year's edition takes over, and its own teams have started nothing.
+        event = await make_event(
+            pg_session, name="This year", event_type=EventType.PEDDY_PAPER.value
+        )
+        old_event.is_current = False
+        await pg_session.commit()
+        draft = await _make_checkpoint(pg_session, order=1, name="Undecided venue", is_draft=True)
+
+        response = pg_client.put(f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False})
+
+        assert response.status_code == 200
+        await pg_session.refresh(draft)
+        assert draft.is_draft is False
+        assert event.id != old_event.id
+
     async def test_draft_state_is_frozen_once_a_team_has_checked_in(
         self, pg_session, pg_client, as_admin
     ):

@@ -112,7 +112,7 @@ export function Podium({
             to="/teams/$id"
             params={{ id: String(team.id) }}
             className={[
-              "rally-press flex flex-col items-center rounded-2xl border border-border p-4 text-center",
+              "rally-surface rally-press flex flex-col items-center rounded-2xl border border-border p-4 text-center",
               champion
                 ? "rally-bg-accent-soft rally-shadow-accent sm:-translate-y-3 sm:p-6"
                 : "bg-card",

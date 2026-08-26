@@ -99,6 +99,13 @@ class DetailedCheckPoint(CheckPointBase):
     search_latitude: float | None = None
     search_longitude: float | None = None
     search_radius_m: int | None = None
+    # Whether this team may check in here *right now*. Usually exactly one post
+    # is open, but a free-choice stage (RouteStage.order_matters off) leaves
+    # several open at once — and the client has no other way to know, since the
+    # stage rules are an admin/staff read. Without it the participant screen
+    # could only ever offer the single post it guessed was next, which made a
+    # free-choice stage's whole point unreachable for the team.
+    is_reachable: bool = False
 
 
 class AdminCheckPoint(DetailedCheckPoint, CheckPointPlanningFields):

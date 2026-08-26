@@ -22,8 +22,8 @@ async def _make_checkpoint(pg_session, order=1):
     )
 
 
-async def _make_staff_user(pg_session, name="Staff1"):
-    user = await crud_user.create(pg_session, obj_in=UserCreate(name=name))
+async def _make_staff_user(pg_session, name="Staff1", email=None):
+    user = await crud_user.create(pg_session, obj_in=UserCreate(name=name, email=email))
     user.scopes = ["rally-staff"]
     pg_session.add(user)
     await pg_session.commit()
@@ -67,7 +67,7 @@ class TestStaffAssignments:
         resp = pg_client.get("/api/rally/v1/user/staff-assignments")
 
         assert resp.status_code == 200, resp.text
-        assert resp.json() == []
+        assert resp.json() == {"items": [], "total": 0, "page": 1, "page_size": 20}
 
     async def test_get_staff_assignments_unassigned_user(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -80,10 +80,11 @@ class TestStaffAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert len(body) == 1
-        assert body[0]["user_id"] == staff.id
-        assert body[0]["checkpoint_id"] is None
-        assert body[0]["id"] == 0
+        assert body["total"] == 1
+        assert len(body["items"]) == 1
+        assert body["items"][0]["user_id"] == staff.id
+        assert body["items"][0]["checkpoint_id"] is None
+        assert body["items"][0]["id"] == 0
 
     async def test_get_staff_assignments_with_checkpoint(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -103,9 +104,53 @@ class TestStaffAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert len(body) == 1
-        assert body[0]["checkpoint_id"] == checkpoint.id
-        assert body[0]["checkpoint_name"] == checkpoint.name
+        assert len(body["items"]) == 1
+        assert body["items"][0]["checkpoint_id"] == checkpoint.id
+        assert body["items"][0]["checkpoint_name"] == checkpoint.name
+
+    async def test_get_staff_assignments_paginates(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """The candidate set (every rally-staff-scoped user) is unbounded
+        over a deployment's life — page_size must actually cap what comes
+        back, and total must still reflect everyone, not just this page."""
+        _mock_no_group_members(monkeypatch)
+        await _make_event(pg_session)
+        for i in range(5):
+            await _make_staff_user(pg_session, name=f"Staff{i}", email=f"staff{i}@ua.pt")
+
+        resp = pg_client.get("/api/rally/v1/user/staff-assignments?page=1&page_size=2")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 5
+        assert body["page"] == 1
+        assert body["page_size"] == 2
+        assert len(body["items"]) == 2
+
+        resp_page_2 = pg_client.get("/api/rally/v1/user/staff-assignments?page=2&page_size=2")
+        body_page_2 = resp_page_2.json()
+        assert len(body_page_2["items"]) == 2
+        assert {i["user_id"] for i in body["items"]}.isdisjoint(
+            {i["user_id"] for i in body_page_2["items"]}
+        )
+
+    async def test_get_staff_assignments_searches_by_name_or_email(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """`q` finds one person directly instead of paging through
+        everyone — the point of adding search alongside pagination."""
+        _mock_no_group_members(monkeypatch)
+        await _make_event(pg_session)
+        target = await _make_staff_user(pg_session, name="Ana Costa", email="ana.costa@ua.pt")
+        await _make_staff_user(pg_session, name="Bruno Silva", email="bruno.silva@ua.pt")
+
+        resp = pg_client.get("/api/rally/v1/user/staff-assignments?q=ana.costa")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["items"][0]["user_id"] == target.id
 
     async def test_update_checkpoint_assignment_removed(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
@@ -151,7 +196,7 @@ class TestStaffAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert any(u["user_name"] == "New Staffer" for u in body)
+        assert any(u["user_name"] == "New Staffer" for u in body["items"])
 
     async def test_update_checkpoint_assignment_db_error_returns_400(
         self, pg_session, pg_client, as_admin
@@ -180,7 +225,7 @@ class TestGuideAssignments:
         resp = pg_client.get("/api/rally/v1/user/guide-assignments")
 
         assert resp.status_code == 200, resp.text
-        assert resp.json() == []
+        assert resp.json() == {"items": [], "total": 0, "page": 1, "page_size": 20}
 
     async def test_get_guide_assignments_unassigned_user(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -193,9 +238,9 @@ class TestGuideAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert len(body) == 1
-        assert body[0]["user_id"] == guide.id
-        assert body[0]["team_id"] is None
+        assert len(body["items"]) == 1
+        assert body["items"][0]["user_id"] == guide.id
+        assert body["items"][0]["team_id"] is None
 
     async def test_get_guide_assignments_with_team(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -215,9 +260,40 @@ class TestGuideAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert len(body) == 1
-        assert body[0]["team_id"] == team.id
-        assert body[0]["team_name"] == team.name
+        assert len(body["items"]) == 1
+        assert body["items"][0]["team_id"] == team.id
+        assert body["items"][0]["team_name"] == team.name
+
+    async def test_get_guide_assignments_paginates(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """Same unbounded-candidate-set fix as staff assignments."""
+        _mock_no_group_members(monkeypatch)
+        await _make_event(pg_session)
+        for i in range(5):
+            await _make_guide_user(pg_session, name=f"Guide{i}", email=f"guide{i}@ua.pt")
+
+        resp = pg_client.get("/api/rally/v1/user/guide-assignments?page=1&page_size=2")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 5
+        assert len(body["items"]) == 2
+
+    async def test_get_guide_assignments_searches_by_name_or_email(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        _mock_no_group_members(monkeypatch)
+        await _make_event(pg_session)
+        target = await _make_guide_user(pg_session, name="Rui Pinto", email="rui.pinto@ua.pt")
+        await _make_guide_user(pg_session, name="Sara Neves", email="sara.neves@ua.pt")
+
+        resp = pg_client.get("/api/rally/v1/user/guide-assignments?q=Rui")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["items"][0]["user_id"] == target.id
 
     async def test_update_guide_team_assignment_removed(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
@@ -261,7 +337,7 @@ class TestGuideAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert any(u["user_name"] == "New Guide" for u in body)
+        assert any(u["user_name"] == "New Guide" for u in body["items"])
 
     async def test_get_guide_assignments_drops_user_removed_from_group(
         self, pg_session, pg_client, as_admin, monkeypatch
@@ -294,8 +370,8 @@ class TestGuideAssignments:
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert all(u["user_id"] != stale_guide.id for u in body)
-        assert any(u["user_name"] == "Current Guide" for u in body)
+        assert all(u["user_id"] != stale_guide.id for u in body["items"])
+        assert any(u["user_name"] == "Current Guide" for u in body["items"])
 
         await pg_session.refresh(stale_guide)
         assert "rally-guide" not in stale_guide.scopes

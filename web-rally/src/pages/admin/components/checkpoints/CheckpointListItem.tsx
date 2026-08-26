@@ -46,6 +46,7 @@ export default function CheckpointListItem({
 
   return (
     <li
+      role="listitem"
       draggable
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
@@ -136,13 +137,18 @@ export default function CheckpointListItem({
             </div>
           </div>
           <div className="flex gap-2">
-            <BloodyButton variant="neutral" onClick={() => onEdit(checkpoint)}>
+            <BloodyButton
+              variant="neutral"
+              onClick={() => onEdit(checkpoint)}
+              aria-label={`Editar checkpoint ${checkpoint.name}`}
+            >
               <Edit className="h-4 w-4" />
             </BloodyButton>
             <BloodyButton
               variant="neutral"
               onClick={() => onDelete(checkpoint.id)}
               disabled={isDeleting}
+              aria-label={`Eliminar checkpoint ${checkpoint.name}`}
             >
               <Trash2 className="h-4 w-4" />
             </BloodyButton>

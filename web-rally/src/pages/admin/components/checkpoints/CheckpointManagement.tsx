@@ -91,7 +91,7 @@ export default function CheckpointManagement({ userStore }: CheckpointManagement
           </p>
         )}
         {hasCheckpoints ? (
-          <ul className="list-none space-y-3">
+          <ul role="list" className="list-none space-y-3">
             {sortedCheckpoints.map((checkpoint) => (
               <CheckpointListItem
                 key={checkpoint.id}

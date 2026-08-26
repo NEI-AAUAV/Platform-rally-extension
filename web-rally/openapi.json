@@ -937,29 +937,76 @@
           "User"
         ],
         "summary": "Get Staff Assignments",
-        "description": "Get all rally-staff users and their checkpoint assignments.\n\nWhen the Authentik management API is configured, members of the staff\ngroup are fetched live and mirrored locally on the fly, so an account\nshows up here as soon as it is added to the group in Authentik, with no\nprior login required. Otherwise falls back to users already mirrored\nlocally (i.e. who have logged in at least once with the staff scope).",
+        "description": "Get rally-staff users and their checkpoint assignments, one page at\na time.\n\nWhen the Authentik management API is configured, members of the staff\ngroup are fetched live and mirrored locally on the fly, so an account\nshows up here as soon as it is added to the group in Authentik, with no\nprior login required. Otherwise falls back to users already mirrored\nlocally (i.e. who have logged in at least once with the staff scope).\n\nThe candidate set is every user who currently holds the rally-staff\nrole \u2014 an Authentik-group membership, not something scoped to any\none rally event \u2014 so it only grows over a deployment's life. `q`\n(matches name or email, case-insensitive) finds one person directly\ninstead of paging through everyone.",
         "operationId": "get_staff_assignments",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RallyStaffAssignmentWithCheckpoint"
-                  },
-                  "type": "array",
-                  "title": "Response Get Staff Assignments"
+                  "$ref": "#/components/schemas/Page_RallyStaffAssignmentWithCheckpoint_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/rally/v1/user/me": {
@@ -1055,29 +1102,76 @@
           "User"
         ],
         "summary": "Get Guide Assignments",
-        "description": "Get all rally-guide users and their team assignments.\n\nA guide accompanies one team through the whole route (unlike staff,\nwho are fixed to a post). Mirrors the staff-assignment flow: members\nof the Authentik guide group are fetched live and mirrored locally,\nso an account shows up as soon as it is added to the group, with no\nprior login required.",
+        "description": "Get rally-guide users and their team assignments, one page at a\ntime.\n\nA guide accompanies one team through the whole route (unlike staff,\nwho are fixed to a post). Mirrors the staff-assignment flow: members\nof the Authentik guide group are fetched live and mirrored locally,\nso an account shows up as soon as it is added to the group, with no\nprior login required.\n\nSame unbounded-candidate-set reasoning as `/staff-assignments` \u2014 see\nits docstring. `q` finds one person directly instead of paging\nthrough everyone.",
         "operationId": "get_guide_assignments",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RallyGuideAssignmentWithTeam"
-                  },
-                  "type": "array",
-                  "title": "Response Get Guide Assignments"
+                  "$ref": "#/components/schemas/Page_RallyGuideAssignmentWithTeam_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/rally/v1/user/{user_id}/guide-team-assignment": {
@@ -7749,6 +7843,11 @@
             ],
             "title": "Search Radius M"
           },
+          "is_reachable": {
+            "type": "boolean",
+            "title": "Is Reachable",
+            "default": false
+          },
           "missing": {
             "items": {
               "type": "string"
@@ -9450,6 +9549,11 @@
               }
             ],
             "title": "Search Radius M"
+          },
+          "is_reachable": {
+            "type": "boolean",
+            "title": "Is Reachable",
+            "default": false
           }
         },
         "type": "object",
@@ -10641,6 +10745,68 @@
         ],
         "title": "OidcUserSearchResult",
         "description": "A NEI account that can be linked to a placeholder member.\n\n``id`` is the local mirror user id when the account has already logged in\n(else null). ``authentik_sub`` is the stable identifier used to link."
+      },
+      "Page_RallyGuideAssignmentWithTeam_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RallyGuideAssignmentWithTeam"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[RallyGuideAssignmentWithTeam]"
+      },
+      "Page_RallyStaffAssignmentWithCheckpoint_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RallyStaffAssignmentWithCheckpoint"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[RallyStaffAssignmentWithCheckpoint]"
       },
       "ParticipationEntry": {
         "properties": {

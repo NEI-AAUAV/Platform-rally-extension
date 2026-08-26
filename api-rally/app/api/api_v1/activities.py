@@ -10,8 +10,11 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.api import deps
 from app.api.abac_deps import Action, Resource, require
+from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
+from app.core.abac import require_permission
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity, activity_result
 from app.models.activity import ActivityResult
@@ -27,6 +30,7 @@ from app.schemas.activity import (
     GlobalRanking,
     TeamRanking,
 )
+from app.schemas.user import DetailedUser
 from app.services.activity_service import ActivityService
 from app.services.deps import get_activity_service, get_scoring_service
 from app.services.scoring_service import ScoringService
@@ -217,17 +221,58 @@ class ActivityController:
         await activity.remove(db=db, id=activity_id)
         return {"message": "Activity deleted successfully"}
 
+    async def _require_result_permission(
+        self,
+        *,
+        db: AsyncSession,
+        auth: AuthData,
+        curr_user: DetailedUser,
+        action: Action,
+        activity_id: int,
+    ) -> None:
+        """Enforce an activity-result permission *with the post it belongs to*.
+
+        The `require(...)` dependency deliberately carries no per-request
+        context — its own docstring says endpoints that need some should call
+        `require_permission` in the body, which is what this does. It matters
+        here because the staff rule for these actions is `_staff_own_checkpoint`,
+        which is false whenever `checkpoint_id` is None: guarding these routes
+        with the context-free dependency denied *every* rally-staff member,
+        including the one standing at the post with the teams in front of them.
+
+        Resolving the checkpoint from the activity is what lets the rule mean
+        what it says — staff may score at their own post and nowhere else —
+        instead of collapsing to admins-only.
+        """
+        db_activity = await activity.get(db, id=activity_id)
+        if not db_activity:
+            raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
+        require_permission(
+            curr_user,
+            auth,
+            action,
+            Resource.ACTIVITY_RESULT,
+            checkpoint_id=db_activity.checkpoint_id,
+        )
+
     async def create_activity_result(
         self,
         *,
         db: Annotated[AsyncSession, Depends(get_db)],
         result_in: ActivityResultCreate,
-        _: Annotated[
-            None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
-        ],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> ActivityResultResponse:
         """Create a new activity result"""
+        await self._require_result_permission(
+            db=db,
+            auth=auth,
+            curr_user=curr_user,
+            action=Action.CREATE_ACTIVITY_RESULT,
+            activity_id=result_in.activity_id,
+        )
+
         # Check if result already exists
         existing_result = await activity_result.get_by_activity_and_team(
             db, result_in.activity_id, result_in.team_id
@@ -258,15 +303,22 @@ class ActivityController:
         db: Annotated[AsyncSession, Depends(get_db)],
         result_id: int,
         result_in: ActivityResultUpdate,
-        _: Annotated[
-            None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
-        ],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> ActivityResultResponse:
         """Update an activity result"""
         db_result = await activity_result.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
+
+        await self._require_result_permission(
+            db=db,
+            auth=auth,
+            curr_user=curr_user,
+            action=Action.UPDATE_ACTIVITY_RESULT,
+            activity_id=db_result.activity_id,
+        )
 
         db_result = await service.update_result(db_result, result_in)
         return ActivityResultResponse.model_validate(db_result)
@@ -276,9 +328,8 @@ class ActivityController:
         *,
         db: Annotated[AsyncSession, Depends(get_db)],
         result_id: int,
-        _: Annotated[
-            None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
-        ],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
         extra_shots: int = Query(..., ge=0),
     ) -> dict[str, str]:
@@ -286,6 +337,14 @@ class ActivityController:
         db_result = await activity_result.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
+
+        await self._require_result_permission(
+            db=db,
+            auth=auth,
+            curr_user=curr_user,
+            action=Action.UPDATE_ACTIVITY_RESULT,
+            activity_id=db_result.activity_id,
+        )
 
         success = await service.apply_extra_shots_bonus(
             db_result.team_id, db_result.activity_id, extra_shots
@@ -301,9 +360,8 @@ class ActivityController:
         *,
         db: Annotated[AsyncSession, Depends(get_db)],
         result_id: int,
-        _: Annotated[
-            None, Depends(require(Action.UPDATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
-        ],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
         penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
         penalty_value: int = Query(..., ge=1),
@@ -312,6 +370,14 @@ class ActivityController:
         db_result = await activity_result.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
+
+        await self._require_result_permission(
+            db=db,
+            auth=auth,
+            curr_user=curr_user,
+            action=Action.UPDATE_ACTIVITY_RESULT,
+            activity_id=db_result.activity_id,
+        )
 
         success = await service.apply_penalty(
             db_result.team_id, db_result.activity_id, penalty_type, penalty_value
@@ -362,12 +428,20 @@ class ActivityController:
         team2_id: int,
         winner_id: int,  # 0 for draw
         match_data: dict[str, Any],
-        _: Annotated[
-            None, Depends(require(Action.CREATE_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))
-        ],
+        db: Annotated[AsyncSession, Depends(get_db)],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> dict[str, str]:
         """Create team vs team activity results"""
+        await self._require_result_permission(
+            db=db,
+            auth=auth,
+            curr_user=curr_user,
+            action=Action.CREATE_ACTIVITY_RESULT,
+            activity_id=activity_id,
+        )
+
         await service.create_team_vs_result(team1_id, team2_id, activity_id, winner_id, match_data)
         return {"message": "Team vs team results created successfully"}
 

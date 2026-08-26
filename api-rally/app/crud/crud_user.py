@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -100,8 +100,24 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         ``authentik_sub`` here would create a second row for the same
         person once they actually log in. ``authentik_sub`` is left unset
         and gets backfilled by the login path when it happens.
+
+        ``email`` has no unique constraint, so a bare check-then-insert
+        races: two concurrent callers for the same not-yet-mirrored email
+        (e.g. two overlapping group-reconciliation requests) can both see
+        no existing row and both insert, leaving a duplicate mirror for one
+        person. A transaction-scoped advisory lock keyed on the email
+        serializes callers for that email without needing a schema change
+        or affecting unrelated rows.
         """
-        existing = await self.get_by_email(db, email=email) if email else None
+        if not email:
+            db_obj = User(authentik_sub=None, name=name, email=email, scopes=[scope])
+            db.add(db_obj)
+            await db.commit()
+            await db.refresh(db_obj)
+            return db_obj
+
+        await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(email))))
+        existing = await self.get_by_email(db, email=email)
         if existing is None:
             db_obj = User(authentik_sub=None, name=name, email=email, scopes=[scope])
             db.add(db_obj)
