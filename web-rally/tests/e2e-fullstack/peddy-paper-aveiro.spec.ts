@@ -778,6 +778,23 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
 
       // Guides walk with the first two teams — assigned on the page that
       // exists for exactly that, one row per guide.
+      //
+      // guide_mode_enabled defaults to false (see
+      // api-rally/app/models/rally_settings.py) and this suite never turns
+      // it on for this event — /rally/guide-assignment renders
+      // FeatureDisabledAlert instead of the assignment form without it,
+      // and this test happened to only pass when some *other* spec file
+      // (e.g. master-peddy-tascas-day.spec.ts, which does toggle it) ran
+      // earlier in the same single-worker CI job and left the setting on.
+      // Set it directly rather than depending on execution order.
+      const currentSettings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
+        token: cast.admin.user.accessToken,
+      });
+      await apiCall("PUT", "/rally/settings", {
+        token: cast.admin.user.accessToken,
+        body: { ...currentSettings, guide_mode_enabled: true, guide_mode_active: true },
+      });
+
       await adminSetupPage.goto("/rally/guide-assignment");
       for (const [index, guide] of cast.guides.entries()) {
         // Search by this guide's own (unique per test) email — see
