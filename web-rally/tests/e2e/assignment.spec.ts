@@ -29,11 +29,16 @@ async function mockCheckpoints(page: Page) {
 }
 
 async function mockAssignments(page: Page, assignments: unknown[]) {
-  await page.route("**/api/rally/v1/user/staff-assignments", (route) =>
+  await page.route("**/api/rally/v1/user/staff-assignments**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(assignments),
+      body: JSON.stringify({
+        items: assignments,
+        total: assignments.length,
+        page: 1,
+        page_size: 20,
+      }),
     }),
   );
 }
@@ -150,7 +155,7 @@ test.describe("Staff assignment", () => {
     await mockSettings(page);
     await seedOidcSession(context, ADMIN_GROUPS);
     await mockCheckpoints(page);
-    await page.route("**/api/rally/v1/user/staff-assignments", (route) =>
+    await page.route("**/api/rally/v1/user/staff-assignments**", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",

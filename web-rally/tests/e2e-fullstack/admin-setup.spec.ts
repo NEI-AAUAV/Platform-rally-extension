@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test';
-import { mintToken, seedRealOidcSession, apiCall } from './helpers/fullstackAuth';
-import { waitForApi } from './helpers/seedRally';
+import { test, expect } from "@playwright/test";
+import { mintToken, seedRealOidcSession, apiCall } from "./helpers/fullstackAuth";
+import { waitForApi } from "./helpers/seedRally";
+import { searchAssignmentRow } from "./helpers/assignmentSearch";
 
 /**
  * Gap this spec closes: every other fullstack spec seeds its event,
@@ -22,22 +23,22 @@ import { waitForApi } from './helpers/seedRally';
  * focus — this test is about UI-to-backend correctness, not race conditions.
  */
 
-test.describe('Admin configures a full event through the real UI', () => {
+test.describe("Admin configures a full event through the real UI", () => {
   test.setTimeout(120_000);
 
   test.beforeAll(async () => {
     await waitForApi();
   });
 
-  test('event, checkpoints, activities, team, staff assignment, and settings all persist as created', async ({
+  test("event, checkpoints, activities, team, staff assignment, and settings all persist as created", async ({
     page,
     context,
   }) => {
     const runId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const admin = await mintToken({
       sub: `e2e-admin-setup-${runId}`,
-      name: 'E2E Admin Setup',
-      groups: ['admin'],
+      name: "E2E Admin Setup",
+      groups: ["admin"],
       email: `e2e-admin-setup-${runId}@ua.pt`,
     });
     await seedRealOidcSession(context, admin);
@@ -50,39 +51,39 @@ test.describe('Admin configures a full event through the real UI', () => {
     const staffEmail = `e2e-staff-setup-${runId}@ua.pt`;
     const staff = await mintToken({
       sub: `e2e-staff-setup-${runId}`,
-      name: 'E2E Staff Setup',
-      groups: ['rally-staff'],
+      name: "E2E Staff Setup",
+      groups: ["rally-staff"],
       email: staffEmail,
     });
-    await apiCall('GET', '/profile/me', { token: staff.accessToken });
+    await apiCall("GET", "/profile/me", { token: staff.accessToken });
 
     // --- 1. Create and activate a new event, through the UI ---------------
     const eventName = `E2E Admin UI Event ${runId}`;
-    await page.goto('/rally/admin?tab=events');
-    await page.getByRole('button', { name: 'Novo' }).click();
-    await page.locator('#ev-name').fill(eventName);
-    await page.locator('#ev-type').click();
-    await page.getByRole('option', { name: 'Rally Tascas' }).click();
-    await page.getByRole('button', { name: /^Criar$/ }).click();
+    await page.goto("/rally/admin?tab=events");
+    await page.getByRole("button", { name: "Novo" }).click();
+    await page.locator("#ev-name").fill(eventName);
+    await page.locator("#ev-type").click();
+    await page.getByRole("option", { name: "Rally Tascas" }).click();
+    await page.getByRole("button", { name: /^Criar$/ }).click();
     await expect(page.getByText(eventName)).toBeVisible({ timeout: 15_000 });
 
     const eventsAfterCreate = await apiCall<{ id: number; name: string; is_current: boolean }[]>(
-      'GET',
-      '/events',
+      "GET",
+      "/events",
       { token: admin.accessToken },
     );
     const createdEvent = eventsAfterCreate.find((e) => e.name === eventName);
     expect(createdEvent).toBeDefined();
-    if (!createdEvent) throw new Error('unreachable');
+    if (!createdEvent) throw new Error("unreachable");
 
     // Not current yet (it's a fresh, non-first event on a shared disposable
     // Postgres) — set it as current through the UI, not the API.
     if (!createdEvent.is_current) {
-      const eventCard = page.locator('.rally-surface', { hasText: eventName });
-      await eventCard.getByRole('button', { name: 'Tornar atual' }).click();
-      await expect(eventCard.getByText('Atual', { exact: true })).toBeVisible({ timeout: 15_000 });
+      const eventCard = page.locator(".rally-surface", { hasText: eventName });
+      await eventCard.getByRole("button", { name: "Tornar atual" }).click();
+      await expect(eventCard.getByText("Atual", { exact: true })).toBeVisible({ timeout: 15_000 });
     }
-    const currentEvent = await apiCall<{ id: number }>('GET', '/events/current', {
+    const currentEvent = await apiCall<{ id: number }>("GET", "/events/current", {
       token: admin.accessToken,
     });
     expect(currentEvent.id).toBe(createdEvent.id);
@@ -91,36 +92,40 @@ test.describe('Admin configures a full event through the real UI', () => {
     const checkpointAName = `E2E Posto A ${runId}`;
     const checkpointBName = `E2E Posto B ${runId}`;
 
-    await page.goto('/rally/admin?tab=checkpoints');
-    await page.getByPlaceholder('Ex: Checkpoint Central').fill(checkpointAName);
-    await page.getByPlaceholder('Ex: 40.6405').fill('40.6306');
-    await page.getByPlaceholder('Ex: -8.6538').fill('-8.6591');
-    await page.getByPlaceholder('Ex: 50').fill('75');
+    await page.goto("/rally/admin?tab=checkpoints");
+    await page.getByPlaceholder("Ex: Checkpoint Central").fill(checkpointAName);
+    await page.getByPlaceholder("Ex: 40.6405").fill("40.6306");
+    await page.getByPlaceholder("Ex: -8.6538").fill("-8.6591");
+    await page.getByPlaceholder("Ex: 50").fill("75");
     // order is no longer a manual field — the form auto-assigns
     // max(existing order) + 1 and reordering happens by dragging the list.
     // Scoped to the list item (not getByText): creating a checkpoint
     // auto-selects it, which opens the details panel's own "A configurar
     // <name>" heading — a bare text match resolves to both and violates
     // Playwright's strict mode.
-    await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
-    await expect(page.getByRole('listitem', { name: `Checkpoint ${checkpointAName},` })).toBeVisible({
+    await page.getByRole("button", { name: "Criar Checkpoint" }).click();
+    await expect(
+      page.getByRole("listitem", { name: `Checkpoint ${checkpointAName},` }),
+    ).toBeVisible({
       timeout: 15_000,
     });
 
-    await page.getByPlaceholder('Ex: Checkpoint Central').fill(checkpointBName);
-    await page.getByRole('button', { name: 'Criar Checkpoint' }).click();
-    await expect(page.getByRole('listitem', { name: `Checkpoint ${checkpointBName},` })).toBeVisible({
+    await page.getByPlaceholder("Ex: Checkpoint Central").fill(checkpointBName);
+    await page.getByRole("button", { name: "Criar Checkpoint" }).click();
+    await expect(
+      page.getByRole("listitem", { name: `Checkpoint ${checkpointBName},` }),
+    ).toBeVisible({
       timeout: 15_000,
     });
 
     const checkpointsAfterCreate = await apiCall<
       { id: number; name: string; order: number; arrival_radius_m: number }[]
-    >('GET', '/checkpoint/', { token: admin.accessToken });
+    >("GET", "/checkpoint/", { token: admin.accessToken });
     const checkpointA = checkpointsAfterCreate.find((c) => c.name === checkpointAName);
     const checkpointB = checkpointsAfterCreate.find((c) => c.name === checkpointBName);
     expect(checkpointA).toBeDefined();
     expect(checkpointB).toBeDefined();
-    if (!checkpointA || !checkpointB) throw new Error('unreachable');
+    if (!checkpointA || !checkpointB) throw new Error("unreachable");
     expect(checkpointA.order).toBe(1);
     expect(checkpointB.order).toBe(2);
     // Proves the UI's numeric input actually round-tripped 75, not a
@@ -131,119 +136,117 @@ test.describe('Admin configures a full event through the real UI', () => {
     const boolActivityName = `E2E Atividade Bool ${runId}`;
     const timeActivityName = `E2E Atividade Tempo ${runId}`;
 
-    await page.goto('/rally/admin?tab=activities');
-    await page.getByRole('button', { name: 'Nova Atividade' }).click();
-    await page.getByPlaceholder('Ex: Cabo de Guerra').fill(boolActivityName);
+    await page.goto("/rally/admin?tab=activities");
+    await page.getByRole("button", { name: "Nova Atividade" }).click();
+    await page.getByPlaceholder("Ex: Cabo de Guerra").fill(boolActivityName);
     // checkpoint_id select is the first <select>, activity_type is the
     // second — same structure the mocked admin-activities.spec.ts already
     // exercises against a route mock; here it's the real form + real POST.
     // Select by value (checkpoint id), not label — the option's label is
     // "name - description" and these checkpoints have no description, so
     // matching by label would require replicating that exact formatting.
-    await page.locator('select').first().selectOption({ value: String(checkpointA.id) });
-    await page.locator('select').nth(1).selectOption({ label: 'Sim/Não' });
-    await page.getByRole('button', { name: /^Criar$/ }).click();
+    await page
+      .locator("select")
+      .first()
+      .selectOption({ value: String(checkpointA.id) });
+    await page.locator("select").nth(1).selectOption({ label: "Sim/Não" });
+    await page.getByRole("button", { name: /^Criar$/ }).click();
     await expect(page.getByText(boolActivityName)).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Nova Atividade' }).click();
-    await page.getByPlaceholder('Ex: Cabo de Guerra').fill(timeActivityName);
-    await page.locator('select').first().selectOption({ value: String(checkpointB.id) });
-    await page.locator('select').nth(1).selectOption({ label: 'Baseada em Tempo' });
-    await page.getByRole('button', { name: /^Criar$/ }).click();
+    await page.getByRole("button", { name: "Nova Atividade" }).click();
+    await page.getByPlaceholder("Ex: Cabo de Guerra").fill(timeActivityName);
+    await page
+      .locator("select")
+      .first()
+      .selectOption({ value: String(checkpointB.id) });
+    await page.locator("select").nth(1).selectOption({ label: "Baseada em Tempo" });
+    await page.getByRole("button", { name: /^Criar$/ }).click();
     await expect(page.getByText(timeActivityName)).toBeVisible({ timeout: 15_000 });
 
     const activitiesAfterCreate = await apiCall<{
       activities: { id: number; name: string; activity_type: string; checkpoint_id: number }[];
-    }>('GET', '/activities/', { token: admin.accessToken });
+    }>("GET", "/activities/", { token: admin.accessToken });
     const boolActivity = activitiesAfterCreate.activities.find((a) => a.name === boolActivityName);
     const timeActivity = activitiesAfterCreate.activities.find((a) => a.name === timeActivityName);
     expect(boolActivity).toBeDefined();
     expect(timeActivity).toBeDefined();
-    if (!boolActivity || !timeActivity) throw new Error('unreachable');
-    expect(boolActivity.activity_type).toBe('BooleanActivity');
+    if (!boolActivity || !timeActivity) throw new Error("unreachable");
+    expect(boolActivity.activity_type).toBe("BooleanActivity");
     expect(boolActivity.checkpoint_id).toBe(checkpointA.id);
-    expect(timeActivity.activity_type).toBe('TimeBasedActivity');
+    expect(timeActivity.activity_type).toBe("TimeBasedActivity");
     expect(timeActivity.checkpoint_id).toBe(checkpointB.id);
 
     // --- 4. Create a team through the UI and capture its access code ------
     const teamName = `E2E Equipa UI ${runId}`;
-    await page.goto('/rally/admin?tab=teams');
-    await page.getByPlaceholder('Ex: Equipa Alpha').fill(teamName);
-    await page.getByRole('button', { name: /^Criar Equipa$/ }).click();
+    await page.goto("/rally/admin?tab=teams");
+    await page.getByPlaceholder("Ex: Equipa Alpha").fill(teamName);
+    await page.getByRole("button", { name: /^Criar Equipa$/ }).click();
     // Creating a team opens the "Equipa Criada!" modal showing its QR / access
     // code — confirms the UI itself surfaces a real access code, not just
     // that the row exists.
-    await expect(page.getByText('Equipa Criada!')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Concluir' }).click();
+    await expect(page.getByText("Equipa Criada!")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Concluir" }).click();
     await expect(page.getByText(teamName)).toBeVisible({ timeout: 15_000 });
 
     // The list endpoint (ListingTeam) never includes access_code — only the
     // detail endpoint (DetailedTeam) does — so resolve the id from the list,
     // then fetch its detail to confirm the code the UI's modal showed is
     // really persisted.
-    const teamsAfterCreate = await apiCall<{ id: number; name: string }[]>('GET', '/team/', {
+    const teamsAfterCreate = await apiCall<{ id: number; name: string }[]>("GET", "/team/", {
       token: admin.accessToken,
     });
     const createdTeamSummary = teamsAfterCreate.find((t) => t.name === teamName);
     expect(createdTeamSummary).toBeDefined();
-    if (!createdTeamSummary) throw new Error('unreachable');
+    if (!createdTeamSummary) throw new Error("unreachable");
     const createdTeam = await apiCall<{ id: number; name: string; access_code: string }>(
-      'GET',
+      "GET",
       `/team/${createdTeamSummary.id}`,
       { token: admin.accessToken },
     );
     expect(createdTeam.access_code).toBeTruthy();
 
     // --- 5. Assign the pre-minted staff user to checkpoint A via the UI ---
-    await page.goto('/rally/assignment');
-    await expect(page.getByText(staffEmail)).toBeVisible({ timeout: 15_000 });
-    // The smoke Postgres accumulates every rally-staff user ever minted by
-    // prior runs, so this page lists many rows — scope to the one row that
-    // contains our email via `filter({ has })`, which (unlike `div` +
-    // hasText + .last()) keeps the outer row element instead of resolving to
-    // whichever nested div happens to be last in DOM order.
-    const staffRow = page
-      .locator('div.rounded-xl')
-      .filter({ has: page.getByText(staffEmail, { exact: false }) });
-    await staffRow.getByRole('combobox').click();
-    await page.getByRole('option', { name: checkpointAName }).click();
-    await expect(page.getByText('Atribuição atualizada com sucesso!')).toBeVisible({
+    await page.goto("/rally/assignment");
+    const staffRow = await searchAssignmentRow(page, staffEmail);
+    await staffRow.getByRole("combobox").click();
+    await page.getByRole("option", { name: checkpointAName }).click();
+    await expect(page.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
       timeout: 15_000,
     });
 
-    const assignmentsAfterUpdate = await apiCall<
-      { user_email?: string; checkpoint_id?: number | null }[]
-    >('GET', '/user/staff-assignments', { token: admin.accessToken });
-    const staffAssignment = assignmentsAfterUpdate.find((a) => a.user_email === staffEmail);
+    const assignmentsAfterUpdate = await apiCall<{
+      items: { user_email?: string; checkpoint_id?: number | null }[];
+    }>("GET", "/user/staff-assignments", { token: admin.accessToken });
+    const staffAssignment = assignmentsAfterUpdate.items.find((a) => a.user_email === staffEmail);
     expect(staffAssignment?.checkpoint_id).toBe(checkpointA.id);
 
     // --- 6. Flip a settings toggle via the UI and confirm it persists -----
     // show_live_leaderboard lives under the "Visualização" section; every
     // section is always editable now, so the save bar only appears once the
     // form is dirty (see settings/index.tsx).
-    await page.goto('/rally/settings');
-    await page.getByRole('button', { name: 'Visualização' }).click();
-    await page.locator('label:has(#show_live_leaderboard)').click();
-    await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.getByRole('button', { name: 'Guardar' })).toBeHidden({
+    await page.goto("/rally/settings");
+    await page.getByRole("button", { name: "Visualização" }).click();
+    await page.locator("label:has(#show_live_leaderboard)").click();
+    await page.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("button", { name: "Guardar" })).toBeHidden({
       timeout: 15_000,
     });
 
     const settingsAfterSave = await apiCall<{ show_live_leaderboard: boolean }>(
-      'GET',
-      '/rally/settings',
+      "GET",
+      "/rally/settings",
       { token: admin.accessToken },
     );
     // A reload proves the toggle is durable (persisted), not just optimistic
     // client state that would vanish on refresh.
     await page.reload();
-    await page.getByRole('button', { name: 'Visualização' }).click();
-    await expect(page.getByRole('button', { name: 'Guardar' })).toBeHidden({
+    await page.getByRole("button", { name: "Visualização" }).click();
+    await expect(page.getByRole("button", { name: "Guardar" })).toBeHidden({
       timeout: 15_000,
     });
     const settingsAfterReload = await apiCall<{ show_live_leaderboard: boolean }>(
-      'GET',
-      '/rally/settings',
+      "GET",
+      "/rally/settings",
       { token: admin.accessToken },
     );
     expect(settingsAfterReload.show_live_leaderboard).toBe(settingsAfterSave.show_live_leaderboard);

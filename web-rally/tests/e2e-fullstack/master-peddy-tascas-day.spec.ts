@@ -4,6 +4,7 @@ import { seedRealOidcSession, apiCall } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
 import { seedPeddyTascasCast, type PeddyTascasCast } from "./helpers/seedPeddyTascasCast";
 import { selectComboboxOption } from "./helpers/comboboxSelect";
+import { searchAssignmentRow } from "./helpers/assignmentSearch";
 
 /**
  * "Um dia de Peddy Tascas" — the whole event, from the night-before setup to
@@ -277,7 +278,10 @@ async function standAt(context: BrowserContext, checkpoint: BuiltCheckpoint) {
  */
 async function evaluateOnPage(page: Page, teamName: string): Promise<void> {
   await page.getByText(teamName).first().click();
-  await page.getByRole("button", { name: /avaliar|evaluate/i }).first().click();
+  await page
+    .getByRole("button", { name: /avaliar|evaluate/i })
+    .first()
+    .click();
   await page.getByText("Equipa teve sucesso na atividade").first().click();
   await page
     .getByRole("button", {
@@ -350,7 +354,9 @@ async function checkInWithGpsButton(page: Page): Promise<void> {
     }
     const [response] = await Promise.all([
       page.waitForResponse(
-        (res) => /\/checkpoint\/\d+\/arrive$/.test(new URL(res.url()).pathname) && res.request().method() === "POST",
+        (res) =>
+          /\/checkpoint\/\d+\/arrive$/.test(new URL(res.url()).pathname) &&
+          res.request().method() === "POST",
         { timeout: 5_000 },
       ),
       button.click({ timeout: 5_000 }),
@@ -393,11 +399,9 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       await adminPage.getByRole("button", { name: /^Criar$/ }).click();
       await expect(adminPage.getByText(eventName)).toBeVisible({ timeout: 15_000 });
 
-      const events = await apiCall<{ id: number; name: string; event_type: string; is_current: boolean }[]>(
-        "GET",
-        "/events",
-        { token: cast.admin.user.accessToken },
-      );
+      const events = await apiCall<
+        { id: number; name: string; event_type: string; is_current: boolean }[]
+      >("GET", "/events", { token: cast.admin.user.accessToken });
       const createdEvent = events.find((e) => e.name === eventName);
       expect(createdEvent).toBeDefined();
       if (!createdEvent) throw new Error("unreachable");
@@ -498,9 +502,7 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
 
       // --- 3. Three posts, each with its riddle, through the real form -----
       await adminPage.goto("/rally/admin?tab=checkpoints");
-      const checkpointNames = CHECKPOINT_PLAN.map(
-        (plan) => `E2E ${plan.label} ${runId}`,
-      );
+      const checkpointNames = CHECKPOINT_PLAN.map((plan) => `E2E ${plan.label} ${runId}`);
       for (const [index, plan] of CHECKPOINT_PLAN.entries()) {
         await adminPage.getByPlaceholder("Ex: Checkpoint Central").fill(checkpointNames[index]!);
         await adminPage.getByPlaceholder("Ex: 40.6405").fill(String(plan.latitude));
@@ -592,20 +594,20 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       });
       // Edit the first post to attach its details panel (activities, media, guide hints)
       await firstPostRow
-        .locator("button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']")
+        .locator(
+          "button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']",
+        )
         .first()
         .dispatchEvent("click");
-      await expect(
-        adminPage.getByText(`A configurar ${checkpoints[0]!.name}`).first(),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByText(`A configurar ${checkpoints[0]!.name}`).first()).toBeVisible(
+        { timeout: 15_000 },
+      );
 
       for (const hint of hints) {
         await adminPage
           .getByPlaceholder("Indicação a dar à equipa (ex: Aponta para a estátua e pergunta…)")
           .fill(hint);
-        await adminPage
-          .getByPlaceholder("Pergunta (opcional)")
-          .fill("Em que ano foi construída?");
+        await adminPage.getByPlaceholder("Pergunta (opcional)").fill("Em que ano foi construída?");
         await adminPage.getByPlaceholder("Resposta esperada (opcional)").fill(expectedAnswer);
         await adminPage.getByRole("button", { name: "Adicionar indicação" }).click();
         await expect(adminPage.getByText(hint).first()).toBeVisible({ timeout: 15_000 });
@@ -629,7 +631,10 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
         activityNames.set(checkpoint.id, activityName);
         await adminPage.getByRole("button", { name: "Nova Atividade" }).click();
         await adminPage.getByPlaceholder("Ex: Cabo de Guerra").fill(activityName);
-        await adminPage.locator("select").first().selectOption({ value: String(checkpoint.id) });
+        await adminPage
+          .locator("select")
+          .first()
+          .selectOption({ value: String(checkpoint.id) });
         await adminPage.locator("select").nth(1).selectOption({ label: "Sim/Não" });
         await adminPage.getByRole("button", { name: /^Criar$/ }).click();
         await expect(adminPage.getByText(activityName)).toBeVisible({ timeout: 15_000 });
@@ -685,17 +690,12 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       expect(staffedCheckpoints).toHaveLength(cast.staff.length);
       for (const [index, member] of cast.staff.entries()) {
         const checkpointName = staffedCheckpoints[index]!.name;
-        // `.first()`: this member's card has been observed rendered twice
-        // for the same email (cause not yet root-caused — plausibly a
-        // duplicate local user row for the same OIDC identity; see
-        // CRUDUser.get_or_create_mirror's docstring on the email/sub split).
-        await expect(adminPage.getByText(member.email).first()).toBeVisible({ timeout: 15_000 });
-        // The smoke Postgres accumulates every rally-staff user ever minted,
-        // so scope to the row holding this email (see admin-setup.spec.ts).
-        const row = adminPage
-          .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(member.email, { exact: false }) })
-          .first();
+        // Search by this member's own (unique per test) email rather than
+        // scrolling through everyone — the candidate set is every
+        // rally-staff-scoped user minted so far in this single-worker CI
+        // job, and the API now paginates it (see admin-setup.spec.ts /
+        // assignmentSearch.ts for why).
+        const row = await searchAssignmentRow(adminPage, member.email);
         // 25s rather than the helper's 5s default: this waits on the real
         // (not mocked) backend's row data fetch, which can land right at
         // the default under CI load.
@@ -705,29 +705,20 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           checkpointName,
           25_000,
         );
-        // Not `row.getByText(...)`: the update lands on *a* card for this
-        // email, but not necessarily the one `.first()` picked above — the
-        // same duplicate-card behaviour noted there means the row that just
-        // got assigned is sometimes a second, distinct card for the same
-        // user rather than the one whose combobox was clicked. Matching on
-        // email + the new checkpoint text together, without pinning to a
-        // specific card, finds it either way.
-        await expect(
-          adminPage
-            .locator("div.rounded-xl")
-            .filter({ has: adminPage.getByText(member.email, { exact: false }) })
-            .filter({ hasText: `Checkpoint: ${checkpointName}` }),
-        ).toBeVisible({ timeout: 20_000 });
+        await expect(row.filter({ hasText: `Checkpoint: ${checkpointName}` })).toBeVisible({
+          timeout: 20_000,
+        });
       }
 
       await expect
         .poll(
           async () => {
-            const staffAssignments = await apiCall<
-              { user_email?: string; checkpoint_id?: number | null }[]
-            >("GET", "/user/staff-assignments", { token: cast.admin.user.accessToken });
+            const staffAssignments = await apiCall<{
+              items: { user_email?: string; checkpoint_id?: number | null }[];
+            }>("GET", "/user/staff-assignments", { token: cast.admin.user.accessToken });
             return cast.staff.map(
-              (m) => staffAssignments.find((a) => a.user_email === m.email)?.checkpoint_id ?? null,
+              (m) =>
+                staffAssignments.items.find((a) => a.user_email === m.email)?.checkpoint_id ?? null,
             );
           },
           { timeout: 20_000 },
@@ -741,39 +732,26 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       const guidedTeams = GUIDED_TEAM_INDEXES.map((teamIndex) => teams[teamIndex]!);
       for (const [index, guide] of cast.guides.entries()) {
         const teamName = guidedTeams[index]!.name;
-        // `.first()`: same defensive scoping as the staff-assignment loop
-        // above, in case this member's card is also rendered twice.
-        await expect(adminPage.getByText(guide.email).first()).toBeVisible({ timeout: 15_000 });
-        const row = adminPage
-          .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(guide.email, { exact: false }) })
-          .first();
+        // Same search-by-email approach as the staff-assignment loop above.
+        const row = await searchAssignmentRow(adminPage, guide.email);
         // `button[role="combobox"]` rather than getByRole("combobox"): see
         // comboboxSelect.ts's doc comment — once open, this element stops
         // matching Playwright's role query even though the DOM attribute is
         // still there, so every later getByRole call against it hangs.
         await selectComboboxOption(adminPage, row.locator('button[role="combobox"]'), teamName);
-        // Not `row.getByText(...)`: same duplicate-card behaviour as the
-        // staff-assignment loop above — the update can land on a second,
-        // distinct card for this email rather than the one `.first()`
-        // picked. Matching email + the new team text together, without
-        // pinning to a specific card, finds it either way.
-        await expect(
-          adminPage
-            .locator("div.rounded-xl")
-            .filter({ has: adminPage.getByText(guide.email, { exact: false }) })
-            .filter({ hasText: `Equipa: ${teamName}` }),
-        ).toBeVisible({ timeout: 15_000 });
+        await expect(row.filter({ hasText: `Equipa: ${teamName}` })).toBeVisible({
+          timeout: 15_000,
+        });
       }
 
       await expect
         .poll(
           async () => {
-            const guideAssignments = await apiCall<
-              { user_email?: string; team_id?: number | null }[]
-            >("GET", "/user/guide-assignments", { token: cast.admin.user.accessToken });
+            const guideAssignments = await apiCall<{
+              items: { user_email?: string; team_id?: number | null }[];
+            }>("GET", "/user/guide-assignments", { token: cast.admin.user.accessToken });
             return cast.guides.map(
-              (g) => guideAssignments.find((a) => a.user_email === g.email)?.team_id ?? null,
+              (g) => guideAssignments.items.find((a) => a.user_email === g.email)?.team_id ?? null,
             );
           },
           { timeout: 20_000 },
@@ -1009,7 +987,9 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       // guide who saw it listed as *here* would be looking around for a team
       // that is already two streets away.
       await expect(arrivedHere.getByText(delta!.name, { exact: true })).toHaveCount(0);
-      await expect(arrivedHere.getByText(`${world.hints.length} pistas já compradas`)).toBeVisible();
+      await expect(
+        arrivedHere.getByText(`${world.hints.length} pistas já compradas`),
+      ).toBeVisible();
 
       await arrivalButton.click();
       // Post 1 has no activity, so vouching for the arrival *completes* it and

@@ -24,11 +24,16 @@ async function mockTeams(page: Page) {
 }
 
 async function mockGuideAssignments(page: Page, assignments: unknown[]) {
-  await page.route("**/api/rally/v1/user/guide-assignments", (route) =>
+  await page.route("**/api/rally/v1/user/guide-assignments**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(assignments),
+      body: JSON.stringify({
+        items: assignments,
+        total: assignments.length,
+        page: 1,
+        page_size: 20,
+      }),
     }),
   );
 }

@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Query, Security
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,7 @@ from app.api.abac_deps import require_team_management_permission
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_admin, get_db, get_participant
 from app.core.config import SettingsDep
+from app.schemas.pagination import Page
 from app.schemas.rally_guide_assignment import RallyGuideAssignmentWithTeam
 from app.schemas.rally_staff_assignment import RallyStaffAssignmentWithCheckpoint
 from app.schemas.user import DetailedUser
@@ -125,21 +126,34 @@ class UserController:
         _: Annotated[DetailedUser, Depends(get_admin)],
         settings: SettingsDep,
         service: Annotated[UserService, Depends(get_user_service)],
-    ) -> list[RallyStaffAssignmentWithCheckpoint]:
+        q: str | None = None,
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> Page[RallyStaffAssignmentWithCheckpoint]:
         """
-        Get all rally-staff users and their checkpoint assignments.
+        Get rally-staff users and their checkpoint assignments, one page at
+        a time.
 
         When the Authentik management API is configured, members of the staff
         group are fetched live and mirrored locally on the fly, so an account
         shows up here as soon as it is added to the group in Authentik, with no
         prior login required. Otherwise falls back to users already mirrored
         locally (i.e. who have logged in at least once with the staff scope).
+
+        The candidate set is every user who currently holds the rally-staff
+        role — an Authentik-group membership, not something scoped to any
+        one rally event — so it only grows over a deployment's life. `q`
+        (matches name or email, case-insensitive) finds one person directly
+        instead of paging through everyone.
         """
         return await service.list_checkpoint_assignments(
             group=settings.OIDC_STAFF_GROUP,
             scope="rally-staff",
             assignment_crud=crud.rally_staff_assignment,
             schema=RallyStaffAssignmentWithCheckpoint,
+            q=q,
+            page=page,
+            page_size=page_size,
         )
 
     def get_me(
@@ -198,21 +212,32 @@ class UserController:
         _: Annotated[DetailedUser, Depends(get_admin)],
         settings: SettingsDep,
         service: Annotated[UserService, Depends(get_user_service)],
-    ) -> list[RallyGuideAssignmentWithTeam]:
+        q: str | None = None,
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    ) -> Page[RallyGuideAssignmentWithTeam]:
         """
-        Get all rally-guide users and their team assignments.
+        Get rally-guide users and their team assignments, one page at a
+        time.
 
         A guide accompanies one team through the whole route (unlike staff,
         who are fixed to a post). Mirrors the staff-assignment flow: members
         of the Authentik guide group are fetched live and mirrored locally,
         so an account shows up as soon as it is added to the group, with no
         prior login required.
+
+        Same unbounded-candidate-set reasoning as `/staff-assignments` — see
+        its docstring. `q` finds one person directly instead of paging
+        through everyone.
         """
         return await service.list_guide_team_assignments(
             group=settings.OIDC_GUIDE_GROUP,
             scope="rally-guide",
             assignment_crud=crud.rally_guide_assignment,
             schema=RallyGuideAssignmentWithTeam,
+            q=q,
+            page=page,
+            page_size=page_size,
         )
 
     async def update_guide_team_assignment(

@@ -4,6 +4,7 @@ import { seedRealOidcSession, apiCall, API_V1 } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
 import { seedPeddyTascasCast } from "./helpers/seedPeddyTascasCast";
 import { selectComboboxOption } from "./helpers/comboboxSelect";
+import { searchAssignmentRow } from "./helpers/assignmentSearch";
 import {
   AVEIRO_POSTS,
   AVEIRO_STAGES,
@@ -112,7 +113,6 @@ async function standAt(context: BrowserContext, post: BuiltPost) {
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: post.latitude, longitude: post.longitude });
 }
-
 
 /**
  * Flip a switch inside the admin checkpoint form.
@@ -479,7 +479,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         // post under the wrong block.
         await adminPage
           .getByLabel("Etapa", { exact: true })
-          .selectOption({ label: `${stageIndex + 1}. ${AVEIRO_STAGES[stageIndex]!.name} ${runId}` });
+          .selectOption({
+            label: `${stageIndex + 1}. ${AVEIRO_STAGES[stageIndex]!.name} ${runId}`,
+          });
 
         if (post.undecided) {
           // Still being argued over when the sheet was written. A provisional
@@ -573,7 +575,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // Target the edit button specifically via its icon/aria-label. dispatchEvent
       // because the row is draggable and swallows a synthesized click.
       await fainaRow
-        .locator("button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']")
+        .locator(
+          "button:has(svg.lucide-square-pen, svg.lucide-edit, svg.lucide-pencil), button[aria-label*='Editar']",
+        )
         .first()
         .dispatchEvent("click");
       await expect(adminPage.getByText("Editar Checkpoint")).toBeVisible({ timeout: 15_000 });
@@ -599,9 +603,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // Published, it takes its place in the route — inside "Fora da Uni",
       // because stages are contiguous blocks of order and the resequencing
       // keeps posts grouped by stage.
-      const finalOrders = new Map(
-        settledRoute.checkpoints.map((c) => [c.id, c.order] as const),
-      );
+      const finalOrders = new Map(settledRoute.checkpoints.map((c) => [c.id, c.order] as const));
       const postsWithFinalOrder: BuiltPost[] = withIds.map((post) => ({
         ...post,
         fullName: post.id === faina.id ? decidedName : post.fullName,
@@ -627,7 +629,10 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         const activity = post.activity;
         await adminPage.getByRole("button", { name: "Nova Atividade" }).click();
         await adminPage.getByPlaceholder("Ex: Cabo de Guerra").fill(`${activity.name} ${runId}`);
-        await adminPage.locator("select").first().selectOption({ value: String(post.id) });
+        await adminPage
+          .locator("select")
+          .first()
+          .selectOption({ value: String(post.id) });
         await adminPage.locator("select").nth(1).selectOption({ label: activity.typeLabel });
 
         for (const [fieldId, value] of Object.entries(activity.configFields)) {
@@ -667,7 +672,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         for (const [fieldId, value] of Object.entries(post.activity.configFields)) {
           const configKey = CONFIG_KEY_BY_FIELD_ID[fieldId];
           expect(configKey, `no config key mapped for ${fieldId}`).toBeDefined();
-          expect(row.config[configKey!], `${fieldId} did not reach config.${configKey}`).toBe(value);
+          expect(row.config[configKey!], `${fieldId} did not reach config.${configKey}`).toBe(
+            value,
+          );
         }
         const counters = (row.config.penalty_counters ?? []) as { label: string; points: number }[];
         expect(counters.map((c) => c.label)).toEqual(
@@ -686,45 +693,19 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       await adminPage.goto("/rally/assignment");
       for (const [index, post] of postsWithActivities.entries()) {
         const member = cast.staff[index]!;
-        // This member's card has been observed rendered twice for the same
-        // email (cause not yet root-caused — plausibly a duplicate local
-        // user row for the same OIDC identity; see
-        // CRUDUser.get_or_create_mirror's docstring on the email/sub split).
-        // Scoped to the row(s) holding this email rather than to the page
-        // either way, since the disposable Postgres accumulates every
-        // rally-staff user ever minted (see admin-setup.spec.ts).
-        //
-        // When duplicated, one of the two rows' combobox never opens
-        // (confirmed via trace: `aria-expanded` stuck at "false" for the
-        // full 25s on every attempt, i.e. not a timing race but a dead
-        // row) — `.first()` alone could pin the test to the dead one every
-        // time. Try every matching row in turn instead of assuming which
-        // duplicate, if any, is the live one.
-        await expect(adminPage.getByText(member.email).first()).toBeVisible({ timeout: 20_000 });
-        const rows = adminPage
-          .locator("div.rounded-xl")
-          .filter({ has: adminPage.getByText(member.email, { exact: false }) });
-        const rowCount = await rows.count();
-        let selected = false;
-        let lastError: unknown;
-        for (let i = 0; i < rowCount; i++) {
-          try {
-            // 25s rather than the helper's 5s default: this waits on the
-            // real (not mocked) backend's row data fetch, which can land
-            // right at the default under CI load.
-            await selectComboboxOption(
-              adminPage,
-              rows.nth(i).locator('button[role="combobox"]'),
-              post.fullName,
-              25_000,
-            );
-            selected = true;
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-        if (!selected) throw lastError;
+        // Search by this member's own (unique per test) email rather than
+        // scrolling/paging through everyone the single-worker CI job has
+        // minted so far — see admin-setup.spec.ts / assignmentSearch.ts.
+        const row = await searchAssignmentRow(adminPage, member.email);
+        // 25s rather than the helper's 5s default: this waits on the real
+        // (not mocked) backend's row data fetch, which can land right at
+        // the default under CI load.
+        await selectComboboxOption(
+          adminPage,
+          row.locator('button[role="combobox"]'),
+          post.fullName,
+          25_000,
+        );
         await expect(adminPage.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
           timeout: 20_000,
         });
@@ -799,22 +780,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // exists for exactly that, one row per guide.
       await adminSetupPage.goto("/rally/guide-assignment");
       for (const [index, guide] of cast.guides.entries()) {
-        // `.first()`: same defensive scoping as the staff-assignment loop
-        // above, in case this member's card is also rendered twice.
-        // 30s rather than the previous 20s: by the time this file runs, the
-        // guide-assignment page is rendering every rally-staff/guide user
-        // minted so far in this single-worker CI job (the backend lists
-        // them un-scoped by event — see UserService._mirrored_group_users
-        // — and nothing purges them between spec files sharing one job).
-        // The page keeps getting slower to fetch/render as the run
-        // progresses; 20s started missing near the end of a full run.
-        await expect(adminSetupPage.getByText(guide.email).first()).toBeVisible({
-          timeout: 30_000,
-        });
-        const row = adminSetupPage
-          .locator("div.rounded-xl")
-          .filter({ has: adminSetupPage.getByText(guide.email, { exact: false }) })
-          .first();
+        // Search by this guide's own (unique per test) email — see
+        // admin-setup.spec.ts / assignmentSearch.ts for why (the candidate
+        // set is every rally-guide-scoped user minted so far in this
+        // single-worker CI job, and the API now paginates it).
+        const row = await searchAssignmentRow(adminSetupPage, guide.email);
         await selectComboboxOption(
           adminSetupPage,
           row.locator('button[role="combobox"]'),
@@ -1006,7 +976,6 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
           publicPage.locator("a", { hasText: team.name }).first().getByText(/pts/),
         ).not.toHaveText("0 pts", { timeout: 60_000 });
       }
-
     } finally {
       await Promise.all([
         publicPage.context().close(),
@@ -1075,9 +1044,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       ).toEqual([...blockOrder.map((post) => post.order)].sort((a, b) => a - b));
 
       // --- Recriar uma obra, pontuada à mão -------------------------------
-      await Promise.all(
-        teamPages.map((page) => walkToPostAndCheckIn(page, museu)),
-      );
+      await Promise.all(teamPages.map((page) => walkToPostAndCheckIn(page, museu)));
       await staffMuseu.goto("/rally/staff-evaluation");
       const museuPoints = [55, 40, 30, 20];
       for (const [index, team] of teams.entries()) {
@@ -1134,7 +1101,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         `xpath=//*[normalize-space(.)="Equipa #${teams[0]!.id}"]` +
           `/ancestor::li[.//button[normalize-space()="Confirmar ordenação"]][1]`,
       );
-      await expect(ponteGroup.getByText(`Equipa #${teams[0]!.id}`)).toBeVisible({ timeout: 30_000 });
+      await expect(ponteGroup.getByText(`Equipa #${teams[0]!.id}`)).toBeVisible({
+        timeout: 30_000,
+      });
       for (const team of teams) {
         await expect(ponteGroup.getByText(`Equipa #${team.id}`)).toBeVisible();
       }
@@ -1177,9 +1146,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       expect(gained[0]!).toBeGreaterThan(gained[3]!);
 
       // --- The Titanic scene, captured the same way -------------------------
-      await Promise.all(
-        teamPages.map((page) => walkToPostAndCheckIn(page, praca)),
-      );
+      await Promise.all(teamPages.map((page) => walkToPostAndCheckIn(page, praca)));
       for (const team of teams) {
         const captured = await fetch(
           `${API_V1}/activities/deferred/${praca.activityId}/capture?team_id=${team.id}`,
@@ -1199,7 +1166,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         `xpath=//*[normalize-space(.)="Equipa #${teams[0]!.id}"]` +
           `/ancestor::li[.//button[normalize-space()="Confirmar ordenação"]][1]`,
       );
-      await expect(pracaGroup.getByText(`Equipa #${teams[0]!.id}`)).toBeVisible({ timeout: 30_000 });
+      await expect(pracaGroup.getByText(`Equipa #${teams[0]!.id}`)).toBeVisible({
+        timeout: 30_000,
+      });
       await pracaGroup.getByRole("button", { name: "Confirmar ordenação" }).click();
       await expect(pracaGroup).toHaveCount(0, { timeout: 30_000 });
 
@@ -1207,9 +1176,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // "Sem reação em menos de 3 min": scored on the seconds it took, ranked
       // against the other teams. Last in the block, because the venue for it
       // was the one still undecided when the sheet was written.
-      await Promise.all(
-        teamPages.map((page) => walkToPostAndCheckIn(page, faina)),
-      );
+      await Promise.all(teamPages.map((page) => walkToPostAndCheckIn(page, faina)));
       const beforeFaina: number[] = [];
       for (const page of teamPages) {
         await page.reload();

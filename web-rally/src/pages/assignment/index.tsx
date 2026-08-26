@@ -2,16 +2,17 @@ import { Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
+import usePagedSearch from "@/hooks/usePagedSearch";
 import { LoadingState, PageHeader } from "@/components/shared";
 import { ClipboardList } from "lucide-react";
-import { StaffAssignmentList, AssignmentForm } from "./components";
+import { StaffAssignmentList, AssignmentForm, AssignmentPager } from "./components";
 import {
   getCheckpoints,
   getStaffAssignments,
   updateCheckpointAssignment,
   type CheckpointAssignmentUpdate,
   type DetailedCheckPoint,
-  type RallyStaffAssignmentWithCheckpoint,
+  type PageRallyStaffAssignmentWithCheckpoint,
 } from "@/client";
 
 interface StaffAssignment {
@@ -27,9 +28,12 @@ interface AssignmentProps {
   readonly embedded?: boolean;
 }
 
+const PAGE_SIZE = 20;
+
 export default function Assignment({ embedded = false }: AssignmentProps) {
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
+  const { searchInput, setSearchInput, debouncedSearch, page, setPage } = usePagedSearch();
 
   const { data: checkpoints } = useQuery<DetailedCheckPoint[]>({
     queryKey: ["checkpoints"],
@@ -40,14 +44,16 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
   });
 
   const {
-    data: staffAssignments,
+    data: staffAssignmentsPage,
     error: assignmentsError,
     refetch: refetchAssignments,
-  } = useQuery<RallyStaffAssignmentWithCheckpoint[]>({
-    queryKey: ["staffAssignments"],
-    queryFn: async (): Promise<RallyStaffAssignmentWithCheckpoint[]> => {
-      const { data } = await getStaffAssignments();
-      return data ?? [];
+  } = useQuery<PageRallyStaffAssignmentWithCheckpoint>({
+    queryKey: ["staffAssignments", debouncedSearch, page],
+    queryFn: async (): Promise<PageRallyStaffAssignmentWithCheckpoint> => {
+      const { data } = await getStaffAssignments({
+        query: { q: debouncedSearch || undefined, page, page_size: PAGE_SIZE },
+      });
+      return data ?? { items: [], total: 0, page, page_size: PAGE_SIZE };
     },
     enabled: isRallyAdmin,
   });
@@ -86,15 +92,20 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
     return <Navigate to={fallbackPath} />;
   }
 
+  const total = staffAssignmentsPage?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   // Map API response to local interface (they're compatible)
-  const rallyStaffAssignments: StaffAssignment[] = (staffAssignments || []).map((assignment) => ({
-    id: assignment.id,
-    user_id: assignment.user_id,
-    user_name: assignment.user_name ?? undefined,
-    user_email: assignment.user_email ?? undefined,
-    checkpoint_id: assignment.checkpoint_id ?? undefined,
-    checkpoint_name: assignment.checkpoint_name ?? undefined,
-  }));
+  const rallyStaffAssignments: StaffAssignment[] = (staffAssignmentsPage?.items ?? []).map(
+    (assignment) => ({
+      id: assignment.id,
+      user_id: assignment.user_id,
+      user_name: assignment.user_name ?? undefined,
+      user_email: assignment.user_email ?? undefined,
+      checkpoint_id: assignment.checkpoint_id ?? undefined,
+      checkpoint_name: assignment.checkpoint_name ?? undefined,
+    }),
+  );
 
   return (
     <div className="space-y-8">
@@ -113,6 +124,15 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
         isErrorUpdate={isErrorUpdate}
         updateError={updateError}
       >
+        <AssignmentPager
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          searchPlaceholder="Procurar por nome ou email…"
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={setPage}
+        />
         <StaffAssignmentList
           assignments={rallyStaffAssignments}
           checkpoints={checkpoints}

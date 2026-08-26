@@ -12,6 +12,7 @@ from app import crud
 from app.api import authentik_client
 from app.core.exceptions import RallyValidationError
 from app.models.user import User
+from app.schemas.pagination import Page
 
 AssignmentSchemaT = TypeVar("AssignmentSchemaT", bound=BaseModel)
 
@@ -72,17 +73,40 @@ class UserService:
         scope: str,
         assignment_crud: Any,
         schema: type[AssignmentSchemaT],
-    ) -> list[AssignmentSchemaT]:
+        q: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Page[AssignmentSchemaT]:
         """List/mirror logic behind /staff-assignments: joins each mirrored
         rally-staff user against their (possibly absent) checkpoint
-        assignment — staff are fixed to one post for the whole event."""
+        assignment — staff are fixed to one post for the whole event.
+
+        The candidate set is every user who currently holds ``scope`` (an
+        Authentik-group-derived role, not tied to any one event — see
+        ``_mirrored_group_users``), which is unbounded over the life of a
+        deployment. Paginated, and optionally narrowed with ``q`` (matches
+        name or email, case-insensitively) so an admin — or an automated
+        test — can jump straight to one person instead of paging through
+        everyone."""
         users = await self._mirrored_group_users(group=group, scope=scope)
+        if q:
+            term = q.strip().lower()
+            users = [
+                u
+                for u in users
+                if term in (u.name or "").lower() or term in (u.email or "").lower()
+            ]
+        users.sort(key=lambda u: (u.name or "", u.email or ""))
 
         existing_assignments = await assignment_crud.get_multi_with_checkpoint(self._db)
         assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
 
+        total = len(users)
+        start = (page - 1) * page_size
+        page_users = users[start : start + page_size]
+
         result = []
-        for user in users:
+        for user in page_users:
             assignment = assignment_map.get(user.id)
             if assignment:
                 result.append(
@@ -112,7 +136,7 @@ class UserService:
                         checkpoint_description=None,
                     )
                 )
-        return result
+        return Page(items=result, total=total, page=page, page_size=page_size)
 
     async def update_checkpoint_assignment(
         self,
@@ -159,18 +183,37 @@ class UserService:
         scope: str,
         assignment_crud: Any,
         schema: type[AssignmentSchemaT],
-    ) -> list[AssignmentSchemaT]:
+        q: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Page[AssignmentSchemaT]:
         """List/mirror logic behind /guide-assignments: joins each mirrored
         rally-guide user against their (possibly absent) team assignment — a
         guide accompanies one team through the whole route rather than being
-        fixed to a post."""
+        fixed to a post.
+
+        See ``list_checkpoint_assignments`` for why this is paginated and
+        searchable rather than returning everyone at once — same unbounded
+        candidate set, same fix."""
         users = await self._mirrored_group_users(group=group, scope=scope)
+        if q:
+            term = q.strip().lower()
+            users = [
+                u
+                for u in users
+                if term in (u.name or "").lower() or term in (u.email or "").lower()
+            ]
+        users.sort(key=lambda u: (u.name or "", u.email or ""))
 
         existing_assignments = await assignment_crud.get_multi_with_team(self._db)
         assignment_map = {assignment.user_id: assignment for assignment in existing_assignments}
 
+        total = len(users)
+        start = (page - 1) * page_size
+        page_users = users[start : start + page_size]
+
         result = []
-        for user in users:
+        for user in page_users:
             assignment = assignment_map.get(user.id)
             if assignment:
                 result.append(
@@ -194,7 +237,7 @@ class UserService:
                         team_name=None,
                     )
                 )
-        return result
+        return Page(items=result, total=total, page=page, page_size=page_size)
 
     async def update_guide_team_assignment(
         self,
