@@ -477,11 +477,9 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         // label is "{order}. {name}" (CheckpointForm), so pick it by that
         // rather than by position — a reordered select would silently file the
         // post under the wrong block.
-        await adminPage
-          .getByLabel("Etapa", { exact: true })
-          .selectOption({
-            label: `${stageIndex + 1}. ${AVEIRO_STAGES[stageIndex]!.name} ${runId}`,
-          });
+        await adminPage.getByLabel("Etapa", { exact: true }).selectOption({
+          label: `${stageIndex + 1}. ${AVEIRO_STAGES[stageIndex]!.name} ${runId}`,
+        });
 
         if (post.undecided) {
           // Still being argued over when the sheet was written. A provisional
@@ -1280,7 +1278,13 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       await expect(adminPage.getByText("Sem registos para os filtros atuais.")).toHaveCount(0, {
         timeout: 30_000,
       });
-      await expect(adminPage.locator("div.rounded-lg").first()).toBeVisible();
+      // `div.rounded-lg` alone also matches the (always-mounted, hidden)
+      // user-menu popover in the navbar (see user-menu.tsx), which sits
+      // earlier in the DOM than any audit row and has `data-state="hidden"` —
+      // `.first()` against the bare class picked that up instead of a real
+      // entry and failed. `bg-background/50` is unique to AuditRow
+      // (AuditLogTab.tsx) among rounded-lg elements on this page.
+      await expect(adminPage.locator("div.rounded-lg.bg-background\\/50").first()).toBeVisible();
 
       // The exports an organizer actually sends round afterwards, from the
       // buttons on the Edições tab.
