@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { isNavItemActive } from "./activeRoute";
 import { RallyButton } from "@/components/themes/rally";
 import type { ComponentProps } from "react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Menu,
   X,
@@ -211,6 +211,16 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
   // Back closes the drawer rather than leaving the page behind it.
   useBackDismiss(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
 
+  // Close the drawer on route change instead of in each link's onClick. Doing
+  // it in onClick flips the state (and runs useBackDismiss's cleanup, which
+  // calls history.back()) *before* the router's pushState lands, so the
+  // navigation is immediately reverted and the link appears dead. Reacting to
+  // the committed pathname lets pushState land first; the cleanup then sees the
+  // new route on top and leaves history alone.
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const primary: NavLink[] = [
     { name: "Progresso", href: "/team-progress", show: showTeamView, icon: TrendingUp },
     {
@@ -287,11 +297,7 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
     const Icon = item.icon;
     return (
       <li key={`${item.name}-${item.href}`} className={liClassName}>
-        <Link
-          to={item.href}
-          onClick={() => setIsMobileMenuOpen(false)}
-          className={linkClass(isActive, isSidebar)}
-        >
+        <Link to={item.href} className={linkClass(isActive, isSidebar)}>
           {isSidebar && isActive && (
             <span
               aria-hidden="true"
@@ -436,7 +442,6 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
             <li className="mt-2 border-t border-border pt-2">
               <Link
                 to="/preferences"
-                onClick={() => setIsMobileMenuOpen(false)}
                 className={linkClass(isNavItemActive(location.pathname, "/preferences"), true)}
               >
                 <SlidersHorizontal
@@ -482,7 +487,6 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
                 </button>
                 <Link
                   to="/team-login"
-                  onClick={() => setIsMobileMenuOpen(false)}
                   className="rally-press flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent"
                 >
                   <Users className="h-3.5 w-3.5 shrink-0" />
