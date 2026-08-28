@@ -6,9 +6,10 @@ DynamicAward — one-off manual bonus/penalty applied by admin to a team.
                Picked up by ScoringService.update_team_scores().
 """
 
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
@@ -73,3 +74,8 @@ class DynamicAward(Base):
     points: Mapped[float] = mapped_column(Float, nullable=False)
     reason: Mapped[str | None] = mapped_column(String(256), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # When the award was issued. Feeds Team.last_scored_at so an award moves a
+    # team's tie-break timestamp the same way an activity result does.
+    awarded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

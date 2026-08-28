@@ -69,6 +69,37 @@ def validate_rally_timing(
 is_checkpoint_reachable = _is_checkpoint_reachable
 
 
+def assign_ranks(teams: list[Team]) -> None:
+    """Write ``team.classification`` (1..N, dense) from current totals.
+
+    Pure: sorts the list in place and stamps the rank. No score recompute, no
+    DB access. The single ordering policy for the whole system — every surface
+    that shows a rank must agree with this.
+
+    Tie-break: higher total first, then earliest ``last_scored_at`` (the team
+    that reached that score first ranks ahead), then name for a fully
+    deterministic result when even the timestamps match.
+    """
+    _never = datetime.max.replace(tzinfo=UTC)
+    teams.sort(
+        key=lambda t: (
+            -t.total,
+            _tz_aware(t.last_scored_at) or _never,
+            t.name,
+        )
+    )
+    for i, team in enumerate(teams, start=1):
+        team.classification = i
+
+
+def _tz_aware(dt: datetime | None) -> datetime | None:
+    """Coerce a possibly-naive timestamp to UTC-aware so it compares cleanly
+    against other aware timestamps (Postgres can hand back either)."""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
+
 class TeamService:
     """Team lifecycle, checkpoint progression, and classification rules."""
 
@@ -122,7 +153,7 @@ class TeamService:
         )
 
     async def update_classification_unlocked(self) -> None:
-        """Update team classifications based on activity results."""
+        """Recompute every team's total, then re-rank from those totals."""
         teams = list(await self._team_crud.get_multi(db=self._db, for_update=True))
         scoring_service = ScoringService(self._db)
 
@@ -132,16 +163,25 @@ class TeamService:
         # the same session, so no nested transaction or refresh is needed.
         await scoring_service.update_all_team_scores(teams)
 
-        # Sort teams by total score (descending), then by name (ascending)
-        teams.sort(key=lambda t: (-t.total, t.name))
-
-        for i, team in enumerate(teams):
-            team.classification = i + 1
+        assign_ranks(teams)
+        for team in teams:
             self._db.add(team)
 
     async def update_classification(self) -> None:
         await self.update_classification_unlocked()
         await self._db.commit()
+
+    async def reassign_ranks_unlocked(self) -> None:
+        """Re-rank every team from the totals already persisted — no score
+        recompute. Cheap next to ``update_classification_unlocked`` (one locked
+        SELECT + an in-memory sort, no per-team result aggregation), so it is
+        safe to run on the hot path after any single team's total changes.
+        Does not commit: the caller's transaction carries it.
+        """
+        teams = list(await self._team_crud.get_multi(db=self._db, for_update=True))
+        assign_ranks(teams)
+        for team in teams:
+            self._db.add(team)
 
     def _validate_rally_timing(
         self, settings: Any, current_time: datetime, *, start_offset_minutes: int = 0

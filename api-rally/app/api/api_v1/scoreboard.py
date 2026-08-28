@@ -13,12 +13,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from redis.asyncio.client import PubSub
 
+from app.api import deps
 from app.core.config import SettingsDep
 from app.core.redis import get_async_redis_client
 from app.events.channels import Channels
 from app.services import leaderboard_cache
-from app.services.deps import get_scoring_service
+from app.services.deps import get_scoring_service, get_team_service
 from app.services.scoring_service import ScoringService
+from app.services.team_service import TeamService
 
 # Seconds between SSE heartbeats; keeps proxies from dropping an idle connection.
 _HEARTBEAT_SECONDS = 15.0
@@ -93,6 +95,13 @@ class ScoreboardController:
             methods=["GET"],
             name="stream_rally_events",
         )
+        self.router.add_api_route(
+            "/scoreboard/recompute",
+            self.recompute_classification,
+            methods=["POST"],
+            name="recompute_classification",
+            dependencies=[Depends(deps.get_admin)],
+        )
 
     async def get_live_scoreboard(
         self,
@@ -119,6 +128,25 @@ class ScoreboardController:
             return ranking
         finally:
             await client.aclose()
+
+    async def recompute_classification(
+        self,
+        team_service: Annotated[TeamService, Depends(get_team_service)],
+    ) -> dict[str, Any]:
+        """Admin escape hatch: recompute every team's total and rank from
+        scratch, then drop the cached leaderboard so the next read is fresh.
+
+        Normally redundant — the score-commit funnel keeps ranks in step — but
+        indispensable if a recompute was ever missed (a crash mid-write, a
+        stalled worker, a manual DB edit).
+        """
+        await team_service.update_classification()
+        client = get_async_redis_client()
+        try:
+            await leaderboard_cache.invalidate_global_leaderboard(client)
+        finally:
+            await client.aclose()
+        return {"status": "ok"}
 
     def stream_scoreboard(self, request: Request, settings: SettingsDep) -> StreamingResponse:
         """Server-Sent Events stream that emits a 'refresh' on each leaderboard update."""

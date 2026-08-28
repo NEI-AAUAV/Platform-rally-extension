@@ -2,8 +2,6 @@
 lifecycle, and the team-photo promotion gate.
 """
 
-import contextlib
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,8 +65,9 @@ class DeferredJudgingService:
         await self._db.commit()
         await self._db.refresh(result)
 
-        with contextlib.suppress(Exception):  # score recalc is best-effort here
-            await ScoringService(self._db).update_team_scores(result.team_id)
+        # Not best-effort: a failed recompute leaves total and classification
+        # stale with no way to notice. Surface it.
+        await ScoringService(self._db).update_team_scores(result.team_id)
 
         return result
 
@@ -122,10 +121,9 @@ class DeferredJudgingService:
         for result in results:
             await self._db.refresh(result)
 
-        with contextlib.suppress(Exception):  # score recalc is best-effort here
-            scoring = ScoringService(self._db)
-            for team_id in {r.team_id for r in results}:
-                await scoring.update_team_scores(team_id)
+        scoring = ScoringService(self._db)
+        for team_id in {r.team_id for r in results}:
+            await scoring.update_team_scores(team_id)
 
         return results
 

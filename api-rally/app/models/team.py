@@ -63,7 +63,16 @@ class Team(Base):
     skips: Mapped[list[int]] = mapped_column(MutableList.as_mutable(ARRAY(Integer)), default=list)
 
     total: Mapped[int] = mapped_column(default=0)
-    classification: Mapped[int] = mapped_column(default=-1)
+    # 0 == unranked (no classification computed yet). Never negative: the
+    # frontend cannot tell a sentinel from a real rank, so an unranked team
+    # must sort last, not first.
+    classification: Mapped[int] = mapped_column(default=0)
+    # When this team's total last changed. Tie-break for equal totals: the
+    # team that reached the score first ranks ahead. NULL for teams that have
+    # never scored.
+    last_scored_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     members: Mapped[list[User]] = relationship()
     versus_group_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)

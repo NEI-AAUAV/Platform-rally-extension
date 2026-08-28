@@ -16,7 +16,9 @@ from app.core.config import get_settings
 from app.core.exceptions import RallyError, RallyValidationError
 from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
+from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
+from app.crud.crud_team import team as team_crud
 from app.events import (
     ActivityResultChangedPayload,
     ActivityResultCreatedEvent,
@@ -232,17 +234,37 @@ class ScoringService:
 
         return checkpoint_scores, checkpoint_order_by_id, total_score
 
+    async def _current_event_award_filter(self) -> Any:
+        """WHERE clause restricting awards to the current edition.
+
+        Legacy NULL ``event_id`` rows count as current (same rule teams use),
+        so single-event data keeps working; awards stamped with a *past*
+        event are excluded — a team carried into a new edition must not drag
+        its old prizes and charges into the new standings.
+        """
+        event_id = await current_event_id(self.db)
+        return (DynamicAward.event_id == event_id) | (DynamicAward.event_id.is_(None))
+
     async def _active_award_points(self, team_id: int) -> float:
         """Sum points from active dynamic awards for this team (D4)."""
         award_stmt = select(DynamicAward).where(
             DynamicAward.team_id == team_id,
             DynamicAward.is_active.is_(True),
+            await self._current_event_award_filter(),
         )
         awards = (await self.db.scalars(award_stmt)).all()
         return sum(float(award.points) for award in awards)
 
+    async def _reassign_team_ranks(self) -> None:
+        """Re-rank every team from the totals currently in the session, so a
+        classification is never left stale after a total changes. No score
+        recompute; joins the caller's open transaction.
+        """
+        await team_crud.reassign_ranks_unlocked(self.db)
+
     async def _commit_and_publish_team_score(self, team_id: int, total_score: float) -> None:
         try:
+            await self._reassign_team_ranks()
             await self.db.commit()
         except Exception as e:
             logger.exception("Failed to update team scores")
@@ -271,7 +293,10 @@ class ScoringService:
 
         # Update team scores (round, don't truncate: float sums like 99.999…
         # must not silently drop a point)
-        team.total = round(total_score)
+        new_total = round(total_score)
+        if new_total != team.total:
+            team.last_scored_at = datetime.now(UTC)
+        team.total = new_total
 
         # score_per_checkpoint is positional and parallel to team.times (visit
         # order == checkpoint order). Lay the per-checkpoint scores out by the
@@ -301,7 +326,11 @@ class ScoringService:
         scores_by_order = sorted(
             (checkpoint_order_by_id[cid], score) for cid, score in checkpoint_scores.items()
         )
-        ordered_scores = [int(score) for _order, score in scores_by_order]
+        # round(), not int(): int() truncates toward zero, so a checkpoint at
+        # 9.7 stored 9 while the total counted 9.7, and a -9.7 penalty stored
+        # -9 (under-penalised). Rounding keeps sum(score_per_checkpoint) in step
+        # with team.total.
+        ordered_scores = [round(score) for _order, score in scores_by_order]
         num_visits = len(team.times)
         team.score_per_checkpoint = (
             ordered_scores[:num_visits] + [0] * (num_visits - len(ordered_scores))
@@ -330,6 +359,7 @@ class ScoringService:
         awards_stmt = select(DynamicAward).where(
             DynamicAward.team_id.in_(team_ids),
             DynamicAward.is_active.is_(True),
+            await self._current_event_award_filter(),
         )
         awards = (await self.db.scalars(awards_stmt)).all()
 
@@ -363,10 +393,14 @@ class ScoringService:
                 award.team_id, 0.0
             ) + float(award.points)
 
+        now = datetime.now(UTC)
         for team in teams:
             checkpoint_scores, checkpoint_order_by_id, raw_total = per_team[team.id]
             total_score = raw_total + award_points_by_team.get(team.id, 0.0)
-            team.total = round(total_score)
+            new_total = round(total_score)
+            if new_total != team.total:
+                team.last_scored_at = now
+            team.total = new_total
             self._apply_checkpoint_layout(team, checkpoint_scores, checkpoint_order_by_id)
 
     async def _publish_result_change(
@@ -771,68 +805,37 @@ class ScoringService:
             )
         return ranking
 
-    @staticmethod
-    def _ranking_score(item: dict[str, Any]) -> float:
-        score = item.get("total_score", 0)
-        return float(score) if score is not None else 0.0
-
     async def _get_global_ranking(self) -> list[dict[str, Any]]:
-        """Rank teams by total score across all activities ("1224" ranking).
+        """Global standings, read straight from the persisted columns.
 
-        The total is activity points *plus* active dynamic awards, which is what
-        ``update_team_scores`` already stores on ``Team.total``. The two have to
-        agree: this method is what ``/scoreboard/live`` serves (through the
-        cached leaderboard the worker rebuilds), and it used to sum activity
-        results alone. Every charge and prize was therefore invisible on the
-        public board while being present in the team's own total — hint
-        purchases, give-ups and admin awards all land as ``DynamicAward`` rows,
-        so a peddy-paper hint economy never reached the standings at all.
+        The single source of truth is ``Team.total`` and ``Team.classification``,
+        maintained by ``update_team_scores`` + ``assign_ranks`` on every scoring
+        event. This method used to recompute the total from raw results here,
+        which drifted from ``Team.total`` (rounding, event scope, activities
+        with no checkpoint) and applied a *different* tie policy. It no longer
+        recomputes anything — it just projects the stored ranking, scoped to
+        the current edition so past editions never leak onto the public board.
         """
-        team_stmt = select(Team).options(selectinload(Team.activity_results))
+        event_id = await current_event_id(self.db)
+        team_stmt = select(Team).where(
+            (Team.event_id == event_id) | (Team.event_id.is_(None))
+        )
         teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
 
-        # One query for every team's awards, folded into a lookup — the same
-        # batched shape recalculate_all_team_scores uses, since this method is
-        # deliberately written to avoid a per-team query.
-        awards_stmt = select(DynamicAward).where(
-            DynamicAward.team_id.in_([team.id for team in teams]),
-            DynamicAward.is_active.is_(True),
-        )
-        award_points_by_team: dict[int, float] = {}
-        for award in (await self.db.scalars(awards_stmt)).all():
-            award_points_by_team[award.team_id] = award_points_by_team.get(
-                award.team_id, 0.0
-            ) + float(award.points)
+        completed_counts = await self._completed_counts_by_team()
 
-        ranking = []
-        for team in teams:
-            # activity_results are eager-loaded via selectinload above; compute
-            # the total from them instead of a per-team query (avoids N+1).
-            completed = [r for r in team.activity_results if r.is_completed]
-            total_score = sum(float(r.final_score) for r in completed if r.final_score is not None)
-            total_score += award_points_by_team.get(team.id, 0.0)
-            ranking.append(
-                {
-                    "team_id": team.id,
-                    "team_name": team.name,
-                    "total_score": total_score,
-                    # Still a count of scored activities, not of awards: an
-                    # award is not something the team completed.
-                    "activities_completed": len(completed),
-                }
-            )
-
-        ranking.sort(key=self._ranking_score, reverse=True)
-
-        prev_total: float | None = None
-        rank = 0
-        for i, team_rank in enumerate(ranking, 1):
-            total = self._ranking_score(team_rank)
-            if prev_total is None or total != prev_total:
-                rank = i
-            prev_total = total
-            team_rank["rank"] = rank
-
+        ranking = [
+            {
+                "team_id": team.id,
+                "team_name": team.name,
+                "total_score": float(team.total),
+                "activities_completed": completed_counts.get(team.id, 0),
+                # Stored rank is authoritative. 0 == unranked: sort it last.
+                "rank": team.classification if team.classification > 0 else len(teams),
+            }
+            for team in teams
+        ]
+        ranking.sort(key=lambda r: (r["rank"], r["team_name"]))
         return ranking
 
     async def get_team_ranking(self, activity_id: int | None = None) -> list[dict[str, Any]]:
@@ -958,6 +961,10 @@ class ScoringService:
             await self._recalculate_all_results_for_activity(activity_id, commit=False)
             await self.update_team_scores(team1_id, should_commit=False)
             await self.update_team_scores(team2_id, should_commit=False)
+            # Both totals moved with should_commit=False, so the rank recompute
+            # in the commit funnel was skipped — do it once here before the
+            # single atomic commit.
+            await self._reassign_team_ranks()
             # Single commit: either the full match persists or nothing does.
             await self.db.commit()
 
