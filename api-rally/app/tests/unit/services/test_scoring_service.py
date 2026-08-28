@@ -12,6 +12,8 @@ synchronous scoring path is exercised end to end. The fixture auto-skips when
 Postgres is unreachable.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 
 from app.core.exceptions import RallyError
@@ -169,6 +171,78 @@ async def test_update_team_scores_rounds_and_includes_awards(pg_session):
 async def test_update_team_scores_missing_team_returns_false(pg_session):
     svc = ScoringService(pg_session)
     assert await svc.update_team_scores(999999) is False
+
+
+async def test_scoring_a_result_reranks_without_a_checkpoint_advance(pg_session):
+    """Regression: the scoreboard showed a 100-pt team in 4th because scoring a
+    result moved Team.total but never Team.classification. Only a checkpoint
+    advance re-ranked. Now the score-commit funnel re-ranks every time."""
+    activity = await _make_activity(pg_session)
+    leader = await _make_team(pg_session, "Underdog")
+    other = await _make_team(pg_session, "Front runner")
+    await _make_result(
+        pg_session,
+        team=leader,
+        activity=activity,
+        result_data={"assigned_points": 100},
+        final_score=100,
+    )
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    await svc.update_team_scores(leader.id)
+
+    await pg_session.refresh(leader)
+    await pg_session.refresh(other)
+    assert leader.total == 100
+    assert leader.classification == 1
+    assert other.classification == 2
+
+
+async def test_award_alone_reranks_the_team(pg_session):
+    """A DynamicAward with no activity result must still lift the team's rank."""
+    trailing = await _make_team(pg_session, "Zeroes")
+    awarded = await _make_team(pg_session, "Bonus")
+    pg_session.add(DynamicAward(team_id=awarded.id, points=25, is_active=True))
+    await pg_session.commit()
+
+    await ScoringService(pg_session).update_team_scores(awarded.id)
+
+    await pg_session.refresh(awarded)
+    await pg_session.refresh(trailing)
+    assert awarded.total == 25
+    assert awarded.classification == 1
+    assert trailing.classification == 2
+
+
+async def test_ranking_tie_breaks_on_earliest_last_scored_at(pg_session):
+    """Equal totals: the team that reached the score first ranks ahead."""
+    activity = await _make_activity(pg_session)
+    early = await _make_team(pg_session, "Early")
+    late = await _make_team(pg_session, "Late")
+    for team in (early, late):
+        await _make_result(
+            pg_session,
+            team=team,
+            activity=activity,
+            result_data={"assigned_points": 40},
+            final_score=40,
+        )
+    await pg_session.commit()
+
+    svc = ScoringService(pg_session)
+    await svc.update_team_scores(early.id)
+    # Force a strictly later timestamp for the second team.
+    await pg_session.refresh(early)
+    early.last_scored_at = datetime(2020, 1, 1, tzinfo=UTC)
+    await pg_session.commit()
+    await svc.update_team_scores(late.id)
+
+    await pg_session.refresh(early)
+    await pg_session.refresh(late)
+    assert early.total == late.total == 40
+    assert early.classification == 1
+    assert late.classification == 2
 
 
 async def test_get_settings_creates_default_row_when_none_exists(pg_session):
@@ -830,6 +904,12 @@ async def test_get_global_ranking_orders_and_ranks(pg_session):
     )
 
     svc = ScoringService(pg_session)
+    # The global ranking now projects the persisted Team.total / classification,
+    # so a recompute has to run first (in production the score-commit funnel
+    # does this on every write).
+    await svc.update_team_scores(strong.id)
+    await svc.update_team_scores(weak.id)
+
     # activity_id omitted -> global ranking
     ranking = await svc.get_team_ranking()
 
@@ -867,6 +947,8 @@ async def test_get_global_ranking_counts_active_dynamic_awards(pg_session):
     await pg_session.flush()
 
     svc = ScoringService(pg_session)
+    await svc.update_team_scores(charged.id)
+    await svc.update_team_scores(clean.id)
     ranking = await svc.get_team_ranking()
 
     charged_row = next(r for r in ranking if r["team_id"] == charged.id)
@@ -885,7 +967,9 @@ async def test_get_global_ranking_scores_a_team_with_only_awards(pg_session):
     pg_session.add(DynamicAward(team_id=penalised.id, points=-30, is_active=True))
     await pg_session.flush()
 
-    ranking = await ScoringService(pg_session).get_team_ranking()
+    svc = ScoringService(pg_session)
+    await svc.update_team_scores(penalised.id)
+    ranking = await svc.get_team_ranking()
 
     row = next(r for r in ranking if r["team_id"] == penalised.id)
     assert row["total_score"] == pytest.approx(-30)
