@@ -196,7 +196,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
                   <p>Membros: {team.num_members || 0}</p>
                   {settings?.show_score_mode !== "hidden" && <p>Pontuação: {team.total || 0}</p>}
                   {settings?.show_score_mode !== "hidden" && (
-                    <p>Classificação: {team.classification || "N/D"}</p>
+                    <p>Classificação: {team.classification > 0 ? team.classification : "N/D"}</p>
                   )}
                   <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
                 </div>

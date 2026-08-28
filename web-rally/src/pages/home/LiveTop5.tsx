@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { getTeams, type ListingTeam } from "@/client";
+import { getTeams } from "@/client";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useCountdown } from "@/pages/home/useCountdown";
 import { FreshnessIndicator } from "@/components/shared";
+import { sortTeamsByRank } from "@/lib/teamRanking";
 
 function initialsOf(name: string): string {
   return name
@@ -31,11 +32,7 @@ export function LiveTop5() {
     queryFn: async () => (await getTeams()).data,
   });
 
-  const top = Array.isArray(teams)
-    ? [...teams]
-        .sort((a: ListingTeam, b: ListingTeam) => a.classification - b.classification)
-        .slice(0, 5)
-    : undefined;
+  const top = Array.isArray(teams) ? sortTeamsByRank(teams).slice(0, 5) : undefined;
 
   if (!top || top.length === 0) return null;
 

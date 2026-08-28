@@ -102,10 +102,12 @@ export default function TeamsById() {
                   <p className="rally-display truncate text-2xl font-bold text-foreground">
                     {team.name}
                   </p>
-                  <span className="rally-bg-accent mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white">
-                    {team.classification}
-                    {nthNumber(team.classification)} lugar
-                  </span>
+                  {team.classification > 0 && (
+                    <span className="rally-bg-accent mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white">
+                      {team.classification}
+                      {nthNumber(team.classification)} lugar
+                    </span>
+                  )}
                 </div>
               </div>
               {settings?.show_score_mode !== "hidden" && (

@@ -71,7 +71,7 @@ export default function TeamHeaderCard({
           {showRanking && (
             <div>
               <p className="rally-display text-3xl font-bold tabular-nums">
-                #{team.classification}
+                {team.classification > 0 ? `#${team.classification}` : "—"}
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Posição</p>
             </div>

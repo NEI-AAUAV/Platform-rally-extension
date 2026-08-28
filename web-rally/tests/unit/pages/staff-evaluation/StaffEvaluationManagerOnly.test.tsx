@@ -63,7 +63,7 @@ vi.mock('@/pages/staff-evaluation/components/AllEvaluations', () => ({
   ),
 }));
 
-const team = { id: 1, name: 'Team A', num_members: 3, total: 10, classification: '1st', last_checkpoint_number: 2 };
+const team = { id: 1, name: 'Team A', num_members: 3, total: 10, classification: 1, last_checkpoint_number: 2 };
 
 describe('ManagerEvaluationPage', () => {
   beforeEach(() => {
@@ -85,7 +85,7 @@ describe('ManagerEvaluationPage', () => {
     expect(screen.getByText('Team A')).toBeInTheDocument();
     expect(screen.getByText('Membros: 3')).toBeInTheDocument();
     expect(screen.getByText('Pontuação: 10')).toBeInTheDocument();
-    expect(screen.getByText('Classificação: 1st')).toBeInTheDocument();
+    expect(screen.getByText('Classificação: 1')).toBeInTheDocument();
   });
 
   it('does not render header when embedded', () => {
