@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { mintToken, seedRealOidcSession, apiCall } from "./helpers/fullstackAuth";
 import { waitForApi } from "./helpers/seedRally";
 import { searchAssignmentRow } from "./helpers/assignmentSearch";
+import { selectComboboxOption } from "./helpers/comboboxSelect";
 
 /**
  * Gap this spec closes: every other fullstack spec seeds its event,
@@ -208,8 +209,19 @@ test.describe("Admin configures a full event through the real UI", () => {
     // --- 5. Assign the pre-minted staff user to checkpoint A via the UI ---
     await page.goto("/rally/assignment");
     const staffRow = await searchAssignmentRow(page, staffEmail);
-    await staffRow.getByRole("combobox").click();
-    await page.getByRole("option", { name: checkpointAName }).click();
+    // Plain `.click()` on the combobox + option flakes against the real
+    // (non-mocked) backend here: a prior Select's dismiss-layer can still be
+    // unmounting when the trigger click lands, or the option can detach
+    // mid-click once the dropdown does open (see selectComboboxOption's own
+    // doc comment, and its callers in master-peddy-tascas-day.spec.ts /
+    // peddy-paper-aveiro.spec.ts for the same race). 25s rather than the
+    // helper's 5s default: this waits on the real backend's row data fetch.
+    await selectComboboxOption(
+      page,
+      staffRow.locator('button[role="combobox"]'),
+      checkpointAName,
+      25_000,
+    );
     await expect(page.getByText("Atribuição atualizada com sucesso!")).toBeVisible({
       timeout: 15_000,
     });
