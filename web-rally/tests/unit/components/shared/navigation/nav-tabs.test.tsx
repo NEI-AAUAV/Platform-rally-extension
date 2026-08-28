@@ -101,15 +101,20 @@ describe('NavTabs', () => {
     expect(within(drawer()).queryByText('Iniciar sessão')).not.toBeInTheDocument()
   })
 
-  it('closes the drawer when a link is followed', () => {
+  it('closes the drawer when the route changes after a link is followed', () => {
     mockUseNavAudience.mockReturnValue(audience({ isTeamAuthenticated: true, showTeamView: true }))
 
-    render(<NavTabs />)
+    const { rerender } = render(<NavTabs />)
     openDrawer()
     expect(drawer()).toHaveAttribute('open')
 
     const drawerList = within(drawer()).getByRole('list')
     fireEvent.click(within(drawerList).getByText('Progresso'))
+
+    // The drawer closes on the committed pathname change, not in the link's
+    // onClick — see the useEffect in nav-tabs.tsx for why.
+    mockPathname.current = '/team-progress'
+    rerender(<NavTabs />)
 
     expect(drawer()).not.toHaveAttribute('open')
   })
