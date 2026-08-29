@@ -39,18 +39,20 @@ async def test_create_rule(pg_session, pg_client, as_admin):
 
     resp = pg_client.post(
         "/api/rally/v1/dynamic-rules",
-        json={"name": "First Arrival", "points": 100.0, "rule_type": "bonus"},
+        json={"name": "Atraso no posto", "points": 10.0},
     )
 
     assert resp.status_code == 201, resp.text
-    assert resp.json()["name"] == "First Arrival"
+    assert resp.json()["name"] == "Atraso no posto"
+    # rule_type is forced server-side: the only rule kind is a global penalty counter.
+    assert resp.json()["rule_type"] == "penalty_counter"
 
 
 async def test_update_rule(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
     created = pg_client.post(
         "/api/rally/v1/dynamic-rules",
-        json={"name": "Bonus Rule", "points": 50.0, "rule_type": "bonus"},
+        json={"name": "Bonus Rule", "points": 50.0},
     ).json()
 
     resp = pg_client.put(f"/api/rally/v1/dynamic-rules/{created['id']}", json={"points": 75.0})
@@ -71,7 +73,7 @@ async def test_delete_rule(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
     created = pg_client.post(
         "/api/rally/v1/dynamic-rules",
-        json={"name": "Bonus Rule", "points": 50.0, "rule_type": "bonus"},
+        json={"name": "Bonus Rule", "points": 50.0},
     ).json()
 
     resp = pg_client.delete(f"/api/rally/v1/dynamic-rules/{created['id']}")

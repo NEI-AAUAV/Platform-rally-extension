@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useGlobalPenaltyCounters } from "@/hooks/useGlobalPenaltyCounters";
 import { useAppToast } from "@/hooks/use-toast";
 import { hasDrinkingMechanics as formatHasDrinkingMechanics } from "@/lib/eventTerms";
 import { getTeamSize } from "@/types/forms";
@@ -36,6 +37,8 @@ export interface UseExtraShotsAndPenaltiesResult {
   showPenalties: boolean;
   /** This activity's own counters (from config.penalty_counters), if any. */
   penaltyCounters: readonly PenaltyCounterConfig[];
+  /** Counters that apply at every checkpoint (admin-defined DynamicRule rows). */
+  globalPenaltyCounters: readonly PenaltyCounterConfig[];
   validateExtraShots: () => boolean;
 }
 
@@ -48,6 +51,7 @@ export function useExtraShotsAndPenalties(
   const [penalties, setPenalties] = useState<PenaltyMap>({});
   const toast = useAppToast();
   const { settings } = useRallySettings();
+  const { globalPenaltyCounters } = useGlobalPenaltyCounters();
 
   const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
@@ -62,9 +66,10 @@ export function useExtraShotsAndPenalties(
           vomit: Math.abs(penaltyValues.vomit),
           not_drinking: Math.abs(penaltyValues.not_drinking),
         },
-        penaltyCounters,
+        // Both counter sets are scored identically; only the form groups them.
+        [...penaltyCounters, ...globalPenaltyCounters],
       ),
-    [penaltyValues.vomit, penaltyValues.not_drinking, penaltyCounters],
+    [penaltyValues.vomit, penaltyValues.not_drinking, penaltyCounters, globalPenaltyCounters],
   );
 
   // Drinking mechanics belong to the pub-crawl format; the settings page gates
@@ -77,7 +82,11 @@ export function useExtraShotsAndPenalties(
   const showExtraShots = hasDrinkingMechanics && maxExtraShots > 0;
   const showVomitPenalty = hasDrinkingMechanics && penaltyValues.vomit !== 0;
   const showNotDrinkingPenalty = hasDrinkingMechanics && penaltyValues.not_drinking !== 0;
-  const showPenalties = showVomitPenalty || showNotDrinkingPenalty || penaltyCounters.length > 0;
+  const showPenalties =
+    showVomitPenalty ||
+    showNotDrinkingPenalty ||
+    penaltyCounters.length > 0 ||
+    globalPenaltyCounters.length > 0;
 
   useEffect(() => {
     if (existingResult) {
@@ -116,6 +125,7 @@ export function useExtraShotsAndPenalties(
     showNotDrinkingPenalty,
     showPenalties,
     penaltyCounters,
+    globalPenaltyCounters,
     validateExtraShots,
   };
 }

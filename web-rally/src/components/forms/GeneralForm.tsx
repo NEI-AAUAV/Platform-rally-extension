@@ -41,6 +41,7 @@ export default function GeneralForm({
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    globalPenaltyCounters,
     showPenalties,
     validateExtraShots,
   } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
@@ -113,6 +114,7 @@ export default function GeneralForm({
           onChange={setPenalties}
           penaltyValues={penaltyValues}
           penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

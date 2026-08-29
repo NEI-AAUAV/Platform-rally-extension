@@ -3546,6 +3546,35 @@
         }
       }
     },
+    "/api/rally/v1/scoreboard/recompute": {
+      "post": {
+        "tags": [
+          "Scoreboard"
+        ],
+        "summary": "Recompute Classification",
+        "description": "Admin escape hatch: recompute every team's total and rank from\nscratch, then drop the cached leaderboard so the next read is fresh.\n\nNormally redundant \u2014 the score-commit funnel keeps ranks in step \u2014 but\nindispensable if a recompute was ever missed (a crash mid-write, a\nstalled worker, a manual DB edit).",
+        "operationId": "recompute_classification",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Recompute Classification"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/badges": {
       "get": {
         "tags": [
@@ -9691,17 +9720,6 @@
               }
             ],
             "title": "Reason"
-          },
-          "rule_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Id"
           }
         },
         "type": "object",
@@ -9732,7 +9750,7 @@
             ],
             "title": "Event Id"
           },
-          "rule_id": {
+          "activity_result_id": {
             "anyOf": [
               {
                 "type": "integer"
@@ -9741,7 +9759,7 @@
                 "type": "null"
               }
             ],
-            "title": "Rule Id"
+            "title": "Activity Result Id"
           },
           "points": {
             "type": "number",
@@ -9789,11 +9807,6 @@
             ],
             "title": "Description"
           },
-          "rule_type": {
-            "type": "string",
-            "title": "Rule Type",
-            "default": "bonus"
-          },
           "points": {
             "type": "number",
             "title": "Points",
@@ -9803,18 +9816,14 @@
             "type": "boolean",
             "title": "Is Active",
             "default": true
-          },
-          "is_automatic": {
-            "type": "boolean",
-            "title": "Is Automatic",
-            "default": false
           }
         },
         "type": "object",
         "required": [
           "name"
         ],
-        "title": "DynamicRuleCreate"
+        "title": "DynamicRuleCreate",
+        "description": "A global penalty counter \u2014 \"cada X = -N pontos\", shown to staff at every\ncheckpoint. ``points`` is the magnitude deducted per occurrence (positive)."
       },
       "DynamicRuleResponse": {
         "properties": {
@@ -9859,10 +9868,6 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
-          },
-          "is_automatic": {
-            "type": "boolean",
-            "title": "Is Automatic"
           }
         },
         "type": "object",
@@ -9871,8 +9876,7 @@
           "name",
           "rule_type",
           "points",
-          "is_active",
-          "is_automatic"
+          "is_active"
         ],
         "title": "DynamicRuleResponse"
       },
@@ -9900,17 +9904,6 @@
             ],
             "title": "Description"
           },
-          "rule_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Type"
-          },
           "points": {
             "anyOf": [
               {
@@ -9932,17 +9925,6 @@
               }
             ],
             "title": "Is Active"
-          },
-          "is_automatic": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Automatic"
           }
         },
         "type": "object",

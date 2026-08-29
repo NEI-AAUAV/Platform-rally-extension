@@ -32,8 +32,8 @@ from app.services.event_results_query import (
     result_penalty,
 )
 
-# Penalty keys as written by ScoringService.apply_vomit_penalty /
-# apply_drink_penalty. Stored as accumulated positive magnitudes.
+# Built-in penalty keys in ActivityResult.penalties (staff evaluation form).
+# Stored as accumulated positive magnitudes.
 _VOMIT_KEY = "vomit"
 _NOT_DRINKING_KEY = "not_drinking"
 

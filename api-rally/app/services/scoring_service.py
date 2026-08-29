@@ -42,6 +42,20 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
+class ScoreBreakdown:
+    """Result of scoring one activity result.
+
+    ``final`` is floored at 0 and is what persists on
+    ``ActivityResult.final_score``. ``raw`` keeps the pre-floor value so a
+    penalty larger than the activity's points can be carried to ``team.total``
+    instead of vanishing at the floor.
+    """
+
+    final: float
+    raw: float
+
+
+@dataclass(frozen=True)
 class EvaluationEditor:
     """Who is editing a result, for the audit trail.
 
@@ -137,7 +151,35 @@ class ScoringService:
         penalties: dict[str, Any] | None = None,
         all_times: list[float] | None = None,
     ) -> float:
+        """Persisted per-activity score (floored at 0). See compute_score_breakdown."""
+        breakdown = await self.compute_score_breakdown(
+            activity_type=activity_type,
+            config=config,
+            result_data=result_data,
+            team_size=team_size,
+            extra_shots=extra_shots,
+            penalties=penalties,
+            all_times=all_times,
+        )
+        return breakdown.final
+
+    async def compute_score_breakdown(
+        self,
+        *,
+        activity_type: str,
+        config: dict[str, Any],
+        result_data: dict[str, Any],
+        team_size: int,
+        extra_shots: int = 0,
+        penalties: dict[str, Any] | None = None,
+        all_times: list[float] | None = None,
+    ) -> "ScoreBreakdown":
         """Single source of truth for scoring a result.
+
+        ``final`` is what lands on ``ActivityResult.final_score`` (never below
+        0). ``raw`` is the same sum before that floor; when it is negative the
+        caller records the shortfall as a penalty award so a penalty bigger
+        than the activity's points still reaches ``team.total``.
 
         For time-based games, pass all_times (the full set to rank against,
         including this result's own time) to use relative ranking; otherwise,
@@ -165,10 +207,20 @@ class ScoringService:
         else:
             base_score = float(instance.calculate_score(result_data, team_size))
 
-        modifiers: dict[str, Any] = {"extra_shots": extra_shots, "penalties": penalties or {}}
-        if extra_shots:
-            modifiers["bonus_per_shot"] = (await self._get_settings()).bonus_per_extra_shot
-        return float(instance.apply_modifiers(base_score, modifiers))
+        # Server-side cap: the client validates extra_shots, but nothing stopped
+        # an oversized value in the request body from inflating the score.
+        settings = await self._get_settings()
+        max_extra_shots = max(0, team_size) * settings.max_extra_shots_per_member
+        capped_extra_shots = max(0, min(extra_shots, max_extra_shots))
+
+        modifiers: dict[str, Any] = {
+            "extra_shots": capped_extra_shots,
+            "penalties": penalties or {},
+        }
+        if capped_extra_shots:
+            modifiers["bonus_per_shot"] = settings.bonus_per_extra_shot
+        final, raw = instance.apply_modifiers(base_score, modifiers)
+        return ScoreBreakdown(final=final, raw=raw)
 
     async def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached)"""
@@ -491,23 +543,9 @@ class ScoringService:
             await self.update_team_scores(team_id)
         return True
 
-    async def apply_vomit_penalty(self, team_id: int, activity_id: int) -> bool:
-        """Apply vomit penalty (configurable points)"""
-        settings = await self._get_settings()
-        return await self.apply_penalty(
-            team_id, activity_id, "vomit", abs(settings.penalty_per_puke)
-        )
-
-    async def apply_drink_penalty(
-        self, team_id: int, activity_id: int, participants_not_drinking: int
-    ) -> bool:
-        """Apply penalty for not drinking (configurable points per participant)"""
-        settings = await self._get_settings()
-        penalty_value = participants_not_drinking * abs(settings.penalty_per_not_drinking)
-        return await self.apply_penalty(team_id, activity_id, "not_drinking", penalty_value)
-
     async def _recalculate_result_score(self, result: ActivityResult) -> None:
-        """Recalculate final_score for one result via the unified scorer."""
+        """Recalculate final_score for one result via the unified scorer, and
+        sync its excess-penalty award."""
         activity = await self.db.get(Activity, result.activity_id)
         if not activity:
             return
@@ -518,7 +556,7 @@ class ScoringService:
             else None
         )
 
-        result.final_score = await self.compute_final_score(
+        breakdown = await self.compute_score_breakdown(
             activity_type=activity.activity_type,
             config=activity.config,
             result_data=result.result_data,
@@ -526,6 +564,52 @@ class ScoringService:
             extra_shots=result.extra_shots,
             penalties=result.penalties,
             all_times=all_times,
+        )
+        result.final_score = breakdown.final
+        await self._sync_excess_penalty_award(result, breakdown.raw, activity_name=activity.name)
+
+    async def _sync_excess_penalty_award(
+        self, result: ActivityResult, raw_score: float, *, activity_name: str
+    ) -> None:
+        """Keep a negative DynamicAward in step with a result whose penalties
+        exceed its points.
+
+        ``final_score`` is floored at 0 for the per-checkpoint display; the
+        part below 0 (``raw_score``) is carried here as an award so it still
+        subtracts from ``team.total``. Idempotent: one award per result, keyed
+        on ``activity_result_id``; removed once ``raw_score >= 0``.
+
+        ``result`` must already be persisted (``result.id`` set).
+        """
+        existing = (
+            await self.db.scalars(
+                select(DynamicAward).where(DynamicAward.activity_result_id == result.id)
+            )
+        ).first()
+
+        if raw_score >= 0:
+            if existing is not None:
+                await self.db.delete(existing)
+            return
+
+        shortfall = round(raw_score)  # negative
+        reason = f"Penalização excedente: {activity_name}"[:256]
+        if existing is not None:
+            existing.points = shortfall
+            existing.reason = reason
+            existing.is_active = True
+            return
+
+        event_id = await current_event_id(self.db)
+        self.db.add(
+            DynamicAward(
+                team_id=result.team_id,
+                event_id=event_id,
+                activity_result_id=result.id,
+                points=shortfall,
+                reason=reason,
+                is_active=True,
+            )
         )
 
     # =========================================================================
@@ -577,7 +661,7 @@ class ScoringService:
             if is_time_based
             else None
         )
-        final_score = await self.compute_final_score(
+        breakdown = await self.compute_score_breakdown(
             activity_type=activity.activity_type,
             config=activity.config,
             result_data=obj_in.result_data,
@@ -587,9 +671,14 @@ class ScoringService:
             all_times=all_times,
         )
 
-        db_obj = activity_result_crud.build(obj_in, final_score)
+        db_obj = activity_result_crud.build(obj_in, breakdown.final)
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
         await activity_result_crud.persist(self.db, db_obj, commit=commit)
+
+        # Carry any penalty that overflowed this activity's points to team.total.
+        await self._sync_excess_penalty_award(
+            db_obj, breakdown.raw, activity_name=activity.name
+        )
 
         # Adding a time-based result shifts the ranking, so rescore the rest.
         # When recompute is deferred, the scoring worker does this off-path;
@@ -631,9 +720,13 @@ class ScoringService:
 
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
-        if "result_data" in update_data:
+        # Any of these feed the scored total (base points, penalties, extra
+        # shots), so an edit to any one must rescore the row and re-sync its
+        # excess-penalty award — not just a result_data change.
+        scoring_fields = {"result_data", "extra_shots", "penalties"}
+        if scoring_fields & update_data.keys():
             activity = await self.db.get(Activity, db_obj.activity_id)
-            if activity:
+            if activity and "result_data" in update_data:
                 # Refresh the type-specific score column before rescoring; ranking
                 # queries read it, so a stale time_score would skew the distribution.
                 self._set_activity_specific_scores(db_obj, activity, db_obj.result_data)
@@ -645,6 +738,7 @@ class ScoringService:
             if (
                 activity
                 and activity.activity_type == ActivityType.TIME_BASED.value
+                and "result_data" in update_data
                 and not self._defer_recompute
             ):
                 await self._recalculate_all_results_for_activity(activity.id)
@@ -743,7 +837,7 @@ class ScoringService:
             for result in all_results:
                 if result.team_id not in team_size_cache:
                     team_size_cache[result.team_id] = await self._team_size(result.team_id)
-                result.final_score = await self.compute_final_score(
+                breakdown = await self.compute_score_breakdown(
                     activity_type=activity.activity_type,
                     config=activity.config,
                     result_data=result.result_data,
@@ -751,6 +845,10 @@ class ScoringService:
                     extra_shots=result.extra_shots,
                     penalties=result.penalties,
                     all_times=all_times,
+                )
+                result.final_score = breakdown.final
+                await self._sync_excess_penalty_award(
+                    result, breakdown.raw, activity_name=activity.name
                 )
 
             if commit:

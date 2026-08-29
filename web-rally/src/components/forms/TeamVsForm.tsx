@@ -71,6 +71,7 @@ export default function TeamVsForm({
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    globalPenaltyCounters,
     showPenalties,
     validateExtraShots,
   } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
@@ -325,6 +326,7 @@ export default function TeamVsForm({
           onChange={setPenalties}
           penaltyValues={penaltyValues}
           penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

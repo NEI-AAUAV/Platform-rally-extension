@@ -18,6 +18,12 @@ vi.mock('@/components/themes/bloody', () => ({
   BloodyButton: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
 }));
 
+vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => 'g_' + id,
+}));
+
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));

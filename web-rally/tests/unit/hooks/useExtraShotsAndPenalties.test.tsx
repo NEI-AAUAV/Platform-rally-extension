@@ -8,6 +8,12 @@ const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
   mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
+vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => `g_${id}`,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));

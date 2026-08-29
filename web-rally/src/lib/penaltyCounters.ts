@@ -43,7 +43,12 @@ export function countsToPoints(
   const points: PenaltyCountMap = {};
   for (const [key, count] of Object.entries(counts)) {
     if (!count) continue;
-    points[key] = count * (rates[key] ?? 0);
+    // A key with no known rate (its counter was deleted after this result was
+    // scored, or points were stored raw) carries its value through unchanged —
+    // multiplying by a `?? 0` fallback would silently wipe the penalty from
+    // the team's total on the next edit. Mirrors pointsToCounts below.
+    const rate = rates[key];
+    points[key] = rate === undefined ? count : count * rate;
   }
   return points;
 }
@@ -58,7 +63,8 @@ export function pointsToCounts(
     const rate = rates[key];
     // A key with no known rate (deleted counter, or points stored raw
     // before this fix existed) keeps its stored value verbatim rather than
-    // dividing by zero or silently dropping it.
+    // dividing by zero or silently dropping it. countsToPoints passes the
+    // same key back through unchanged on submit.
     counts[key] = rate ? total / rate : total;
   }
   return counts;

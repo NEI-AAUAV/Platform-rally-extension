@@ -594,48 +594,6 @@ async def test_apply_penalty_missing_result(pg_session):
     assert await svc.apply_penalty(team.id, activity.id, "custom", 5) is False
 
 
-async def test_apply_vomit_penalty_uses_settings_default(pg_session):
-    team = await _make_team(pg_session)
-    activity = await _make_activity(pg_session)
-    await _make_result(
-        pg_session,
-        team=team,
-        activity=activity,
-        result_data={"assigned_points": 50},
-        final_score=50,
-    )
-
-    svc = ScoringService(pg_session)
-    ok = await svc.apply_vomit_penalty(team.id, activity.id)
-
-    assert ok is True
-    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
-    # get_or_create seeds penalty_per_puke = -10 -> abs 10
-    assert result.penalties["vomit"] == 10
-    assert result.final_score == pytest.approx(40)  # 50 - 10
-
-
-async def test_apply_drink_penalty_scales_with_participants(pg_session):
-    team = await _make_team(pg_session)
-    activity = await _make_activity(pg_session)
-    await _make_result(
-        pg_session,
-        team=team,
-        activity=activity,
-        result_data={"assigned_points": 50},
-        final_score=50,
-    )
-
-    svc = ScoringService(pg_session)
-    ok = await svc.apply_drink_penalty(team.id, activity.id, participants_not_drinking=3)
-
-    assert ok is True
-    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
-    # penalty_per_not_drinking default -2 -> abs 2 * 3 = 6
-    assert result.penalties["not_drinking"] == 6
-    assert result.final_score == pytest.approx(44)
-
-
 # --------------------------------------------------------------------------- #
 # result orchestration
 # --------------------------------------------------------------------------- #
@@ -1192,6 +1150,116 @@ async def test_create_team_vs_result_rolls_back_on_unexpected_error(pg_session):
 
     with pytest.raises(ValueError):
         await svc.create_team_vs_result(t1.id, t2.id, 999999, winner_id=t1.id, match_data={})
+
+
+# --------------------------------------------------------------------------- #
+# G1: penalty excess overflows the per-activity floor into a DynamicAward
+# --------------------------------------------------------------------------- #
+async def _excess_award(db, result_id: int) -> DynamicAward | None:
+    from sqlalchemy import select
+
+    return (
+        await db.scalars(
+            select(DynamicAward).where(DynamicAward.activity_result_id == result_id)
+        )
+    ).first()
+
+
+async def test_penalty_excess_becomes_negative_award(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 40},
+            penalties={"custom": 100},
+            is_completed=True,
+        )
+    )
+
+    # per-checkpoint score is floored at 0, never negative
+    assert created.final_score == pytest.approx(0)
+    # the 60-point overflow is carried as a negative award tied to the result
+    award = await _excess_award(pg_session, created.id)
+    assert award is not None
+    assert award.points == -60
+    assert award.activity_result_id == created.id
+    # team.total reflects the full penalty, not just the truncated 0
+    await pg_session.refresh(team)
+    assert team.total == pytest.approx(-60)
+
+
+async def test_reducing_penalty_below_points_clears_excess_award(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 40},
+            penalties={"custom": 100},
+            is_completed=True,
+        )
+    )
+    assert await _excess_award(pg_session, created.id) is not None
+
+    await svc.update_result(created, ActivityResultUpdate(penalties={"custom": 10}))
+
+    assert await _excess_award(pg_session, created.id) is None
+    await pg_session.refresh(team)
+    assert team.total == pytest.approx(30)  # 40 - 10
+
+
+async def test_deleting_a_result_removes_its_excess_award(pg_session):
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 40},
+            penalties={"custom": 100},
+            is_completed=True,
+        )
+    )
+    assert await _excess_award(pg_session, created.id) is not None
+    result_id = created.id
+
+    await svc.remove_result(result_id)
+    pg_session.expire_all()  # force reload from DB (the CASCADE ran there)
+
+    assert await _excess_award(pg_session, result_id) is None
+    await pg_session.refresh(team)
+    assert team.total == pytest.approx(0)
+
+
+# --------------------------------------------------------------------------- #
+# G3: extra_shots is clamped server-side, not just in the form
+# --------------------------------------------------------------------------- #
+async def test_create_result_clamps_extra_shots_to_team_limit(pg_session):
+    team = await _make_team(pg_session)  # 0 members -> team_size 1, max 5/member
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 10},
+            extra_shots=999,
+            is_completed=True,
+        )
+    )
+
+    # 10 base + 5 capped shots * default bonus (1) = 15, not 10 + 999
+    assert created.final_score == pytest.approx(15)
 
 
 # --------------------------------------------------------------------------- #

@@ -1,9 +1,15 @@
 """Dynamic scoring models (D4).
 
-DynamicRule  — configurable per-event scoring rules (not yet auto-evaluated;
-               stored for future evaluator automation and visible in admin UI).
-DynamicAward — one-off manual bonus/penalty applied by admin to a team.
-               Picked up by ScoringService.update_team_scores().
+DynamicRule  — an event-wide penalty counter ("cada X = -N pontos") that shows
+               up in every staff evaluation form, alongside the activity's own
+               config.penalty_counters. rule_type is fixed at "penalty_counter".
+DynamicAward — a score adjustment folded into team.total by
+               ScoringService.update_team_scores(). Two sources:
+               - admin one-off bonus/penalty for a team;
+               - automatic: the shortfall when an activity's penalties exceed
+                 its points (activity_result_id is set), so the excess still
+                 reaches team.total instead of vanishing at the per-activity
+                 floor.
 """
 
 from datetime import datetime
@@ -15,13 +21,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.config import settings
 from app.models.base import Base
 
+#: The only rule_type there is now — an event-wide penalty counter.
+PENALTY_COUNTER_RULE_TYPE = "penalty_counter"
+
 
 class DynamicRule(Base):
-    """A configurable rule that describes how a bonus or penalty may be earned.
+    """An event-wide penalty counter shown in every staff evaluation.
 
-    Rules are descriptive metadata: what triggers the award, the value, and
-    whether it fires automatically or requires a manual admin action. The
-    ``rule_type`` is a free-form tag (e.g. "first_arrival", "bonus", "penalty").
+    ``name`` is the label staff see, ``points`` is the magnitude deducted per
+    occurrence (stored positive), ``is_active`` controls whether it appears in
+    the form. The staff form multiplies the entered count by ``points`` and
+    submits the total under the key ``g_<id>`` in the result's penalties dict.
     """
 
     __tablename__ = "dynamic_rules"
@@ -36,10 +46,11 @@ class DynamicRule(Base):
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    rule_type: Mapped[str] = mapped_column(String(64), nullable=False, default="bonus")
+    rule_type: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=PENALTY_COUNTER_RULE_TYPE
+    )
     points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    is_automatic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class DynamicAward(Base):
@@ -66,10 +77,14 @@ class DynamicAward(Base):
         nullable=True,
         index=True,
     )
-    rule_id: Mapped[int | None] = mapped_column(
+    # Set when this award is the auto-recorded shortfall for an activity result
+    # whose penalties exceeded its points. One such award per result; removed
+    # when the result is deleted or its penalties no longer overflow.
+    activity_result_id: Mapped[int | None] = mapped_column(
         Integer,
-        ForeignKey(f"{settings.SCHEMA_NAME}.dynamic_rules.id", ondelete="SET NULL"),
+        ForeignKey(f"{settings.SCHEMA_NAME}.activity_results.id", ondelete="CASCADE"),
         nullable=True,
+        index=True,
     )
     points: Mapped[float] = mapped_column(Float, nullable=False)
     reason: Mapped[str | None] = mapped_column(String(256), nullable=True)

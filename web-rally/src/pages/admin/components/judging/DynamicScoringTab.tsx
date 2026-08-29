@@ -15,11 +15,11 @@ import {
   type ListingTeam,
 } from "@/client";
 
-type RuleForm = { name: string; rule_type: string; points: string; description: string };
-type AwardForm = { team_id: string; points: string; reason: string; rule_id: string };
+type RuleForm = { name: string; points: string; description: string };
+type AwardForm = { team_id: string; points: string; reason: string };
 
-const EMPTY_RULE: RuleForm = { name: "", rule_type: "bonus", points: "", description: "" };
-const EMPTY_AWARD: AwardForm = { team_id: "", points: "", reason: "", rule_id: "" };
+const EMPTY_RULE: RuleForm = { name: "", points: "", description: "" };
+const EMPTY_AWARD: AwardForm = { team_id: "", points: "", reason: "" };
 
 function RulesSection() {
   const qc = useQueryClient();
@@ -39,11 +39,9 @@ function RulesSection() {
       createDynamicRule({
         body: {
           name: form.name.trim(),
-          rule_type: form.rule_type,
-          points: Number.parseFloat(form.points),
+          points: Math.abs(Number.parseFloat(form.points)),
           description: form.description || undefined,
           is_active: true,
-          is_automatic: false,
         },
       }),
     onSuccess: () => {
@@ -66,15 +64,22 @@ function RulesSection() {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Regras</h3>
-        <button
-          type="button"
-          className="rally-press ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
-          onClick={() => setShowForm((v) => !v)}
-        >
-          <Plus className="h-3.5 w-3.5" /> Nova regra
-        </button>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Penalizações globais</h3>
+          <button
+            type="button"
+            className="rally-press ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+            onClick={() => setShowForm((v) => !v)}
+          >
+            <Plus className="h-3.5 w-3.5" /> Nova penalização
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Contadores disponíveis ao staff na avaliação de <strong>qualquer posto</strong>. Cada
+          ocorrência registada desconta os pontos indicados. As restantes penalizações são
+          específicas de cada prova.
+        </p>
       </div>
 
       {showForm && (
@@ -84,30 +89,18 @@ function RulesSection() {
               <span className="text-xs text-muted-foreground">Nome *</span>
               <input
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Nome da regra"
+                placeholder="ex: Atraso no posto"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </label>
-            <label data-admin-search-key="rule_type" className="space-y-1">
-              <span className="text-xs text-muted-foreground">Tipo</span>
-              <select
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.rule_type}
-                onChange={(e) => setForm({ ...form, rule_type: e.target.value })}
-              >
-                <option value="bonus">Bónus</option>
-                <option value="penalty">Penalidade</option>
-                <option value="checkpoint">Posto</option>
-                <option value="custom">Personalizado</option>
-              </select>
-            </label>
             <label data-admin-search-key="rule_points" className="space-y-1">
-              <span className="text-xs text-muted-foreground">Pontos *</span>
+              <span className="text-xs text-muted-foreground">Pontos a descontar por ocorrência *</span>
               <input
                 type="number"
+                min="0"
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="ex: 50"
+                placeholder="ex: 10"
                 value={form.points}
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
               />
@@ -124,7 +117,7 @@ function RulesSection() {
           </div>
           {createMutation.isError && (
             <div className="flex items-center gap-2 text-xs text-red-500">
-              <AlertCircle className="h-4 w-4" /> Erro ao criar regra.
+              <AlertCircle className="h-4 w-4" /> Erro ao criar penalização.
             </div>
           )}
           <div className="flex gap-2">
@@ -151,7 +144,9 @@ function RulesSection() {
       )}
 
       {rules.length === 0 && !showForm && (
-        <p className="py-4 text-center text-xs text-muted-foreground">Sem regras definidas.</p>
+        <p className="py-4 text-center text-xs text-muted-foreground">
+          Sem penalizações globais definidas.
+        </p>
       )}
 
       <ul className="space-y-2">
@@ -160,8 +155,7 @@ function RulesSection() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold leading-tight">{rule.name}</p>
               <p className="text-xs text-muted-foreground">
-                {rule.rule_type} · {rule.points > 0 ? "+" : ""}
-                {rule.points} pts
+                −{Math.abs(rule.points)} pts por ocorrência · todos os postos
                 {rule.description ? ` · ${rule.description}` : ""}
               </p>
             </div>
@@ -182,7 +176,8 @@ function RulesSection() {
               title="Eliminar"
               className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
               onClick={() => {
-                if (confirm(`Eliminar regra "${rule.name}"?`)) deleteMutation.mutate(rule.id);
+                if (confirm(`Eliminar penalização "${rule.name}"?`))
+                  deleteMutation.mutate(rule.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -199,14 +194,6 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AwardForm>(EMPTY_AWARD);
 
-  const { data: rules = [] } = useQuery<DynamicRuleResponse[]>({
-    queryKey: ["dynamic-rules"],
-    queryFn: async () => {
-      const { data } = await listDynamicRules();
-      return data ?? [];
-    },
-  });
-
   const { data: awards = [] } = useQuery<DynamicAwardResponse[]>({
     queryKey: ["dynamic-awards"],
     queryFn: async () => {
@@ -222,7 +209,6 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
           team_id: Number.parseInt(form.team_id),
           points: Number.parseFloat(form.points),
           reason: form.reason || undefined,
-          rule_id: form.rule_id ? Number.parseInt(form.rule_id) : undefined,
         },
       }),
     onSuccess: () => {
@@ -279,21 +265,6 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 value={form.points}
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
               />
-            </label>
-            <label data-admin-search-key="award_rule" className="space-y-1">
-              <span className="text-xs text-muted-foreground">Regra (opcional)</span>
-              <select
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.rule_id}
-                onChange={(e) => setForm({ ...form, rule_id: e.target.value })}
-              >
-                <option value="">Nenhuma</option>
-                {rules.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <label data-admin-search-key="award_reason" className="space-y-1">
               <span className="text-xs text-muted-foreground">Razão</span>

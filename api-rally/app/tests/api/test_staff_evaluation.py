@@ -162,6 +162,47 @@ class TestEvaluateTeamActivityAuthzAPI:
     # own `validate_rally_permissions` check ever runs, so that in-body
     # branch is unreachable through the API and not exercised here.
 
+    async def _disable_staff_scoring(self, pg_session):
+        from app.crud.crud_rally_settings import rally_settings
+
+        cfg = await rally_settings.get_or_create(pg_session)
+        cfg.enable_staff_scoring = False
+        await pg_session.commit()
+
+    async def test_evaluate_blocked_for_staff_when_scoring_disabled(
+        self, pg_session, pg_client, as_admin
+    ):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        await self._disable_staff_scoring(pg_session)
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.post(
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+                json={"result_data": {"assigned_points": 50}},
+            )
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 403
+
+    async def test_evaluate_allowed_for_admin_when_scoring_disabled(
+        self, pg_session, pg_client, as_admin
+    ):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        await self._disable_staff_scoring(pg_session)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={"result_data": {"assigned_points": 50}},
+        )
+        assert resp.status_code in (200, 201), resp.text
+
     async def test_evaluate_staff_wrong_checkpoint_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         other_checkpoint = await _make_checkpoint(pg_session, order=2)

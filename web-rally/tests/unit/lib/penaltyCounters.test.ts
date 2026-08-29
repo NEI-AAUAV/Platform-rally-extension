@@ -40,8 +40,12 @@ describe("countsToPoints", () => {
     expect(countsToPoints({ vomit: 0, falha_baliza: 3 }, rates)).toEqual({ falha_baliza: 12 });
   });
 
-  it("a key with no known rate contributes zero points", () => {
-    expect(countsToPoints({ unknown: 5 }, rates)).toEqual({ unknown: 0 });
+  it("passes a key with no known rate through verbatim (deleted counter, G5)", () => {
+    // A counter removed from config after a result was scored still round-trips:
+    // pointsToCounts keeps the stored value, countsToPoints must not wipe it to
+    // 0 by multiplying by a `?? 0` fallback — the penalty would vanish from the
+    // team's total on the next edit.
+    expect(countsToPoints({ unknown: 20 }, rates)).toEqual({ unknown: 20 });
   });
 
   it("an empty count map produces an empty point map", () => {
