@@ -81,7 +81,6 @@ export function useExtraShotsAndPenalties(
       setPenalties(existingResult.penalty_counts || {});
     }
     // Only re-derive when the result identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingResult]);
 
   const validateExtraShots = (): boolean => {
