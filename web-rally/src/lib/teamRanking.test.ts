@@ -22,12 +22,7 @@ describe("sortTeamsByRank", () => {
 
     const sorted = sortTeamsByRank(teams);
 
-    expect(sorted.map((t) => t.name)).toEqual([
-      "Desportiva",
-      "Academica",
-      "CE",
-      "Coordenacao",
-    ]);
+    expect(sorted.map((t) => t.name)).toEqual(["Desportiva", "Academica", "CE", "Coordenacao"]);
   });
 
   it("does not mutate the input array", () => {

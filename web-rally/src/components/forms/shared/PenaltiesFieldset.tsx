@@ -66,8 +66,7 @@ export default function PenaltiesFieldset({
     sumCounters(penaltyCounters) +
     sumCounters(globalPenaltyCounters);
 
-  const hasActivityGroup =
-    showVomitPenalty || showNotDrinkingPenalty || penaltyCounters.length > 0;
+  const hasActivityGroup = showVomitPenalty || showNotDrinkingPenalty || penaltyCounters.length > 0;
 
   return (
     <fieldset>
@@ -133,10 +132,7 @@ export default function PenaltiesFieldset({
                 placeholder="0"
                 aria-label="Número de vezes que não bebeu"
               />
-              <label
-                htmlFor={`${idPrefix}-not-drinking`}
-                className="text-sm text-muted-foreground"
-              >
+              <label htmlFor={`${idPrefix}-not-drinking`} className="text-sm text-muted-foreground">
                 Penalização por não beber ({penaltyValues.not_drinking} pts cada)
               </label>
             </div>
