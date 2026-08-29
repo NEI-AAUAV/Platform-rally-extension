@@ -82,6 +82,9 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
     onError: (err) => {
       toast.error(errorDetail(err));
       submittedRef.current = false;
+      // The scanner already released the camera on the read; close the (now
+      // frozen) modal so the next attempt starts a fresh preview.
+      close();
     },
   });
 
@@ -95,6 +98,7 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
     const code = extractTeamCode(scanned);
     if (!code) {
       toast.error("QR inválido. Aponta ao código da equipa.");
+      close();
       return;
     }
     submittedRef.current = true;

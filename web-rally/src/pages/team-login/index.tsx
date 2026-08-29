@@ -59,10 +59,12 @@ export default function TeamLogin() {
   };
 
   const handleQRScan = (scannedData: string) => {
+    // Close the scanner on any result — the camera is already released once a
+    // code is read, so leaving the modal open would show a frozen preview.
+    setShowScanner(false);
     const code = extractCodeFromUrl(scannedData);
     if (code) {
       setAccessCode(code);
-      setShowScanner(false);
       // Auto-submit after extracting code
       setTimeout(() => {
         void handleSubmit(undefined, code);

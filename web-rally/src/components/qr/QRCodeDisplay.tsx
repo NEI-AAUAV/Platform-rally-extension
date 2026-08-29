@@ -15,6 +15,16 @@ export default function QRCodeDisplay({
   size = 200,
   className = "",
 }: Readonly<QRCodeDisplayProps>) {
+  // Without a code there is nothing scannable — render a hint instead of a QR
+  // that resolves to an empty login URL.
+  if (!accessCode) {
+    return (
+      <div className={`flex flex-col items-center gap-2 ${className}`}>
+        <p className="text-sm text-muted-foreground">Código de acesso indisponível</p>
+      </div>
+    );
+  }
+
   // Generate the team login URL with access code
   const loginUrl = `${globalThis.location.origin}/rally/team-login?code=${accessCode}`;
 

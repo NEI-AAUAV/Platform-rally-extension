@@ -153,14 +153,21 @@ class TeamController:
         if not curr_user and not curr_team and not auth:
             raise RallyUnauthorizedError(AUTH_REQUIRED)
 
-        # The access code is a login credential: only the team's own members and
-        # callers who may manage teams (admin/staff) get it back.
-        may_see_access_code = (curr_team is not None and curr_team.team_id == id) or (
-            curr_user is not None
-            and auth is not None
-            and (
-                curr_user.team_id == id
-                or check_permission(curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM)
+        # The access code is a login credential: the team's own members, callers
+        # who may manage teams (admin/manager), and rally staff get it back.
+        # Staff need it to show the team its identity QR at a checkpoint and to
+        # cross-check a scanned code.
+        is_rally_staff = auth is not None and "rally-staff" in auth.scopes
+        may_see_access_code = (
+            (curr_team is not None and curr_team.team_id == id)
+            or is_rally_staff
+            or (
+                curr_user is not None
+                and auth is not None
+                and (
+                    curr_user.team_id == id
+                    or check_permission(curr_user, auth, Action.UPDATE_TEAM, Resource.TEAM)
+                )
             )
         )
         team_obj = await team_crud.get(db=db, id=id)
