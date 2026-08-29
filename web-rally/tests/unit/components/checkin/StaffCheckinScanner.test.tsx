@@ -25,9 +25,9 @@ vi.mock('@/hooks/use-toast', () => ({
 }))
 
 vi.mock('@/components/qr/QRCodeScanner', () => ({
-  default: ({ onScan }: { onScan: (data: string) => void }) => {
+  default: ({ onScan, isOpen }: { onScan: (data: string) => void; isOpen?: boolean }) => {
     h.onScan = onScan
-    return <div data-testid="qr-scanner-stub" />
+    return isOpen ? <div data-testid="qr-scanner-stub" /> : null
   },
 }))
 
@@ -71,6 +71,24 @@ describe('StaffCheckinScanner', () => {
   it('opens the scanner when the trigger is clicked', () => {
     render(<StaffCheckinScanner checkpointId={1} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByText('Ler QR da equipa'))
+    expect(screen.getByTestId('qr-scanner-stub')).toBeInTheDocument()
+  })
+
+  it('keeps the scanner mounted before opening (gated by isOpen, not by mount)', () => {
+    // Regression: the scanner used to be conditionally mounted, which made
+    // StrictMode double-invoke its effects and dismiss it the instant it opened.
+    render(<StaffCheckinScanner checkpointId={1} />, { wrapper: createWrapper() })
+    // onScan is wired even while closed because the component is always mounted.
+    expect(h.onScan).toBeTypeOf('function')
+    expect(screen.queryByTestId('qr-scanner-stub')).not.toBeInTheDocument()
+  })
+
+  it('stays open after opening and does not self-dismiss on the next tick', async () => {
+    render(<StaffCheckinScanner checkpointId={1} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByText('Ler QR da equipa'))
+    await act(async () => {
+      await Promise.resolve()
+    })
     expect(screen.getByTestId('qr-scanner-stub')).toBeInTheDocument()
   })
 

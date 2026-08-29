@@ -144,13 +144,13 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
         </ul>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md">
-            <QRCodeScanner isOpen={open} onScan={handleScan} onClose={close} />
-          </div>
-        </div>
-      )}
+      {/* Always mounted, gated by `isOpen`. Conditionally mounting it instead
+          makes React 18 StrictMode double-invoke the scanner's mount effects;
+          the throwaway history entry from useBackDismiss then races its own
+          `history.back()`, whose popstate the second mount reads as a
+          dismiss — so the modal closed the instant it opened. QRCodeScanner
+          already renders its own full-screen overlay. */}
+      <QRCodeScanner isOpen={open} onScan={handleScan} onClose={close} />
     </div>
   );
 }
