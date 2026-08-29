@@ -100,7 +100,7 @@ test.describe('ABAC security boundaries against a real backend', () => {
       `/staff/teams/${teamOther.id}/activities/${activityOther.id}/evaluate`,
       {
         token: staff.accessToken,
-        body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+        body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
       },
     );
     // Cross-checkpoint access is reported as 404 (RallyNotFoundError), not

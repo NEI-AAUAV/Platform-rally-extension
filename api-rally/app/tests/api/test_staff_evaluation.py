@@ -162,6 +162,47 @@ class TestEvaluateTeamActivityAuthzAPI:
     # own `validate_rally_permissions` check ever runs, so that in-body
     # branch is unreachable through the API and not exercised here.
 
+    async def _disable_staff_scoring(self, pg_session):
+        from app.crud.crud_rally_settings import rally_settings
+
+        cfg = await rally_settings.get_or_create(pg_session)
+        cfg.enable_staff_scoring = False
+        await pg_session.commit()
+
+    async def test_evaluate_blocked_for_staff_when_scoring_disabled(
+        self, pg_session, pg_client, as_admin
+    ):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        await self._disable_staff_scoring(pg_session)
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.post(
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+                json={"result_data": {"assigned_points": 50}},
+            )
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 403
+
+    async def test_evaluate_allowed_for_admin_when_scoring_disabled(
+        self, pg_session, pg_client, as_admin
+    ):
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        await self._disable_staff_scoring(pg_session)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={"result_data": {"assigned_points": 50}},
+        )
+        assert resp.status_code in (200, 201), resp.text
+
     async def test_evaluate_staff_wrong_checkpoint_not_found(self, pg_session, pg_client, as_admin):
         checkpoint = await _make_checkpoint(pg_session, order=1)
         other_checkpoint = await _make_checkpoint(pg_session, order=2)
@@ -200,6 +241,80 @@ class TestEvaluateTeamActivityAuthzAPI:
             json={"result_data": {"assigned_points": 50}},
         )
         assert resp.status_code == 404
+
+
+class TestPenaltyPricingIsServerSide:
+    """The staff endpoint takes occurrence counts, never point totals.
+
+    The client used to multiply the count by the configured price and submit
+    the finished points, which meant the request body named its own deduction.
+    """
+
+    async def test_forged_penalties_field_cannot_reach_the_score(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "Forger")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={
+                "result_data": {"assigned_points": 50},
+                "extra_shots": 0,
+                # Not part of the schema any more: it must be ignored, not applied.
+                "penalties": {"vomit": 9999},
+            },
+        )
+        assert resp.status_code == 200
+
+        row = (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_obj.id,
+                    ActivityResult.team_id == team_obj.id,
+                )
+            )
+        ).first()
+        assert row.penalties == {}
+        assert row.final_score == 50
+
+    async def test_counts_are_priced_from_settings(self, pg_session, pg_client, as_admin):
+        from app.crud.crud_rally_settings import rally_settings
+
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, "Priced")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+
+        config = await rally_settings.get_or_create(pg_session)
+        config.penalty_per_puke = -10
+        await pg_session.commit()
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={
+                "result_data": {"assigned_points": 50},
+                "extra_shots": 0,
+                "penalty_counts": {"vomit": 2},
+            },
+        )
+        assert resp.status_code == 200
+
+        row = (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_obj.id,
+                    ActivityResult.team_id == team_obj.id,
+                )
+            )
+        ).first()
+        assert row.penalty_counts == {"vomit": 2}
+        assert row.penalties == {"vomit": 20}
+        assert row.final_score == 30
 
 
 class TestConcurrentEvaluation:

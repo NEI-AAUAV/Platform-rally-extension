@@ -13,6 +13,12 @@ vi.mock('@/components/themes/bloody', () => ({
   BloodyButton: (props: ComponentProps<'button'>) => <button {...props} />,
 }));
 
+vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => 'g_' + id,
+}));
+
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -64,7 +70,7 @@ describe('GeneralForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { assigned_points: 50, notes: '' },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -91,7 +97,7 @@ describe('GeneralForm', () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: { assigned_points: 88, notes: 'hi' }, extra_shots: 0, penalties: {} } as any
+          { result_data: { assigned_points: 88, notes: 'hi' }, extra_shots: 0, penalty_counts: {} } as any
         }
       />
     );

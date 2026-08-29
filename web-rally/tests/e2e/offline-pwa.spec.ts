@@ -23,7 +23,7 @@ function evaluateResponse(overrides: Record<string, unknown> = {}) {
     team_id: MOCK_TEAM.id,
     result_data: { success: true },
     extra_shots: 0,
-    penalties: {},
+    penalty_counts: {},
     time_score: null,
     points_score: null,
     boolean_score: 100,

@@ -56,9 +56,10 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
         </span>
       </div>
 
-      {(entry.team_classification != null || entry.team_total != null) && (
+      {((entry.team_classification != null && entry.team_classification > 0) ||
+        entry.team_total != null) && (
         <div className="mt-4 flex gap-3">
-          {entry.team_classification != null && (
+          {entry.team_classification != null && entry.team_classification > 0 && (
             <div className="rally-surface flex-1 rounded-xl px-4 py-3 text-center">
               <div className="rally-accent text-2xl font-bold">
                 {ordinal(entry.team_classification)}

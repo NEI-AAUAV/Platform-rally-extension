@@ -13,6 +13,12 @@ vi.mock("@/components/themes/bloody", () => ({
   BloodyButton: (props: ComponentProps<"button">) => <button {...props} />,
 }));
 
+vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => `g_${id}`,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -44,7 +50,7 @@ describe("ScoreBasedForm", () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { achieved_points: 42, notes: "" },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -66,7 +72,7 @@ describe("ScoreBasedForm", () => {
           {
             result_data: { achieved_points: 77, notes: "note" },
             extra_shots: 0,
-            penalties: {},
+            penalty_counts: {},
           } as any
         }
       />,
@@ -112,7 +118,7 @@ describe("ScoreBasedForm", () => {
       expect(mockOnSubmit).toHaveBeenCalledWith({
         result_data: { achieved_points: 1, quiz_correct: { q1: 1 }, notes: "" },
         extra_shots: 0,
-        penalties: {},
+        penalty_counts: {},
       });
     });
 
@@ -142,7 +148,7 @@ describe("ScoreBasedForm", () => {
             {
               result_data: { achieved_points: 1, quiz_correct: { q1: true, q2: false }, notes: "" },
               extra_shots: 0,
-              penalties: {},
+              penalty_counts: {},
             } as any
           }
         />,
@@ -203,7 +209,7 @@ describe("ScoreBasedForm", () => {
       expect(mockOnSubmit).toHaveBeenCalledWith({
         result_data: { achieved_points: 3, quiz_correct: { q1: 2, q2: 1 }, notes: "" },
         extra_shots: 0,
-        penalties: {},
+        penalty_counts: {},
       });
     });
 

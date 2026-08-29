@@ -83,7 +83,7 @@ describe('DynamicScoringTab', () => {
     renderWithClient(<DynamicScoringTab />);
     expect(screen.getByText('Pontuação Dinâmica')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText('Sem regras definidas.')).toBeInTheDocument();
+      expect(screen.getByText('Sem penalizações globais definidas.')).toBeInTheDocument();
     });
     expect(screen.getByText('Sem prémios ativos.')).toBeInTheDocument();
   });
@@ -92,7 +92,9 @@ describe('DynamicScoringTab', () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
     expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    expect(screen.getByText(/bonus · \+10 pts · desc/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/−10 pts por ocorrência · todos os postos · desc/),
+    ).toBeInTheDocument();
   });
 
   it('renders a list of active awards with team names', async () => {
@@ -111,19 +113,19 @@ describe('DynamicScoringTab', () => {
 
   it('opens and cancels the new rule form', async () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova regra'));
-    expect(screen.getByPlaceholderText('Nome da regra')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Nova penalização'));
+    expect(screen.getByPlaceholderText('ex: Atraso no posto')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Cancelar'));
-    expect(screen.queryByPlaceholderText('Nome da regra')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('ex: Atraso no posto')).not.toBeInTheDocument();
   });
 
   it('creates a new rule via the form', async () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova regra'));
-    fireEvent.change(screen.getByPlaceholderText('Nome da regra'), {
+    fireEvent.click(screen.getByText('Nova penalização'));
+    fireEvent.change(screen.getByPlaceholderText('ex: Atraso no posto'), {
       target: { value: 'New Rule' },
     });
-    fireEvent.change(screen.getByPlaceholderText('ex: 50'), { target: { value: '25' } });
+    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '25' } });
     fireEvent.click(screen.getByText('Criar'));
     await waitFor(() => expect(mockCreateDynamicRule).toHaveBeenCalled());
     expect(mockCreateDynamicRule).toHaveBeenCalledWith(
@@ -135,20 +137,20 @@ describe('DynamicScoringTab', () => {
 
   it('disables create rule button until name and points are filled', () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova regra'));
+    fireEvent.click(screen.getByText('Nova penalização'));
     expect(screen.getByText('Criar')).toBeDisabled();
   });
 
   it('shows error message when rule creation fails', async () => {
     mockCreateDynamicRule.mockRejectedValue(new Error('failed'));
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova regra'));
-    fireEvent.change(screen.getByPlaceholderText('Nome da regra'), {
+    fireEvent.click(screen.getByText('Nova penalização'));
+    fireEvent.change(screen.getByPlaceholderText('ex: Atraso no posto'), {
       target: { value: 'X' },
     });
-    fireEvent.change(screen.getByPlaceholderText('ex: 50'), { target: { value: '5' } });
+    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '5' } });
     fireEvent.click(screen.getByText('Criar'));
-    expect(await screen.findByText('Erro ao criar regra.')).toBeInTheDocument();
+    expect(await screen.findByText('Erro ao criar penalização.')).toBeInTheDocument();
   });
 
   it('toggles a rule active state', async () => {

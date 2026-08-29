@@ -1,5 +1,5 @@
 """Covers CRUDTeam.create's generic IntegrityError re-raise branches, the
-classification-update-failure swallow path, and the locked-array None-skip
+classification-update-failure propagation, and the locked-array None-skip
 branch in update() that test_crud.py's happy paths don't exercise."""
 
 from unittest.mock import AsyncMock, patch
@@ -40,16 +40,20 @@ async def test_create_reraises_when_error_does_not_match_name_unique(pg_session)
         await crud_team.create(pg_session, obj_in=obj_in)
 
 
-async def test_create_logs_and_continues_when_classification_update_fails(pg_session):
+async def test_create_propagates_when_classification_update_fails(pg_session):
+    """A failed re-rank used to be swallowed, leaving the new team at
+    classification -1 — which the frontend sorted ahead of rank 1. It now
+    propagates so the create fails loudly instead."""
     await _make_event(pg_session)
-    with patch.object(
-        crud_team,
-        "update_classification",
-        new=AsyncMock(side_effect=RuntimeError("boom")),
+    with (
+        patch.object(
+            crud_team,
+            "update_classification_unlocked",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ),
+        pytest.raises(RuntimeError, match="boom"),
     ):
-        result = await crud_team.create(pg_session, obj_in=TeamCreate(name="Resilient Team"))
-    assert result.id is not None
-    assert result.name == "Resilient Team"
+        await crud_team.create(pg_session, obj_in=TeamCreate(name="Doomed Team"))
 
 
 async def test_update_skips_locked_array_validation_when_value_is_none(pg_session):

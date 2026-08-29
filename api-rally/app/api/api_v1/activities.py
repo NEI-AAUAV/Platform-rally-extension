@@ -213,12 +213,29 @@ class ActivityController:
         activity_id: int,
         _: Annotated[None, Depends(require(Action.DELETE_ACTIVITY, Resource.ACTIVITY))],
     ) -> dict[str, str]:
-        """Delete an activity"""
+        """Delete an activity and refresh the scores it was contributing to."""
         db_activity = await activity.get(db, id=activity_id)
         if not db_activity:
             raise RallyNotFoundError(ACTIVITY_NOT_FOUND)
 
+        # Deleting an activity cascades to its results (Activity.results uses
+        # delete-orphan), which silently removes points from every team that
+        # was scored on it. team.total is denormalised, so without an explicit
+        # recompute those points stay in the standings forever — the activity
+        # is gone from the admin and its score is still on the leaderboard.
+        affected_team_ids = list(
+            (
+                await db.scalars(
+                    select(ActivityResult.team_id).where(ActivityResult.activity_id == activity_id)
+                )
+            ).all()
+        )
+
         await activity.remove(db=db, id=activity_id)
+
+        scoring_service = ScoringService(db)
+        for team_id in sorted(set(affected_team_ids)):
+            await scoring_service.update_team_scores(team_id)
         return {"message": "Activity deleted successfully"}
 
     async def _require_result_permission(

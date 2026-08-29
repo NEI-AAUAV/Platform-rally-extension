@@ -18,6 +18,12 @@ vi.mock('@/components/themes/bloody', () => ({
   BloodyButton: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
 }));
 
+vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => 'g_' + id,
+}));
+
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -192,7 +198,7 @@ describe('TeamVsForm', () => {
         notes: '',
       },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -296,7 +302,7 @@ describe('TeamVsForm', () => {
               notes: 'existing notes',
             },
             extra_shots: 0,
-            penalties: {},
+            penalty_counts: {},
           } as any
         }
       />
@@ -319,7 +325,7 @@ describe('TeamVsForm', () => {
           {
             result_data: { result: 'lose', notes: 'no opponent set' },
             extra_shots: 0,
-            penalties: {},
+            penalty_counts: {},
           } as any
         }
       />

@@ -94,14 +94,32 @@ class ActivityResultBase(BaseModel):
     result_data: dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
     penalties: dict[str, int] = Field(default_factory=dict)
+    # Staff submit *counts* ("2 vomits"), never point totals. The server prices
+    # them from RallySettings / Activity.config.penalty_counters / DynamicRule
+    # and writes the resulting points to `penalties`. `penalties` stays
+    # writable for admin/legacy callers, but `penalty_counts` wins when both
+    # are present -- a client must not be able to name its own deduction.
+    penalty_counts: dict[str, int] | None = None
 
 
 class ActivityResultEvaluation(BaseModel):
-    """Schema for activity result evaluation (without team_id and activity_id)"""
+    """What a staff member submits when evaluating a team at a checkpoint.
+
+    Deliberately has no ``penalties`` field. Staff submit occurrence *counts*
+    ("2 vomits"); the server prices them from RallySettings /
+    ``Activity.config.penalty_counters`` / active DynamicRule rows and writes
+    the resulting points itself. Accepting points here would let the request
+    body name its own deduction — no amount of client-side validation can
+    close that, since the client is what would be sending the number.
+
+    The internal ``ActivityResultCreate``/``ActivityResultUpdate`` schemas do
+    still carry ``penalties``, for admin tooling and service-to-service calls
+    that legitimately set points directly.
+    """
 
     result_data: dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
-    penalties: dict[str, int] = Field(default_factory=dict)
+    penalty_counts: dict[str, int] | None = None
 
 
 class ActivityResultCreate(ActivityResultBase):
@@ -114,6 +132,7 @@ class ActivityResultUpdate(BaseModel):
     result_data: dict[str, Any] | None = None
     extra_shots: int | None = Field(None, ge=0)
     penalties: dict[str, int] | None = None
+    penalty_counts: dict[str, int] | None = None
     is_completed: bool | None = None
 
 

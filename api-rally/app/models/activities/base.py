@@ -48,15 +48,21 @@ class BaseActivity(ABC):
 
     def apply_modifiers(
         self, base_score: float, modifiers: dict[str, Any], db_session: Any = None
-    ) -> float:
+    ) -> tuple[float, float]:
         """Apply scoring modifiers (extra shots, penalties).
+
+        Returns ``(clamped, raw)``: ``raw`` is ``base + bonus - Σpenalties``
+        before the "score can't go negative" floor; ``clamped`` is
+        ``max(0, raw)``. The caller keeps ``clamped`` for the per-checkpoint
+        display and, when ``raw < 0``, carries the shortfall elsewhere so a
+        penalty larger than the activity's points is not silently swallowed.
 
         Pure computation — no DB access. The caller (ScoringService) resolves
         the per-shot bonus from RallySettings and passes it via
         modifiers['bonus_per_shot']; we fall back to the config default when it
         is absent. db_session is accepted for backwards compatibility and unused.
         """
-        final_score = base_score
+        raw_score = base_score
 
         # Apply extra shots bonus (configurable)
         extra_shots = modifiers.get("extra_shots", 0)
@@ -67,11 +73,11 @@ class BaseActivity(ABC):
 
                 bonus_per_shot = settings.EXTRA_SHOT_BONUS
 
-            final_score += extra_shots * bonus_per_shot
+            raw_score += extra_shots * bonus_per_shot
 
         # Apply penalties
         penalties = modifiers.get("penalties", {})
         for _penalty_type, penalty_value in penalties.items():
-            final_score -= penalty_value
+            raw_score -= penalty_value
 
-        return max(0, final_score)  # Score cannot be negative
+        return max(0.0, float(raw_score)), float(raw_score)

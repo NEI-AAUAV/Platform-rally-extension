@@ -201,9 +201,9 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     // form, then spent on a team from the awards form right below it, with the
     // rule picked from the dropdown so the award carries it.
     await page.goto("/rally/admin?tab=scoring");
-    await page.getByRole("button", { name: "Nova regra" }).click();
-    await page.getByPlaceholder("Nome da regra").fill(ruleName);
-    await page.getByPlaceholder("ex: 50").fill("50");
+    await page.getByRole("button", { name: "Nova penalização" }).click();
+    await page.getByPlaceholder("ex: Atraso no posto").fill(ruleName);
+    await page.getByPlaceholder("ex: 10").fill("50");
     await page.getByPlaceholder("Opcional").first().fill("A equipa que mais apoiou as outras");
     await page.getByRole("button", { name: /^Criar$/ }).first().click();
     await expect(page.getByText(ruleName).first()).toBeVisible({ timeout: 20_000 });
@@ -239,7 +239,7 @@ test.describe("As alavancas de pontuação fora da avaliação", () => {
     // a team's total must not move because someone edited a rule afterwards.
     await apiCall("PUT", `/dynamic-rules/${rule!.id}`, {
       token: world.adminToken,
-      body: { name: rule!.name, rule_type: "bonus", points: 10, is_active: true },
+      body: { name: rule!.name, points: 10, is_active: true },
     });
     const stillFifty = await apiCall<{ total: number }>("GET", `/team/${world.teamId}`, {
       token: world.adminToken,

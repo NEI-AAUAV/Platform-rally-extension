@@ -2303,7 +2303,7 @@
           "Activities"
         ],
         "summary": "Delete Activity",
-        "description": "Delete an activity",
+        "description": "Delete an activity and refresh the scores it was contributing to.",
         "operationId": "delete_activity",
         "security": [
           {
@@ -3544,6 +3544,35 @@
             }
           }
         }
+      }
+    },
+    "/api/rally/v1/scoreboard/recompute": {
+      "post": {
+        "tags": [
+          "Scoreboard"
+        ],
+        "summary": "Recompute Classification",
+        "description": "Admin escape hatch: re-price every result with the *current* scoring\nsettings, recompute every team's total and rank, then drop the cached\nleaderboard so the next read is fresh.\n\nThe re-price is the point. Every other path in the system rescores only\nthe rows touched by the write that triggered it, so editing a scoring\nvalue in the admin (a penalty price, the extra-shot bonus, a\nDynamicRule) does not move results that were already scored. This\nendpoint is how that change is applied on purpose, rather than\nsilently mid-event.\n\nIt also remains the recovery path for a recompute that was missed\noutright \u2014 a crash mid-write, a stalled worker, a manual DB edit.",
+        "operationId": "recompute_classification",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Recompute Classification"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/rally/v1/badges": {
@@ -7320,6 +7349,20 @@
             },
             "type": "object",
             "title": "Penalties"
+          },
+          "penalty_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty Counts"
           }
         },
         "type": "object",
@@ -7343,17 +7386,24 @@
             "title": "Extra Shots",
             "default": 0
           },
-          "penalties": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Penalties"
+          "penalty_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty Counts"
           }
         },
         "type": "object",
         "title": "ActivityResultEvaluation",
-        "description": "Schema for activity result evaluation (without team_id and activity_id)"
+        "description": "What a staff member submits when evaluating a team at a checkpoint.\n\nDeliberately has no ``penalties`` field. Staff submit occurrence *counts*\n(\"2 vomits\"); the server prices them from RallySettings /\n``Activity.config.penalty_counters`` / active DynamicRule rows and writes\nthe resulting points itself. Accepting points here would let the request\nbody name its own deduction \u2014 no amount of client-side validation can\nclose that, since the client is what would be sending the number.\n\nThe internal ``ActivityResultCreate``/``ActivityResultUpdate`` schemas do\nstill carry ``penalties``, for admin tooling and service-to-service calls\nthat legitimately set points directly."
       },
       "ActivityResultResponse": {
         "properties": {
@@ -7384,6 +7434,20 @@
             },
             "type": "object",
             "title": "Penalties"
+          },
+          "penalty_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty Counts"
           },
           "id": {
             "type": "integer",
@@ -7522,6 +7586,20 @@
               }
             ],
             "title": "Penalties"
+          },
+          "penalty_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty Counts"
           },
           "is_completed": {
             "anyOf": [
@@ -9691,17 +9769,6 @@
               }
             ],
             "title": "Reason"
-          },
-          "rule_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Id"
           }
         },
         "type": "object",
@@ -9732,7 +9799,7 @@
             ],
             "title": "Event Id"
           },
-          "rule_id": {
+          "activity_result_id": {
             "anyOf": [
               {
                 "type": "integer"
@@ -9741,7 +9808,7 @@
                 "type": "null"
               }
             ],
-            "title": "Rule Id"
+            "title": "Activity Result Id"
           },
           "points": {
             "type": "number",
@@ -9789,11 +9856,6 @@
             ],
             "title": "Description"
           },
-          "rule_type": {
-            "type": "string",
-            "title": "Rule Type",
-            "default": "bonus"
-          },
           "points": {
             "type": "number",
             "title": "Points",
@@ -9803,18 +9865,14 @@
             "type": "boolean",
             "title": "Is Active",
             "default": true
-          },
-          "is_automatic": {
-            "type": "boolean",
-            "title": "Is Automatic",
-            "default": false
           }
         },
         "type": "object",
         "required": [
           "name"
         ],
-        "title": "DynamicRuleCreate"
+        "title": "DynamicRuleCreate",
+        "description": "A global penalty counter \u2014 \"cada X = -N pontos\", shown to staff at every\ncheckpoint. ``points`` is the magnitude deducted per occurrence (positive)."
       },
       "DynamicRuleResponse": {
         "properties": {
@@ -9859,10 +9917,6 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
-          },
-          "is_automatic": {
-            "type": "boolean",
-            "title": "Is Automatic"
           }
         },
         "type": "object",
@@ -9871,8 +9925,7 @@
           "name",
           "rule_type",
           "points",
-          "is_active",
-          "is_automatic"
+          "is_active"
         ],
         "title": "DynamicRuleResponse"
       },
@@ -9900,17 +9953,6 @@
             ],
             "title": "Description"
           },
-          "rule_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rule Type"
-          },
           "points": {
             "anyOf": [
               {
@@ -9932,17 +9974,6 @@
               }
             ],
             "title": "Is Active"
-          },
-          "is_automatic": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Automatic"
           }
         },
         "type": "object",

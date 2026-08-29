@@ -74,9 +74,9 @@ test.describe("Admin scoring", () => {
     });
 
     await gotoScoring(page);
-    await page.getByRole("button", { name: "Nova regra" }).click();
-    await page.getByPlaceholder("Nome da regra").fill("Melhor Claque");
-    await page.getByPlaceholder("ex: 50").fill("50");
+    await page.getByRole("button", { name: "Nova penalização" }).click();
+    await page.getByPlaceholder("ex: Atraso no posto").fill("Melhor Claque");
+    await page.getByPlaceholder("ex: 10").fill("50");
     await page
       .getByRole("button", { name: /Criar$/ })
       .first()
@@ -86,10 +86,8 @@ test.describe("Admin scoring", () => {
       .poll(() => capturedBody)
       .toMatchObject({
         name: "Melhor Claque",
-        rule_type: "bonus",
         points: 50,
         is_active: true,
-        is_automatic: false,
       });
     expect(capturedBody).toBeDefined();
   });
@@ -113,7 +111,9 @@ test.describe("Admin scoring", () => {
     await gotoScoring(page);
 
     await expect(page.getByText("Melhor Claque")).toBeVisible();
-    await expect(page.getByText("bonus · +50 pts")).toBeVisible();
+    await expect(
+      page.getByText("−50 pts por ocorrência · todos os postos"),
+    ).toBeVisible();
   });
 
   test("creates a manual penalty award with a negative point value", async ({ page, context }) => {
@@ -193,7 +193,7 @@ test.describe("Admin scoring", () => {
 
     await gotoScoring(page);
 
-    await expect(page.getByText("Sem regras definidas.")).toBeVisible();
+    await expect(page.getByText("Sem penalizações globais definidas.")).toBeVisible();
     await expect(page.getByText("Sem prémios ativos.")).toBeVisible();
   });
 });

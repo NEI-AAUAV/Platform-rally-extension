@@ -321,7 +321,9 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
       const payload: ActivityResultEvaluation = {
         result_data: resultData?.result_data ?? {},
         extra_shots: resultData?.extra_shots ?? 0,
-        penalties: resultData?.penalties ?? {},
+        // Counts, not points: the server prices them. Sending pre-multiplied
+        // points let the client name its own deduction.
+        penalty_counts: resultData?.penalty_counts ?? {},
       };
       try {
         const { data } = await withNetworkTimeout(
@@ -377,6 +379,12 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
           queryKey: ["allEvaluations"],
           refetchType: "active",
         }),
+        // The standings key. An evaluation changes team totals, and without
+        // this the scoreboard, LiveTop5 and the admin dashboard all keep
+        // serving the cached ranking for the full 5-minute global staleTime
+        // (refetchOnWindowFocus is off), so the board silently lags the score
+        // that was just entered.
+        await queryClient.invalidateQueries({ queryKey: ["teams"], refetchType: "active" }),
       ];
 
       if (variables?.teamId != null) {

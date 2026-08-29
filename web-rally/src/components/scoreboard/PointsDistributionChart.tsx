@@ -1,6 +1,7 @@
 import { Bar, BarChart, LabelList, Rectangle, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { ListingTeam } from "@/client";
 import type { RectangleProps } from "recharts";
+import { sortTeamsByRank } from "@/lib/teamRanking";
 
 interface PointsDistributionChartProps {
   readonly teams: ListingTeam[];
@@ -14,9 +15,11 @@ const ACCENT_SOFT = "var(--rally-accent-soft, var(--rally-accent-soft-fallback))
  * Lazy-loaded so recharts stays off the scoreboard's critical path.
  */
 export default function PointsDistributionChart({ teams }: PointsDistributionChartProps) {
-  const data = [...teams]
-    .sort((a, b) => b.total - a.total)
-    .map((team) => ({ name: team.name, total: team.total, leader: team.classification === 1 }));
+  const data = sortTeamsByRank(teams).map((team, index) => ({
+    name: team.name,
+    total: team.total,
+    leader: index === 0,
+  }));
 
   function renderBarShape(props: RectangleProps & { payload?: { leader: boolean } }) {
     const { payload, ...rest } = props;

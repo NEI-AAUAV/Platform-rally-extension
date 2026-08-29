@@ -33,7 +33,7 @@ from app.schemas.activity import (
 )
 from app.schemas.team import TeamScoresUpdate
 from app.schemas.user import DetailedUser
-from app.services.scoring_service import ScoringService
+from app.services.scoring_service import EvaluationEditor, ScoringService
 
 # Error message constants
 NO_CHECKPOINT_ASSIGNED = "No checkpoint assigned to this staff member"
@@ -185,7 +185,9 @@ async def create_activity_result(
         activity_id=activity_id,
         result_data=result_in.result_data,
         extra_shots=result_in.extra_shots,
-        penalties=result_in.penalties,
+        # No `penalties`: the staff payload carries counts, and create_result
+        # prices them. See ActivityResultEvaluation.
+        penalty_counts=result_in.penalty_counts,
     )
     return await scoring_service.create_result(result_create)
 
@@ -198,6 +200,7 @@ async def create_or_update_activity_result(
     result_in: ActivityResultEvaluation,
     *,
     set_extra_shots_on_update: bool = True,
+    editor: EvaluationEditor | None = None,
 ) -> ActivityResult:
     """Create the team's result for this activity, or update it if one already exists.
 
@@ -210,18 +213,35 @@ async def create_or_update_activity_result(
     ``set_extra_shots_on_update=False`` leaves the existing row's extra_shots
     untouched on the update path (used when mirroring a versus result onto
     the opponent, whose extra_shots is independent of the reporting team's).
+
+    ``editor`` is who is making the change. It must be passed whenever a person
+    is behind the request: re-POSTing an evaluation overwrites an existing
+    score exactly like the PUT does, and used to leave no EvaluationHistory row
+    at all — a staff member could rewrite a team's points with no audit trail
+    by using the endpoint they already use. It stays optional for the
+    system-driven paths (versus mirroring), which have no human editor.
     """
 
     def _update_payload() -> ActivityResultUpdate:
-        return ActivityResultUpdate(
-            result_data=result_in.result_data,
-            extra_shots=result_in.extra_shots if set_extra_shots_on_update else None,
-            penalties=result_in.penalties,
-        )
+        # The payload carries only the fields that should actually be written.
+        # ActivityResultUpdate is consumed with exclude_unset, so a field
+        # passed explicitly counts as "set" even when it is None — which is
+        # why the modifiers are omitted rather than passed as None on the
+        # versus-mirror path (set_extra_shots_on_update=False). That path
+        # writes the opponent's *outcome*; their extra shots and penalties are
+        # their own and must survive the mirror untouched.
+        fields: dict[str, Any] = {"result_data": result_in.result_data}
+        if set_extra_shots_on_update:
+            fields["extra_shots"] = result_in.extra_shots
+            if result_in.penalty_counts is not None:
+                fields["penalty_counts"] = result_in.penalty_counts
+        return ActivityResultUpdate(**fields)
 
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
-        return await scoring_service.update_result(existing_result, _update_payload())
+        return await scoring_service.update_result(
+            existing_result, _update_payload(), editor=editor
+        )
 
     try:
         return await create_activity_result(scoring_service, team_id, activity_id, result_in)
@@ -230,7 +250,9 @@ async def create_or_update_activity_result(
         existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
         if existing_result is None:
             raise
-        return await scoring_service.update_result(existing_result, _update_payload())
+        return await scoring_service.update_result(
+            existing_result, _update_payload(), editor=editor
+        )
 
 
 # Inverse outcome for the opponent's mirrored TeamVsActivity result.

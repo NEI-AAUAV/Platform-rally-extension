@@ -106,7 +106,7 @@ describe('useCheckpointEvaluation', () => {
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalties: {} });
+      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
     });
     expect(mockEvaluateTeamActivity).toHaveBeenCalled();
   });
@@ -117,7 +117,7 @@ describe('useCheckpointEvaluation', () => {
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalties: {} });
+      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
     });
     expect(mockEnqueue).toHaveBeenCalled();
   });
@@ -129,7 +129,7 @@ describe('useCheckpointEvaluation', () => {
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalties: {} });
+      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
     });
     expect(mockEvaluateTeamActivity).toHaveBeenCalled();
   });
@@ -143,7 +143,7 @@ describe('useCheckpointEvaluation', () => {
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalties: {} });
+      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
     });
 
     expect(mockEnqueue).not.toHaveBeenCalled();

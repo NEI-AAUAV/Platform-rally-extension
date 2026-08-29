@@ -3,7 +3,6 @@ import secrets
 import string
 from collections.abc import Sequence
 
-from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,25 +56,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         from app.services.team_service import TeamService
 
         return TeamService.calculate_min_time_scores(teams)
-
-    def calculate_checkpoint_score(
-        self,
-        checkpoint: int,
-        *,
-        team: Team,
-        min_time_scores: list[float],
-        penalty_per_puke: int = -20,
-    ) -> int:
-        """Delegates to TeamService (see calculate_min_time_scores)."""
-        # Local import: avoids circular import with app.services.team_service
-        from app.services.team_service import TeamService
-
-        return TeamService.calculate_checkpoint_score(
-            checkpoint,
-            team=team,
-            min_time_scores=min_time_scores,
-            penalty_per_puke=penalty_per_puke,
-        )
 
     async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
         """Get a team by their access code (access_code is globally unique)."""
@@ -132,6 +112,15 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         await TeamService(db, self).update_classification()
 
+    async def reassign_ranks_unlocked(self, db: AsyncSession) -> None:
+        """Re-rank from persisted totals only (no score recompute). Kept here
+        so ScoringService can reach it without importing team_service at module
+        level (that side of the cycle must stay lazy)."""
+        # Local import: avoids circular import with app.services.team_service
+        from app.services.team_service import TeamService
+
+        await TeamService(db, self).reassign_ranks_unlocked()
+
     async def create(self, db: AsyncSession, *, obj_in: TeamCreate, commit: bool = False) -> Team:
         settings = await rally_settings.get_or_create(db)
         event_id = await current_event_id(db)
@@ -170,13 +159,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
             raise
 
-        # Only update classification if there are existing teams
-        # This prevents errors when creating the first team
-        try:
-            await self.update_classification_unlocked(db=db)
-        except Exception as e:
-            # Log the error but don't fail team creation
-            logger.warning(f"Failed to update classification during team creation: {e}")
+        # Re-rank with the new team included. Not swallowed: a silent failure
+        # here used to leave the team at classification -1, which the frontend
+        # sorts to the *top* (ahead of rank 1). Better to fail the create than
+        # to publish a phantom leader.
+        await self.update_classification_unlocked(db=db)
 
         if commit:
             await db.commit()

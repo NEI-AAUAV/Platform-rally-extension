@@ -8,6 +8,7 @@ import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
+import { sortTeamsByRank } from "@/lib/teamRanking";
 
 const PointsDistributionChart = lazy(
   () => import("@/components/scoreboard/PointsDistributionChart"),
@@ -135,7 +136,7 @@ export default function LiveDashboard() {
   const teamsNotStarted = teamList.length - teamsStarted;
   const checkpointsTotal = checkpointList.length;
 
-  const rankedTeams = [...teamList].sort((a, b) => a.classification - b.classification);
+  const rankedTeams = sortTeamsByRank(teamList);
 
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {

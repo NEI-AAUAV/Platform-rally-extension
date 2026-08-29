@@ -185,7 +185,7 @@ class TestBaseActivityDefaultPersistedScoreFields:
 class TestApplyModifiersPenaltyBranch:
     def test_apply_modifiers_subtracts_multiple_penalties(self):
         activity = ScoreBasedActivity({})
-        result = activity.apply_modifiers(
+        result, _ = activity.apply_modifiers(
             100.0,
             {"extra_shots": 0, "penalties": {"a": 10, "b": 20}},
         )

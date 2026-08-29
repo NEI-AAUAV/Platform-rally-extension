@@ -49,7 +49,6 @@ export default function ScoreBasedForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -57,6 +56,7 @@ export default function ScoreBasedForm({
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    globalPenaltyCounters,
     showPenalties,
     validateExtraShots,
   } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
@@ -100,7 +100,7 @@ export default function ScoreBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 
@@ -185,6 +185,7 @@ export default function ScoreBasedForm({
           onChange={setPenalties}
           penaltyValues={penaltyValues}
           penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />

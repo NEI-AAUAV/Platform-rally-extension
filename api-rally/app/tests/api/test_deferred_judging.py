@@ -148,12 +148,15 @@ async def test_judge_result(pg_session, pg_client, as_admin):
     assert body["is_completed"] is True
 
 
-async def test_judge_result_succeeds_even_if_score_recalc_fails(
+async def test_judge_result_surfaces_score_recalc_failure(
     pg_session, pg_client, as_admin, monkeypatch
 ):
-    """Score recalculation failure after judging must not fail the request —
-    the judgment itself already committed successfully."""
+    """A recalculation failure after judging is no longer swallowed: it used to
+    leave Team.total and classification stale with nothing to signal it. The
+    judgment row still commits first, but the request now reports the error."""
     from unittest.mock import AsyncMock
+
+    from app.core.exceptions import RallyError
 
     await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session)
@@ -165,7 +168,7 @@ async def test_judge_result_succeeds_even_if_score_recalc_fails(
 
     monkeypatch.setattr(
         "app.services.deferred_judging_service.ScoringService.update_team_scores",
-        AsyncMock(side_effect=RuntimeError("boom")),
+        AsyncMock(side_effect=RallyError("boom")),
     )
 
     resp = pg_client.put(
@@ -173,8 +176,7 @@ async def test_judge_result_succeeds_even_if_score_recalc_fails(
         json={"points": 60},
     )
 
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["judgment_status"] == "judged"
+    assert resp.status_code >= 400
 
 
 async def test_judge_result_not_found(pg_session, pg_client, as_admin):

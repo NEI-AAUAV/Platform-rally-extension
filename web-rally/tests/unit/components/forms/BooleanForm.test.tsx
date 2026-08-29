@@ -14,6 +14,12 @@ vi.mock("@/components/themes/bloody", () => ({
   BloodyButton: (props: ComponentProps<"button">) => <button {...props} />,
 }));
 
+vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => `g_${id}`,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -50,7 +56,7 @@ describe("BooleanForm", () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { success: false, attempts: 1, notes: "" },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -62,18 +68,19 @@ describe("BooleanForm", () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { success: true, attempts: 3, notes: "" },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
-  it("submits a typed penalty count as its point total, not the raw count", () => {
-    // Fallback vomit rate is 5 pts/occurrence (no penalty_per_puke in this
-    // suite's settings shape) — 2 vomits must submit as 10, not 2.
+  it("submits the typed penalty count, leaving the pricing to the server", () => {
+    // 2 vomits submit as the count 2. The client no longer multiplies by a
+    // rate: doing so let the request body name its own deduction, and made the
+    // score depend on whether the client's settings fetch had succeeded.
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ penalties: { vomit: 10 } }),
+      expect.objectContaining({ penalty_counts: { vomit: 2 } }),
     );
   });
 
@@ -109,7 +116,7 @@ describe("BooleanForm", () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: {}, extra_shots: 999, penalties: {} } as unknown as ActivityResultResponse
+          { result_data: {}, extra_shots: 999, penalty_counts: {} } as unknown as ActivityResultResponse
         }
       />,
     );
@@ -125,7 +132,7 @@ describe("BooleanForm", () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: {}, extra_shots: 0, penalties: {} } as unknown as ActivityResultResponse
+          { result_data: {}, extra_shots: 0, penalty_counts: {} } as unknown as ActivityResultResponse
         }
       />,
     );

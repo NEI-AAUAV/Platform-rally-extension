@@ -26,13 +26,13 @@ export default function TimeBasedForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    globalPenaltyCounters,
     validateExtraShots,
   } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
 
@@ -69,7 +69,7 @@ export default function TimeBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 
@@ -124,6 +124,7 @@ export default function TimeBasedForm({
         onChange={setPenalties}
         penaltyValues={penaltyValues}
         penaltyCounters={penaltyCounters}
+        globalPenaltyCounters={globalPenaltyCounters}
         showVomitPenalty={showVomitPenalty}
         showNotDrinkingPenalty={showNotDrinkingPenalty}
       />

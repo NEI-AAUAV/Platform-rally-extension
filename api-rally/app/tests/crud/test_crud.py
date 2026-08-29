@@ -214,42 +214,6 @@ class TestTeamCRUD:
         # so team A's 20 is the only real value and wins the min.
         assert result[1] == 20
 
-    def test_calculate_checkpoint_score(self):
-        from app.models.team import Team
-
-        team = Team(
-            name="A",
-            time_scores=[100],
-            question_scores=[True],
-            pukes=[1],
-            skips=[2],
-        )
-
-        score = crud_team.calculate_checkpoint_score(
-            0, team=team, min_time_scores=[50], penalty_per_puke=-20
-        )
-
-        # time: int(50/100*10)=5, question: 8, pukes: 1*-20=-20, skips: 2*-8=-16
-        assert score == 5 + 8 - 20 - 16
-
-    def test_calculate_checkpoint_score_negative_skips_bonus(self):
-        from app.models.team import Team
-
-        team = Team(
-            name="A",
-            time_scores=[0],
-            question_scores=[False],
-            pukes=[0],
-            skips=[-1],
-        )
-
-        score = crud_team.calculate_checkpoint_score(
-            0, team=team, min_time_scores=[0], penalty_per_puke=-20
-        )
-
-        # skips < 0 -> bonus: abs(-1) * 4 = 4
-        assert score == 4
-
 
 class TestTeamCheckpointLogic:
     async def _setup_active_rally(self, pg_session):

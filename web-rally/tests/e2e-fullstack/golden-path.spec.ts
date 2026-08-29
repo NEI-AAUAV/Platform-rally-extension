@@ -39,7 +39,7 @@ test.describe('Full-stack golden path', () => {
     // Staff evaluates the boolean activity — real scoring service computes points.
     await apiCall('POST', `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`, {
       token: rally.admin.accessToken,
-      body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+      body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
     });
 
     // Team's own progress view reflects the real, server-computed state.

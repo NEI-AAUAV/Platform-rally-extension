@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError
 from app.crud.crud_activity import rally_event
-from app.models.dynamic_scoring import DynamicAward, DynamicRule
+from app.models.dynamic_scoring import (
+    PENALTY_COUNTER_RULE_TYPE,
+    DynamicAward,
+    DynamicRule,
+)
 from app.services.scoring_service import ScoringService
 
 RULE_NOT_FOUND = "Rule not found"
@@ -28,7 +32,13 @@ class DynamicScoringService:
 
     async def create_rule(self, **fields: object) -> DynamicRule:
         event = await rally_event.get_current(self._db)
-        rule = DynamicRule(event_id=event.id if event else None, **fields)
+        # rule_type is fixed: the only kind of rule now is a global penalty counter.
+        fields.pop("rule_type", None)
+        rule = DynamicRule(
+            event_id=event.id if event else None,
+            rule_type=PENALTY_COUNTER_RULE_TYPE,
+            **fields,
+        )
         self._db.add(rule)
         await self._db.commit()
         await self._db.refresh(rule)
@@ -38,6 +48,7 @@ class DynamicScoringService:
         rule = await self._db.get(DynamicRule, rule_id)
         if not rule:
             raise RallyNotFoundError(RULE_NOT_FOUND)
+        fields.pop("rule_type", None)
         for field, value in fields.items():
             setattr(rule, field, value)
         await self._db.commit()
@@ -58,13 +69,12 @@ class DynamicScoringService:
         return list((await self._db.scalars(stmt)).all())
 
     async def create_award(
-        self, *, team_id: int, rule_id: int | None, points: float, reason: str | None
+        self, *, team_id: int, points: float, reason: str | None
     ) -> DynamicAward:
         event = await rally_event.get_current(self._db)
         award = DynamicAward(
             team_id=team_id,
             event_id=event.id if event else None,
-            rule_id=rule_id,
             points=points,
             reason=reason,
             is_active=True,

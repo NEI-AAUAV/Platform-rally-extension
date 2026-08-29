@@ -133,11 +133,11 @@ test.describe('Um dia de Rally Tascas — multi-context concurrency', () => {
       await Promise.all([
         apiCall('POST', `/staff/teams/${teamGamma.id}/activities/${checkpointA.activityId}/evaluate`, {
           token: staffA.user.accessToken,
-          body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+          body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
         }),
         apiCall('POST', `/staff/teams/${teamDelta.id}/activities/${checkpointA.activityId}/evaluate`, {
           token: staffA.user.accessToken,
-          body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+          body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
         }),
       ]);
       await Promise.all([

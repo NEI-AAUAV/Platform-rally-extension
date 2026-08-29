@@ -99,7 +99,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     const evaluated = await apiCall<{ id: number }>(
       'POST',
       `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`,
-      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalties: {} } },
+      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} } },
     );
     const resultId = evaluated.id;
 
@@ -145,7 +145,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     const evaluated = await apiCall<{ id: number }>(
       'POST',
       `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`,
-      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalties: {} } },
+      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} } },
     );
     // success = 100 points; apply a penalty far larger than the base score.
     await apiCall(

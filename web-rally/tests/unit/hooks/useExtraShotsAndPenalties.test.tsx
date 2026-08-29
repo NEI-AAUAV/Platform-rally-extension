@@ -8,6 +8,12 @@ const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
   mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
+vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
+  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
+  globalCounterKey: (id: number) => `g_${id}`,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -112,33 +118,43 @@ describe("useExtraShotsAndPenalties", () => {
     expect(result.current.showPenalties).toBe(false);
   });
 
-  it("initializes extraShots from existingResult, converting stored points back to a count", () => {
-    // Fallback vomit rate is 5 pts/occurrence (RALLY_DEFAULTS), so a stored
-    // total of 10 points means the count field should show 2, not 10.
-    const existingResult = { extra_shots: 3, penalties: { vomit: 10 } } as never;
+  it("initializes extraShots and counts from the stored counts, not the points", () => {
+    // The server stores the counts staff entered next to the priced points.
+    // The count field reads that directly; deriving it by dividing the points
+    // by the current rate is what rewrote the count after a price change.
+    const existingResult = {
+      extra_shots: 3,
+      penalties: { vomit: 10 },
+      penalty_counts: { vomit: 2 },
+    } as never;
     const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, existingResult));
     expect(result.current.extraShots).toBe(3);
     expect(result.current.penalties).toEqual({ vomit: 2 });
   });
 
-  it("round-trips: submitted penaltiesInPoints matches what was stored", () => {
-    const existingResult = { extra_shots: 0, penalties: { vomit: 10 } } as never;
+  it("keeps the stored count even when the price has since changed", () => {
+    // Points were written at a rate of 10; the client's current fallback rate
+    // is 5. The count must still read 2 -- not 20/5 == 4.
+    const existingResult = {
+      extra_shots: 0,
+      penalties: { vomit: 20 },
+      penalty_counts: { vomit: 2 },
+    } as never;
     const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, existingResult));
-    expect(result.current.penaltiesInPoints).toEqual({ vomit: 10 });
+    expect(result.current.penalties).toEqual({ vomit: 2 });
   });
 
-  it("converts a typed count into the point total the backend expects", () => {
+  it("exposes the typed count as-is: pricing is the server's job", () => {
     const { result } = renderHook(() => useExtraShotsAndPenalties(undefined, undefined));
 
     act(() => {
       result.current.setPenalties({ vomit: 3 });
     });
 
-    // 3 occurrences * the fallback 5 pts/occurrence rate.
-    expect(result.current.penaltiesInPoints).toEqual({ vomit: 15 });
+    expect(result.current.penalties).toEqual({ vomit: 3 });
   });
 
-  it("scores a custom per-activity counter through the same points conversion", () => {
+  it("shows the penalties section for a custom per-activity counter", () => {
     // No built-in penalties configured, so `showPenalties` here can only be
     // coming from the custom counter's own presence.
     mockUseRallySettings.mockReturnValue({
@@ -154,7 +170,7 @@ describe("useExtraShotsAndPenalties", () => {
       result.current.setPenalties({ falha_baliza: 3 });
     });
 
-    expect(result.current.penaltiesInPoints).toEqual({ falha_baliza: 12 });
+    expect(result.current.penalties).toEqual({ falha_baliza: 3 });
     expect(result.current.showPenalties).toBe(true);
   });
 

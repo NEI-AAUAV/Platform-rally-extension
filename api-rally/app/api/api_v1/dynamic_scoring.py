@@ -25,21 +25,20 @@ from app.services.dynamic_scoring_service import DynamicScoringService
 
 
 class DynamicRuleCreate(BaseModel):
+    """A global penalty counter — "cada X = -N pontos", shown to staff at every
+    checkpoint. ``points`` is the magnitude deducted per occurrence (positive)."""
+
     name: str
     description: str | None = None
-    rule_type: str = "bonus"
     points: float = 0.0
     is_active: bool = True
-    is_automatic: bool = False
 
 
 class DynamicRuleUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    rule_type: str | None = None
     points: float | None = None
     is_active: bool | None = None
-    is_automatic: bool | None = None
 
 
 class DynamicRuleResponse(BaseModel):
@@ -50,7 +49,6 @@ class DynamicRuleResponse(BaseModel):
     rule_type: str
     points: float
     is_active: bool
-    is_automatic: bool
 
     model_config = {"from_attributes": True}
 
@@ -59,14 +57,13 @@ class DynamicAwardCreate(BaseModel):
     team_id: int
     points: float
     reason: str | None = None
-    rule_id: int | None = None
 
 
 class DynamicAwardResponse(BaseModel):
     id: int
     team_id: int
     event_id: int | None = None
-    rule_id: int | None = None
+    activity_result_id: int | None = None
     points: float
     reason: str | None = None
     is_active: bool
@@ -180,7 +177,6 @@ class DynamicScoringController:
     ) -> DynamicAwardResponse:
         award = await service.create_award(
             team_id=obj_in.team_id,
-            rule_id=obj_in.rule_id,
             points=obj_in.points,
             reason=obj_in.reason,
         )

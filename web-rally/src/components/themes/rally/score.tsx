@@ -56,8 +56,14 @@ export function RallyScore({ className, team, isProvisional = false, ...props }:
         className="flex w-14 justify-center px-8 py-2 text-lg font-bold"
         variant={variantClassification(team.classification)}
       >
-        {team.classification}
-        {nthNumber(team.classification)}
+        {team.classification > 0 ? (
+          <>
+            {team.classification}
+            {nthNumber(team.classification)}
+          </>
+        ) : (
+          "—"
+        )}
       </RallyBadge>
 
       <span className="grow text-center text-2xl font-bold text-foreground">{team.name}</span>

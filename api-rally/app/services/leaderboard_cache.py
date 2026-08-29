@@ -19,10 +19,24 @@ logger = logging.getLogger(__name__)
 
 GLOBAL_LEADERBOARD_KEY = "rally:leaderboard:global"
 
+# Bounds staleness if the leaderboard worker stops: without an expiry the last
+# blob is served forever. The worker rewrites this far more often than the TTL,
+# so in normal operation the TTL never fires.
+GLOBAL_LEADERBOARD_TTL_SECONDS = 300
+
 
 async def write_global_leaderboard(client: aredis.Redis, ranking: list[dict[str, Any]]) -> None:
     """Store the rendered global ranking as a JSON blob."""
-    await client.set(GLOBAL_LEADERBOARD_KEY, json.dumps(ranking))
+    await client.set(
+        GLOBAL_LEADERBOARD_KEY,
+        json.dumps(ranking),
+        ex=GLOBAL_LEADERBOARD_TTL_SECONDS,
+    )
+
+
+async def invalidate_global_leaderboard(client: aredis.Redis) -> None:
+    """Drop the cached ranking so the next read recomputes from Postgres."""
+    await client.delete(GLOBAL_LEADERBOARD_KEY)
 
 
 async def read_global_leaderboard(

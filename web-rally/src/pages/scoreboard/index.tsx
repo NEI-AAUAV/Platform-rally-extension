@@ -7,11 +7,21 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
 import { getCheckpoints, getTeams, type ListingTeam, type RallySettingsResponse } from "@/client";
+import { sortTeamsByRank } from "@/lib/teamRanking";
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import { RallyButton } from "@/components/themes/rally";
 import { useCountdown } from "@/pages/home/useCountdown";
 import React from "react";
+
+/** Podium / ranked-rows split. In individual mode the single visible team is
+ * rendered as a row at its real rank, never on the podium. */
+function splitBoard(list: ListingTeam[], isIndividualMode: boolean, myRankIndex: number) {
+  if (isIndividualMode) {
+    return { podium: [] as ListingTeam[], rest: list, restStartRank: Math.max(myRankIndex + 1, 1) };
+  }
+  return { podium: list.slice(0, 3), rest: list.slice(3), restStartRank: 4 };
+}
 
 function NoticeCard({ title, body }: { readonly title: string; readonly body: React.ReactNode }) {
   return (
@@ -70,9 +80,7 @@ export default function Scoreboard() {
   });
   const checkpointsCount = Array.isArray(checkpoints) ? checkpoints.length : undefined;
 
-  const sortedTeams = teams
-    ? [...teams].sort((a: ListingTeam, b: ListingTeam) => a.classification - b.classification)
-    : undefined;
+  const sortedTeams = teams ? sortTeamsByRank(teams) : undefined;
 
   const { scopes } = useUserStore((state) => state);
   const isAdminOrManager =
@@ -134,13 +142,16 @@ export default function Scoreboard() {
 
   const list = displayTeams ?? [];
   const isFullBoard = list.length > 1;
-  const podium = list.slice(0, 3);
-  const rest = list.slice(3);
 
   // Locate the viewer's own team for the aside card.
   const myRankIndex =
     teamData && sortedTeams ? sortedTeams.findIndex((t) => t.id === teamData.team_id) : -1;
   const myTeam = myRankIndex >= 0 ? sortedTeams?.[myRankIndex] : undefined;
+
+  // Individual mode shows only the viewer's own team: render it as a plain
+  // ranked row at its real position, never through the podium (which would
+  // paint a mid-table team as "1º" with the gold ring).
+  const { podium, rest, restStartRank } = splitBoard(list, isIndividualMode, myRankIndex);
 
   const showSkeleton = teamsLoading && list.length === 0;
 
@@ -180,15 +191,17 @@ export default function Scoreboard() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           {/* Left: podium + rows */}
           <div className="space-y-6">
-            <Podium
-              teams={podium}
-              checkpointsCount={checkpointsCount}
-              isProvisional={isProvisional}
-            />
+            {podium.length > 0 && (
+              <Podium
+                teams={podium}
+                checkpointsCount={checkpointsCount}
+                isProvisional={isProvisional}
+              />
+            )}
             {rest.length > 0 && (
               <ScoreRows
                 teams={rest}
-                startRank={4}
+                startRank={restStartRank}
                 checkpointsCount={checkpointsCount}
                 isProvisional={isProvisional}
               />

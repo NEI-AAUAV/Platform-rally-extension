@@ -38,6 +38,7 @@ from app.core.exceptions import RallyForbiddenError, RallyNotFoundError
 from app.crud import current_event_id
 from app.crud.crud_activity import CRUDActivity, CRUDActivityResult
 from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import (
     get_activity_crud,
@@ -64,6 +65,23 @@ _EVALUATE_ENDPOINT = "evaluate_team_activity"
 # Error message constants
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
 NO_RALLY_PERMISSIONS = "User does not have Rally permissions"
+STAFF_SCORING_DISABLED = (
+    "Staff scoring is disabled for this event. Only an admin or manager can "
+    "record or edit evaluations."
+)
+
+
+async def _require_staff_scoring_enabled(db: Any, is_admin_or_manager_flag: bool) -> None:
+    """Block staff (non admin/manager) when ``enable_staff_scoring`` is off.
+
+    Admins and managers keep write access so they can still correct results
+    while the master switch is disabled in the admin UI.
+    """
+    if is_admin_or_manager_flag:
+        return
+    rally_config = await rally_settings.get_or_create(db)
+    if not rally_config.enable_staff_scoring:
+        raise RallyForbiddenError(STAFF_SCORING_DISABLED)
 
 
 def _build_activity_status_list(
@@ -383,6 +401,8 @@ class StaffEvaluationController:
         # Validate access based on user role
         is_admin_or_manager_flag = is_admin_or_manager(auth)
 
+        await _require_staff_scoring_enabled(db, is_admin_or_manager_flag)
+
         try:
             if is_admin_or_manager_flag:
                 _, activity_obj = await validate_admin_access(db, team_id, activity_id)
@@ -425,8 +445,17 @@ class StaffEvaluationController:
         # Create or update the result if it already exists. Handles the race
         # where two concurrent requests both see no existing result and try to
         # insert — the loser falls back to an update instead of duplicating.
+        # Tag the audit trail with who evaluated. A re-POST overwrites an
+        # existing score exactly like the PUT does, so it has to leave the same
+        # EvaluationHistory row — without this, re-submitting was an untracked
+        # way to rewrite a team's points.
         db_result = await create_or_update_activity_result(
-            db, scoring_service, team_id, activity_id, result_in
+            db,
+            scoring_service,
+            team_id,
+            activity_id,
+            result_in,
+            editor=EvaluationEditor(id=str(current_user.id), name=current_user.name),
         )
         logger.info(
             f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"
@@ -527,6 +556,7 @@ class StaffEvaluationController:
             raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
         is_manager = is_admin_or_manager(auth)
+        await _require_staff_scoring_enabled(db, is_manager)
         activity_obj, _team_obj = await self._load_activity_and_team_for_update(
             db,
             team_id=team_id,

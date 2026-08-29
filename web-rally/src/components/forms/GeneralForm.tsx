@@ -33,7 +33,6 @@ export default function GeneralForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -41,6 +40,7 @@ export default function GeneralForm({
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    globalPenaltyCounters,
     showPenalties,
     validateExtraShots,
   } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
@@ -70,7 +70,7 @@ export default function GeneralForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 
@@ -113,6 +113,7 @@ export default function GeneralForm({
           onChange={setPenalties}
           penaltyValues={penaltyValues}
           penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
         />
