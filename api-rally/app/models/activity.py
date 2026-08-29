@@ -123,9 +123,7 @@ class ActivityResult(Base):
     # Penalty *points* deducted, keyed by penalty type. This is what scoring
     # subtracts (see BaseActivity.apply_modifiers), and the server writes it
     # from penalty_counts below — it is never taken from the client.
-    penalties: Mapped[dict[str, int]] = mapped_column(
-        MutableDict.as_mutable(JSON), default=dict
-    )
+    penalties: Mapped[dict[str, int]] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     # The occurrence counts staff actually entered ("2 vomits"), same keys.
     # Kept alongside the priced points so an edit redisplays the real count,
     # and so an admin re-price can recompute points from counts at the current

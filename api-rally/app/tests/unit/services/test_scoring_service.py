@@ -1418,9 +1418,7 @@ async def _excess_award(db, result_id: int) -> DynamicAward | None:
     from sqlalchemy import select
 
     return (
-        await db.scalars(
-            select(DynamicAward).where(DynamicAward.activity_result_id == result_id)
-        )
+        await db.scalars(select(DynamicAward).where(DynamicAward.activity_result_id == result_id))
     ).first()
 
 

@@ -789,9 +789,7 @@ class ScoringService:
         await activity_result_crud.persist(self.db, db_obj, commit=commit)
 
         # Carry any penalty that overflowed this activity's points to team.total.
-        await self._sync_excess_penalty_award(
-            db_obj, breakdown.raw, activity_name=activity.name
-        )
+        await self._sync_excess_penalty_award(db_obj, breakdown.raw, activity_name=activity.name)
 
         # Adding a time-based result shifts the ranking, so rescore the rest.
         # When recompute is deferred, the scoring worker does this off-path;
@@ -1159,9 +1157,7 @@ class ScoringService:
         the current edition so past editions never leak onto the public board.
         """
         event_id = await current_event_id(self.db)
-        team_stmt = select(Team).where(
-            (Team.event_id == event_id) | (Team.event_id.is_(None))
-        )
+        team_stmt = select(Team).where((Team.event_id == event_id) | (Team.event_id.is_(None)))
         teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
 
         completed_counts = await self._completed_counts_by_team()

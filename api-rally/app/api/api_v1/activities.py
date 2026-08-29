@@ -226,9 +226,7 @@ class ActivityController:
         affected_team_ids = list(
             (
                 await db.scalars(
-                    select(ActivityResult.team_id).where(
-                        ActivityResult.activity_id == activity_id
-                    )
+                    select(ActivityResult.team_id).where(ActivityResult.activity_id == activity_id)
                 )
             ).all()
         )

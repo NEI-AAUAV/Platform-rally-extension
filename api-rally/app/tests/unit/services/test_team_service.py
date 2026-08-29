@@ -42,6 +42,8 @@ class TestCalculateMinTimeScores:
 
         # then
         assert result[0] == float("inf")
+
+
 class TestValidateRallyTiming:
     @pytest.fixture
     def service(self) -> TeamService:
