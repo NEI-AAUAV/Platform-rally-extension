@@ -82,6 +82,27 @@ describe('StaffCheckinScanner', () => {
     expect(h.staffCheckIn).not.toHaveBeenCalled()
   })
 
+  it('closes the scanner after an unrecognized scan (releases the camera)', () => {
+    render(<StaffCheckinScanner checkpointId={1} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByText('Ler QR da equipa'))
+    expect(screen.getByTestId('qr-scanner-stub')).toBeInTheDocument()
+    act(() => {
+      h.onScan?.('not-a-valid-code')
+    })
+    expect(screen.queryByTestId('qr-scanner-stub')).not.toBeInTheDocument()
+  })
+
+  it('closes the scanner when the check-in request fails (releases the camera)', async () => {
+    h.staffCheckIn.mockRejectedValueOnce(new MockApiError(404, { detail: 'Equipa não encontrada' }))
+
+    render(<StaffCheckinScanner checkpointId={9} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByText('Ler QR da equipa'))
+    h.onScan?.('ABCD-1234')
+
+    await waitFor(() => expect(h.toastError).toHaveBeenCalledWith('Equipa não encontrada'))
+    expect(screen.queryByTestId('qr-scanner-stub')).not.toBeInTheDocument()
+  })
+
   it('extracts the code from a raw ACCESS-CODE scan and submits it', async () => {
     h.staffCheckIn.mockResolvedValueOnce({
       status: 'checked_in',

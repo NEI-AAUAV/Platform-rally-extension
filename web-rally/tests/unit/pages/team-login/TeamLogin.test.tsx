@@ -199,4 +199,16 @@ describe('TeamLogin page', () => {
 
     expect(mockToast.error).toHaveBeenCalledWith('Código QR inválido. Por favor, tente novamente.');
   });
+
+  it('closes the scanner after any scan result so the camera is released', async () => {
+    const user = userEvent.setup();
+    render(<TeamLogin />);
+    await user.click(screen.getByTitle('Ler código QR com câmara'));
+    expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
+    await user.click(screen.getByText('scan-invalid'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('qr-scanner')).not.toBeInTheDocument();
+    });
+  });
 });
