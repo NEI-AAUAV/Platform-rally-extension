@@ -3756,7 +3756,7 @@
           "Check-in"
         ],
         "summary": "Staff Check In",
-        "description": "Staff scans an arriving team's QR (its access code).\n\nPrimary purpose: *identify the team* so staff open the correct evaluation\nfast and without mistakes. Secondary: mark the team's arrival at the staff's\ncheckpoint when it is the team's next post. Tolerant by design \u2014 a re-scan\n(team already here) or an early scan never errors, so it stays usable\nalongside versus/head-to-head flows; it just reports the arrival ``status``.",
+        "description": "Staff scans an arriving team's QR (its access code).\n\nPrimary purpose: *identify the team* so staff open the correct evaluation\nfast and without mistakes. Secondary: mark the team's arrival at the staff's\ncheckpoint when it is the team's next post. Tolerant by design \u2014 a re-scan\n(team already here) or an early scan never errors, so it stays usable\nalongside versus/head-to-head flows; it just reports the arrival ``status``.\n\nNot gated by ``SELF_CHECKIN_ENABLED``: that flag governs teams scanning a\ncheckpoint's QR to advance themselves. A staff member scanning a team to\nidentify it and open the right evaluation is the normal staffed flow and\nmust work whether or not self check-in is enabled.",
         "operationId": "staff_check_in",
         "requestBody": {
           "content": {
