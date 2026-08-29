@@ -131,7 +131,7 @@ describe('AllEvaluations', () => {
       boolean_score: false,
       result_data: { notes: 'checked' },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     };
     render(<AllEvaluations evaluations={[boolEval]} />);
     fireEvent.click(screen.getByRole('button', { name: /Sprint/ }));

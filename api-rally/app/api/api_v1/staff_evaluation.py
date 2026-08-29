@@ -445,8 +445,17 @@ class StaffEvaluationController:
         # Create or update the result if it already exists. Handles the race
         # where two concurrent requests both see no existing result and try to
         # insert — the loser falls back to an update instead of duplicating.
+        # Tag the audit trail with who evaluated. A re-POST overwrites an
+        # existing score exactly like the PUT does, so it has to leave the same
+        # EvaluationHistory row — without this, re-submitting was an untracked
+        # way to rewrite a team's points.
         db_result = await create_or_update_activity_result(
-            db, scoring_service, team_id, activity_id, result_in
+            db,
+            scoring_service,
+            team_id,
+            activity_id,
+            result_in,
+            editor=EvaluationEditor(id=str(current_user.id), name=current_user.name),
         )
         logger.info(
             f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"

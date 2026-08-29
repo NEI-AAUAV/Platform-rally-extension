@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.core.exceptions import RallyError
+from app.core.exceptions import RallyError, RallyValidationError
 from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
@@ -44,20 +44,25 @@ async def _make_activity(
     *,
     activity_type: str = ActivityType.GENERAL.value,
     config: dict | None = None,
+    with_checkpoint: bool = True,
 ) -> Activity:
-    # update_team_scores only counts results whose activity has a checkpoint
-    # (scores are bucketed by checkpoint order), so every activity gets one.
-    global _checkpoint_order
-    _checkpoint_order += 1
-    checkpoint = CheckPoint(name=f"CP{_checkpoint_order}", order=_checkpoint_order)
-    db.add(checkpoint)
-    await db.flush()
+    # Most activities are checkpoint-scoped; that is what gives them a slot in
+    # score_per_checkpoint. Pass with_checkpoint=False for a *global* activity
+    # (D3): no slot, but its points still count toward team.total.
+    checkpoint_id = None
+    if with_checkpoint:
+        global _checkpoint_order
+        _checkpoint_order += 1
+        checkpoint = CheckPoint(name=f"CP{_checkpoint_order}", order=_checkpoint_order)
+        db.add(checkpoint)
+        await db.flush()
+        checkpoint_id = checkpoint.id
 
     activity = Activity(
         name="Act",
         activity_type=activity_type,
         config=config or {"min_points": 0, "max_points": 100},
-        checkpoint_id=checkpoint.id,
+        checkpoint_id=checkpoint_id,
     )
     db.add(activity)
     await db.commit()
@@ -112,10 +117,10 @@ async def test_calculate_team_total_sums_completed_results(pg_session):
         final_score=30,
     )
 
-    svc = ScoringService(pg_session)
-    total = await svc.calculate_team_total_score(team.id)
+    await ScoringService(pg_session).update_team_scores(team.id)
 
-    assert total == pytest.approx(70.0)
+    await pg_session.refresh(team)
+    assert team.total == 70
 
 
 async def test_calculate_team_total_ignores_incomplete(pg_session):
@@ -140,9 +145,64 @@ async def test_calculate_team_total_ignores_incomplete(pg_session):
     pg_session.add(pending)
     await pg_session.commit()
 
-    svc = ScoringService(pg_session)
-    assert await svc.calculate_team_total_score(team.id) == pytest.approx(40.0)
+    await ScoringService(pg_session).update_team_scores(team.id)
+
+    await pg_session.refresh(team)
+    assert team.total == 40
     assert completed.final_score == pytest.approx(40)
+
+
+async def test_total_counts_global_activity_without_checkpoint(pg_session):
+    """A global activity (checkpoint_id NULL) still scores points.
+
+    Regression: the per-checkpoint bucketing used to `continue` past any result
+    whose activity had no checkpoint, dropping it from team.total entirely.
+    Since the leaderboard projects team.total, every global activity was
+    invisible in the standings while showing a final_score on the result.
+    """
+    team = await _make_team(pg_session)
+    at_checkpoint = await _make_activity(pg_session)
+    global_activity = await _make_activity(pg_session, with_checkpoint=False)
+    await _make_result(
+        pg_session,
+        team=team,
+        activity=at_checkpoint,
+        result_data={"assigned_points": 40},
+        final_score=40,
+    )
+    await _make_result(
+        pg_session,
+        team=team,
+        activity=global_activity,
+        result_data={"assigned_points": 25},
+        final_score=25,
+    )
+
+    await ScoringService(pg_session).update_team_scores(team.id)
+
+    await pg_session.refresh(team)
+    assert team.total == 65
+    # The global 25 reaches the total but never the per-checkpoint layout,
+    # which is positional over the checkpoints the team actually visited.
+    _, _, raw_total = await ScoringService(pg_session)._checkpoint_scores_for_team(team.id)
+    assert raw_total == pytest.approx(65)
+
+
+async def test_bulk_total_counts_global_activity_without_checkpoint(pg_session):
+    """update_all_team_scores must apply the same rule as update_team_scores."""
+    team = await _make_team(pg_session, name="Bulk Global")
+    global_activity = await _make_activity(pg_session, with_checkpoint=False)
+    await _make_result(
+        pg_session,
+        team=team,
+        activity=global_activity,
+        result_data={"assigned_points": 25},
+        final_score=25,
+    )
+
+    await ScoringService(pg_session).update_all_team_scores([team])
+
+    assert team.total == 25
 
 
 async def test_update_team_scores_rounds_and_includes_awards(pg_session):
@@ -272,9 +332,9 @@ async def test_update_all_team_scores_noop_on_empty_list(pg_session):
 
 
 async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session):
-    """`_checkpoint_scores_for_team` (the single-team path) must skip
-    incomplete results and results for checkpoint-less (global) activities,
-    same as its bulk counterpart."""
+    """`_checkpoint_scores_for_team` (the single-team path) skips incomplete
+    results entirely, but a checkpoint-less (global) activity is skipped only
+    from the per-checkpoint layout — its points still reach the total."""
     team = await _make_team(pg_session)
     cp = CheckPoint(name="CP", order=1)
     pg_session.add(cp)
@@ -309,7 +369,8 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
         is_completed=False,
     )
     pg_session.add(incomplete)
-    # Completed result on a global (checkpoint-less) activity -- skipped too.
+    # Completed result on a global (checkpoint-less) activity -- counted in the
+    # total, absent from the per-checkpoint layout.
     await _make_result(
         pg_session,
         team=team,
@@ -322,7 +383,7 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
     svc = ScoringService(pg_session)
     checkpoint_scores, order_by_id, total = await svc._checkpoint_scores_for_team(team.id)
 
-    assert total == pytest.approx(25)
+    assert total == pytest.approx(25 + 99)
     assert list(checkpoint_scores.values()) == [25]
 
 
@@ -390,7 +451,8 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
             is_completed=False,
         )
     )
-    # Completed result on a global (checkpoint-less) activity -- skipped too.
+    # Completed result on a global (checkpoint-less) activity -- counted in the
+    # total, absent from the per-checkpoint layout.
     await _make_result(
         pg_session,
         team=team_a,
@@ -413,7 +475,8 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
     svc = ScoringService(pg_session)
     await svc.update_all_team_scores([team_a, team_b])
 
-    assert team_a.total == pytest.approx(50)
+    # 40 at a checkpoint + 99 global + 10 award; the incomplete 99 stays out.
+    assert team_a.total == pytest.approx(149)
     assert team_b.total == pytest.approx(20)
 
 
@@ -977,6 +1040,202 @@ async def test_create_time_based_result_reranks_activity(pg_session):
     # faster time must score at least as high as the slower one
     assert fast_res.final_score >= slow_res.final_score
     assert fast_res.final_score == pytest.approx(100)  # fastest gets max
+
+
+async def test_removing_time_based_result_reranks_the_rest(pg_session):
+    """Deleting a time re-scores every other team on that activity.
+
+    Regression: create_result and update_result both rescore the whole
+    time-based activity because the score is a *relative* ranking of the
+    times, but remove_result did not. Deleting the fastest team's time left
+    the runner-up frozen at its old mid-pack score — and its team.total with
+    it — unless the off-path scoring worker happened to be running.
+    """
+    activity = await _make_activity(
+        pg_session,
+        activity_type=ActivityType.TIME_BASED.value,
+        config={"max_points": 100, "min_points": 10},
+    )
+    fast = await _make_team(pg_session, "Fast Del")
+    mid = await _make_team(pg_session, "Mid Del")
+    slow = await _make_team(pg_session, "Slow Del")
+
+    svc = ScoringService(pg_session)
+    for team, seconds in ((fast, 30), (mid, 60), (slow, 90)):
+        await svc.create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"completion_time_seconds": seconds},
+                is_completed=True,
+            )
+        )
+
+    mid_res = (await pg_session.scalars(_select_result(activity.id, mid.id))).first()
+    assert mid_res.final_score == pytest.approx(55)  # middle of 3
+
+    # Remove the fastest time: mid is now the fastest of the two that remain.
+    fast_res = (await pg_session.scalars(_select_result(activity.id, fast.id))).first()
+    await svc.remove_result(fast_res.id)
+
+    mid_res = (await pg_session.scalars(_select_result(activity.id, mid.id))).first()
+    assert mid_res.final_score == pytest.approx(100)
+    # ...and the promotion reached the team's persisted total, not just the row.
+    await pg_session.refresh(mid)
+    assert mid.total == 100
+
+
+async def test_reprice_all_results_applies_changed_settings(pg_session):
+    """An admin scoring change becomes retroactive through reprice_all_results.
+
+    Regression: the admin recompute only re-aggregated the `final_score`
+    values already stored, so editing a scoring value (here the extra-shot
+    bonus) never reached results that had already been scored. The admin could
+    change the number and watch nothing move, with no way to force it.
+    """
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+
+    team = await _make_team(pg_session, "Reprice")
+    activity = await _make_activity(pg_session)
+
+    svc = ScoringService(pg_session)
+    await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            extra_shots=2,
+            is_completed=True,
+        )
+    )
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.final_score == pytest.approx(52)  # 50 + 2 * bonus(1)
+
+    # Admin raises the per-shot bonus after the fact.
+    settings = (await pg_session.scalars(sa_select(RallySettings))).first()
+    settings.bonus_per_extra_shot = 10
+    await pg_session.commit()
+
+    # A fresh service: _get_settings memoizes per instance, and the admin
+    # endpoint is a new request anyway.
+    repriced = await ScoringService(pg_session).reprice_all_results()
+    await pg_session.commit()
+
+    assert repriced == 1
+    await pg_session.refresh(result)
+    assert result.final_score == pytest.approx(70)  # 50 + 2 * bonus(10)
+
+
+async def test_penalty_counts_are_priced_by_the_server(pg_session):
+    """Staff submit counts; the server multiplies them by the configured price.
+
+    Regression: the client did this multiplication and sent finished point
+    totals, so the request body named its own deduction — a forged value, or a
+    client whose settings fetch had failed and fell back to its own hardcoded
+    rates, went straight into the score.
+    """
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+
+    team = await _make_team(pg_session, "Counts")
+    activity = await _make_activity(
+        pg_session,
+        config={
+            "min_points": 0,
+            "max_points": 100,
+            "penalty_counters": [{"key": "miss", "label": "Falha", "points": 7}],
+        },
+    )
+
+    svc = ScoringService(pg_session)
+    await svc._get_settings()
+    settings = (await pg_session.scalars(sa_select(RallySettings))).first()
+    settings.penalty_per_puke = -10
+    await pg_session.commit()
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            penalty_counts={"vomit": 2, "miss": 3},
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    # 2 vomits * 10 = 20, 3 misses * 7 = 21
+    assert result.penalties == {"vomit": 20, "miss": 21}
+    assert result.penalty_counts == {"vomit": 2, "miss": 3}
+    assert result.final_score == pytest.approx(50 - 41)
+
+
+async def test_penalty_counts_reject_unknown_key(pg_session):
+    """An unpriced key is rejected, not passed through as raw points."""
+    team = await _make_team(pg_session, "Unknown Counts")
+    activity = await _make_activity(pg_session)
+
+    with pytest.raises(RallyValidationError, match="Unknown penalty type"):
+        await ScoringService(pg_session).create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"assigned_points": 50},
+                penalty_counts={"made_up_penalty": 9999},
+                is_completed=True,
+            )
+        )
+
+
+async def test_editing_counts_reprices_without_corrupting_the_count(pg_session):
+    """Editing after a price change keeps the count staff entered.
+
+    Regression: the count was reverse-derived by dividing the stored points by
+    the *current* price, so a price change silently rewrote it — 2 vomits at
+    the old price of 10 redisplayed as 4 once the price dropped to 5, and
+    saving persisted the 4.
+    """
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+
+    team = await _make_team(pg_session, "Edit Counts")
+    activity = await _make_activity(pg_session)
+
+    svc = ScoringService(pg_session)
+    await svc._get_settings()
+    settings = (await pg_session.scalars(sa_select(RallySettings))).first()
+    settings.penalty_per_puke = -10
+    await pg_session.commit()
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            penalty_counts={"vomit": 2},
+            is_completed=True,
+        )
+    )
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.penalties == {"vomit": 20}
+
+    # Admin halves the price, then staff edit the result for another reason.
+    settings.penalty_per_puke = -5
+    await pg_session.commit()
+
+    await ScoringService(pg_session).update_result(
+        result, ActivityResultUpdate(penalty_counts={"vomit": 2})
+    )
+
+    await pg_session.refresh(result)
+    # The count is still 2 -- not 4 -- and it is priced at the current rate.
+    assert result.penalty_counts == {"vomit": 2}
+    assert result.penalties == {"vomit": 10}
+    assert result.final_score == pytest.approx(40)
 
 
 async def test_recalculate_result_score_noop_when_activity_missing(pg_session):

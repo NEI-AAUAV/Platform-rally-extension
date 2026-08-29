@@ -4,9 +4,13 @@ Owns the transaction boundary and validation rules that used to live split
 across ``app.crud.crud_team`` (data access + business rules + commits) and
 ``app.api.api_v1.team`` (checkpoint-progress computation inline in the
 router). ``CRUDTeam`` keeps thin delegating wrappers for
-``add_checkpoint``/``calculate_min_time_scores``/``calculate_checkpoint_score``
-/``update_classification`` so existing callers (routers, other services,
-tests) keep working while the logic itself lives here.
+``add_checkpoint``/``calculate_min_time_scores``/``update_classification`` so
+existing callers (routers, other services, tests) keep working while the logic
+itself lives here.
+
+Scoring itself is *not* here: ``ScoringService`` owns it end to end. The one
+ranking rule that lives in this module is ``assign_ranks`` — the single
+ordering policy every surface must agree with.
 """
 
 import math
@@ -115,42 +119,6 @@ class TeamService:
             min((s if s != 0 else math.inf) for s in scores)
             for scores in zip(*all_time_scores, strict=False)
         ]
-
-    @staticmethod
-    def calculate_checkpoint_score(
-        checkpoint: int,
-        *,
-        team: Team,
-        min_time_scores: list[float],
-        penalty_per_puke: int = -20,
-    ) -> int:
-        def calc_time_score(checkpoint: int, score: int) -> int:
-            return int(min_time_scores[checkpoint] / score * 10) if score != 0 else 0
-
-        def calc_question_scores(is_correct: bool) -> int:
-            return int(is_correct) * 8
-
-        def calc_pukes(pukes: int) -> int:
-            return pukes * penalty_per_puke
-
-        def calc_skips(skips: int) -> int:
-            if skips > 0:
-                return skips * -8
-            return abs(skips) * 4
-
-        return (
-            calc_time_score(
-                checkpoint,
-                team.time_scores[checkpoint] if checkpoint < len(team.time_scores) else 0,
-            )
-            + calc_question_scores(
-                team.question_scores[checkpoint]
-                if checkpoint < len(team.question_scores)
-                else False
-            )
-            + calc_skips(team.skips[checkpoint] if checkpoint < len(team.skips) else 0)
-            + calc_pukes(team.pukes[checkpoint] if checkpoint < len(team.pukes) else 0)
-        )
 
     async def update_classification_unlocked(self) -> None:
         """Recompute every team's total, then re-rank from those totals."""

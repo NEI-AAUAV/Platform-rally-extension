@@ -131,22 +131,33 @@ class ScoreboardController:
 
     async def recompute_classification(
         self,
+        scoring_service: Annotated[ScoringService, Depends(get_scoring_service)],
         team_service: Annotated[TeamService, Depends(get_team_service)],
     ) -> dict[str, Any]:
-        """Admin escape hatch: recompute every team's total and rank from
-        scratch, then drop the cached leaderboard so the next read is fresh.
+        """Admin escape hatch: re-price every result with the *current* scoring
+        settings, recompute every team's total and rank, then drop the cached
+        leaderboard so the next read is fresh.
 
-        Normally redundant — the score-commit funnel keeps ranks in step — but
-        indispensable if a recompute was ever missed (a crash mid-write, a
-        stalled worker, a manual DB edit).
+        The re-price is the point. Every other path in the system rescores only
+        the rows touched by the write that triggered it, so editing a scoring
+        value in the admin (a penalty price, the extra-shot bonus, a
+        DynamicRule) does not move results that were already scored. This
+        endpoint is how that change is applied on purpose, rather than
+        silently mid-event.
+
+        It also remains the recovery path for a recompute that was missed
+        outright — a crash mid-write, a stalled worker, a manual DB edit.
         """
+        repriced = await scoring_service.reprice_all_results()
+        # Same session, so the re-priced final_score values are what the
+        # classification pass aggregates; its commit makes both durable.
         await team_service.update_classification()
         client = get_async_redis_client()
         try:
             await leaderboard_cache.invalidate_global_leaderboard(client)
         finally:
             await client.aclose()
-        return {"status": "ok"}
+        return {"status": "ok", "results_repriced": repriced}
 
     def stream_scoreboard(self, request: Request, settings: SettingsDep) -> StreamingResponse:
         """Server-Sent Events stream that emits a 'refresh' on each leaderboard update."""

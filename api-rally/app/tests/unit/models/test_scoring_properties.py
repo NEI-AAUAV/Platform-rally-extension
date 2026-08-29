@@ -111,8 +111,10 @@ def test_penalties_never_increase_score(base_score: float, penalties: dict[str, 
     """Applying any set of non-negative penalties never raises the score above
     the unpenalized result, and the score is never negative."""
     activity = ScoreBasedActivity({})
-    unpenalized = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
-    penalized = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": penalties})
+    # apply_modifiers returns (clamped, raw); these invariants are about the
+    # clamped score that actually persists.
+    unpenalized, _ = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
+    penalized, _ = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": penalties})
 
     assert penalized <= unpenalized
     assert penalized >= 0
@@ -131,8 +133,8 @@ def test_extra_shots_never_decrease_score(
 ) -> None:
     """More extra-shot bonus never lowers the score below the unmodified base."""
     activity = ScoreBasedActivity({})
-    unmodified = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
-    modified = activity.apply_modifiers(
+    unmodified, _ = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
+    modified, _ = activity.apply_modifiers(
         base_score,
         {"extra_shots": extra_shots, "penalties": {}, "bonus_per_shot": bonus_per_shot},
     )
@@ -148,7 +150,7 @@ def test_extra_shots_never_decrease_score(
 def test_score_floor_is_never_negative(base_score: float, penalty_value: int) -> None:
     """No matter how large the penalty, the final score never drops below 0."""
     activity = ScoreBasedActivity({})
-    result = activity.apply_modifiers(
+    result, _ = activity.apply_modifiers(
         base_score, {"extra_shots": 0, "penalties": {"huge": penalty_value}}
     )
     assert result >= 0

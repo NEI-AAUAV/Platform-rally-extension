@@ -63,7 +63,6 @@ export default function TeamVsForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -176,7 +175,7 @@ export default function TeamVsForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 

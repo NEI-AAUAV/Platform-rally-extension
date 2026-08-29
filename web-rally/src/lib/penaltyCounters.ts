@@ -4,12 +4,13 @@
  * stored as free-form JSON on `Activity.config.penalty_counters` — no schema
  * change needed on either side, since `config` already accepts anything.
  *
- * The staff evaluation form always shows a *count* ("2 misses"), never a raw
- * point total — but the backend's `ActivityResult.penalties` dict is scored
- * as already-computed points (`final_score -= penalties[key]`, see
- * `BaseActivity.apply_modifiers`). Converting between the two only in this
- * one place is what closes the bug this fixes: submitting a count directly
- * used to deduct that count as points (2 vomits == -2, not -2×penalty_per_puke).
+ * The staff form collects a *count* ("2 misses") and submits it as
+ * `penalty_counts`. It does not price it: the server multiplies the count by
+ * the configured value (ScoringService.resolve_penalty_points) and writes the
+ * resulting points itself. The client used to do that multiplication and send
+ * the finished points, which meant the request body named its own deduction
+ * and an admin price change silently rewrote the stored count on the next
+ * edit. The `points` here is for display only ("5 pts cada").
  */
 
 export interface PenaltyCounterConfig {
@@ -22,53 +23,6 @@ export interface PenaltyCounterConfig {
 }
 
 export type PenaltyCountMap = Record<string, number>;
-
-/** {key: points-per-occurrence} for every counter this activity knows about. */
-export function buildPenaltyRates(
-  builtIn: Record<string, number>,
-  custom: readonly PenaltyCounterConfig[] = [],
-): Record<string, number> {
-  const rates = { ...builtIn };
-  for (const counter of custom) {
-    rates[counter.key] = Math.abs(counter.points);
-  }
-  return rates;
-}
-
-/** Counts entered by staff -> the point totals the backend expects. */
-export function countsToPoints(
-  counts: PenaltyCountMap,
-  rates: Record<string, number>,
-): PenaltyCountMap {
-  const points: PenaltyCountMap = {};
-  for (const [key, count] of Object.entries(counts)) {
-    if (!count) continue;
-    // A key with no known rate (its counter was deleted after this result was
-    // scored, or points were stored raw) carries its value through unchanged —
-    // multiplying by a `?? 0` fallback would silently wipe the penalty from
-    // the team's total on the next edit. Mirrors pointsToCounts below.
-    const rate = rates[key];
-    points[key] = rate === undefined ? count : count * rate;
-  }
-  return points;
-}
-
-/** Point totals persisted on a result -> counts to redisplay when editing. */
-export function pointsToCounts(
-  points: PenaltyCountMap,
-  rates: Record<string, number>,
-): PenaltyCountMap {
-  const counts: PenaltyCountMap = {};
-  for (const [key, total] of Object.entries(points)) {
-    const rate = rates[key];
-    // A key with no known rate (deleted counter, or points stored raw
-    // before this fix existed) keeps its stored value verbatim rather than
-    // dividing by zero or silently dropping it. countsToPoints passes the
-    // same key back through unchanged on submit.
-    counts[key] = rate ? total / rate : total;
-  }
-  return counts;
-}
 
 /** Reads `config.penalty_counters`, tolerating missing/malformed JSON. */
 export function parsePenaltyCounters(config: unknown): PenaltyCounterConfig[] {

@@ -49,7 +49,6 @@ export default function ScoreBasedForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -101,7 +100,7 @@ export default function ScoreBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 

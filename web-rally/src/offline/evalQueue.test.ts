@@ -18,7 +18,7 @@ const base = {
   resultData: {
     result_data: { assigned_points: 50 },
     extra_shots: 0,
-    penalties: {},
+    penalty_counts: {},
   },
 };
 

@@ -57,25 +57,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         return TeamService.calculate_min_time_scores(teams)
 
-    def calculate_checkpoint_score(
-        self,
-        checkpoint: int,
-        *,
-        team: Team,
-        min_time_scores: list[float],
-        penalty_per_puke: int = -20,
-    ) -> int:
-        """Delegates to TeamService (see calculate_min_time_scores)."""
-        # Local import: avoids circular import with app.services.team_service
-        from app.services.team_service import TeamService
-
-        return TeamService.calculate_checkpoint_score(
-            checkpoint,
-            team=team,
-            min_time_scores=min_time_scores,
-            penalty_per_puke=penalty_per_puke,
-        )
-
     async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
         """Get a team by their access code (access_code is globally unique)."""
         result: Team | None = await db.scalar(select(Team).where(Team.access_code == access_code))

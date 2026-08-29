@@ -15,7 +15,8 @@ async function replayOne(item: QueuedEval): Promise<void> {
   const payload: ActivityResultEvaluation = {
     result_data: item.resultData?.result_data ?? {},
     extra_shots: item.resultData?.extra_shots ?? 0,
-    penalties: item.resultData?.penalties ?? {},
+    // Counts, priced server-side — same contract as the online submit.
+    penalty_counts: item.resultData?.penalty_counts ?? {},
   };
   await evaluateTeamActivity({
     path: { team_id: item.teamId, activity_id: item.activityId },
@@ -34,6 +35,9 @@ export function useOfflineSync(): { syncNow: () => Promise<void> } {
     await queryClient.invalidateQueries({ queryKey: ["teamActivities"] });
     await queryClient.invalidateQueries({ queryKey: ["allEvaluations"] });
     await queryClient.invalidateQueries({ queryKey: ["checkpointTeams"] });
+    // Replayed evaluations changed team totals, so the standings key has to go
+    // too — otherwise the scoreboard keeps the pre-sync ranking.
+    await queryClient.invalidateQueries({ queryKey: ["teams"] });
   }, [queryClient]);
 
   // Every trigger below is fire-and-forget, so a rejected drain (storage

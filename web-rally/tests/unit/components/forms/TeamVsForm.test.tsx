@@ -198,7 +198,7 @@ describe('TeamVsForm', () => {
         notes: '',
       },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -302,7 +302,7 @@ describe('TeamVsForm', () => {
               notes: 'existing notes',
             },
             extra_shots: 0,
-            penalties: {},
+            penalty_counts: {},
           } as any
         }
       />
@@ -325,7 +325,7 @@ describe('TeamVsForm', () => {
           {
             result_data: { result: 'lose', notes: 'no opponent set' },
             extra_shots: 0,
-            penalties: {},
+            penalty_counts: {},
           } as any
         }
       />

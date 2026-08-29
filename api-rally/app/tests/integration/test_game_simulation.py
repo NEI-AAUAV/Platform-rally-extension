@@ -34,7 +34,7 @@ class TestGameSimulationScoring:
         settings.bonus_per_extra_shot = 2
         mock_db.query.return_value.first.return_value = settings
 
-        final_score = activity.apply_modifiers(base_score, modifiers, mock_db)
+        final_score, _ = activity.apply_modifiers(base_score, modifiers, mock_db)
 
         # 70 + (2 * 2) = 74
         assert final_score == 74
@@ -110,7 +110,7 @@ class TestGameSimulationScoring:
         settings.bonus_per_extra_shot = 2
         mock_db.query.return_value.first.return_value = settings
 
-        final_score = activity.apply_modifiers(base_score, modifiers, mock_db)
+        final_score, _ = activity.apply_modifiers(base_score, modifiers, mock_db)
 
         # 40 - 5 = 35
         assert final_score == 35
@@ -148,7 +148,7 @@ class TestGameSimulationScoring:
             settings.bonus_per_extra_shot = 2
             mock_db.query.return_value.first.return_value = settings
 
-            final_score = gen_activity.apply_modifiers(base_score, modifiers, mock_db)
+            final_score, _ = gen_activity.apply_modifiers(base_score, modifiers, mock_db)
             teams[team_name]["activities"].append(final_score)
 
             print(f"  {team_name}: {final_score} points")
@@ -200,7 +200,7 @@ class TestGameSimulationScoring:
             settings.bonus_per_extra_shot = 2
             mock_db.query.return_value.first.return_value = settings
 
-            final_score = score_activity.apply_modifiers(base_score, modifiers, mock_db)
+            final_score, _ = score_activity.apply_modifiers(base_score, modifiers, mock_db)
             teams[team_name]["activities"].append(final_score)
 
             print(f"  {team_name}: {final_score} points ({achieved_points}/100 target hits)")
@@ -226,7 +226,7 @@ class TestGameSimulationScoring:
             settings.bonus_per_extra_shot = 2
             mock_db.query.return_value.first.return_value = settings
 
-            final_score = creative_activity.apply_modifiers(base_score, modifiers, mock_db)
+            final_score, _ = creative_activity.apply_modifiers(base_score, modifiers, mock_db)
             teams[team_name]["activities"].append(final_score)
 
             print(f"  {team_name}: {final_score} points")
@@ -267,7 +267,7 @@ class TestGameSimulationScoring:
             settings.bonus_per_extra_shot = 2
             mock_db.query.return_value.first.return_value = settings
 
-            final_score = memory_activity.apply_modifiers(base_score, modifiers, mock_db)
+            final_score, _ = memory_activity.apply_modifiers(base_score, modifiers, mock_db)
             teams[team_name]["activities"].append(final_score)
 
             print(f"  {team_name}: {final_score} points ({achieved_points}/120 items)")
@@ -324,7 +324,7 @@ class TestGameSimulationScoring:
         mock_db.query.return_value.first.return_value = settings
 
         modifiers_bonus = {"extra_shots": 3, "penalties": {}, "bonus_per_shot": 2}
-        score_with_bonus = activity.apply_modifiers(base_score, modifiers_bonus, mock_db)
+        score_with_bonus, _ = activity.apply_modifiers(base_score, modifiers_bonus, mock_db)
 
         assert score_with_bonus == 56  # 50 + (3 * 2)
         print(f"Base score: {base_score}")
@@ -332,14 +332,14 @@ class TestGameSimulationScoring:
 
         # Test 2: Penalty
         modifiers_penalty = {"extra_shots": 0, "penalties": {"vomit": 5}}
-        score_with_penalty = activity.apply_modifiers(base_score, modifiers_penalty, mock_db)
+        score_with_penalty, _ = activity.apply_modifiers(base_score, modifiers_penalty, mock_db)
 
         assert score_with_penalty == 45  # 50 - 5
         print(f"With vomit penalty (-5): {score_with_penalty}")
 
         # Test 3: Both bonus and penalty
         modifiers_both = {"extra_shots": 2, "penalties": {"vomit": 5}, "bonus_per_shot": 2}
-        score_with_both = activity.apply_modifiers(base_score, modifiers_both, mock_db)
+        score_with_both, _ = activity.apply_modifiers(base_score, modifiers_both, mock_db)
 
         assert score_with_both == 49  # 50 + (2 * 2) - 5 = 49
         print(f"With 2 extra shots (+4) and penalty (-5): {score_with_both}")

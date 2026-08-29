@@ -70,7 +70,7 @@ describe('useOfflineSync', () => {
         teamId: 1,
         activityId: 2,
         idempotencyKey: 'key-1',
-        resultData: { result_data: { a: 1 }, extra_shots: 2, penalties: { p: 1 } },
+        resultData: { result_data: { a: 1 }, extra_shots: 2, penalty_counts: { p: 1 } },
       })
     })
 
@@ -79,7 +79,7 @@ describe('useOfflineSync', () => {
     await waitFor(() =>
       expect(h.evaluateTeamActivity).toHaveBeenCalledWith({
         path: { team_id: 1, activity_id: 2 },
-        body: { result_data: { a: 1 }, extra_shots: 2, penalties: { p: 1 } },
+        body: { result_data: { a: 1 }, extra_shots: 2, penalty_counts: { p: 1 } },
         headers: { 'Idempotency-Key': 'key-1' },
       }),
     )
@@ -100,7 +100,7 @@ describe('useOfflineSync', () => {
     await waitFor(() =>
       expect(h.evaluateTeamActivity).toHaveBeenCalledWith({
         path: { team_id: 1, activity_id: 2 },
-        body: { result_data: {}, extra_shots: 0, penalties: {} },
+        body: { result_data: {}, extra_shots: 0, penalty_counts: {} },
         headers: { 'Idempotency-Key': 'key-2' },
       }),
     )

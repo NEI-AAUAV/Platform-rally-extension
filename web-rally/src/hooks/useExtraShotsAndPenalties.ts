@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useGlobalPenaltyCounters } from "@/hooks/useGlobalPenaltyCounters";
@@ -6,28 +6,21 @@ import { useAppToast } from "@/hooks/use-toast";
 import { hasDrinkingMechanics as formatHasDrinkingMechanics } from "@/lib/eventTerms";
 import { getTeamSize } from "@/types/forms";
 import type { BaseActivityFormProps } from "@/types/forms";
-import {
-  buildPenaltyRates,
-  countsToPoints,
-  pointsToCounts,
-  type PenaltyCounterConfig,
-  type PenaltyCountMap,
-} from "@/lib/penaltyCounters";
+import type { PenaltyCounterConfig, PenaltyCountMap } from "@/lib/penaltyCounters";
 
 type PenaltyMap = PenaltyCountMap;
 
 export interface UseExtraShotsAndPenaltiesResult {
   extraShots: number;
   setExtraShots: (value: number) => void;
-  /** Raw counts, bound to the input fields — "2 vomits", not "-20 points". */
+  /**
+   * Occurrence counts, bound to the input fields — "2 vomits", not
+   * "-20 points". Submit these as `penalty_counts`: the server prices them.
+   * The client no longer computes point totals at all (see
+   * `lib/penaltyCounters.ts`).
+   */
   penalties: PenaltyMap;
   setPenalties: (value: PenaltyMap) => void;
-  /**
-   * The same counts converted to the point totals the backend scores with.
-   * Pass this, not `penalties`, in the submitted `result_data` — see
-   * `lib/penaltyCounters.ts` for why the two must never be conflated.
-   */
-  penaltiesInPoints: PenaltyMap;
   maxExtraShots: number;
   maxExtraShotsPerMember: number;
   showExtraShots: boolean;
@@ -58,19 +51,9 @@ export function useExtraShotsAndPenalties(
   const maxExtraShotsPerMember = extraShotsConfig.perMember;
   const maxExtraShots = teamSize * maxExtraShotsPerMember;
 
+  // Prices are shown to staff ("3 pts cada") but never applied here: the
+  // server is what multiplies count by price. The form only collects counts.
   const penaltyValues = getPenaltyValues(settings);
-  const rates = useMemo(
-    () =>
-      buildPenaltyRates(
-        {
-          vomit: Math.abs(penaltyValues.vomit),
-          not_drinking: Math.abs(penaltyValues.not_drinking),
-        },
-        // Both counter sets are scored identically; only the form groups them.
-        [...penaltyCounters, ...globalPenaltyCounters],
-      ),
-    [penaltyValues.vomit, penaltyValues.not_drinking, penaltyCounters, globalPenaltyCounters],
-  );
 
   // Drinking mechanics belong to the pub-crawl format; the settings page gates
   // the same fields on the same predicate.
@@ -91,15 +74,15 @@ export function useExtraShotsAndPenalties(
   useEffect(() => {
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);
-      // Stored value is points; the count fields need the count back.
-      setPenalties(pointsToCounts(existingResult.penalties || {}, rates));
+      // The server stores the counts staff entered alongside the priced
+      // points, so an edit shows the real count. It used to be reverse-derived
+      // by dividing the stored points by the *current* price, which rewrote
+      // the count whenever an admin changed that price.
+      setPenalties(existingResult.penalty_counts || {});
     }
-    // Only re-derive when the result identity changes — `rates` recomputing
-    // (e.g. settings refetch) must not reset what the staff already typed.
+    // Only re-derive when the result identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingResult]);
-
-  const penaltiesInPoints = useMemo(() => countsToPoints(penalties, rates), [penalties, rates]);
 
   const validateExtraShots = (): boolean => {
     if (extraShots > maxExtraShots) {
@@ -116,7 +99,6 @@ export function useExtraShotsAndPenalties(
     setExtraShots,
     penalties,
     setPenalties,
-    penaltiesInPoints,
     maxExtraShots,
     maxExtraShotsPerMember,
     showExtraShots,

@@ -33,7 +33,6 @@ export default function GeneralForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -71,7 +70,7 @@ export default function GeneralForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 

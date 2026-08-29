@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -30,7 +31,7 @@ from app.events import (
 )
 from app.models.activity import Activity, ActivityResult
 from app.models.activity_factory import ActivityFactory
-from app.models.dynamic_scoring import DynamicAward
+from app.models.dynamic_scoring import DynamicAward, DynamicRule
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
@@ -223,7 +224,17 @@ class ScoringService:
         return ScoreBreakdown(final=final, raw=raw)
 
     async def _get_settings(self) -> RallySettings:
-        """Get rally settings from database (cached)"""
+        """Get rally settings from database (cached for this service instance).
+
+        The cached instance is dropped if the session expired it — a rollback
+        expires every object in the session, and reading an attribute off an
+        expired instance triggers a *synchronous* lazy refresh, which on an
+        async session raises MissingGreenlet rather than reloading. This bites
+        on the create-then-IntegrityError-then-update path, where the rollback
+        happens between two reads of the settings.
+        """
+        if self._settings is not None and sa_inspect(self._settings).expired:
+            self._settings = None
         if self._settings is None:
             stmt = select(RallySettings)
             self._settings = (await self.db.scalars(stmt)).first()
@@ -239,17 +250,85 @@ class ScoringService:
             raise RallyError("Failed to get or create rally settings")
         return self._settings
 
-    async def calculate_team_total_score(self, team_id: int) -> float:
-        """Calculate total score for a team including all modifiers"""
-        stmt = select(ActivityResult).where(ActivityResult.team_id == team_id)
-        results = (await self.db.scalars(stmt)).all()
-        total_score = 0.0
+    async def penalty_prices(self, activity: Activity) -> dict[str, float]:
+        """Points deducted per occurrence, keyed by penalty key.
 
-        for result in results:
-            if result.is_completed and result.final_score is not None:
-                total_score += float(result.final_score)
+        The server's price list, assembled from the three places an admin can
+        set one:
 
-        return total_score
+        * ``RallySettings.penalty_per_puke`` / ``penalty_per_not_drinking`` —
+          the built-in drinking penalties;
+        * ``Activity.config.penalty_counters`` — counters this activity
+          defines for itself (``[{key, label, points}]``);
+        * active ``DynamicRule`` rows — event-wide counters, exposed under the
+          ``g_<id>`` key so they cannot collide with an activity's own.
+
+        Magnitudes, always positive: the caller subtracts them.
+        """
+        settings = await self._get_settings()
+        prices: dict[str, float] = {
+            "vomit": abs(float(settings.penalty_per_puke)),
+            "not_drinking": abs(float(settings.penalty_per_not_drinking)),
+        }
+
+        counters = (activity.config or {}).get("penalty_counters")
+        if isinstance(counters, list):
+            for counter in counters:
+                if not isinstance(counter, dict):
+                    continue
+                key = counter.get("key")
+                points = counter.get("points")
+                if isinstance(key, str) and key and isinstance(points, int | float):
+                    prices[key] = abs(float(points))
+
+        # Same event scoping the admin list uses (DynamicScoringService.list_rules):
+        # a past edition's counters must not price this edition's evaluations.
+        # Legacy NULL event_id rows count as current.
+        event_id = await current_event_id(self.db)
+        rules = (
+            await self.db.scalars(
+                select(DynamicRule).where(
+                    DynamicRule.is_active.is_(True),
+                    (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None)),
+                )
+            )
+        ).all()
+        for rule in rules:
+            prices[f"g_{rule.id}"] = abs(float(rule.points))
+
+        return prices
+
+    async def resolve_penalty_points(
+        self, activity: Activity, counts: dict[str, int]
+    ) -> dict[str, int]:
+        """Price staff-entered occurrence counts into points to deduct.
+
+        This is the boundary that makes penalties trustworthy. The client used
+        to do this multiplication and send the finished points, so the request
+        body named its own deduction: nothing stopped a forged or stale-priced
+        value, and a client whose settings fetch had failed priced penalties
+        from its own hardcoded fallbacks.
+
+        An unknown key is rejected rather than passed through — passing it
+        through is what let an arbitrary number reach the score.
+        """
+        if not counts:
+            return {}
+
+        prices = await self.penalty_prices(activity)
+        unknown = sorted(key for key in counts if key not in prices)
+        if unknown:
+            raise RallyValidationError(f"Unknown penalty type(s): {', '.join(unknown)}")
+
+        points: dict[str, int] = {}
+        for key, count in counts.items():
+            if count is None:
+                continue
+            if count < 0:
+                raise RallyValidationError(f"Penalty count for '{key}' cannot be negative")
+            if count:
+                points[key] = round(count * prices[key])
+        return points
 
     async def _checkpoint_scores_for_team(
         self, team_id: int
@@ -261,6 +340,13 @@ class ScoringService:
         ``order`` mid-reorder must not collapse their scores into one slot.
         The returned ``id -> order`` map lets the caller lay the scores out in
         the checkpoints' current visit order.
+
+        A global activity (``Activity.checkpoint_id`` is NULL, see D3) has no
+        slot in that positional layout, but its points are still points: it
+        counts toward ``total_score`` and is simply absent from
+        ``checkpoint_scores``. Skipping the whole result — as this used to —
+        made every global activity invisible in ``team.total``, and therefore
+        on the leaderboard, which reads that column.
         """
         stmt = (
             select(ActivityResult)
@@ -275,6 +361,9 @@ class ScoringService:
         for result in results:
             if not (result.is_completed and result.final_score is not None):
                 continue
+            # Every scored result counts toward the total...
+            total_score += result.final_score
+            # ...but only a checkpoint-scoped one has a positional slot.
             if not (result.activity and result.activity.checkpoint):
                 continue
             checkpoint = result.activity.checkpoint
@@ -282,7 +371,6 @@ class ScoringService:
                 checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
             )
             checkpoint_order_by_id[checkpoint.id] = checkpoint.order
-            total_score += result.final_score
 
         return checkpoint_scores, checkpoint_order_by_id, total_score
 
@@ -332,6 +420,17 @@ class ScoringService:
 
     async def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
         """Update team's total and score_per_checkpoint based on activity results"""
+        # This is a read-modify-write of team.total, so it needs the row lock
+        # before the read — two evaluations on the same team would otherwise
+        # interleave and lose one update.
+        #
+        # The lock is taken over *all* teams ordered by id, not just this one,
+        # to match reassign_ranks_unlocked (crud_team.get_multi(for_update=True),
+        # ORDER BY Team.id), which this call reaches through the commit funnel.
+        # Locking one row here and the whole table there gives two lock orders
+        # and deadlocks: A holds team 5 and wants 2 while B holds 2 and wants 5.
+        # One order for both, so they queue instead of deadlocking.
+        await self.db.scalars(select(Team.id).order_by(Team.id).with_for_update())
         team = await self.db.get(Team, team_id)
         if not team:
             return False
@@ -422,21 +521,23 @@ class ScoringService:
         for result in results:
             if not (result.is_completed and result.final_score is not None):
                 continue
-            if not (result.activity and result.activity.checkpoint):
-                continue
             bucket = per_team.get(result.team_id)
             if bucket is None:
                 continue
-            checkpoint_scores, checkpoint_order_by_id, _ = bucket
-            checkpoint = result.activity.checkpoint
-            checkpoint_scores[checkpoint.id] = (
-                checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
-            )
-            checkpoint_order_by_id[checkpoint.id] = checkpoint.order
+            checkpoint_scores, checkpoint_order_by_id, running_total = bucket
+            # Same rule as _checkpoint_scores_for_team: a global activity
+            # (no checkpoint) still adds to the total, it just has no
+            # positional slot in score_per_checkpoint.
+            if result.activity and result.activity.checkpoint:
+                checkpoint = result.activity.checkpoint
+                checkpoint_scores[checkpoint.id] = (
+                    checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
+                )
+                checkpoint_order_by_id[checkpoint.id] = checkpoint.order
             per_team[result.team_id] = (
                 checkpoint_scores,
                 checkpoint_order_by_id,
-                bucket[2] + result.final_score,
+                running_total + result.final_score,
             )
 
         award_points_by_team: dict[int, float] = {}
@@ -653,6 +754,16 @@ class ScoringService:
         if not await instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
             raise ValueError("Invalid result data for activity type")
 
+        # Price the staff-entered counts server-side. When the caller sends
+        # counts they are authoritative and the submitted `penalties` (points)
+        # is ignored; legacy/admin callers that send only points still work.
+        penalty_counts = obj_in.penalty_counts or {}
+        penalties = (
+            await self.resolve_penalty_points(activity, penalty_counts)
+            if penalty_counts
+            else obj_in.penalties
+        )
+
         is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
         completion_time = obj_in.result_data.get("completion_time_seconds")
         extra_time = float(completion_time) if completion_time is not None else None
@@ -667,11 +778,13 @@ class ScoringService:
             result_data=obj_in.result_data,
             team_size=await self._team_size(obj_in.team_id),
             extra_shots=obj_in.extra_shots,
-            penalties=obj_in.penalties,
+            penalties=penalties,
             all_times=all_times,
         )
 
         db_obj = activity_result_crud.build(obj_in, breakdown.final)
+        db_obj.penalties = dict(penalties)
+        db_obj.penalty_counts = dict(penalty_counts)
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
         await activity_result_crud.persist(self.db, db_obj, commit=commit)
 
@@ -720,10 +833,22 @@ class ScoringService:
 
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
+        # Re-price server-side whenever the staff-entered counts changed, so an
+        # edit can never take a client-supplied point total either.
+        if "penalty_counts" in update_data:
+            activity_for_pricing = await self.db.get(Activity, db_obj.activity_id)
+            if activity_for_pricing is not None:
+                db_obj.penalties = dict(
+                    await self.resolve_penalty_points(
+                        activity_for_pricing, db_obj.penalty_counts or {}
+                    )
+                )
+                update_data["penalties"] = db_obj.penalties
+
         # Any of these feed the scored total (base points, penalties, extra
         # shots), so an edit to any one must rescore the row and re-sync its
         # excess-penalty award — not just a result_data change.
-        scoring_fields = {"result_data", "extra_shots", "penalties"}
+        scoring_fields = {"result_data", "extra_shots", "penalties", "penalty_counts"}
         if scoring_fields & update_data.keys():
             activity = await self.db.get(Activity, db_obj.activity_id)
             if activity and "result_data" in update_data:
@@ -743,10 +868,16 @@ class ScoringService:
             ):
                 await self._recalculate_all_results_for_activity(activity.id)
 
-        await activity_result_crud.persist(self.db, db_obj)
-
+        # Queue the audit row *before* persisting, so the single commit inside
+        # persist() covers both. Recording it afterwards needed a commit of its
+        # own mid-flow, which split the write into two transactions: a crash
+        # between them left the score changed with no audit trail (or, when the
+        # recompute is deferred and no editor was supplied, an audit row that
+        # never committed at all).
         if before is not None and editor is not None:
-            await self._record_history(db_obj, before, editor)
+            self._queue_history(db_obj, before, editor)
+
+        await activity_result_crud.persist(self.db, db_obj)
 
         if not self._defer_recompute:
             await self.update_team_scores(db_obj.team_id)
@@ -758,13 +889,17 @@ class ScoringService:
         )
         return db_obj
 
-    async def _record_history(
+    def _queue_history(
         self,
         db_obj: ActivityResult,
         before: dict[str, Any],
         editor: EvaluationEditor,
     ) -> None:
-        """Append an UPDATED audit row when audited fields actually changed."""
+        """Queue an UPDATED audit row when audited fields actually changed.
+
+        Adds to the session only — the caller's commit makes it durable
+        together with the score change it describes.
+        """
         changes = _diff_snapshots(before, _snapshot_result(db_obj))
         if not changes:
             return
@@ -777,7 +912,6 @@ class ScoringService:
                 changes=changes,
             )
         )
-        await self.db.commit()
 
     async def remove_result(self, result_id: int) -> ActivityResult | None:
         """Delete a result and refresh the owning team's scores."""
@@ -788,9 +922,35 @@ class ScoringService:
         # Capture identifiers before the row is gone.
         team_id = db_obj.team_id
         activity_id = db_obj.activity_id
+        activity = await self.db.get(Activity, activity_id)
+        is_time_based = (
+            activity is not None and activity.activity_type == ActivityType.TIME_BASED.value
+        )
+        # Whose totals this delete moves. For a time-based activity that is every
+        # team with a result on it, not just this one: scores there are a
+        # *relative* ranking of the times (see TimeBasedActivity.calculate_score),
+        # so removing a time re-scores everyone else. create_result and
+        # update_result already do this; deleting used to skip it, leaving every
+        # rival's score stale unless the off-path scoring worker happened to be
+        # running.
+        affected_team_ids = {team_id}
+        if is_time_based:
+            affected_team_ids |= set(
+                (
+                    await self.db.scalars(
+                        select(ActivityResult.team_id).where(
+                            ActivityResult.activity_id == activity_id
+                        )
+                    )
+                ).all()
+            )
+
         await activity_result_crud.delete(self.db, db_obj=db_obj)
         if not self._defer_recompute:
-            await self.update_team_scores(team_id)
+            if is_time_based:
+                await self._recalculate_all_results_for_activity(activity_id)
+            for affected_team_id in sorted(affected_team_ids):
+                await self.update_team_scores(affected_team_id)
         await self._publish_result_change(
             ActivityResultDeletedEvent,
             result_id=result_id,
@@ -855,7 +1015,91 @@ class ScoringService:
                 await self.db.commit()
             for team_id in {r.team_id for r in all_results}:
                 await self.update_team_scores(team_id, should_commit=commit)
+
         observe_scoring_recompute(time.perf_counter() - start)
+
+    async def reprice_all_results(self) -> int:
+        """Re-run the scorer over every completed result of the current event.
+
+        This is what makes an admin scoring change retroactive. Everything
+        else in this service rescores only the rows touched by the write that
+        triggered it, so a change to RallySettings (``bonus_per_extra_shot``,
+        the penalty prices) or to a ``DynamicRule`` price would otherwise never
+        reach results that were already scored — the admin could edit a value
+        and watch the standings not move.
+
+        Does not commit: the caller pairs this with the classification pass so
+        the whole re-price lands in one transaction. Returns how many results
+        were rescored.
+        """
+        event_id = await current_event_id(self.db)
+        team_ids = list(
+            (
+                await self.db.scalars(
+                    select(Team.id).where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+                )
+            ).all()
+        )
+        if not team_ids:
+            return 0
+
+        results = list(
+            (
+                await self.db.scalars(
+                    select(ActivityResult).where(
+                        ActivityResult.team_id.in_(team_ids),
+                        ActivityResult.is_completed.is_(True),
+                    )
+                )
+            ).all()
+        )
+        if not results:
+            return 0
+
+        by_activity: dict[int, list[ActivityResult]] = {}
+        for result in results:
+            by_activity.setdefault(result.activity_id, []).append(result)
+
+        team_size_cache: dict[int, int] = {}
+        repriced = 0
+        for activity_id, activity_results in by_activity.items():
+            activity = await self.db.get(Activity, activity_id)
+            if activity is None:
+                continue
+            # A time-based score is a rank within the activity, so the whole
+            # set of times has to be in hand before any single row is scored.
+            all_times = (
+                [float(r.time_score) for r in activity_results if r.time_score is not None]
+                if activity.activity_type == ActivityType.TIME_BASED.value
+                else None
+            )
+            for result in activity_results:
+                if result.team_id not in team_size_cache:
+                    team_size_cache[result.team_id] = await self._team_size(result.team_id)
+                # Re-price the recorded counts at today's rates. This is the
+                # half that makes a changed penalty price retroactive; results
+                # with no stored counts (pre-migration rows, admin-set points)
+                # keep the points they already have.
+                if result.penalty_counts:
+                    result.penalties = dict(
+                        await self.resolve_penalty_points(activity, result.penalty_counts)
+                    )
+                breakdown = await self.compute_score_breakdown(
+                    activity_type=activity.activity_type,
+                    config=activity.config,
+                    result_data=result.result_data,
+                    team_size=team_size_cache[result.team_id],
+                    extra_shots=result.extra_shots,
+                    penalties=result.penalties,
+                    all_times=all_times,
+                )
+                result.final_score = breakdown.final
+                await self._sync_excess_penalty_award(
+                    result, breakdown.raw, activity_name=activity.name
+                )
+                repriced += 1
+
+        return repriced
 
     async def _completed_counts_by_team(self) -> dict[int, int]:
         """Completed-activity count per team, in one grouped query (avoids N+1)."""

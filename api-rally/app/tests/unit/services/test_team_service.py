@@ -42,46 +42,6 @@ class TestCalculateMinTimeScores:
 
         # then
         assert result[0] == float("inf")
-
-
-class TestCalculateCheckpointScore:
-    def test_combines_time_question_puke_and_skip_components(self) -> None:
-        # given
-        team = Team(name="A", time_scores=[100], question_scores=[True], pukes=[1], skips=[2])
-
-        # when
-        score = TeamService.calculate_checkpoint_score(
-            0, team=team, min_time_scores=[50], penalty_per_puke=-20
-        )
-
-        # then: time=int(50/100*10)=5, question=8, pukes=1*-20=-20, skips=2*-8=-16
-        assert score == 5 + 8 - 20 - 16
-
-    def test_negative_skips_are_a_bonus(self) -> None:
-        # given
-        team = Team(name="A", time_scores=[0], question_scores=[False], pukes=[0], skips=[-1])
-
-        # when
-        score = TeamService.calculate_checkpoint_score(
-            0, team=team, min_time_scores=[0], penalty_per_puke=-20
-        )
-
-        # then: skips < 0 -> bonus abs(-1) * 4 = 4
-        assert score == 4
-
-    def test_zero_time_score_contributes_nothing(self) -> None:
-        # given
-        team = Team(name="A", time_scores=[0], question_scores=[True], pukes=[0], skips=[0])
-
-        # when
-        score = TeamService.calculate_checkpoint_score(
-            0, team=team, min_time_scores=[50], penalty_per_puke=-20
-        )
-
-        # then: a score of 0 means "not yet timed" — no time component
-        assert score == 8
-
-
 class TestValidateRallyTiming:
     @pytest.fixture
     def service(self) -> TeamService:

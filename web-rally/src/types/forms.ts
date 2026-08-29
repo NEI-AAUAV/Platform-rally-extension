@@ -17,7 +17,11 @@ export interface ActivityResultData {
     notes?: string;
   };
   extra_shots: number;
-  penalties: Record<string, number>;
+  /**
+   * Occurrence counts staff entered ("2 vomits"), not point totals. The server
+   * prices them; the client never multiplies. See lib/penaltyCounters.ts.
+   */
+  penalty_counts: Record<string, number>;
 }
 
 /**

@@ -58,7 +58,7 @@ describe('TimeBasedForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { completion_time_seconds: 12.34, notes: '' },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -71,7 +71,7 @@ describe('TimeBasedForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: { completion_time_seconds: 12.5, notes: '' },
       extra_shots: 0,
-      penalties: {},
+      penalty_counts: {},
     });
   });
 
@@ -108,7 +108,7 @@ describe('TimeBasedForm', () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: { completion_time_seconds: 33, notes: 'n1' }, extra_shots: 0, penalties: {} } as any
+          { result_data: { completion_time_seconds: 33, notes: 'n1' }, extra_shots: 0, penalty_counts: {} } as any
         }
       />
     );
@@ -120,7 +120,7 @@ describe('TimeBasedForm', () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: { completion_time_seconds: '44.5', notes: 'n2' }, extra_shots: 0, penalties: {} } as any
+          { result_data: { completion_time_seconds: '44.5', notes: 'n2' }, extra_shots: 0, penalty_counts: {} } as any
         }
       />
     );

@@ -262,7 +262,7 @@ test.describe('Master rally day — every feature combined under real concurrenc
         `/staff/teams/${teamAlpha.id}/activities/${checkpoint2.activityId}/evaluate/${teamAlphaResultId}`,
         {
           token: staffB.user.accessToken,
-          body: { result_data: { success: true }, extra_shots: 0, penalties: {} },
+          body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
         },
       );
       const history = await apiCall<{ action: string }[]>(

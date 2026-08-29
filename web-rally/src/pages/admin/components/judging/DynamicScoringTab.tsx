@@ -95,7 +95,9 @@ function RulesSection() {
               />
             </label>
             <label data-admin-search-key="rule_points" className="space-y-1">
-              <span className="text-xs text-muted-foreground">Pontos a descontar por ocorrência *</span>
+              <span className="text-xs text-muted-foreground">
+                Pontos a descontar por ocorrência *
+              </span>
               <input
                 type="number"
                 min="0"
@@ -176,8 +178,7 @@ function RulesSection() {
               title="Eliminar"
               className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
               onClick={() => {
-                if (confirm(`Eliminar penalização "${rule.name}"?`))
-                  deleteMutation.mutate(rule.id);
+                if (confirm(`Eliminar penalização "${rule.name}"?`)) deleteMutation.mutate(rule.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -213,6 +214,8 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["dynamic-awards"] });
+      // An award moves team.total, so the standings must be refetched too.
+      void qc.invalidateQueries({ queryKey: ["teams"] });
       setShowForm(false);
       setForm(EMPTY_AWARD);
     },
@@ -220,7 +223,10 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDynamicAward({ path: { award_id: id } }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["dynamic-awards"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["dynamic-awards"] });
+      void qc.invalidateQueries({ queryKey: ["teams"] });
+    },
   });
 
   const teamName = (id: number) => teams.find((t) => t.id === id)?.name ?? `#${id}`;

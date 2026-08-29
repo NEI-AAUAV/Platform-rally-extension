@@ -26,7 +26,6 @@ export default function TimeBasedForm({
     extraShots,
     setExtraShots,
     penalties,
-    penaltiesInPoints,
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
@@ -70,7 +69,7 @@ export default function TimeBasedForm({
         notes: notes,
       },
       extra_shots: extraShots,
-      penalties: penaltiesInPoints,
+      penalty_counts: penalties,
     });
   };
 
