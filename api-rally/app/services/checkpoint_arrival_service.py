@@ -296,8 +296,17 @@ class CheckpointArrivalService:
         # `checkpoint_order_matters` setting instead of assuming strict order —
         # under free-order routes every no-activity post would otherwise stay stuck.
         settings = await rally_settings.get_or_create(self._db)
+        # ``ignore_times_inflation=True``: a prior staff-eval advance appends a
+        # pointer row to team.times for a post not yet reached, so the bare
+        # count would reject this genuine arrival at the no-activity post it is
+        # actually standing at. Count resolved posts instead, like the hint /
+        # give-up / proximity callers.
         if not await can_reach_checkpoint(
-            self._db, team=team_obj, checkpoint=checkpoint_obj, settings=settings
+            self._db,
+            team=team_obj,
+            checkpoint=checkpoint_obj,
+            settings=settings,
+            ignore_times_inflation=True,
         ):
             return False
 

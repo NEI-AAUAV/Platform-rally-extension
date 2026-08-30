@@ -20,7 +20,7 @@ from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
 from app.services.checkin_service import require_same_event
-from app.services.route_progress import can_reach_checkpoint
+from app.services.route_progress import can_reach_checkpoint, current_checkpoint_order
 from app.services.scoring_service import ScoringService
 
 ALREADY_SKIPPED = "This checkpoint was already given up on"
@@ -93,11 +93,14 @@ class SkipService:
         if cost != 0:
             await ScoringService(self._db).update_team_scores(team_id)
 
-        next_checkpoint = await self._checkpoint_crud.get_next(db=self._db, team_id=team_id)
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
+        next_order = (
+            await current_checkpoint_order(self._db, team_obj) if team_obj else None
+        )
         return CheckpointSkipped(
             checkpoint_id=checkpoint_id,
             cost=cost,
-            next_checkpoint_order=next_checkpoint.order if next_checkpoint else None,
+            next_checkpoint_order=next_order,
         )
 
     async def _charge(self, *, team_id: int, cost: int, checkpoint_order: int) -> None:

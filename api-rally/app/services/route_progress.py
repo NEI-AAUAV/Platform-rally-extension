@@ -101,6 +101,27 @@ async def resolved_checkpoint_orders(
     return frozenset(resolved)
 
 
+async def current_checkpoint_order(db: AsyncSession, team: Team) -> int | None:
+    """The order of the single post a team is due to reach next, or ``None``
+    when every post is resolved and the route is finished.
+
+    Mirrors ``TeamService.compute_checkpoint_progress``: a contiguous scan over
+    *resolved* posts (arrivals / skips / scored activities), never
+    ``len(team.times)`` — which ``advance_team_to_next_checkpoint`` inflates by
+    one with a pointer at a post the team has not actually reached. This is the
+    read-facing "which post is the team hunting" signal; the staff-eval append
+    machinery keeps its own positional ``crud.checkpoint.get_next``.
+
+    Free-order / staged routes are out of scope here: the first unresolved order
+    is returned, which keeps today's behaviour for those modes.
+    """
+    resolved = await resolved_checkpoint_orders(db, team)
+    for cp in await checkpoint_crud.get_all_ordered(db):
+        if cp.order not in resolved:
+            return cp.order
+    return None
+
+
 async def load_stages(db: AsyncSession) -> list[Stage]:
     """The current event's stages, each carrying the orders of its posts.
 

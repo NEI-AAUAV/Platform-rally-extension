@@ -47,7 +47,14 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         return db_obj
 
     async def get_next(self, db: AsyncSession, team_id: int) -> CheckPoint | None:
-        """Get the next checkpoint a team should visit based on order."""
+        """Next checkpoint by positional ``len(team.times)`` count.
+
+        Internal to the staff-eval advance machinery
+        (``advance_team_to_next_checkpoint``), which relies on the pointer-append
+        semantics. Read-facing "which post is the team hunting" callers must use
+        ``route_progress.current_checkpoint_order`` instead — it counts resolved
+        posts, not the inflated ``team.times`` length.
+        """
         team = await db.get(Team, team_id)
 
         if team is not None:
