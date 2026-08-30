@@ -129,6 +129,36 @@ async def test_cannot_give_up_on_a_post_the_team_has_not_reached(pg_session, pg_
     assert (await pg_session.scalars(select(CheckpointSkip))).all() == []
 
 
+async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session, pg_client):
+    """Regression: ``advance_team_to_next_checkpoint`` inflates ``team.times``
+    with a "next post" pointer, so a team hunting post 2 has
+    ``len(team.times) == 2`` while only post 1 is resolved. The reachability
+    guard must key off resolved posts, not that count.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    event = await _make_event(pg_session)
+    first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    second = await _make_checkpoint(pg_session, order=2, event_id=event.id)
+    third = await _make_checkpoint(pg_session, order=3, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
+    team.times = [now, now]
+    pg_session.add(team)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        on_target = pg_client.post(SKIP_URL.format(id=second.id))
+        too_far = pg_client.post(SKIP_URL.format(id=third.id))
+
+    assert on_target.status_code == 200, on_target.text
+    assert too_far.status_code == 400, too_far.text
+
+
 async def test_giving_up_on_the_last_post_ends_the_route(pg_session, pg_client):
     event = await _make_event(pg_session)
     only = await _make_checkpoint(pg_session, order=1, event_id=event.id)

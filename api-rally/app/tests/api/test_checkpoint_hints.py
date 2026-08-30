@@ -123,6 +123,40 @@ async def test_cannot_buy_hints_for_a_future_checkpoint(pg_session, pg_client):
     assert reveals == []
 
 
+async def test_can_buy_hints_for_the_post_being_hunted_after_an_advance(pg_session, pg_client):
+    """Regression: ``advance_team_to_next_checkpoint`` appends a "next post"
+    pointer to ``team.times``, so a team hunting post 2 has ``len(team.times) == 2``
+    while only post 1 is genuinely resolved. Reachability must key off resolved
+    posts, not that inflated count, or the team can never hint on post 2.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    event = await _make_event(pg_session)
+    first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    second = await _make_checkpoint(pg_session, order=2, event_id=event.id)
+    third = await _make_checkpoint(pg_session, order=3, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, second.id, count=1)
+    await _make_indications(pg_session, third.id, count=1)
+    await set_rally_settings(pg_session, checkpoint_order_matters=True)
+
+    # Post 1 resolved (arrival row); team.times inflated to 2 by the advance pointer.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
+    team.times = [now, now]
+    pg_session.add(team)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        on_target = pg_client.post(HINT_URL.format(id=second.id))
+        too_far = pg_client.post(HINT_URL.format(id=third.id))
+
+    assert on_target.status_code == 200, on_target.text
+    assert too_far.status_code == 400, too_far.text
+
+
 async def test_penalty_is_charged_once_per_hint(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)
