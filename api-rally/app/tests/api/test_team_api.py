@@ -564,4 +564,3 @@ class TestGetTeamEvaluations:
         assert evaluation["team_id"] == team.id
         assert evaluation["activity"]["id"] == activity_obj.id
         assert evaluation["team"]["id"] == team.id
-
