@@ -51,8 +51,18 @@ describe('mapGroupsToScopes', () => {
   });
 });
 
+/** Builds an unsigned-but-well-formed JWT carrying the given payload, so
+ * `decodeJwtPayload` (base64url decode, no signature check) can read it back
+ * — matching what oidc-client-ts hands over as `user.access_token`. */
+function fakeJwt(payload: Record<string, unknown>): string {
+  const b64url = (obj: Record<string, unknown>) =>
+    btoa(JSON.stringify(obj)).split('+').join('-').split('/').join('_').split('=').join('');
+  return `${b64url({ alg: 'none' })}.${b64url(payload)}.`;
+}
+
 describe('profileToUser', () => {
-  const baseUser = (profile: Record<string, unknown>) => ({ profile }) as unknown as User;
+  const baseUser = (profile: Record<string, unknown>, access_token?: string) =>
+    ({ profile, access_token }) as unknown as User;
 
   it('maps a full profile to a TokenPayload', () => {
     const user = baseUser({
@@ -94,5 +104,32 @@ describe('profileToUser', () => {
     const user = baseUser({ sub: 'uuid-4', groups: [] });
     const result = profileToUser(user);
     expect(result.name).toBeUndefined();
+  });
+
+  it('H2 regression: prefers groups from the access token over the (possibly stale) ID-token profile', () => {
+    const user = baseUser(
+      { sub: 'uuid-5', groups: ['rally-staff'] }, // stale ID-token profile
+      fakeJwt({ groups: ['admin'] }), // fresh access token after a promotion
+    );
+    const result = profileToUser(user);
+    expect(result.scopes).toEqual(['admin']);
+  });
+
+  it('H2: falls back to the profile groups when the access token has none', () => {
+    const user = baseUser({ sub: 'uuid-6', groups: ['admin'] }, fakeJwt({ sub: 'uuid-6' }));
+    const result = profileToUser(user);
+    expect(result.scopes).toEqual(['admin']);
+  });
+
+  it('H2: falls back to the profile groups when the access token is not a decodable JWT', () => {
+    const user = baseUser({ sub: 'uuid-7', groups: ['admin'] }, 'opaque-token-not-a-jwt');
+    const result = profileToUser(user);
+    expect(result.scopes).toEqual(['admin']);
+  });
+
+  it('H2: falls back to the profile groups when there is no access token at all', () => {
+    const user = baseUser({ sub: 'uuid-8', groups: ['rally-guide'] });
+    const result = profileToUser(user);
+    expect(result.scopes).toEqual(['rally-guide']);
   });
 });

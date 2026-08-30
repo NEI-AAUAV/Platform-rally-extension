@@ -84,7 +84,7 @@ class TeamMembersController:
         require_add_team_member_permission(auth=auth, curr_user=curr_user)
 
         user = await service.add_member(
-            team_id, member_data, is_privileged=deps.is_admin(auth.scopes)
+            team_id, member_data, is_privileged=deps.is_admin_or_manager(auth.scopes)
         )
         return TeamMemberResponse(
             id=user.id, name=user.name, email=user.email, is_captain=user.is_captain

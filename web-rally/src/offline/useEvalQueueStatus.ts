@@ -2,8 +2,8 @@
  * Reactive view of the offline evaluation queue for UI badges.
  *
  * Refreshes immediately on the queue's own change event (fired by
- * evalQueue.writeAll) plus the `online`/`offline`/focus signals that bracket
- * a sync, with a polling fallback in case an event is ever missed.
+ * evalQueue's mutate()) plus the `online`/`offline`/focus signals that
+ * bracket a sync, with a polling fallback in case an event is ever missed.
  */
 import { useCallback, useEffect, useState } from "react";
 import { list, QUEUE_CHANGED_EVENT, type QueuedEval } from "./evalQueue";

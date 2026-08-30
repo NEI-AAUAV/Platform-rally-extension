@@ -44,7 +44,6 @@ describe('useGuideAccess', () => {
     ['rally-staff', true],
     ['admin', true],
     ['manager-rally', true],
-    ['rally:admin', true],
     ['other-scope', false],
   ])('role gate: scope %s → hasGuideRole=%s', (scope, expected) => {
     setStore({ scopes: [scope], sessionLoading: false })

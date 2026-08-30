@@ -46,8 +46,7 @@ export default function useUser(options?: { fetchUserData?: boolean }) {
   // Admin status is determined by JWT token scopes (synchronous, no API call)
   const isRallyAdmin =
     !!userStore.scopes?.includes("admin") ||
-    !!userStore.scopes?.includes("manager-rally") ||
-    !!userStore.scopes?.includes("rally:admin");
+    !!userStore.scopes?.includes("manager-rally");
 
   return {
     // Only show loading state if we're fetching user data

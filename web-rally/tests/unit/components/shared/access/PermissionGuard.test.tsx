@@ -24,7 +24,7 @@ describe("PermissionGuard", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("renders children when the user holds one of the required scopes", () => {
-    mockUseUser.mockReturnValue({ isLoading: false, userStore: { scopes: ["rally:admin"] } });
+    mockUseUser.mockReturnValue({ isLoading: false, userStore: { scopes: ["admin"] } });
 
     render(
       <PermissionGuard>
@@ -87,7 +87,7 @@ describe("PermissionGuard", () => {
     );
     expect(screen.getByText("secret content")).toBeInTheDocument();
 
-    mockUseUser.mockReturnValue({ isLoading: false, userStore: { scopes: ["rally:admin"] } });
+    mockUseUser.mockReturnValue({ isLoading: false, userStore: { scopes: ["admin"] } });
     rerender(
       <PermissionGuard requiredScopes={["staff-rally"]} fallbackPath="/postos">
         <Secret />

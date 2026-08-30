@@ -122,7 +122,7 @@ class CheckinController:
         """
         self._require_enabled(settings)
 
-        is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
+        is_privileged = deps.is_admin_or_manager(auth.scopes)  # covers admin + manager-rally
         if (
             checkpoint_id is not None
             and not is_privileged
@@ -161,7 +161,7 @@ class CheckinController:
         identify it and open the right evaluation is the normal staffed flow and
         must work whether or not self check-in is enabled.
         """
-        is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
+        is_privileged = deps.is_admin_or_manager(auth.scopes)  # covers admin + manager-rally
         checkpoint_id = (
             body.checkpoint_id
             if (body.checkpoint_id is not None and is_privileged)

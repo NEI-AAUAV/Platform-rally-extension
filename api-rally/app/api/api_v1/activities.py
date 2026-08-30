@@ -16,8 +16,10 @@ from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db
 from app.core.abac import require_permission
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
+from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity, activity_result
 from app.models.activity import ActivityResult
+from app.models.team import Team
 from app.schemas.activity import (
     ActivityCreate,
     ActivityListResponse,
@@ -164,13 +166,26 @@ class ActivityController:
         *,
         db: Annotated[AsyncSession, Depends(get_db)],
         _: Annotated[None, Depends(require(Action.VIEW_ACTIVITY_RESULT, Resource.ACTIVITY_RESULT))],
+        skip: int = Query(0, ge=0),
+        limit: int = Query(200, ge=1, le=1000),
     ) -> list[ActivityResultResponse]:
-        """Get all activity results (evaluations) with team and activity details"""
-        # Get all activity results with related data
+        """Get all activity results (evaluations) with team and activity details.
+
+        scoped to the current event and paginated —
+        unscoped, this grew without bound across editions and every past
+        edition's rows returned on every call.
+        """
+        event_id = await current_event_id(db)
+        current_event_team_ids = select(Team.id).where(
+            (Team.event_id == event_id) | (Team.event_id.is_(None))
+        )
         stmt = (
             select(ActivityResult)
             .options(joinedload(ActivityResult.activity), joinedload(ActivityResult.team))
+            .where(ActivityResult.team_id.in_(current_event_team_ids))
             .order_by(desc(ActivityResult.completed_at))
+            .offset(skip)
+            .limit(limit)
         )
         results = list((await db.scalars(stmt)).all())
 
@@ -380,10 +395,13 @@ class ActivityController:
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         curr_user: Annotated[DetailedUser, Depends(deps.get_current_user)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
-        penalty_type: str = Query(..., regex="^(vomit|not_drinking|other)$"),
-        penalty_value: int = Query(..., ge=1),
+        # "other" dropped — it isn't a key penalty_prices ever prices, so
+        # it used to let the raw penalty_value through as free-form points.
+        penalty_type: str = Query(..., regex="^(vomit|not_drinking)$"),
+        penalty_count: int = Query(..., ge=1),
     ) -> dict[str, str]:
-        """Apply penalty to activity result"""
+        """Apply a penalty occurrence count to an activity result, priced
+        server-side the same way as every other penalty."""
         db_result = await activity_result.get(db, id=result_id)
         if not db_result:
             raise RallyNotFoundError(ACTIVITY_RESULT_NOT_FOUND)
@@ -397,7 +415,7 @@ class ActivityController:
         )
 
         success = await service.apply_penalty(
-            db_result.team_id, db_result.activity_id, penalty_type, penalty_value
+            db_result.team_id, db_result.activity_id, penalty_type, penalty_count
         )
 
         if not success:

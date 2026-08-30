@@ -270,7 +270,11 @@ class TestCheckpointProgression:
         from app.models.activity import ActivityResult
 
         result = ActivityResult(
-            team_id=team.id, activity_id=activity.id, result_data={}, final_score=100
+            team_id=team.id,
+            activity_id=activity.id,
+            result_data={},
+            is_completed=True,
+            final_score=100,
         )
         pg_session.add(result)
         await pg_session.commit()
@@ -345,10 +349,18 @@ class TestCheckpointProgressCalculation:
         pg_session.add_all(
             [
                 ActivityResult(
-                    team_id=team.id, activity_id=a1.id, result_data={}, is_completed=True
+                    team_id=team.id,
+                    activity_id=a1.id,
+                    result_data={},
+                    is_completed=True,
+                    final_score=100,
                 ),
                 ActivityResult(
-                    team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True
+                    team_id=team.id,
+                    activity_id=a2.id,
+                    result_data={},
+                    is_completed=True,
+                    final_score=100,
                 ),
             ]
         )
@@ -374,7 +386,11 @@ class TestCheckpointProgressCalculation:
 
         pg_session.add(
             ActivityResult(
-                team_id=team.id, activity_id=activity.id, result_data={}, is_completed=True
+                team_id=team.id,
+                activity_id=activity.id,
+                result_data={},
+                is_completed=True,
+                final_score=100,
             )
         )
         await pg_session.commit()

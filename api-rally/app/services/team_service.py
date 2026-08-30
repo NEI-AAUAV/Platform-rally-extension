@@ -242,8 +242,10 @@ class TeamService:
         """
         checkpoints = await checkpoint_crud.get_all_ordered(self._db)
         team_results = await activity_result_crud.get_by_team(self._db, team_id=team_obj.id)
+        # Was `is_completed` alone, which a deferred-judged capture sets
+        # true before a judge has actually scored it — see ActivityResult.is_scored.
         completed_activity_ids = {
-            r.activity_id for r in team_results if getattr(r, "is_completed", False)
+            r.activity_id for r in team_results if getattr(r, "is_scored", False)
         }
         # A post the team gave up on is resolved, not completed: they score
         # nothing for it, but it must stop blocking the route — otherwise the

@@ -13,19 +13,21 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useStaffLogin from "@/hooks/useLoginLink";
+import { useLogout } from "@/auth/useLogout";
 
 export function UserMenu() {
-  const { isAuthenticated, name, email, image, scopes, logout, sessionLoading } = useUserStore(
+  const { isAuthenticated, name, email, image, scopes, sessionLoading } = useUserStore(
     (state) => state,
   );
   const { isAuthenticated: isTeamAuthenticated, teamData, logout: teamLogout } = useTeamAuth();
   const onStaffLogin = useStaffLogin();
+  // M10: full OIDC sign-out (clears the local token store AND ends the
+  // Authentik session), not just the local rally session.
+  const logout = useLogout();
 
   const isAdmin =
     scopes !== undefined &&
-    (scopes.includes("admin") ||
-      scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin"));
+    (scopes.includes("admin") || scopes.includes("manager-rally"));
 
   if (sessionLoading) {
     return <div className="h-9 w-20 animate-pulse rounded-md border border-border bg-muted" />;

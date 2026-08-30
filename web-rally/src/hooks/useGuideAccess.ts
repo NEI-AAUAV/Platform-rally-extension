@@ -17,7 +17,6 @@ const GUIDE_ROLE_SCOPES = [
   "rally-staff",
   "admin",
   "manager-rally",
-  "rally:admin",
 ] as const;
 
 /**

@@ -1,16 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-// In-memory stand-in for idb-keyval (jsdom has no IndexedDB).
+// In-memory stand-in for idb-keyval's `update` (jsdom has no IndexedDB).
+// `update` runs the updater against whatever is currently stored and
+// persists the result — the real read-modify-write contract evalQueue now
+// relies on for atomicity (see mutate() in evalQueue.ts).
 const store = new Map<string, unknown>();
 vi.mock("idb-keyval", () => ({
   createStore: () => ({}),
-  get: async (key: string) => store.get(key),
-  set: async (key: string, val: unknown) => {
-    store.set(key, val);
+  update: async (key: string, updater: (v: unknown) => unknown) => {
+    const next = updater(store.get(key));
+    store.set(key, next);
+    return next;
   },
 }));
 
-import { enqueue, list, drain, markSynced, markFailed, EVAL_SYNC_TAG } from "./evalQueue";
+import {
+  enqueue,
+  list,
+  drain,
+  markSynced,
+  markFailed,
+  retryFailed,
+  discard,
+  EVAL_SYNC_TAG,
+} from "./evalQueue";
 
 const base = {
   teamId: 1,
@@ -25,12 +38,13 @@ const base = {
 describe("evalQueue", () => {
   beforeEach(() => store.clear());
 
-  it("enqueues a pending entry", async () => {
+  it("enqueues a pending entry with zero attempts", async () => {
     await enqueue({ idempotencyKey: "k1", ...base });
     const items = await list();
     expect(items).toHaveLength(1);
     expect(items[0]?.status).toBe("pending");
     expect(items[0]?.idempotencyKey).toBe("k1");
+    expect(items[0]?.attempts).toBe(0);
   });
 
   it("dedupes by idempotency key", async () => {
@@ -50,14 +64,55 @@ describe("evalQueue", () => {
     expect(await list()).toHaveLength(0);
   });
 
-  it("drain marks failed entries and keeps them", async () => {
+  it("C4: a network failure (TypeError) leaves the entry pending and bumps attempts, not failed", async () => {
     await enqueue({ idempotencyKey: "k1", ...base });
     await drain(async () => {
-      throw new Error("network down");
+      throw new TypeError("Failed to fetch");
+    });
+    const items = await list();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.status).toBe("pending");
+    expect(items[0]?.attempts).toBe(1);
+  });
+
+  it("C4: a server error (parsed HTTP error body) marks the entry permanently failed with a reason", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    await drain(async () => {
+      throw { detail: "Unknown penalty type(s): made_up" };
     });
     const items = await list();
     expect(items).toHaveLength(1);
     expect(items[0]?.status).toBe("failed");
+    expect(items[0]?.lastError).toBe("Unknown penalty type(s): made_up");
+  });
+
+  it("C4: a failed entry is skipped by later drains until retryFailed is called", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    await drain(async () => {
+      throw { detail: "422 desligado" };
+    });
+    expect((await list())[0]?.status).toBe("failed");
+
+    const replay = vi.fn();
+    await drain(replay);
+    expect(replay).not.toHaveBeenCalled();
+
+    await retryFailed("k1");
+    expect((await list())[0]?.status).toBe("pending");
+    await drain(replay);
+    expect(replay).toHaveBeenCalledTimes(1);
+  });
+
+  it("C4: a network failure is marked permanently failed once the retry budget is spent", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    for (let i = 0; i < 10; i += 1) {
+      await drain(async () => {
+        throw new TypeError("network down");
+      });
+    }
+    const items = await list();
+    expect(items[0]?.status).toBe("failed");
+    expect(items[0]?.attempts).toBe(10);
   });
 
   it("markSynced drops an entry", async () => {
@@ -70,12 +125,20 @@ describe("evalQueue", () => {
     expect(await list()).toEqual([]);
   });
 
-  it("markFailed marks the matching entry as failed without dropping it", async () => {
+  it("markFailed marks the matching entry as failed with a reason, without dropping it", async () => {
     await enqueue({ idempotencyKey: "k1", ...base });
-    await markFailed("k1");
+    await markFailed("k1", "boom");
     const items = await list();
     expect(items).toHaveLength(1);
     expect(items[0]?.status).toBe("failed");
+    expect(items[0]?.lastError).toBe("boom");
+  });
+
+  it("discard removes an entry outright", async () => {
+    await enqueue({ idempotencyKey: "k1", ...base });
+    await markFailed("k1", "boom");
+    await discard("k1");
+    expect(await list()).toHaveLength(0);
   });
 
   it("markSynced only drops the matching entry, leaving others untouched", async () => {

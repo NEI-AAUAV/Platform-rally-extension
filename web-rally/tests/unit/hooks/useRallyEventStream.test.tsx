@@ -100,6 +100,38 @@ describe("useRallyEventStream", () => {
     expect(source?.closed).toBe(true);
   });
 
+  it("M9 regression: reconnects with backoff after an error instead of staying closed", () => {
+    vi.useFakeTimers();
+    renderHook(() => useRallyEventStream([["teams"]]), { wrapper });
+    const first = FakeEventSource.instances[0];
+    first?.onerror?.call(first as unknown as EventSource, new Event("error"));
+
+    expect(FakeEventSource.instances).toHaveLength(1); // not reconnected yet
+    vi.advanceTimersByTime(1000); // RECONNECT_BASE_MS
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.instances[1]?.closed).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("M9: stops retrying after the max attempt cap (genuinely disabled endpoint)", () => {
+    vi.useFakeTimers();
+    renderHook(() => useRallyEventStream([["teams"]]), { wrapper });
+
+    for (let i = 0; i < 6; i += 1) {
+      const latest = FakeEventSource.instances.at(-1);
+      latest?.onerror?.call(latest as unknown as EventSource, new Event("error"));
+      vi.advanceTimersByTime(30_000); // RECONNECT_MAX_MS, always enough to fire
+    }
+    const countAfterCap = FakeEventSource.instances.length;
+
+    const latest = FakeEventSource.instances.at(-1);
+    latest?.onerror?.call(latest as unknown as EventSource, new Event("error"));
+    vi.advanceTimersByTime(30_000);
+
+    expect(FakeEventSource.instances.length).toBe(countAfterCap); // no further reconnect
+    vi.useRealTimers();
+  });
+
   it("closes the connection on unmount", () => {
     const { unmount } = renderHook(() => useRallyEventStream([["teams"]]), { wrapper });
     const source = FakeEventSource.instances[0];

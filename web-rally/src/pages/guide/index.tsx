@@ -31,7 +31,7 @@ import { useBackDismiss } from "@/hooks/useBackDismiss";
 import MapSection from "@/pages/checkpoints/components/MapSection";
 import { useUserStore } from "@/stores/useUserStore";
 
-const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally:admin", "rally-staff"];
+const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally-staff"];
 
 function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>) {
   const [lightbox, setLightbox] = useState<string | null>(null);

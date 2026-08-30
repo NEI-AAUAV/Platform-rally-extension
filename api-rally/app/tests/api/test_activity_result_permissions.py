@@ -201,13 +201,13 @@ class TestStaffScoreTheirOwnPost:
 
         assert (
             pg_client.post(
-                f"{RESULTS_URL}{mine.id}/penalty?penalty_type=vomit&penalty_value=1"
+                f"{RESULTS_URL}{mine.id}/penalty?penalty_type=vomit&penalty_count=1"
             ).status_code
             < 400
         )
         assert (
             pg_client.post(
-                f"{RESULTS_URL}{theirs.id}/penalty?penalty_type=vomit&penalty_value=1"
+                f"{RESULTS_URL}{theirs.id}/penalty?penalty_type=vomit&penalty_count=1"
             ).status_code
             == 403
         )

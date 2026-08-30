@@ -28,7 +28,10 @@ SessionDep = Annotated[AsyncSession, Depends(get_db)]
 async def _adopt_email_placeholder(db: AsyncSession, auth: AuthData) -> Any | None:
     """Backfill: an email-matched placeholder mirrored eagerly from an
     Authentik group (e.g. rally-staff) may exist before this first login."""
-    if not auth.email:
+    # never link accounts on an unverified email claim — an attacker
+    # could otherwise hijack a pre-mirrored placeholder's scopes by
+    # registering at the IdP with someone else's email string.
+    if not auth.email or not auth.email_verified:
         return None
     placeholder = await crud.user.get_by_email(db, email=auth.email)
     if placeholder is None or placeholder.authentik_sub is not None:
@@ -125,8 +128,19 @@ def get_participant(
     return curr_user
 
 
-def is_admin(scopes: list[str]) -> bool:
+def is_admin_or_manager(scopes: list[str]) -> bool:
+    """True for either the ``admin`` or ``manager-rally`` scope.
+
+    named ``is_admin`` for most of this codebase's history, which read as
+    "true admin only" at every call site — misleading when auditing who can
+    reach a given branch. ``is_admin`` is kept below as a deprecated alias so
+    nothing breaks; new code should call this name.
+    """
     return any(scope in [ScopeEnum.MANAGER_RALLY, ScopeEnum.ADMIN] for scope in scopes)
+
+
+# Deprecated alias — see is_admin_or_manager's docstring. Prefer the new name.
+is_admin = is_admin_or_manager
 
 
 def is_staff(scopes: list[str]) -> bool:

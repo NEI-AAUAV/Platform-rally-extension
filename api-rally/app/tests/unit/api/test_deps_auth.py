@@ -20,12 +20,13 @@ from app.schemas.user import DetailedUser
 pytestmark = pytest.mark.asyncio
 
 
-def _auth(sub="sub-1", email="user@ua.pt", name="User", scopes=None):
+def _auth(sub="sub-1", email="user@ua.pt", name="User", scopes=None, email_verified=True):
     a = Mock()
     a.oidc_sub = sub
     a.email = email
     a.name = name
     a.scopes = scopes if scopes is not None else []
+    a.email_verified = email_verified
     return a
 
 
@@ -112,6 +113,29 @@ async def test_get_current_user_backfills_email_placeholder():
     assert result.id == 5
     assert placeholder.authentik_sub == "new-sub"
     create_mock.assert_not_awaited()
+
+
+async def test_get_current_user_skips_email_backfill_when_email_unverified():
+    """M12: an unverified email claim must never adopt a pre-mirrored
+    placeholder row -- an attacker who merely claims someone else's email at
+    the IdP (or an IdP not enforcing verification) must not inherit that
+    placeholder's scopes. Falls through to the normal create path instead."""
+    db = AsyncMock()
+    placeholder = _user(id=5, sub=None)
+    created = _user(id=42)
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch(
+            "app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)
+        ) as get_by_email,
+        patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=created)) as create_mock,
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
+    ):
+        result = await deps.get_current_user(_auth(sub="new-sub", email_verified=False), db)
+    assert result.id == 42
+    assert placeholder.authentik_sub is None  # never adopted
+    get_by_email.assert_not_awaited()
+    create_mock.assert_awaited_once()
 
 
 async def test_get_current_user_survives_creation_race():

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
-from app.api.deps import get_db, is_admin
+from app.api.deps import get_db, is_admin_or_manager
 from app.core.abac import (
     Action,
     AllCheckpoints,
@@ -99,7 +99,7 @@ async def get_staff_with_checkpoint_access(
     # For staff users, ensure they have a checkpoint assignment
     if (
         "rally-staff" in auth.scopes
-        and not is_admin(auth.scopes)
+        and not is_admin_or_manager(auth.scopes)
         and not curr_user.staff_checkpoint_id
     ):
         logger.debug(f"Checking staff assignment for user_id={curr_user.id}")
@@ -138,7 +138,7 @@ async def require_checkpoint_score_permission(
         curr_user: Current user with staff access
     """
     # For staff users, validate checkpoint order
-    if "rally-staff" in auth.scopes and not is_admin(auth.scopes):
+    if "rally-staff" in auth.scopes and not is_admin_or_manager(auth.scopes):
         # Get team to check their progress
         team = await team_crud.get(db=db, id=team_id)
         if not team:
@@ -239,7 +239,7 @@ def require_view_team_members_permission(
     Require permission to view team members
     """
     # If using API key/admin access, bypass further checks
-    if is_admin(auth.scopes):
+    if is_admin_or_manager(auth.scopes):
         return
 
     # Staff can view team members if they have a checkpoint assignment

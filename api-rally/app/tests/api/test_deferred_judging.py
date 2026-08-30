@@ -179,6 +179,48 @@ async def test_judge_result_surfaces_score_recalc_failure(
     assert resp.status_code >= 400
 
 
+async def test_judge_result_clamps_points_to_config_bounds(pg_session, pg_client, as_admin):
+    """Regression: a judge-entered value outside the activity's declared
+    min_points/max_points used to go straight to final_score uncapped."""
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(
+        pg_session, checkpoint.id, config={"min_points": 0, "max_points": 50}
+    )
+    team = await _make_team(pg_session)
+    captured = pg_client.post(
+        f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}"
+    ).json()
+
+    resp = pg_client.put(
+        f"/api/rally/v1/activities/results/{captured['id']}/judge",
+        json={"points": 9999},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["final_score"] == 50
+
+
+async def test_judge_result_clamps_negative_points_to_min(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(
+        pg_session, checkpoint.id, config={"min_points": 10, "max_points": 100}
+    )
+    team = await _make_team(pg_session)
+    captured = pg_client.post(
+        f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}"
+    ).json()
+
+    resp = pg_client.put(
+        f"/api/rally/v1/activities/results/{captured['id']}/judge",
+        json={"points": -50},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["final_score"] == 10
+
+
 async def test_judge_result_not_found(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
 

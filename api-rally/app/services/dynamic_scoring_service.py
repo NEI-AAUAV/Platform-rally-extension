@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import RallyNotFoundError
+from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import rally_event
 from app.models.dynamic_scoring import (
     PENALTY_COUNTER_RULE_TYPE,
@@ -26,7 +26,8 @@ class DynamicScoringService:
         event = await rally_event.get_current(self._db)
         event_id = event.id if event else None
         stmt = select(DynamicRule).where(
-            (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))
+            DynamicRule.is_active.is_(True),
+            (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None)),
         )
         return list((await self._db.scalars(stmt)).all())
 
@@ -56,10 +57,15 @@ class DynamicScoringService:
         return rule
 
     async def delete_rule(self, rule_id: int) -> None:
+        """Soft-delete: results already priced with this rule's ``g_<id>``
+        key keep a price (via ``penalty_prices(include_inactive=True)``) so
+        editing them or running a retroactive recompute doesn't 500. A hard
+        delete would orphan that key immediately.
+        """
         rule = await self._db.get(DynamicRule, rule_id)
         if not rule:
             raise RallyNotFoundError(RULE_NOT_FOUND)
-        await self._db.delete(rule)
+        rule.is_active = False
         await self._db.commit()
 
     async def list_awards(self, *, team_id: int | None) -> list[DynamicAward]:
@@ -90,6 +96,20 @@ class DynamicScoringService:
         award = await self._db.get(DynamicAward, award_id)
         if not award:
             raise RallyNotFoundError(AWARD_NOT_FOUND)
+        # an award with an activity_result_id is system-generated — the
+        # shadow of one result's penalty overflowing its activity's points
+        # (see ScoringService._sync_excess_penalty_award). It isn't an
+        # independent admin decision to delete: the next edit of that result,
+        # or a reprice, re-finds this same row by activity_result_id and
+        # forces is_active back to True regardless, silently undoing the
+        # deletion ("zombie" award). It disappears on its own once the
+        # penalty no longer exceeds the activity's points.
+        if award.activity_result_id is not None:
+            raise RallyValidationError(
+                "System-generated award cannot be deleted directly — it clears "
+                "automatically once the underlying penalty no longer exceeds "
+                "the activity's points."
+            )
         team_id = award.team_id
         award.is_active = False
         await self._db.commit()

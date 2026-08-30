@@ -2,7 +2,10 @@
 against real Postgres.
 """
 
-from app.api.auth import api_nei_auth, api_nei_auth_optional
+from contextlib import contextmanager
+
+from app.api import deps
+from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
@@ -10,11 +13,50 @@ from app.main import app
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
+from app.schemas.team_auth import TeamTokenData
+from app.schemas.user import DetailedUser
 from app.tests.conftest import make_event as _make_event
 
 
 async def _make_team(pg_session, name="Test Team"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
+
+
+@contextmanager
+def _as_user(
+    *,
+    team_id: int | None = None,
+    scopes: list[str] | None = None,
+    sub: str = "p1",
+    name: str = "P",
+):
+    user = DetailedUser(id=1, name=name, disabled=False, team_id=team_id, scopes=scopes or [])
+    auth = AuthData(oidc_sub=sub, name=name, scopes=scopes or [])
+    app.dependency_overrides[deps.get_participant] = lambda: user
+    app.dependency_overrides[deps.get_current_user_optional] = lambda: user
+    app.dependency_overrides[deps.get_current_user] = lambda: user
+    app.dependency_overrides[api_nei_auth] = lambda: auth
+    app.dependency_overrides[api_nei_auth_optional] = lambda: auth
+    try:
+        yield user
+    finally:
+        app.dependency_overrides.pop(deps.get_participant, None)
+        app.dependency_overrides.pop(deps.get_current_user_optional, None)
+        app.dependency_overrides.pop(deps.get_current_user, None)
+        app.dependency_overrides.pop(api_nei_auth, None)
+        app.dependency_overrides.pop(api_nei_auth_optional, None)
+
+
+@contextmanager
+def _as_team_token(team_id: int, team_name: str = "T"):
+    token_data = TeamTokenData(team_id=team_id, team_name=team_name)
+    app.dependency_overrides[deps.get_current_team_optional] = lambda: token_data
+    app.dependency_overrides[deps.get_current_team] = lambda: token_data
+    try:
+        yield token_data
+    finally:
+        app.dependency_overrides.pop(deps.get_current_team_optional, None)
+        app.dependency_overrides.pop(deps.get_current_team, None)
 
 
 class TestGetTeams:
@@ -40,23 +82,10 @@ class TestGetTeams:
 
 class TestGetOwnTeam:
     async def test_get_own_team_success(self, pg_session, pg_client):
-        from app.api import deps
-        from app.api.auth import AuthData, api_nei_auth
-        from app.main import app
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Mine")
-        user = DetailedUser(id=1, name="P", disabled=False, team_id=team.id, scopes=[])
-        app.dependency_overrides[deps.get_participant] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
-            oidc_sub="p1", name="P", scopes=[]
-        )
-        try:
+        with _as_user(team_id=team.id):
             resp = pg_client.get("/api/rally/v1/team/me")
-        finally:
-            app.dependency_overrides.pop(deps.get_participant, None)
-            app.dependency_overrides.pop(api_nei_auth, None)
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["id"] == team.id
@@ -64,68 +93,21 @@ class TestGetOwnTeam:
 
 class TestGetOwnTeamAccessCode:
     async def test_get_own_team_exposes_access_code(self, pg_session, pg_client):
-        from app.api import deps
-        from app.api.auth import AuthData
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Mine")
-        user = DetailedUser(id=1, name="P", disabled=False, team_id=team.id, scopes=[])
-        app.dependency_overrides[deps.get_participant] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
-            oidc_sub="p1", name="P", scopes=[]
-        )
-        try:
+        with _as_user(team_id=team.id):
             resp = pg_client.get("/api/rally/v1/team/me")
-        finally:
-            app.dependency_overrides.pop(deps.get_participant, None)
-            app.dependency_overrides.pop(api_nei_auth, None)
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] == team.access_code
 
 
 class TestGetTeamById:
-    @staticmethod
-    def _as_participant(team_id):
-        from app.api import deps
-        from app.api.auth import AuthData
-        from app.schemas.user import DetailedUser
-
-        user = DetailedUser(id=1, name="P", disabled=False, team_id=team_id, scopes=[])
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: user
-        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
-            oidc_sub="p1", name="P", scopes=[]
-        )
-
-    @staticmethod
-    def _as_team_token(team_id):
-        """A team logged in with its access code: no OIDC identity at all."""
-        from app.api import deps
-        from app.schemas.team_auth import TeamTokenData
-
-        app.dependency_overrides[deps.get_current_team_optional] = lambda: TeamTokenData(
-            team_id=team_id, team_name="T"
-        )
-
-    @staticmethod
-    def _clear_overrides():
-        from app.api import deps
-
-        app.dependency_overrides.pop(deps.get_current_user_optional, None)
-        app.dependency_overrides.pop(deps.get_current_team_optional, None)
-        app.dependency_overrides.pop(deps.get_participant, None)
-        app.dependency_overrides.pop(api_nei_auth_optional, None)
-        app.dependency_overrides.pop(api_nei_auth, None)
-
     async def test_get_team_by_id_success(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Findable")
-        self._as_participant(team.id)
-        try:
+        with _as_user(team_id=team.id):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["name"] == "Findable"
@@ -141,32 +123,18 @@ class TestGetTeamById:
     async def test_get_team_by_id_never_leaks_access_code(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Other")
-        self._as_participant(team_id=999)
-        try:
+        with _as_user(team_id=999):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] is None
         assert team.access_code not in resp.text
 
     async def test_get_team_by_id_returns_access_code_to_admin(self, pg_session, pg_client):
-        from app.api import deps
-        from app.api.auth import AuthData
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Managed")
-        admin = DetailedUser(id=2, name="A", disabled=False, team_id=None, scopes=["admin"])
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: admin
-        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
-            oidc_sub="a1", name="A", scopes=["admin"]
-        )
-        try:
+        with _as_user(scopes=["admin"], sub="a1", name="A"):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] == team.access_code
@@ -175,21 +143,10 @@ class TestGetTeamById:
         """Rally staff show the team its identity QR at a checkpoint and
         cross-check scanned codes, so they get the access code back.
         """
-        from app.api import deps
-        from app.api.auth import AuthData
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Scanned")
-        staff = DetailedUser(id=3, name="S", disabled=False, team_id=None, scopes=["rally-staff"])
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: staff
-        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
-            oidc_sub="s1", name="S", scopes=["rally-staff"]
-        )
-        try:
+        with _as_user(scopes=["rally-staff"], sub="s1", name="S"):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] == team.access_code
@@ -199,14 +156,10 @@ class TestGetTeamById:
         validates against the OIDC provider — the team's own progress view
         depends on this route accepting it.
         """
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "TokenTeam")
-        self._as_team_token(team.id)
-        try:
+        with _as_team_token(team.id, "TokenTeam"):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["name"] == "TokenTeam"
@@ -215,11 +168,8 @@ class TestGetTeamById:
     async def test_team_token_does_not_leak_another_teams_access_code(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Theirs")
-        self._as_team_token(team.id + 1000)
-        try:
+        with _as_team_token(team.id + 1000, "Theirs"):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] is None
@@ -227,11 +177,8 @@ class TestGetTeamById:
 
     async def test_get_team_by_id_not_found(self, pg_session, pg_client):
         await _make_event(pg_session)
-        self._as_participant(1)
-        try:
+        with _as_user(team_id=1):
             resp = pg_client.get("/api/rally/v1/team/999999")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 404
 
@@ -242,7 +189,6 @@ class TestGetTeamById:
         a checkpoint with an active activity only counts as completed once
         every active activity has a completed result.
         """
-
         await _make_event(pg_session)
         cp1 = await crud_checkpoint.create(
             pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
@@ -299,9 +245,6 @@ class TestGetTeamById:
         """When every checkpoint counts as done, current == last (no +1)."""
         import datetime as dt
 
-        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-        from app.schemas.checkpoint import CheckPointCreate
-
         await _make_event(pg_session)
         await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1))
         team = await _make_team(pg_session, "Finisher")
@@ -309,11 +252,8 @@ class TestGetTeamById:
         pg_session.add(team)
         await pg_session.commit()
 
-        self._as_participant(team.id)
-        try:
+        with _as_user(team_id=team.id):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -326,11 +266,6 @@ class TestGetTeamById:
         """A checkpoint with two active activities where only one is
         completed must stop progress there (the `else: break` branch), not
         be counted as done."""
-        from app.crud.crud_activity import activity as crud_activity
-        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-        from app.schemas.activity import ActivityCreate, ActivityType
-        from app.schemas.checkpoint import CheckPointCreate
-
         await _make_event(pg_session)
         cp1 = await crud_checkpoint.create(
             pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
@@ -365,9 +300,6 @@ class TestGetTeamById:
 
 class TestAddCheckpoint:
     async def test_add_checkpoint_success_as_admin(self, pg_session, pg_client, as_admin):
-        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-        from app.schemas.checkpoint import CheckPointCreate
-
         await _make_event(pg_session)
         checkpoint = await crud_checkpoint.create(
             pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
@@ -418,22 +350,9 @@ class TestCreateTeam:
         assert resp.json()["name"] == "New Team"
 
     async def test_create_team_forbidden_for_non_admin_participant(self, pg_session, pg_client):
-        from app.api import deps
-        from app.api.auth import AuthData, api_nei_auth
-        from app.main import app
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
-        user = DetailedUser(id=2, name="Plain", disabled=False, scopes=[])
-        app.dependency_overrides[deps.get_participant] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
-            oidc_sub="p2", name="Plain", scopes=[]
-        )
-        try:
+        with _as_user(scopes=[]):
             resp = pg_client.post("/api/rally/v1/team/", json={"name": "Nope"})
-        finally:
-            app.dependency_overrides.pop(deps.get_participant, None)
-            app.dependency_overrides.pop(api_nei_auth, None)
 
         assert resp.status_code == 403
 
@@ -457,9 +376,6 @@ class TestUpdateTeam:
 
     async def test_update_team_forbidden_for_non_admin(self, pg_session, pg_client):
         from fastapi import HTTPException
-
-        from app.api import deps
-        from app.main import app
 
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Protected")
@@ -538,33 +454,18 @@ class TestGetTeamEvaluations:
         assert body["total"] == 0
 
     async def test_evaluations_accessible_by_own_nei_user(self, pg_session, pg_client):
-        from app.api import deps
-        from app.api.auth import AuthData, api_nei_auth
-        from app.main import app
-        from app.schemas.user import DetailedUser
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "OwnedByMe")
-        user = DetailedUser(id=4, name="P", disabled=False, team_id=team.id, scopes=[])
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: user
-        app.dependency_overrides[api_nei_auth] = lambda: AuthData(
-            oidc_sub="p4", name="P", scopes=[]
-        )
-        try:
+        with _as_user(team_id=team.id, sub="p4"):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}/evaluations")
-        finally:
-            app.dependency_overrides.pop(deps.get_current_user_optional, None)
-            app.dependency_overrides.pop(api_nei_auth, None)
 
         assert resp.status_code == 200, resp.text
 
     async def test_evaluations_accessible_by_team_token(self, pg_session, pg_client):
-        from app.tests.conftest import as_team
-
         await _make_event(pg_session)
         team = await _make_team(pg_session, "TokenTeam")
 
-        with as_team(team.id, team.name):
+        with _as_team_token(team.id, team.name):
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}/evaluations")
 
         assert resp.status_code == 200, resp.text
@@ -572,11 +473,6 @@ class TestGetTeamEvaluations:
     async def test_evaluations_lists_completed_results_with_serialized_activity_and_team(
         self, pg_session, pg_client, as_admin
     ):
-        from app.crud.crud_activity import activity as crud_activity
-        from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
-        from app.schemas.activity import ActivityCreate, ActivityType
-        from app.schemas.checkpoint import CheckPointCreate
-
         await _make_event(pg_session)
         checkpoint = await crud_checkpoint.create(
             pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
@@ -596,9 +492,6 @@ class TestGetTeamEvaluations:
         resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 42}})
         assert resp.status_code == 200, resp.text
 
-        from app.api.auth import api_nei_auth, api_nei_auth_optional
-        from app.main import app
-
         app.dependency_overrides[api_nei_auth_optional] = app.dependency_overrides[api_nei_auth]
         try:
             resp = pg_client.get(f"/api/rally/v1/team/{team.id}/evaluations")
@@ -612,3 +505,4 @@ class TestGetTeamEvaluations:
         assert evaluation["team_id"] == team.id
         assert evaluation["activity"]["id"] == activity_obj.id
         assert evaluation["team"]["id"] == team.id
+

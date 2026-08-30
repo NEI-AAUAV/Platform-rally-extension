@@ -29,13 +29,17 @@ from app.events import (
     TeamScoreUpdatedPayload,
     publish_event,
 )
-from app.models.activity import Activity, ActivityResult
+from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.models.dynamic_scoring import DynamicAward, DynamicRule
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
-from app.schemas.activity import ActivityResultCreate, ActivityResultUpdate
+from app.schemas.activity import (
+    ActivityResultCreate,
+    ActivityResultStaffUpdate,
+    ActivityResultUpdate,
+)
 from app.schemas.activity_types import ActivityType
 from app.services._diff import diff_snapshots, snapshot_fields
 
@@ -211,7 +215,15 @@ class ScoringService:
         # Server-side cap: the client validates extra_shots, but nothing stopped
         # an oversized value in the request body from inflating the score.
         settings = await self._get_settings()
-        max_extra_shots = max(0, team_size) * settings.max_extra_shots_per_member
+        # a peddy-paper event has no drinking mechanics, extra shots
+        # included — this used to apply the bonus unconditionally regardless
+        # of event type (see penalty_prices for the matching penalty half).
+        has_drinking_mechanics = await self._has_drinking_mechanics()
+        max_extra_shots = (
+            max(0, team_size) * settings.max_extra_shots_per_member
+            if has_drinking_mechanics
+            else 0
+        )
         capped_extra_shots = max(0, min(extra_shots, max_extra_shots))
 
         modifiers: dict[str, Any] = {
@@ -250,7 +262,28 @@ class ScoringService:
             raise RallyError("Failed to get or create rally settings")
         return self._settings
 
-    async def penalty_prices(self, activity: Activity) -> dict[str, float]:
+    async def _has_drinking_mechanics(self) -> bool:
+        """Whether shots and drinking penalties apply to the current event.
+
+
+        mirrors web-rally's ``hasDrinkingMechanics`` (lib/eventTerms.ts),
+        which only hid the UI for a ``peddy_paper`` event — the server priced
+        and applied ``vomit``/``not_drinking``/extra-shot bonuses regardless.
+        A forged request, a stale client cache, or an offline-queue entry
+        created before the event type changed could still apply drinking
+        mechanics to a peddy-paper event. Single source of truth here; the
+        frontend check stays as the UI-hiding mirror it already documents
+        itself as.
+        """
+        event_id = await current_event_id(self.db)
+        event = await self.db.get(RallyEvent, event_id) if event_id is not None else None
+        return (event.event_type if event else EventType.RALLY_TASCAS.value) != (
+            EventType.PEDDY_PAPER.value
+        )
+
+    async def penalty_prices(
+        self, activity: Activity, *, include_inactive: bool = False
+    ) -> dict[str, float]:
         """Points deducted per occurrence, keyed by penalty key.
 
         The server's price list, assembled from the three places an admin can
@@ -266,10 +299,13 @@ class ScoringService:
         Magnitudes, always positive: the caller subtracts them.
         """
         settings = await self._get_settings()
-        prices: dict[str, float] = {
-            "vomit": abs(float(settings.penalty_per_puke)),
-            "not_drinking": abs(float(settings.penalty_per_not_drinking)),
-        }
+        prices: dict[str, float] = {}
+        # a peddy-paper event has no drinking mechanics — omit these keys
+        # entirely so resolve_penalty_points rejects them as unknown instead
+        # of silently pricing and applying them.
+        if await self._has_drinking_mechanics():
+            prices["vomit"] = abs(float(settings.penalty_per_puke))
+            prices["not_drinking"] = abs(float(settings.penalty_per_not_drinking))
 
         counters = (activity.config or {}).get("penalty_counters")
         if isinstance(counters, list):
@@ -284,22 +320,23 @@ class ScoringService:
         # Same event scoping the admin list uses (DynamicScoringService.list_rules):
         # a past edition's counters must not price this edition's evaluations.
         # Legacy NULL event_id rows count as current.
+        #
+        # include_inactive=True is for repricing counts already persisted on a
+        # result: a rule the admin soft-deleted mid-event must still be
+        # reachable so existing g_<id> counts keep a price instead of an
+        # unknown-key rejection (see resolve_penalty_points(strict=False)).
         event_id = await current_event_id(self.db)
-        rules = (
-            await self.db.scalars(
-                select(DynamicRule).where(
-                    DynamicRule.is_active.is_(True),
-                    (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None)),
-                )
-            )
-        ).all()
+        rule_filters = [(DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))]
+        if not include_inactive:
+            rule_filters.append(DynamicRule.is_active.is_(True))
+        rules = (await self.db.scalars(select(DynamicRule).where(*rule_filters))).all()
         for rule in rules:
             prices[f"g_{rule.id}"] = abs(float(rule.points))
 
         return prices
 
     async def resolve_penalty_points(
-        self, activity: Activity, counts: dict[str, int]
+        self, activity: Activity, counts: dict[str, int], *, strict: bool = True
     ) -> dict[str, int]:
         """Price staff-entered occurrence counts into points to deduct.
 
@@ -309,16 +346,32 @@ class ScoringService:
         value, and a client whose settings fetch had failed priced penalties
         from its own hardcoded fallbacks.
 
-        An unknown key is rejected rather than passed through — passing it
-        through is what let an arbitrary number reach the score.
+        With ``strict=True`` (the default, for counts fresh off a client
+        request) an unknown key is rejected rather than passed through —
+        passing it through is what let an arbitrary number reach the score.
+
+        With ``strict=False`` (for repricing counts already persisted on a
+        result) an unknown key — a global rule that was since deleted or
+        deactivated, or a counter removed from the activity's own config —
+        prices at 0 instead of raising. Rejecting here would turn a routine
+        admin cleanup into a 500 on every future edit of that result and on
+        the retroactive recompute (``reprice_all_results``); the caller still
+        has the original count on the row if the price needs to be restored.
         """
         if not counts:
             return {}
 
-        prices = await self.penalty_prices(activity)
+        prices = await self.penalty_prices(activity, include_inactive=not strict)
         unknown = sorted(key for key in counts if key not in prices)
         if unknown:
-            raise RallyValidationError(f"Unknown penalty type(s): {', '.join(unknown)}")
+            if strict:
+                raise RallyValidationError(f"Unknown penalty type(s): {', '.join(unknown)}")
+            logger.warning(
+                "Pricing orphaned penalty key(s) %s at 0 for activity %s "
+                "(rule deleted/deactivated or removed from activity config)",
+                ", ".join(unknown),
+                activity.id,
+            )
 
         points: dict[str, int] = {}
         for key, count in counts.items():
@@ -327,7 +380,7 @@ class ScoringService:
             if count < 0:
                 raise RallyValidationError(f"Penalty count for '{key}' cannot be negative")
             if count:
-                points[key] = round(count * prices[key])
+                points[key] = round(count * prices.get(key, 0.0))
         return points
 
     async def _checkpoint_scores_for_team(
@@ -620,9 +673,19 @@ class ScoringService:
         return True
 
     async def apply_penalty(
-        self, team_id: int, activity_id: int, penalty_type: str, penalty_value: int
+        self, team_id: int, activity_id: int, penalty_type: str, penalty_count: int
     ) -> bool:
-        """Apply penalty to a team's activity result"""
+        """Apply a penalty occurrence count to a team's activity result.
+
+        This used to write ``penalty_value`` straight into
+        ``penalties`` as points, with no pricing and no key validation — a
+        caller with ``UPDATE_ACTIVITY_RESULT`` (which a checkpoint staff has
+        for their own checkpoint) could add arbitrary points via ``other``, a
+        key ``penalty_prices`` never prices. ``penalty_count`` is now priced
+        the same way every other penalty is (``resolve_penalty_points``), so
+        an unknown ``penalty_type`` is rejected rather than accepted as free
+        points.
+        """
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
@@ -630,10 +693,20 @@ class ScoringService:
         if not result:
             return False
 
-        # Add penalty to penalties dict
+        activity = await self.db.get(Activity, activity_id)
+        if not activity:
+            return False
+
+        priced = await self.resolve_penalty_points(activity, {penalty_type: penalty_count})
+        added_points = priced.get(penalty_type, 0)
+
         if penalty_type not in result.penalties:
             result.penalties[penalty_type] = 0
-        result.penalties[penalty_type] += penalty_value
+        result.penalties[penalty_type] += added_points
+        result.penalty_counts = {
+            **(result.penalty_counts or {}),
+            penalty_type: (result.penalty_counts or {}).get(penalty_type, 0) + penalty_count,
+        }
 
         # Recalculate final score
         await self._recalculate_result_score(result)
@@ -791,6 +864,17 @@ class ScoringService:
         # Carry any penalty that overflowed this activity's points to team.total.
         await self._sync_excess_penalty_award(db_obj, breakdown.raw, activity_name=activity.name)
 
+        # `persist()` already committed the result row above (when
+        # `commit=True`, the default). The award `db.add()` just above is
+        # normally saved by `update_team_scores`'s commit a few lines down —
+        # but that call is skipped whenever `_defer_recompute` is set, so
+        # nothing would ever commit the award: it sat added-but-uncommitted
+        # until some unrelated later commit happened to sweep it in, or the
+        # session closed and dropped it outright. A batched caller
+        # (`commit=False`) still owns its own commit as before.
+        if commit and self._defer_recompute:
+            await self.db.commit()
+
         # Adding a time-based result shifts the ranking, so rescore the rest.
         # When recompute is deferred, the scoring worker does this off-path;
         # the row keeps its own freshly-computed final_score in the meantime.
@@ -817,7 +901,7 @@ class ScoringService:
     async def update_result(
         self,
         db_obj: ActivityResult,
-        obj_in: ActivityResultUpdate,
+        obj_in: ActivityResultUpdate | ActivityResultStaffUpdate,
         *,
         editor: EvaluationEditor | None = None,
     ) -> ActivityResult:
@@ -833,12 +917,18 @@ class ScoringService:
 
         # Re-price server-side whenever the staff-entered counts changed, so an
         # edit can never take a client-supplied point total either.
+        #
+        # strict=False: this edits an *already-recorded* result, whose payload
+        # is normally the form re-submitting its own persisted counts rather
+        # than freshly invented keys. A rule deleted/deactivated mid-event must
+        # not turn every future edit of results that used it into a 500 (see
+        # resolve_penalty_points).
         if "penalty_counts" in update_data:
             activity_for_pricing = await self.db.get(Activity, db_obj.activity_id)
             if activity_for_pricing is not None:
                 db_obj.penalties = dict(
                     await self.resolve_penalty_points(
-                        activity_for_pricing, db_obj.penalty_counts or {}
+                        activity_for_pricing, db_obj.penalty_counts or {}, strict=False
                     )
                 )
                 update_data["penalties"] = db_obj.penalties
@@ -1080,7 +1170,9 @@ class ScoringService:
                 # keep the points they already have.
                 if result.penalty_counts:
                     result.penalties = dict(
-                        await self.resolve_penalty_points(activity, result.penalty_counts)
+                        await self.resolve_penalty_points(
+                            activity, result.penalty_counts, strict=False
+                        )
                     )
                 breakdown = await self.compute_score_breakdown(
                     activity_type=activity.activity_type,

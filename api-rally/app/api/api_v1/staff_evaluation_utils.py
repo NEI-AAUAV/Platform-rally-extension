@@ -91,7 +91,7 @@ def validate_rally_permissions(auth: AuthData) -> bool:
 
 def is_admin_or_manager(auth: AuthData) -> bool:
     """Check if user is admin or manager"""
-    return deps.is_admin(auth.scopes)
+    return deps.is_admin_or_manager(auth.scopes)
 
 
 async def validate_staff_checkpoint_access(
@@ -346,9 +346,7 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     scored_activity_ids = {
         r.activity_id
         for r in team_results
-        if r.activity
-        and r.activity.checkpoint_id == current_checkpoint_id
-        and r.final_score is not None
+        if r.activity and r.activity.checkpoint_id == current_checkpoint_id and r.is_scored
     }
 
     checkpoint_activities = await activity.get_by_checkpoint(
@@ -447,7 +445,11 @@ async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> Non
 
 
 async def compute_checkpoint_progress(
-    db: AsyncSession, team_obj: Team
+    db: AsyncSession,
+    team_obj: Team,
+    *,
+    checkpoints: Sequence[Any] | None = None,
+    activities_by_checkpoint: dict[int, list[Any]] | None = None,
 ) -> tuple[int, int | None, list[int]]:
     """
     Calculate last and current checkpoint numbers plus completed orders for a team.
@@ -458,12 +460,21 @@ async def compute_checkpoint_progress(
     without an activity used to be silently skipped here regardless of whether
     the team had actually checked in — which meant a peddy-paper post could
     never register as done for staff, and never blocked one either.
+
+    M3: ``checkpoints``/``activities_by_checkpoint`` let a caller looping over
+    many teams (``get_teams_at_my_checkpoint``) load the checkpoint list and
+    each checkpoint's activities once and pass them in, instead of this
+    function re-querying both per team — 30 teams x 15 checkpoints was 450+
+    queries on the screen staff open most. Omit either to fall back to the
+    original per-call query, for callers scoring a single team.
     """
-    checkpoints = await checkpoint_crud.get_all_ordered(db)
+    if checkpoints is None:
+        checkpoints = await checkpoint_crud.get_all_ordered(db)
     team_results = await activity_result.get_by_team(db, team_id=team_obj.id)
-    completed_activity_ids = {
-        r.activity_id for r in team_results if getattr(r, "is_completed", False)
-    }
+    # is_scored (is_completed AND has a final_score), not is_completed
+    # alone — a deferred-judged capture sets is_completed=True before a judge
+    # has scored it. See ActivityResult.is_scored.
+    completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_scored", False)}
     skipped_ids = set(
         (
             await db.scalars(
@@ -481,7 +492,11 @@ async def compute_checkpoint_progress(
             completed_orders.append(cp.order)
             continue
 
-        cp_activities = await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
+        cp_activities = (
+            activities_by_checkpoint.get(cp.id, [])
+            if activities_by_checkpoint is not None
+            else await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
+        )
         active_ids = [a.id for a in cp_activities if a.is_active]
         if not active_ids:
             # No activity to judge here: the post counts as done once the
@@ -535,18 +550,32 @@ def determine_current_order(checkpoints: Sequence[Any], last_completed_order: in
 
 
 async def build_team_for_staff(
-    db: AsyncSession, team_obj: Team, staff_checkpoint_order: int | None = None
+    db: AsyncSession,
+    team_obj: Team,
+    staff_checkpoint_order: int | None = None,
+    *,
+    checkpoints: Sequence[Any] | None = None,
+    activities_by_checkpoint: dict[int, list[Any]] | None = None,
 ) -> dict[str, Any]:
     """Build team data for staff evaluation.
 
     The caller must eager-load team_obj.members (accessed below).
+
+    pass ``checkpoints``/``activities_by_checkpoint`` (see
+    ``compute_checkpoint_progress``) when building this for many teams in a
+    loop, so each is queried once for the whole list instead of once per team.
     """
 
     (
         last_checkpoint_number,
         current_checkpoint_number,
         completed_orders,
-    ) = await compute_checkpoint_progress(db, team_obj)
+    ) = await compute_checkpoint_progress(
+        db,
+        team_obj,
+        checkpoints=checkpoints,
+        activities_by_checkpoint=activities_by_checkpoint,
+    )
 
     return {
         "id": team_obj.id,

@@ -270,7 +270,7 @@ class TestExtraShotsAndPenalty:
         await _make_event(pg_session)
 
         resp = pg_client.post(
-            "/api/rally/v1/activities/results/999999/penalty?penalty_type=vomit&penalty_value=1"
+            "/api/rally/v1/activities/results/999999/penalty?penalty_type=vomit&penalty_count=1"
         )
 
         assert resp.status_code == 404
@@ -284,7 +284,7 @@ class TestExtraShotsAndPenalty:
 
         resp = pg_client.post(
             f"/api/rally/v1/activities/results/{result['id']}/penalty"
-            "?penalty_type=vomit&penalty_value=1"
+            "?penalty_type=vomit&penalty_count=1"
         )
 
         assert resp.status_code == 200, resp.text
@@ -305,7 +305,7 @@ class TestExtraShotsAndPenalty:
         ):
             resp = pg_client.post(
                 f"/api/rally/v1/activities/results/{result['id']}/penalty"
-                "?penalty_type=vomit&penalty_value=1"
+                "?penalty_type=vomit&penalty_count=1"
             )
 
         assert resp.status_code == 400
@@ -333,7 +333,7 @@ class TestExtraShotsAndPenalty:
         await _make_event(pg_session)
 
         resp = pg_client.post(
-            "/api/rally/v1/activities/results/1/penalty?penalty_type=invalid&penalty_value=1"
+            "/api/rally/v1/activities/results/1/penalty?penalty_type=invalid&penalty_count=1"
         )
 
         assert resp.status_code == 422

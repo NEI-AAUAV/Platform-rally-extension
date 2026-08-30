@@ -12,8 +12,7 @@ export interface RoleFlags {
 export function deriveRoleFlags(scopes: readonly string[] | undefined): RoleFlags {
   const isAdminOrManager = !!(
     scopes?.includes("admin") ||
-    scopes?.includes("manager-rally") ||
-    scopes?.includes("rally:admin")
+    scopes?.includes("manager-rally")
   );
   const isStaff = !!scopes?.includes("rally-staff");
   const isGuide = !!scopes?.includes("rally-guide");
