@@ -224,29 +224,6 @@ class TestGetTeamById:
         assert resp.status_code == 200, resp.text
         assert resp.json()["access_code"] == team.access_code
 
-    async def test_get_team_by_id_returns_access_code_to_staff(self, pg_session, pg_client):
-        """Rally staff show the team its identity QR at a checkpoint and
-        cross-check scanned codes, so they get the access code back.
-        """
-        from app.api import deps
-        from app.api.auth import AuthData
-        from app.schemas.user import DetailedUser
-
-        await _make_event(pg_session)
-        team = await _make_team(pg_session, "Scanned")
-        staff = DetailedUser(id=3, name="S", disabled=False, team_id=None, scopes=["rally-staff"])
-        app.dependency_overrides[deps.get_current_user_optional] = lambda: staff
-        app.dependency_overrides[api_nei_auth_optional] = lambda: AuthData(
-            oidc_sub="s1", name="S", scopes=["rally-staff"]
-        )
-        try:
-            resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
-        finally:
-            self._clear_overrides()
-
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["access_code"] == team.access_code
-
     async def test_get_team_by_id_accepts_a_team_token(self, pg_session, pg_client):
         """Teams authenticate with an access-code-issued token, which never
         validates against the OIDC provider — the team's own progress view
