@@ -51,8 +51,13 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         team = await db.get(Team, team_id)
 
         if team is not None:
-            # Get the order of the last checkpoint the team visited
-            last_checkpoint_order = len(team.times)
+            # Count of posts the team has genuinely resolved. Not len(team.times):
+            # advance_team_to_next_checkpoint inflates that array by one with a
+            # pointer at the next post, which would run this lookup a post ahead.
+            # Local import: route_progress imports this module at load time.
+            from app.services.route_progress import resolved_checkpoint_orders
+
+            last_checkpoint_order = len(await resolved_checkpoint_orders(db, team))
 
             event_id = await current_event_id(db)
             # Find the next checkpoint by order within the current event

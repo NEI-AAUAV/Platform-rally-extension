@@ -36,8 +36,12 @@ from app.services.route_stages import (
 def is_checkpoint_reachable(
     *, checkpoint_order: int, times_reached: int, order_matters: bool
 ) -> bool:
-    """Whether a team that has reached ``times_reached`` checkpoints may check
+    """Whether a team that has resolved ``times_reached`` checkpoints may check
     into one of order ``checkpoint_order``.
+
+    ``times_reached`` is a count of genuinely resolved posts (arrivals, skips,
+    scored activities) — never ``len(team.times)``, which
+    ``advance_team_to_next_checkpoint`` inflates with a "next post" pointer.
 
     The rule for a route without stages: with ``checkpoint_order_matters`` on,
     posts must be visited strictly in sequence; with it off, any order the team
@@ -186,8 +190,14 @@ async def can_reach_checkpoint(
                 ),
             )
 
+    # Count of posts the team is actually done with — not ``len(team.times)``,
+    # which ``advance_team_to_next_checkpoint`` inflates by one with a pointer at
+    # the next post the team has not reached yet. The target's own order is
+    # excluded for the same reason ``ignore_arrival_for`` exists: a post the team
+    # is being checked into (or is hunting) must not count itself as resolved.
+    resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
     return is_checkpoint_reachable(
         checkpoint_order=checkpoint.order,
-        times_reached=len(team.times),
+        times_reached=len(resolved - {checkpoint.order}),
         order_matters=bool(getattr(settings, "checkpoint_order_matters", True)),
     )
