@@ -24,6 +24,7 @@ from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team
 from app.models.activity import Activity, ActivityResult
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.activity import (
@@ -471,7 +472,19 @@ async def compute_checkpoint_progress(
             )
         ).all()
     )
-    checked_in_count = len(team_obj.times)
+    # A no-activity post counts as done only once the team has *physically
+    # arrived* there — read from the arrivals table, not inferred from
+    # len(team.times), which advance_team_to_next_checkpoint inflates with a
+    # "next post" pointer the team has not reached yet.
+    arrived_checkpoint_ids = set(
+        (
+            await db.scalars(
+                select(CheckpointArrival.checkpoint_id).where(
+                    CheckpointArrival.team_id == team_obj.id
+                )
+            )
+        ).all()
+    )
 
     last_completed_order = 0
     completed_orders: list[int] = []
@@ -485,9 +498,9 @@ async def compute_checkpoint_progress(
         active_ids = [a.id for a in cp_activities if a.is_active]
         if not active_ids:
             # No activity to judge here: the post counts as done once the
-            # team has checked in (via GPS arrival auto-complete). Otherwise
+            # team has actually arrived (GPS/guide arrival row). Otherwise
             # it is still their current, not-yet-reached post — stop here.
-            if checked_in_count >= cp.order:
+            if cp.id in arrived_checkpoint_ids:
                 last_completed_order = cp.order
                 completed_orders.append(cp.order)
                 continue

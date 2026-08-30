@@ -260,7 +260,8 @@ class TestGetTeamById:
                 config={},
             ),
         )
-        # cp2 has no active activity -> counted done only if checked in.
+        # cp2 has no active activity -> counted done only once the team has an
+        # arrival row for it.
         await crud_activity.create(
             pg_session,
             obj_in=ActivityCreate(
@@ -285,28 +286,75 @@ class TestGetTeamById:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         # Auto-advance on full-completion checks the team into cp1 *and* bumps
-        # it straight to cp2 (checked_in_count becomes 2), so cp2's
-        # no-active-activity branch also counts as done
-        # (checked_in_count=2 >= cp2.order=2) — both checkpoints complete.
-        assert body["last_checkpoint_number"] == 2
-        # Every post done, so there is no current one — the field is None
-        # rather than clamped to the last order, which the participant screen
-        # would otherwise read as "still on post 2" and never show the
-        # finished card. See determine_current_order.
-        assert body["current_checkpoint_number"] is None
+        # it straight to cp2 (team.times gets a second entry). That second
+        # entry is only a "next post" pointer, not an arrival: cp2 has no
+        # arrival row, so its no-active-activity branch does NOT count it as
+        # done. cp1 is the last completed post and cp2 is the current one —
+        # the team must still physically reach it.
+        assert body["last_checkpoint_number"] == 1
+        assert body["current_checkpoint_number"] == 2
+
+    async def test_peddy_paper_next_post_shown_when_ahead_posts_have_no_activities(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Regression: a peddy-paper team that finished post 1 (its only post
+        with an activity) and has posts 2 and 3 still to visit — neither with
+        an activity, neither arrived at — must be pointed at post 2, not shown
+        the finished card. Before the fix, team.times inflation from
+        advance_team_to_next_checkpoint made both no-activity posts count as
+        done and current_checkpoint_number went null.
+        """
+        await _make_event(pg_session)
+        cp1 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
+        )
+        await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP2", order=2), commit=True
+        )
+        await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP3", order=3), commit=True
+        )
+        team = await _make_team(pg_session, "PeddyTeam")
+        activity1 = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Act1",
+                activity_type=ActivityType.GENERAL,
+                checkpoint_id=cp1.id,
+                config={},
+            ),
+        )
+
+        as_admin.staff_checkpoint_id = cp1.id
+        eval_url = f"/api/rally/v1/staff/teams/{team.id}/activities/{activity1.id}/evaluate"
+        resp = pg_client.post(eval_url, json={"result_data": {"assigned_points": 10}})
+        assert resp.status_code == 200, resp.text
+
+        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["last_checkpoint_number"] == 1
+        assert body["current_checkpoint_number"] == 2
 
     async def test_get_team_by_id_checkpoint_progress_all_completed(self, pg_session, pg_client):
-        """When every checkpoint counts as done, current == last (no +1)."""
+        """When every checkpoint counts as done, current is None (route finished)."""
         import datetime as dt
 
         from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+        from app.models.checkpoint_arrival import CheckpointArrival
         from app.schemas.checkpoint import CheckPointCreate
 
         await _make_event(pg_session)
-        await crud_checkpoint.create(pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1))
+        only_cp = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="OnlyCP", order=1), commit=True
+        )
         team = await _make_team(pg_session, "Finisher")
         team.times = [dt.datetime(2026, 1, 1)]
         pg_session.add(team)
+        # A no-activity post only counts as done once the team has actually
+        # arrived there — recorded as a CheckpointArrival row, not inferred
+        # from team.times.
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=only_cp.id))
         await pg_session.commit()
 
         self._as_participant(team.id)
