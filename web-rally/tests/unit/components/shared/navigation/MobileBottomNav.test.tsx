@@ -2,14 +2,25 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MobileBottomNav } from '@/components/shared/navigation/MobileBottomNav'
 
-const { mockUseUserStore, mockUseRallySettings, mockUseTeamAuth, mockUseGuideAccess, mockPathname } =
-  vi.hoisted(() => ({
-    mockUseUserStore: vi.fn(),
-    mockUseRallySettings: vi.fn(),
-    mockUseTeamAuth: vi.fn(),
-    mockUseGuideAccess: vi.fn(),
-    mockPathname: { current: '/team-progress' },
-  }))
+const {
+  mockUseUserStore,
+  mockUseRallySettings,
+  mockUseTeamAuth,
+  mockUseGuideAccess,
+  mockPathname,
+  mockHasBadges,
+} = vi.hoisted(() => ({
+  mockUseUserStore: vi.fn(),
+  mockUseRallySettings: vi.fn(),
+  mockUseTeamAuth: vi.fn(),
+  mockUseGuideAccess: vi.fn(),
+  mockPathname: { current: '/team-progress' },
+  mockHasBadges: { current: true },
+}))
+
+vi.mock('@/hooks/useBadges', () => ({
+  useHasBadgeCatalogue: () => mockHasBadges.current,
+}))
 
 vi.mock('@/stores/useUserStore', () => ({
   useUserStore: (selector: (s: unknown) => unknown) => mockUseUserStore(selector),
@@ -40,6 +51,7 @@ vi.mock('@tanstack/react-router', () => ({
 describe('MobileBottomNav', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHasBadges.current = true
     mockUseUserStore.mockImplementation((selector) => selector({ scopes: undefined }))
     mockUseRallySettings.mockReturnValue({
       settings: { show_score_mode: 'visible', show_checkpoint_map: false, badges_enabled: true },
@@ -61,6 +73,19 @@ describe('MobileBottomNav', () => {
     expect(screen.getByText('Conquistas')).toBeInTheDocument()
     expect(screen.getByText('Equipa')).toBeInTheDocument()
     expect(screen.getByText('Definições')).toBeInTheDocument()
+  })
+
+  it('hides the Conquistas tab when the event defines no badges', () => {
+    mockHasBadges.current = false
+    mockUseTeamAuth.mockReturnValue({
+      isAuthenticated: true,
+      team: { access_code: 'ABC-123' },
+    })
+    mockPathname.current = '/team-progress'
+
+    render(<MobileBottomNav />)
+
+    expect(screen.queryByText('Conquistas')).not.toBeInTheDocument()
   })
 
   it('lights the Progresso tab at /team-progress', () => {

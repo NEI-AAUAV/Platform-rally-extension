@@ -30,3 +30,13 @@ export function useBadgeShowcase(teamId: number | undefined) {
     enabled: typeof teamId === "number" && !Number.isNaN(teamId),
   });
 }
+
+/**
+ * True only once the active badge catalogue is known to be non-empty. Used to
+ * hide the "Conquistas" nav tab for events that define no badges — the tab
+ * stays hidden while loading and reveals only when there is something to show.
+ */
+export function useHasBadgeCatalogue(teamId: number | undefined): boolean {
+  const { data } = useBadgeShowcase(teamId);
+  return (data?.definitions.length ?? 0) > 0;
+}
