@@ -36,12 +36,8 @@ from app.services.route_stages import (
 def is_checkpoint_reachable(
     *, checkpoint_order: int, times_reached: int, order_matters: bool
 ) -> bool:
-    """Whether a team that has resolved ``times_reached`` checkpoints may check
+    """Whether a team that has reached ``times_reached`` checkpoints may check
     into one of order ``checkpoint_order``.
-
-    ``times_reached`` is a count of genuinely resolved posts (arrivals, skips,
-    scored activities) — never ``len(team.times)``, which
-    ``advance_team_to_next_checkpoint`` inflates with a "next post" pointer.
 
     The rule for a route without stages: with ``checkpoint_order_matters`` on,
     posts must be visited strictly in sequence; with it off, any order the team
@@ -167,6 +163,7 @@ async def can_reach_checkpoint(
     settings: Any,
     now: datetime | None = None,
     enforce_hours: bool = True,
+    ignore_times_inflation: bool = False,
 ) -> bool:
     """Whether this team may check into this post right now.
 
@@ -175,6 +172,14 @@ async def can_reach_checkpoint(
     refuses them. Buying a hint, sampling proximity or giving up are about the
     riddle, which a team may perfectly well be solving an hour before the door
     opens — those callers pass False.
+
+    ``ignore_times_inflation`` picks the progress signal for the plain
+    sequential rule. The default counts ``len(team.times)`` — the check-in
+    ledger, which the staff evaluation path and the double-check-in guard both
+    depend on. Read-only "is this the post the team is hunting" callers (hint,
+    give-up, proximity) pass True to count *resolved* posts instead, because
+    ``advance_team_to_next_checkpoint`` inflates ``team.times`` by one with a
+    pointer at the next post the team has not actually reached.
     """
     if enforce_hours and hours_block_reason(checkpoint, settings, now) is not None:
         return False
@@ -190,14 +195,17 @@ async def can_reach_checkpoint(
                 ),
             )
 
-    # Count of posts the team is actually done with — not ``len(team.times)``,
-    # which ``advance_team_to_next_checkpoint`` inflates by one with a pointer at
-    # the next post the team has not reached yet. The target's own order is
-    # excluded for the same reason ``ignore_arrival_for`` exists: a post the team
-    # is being checked into (or is hunting) must not count itself as resolved.
-    resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
+    if ignore_times_inflation:
+        # Count posts genuinely done, not the inflated check-in ledger. The
+        # target's own order is dropped for the same reason ``ignore_arrival_for``
+        # exists: the post a team is hunting must not count itself as resolved.
+        resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
+        times_reached = len(resolved - {checkpoint.order})
+    else:
+        times_reached = len(team.times)
+
     return is_checkpoint_reachable(
         checkpoint_order=checkpoint.order,
-        times_reached=len(resolved - {checkpoint.order}),
+        times_reached=times_reached,
         order_matters=bool(getattr(settings, "checkpoint_order_matters", True)),
     )

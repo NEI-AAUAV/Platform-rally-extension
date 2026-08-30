@@ -58,7 +58,12 @@ class SkipService:
         # Hours are not enforced here: giving up on a bar that has not opened
         # yet is exactly what a stuck team wants to do.
         if not await can_reach_checkpoint(
-            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
+            self._db,
+            team=team,
+            checkpoint=checkpoint,
+            settings=settings,
+            enforce_hours=False,
+            ignore_times_inflation=True,
         ):
             # Giving up on a post they have not reached would let a team skim
             # the route, paying to fast-forward to the end.
