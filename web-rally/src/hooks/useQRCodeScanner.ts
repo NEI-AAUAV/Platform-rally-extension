@@ -47,8 +47,14 @@ export function useQRCodeScanner(
       });
 
       if (code) {
+        // Release the camera immediately on a hit. Otherwise the MediaStream
+        // stays live (camera indicator on) until the parent happens to unmount
+        // or close the scanner — which never happens on an error/invalid path
+        // where the modal stays open.
+        setIsActive(false);
+        const stream = video.srcObject as MediaStream | null;
+        stream?.getTracks().forEach((track) => track.stop());
         onDetectCode(code.data);
-        setIsActive(false); // Stop scanning after detection
         return;
       }
 

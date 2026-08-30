@@ -155,6 +155,33 @@ describe('useQRCodeScanner', () => {
 
       expect(result.current.isActive).toBe(false)
     })
+
+    it('stops the camera MediaStream tracks on detection (no lingering camera)', async () => {
+      const stopA = vi.fn()
+      const stopB = vi.fn()
+      const stream = { getTracks: () => [{ stop: stopA }, { stop: stopB }] } as unknown as MediaStream
+      const videoWithStream = { ...mockVideoElement, srcObject: stream } as unknown as HTMLVideoElement
+      const videoRef = { current: videoWithStream }
+      const canvasRef = { current: mockCanvas }
+      const onDetectCode = vi.fn()
+
+      vi.mocked(jsQR).mockReturnValue({ data: 'CODE-1234' } as unknown as ReturnType<typeof jsQR>)
+
+      const { result } = renderHook(() => useQRCodeScanner(videoRef, canvasRef, onDetectCode))
+
+      act(() => {
+        result.current.startScanning()
+      })
+      act(() => {
+        if (rafCallback) rafCallback(0)
+      })
+
+      await waitFor(() => {
+        expect(onDetectCode).toHaveBeenCalledWith('CODE-1234')
+      })
+      expect(stopA).toHaveBeenCalledTimes(1)
+      expect(stopB).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('scan guard clauses', () => {

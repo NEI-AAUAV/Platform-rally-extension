@@ -19,6 +19,12 @@ describe('QRCodeDisplay', () => {
     expect(container.querySelector('.my-extra')).toBeInTheDocument()
   })
 
+  it('shows a hint and no QR when the access code is empty', () => {
+    const { container } = render(<QRCodeDisplay accessCode="" />)
+    expect(screen.getByText('Código de acesso indisponível')).toBeInTheDocument()
+    expect(container.querySelector('svg')).not.toBeInTheDocument()
+  })
+
   it('respects a custom size', () => {
     const { container } = render(<QRCodeDisplay accessCode="AAAA-1111" size={64} />)
     const svg = container.querySelector('svg')

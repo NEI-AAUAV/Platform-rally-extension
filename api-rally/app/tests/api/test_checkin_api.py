@@ -342,13 +342,26 @@ class TestStaffCheckIn:
 
     STAFF_CHECKIN_URL = "/api/rally/v1/checkpoint/staff-check-in"
 
-    async def test_staff_check_in_disabled_404(self, pg_session, pg_client, as_admin):
+    async def test_staff_check_in_works_when_self_checkin_disabled(self, pg_session, pg_client):
+        """SELF_CHECKIN_ENABLED gates *teams* self-advancing via a checkpoint QR.
+        A staff member scanning a team to identify it is the normal staffed flow
+        and must work regardless of that flag.
+        """
         await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        self._staff_override(checkpoint_id=checkpoint.id)
+        try:
+            with _override_settings(SELF_CHECKIN_ENABLED=False):
+                resp = pg_client.post(
+                    self.STAFF_CHECKIN_URL,
+                    json={"team_code": team.access_code},
+                )
+        finally:
+            self._clear_staff_override()
 
-        with _override_settings(SELF_CHECKIN_ENABLED=False):
-            resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": "X"})
-
-        assert resp.status_code == 404
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["team_id"] == team.id
 
     async def test_staff_check_in_no_checkpoint_403(self, pg_session, pg_client):
         await _make_event(pg_session)

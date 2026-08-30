@@ -145,7 +145,6 @@ class CheckinController:
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         db: Annotated[AsyncSession, Depends(get_db)],
-        settings: SettingsDep,
         service: Annotated[CheckinService, Depends(get_checkin_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> StaffCheckinResponse:
@@ -156,9 +155,12 @@ class CheckinController:
         checkpoint when it is the team's next post. Tolerant by design — a re-scan
         (team already here) or an early scan never errors, so it stays usable
         alongside versus/head-to-head flows; it just reports the arrival ``status``.
-        """
-        self._require_enabled(settings)
 
+        Not gated by ``SELF_CHECKIN_ENABLED``: that flag governs teams scanning a
+        checkpoint's QR to advance themselves. A staff member scanning a team to
+        identify it and open the right evaluation is the normal staffed flow and
+        must work whether or not self check-in is enabled.
+        """
         is_privileged = deps.is_admin(auth.scopes)  # covers admin + manager-rally
         checkpoint_id = (
             body.checkpoint_id
