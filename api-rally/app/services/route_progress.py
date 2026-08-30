@@ -195,17 +195,29 @@ async def can_reach_checkpoint(
                 ),
             )
 
+    order_matters = bool(getattr(settings, "checkpoint_order_matters", True))
+
     if ignore_times_inflation:
-        # Count posts genuinely done, not the inflated check-in ledger. The
-        # target's own order is dropped for the same reason ``ignore_arrival_for``
-        # exists: the post a team is hunting must not count itself as resolved.
+        # "Which post is the team hunting" callers (hint, give-up, proximity).
+        # Match the pointer the participant screen shows
+        # (``compute_checkpoint_progress``): a contiguous scan over the resolved
+        # posts, not a bare count. A count agrees with the scan only when the
+        # resolved set is a gapless ``{1..k}`` prefix; a post skipped ahead of
+        # the pointer, or an out-of-order free-choice resolution, breaks that and
+        # would otherwise 400 the very post the client was told to hunt.
         resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
-        times_reached = len(resolved - {checkpoint.order})
-    else:
-        times_reached = len(team.times)
+        if not order_matters:
+            # Free choice: any post the team has not finished is fair game.
+            return checkpoint.order not in resolved
+        # Sequential: the huntable post is the first in route order not resolved.
+        for cp in await checkpoint_crud.get_all_ordered(db):
+            if cp.order in resolved:
+                continue
+            return cp.order == checkpoint.order
+        return False  # every post resolved: the route is finished
 
     return is_checkpoint_reachable(
         checkpoint_order=checkpoint.order,
-        times_reached=times_reached,
-        order_matters=bool(getattr(settings, "checkpoint_order_matters", True)),
+        times_reached=len(team.times),
+        order_matters=order_matters,
     )

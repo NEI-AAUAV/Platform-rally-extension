@@ -188,7 +188,7 @@ class TeamService:
         raise RallyValidationError(f"Checkpoint {checkpoint_order} already visited")
 
     async def add_checkpoint(
-        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
+        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate, enforce_order: bool = True
     ) -> Team:
         """Record a team's arrival/score at a checkpoint and recompute classification.
 
@@ -197,6 +197,12 @@ class TeamService:
         adoption, timing sync — and a commit inside ``begin_nested()`` would
         close the outer transaction), scores are appended inside the
         savepoint, then the whole thing commits and classification recomputes.
+
+        ``enforce_order`` is False only for the give-up path: ``SkipService``
+        has already run the reachability guard *and* written the skip row, so
+        the post is now resolved and ``_validate_checkpoint_order`` (which keys
+        off ``len(team.times)``) would wrongly reject the very append that moves
+        the team's pointer past it.
         """
         settings = await rally_settings.get_or_create(self._db)
         async with self._db.begin_nested():
@@ -208,7 +214,8 @@ class TeamService:
                 current_time,
                 start_offset_minutes=team.start_offset_minutes or 0,
             )
-            await self._validate_checkpoint_order(team, checkpoint_id, settings)
+            if enforce_order:
+                await self._validate_checkpoint_order(team, checkpoint_id, settings)
 
             team.record_checkpoint(
                 question_score=bool(obj_in.question_score),

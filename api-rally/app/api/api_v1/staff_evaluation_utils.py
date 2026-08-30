@@ -396,8 +396,15 @@ async def ensure_team_checkpoint_and_advance(
     await advance_team_to_next_checkpoint(db, team_id)
 
 
-async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_id: int) -> None:
-    """Check team into checkpoint with default scores"""
+async def checkin_team_to_checkpoint(
+    db: AsyncSession, team_id: int, checkpoint_id: int, *, enforce_order: bool = True
+) -> None:
+    """Check team into checkpoint with default scores.
+
+    ``enforce_order`` is False for the give-up path: reachability was already
+    checked by ``SkipService`` and the skip row makes the post resolved, so the
+    ``len(team.times)``-based order check would reject the pointer append.
+    """
     checkin_scores = TeamScoresUpdate(
         checkpoint_id=checkpoint_id,
         question_score=0,  # Default score
@@ -408,7 +415,11 @@ async def checkin_team_to_checkpoint(db: AsyncSession, team_id: int, checkpoint_
 
     try:
         await team.add_checkpoint(
-            db=db, id=team_id, checkpoint_id=checkpoint_id, obj_in=checkin_scores
+            db=db,
+            id=team_id,
+            checkpoint_id=checkpoint_id,
+            obj_in=checkin_scores,
+            enforce_order=enforce_order,
         )
         logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
     except Exception as e:

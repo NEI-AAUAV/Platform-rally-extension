@@ -159,6 +159,38 @@ async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session,
     assert too_far.status_code == 400, too_far.text
 
 
+async def test_can_give_up_current_post_with_a_later_post_resolved_ahead(pg_session, pg_client):
+    """Regression: posts 1-3 resolved contiguously, post 5 given up earlier, so
+    ``resolved_checkpoint_orders`` is ``{1,2,3,5}``. The old cardinality guard
+    (``|resolved - {4}| == 3`` → ``4 == 3``) 400-ed post 4, the post the
+    participant screen points the team at.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    event = await _make_event(pg_session)
+    cps = [
+        await _make_checkpoint(pg_session, order=order, event_id=event.id)
+        for order in range(1, 6)
+    ]
+    team = await make_team(pg_session, event_id=event.id)
+    await set_rally_settings(pg_session, checkpoint_order_matters=True)
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    for cp in cps[:3]:
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=now))
+    pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cps[4].id, cost=0))
+    team.times = [now, now, now, now]
+    pg_session.add(team)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(SKIP_URL.format(id=cps[3].id))
+
+    assert resp.status_code == 200, resp.text
+
+
 async def test_giving_up_on_the_last_post_ends_the_route(pg_session, pg_client):
     event = await _make_event(pg_session)
     only = await _make_checkpoint(pg_session, order=1, event_id=event.id)

@@ -157,6 +157,73 @@ async def test_can_buy_hints_for_the_post_being_hunted_after_an_advance(pg_sessi
     assert too_far.status_code == 400, too_far.text
 
 
+async def test_can_hint_current_post_with_a_later_post_resolved_ahead(pg_session, pg_client):
+    """Regression: the team is hunting post 4 (posts 1-3 done contiguously) but
+    has *also* given up on post 5 earlier. ``resolved_checkpoint_orders`` is then
+    ``{1,2,3,5}`` — non-contiguous — and the old cardinality check
+    (``|resolved - {4}| == 3``) failed with ``4 == 3`` false, 400-ing the very
+    post the participant screen told the team to hint on.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+    from app.models.checkpoint_skip import CheckpointSkip
+
+    event = await _make_event(pg_session)
+    cps = [
+        await _make_checkpoint(pg_session, order=order, event_id=event.id)
+        for order in range(1, 6)
+    ]
+    team = await make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, cps[3].id, count=1)
+    await set_rally_settings(pg_session, checkpoint_order_matters=True)
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    for cp in cps[:3]:
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=now))
+    pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cps[4].id, cost=0))
+    team.times = [now, now, now, now]  # inflated by the advance pointer
+    pg_session.add(team)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(HINT_URL.format(id=cps[3].id))
+
+    assert resp.status_code == 200, resp.text
+
+
+async def test_free_choice_allows_any_unresolved_post_and_refuses_resolved(pg_session, pg_client):
+    """With ``checkpoint_order_matters`` off the team really is choosing between
+    reachable posts, so a hint for any post it has not finished is fair — but a
+    post it already resolved is not.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    event = await _make_event(pg_session)
+    first = await _make_checkpoint(pg_session, order=1, event_id=event.id)
+    await _make_checkpoint(pg_session, order=2, event_id=event.id)
+    third = await _make_checkpoint(pg_session, order=3, event_id=event.id)
+    team = await make_team(pg_session, event_id=event.id)
+    await _make_indications(pg_session, third.id, count=1)
+    await set_rally_settings(pg_session, checkpoint_order_matters=False)
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
+    pg_session.add(team)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        # Post 3 is unresolved and out of sequence — still fair game.
+        on_unresolved = pg_client.post(HINT_URL.format(id=third.id))
+        # Post 1 is already resolved — nothing to hunt there.
+        on_resolved = pg_client.post(HINT_URL.format(id=first.id))
+
+    assert on_unresolved.status_code == 200, on_unresolved.text
+    assert on_resolved.status_code == 400, on_resolved.text
+
+
 async def test_penalty_is_charged_once_per_hint(pg_session, pg_client):
     event = await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session, order=1, event_id=event.id)

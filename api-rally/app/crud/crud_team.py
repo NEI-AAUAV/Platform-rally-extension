@@ -218,7 +218,13 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         return team
 
     async def add_checkpoint(
-        self, db: AsyncSession, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
+        self,
+        db: AsyncSession,
+        *,
+        id: int,
+        checkpoint_id: int,
+        obj_in: TeamScoresUpdate,
+        enforce_order: bool = True,
     ) -> Team:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service directly."""
@@ -226,7 +232,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         from app.services.team_service import TeamService
 
         return await TeamService(db, self).add_checkpoint(
-            id=id, checkpoint_id=checkpoint_id, obj_in=obj_in
+            id=id, checkpoint_id=checkpoint_id, obj_in=obj_in, enforce_order=enforce_order
         )
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:
