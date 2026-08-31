@@ -3,6 +3,7 @@ import { useAuth } from "react-oidc-context";
 import { useNavigate } from "@tanstack/react-router";
 import { clearResumeValue, getResumeValue } from "@/lib/authResumeStore";
 import { toRouterPath } from "@/lib/url";
+import Spinner from "@/components/shared/state/Spinner";
 
 /**
  * OIDC redirect landing. react-oidc-context completes the code exchange; once
@@ -32,7 +33,7 @@ export default function AuthCallback() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <div className="rally-border-accent mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+        <Spinner size="md" className="mx-auto mb-4" label="A concluir sessão" />
         <p className="text-muted-foreground">
           {auth.error ? `Erro de autenticação: ${auth.error.message}` : "A concluir sessão…"}
         </p>

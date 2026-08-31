@@ -1079,6 +1079,51 @@
   }
 }
 
+/* Indeterminate spinner (components/shared/state/Spinner.tsx): the ring spins
+   while the drawn arc grows and shrinks, so the motion stays legible even when
+   arc and track resolve to similar colours. */
+@keyframes rally-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rally-spinner-dash {
+  0% {
+    stroke-dasharray: 1 126;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90 126;
+    stroke-dashoffset: -30;
+  }
+  100% {
+    stroke-dasharray: 90 126;
+    stroke-dashoffset: -118;
+  }
+}
+
+/* Reduced motion keeps a still arc and breathes its opacity instead, so the
+   element still reads as "busy" without any movement. */
+@keyframes rally-spinner-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.rally-spinner-rotate {
+  transform-origin: 50% 50%;
+  animation: rally-spinner-rotate 1.6s linear infinite;
+}
+
+.rally-spinner-dash {
+  animation: rally-spinner-dash 1.4s ease-in-out infinite;
+}
+
 /* PWA boot loading / connection-error screens */
 @keyframes rally-spin {
   to {
@@ -1168,6 +1213,18 @@
   .rally-press,
   .brutal-press {
     transition: none;
+  }
+  .rally-spinner-rotate,
+  .rally-spinner-dash {
+    animation: none;
+  }
+  .rally-spinner-dash {
+    stroke-dasharray: 55 126;
+  }
+  /* Named outside the `rally-spin*` family on purpose: the wildcard rule below
+     forces `animation: none !important` and would kill this fallback too. */
+  .rally-busy {
+    animation: rally-spinner-fade 1.8s ease-in-out infinite;
   }
   [class*="rally-spin"],
   [class*="rally-pulse-ring"],

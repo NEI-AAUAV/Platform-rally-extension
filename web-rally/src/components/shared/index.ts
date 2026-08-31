@@ -11,6 +11,7 @@ export { default as ListItem } from "./layout/ListItem";
 export { default as RallyTimeBanner } from "./layout/rally-time-banner";
 
 // State / feedback
+export { default as Spinner } from "./state/Spinner";
 export { default as LoadingState } from "./state/LoadingState";
 export { default as ErrorState } from "./state/ErrorState";
 export { default as EmptyState } from "./state/EmptyState";
