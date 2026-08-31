@@ -49,7 +49,11 @@ def is_checkpoint_reachable(
 
 
 async def resolved_checkpoint_orders(
-    db: AsyncSession, team: Team, *, ignore_arrival_for: int | None = None
+    db: AsyncSession,
+    team: Team,
+    *,
+    ignore_arrival_for: int | None = None,
+    include_skips: bool = True,
 ) -> frozenset[int]:
     """The orders of the posts this team is done with.
 
@@ -59,6 +63,12 @@ async def resolved_checkpoint_orders(
     the arrivals table rather than inferred from ``len(team.times)``, because
     in a free-choice stage the count says how many posts a team has done but
     not which ones.
+
+    ``include_skips`` is True for "is this post still blocking the route"
+    questions (a skipped post no longer blocks). It is False when the caller
+    needs the team's *physical* frontier — how far along the route the team has
+    actually got — because giving up on a post resolves it without the team
+    ever setting foot at the next one.
 
     ``ignore_arrival_for`` (a checkpoint id) exists for one reason: a GPS
     arrival is recorded — unconditionally, as a fact — *before* this function
@@ -89,7 +99,8 @@ async def resolved_checkpoint_orders(
     resolved: set[int] = set()
     for cp in checkpoints:
         if cp.id in skipped_ids:
-            resolved.add(cp.order)
+            if include_skips:
+                resolved.add(cp.order)
             continue
         activities = await activity_crud.get_by_checkpoint(db, checkpoint_id=cp.id)
         active_ids = [a.id for a in activities if a.is_active]
@@ -99,6 +110,27 @@ async def resolved_checkpoint_orders(
         elif cp.id in arrived_ids and cp.id != ignore_arrival_for:
             resolved.add(cp.order)
     return frozenset(resolved)
+
+
+async def current_checkpoint_order(db: AsyncSession, team: Team) -> int | None:
+    """The order of the single post a team is due to reach next, or ``None``
+    when every post is resolved and the route is finished.
+
+    Mirrors ``TeamService.compute_checkpoint_progress``: a contiguous scan over
+    *resolved* posts (arrivals / skips / scored activities), never
+    ``len(team.times)`` — which ``advance_team_to_next_checkpoint`` inflates by
+    one with a pointer at a post the team has not actually reached. This is the
+    read-facing "which post is the team hunting" signal; the staff-eval append
+    machinery keeps its own positional ``crud.checkpoint.get_next``.
+
+    Free-order / staged routes are out of scope here: the first unresolved order
+    is returned, which keeps today's behaviour for those modes.
+    """
+    resolved = await resolved_checkpoint_orders(db, team)
+    for cp in await checkpoint_crud.get_all_ordered(db):
+        if cp.order not in resolved:
+            return cp.order
+    return None
 
 
 async def load_stages(db: AsyncSession) -> list[Stage]:
@@ -163,6 +195,7 @@ async def can_reach_checkpoint(
     settings: Any,
     now: datetime | None = None,
     enforce_hours: bool = True,
+    ignore_times_inflation: bool = False,
 ) -> bool:
     """Whether this team may check into this post right now.
 
@@ -171,6 +204,14 @@ async def can_reach_checkpoint(
     refuses them. Buying a hint, sampling proximity or giving up are about the
     riddle, which a team may perfectly well be solving an hour before the door
     opens — those callers pass False.
+
+    ``ignore_times_inflation`` picks the progress signal for the plain
+    sequential rule. The default counts ``len(team.times)`` — the check-in
+    ledger, which the staff evaluation path and the double-check-in guard both
+    depend on. Read-only "is this the post the team is hunting" callers (hint,
+    give-up, proximity) pass True to count *resolved* posts instead, because
+    ``advance_team_to_next_checkpoint`` inflates ``team.times`` by one with a
+    pointer at the next post the team has not actually reached.
     """
     if enforce_hours and hours_block_reason(checkpoint, settings, now) is not None:
         return False
@@ -186,8 +227,34 @@ async def can_reach_checkpoint(
                 ),
             )
 
+    order_matters = bool(getattr(settings, "checkpoint_order_matters", True))
+
+    if ignore_times_inflation:
+        # "Which post is the team hunting" callers (hint, give-up, proximity).
+        # Match the pointer the participant screen shows
+        # (``compute_checkpoint_progress``): a contiguous scan over the resolved
+        # posts, not a bare count. A count agrees with the scan only when the
+        # resolved set is a gapless ``{1..k}`` prefix; a post skipped ahead of
+        # the pointer, or an out-of-order free-choice resolution, breaks that and
+        # would otherwise 400 the very post the client was told to hunt.
+        if not order_matters:
+            # Free choice: any post the team has not finished is fair game.
+            resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
+            return checkpoint.order not in resolved
+        # Sequential: the huntable post is the one right after the team's
+        # *physical* frontier — the furthest post it has actually reached
+        # (arrived at, or scored). Skips are deliberately excluded: giving up
+        # on a post resolves it, but it does not walk the team to the next
+        # one, so a team may not chain give-ups (or hints) past where it
+        # physically stands.
+        physical = await resolved_checkpoint_orders(
+            db, team, ignore_arrival_for=checkpoint.id, include_skips=False
+        )
+        frontier = max(physical, default=0)
+        return checkpoint.order == frontier + 1
+
     return is_checkpoint_reachable(
         checkpoint_order=checkpoint.order,
         times_reached=len(team.times),
-        order_matters=bool(getattr(settings, "checkpoint_order_matters", True)),
+        order_matters=order_matters,
     )

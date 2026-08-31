@@ -58,11 +58,20 @@ class TestDraftVisibility:
 
     async def test_draft_is_never_handed_out_as_the_next_post(self, pg_session, pg_client):
         event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await _make_checkpoint(pg_session, order=1)
+        first = await _make_checkpoint(pg_session, order=1)
         await _make_checkpoint(pg_session, order=2, is_draft=True, name="Bar 1")
         team = await make_team(pg_session, event_id=event.id)
-        team.times = [datetime(2026, 8, 9, 10, 0)]  # already through post 1
+        # Post 1 genuinely resolved (arrival row) — the next post in order is
+        # the draft, so the route must end here rather than hand it out.
+        team.times = [datetime(2026, 8, 9, 10, 0)]
         pg_session.add(team)
+        pg_session.add(
+            CheckpointArrival(
+                team_id=team.id,
+                checkpoint_id=first.id,
+                arrived_at=datetime(2026, 8, 9, 10, 0),
+            )
+        )
         await pg_session.commit()
 
         with as_team(team.id):

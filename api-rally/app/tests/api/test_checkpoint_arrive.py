@@ -268,6 +268,50 @@ async def test_arrive_no_activities_auto_completes(pg_session, pg_client):
     assert len(refreshed.times) == 1
 
 
+async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_session, pg_client):
+    """Regression: post 1 (its only activity) is done and the staff-eval
+    advance has inflated ``team.times`` with a pointer at post 2. The genuine
+    GPS arrival at the no-activity post 2 must still auto-complete — the
+    reachability guard counts resolved posts, not ``len(team.times)``.
+    """
+    from app.api.api_v1.staff_evaluation_utils import (
+        advance_team_to_next_checkpoint,
+        checkin_team_to_checkpoint,
+    )
+    from app.models.activity import ActivityResult
+
+    await _make_event(pg_session)
+    cp1 = await _make_checkpoint(pg_session, order=1)
+    cp2 = await _make_checkpoint(pg_session, order=2)
+    team = await _make_team(pg_session)
+
+    act1 = Activity(
+        name="Act1",
+        checkpoint_id=cp1.id,
+        activity_type="general",
+        config={},
+        is_active=True,
+    )
+    pg_session.add(act1)
+    await pg_session.commit()
+    pg_session.add(
+        ActivityResult(activity_id=act1.id, team_id=team.id, final_score=10, is_completed=True)
+    )
+    await pg_session.commit()
+    await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+    await advance_team_to_next_checkpoint(pg_session, team.id)
+    await pg_session.commit()
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{cp2.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["auto_completed"] is True
+
+
 async def test_arrive_auto_complete_swallows_checkin_failure(pg_session, pg_client):
     """`_auto_complete_if_no_activities` is best-effort: if advancing the team
     raises, the arrival itself still succeeds with auto_completed=False."""

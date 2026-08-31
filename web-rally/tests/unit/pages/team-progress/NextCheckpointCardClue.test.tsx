@@ -201,14 +201,15 @@ describe("NextCheckpointCard — clue and hints", () => {
     mockUseCheckpointHints.mockReturnValue(
       hintState({ revealed: [{ indication_id: 7, hint: "Junto ao cais", cost: -10 }] }),
     );
-    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
 
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
     await userEvent.click(screen.getByRole("button", { name: /Desistir deste posto \(-25 pts\)/ }));
 
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("25 pontos"));
+    // The spend goes through an in-app confirmation, not the native dialog.
+    expect(screen.getByText(/25 pontos/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
     expect(mockGiveUp).toHaveBeenCalledTimes(1);
-    confirmSpy.mockRestore();
   });
 
   it("does not offer giving up while hints remain", () => {
@@ -306,25 +307,25 @@ describe("NextCheckpointCard — clue and hints", () => {
 
   it("asks for confirmation before spending points", async () => {
     mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 1, nextCost: -10 }));
-    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(false);
 
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
     await userEvent.click(screen.getByRole("button", { name: /Pedir pista/ }));
 
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("10 pontos"));
+    // In-app confirmation names the cost; dismissing it spends nothing.
+    expect(screen.getByText(/10 pontos/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
     expect(mockReveal).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 
   it("reveals the hint once confirmed", async () => {
     mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 1, nextCost: -10 }));
-    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(true);
 
     render(<NextCheckpointCard checkpoint={redacted} showMap />, { wrapper: createWrapper() });
     await userEvent.click(screen.getByRole("button", { name: /Pedir pista/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Pedir pista" }));
 
     expect(mockReveal).toHaveBeenCalledTimes(1);
-    confirmSpy.mockRestore();
   });
 
   it("skips the confirmation when hints are free", async () => {

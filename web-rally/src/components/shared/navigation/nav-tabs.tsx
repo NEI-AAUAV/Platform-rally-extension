@@ -26,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
+import { useHasBadgeCatalogue } from "@/hooks/useBadges";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useNavAudience from "@/hooks/useNavAudience";
@@ -194,9 +195,12 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
     toggleViewMode: toggleViewModeShared,
     showTeamView,
     scopes,
+    team,
   } = useNavAudience();
   const { showGuideFeature } = useGuideAccess();
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
+  // "Conquistas" only earns a tab when the event actually defines badges.
+  const hasBadges = useHasBadgeCatalogue(showTeamView ? team?.id : undefined);
 
   const toggleViewMode = () => {
     toggleViewModeShared();
@@ -238,7 +242,7 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
     {
       name: "Conquistas",
       href: "/achievements",
-      show: showTeamView && settings?.badges_enabled !== false,
+      show: showTeamView && settings?.badges_enabled !== false && hasBadges,
       icon: Award,
     },
     { name: "Equipa", href: "/team-info", show: showTeamView, icon: Users },

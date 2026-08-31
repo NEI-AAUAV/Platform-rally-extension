@@ -128,12 +128,13 @@ test.describe("peddy paper", () => {
   test("buying a hint charges the team and never leaks the answer", async ({ page, context }) => {
     await seedTeamSession(context);
     await standAt(context, 0);
-    page.on("dialog", (dialog) => void dialog.accept());
 
     await page.goto("/rally/team-progress");
     const hintButton = page.getByRole("button", { name: /Pedir pista/ });
     await expect(hintButton).toBeVisible();
     await hintButton.click();
+    // The spend is confirmed in an in-app dialog now, not a native confirm().
+    await page.getByRole("button", { name: "Pedir pista", exact: true }).click();
 
     // The first rung of the ladder, and its price shown to the team — the
     // DynamicAward rows carrying the charge are admin-only.
@@ -404,18 +405,20 @@ test.describe("stuck teams and navigation aids", () => {
       [teamToken, String(peddy.teamId), peddy.teamName] as [string, string, string],
     );
 
-    page.on("dialog", (dialog) => void dialog.accept());
     await page.goto("/rally/team-progress");
 
-    // Draining hints enables the give up button
+    // Draining hints enables the give up button. Each spend goes through an
+    // in-app confirmation dialog now, not a native confirm().
     const hintButton = page.getByRole("button", { name: /Pedir pista/ });
     while ((await hintButton.count()) > 0 && (await hintButton.isVisible())) {
       await hintButton.click();
+      await page.getByRole("button", { name: "Pedir pista", exact: true }).click();
     }
 
     const giveUpButton = page.getByRole("button", { name: /Desistir deste posto/ });
     if ((await giveUpButton.count()) > 0 && (await giveUpButton.isVisible())) {
       await giveUpButton.click();
+      await page.getByRole("button", { name: "Desistir", exact: true }).click();
     } else {
       const apiBase = process.env.FULLSTACK_API_BASE_URL ?? "http://localhost:8003";
       await fetch(`${apiBase}/api/rally/v1/checkpoint/${peddy.checkpoints[0]!.id}/skip`, {

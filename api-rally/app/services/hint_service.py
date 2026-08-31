@@ -104,7 +104,12 @@ class HintService:
         # them. Opening hours do not apply — the riddle is theirs to solve
         # before the door opens.
         reachable = await can_reach_checkpoint(
-            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
+            self._db,
+            team=team,
+            checkpoint=checkpoint,
+            settings=settings,
+            enforce_hours=False,
+            ignore_times_inflation=True,
         )
         if not reachable:
             raise RallyValidationError(NOT_CURRENT_CHECKPOINT)

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { isNavItemActive } from "./activeRoute";
 import useRallySettings from "@/hooks/useRallySettings";
 import useGuideAccess from "@/hooks/useGuideAccess";
+import { useHasBadgeCatalogue } from "@/hooks/useBadges";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useNavAudience from "@/hooks/useNavAudience";
@@ -72,6 +73,8 @@ export function MobileBottomNav() {
   // saw the team tab bar on mobile.
   const showTeamNav = showTeamView;
   const accessCode = team?.access_code;
+  // "Conquistas" only earns a tab when the event actually defines badges.
+  const hasBadges = useHasBadgeCatalogue(showTeamNav ? team?.id : undefined);
 
   const items: NavItem[] = showTeamNav
     ? [
@@ -91,7 +94,7 @@ export function MobileBottomNav() {
           name: "Conquistas",
           href: "/achievements",
           Icon: Award,
-          show: settings?.badges_enabled !== false,
+          show: settings?.badges_enabled !== false && hasBadges,
         },
         { name: "Equipa", href: "/team-info", Icon: Users, show: true },
         { name: "Definições", href: "/team-settings", Icon: Settings, show: true },
