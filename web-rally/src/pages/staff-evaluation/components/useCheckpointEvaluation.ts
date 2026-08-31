@@ -128,8 +128,18 @@ async function tryLoadStaffActivities({
     }
 
     return isFromDifferentCheckpoint ? null : activities;
-  } catch {
-    return null;
+  } catch (error) {
+    // M7: only a 404 (this endpoint genuinely has nothing for the team —
+    // the general-activities fallback is the right next step) falls
+    // through silently. Anything else — 403 "staff scoring desligado" or
+    // "sem posto", a 5xx — used to look identical: a normal-looking list
+    // from loadGeneralActivities (which isn't staff-scoped) that then
+    // failed at submit time with no indication why. Propagate everything
+    // else so the real error reaches the UI.
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 

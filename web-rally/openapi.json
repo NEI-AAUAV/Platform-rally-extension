@@ -1180,7 +1180,7 @@
           "User"
         ],
         "summary": "Update Guide Team Assignment",
-        "description": "Update a guide user's team assignment.",
+        "description": "Update a guide user's team assignment.\n\nmirrors the staff-assignment audit trail above -- previously this\nwas the one assignment-mutation endpoint that left no audit record, so\n\"which guide was on which team, and when\" was unrecoverable for an\nincident review.",
         "operationId": "update_guide_team_assignment",
         "security": [
           {
@@ -2170,29 +2170,64 @@
           "Activities"
         ],
         "summary": "Get All Activity Results",
-        "description": "Get all activity results (evaluations) with team and activity details",
+        "description": "Get all activity results (evaluations) with team and activity details.\n\nscoped to the current event and paginated \u2014\nunscoped, this grew without bound across editions and every past\nedition's rows returned on every call.",
         "operationId": "get_all_activity_results",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ActivityResultResponse"
                   },
-                  "type": "array",
                   "title": "Response Get All Activity Results"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/rally/v1/activities/{activity_id}": {
@@ -2568,7 +2603,7 @@
           "Activities"
         ],
         "summary": "Apply Penalty",
-        "description": "Apply penalty to activity result",
+        "description": "Apply a penalty occurrence count to an activity result, priced\nserver-side the same way as every other penalty.",
         "operationId": "apply_penalty",
         "security": [
           {
@@ -2591,18 +2626,18 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(vomit|not_drinking|other)$",
+              "pattern": "^(vomit|not_drinking)$",
               "title": "Penalty Type"
             }
           },
           {
-            "name": "penalty_value",
+            "name": "penalty_count",
             "in": "query",
             "required": true,
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "title": "Penalty Value"
+              "title": "Penalty Count"
             }
           }
         ],
@@ -3089,7 +3124,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ActivityResultUpdate"
+                "$ref": "#/components/schemas/ActivityResultStaffUpdate"
               }
             }
           }
@@ -7049,6 +7084,37 @@
         ]
       }
     },
+    "/api/rally/v1/admin/idempotency-keys/purge": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Purge Idempotency Keys",
+        "description": "Delete completed idempotency-key rows older than the TTL \u2014 admin\nonly. nothing pruned this table before; run manually or on a\nschedule (e.g. an external cron hitting this endpoint) until an\nin-process scheduler exists.",
+        "operationId": "purge_idempotency_keys",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Purge Idempotency Keys"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -7547,6 +7613,51 @@
         "title": "ActivityResultResponse",
         "description": "Schema for activity result response"
       },
+      "ActivityResultStaffUpdate": {
+        "properties": {
+          "result_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Data"
+          },
+          "extra_shots": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Shots"
+          },
+          "penalty_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty Counts"
+          }
+        },
+        "type": "object",
+        "title": "ActivityResultStaffUpdate",
+        "description": "What a staff member submits when *editing* an existing evaluation.\n\nregression: the PUT endpoint used to accept ``ActivityResultUpdate``,\nwhich carries ``penalties`` (raw points, unvalidated) and ``is_completed``.\n``apply_modifiers`` does ``raw_score -= penalty_value``, so a negative\n``penalties`` value is a bonus a staff member could award themselves via\n``PUT .../evaluate/{id}`` \u2014 the ABAC rule that lets staff touch their own\ncheckpoint's results (``UPDATE_ACTIVITY_RESULT``) doesn't distinguish\n\"change my counts\" from \"set an arbitrary point total\".\n\nMirrors ``ActivityResultEvaluation`` (the create-time staff schema):\ncounts, never points, and no ``is_completed`` toggle."
+      },
       "ActivityResultUpdate": {
         "properties": {
           "result_data": {
@@ -7615,7 +7726,7 @@
         },
         "type": "object",
         "title": "ActivityResultUpdate",
-        "description": "Schema for updating an activity result"
+        "description": "Schema for updating an activity result.\n\nFor admin/service callers only. Carries ``penalties`` (raw points) and\n``is_completed`` directly \u2014 a staff-facing endpoint must never accept\nthis: see ``ActivityResultStaffUpdate``."
       },
       "ActivityType": {
         "type": "string",

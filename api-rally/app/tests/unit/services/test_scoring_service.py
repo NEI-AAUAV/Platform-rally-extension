@@ -631,6 +631,13 @@ async def test_apply_extra_shots_missing_result(pg_session):
 # penalties
 # --------------------------------------------------------------------------- #
 async def test_apply_penalty_reduces_score(pg_session):
+    """H1: penalty_count is priced server-side (resolve_penalty_points), not
+    written straight through as points — same contract as every other
+    penalty path."""
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     await _make_result(
@@ -642,19 +649,46 @@ async def test_apply_penalty_reduces_score(pg_session):
     )
 
     svc = ScoringService(pg_session)
-    ok = await svc.apply_penalty(team.id, activity.id, "custom", 10)
+    await svc._get_settings()
+    settings = (await pg_session.scalars(sa_select(RallySettings))).first()
+    settings.penalty_per_puke = 10
+    await pg_session.commit()
+
+    ok = await svc.apply_penalty(team.id, activity.id, "vomit", 1)
 
     assert ok is True
     result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
-    assert result.penalties["custom"] == 10
+    assert result.penalties["vomit"] == 10
+    assert result.penalty_counts["vomit"] == 1
     assert result.final_score == pytest.approx(40)  # 50 - 10
+
+
+async def test_apply_penalty_unknown_type_rejected(pg_session):
+    """H1 regression: an unpriced penalty_type ('custom'/'other', the old
+    catch-all) must not reach the score as raw points — resolve_penalty_points
+    rejects it, same as any unknown key from a client request. The API layer
+    also narrows the allowed values to vomit/not_drinking (see activities.py),
+    so this only matters for direct service callers."""
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    await _make_result(
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 50},
+        final_score=50,
+    )
+
+    svc = ScoringService(pg_session)
+    with pytest.raises(RallyValidationError, match="Unknown penalty type"):
+        await svc.apply_penalty(team.id, activity.id, "custom", 10)
 
 
 async def test_apply_penalty_missing_result(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)
     svc = ScoringService(pg_session)
-    assert await svc.apply_penalty(team.id, activity.id, "custom", 5) is False
+    assert await svc.apply_penalty(team.id, activity.id, "vomit", 5) is False
 
 
 # --------------------------------------------------------------------------- #
@@ -1190,6 +1224,161 @@ async def test_penalty_counts_reject_unknown_key(pg_session):
         )
 
 
+async def test_deleted_global_rule_does_not_break_edit_or_reprice(pg_session):
+    """C2 regression: soft-deleting a DynamicRule used by an already-recorded
+    count must not turn every future edit, or a retroactive recompute, into a
+    500 — the orphaned key prices at 0 instead of raising.
+    """
+    from app.crud.crud_activity import rally_event
+    from app.models.dynamic_scoring import PENALTY_COUNTER_RULE_TYPE, DynamicRule
+
+    event = await rally_event.get_current(pg_session)
+    rule = DynamicRule(
+        event_id=event.id if event else None,
+        rule_type=PENALTY_COUNTER_RULE_TYPE,
+        name="Atraso",
+        points=15.0,
+        is_active=True,
+    )
+    pg_session.add(rule)
+    await pg_session.commit()
+    await pg_session.refresh(rule)
+
+    team = await _make_team(pg_session, "Orphan Rule")
+    activity = await _make_activity(pg_session)
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            penalty_counts={f"g_{rule.id}": 2},
+            is_completed=True,
+        )
+    )
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.penalties == {f"g_{rule.id}": 30}
+
+    # Soft-delete the rule (admin deactivates it mid-event).
+    rule.is_active = False
+    await pg_session.commit()
+
+    # Editing the result (re-submitting its own persisted counts, unchanged)
+    # must not raise "Unknown penalty type" for the now-orphaned key.
+    await ScoringService(pg_session).update_result(
+        result,
+        ActivityResultUpdate(
+            result_data={"assigned_points": 60}, penalty_counts={f"g_{rule.id}": 2}
+        ),
+    )
+    await pg_session.refresh(result)
+    assert result.penalties == {f"g_{rule.id}": 30}
+    assert result.final_score == pytest.approx(60 - 30)
+
+    # A retroactive recompute must not raise either. Soft-delete keeps the
+    # rule's row (and its price) reachable for already-recorded counts, so
+    # this reprices at the same price rather than dropping to 0.
+    repriced = await ScoringService(pg_session).reprice_all_results()
+    assert repriced == 1
+    await pg_session.refresh(result)
+    assert result.penalties == {f"g_{rule.id}": 30}
+
+
+async def test_peddy_paper_event_rejects_drinking_penalty_keys(pg_session):
+    """H5: a peddy-paper event has no drinking mechanics — vomit/not_drinking
+    must be unknown keys, not silently priced and applied server-side, no
+    matter what a stale client cache or a forged request sends."""
+    from app.tests.conftest import make_event
+
+    await make_event(pg_session, event_type="peddy_paper")
+    team = await _make_team(pg_session, "Peddy Paper Team")
+    activity = await _make_activity(pg_session)
+
+    with pytest.raises(RallyValidationError, match="Unknown penalty type"):
+        await ScoringService(pg_session).create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"assigned_points": 50},
+                penalty_counts={"vomit": 1},
+                is_completed=True,
+            )
+        )
+
+
+async def test_peddy_paper_event_ignores_extra_shots_bonus(pg_session):
+    """H5: extra-shots bonus is a drinking mechanic too — must not apply in a
+    peddy-paper event even if a stale client/offline-queue entry sends one."""
+    from app.tests.conftest import make_event
+
+    await make_event(pg_session, event_type="peddy_paper")
+    team = await _make_team(pg_session, "Peddy Paper Shots")
+    activity = await _make_activity(pg_session)
+
+    result = await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            extra_shots=5,
+            is_completed=True,
+        )
+    )
+    assert result.final_score == pytest.approx(50)  # no shot bonus added
+
+
+async def test_rally_tascas_event_still_prices_drinking_penalties(pg_session):
+    """Control: a non-peddy-paper event keeps drinking mechanics — H5 must not
+    disable them globally, only for peddy_paper."""
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+    from app.tests.conftest import make_event
+
+    await make_event(pg_session, event_type="rally_tascas")
+    team = await _make_team(pg_session, "Rally Tascas Team")
+    activity = await _make_activity(pg_session)
+
+    svc = ScoringService(pg_session)
+    await svc._get_settings()
+    settings = (await pg_session.scalars(sa_select(RallySettings))).first()
+    settings.penalty_per_puke = 10
+    await pg_session.commit()
+
+    result = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            penalty_counts={"vomit": 1},
+            is_completed=True,
+        )
+    )
+    assert result.final_score == pytest.approx(40)
+
+
+async def test_resolve_penalty_points_non_strict_prices_orphan_key_at_zero(pg_session):
+    """C2: an activity-local counter removed from config has no soft-delete
+    fallback — non-strict pricing must price it at 0, not raise.
+    """
+    activity = await _make_activity(
+        pg_session,
+        config={
+            "min_points": 0,
+            "max_points": 100,
+            "penalty_counters": [{"key": "miss", "label": "Falha", "points": 7}],
+        },
+    )
+    svc = ScoringService(pg_session)
+
+    # "old_key" was a penalty_counter removed from this activity's config.
+    priced = await svc.resolve_penalty_points(activity, {"miss": 2, "old_key": 3}, strict=False)
+    assert priced == {"miss": 14, "old_key": 0}
+
+    with pytest.raises(RallyValidationError, match="Unknown penalty type"):
+        await svc.resolve_penalty_points(activity, {"old_key": 3})
+
+
 async def test_editing_counts_reprices_without_corrupting_the_count(pg_session):
     """Editing after a price change keeps the count staff entered.
 
@@ -1447,6 +1636,43 @@ async def test_penalty_excess_becomes_negative_award(pg_session):
     # team.total reflects the full penalty, not just the truncated 0
     await pg_session.refresh(team)
     assert team.total == pytest.approx(-60)
+
+
+async def test_excess_award_persists_on_deferred_recompute_path(pg_session, monkeypatch):
+    """M6 regression: on the deferred-recompute path (RECOMPUTE_OFF_PATH),
+    create_result added the excess-penalty DynamicAward via db.add() *after*
+    the result row's own commit, and skipped update_team_scores (whose commit
+    would otherwise have saved it) — the award sat added-but-uncommitted with
+    nothing to ever commit it. Assert commit() actually runs and the award
+    survives being re-read as a fresh row (not just visible via the same
+    session's identity map, which autoflush would show regardless of commit).
+    """
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(ScoringService, "_defer_recompute", property(lambda _: True))
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+
+    commit_spy = AsyncMock(wraps=pg_session.commit)
+    monkeypatch.setattr(pg_session, "commit", commit_spy)
+
+    created = await svc.create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 40},
+            penalties={"custom": 100},
+            is_completed=True,
+        )
+    )
+
+    assert commit_spy.await_count >= 1, "the award's session.add() was never committed"
+
+    award = await _excess_award(pg_session, created.id)
+    assert award is not None
+    assert award.points == -60
 
 
 async def test_reducing_penalty_below_points_clears_excess_award(pg_session):

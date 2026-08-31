@@ -85,11 +85,18 @@ class TestABACEngine:
         context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.TEAM, ["manager-rally"])
         assert engine.evaluate(context) is True
 
-    def test_manager_denied_unlisted_action(self):
-        """Rally managers are denied actions not in their table"""
-        engine = ABACEngine()
-        context = _context(Action.ADD_CHECKPOINT_SCORE, Resource.SCORE, ["manager-rally"])
-        assert engine.evaluate(context) is False
+    def test_manager_table_covers_every_action(self):
+        """Regression: managers used to be denied the whole scoring/team-
+        member family (ADD_CHECKPOINT_SCORE, CREATE_/UPDATE_ACTIVITY_RESULT,
+        VIEW_TEAM_MEMBERS) even though `get_staff_with_checkpoint_access`
+        already let admin-or-manager callers reach those endpoints — two
+        different answers for the same person depending on which check ran.
+        Asserting every `Action` has a manager rule keeps a newly-added
+        Action from silently falling into the same trap."""
+        from app.core.abac import _MANAGER_ACTIONS  # noqa: PLC0415
+
+        missing = [action for action in Action if action not in _MANAGER_ACTIONS]
+        assert missing == []
 
     def test_unknown_scope_denied(self):
         """Unrecognized scopes fall through to default deny"""
@@ -201,6 +208,39 @@ class TestABACStaffCheckpointScoping:
         """Actions not in the staff table are denied (replaces old default-deny policy)"""
         engine = ABACEngine()
         context = _context(Action.CREATE_CHECKPOINT, Resource.CHECKPOINT, ["rally-staff"])
+        assert engine.evaluate(context) is False
+
+    @pytest.mark.parametrize(
+        "action",
+        [
+            Action.ADD_CHECKPOINT_SCORE,
+            Action.CREATE_ACTIVITY_RESULT,
+            Action.UPDATE_ACTIVITY_RESULT,
+            Action.VIEW_TEAM_MEMBERS,
+        ],
+    )
+    def test_manager_allowed_scoring_and_team_member_actions(self, action):
+        """Regression: a manager-only user (no rally-staff scope) was 403'd
+        here by ABAC while `get_staff_with_checkpoint_access` (the dependency
+        actually guarding these endpoints) already let them through — same
+        person, two different answers depending on which check ran."""
+        engine = ABACEngine()
+        context = _context(action, Resource.SCORE, ["manager-rally"])
+        assert engine.evaluate(context) is True
+
+
+class TestABACGuideScope:
+    """rally-guide had no table at all, so evaluate() denied any guide
+    on an ABAC-protected route regardless of the action requested."""
+
+    def test_guide_allowed_action_in_table(self):
+        engine = ABACEngine()
+        context = _context(Action.VIEW_ACTIVITY, Resource.ACTIVITY, ["rally-guide"])
+        assert engine.evaluate(context) is True
+
+    def test_guide_denied_action_outside_table(self):
+        engine = ABACEngine()
+        context = _context(Action.UPDATE_RALLY_SETTINGS, Resource.RALLY_SETTINGS, ["rally-guide"])
         assert engine.evaluate(context) is False
 
 

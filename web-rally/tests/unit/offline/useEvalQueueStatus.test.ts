@@ -17,6 +17,7 @@ function makeEval(overrides: Partial<QueuedEval> = {}): QueuedEval {
     resultData: {} as never,
     status: "pending",
     createdAt: Date.now(),
+    attempts: 0,
     ...overrides,
   };
 }

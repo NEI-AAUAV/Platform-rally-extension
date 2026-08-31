@@ -26,7 +26,12 @@ class ScoreBasedActivity(BaseActivity):
         # Calculate percentage of max points achieved
         achieved = float(achieved_points)
         max_pts = float(self.config.get("max_points", 100))
-        percentage = min(achieved / max_pts, 1.0)
+        # config is a free-form dict (never validated against
+        # ScoreBasedConfig — see ActivityCreate/ActivityUpdate), so an admin
+        # setting max_points to 0 used to 500 every evaluation of this
+        # activity. 0 (or negative) points possible means nothing can be
+        # achieved, so the percentage is 0 rather than a division.
+        percentage = min(achieved / max_pts, 1.0) if max_pts > 0 else 0.0
 
         # Base score calculation
         base_score = float(self.config.get("base_score", 50))

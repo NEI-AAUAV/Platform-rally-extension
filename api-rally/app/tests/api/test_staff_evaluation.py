@@ -9,6 +9,7 @@ here.
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock
 
+import pytest
 from sqlalchemy import select
 
 import app.api.api_v1.staff_evaluation as staff_evaluation_module
@@ -623,6 +624,39 @@ class TestUpdateTeamActivityEvaluationAPI:
             json={"result_data": {"assigned_points": 80}},
         )
         assert resp.status_code == 404
+
+    async def test_update_ignores_forged_penalties_and_is_completed(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Regression: the PUT body used to be validated against
+        ActivityResultUpdate, which carries raw `penalties` (points, can be
+        negative -> a self-awarded bonus) and `is_completed`. It's now
+        ActivityResultStaffUpdate, which has neither field, so pydantic's
+        default extra="ignore" silently drops them — the score must only
+        move via `result_data`/`extra_shots`/`penalty_counts`.
+        """
+        team_obj, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)
+
+        url = (
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+            f"{activity_obj.id}/evaluate/{result_id}"
+        )
+        resp = pg_client.put(
+            url,
+            json={
+                "result_data": {"assigned_points": 50},
+                "penalties": {"forged": -10000},
+                "is_completed": False,
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        # The forged bonus never applied, and is_completed was ignored (the
+        # result created by _seed_result is completed).
+        assert body["final_score"] == pytest.approx(50)
+        assert body.get("penalties", {}).get("forged") is None
+        assert body["is_completed"] is True
 
     async def test_update_result_wrong_team_or_activity(self, pg_session, pg_client, as_admin):
         _, activity_obj, result_id = await _seed_result(pg_session, pg_client, as_admin)

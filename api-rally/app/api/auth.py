@@ -38,6 +38,13 @@ class AuthData(BaseModel):
     oidc_sub: str
     name: str
     email: str | None = None
+    # only an IdP-verified email may be used to adopt a pre-mirrored
+    # placeholder account by email match (see _adopt_email_placeholder).
+    # Unverified, an attacker who controls someone else's email at the IdP
+    # (or an IdP that doesn't enforce verification) could hijack that
+    # person's pre-provisioned scopes just by registering with the same
+    # address string.
+    email_verified: bool = False
     scopes: list[str] = []
 
 
@@ -53,6 +60,7 @@ def build_auth_data(claims: dict[str, Any], settings: SettingsDep) -> AuthData:
         oidc_sub=claims["sub"],
         name=name,
         email=claims.get("email"),
+        email_verified=bool(claims.get("email_verified", False)),
         scopes=map_groups_to_scopes(groups, settings),
     )
 

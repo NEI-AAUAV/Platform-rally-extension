@@ -10,6 +10,7 @@ directory does not matter.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +19,10 @@ from pathlib import Path
 # stdin form, so add the parent explicitly before importing app.*.
 API_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(API_ROOT))
+
+# Provide a fallback for required settings if not set, so the offline schema generator
+# can import the FastAPI app without needing full runtime environment configuration.
+os.environ.setdefault("TEAM_JWT_SECRET_KEY", "offline-schema-generation-secret")
 
 from fastapi.openapi.utils import get_openapi  # noqa: E402
 

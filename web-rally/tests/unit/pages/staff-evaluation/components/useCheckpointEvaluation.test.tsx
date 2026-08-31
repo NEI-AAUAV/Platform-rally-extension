@@ -172,6 +172,43 @@ describe('useCheckpointEvaluation', () => {
     expect(mockGetTeamActivitiesForEvaluation).toHaveBeenCalled();
   });
 
+  it('M7: falls back to general activities on a 404 from the staff endpoint', async () => {
+    mockUseUser.mockReturnValue({ isRallyAdmin: false });
+    mockGetTeamActivitiesForEvaluation.mockRejectedValue(new ApiError(404, { detail: 'not found' }));
+    mockGetActivities.mockResolvedValue({ data: { activities: [{ id: 20, checkpoint_id: 1 }] } });
+    mockGetAllActivityResults.mockResolvedValue({ data: [] });
+    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
+
+    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
+
+    act(() => result.current.selectTeam(matchingTeam));
+
+    await waitFor(() => expect(result.current.teamActivities?.length).toBe(1));
+    expect(mockGetActivities).toHaveBeenCalled();
+  });
+
+  it('M7 regression: a 403 from the staff endpoint propagates as a query error instead of silently falling back', async () => {
+    mockUseUser.mockReturnValue({ isRallyAdmin: false });
+    mockGetTeamActivitiesForEvaluation.mockRejectedValue(
+      new ApiError(403, { detail: 'staff scoring desligado' }),
+    );
+    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
+
+    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
+
+    mockGetActivities.mockClear();
+    act(() => result.current.selectTeam(matchingTeam));
+
+    // Must not silently fall through to the unscoped general-activities
+    // endpoint and pretend everything is fine.
+    await waitFor(() => expect(result.current.teamActivities).toBeUndefined());
+    expect(mockGetActivities).not.toHaveBeenCalled();
+  });
+
   it('shows warning dialog when rally admin evaluates a team from a different checkpoint', async () => {
     mockUseUser.mockReturnValue({ isRallyAdmin: true });
     const mismatchedTeam = { id: 2, name: 'Team B', last_checkpoint_number: 0 } as any;

@@ -84,10 +84,7 @@ export default function Scoreboard() {
 
   const { scopes } = useUserStore((state) => state);
   const isAdminOrManager =
-    scopes !== undefined &&
-    (scopes.includes("admin") ||
-      scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin"));
+    scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally"));
   const isStaff = scopes !== undefined && scopes.includes("rally-staff");
   const isPrivileged = isAdminOrManager || isStaff;
 

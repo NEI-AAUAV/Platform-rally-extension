@@ -12,13 +12,7 @@ interface GuideAccess {
   isLoading: boolean;
 }
 
-const GUIDE_ROLE_SCOPES = [
-  "rally-guide",
-  "rally-staff",
-  "admin",
-  "manager-rally",
-  "rally:admin",
-] as const;
+const GUIDE_ROLE_SCOPES = ["rally-guide", "rally-staff", "admin", "manager-rally"] as const;
 
 /**
  * Single source of truth for guide-mode access, replacing the gate expression

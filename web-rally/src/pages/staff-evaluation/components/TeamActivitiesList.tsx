@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Activity, CheckCircle, Clock, Star, Trophy, Edit, Camera } from "lucide-react";
 import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
-import type { ActivityResponse } from "@/client";
 import type { Team, ActivityResultData } from "@/types/forms";
+import type { TeamActivityWithStatus } from "./checkpointEvaluation.types";
 import { cn } from "@/lib/utils";
 
 type TeamActivitiesListProps = Readonly<{
   team: Team;
-  activities: ActivityResponse[];
+  activities: TeamActivityWithStatus[];
   onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => Promise<void>;
   isEvaluating: boolean;
 }>;
@@ -32,10 +32,10 @@ export function TeamActivitiesList({
   onEvaluate,
   isEvaluating,
 }: TeamActivitiesListProps) {
-  const [selectedActivity, setSelectedActivity] = useState<ActivityResponse | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<TeamActivityWithStatus | null>(null);
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
 
-  const handleEvaluateClick = (activity: ActivityResponse) => {
+  const handleEvaluateClick = (activity: TeamActivityWithStatus) => {
     setSelectedActivity(activity);
     setShowEvaluationForm(true);
   };
@@ -73,7 +73,7 @@ export function TeamActivitiesList({
           <ActivityEvaluationForm
             activity={{
               ...selectedActivity,
-              evaluation_status: "pending" as const,
+              evaluation_status: selectedActivity.evaluation_status ?? "pending",
             }}
             team={team}
             onSubmit={handleFormSubmit}

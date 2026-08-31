@@ -137,6 +137,14 @@ _MANAGER_ACTIONS: dict[Action, Rule] = {
     Action.VIEW_VERSUS_GROUP: _allow,
     Action.UPDATE_RALLY_SETTINGS: _allow,
     Action.VIEW_RALLY_SETTINGS: _allow,
+    # a manager-only user (no rally-staff scope) was 403'd on the same
+    # scoring/team-member actions get_staff_with_checkpoint_access already let
+    # them past (that dependency treats admin-or-manager as sufficient), so
+    # the ABAC check contradicted the endpoint's own gate for the same person.
+    Action.ADD_CHECKPOINT_SCORE: _allow,
+    Action.CREATE_ACTIVITY_RESULT: _allow,
+    Action.UPDATE_ACTIVITY_RESULT: _allow,
+    Action.VIEW_TEAM_MEMBERS: _allow,
 }
 
 # Rally staff: checkpoint-scoped access. Actions not listed here are denied
@@ -158,6 +166,22 @@ _STAFF_ACTIONS: dict[Action, Rule] = {
     # decision is made by add_team_member itself after this check, since the
     # ABAC context has no DB access.
     Action.ADD_TEAM_MEMBER: _staff_has_checkpoint,
+}
+
+# rally-guide had no table here at all, so `evaluate()` fell through to
+# `return False` for any guide on an ABAC-protected route. Guide access has
+# only ever worked through `deps.get_guide` deciding by scope directly,
+# bypassing this engine — which meant a route protected by ABAC alone (rather
+# than by `get_guide`) was unreachable for guides by accident of which check
+# happened to run, not by anyone deciding a guide shouldn't have it. This
+# table is what a guide can reach when a route *does* go through ABAC; it
+# does not change what `get_guide`-gated routes already allowed.
+_GUIDE_SCOPE = "rally-guide"
+_GUIDE_ACTIONS: dict[Action, Rule] = {
+    Action.VIEW_ACTIVITY: _allow,
+    Action.VIEW_CHECKPOINT_TEAMS: _allow,
+    Action.VIEW_ACTIVITY_RESULT: _allow,
+    Action.VIEW_VERSUS_GROUP: _allow,
 }
 
 
@@ -191,6 +215,12 @@ class ABACEngine:
 
         if _STAFF_SCOPE in scopes:
             rule = _STAFF_ACTIONS.get(context.action)
+            if rule is not None:
+                return rule(context)
+            return False
+
+        if _GUIDE_SCOPE in scopes:
+            rule = _GUIDE_ACTIONS.get(context.action)
             if rule is not None:
                 return rule(context)
             return False

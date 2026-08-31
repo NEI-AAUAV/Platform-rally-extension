@@ -92,10 +92,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
   const { eventName, logoSrc } = branding;
   const { scopes } = useUserStore((state) => state);
   const isAdminOrManager =
-    scopes !== undefined &&
-    (scopes.includes("admin") ||
-      scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin"));
+    scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally"));
 
   return (
     // .rally-topbar-inset is the safe-area padding: plain env() everywhere,

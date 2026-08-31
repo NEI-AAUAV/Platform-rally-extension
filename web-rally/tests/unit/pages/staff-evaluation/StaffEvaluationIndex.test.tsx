@@ -10,6 +10,10 @@ vi.mock('@/hooks/useUser', () => ({
   default: () => mockUseUser(),
 }));
 
+vi.mock('@tanstack/react-router', () => ({
+  Navigate: ({ to }: { to: string }) => <div>Navigate:{to}</div>,
+}));
+
 vi.mock('@/components/shared', () => ({
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
 }));
@@ -26,27 +30,47 @@ vi.mock('@/pages/staff-evaluation/components/OfflineQueueBanner', () => ({
   default: () => <div>QueueBanner</div>,
 }));
 
+function userFixture(overrides: Record<string, unknown> = {}) {
+  return { isLoading: false, isRallyAdmin: false, userStore: { scopes: [] }, ...overrides };
+}
+
 describe('StaffEvaluation index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('shows loading state', () => {
-    mockUseUser.mockReturnValue({ isLoading: true, isRallyAdmin: false });
+    mockUseUser.mockReturnValue(userFixture({ isLoading: true }));
     render(<StaffEvaluation />);
     expect(screen.getByText('A carregar...')).toBeInTheDocument();
   });
 
   it('renders manager page for rally admin', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true });
+    mockUseUser.mockReturnValue(
+      userFixture({ isRallyAdmin: true, userStore: { scopes: ['admin'] } }),
+    );
     render(<StaffEvaluation />);
     expect(screen.getByText('ManagerOnlyPage')).toBeInTheDocument();
     expect(screen.getByText('QueueBanner')).toBeInTheDocument();
   });
 
-  it('renders staff page for non-admin', () => {
-    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: false });
+  it('renders staff page for plain staff', () => {
+    mockUseUser.mockReturnValue(userFixture({ userStore: { scopes: ['rally-staff'] } }));
     render(<StaffEvaluation />);
     expect(screen.getByText('StaffOnlyPage')).toBeInTheDocument();
+  });
+
+  it('H6 regression: redirects home when the identity has no privileged scope', () => {
+    mockUseUser.mockReturnValue(userFixture({ userStore: { scopes: [] } }));
+    render(<StaffEvaluation />);
+    expect(screen.getByText('Navigate:/')).toBeInTheDocument();
+    expect(screen.queryByText('StaffOnlyPage')).not.toBeInTheDocument();
+    expect(screen.queryByText('ManagerOnlyPage')).not.toBeInTheDocument();
+  });
+
+  it('H6 regression: redirects home for a team-authenticated identity with no staff scope', () => {
+    mockUseUser.mockReturnValue(userFixture({ userStore: { scopes: undefined } }));
+    render(<StaffEvaluation />);
+    expect(screen.getByText('Navigate:/')).toBeInTheDocument();
   });
 });

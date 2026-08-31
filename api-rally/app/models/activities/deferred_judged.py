@@ -23,7 +23,13 @@ class DeferredJudgedActivity(BaseActivity):
         return {"max_points": 100, "min_points": 0}
 
     def calculate_score(self, result_data: dict[str, Any], team_size: int = 1) -> float:
-        return float(result_data.get("points", 0))
+        # The config declares min_points/max_points (get_result_schema
+        # only floors at 0) but nothing enforced them — a judge-entered points
+        # value outside that range went straight to final_score uncapped.
+        points = float(result_data.get("points", 0))
+        min_points = float(self.config.get("min_points", 0))
+        max_points = float(self.config.get("max_points", 100))
+        return max(min_points, min(points, max_points))
 
     async def validate_result(
         self, result_data: dict[str, Any], team_id: int | None = None, db_session: Any = None

@@ -315,6 +315,38 @@ class TestGuideAssignments:
         assert body["id"] == 0
         assert body["team_id"] is None
 
+    async def test_update_guide_team_assignment_records_audit_entry(
+        self, pg_session, pg_client, as_admin
+    ):
+        """M15: guide-assignment changes used to leave no audit trail, unlike
+        the equivalent staff-assignment endpoint."""
+        from sqlalchemy import select
+
+        from app.models.audit_log import AuditLog
+
+        await _make_event(pg_session)
+        guide = await _make_guide_user(pg_session)
+        team = await _make_team(pg_session)
+
+        resp = pg_client.put(
+            f"/api/rally/v1/user/{guide.id}/guide-team-assignment",
+            json={"team_id": team.id},
+        )
+        assert resp.status_code == 200, resp.text
+
+        rows = (
+            (
+                await pg_session.execute(
+                    select(AuditLog).where(AuditLog.action == "guide_assignment.updated")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].target_id == str(guide.id)
+        assert rows[0].changes["team_id"]["after"] == team.id
+
     async def test_get_guide_assignments_mirrors_group_members(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):

@@ -52,7 +52,7 @@ from app.models.team import Team
 from app.schemas.activity import (
     ActivityResultEvaluation,
     ActivityResultResponse,
-    ActivityResultUpdate,
+    ActivityResultStaffUpdate,
 )
 from app.schemas.checkpoint import DetailedCheckPoint
 from app.schemas.evaluation_history import EvaluationHistoryEntry
@@ -197,6 +197,7 @@ class StaffEvaluationController:
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         checkpoint_crud: Annotated[CRUDCheckPoint, Depends(get_checkpoint_crud)],
+        activity_crud: Annotated[CRUDActivity, Depends(get_activity_crud)],
     ) -> list[dict[str, Any]]:
         """Get all teams at the staff member's assigned checkpoint"""
         if not current_user.staff_checkpoint_id:
@@ -225,8 +226,25 @@ class StaffEvaluationController:
         )
         teams = (await db.scalars(teams_stmt)).all()
 
+        # load the checkpoint list and every checkpoint's activities once
+        # for the whole batch, instead of build_team_for_staff/
+        # compute_checkpoint_progress re-querying both per team — 30 teams x
+        # 15 checkpoints was 450+ queries on this screen.
+        checkpoints = await checkpoint_crud.get_all_ordered(db)
+        activities_by_checkpoint: dict[int, list[Any]] = {}
+        for cp in checkpoints:
+            activities_by_checkpoint[cp.id] = await activity_crud.get_by_checkpoint(
+                db, checkpoint_id=cp.id
+            )
+
         return [
-            await build_team_for_staff(db, team_obj, staff_checkpoint_order=staff_checkpoint_order)
+            await build_team_for_staff(
+                db,
+                team_obj,
+                staff_checkpoint_order=staff_checkpoint_order,
+                checkpoints=checkpoints,
+                activities_by_checkpoint=activities_by_checkpoint,
+            )
             for team_obj in teams
         ]
 
@@ -540,7 +558,7 @@ class StaffEvaluationController:
         team_id: int,
         activity_id: int,
         result_id: int,
-        result_in: ActivityResultUpdate,
+        result_in: ActivityResultStaffUpdate,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         activity_crud: Annotated[CRUDActivity, Depends(get_activity_crud)],
@@ -670,6 +688,18 @@ class StaffEvaluationController:
             joinedload(ActivityResult.team).selectinload(Team.members),
         )
 
+        # scope to the current event by default, same as every other
+        # results listing (get_all_activity_results, reprice_all_results).
+        # Without this a past edition's completed results kept showing up
+        # here forever — legacy NULL event_id rows still count as current.
+        # A subquery (not a join on ActivityResult.team) so it doesn't
+        # collide with the joinedload(ActivityResult.team) above.
+        event_id = await current_event_id(db)
+        current_event_team_ids = select(Team.id).where(
+            (Team.event_id == event_id) | (Team.event_id.is_(None))
+        )
+        stmt = stmt.where(ActivityResult.team_id.in_(current_event_team_ids))
+
         # Filters are conjunctive: a staff caller's checkpoint clamp must survive
         # even when team_id is also supplied.
         if team_id:
@@ -700,6 +730,7 @@ class StaffEvaluationController:
                 "updated_at": result.updated_at,
                 "extra_shots": result.extra_shots,
                 "penalties": result.penalties,
+                "penalty_counts": result.penalty_counts,
                 "time_score": result.time_score,
                 "points_score": result.points_score,
                 "boolean_score": result.boolean_score,

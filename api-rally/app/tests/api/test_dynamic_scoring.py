@@ -89,6 +89,31 @@ async def test_delete_rule_not_found(pg_session, pg_client, as_admin):
     assert resp.status_code == 404
 
 
+async def test_delete_rule_is_soft_delete_and_hidden_from_list(pg_session, pg_client, as_admin):
+    """Regression: deleting a rule mustn't hard-delete the row — results
+    already priced with its ``g_<id>`` key would lose their price on the next
+    edit or retroactive recompute. It must still disappear from the active list.
+    """
+    await _make_event(pg_session)
+    created = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={"name": "Regra a apagar", "points": 20.0},
+    ).json()
+
+    resp = pg_client.delete(f"/api/rally/v1/dynamic-rules/{created['id']}")
+    assert resp.status_code == 204
+
+    listed = pg_client.get("/api/rally/v1/dynamic-rules")
+    assert listed.status_code == 200
+    assert all(rule["id"] != created["id"] for rule in listed.json())
+
+    from app.models.dynamic_scoring import DynamicRule
+
+    row = await pg_session.get(DynamicRule, created["id"])
+    assert row is not None
+    assert row.is_active is False
+
+
 # ---------- DynamicAward ----------
 
 
@@ -145,3 +170,62 @@ async def test_delete_award_not_found(pg_session, pg_client, as_admin):
     resp = pg_client.delete("/api/rally/v1/dynamic-awards/999999")
 
     assert resp.status_code == 404
+
+
+async def test_delete_award_rejects_system_generated_excess_penalty_award(
+    pg_session, pg_client, as_admin
+):
+    """M8 regression: a system-generated excess-penalty award (tied to an
+    activity_result_id) used to accept a soft-delete that
+    _sync_excess_penalty_award then silently undid on the next edit/reprice
+    of that result — a "zombie" award the admin thought they'd removed."""
+    from sqlalchemy import select
+
+    from app.models.activity import Activity, ActivityResult
+    from app.models.checkpoint import CheckPoint
+    from app.models.dynamic_scoring import DynamicAward
+
+    event = await _make_event(pg_session)
+    cp = CheckPoint(name="CP1", order=1, event_id=event.id)
+    pg_session.add(cp)
+    await pg_session.flush()
+    act = Activity(
+        name="Act 1",
+        activity_type="general",
+        checkpoint_id=cp.id,
+        event_id=event.id,
+        config={"min_points": 0, "max_points": 100},
+    )
+    pg_session.add(act)
+    await pg_session.flush()
+    team = await _make_team(pg_session)
+    res = ActivityResult(
+        team_id=team.id,
+        activity_id=act.id,
+        is_completed=True,
+        final_score=10,
+        result_data={"assigned_points": 10},
+    )
+    pg_session.add(res)
+    await pg_session.flush()
+
+    pg_session.add(
+        DynamicAward(
+            team_id=team.id,
+            activity_result_id=res.id,
+            points=-60,
+            reason="Penalização excedente: Some Activity",
+            is_active=True,
+        )
+    )
+    await pg_session.commit()
+
+    award = (
+        await pg_session.scalars(select(DynamicAward).where(DynamicAward.team_id == team.id))
+    ).one()
+
+    resp = pg_client.delete(f"/api/rally/v1/dynamic-awards/{award.id}")
+
+    assert resp.status_code == 400, resp.text
+    await pg_session.refresh(award)
+    assert award.is_active is True

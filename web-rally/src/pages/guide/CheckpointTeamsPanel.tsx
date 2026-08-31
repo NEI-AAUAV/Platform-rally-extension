@@ -14,7 +14,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { useUserStore } from "@/stores/useUserStore";
 import { getErrorMessage } from "@/utils/errorHandling";
 
-const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally:admin", "rally-staff"];
+const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally-staff"];
 
 type Props = Readonly<{
   checkpointId: number;

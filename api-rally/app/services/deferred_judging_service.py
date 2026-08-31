@@ -61,7 +61,10 @@ class DeferredJudgingService:
         if result.judgment_status != "pending_judgment":
             raise RallyValidationError("Result is not pending judgment")
 
-        result.mark_judged(points=points, notes=notes)
+        activity = await self._db.get(Activity, result.activity_id)
+        result.mark_judged(
+            points=points, notes=notes, activity_config=activity.config if activity else None
+        )
         await self._db.commit()
         await self._db.refresh(result)
 

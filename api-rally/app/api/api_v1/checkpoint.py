@@ -215,7 +215,9 @@ class CheckpointController:
             checkpoint_id=checkpoint_id, auth=auth, curr_user=admin_or_staff_user
         )
 
-        is_admin_unfiltered = deps.is_admin(auth.scopes) and select_in.checkpoint_id is None
+        is_admin_unfiltered = (
+            deps.is_admin_or_manager(auth.scopes) and select_in.checkpoint_id is None
+        )
         return await service.list_teams_at_checkpoint(
             checkpoint_id=checkpoint_id, is_admin_unfiltered=is_admin_unfiltered
         )

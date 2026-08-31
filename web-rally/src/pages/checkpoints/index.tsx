@@ -34,7 +34,6 @@ export default function Postos() {
     scopes !== undefined &&
     (scopes.includes("admin") ||
       scopes.includes("manager-rally") ||
-      scopes.includes("rally:admin") ||
       scopes.includes("rally-staff") ||
       scopes.includes("rally-guide"));
 

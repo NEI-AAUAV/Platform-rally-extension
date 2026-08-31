@@ -127,13 +127,38 @@ class ActivityResultCreate(ActivityResultBase):
 
 
 class ActivityResultUpdate(BaseModel):
-    """Schema for updating an activity result"""
+    """Schema for updating an activity result.
+
+    For admin/service callers only. Carries ``penalties`` (raw points) and
+    ``is_completed`` directly — a staff-facing endpoint must never accept
+    this: see ``ActivityResultStaffUpdate``.
+    """
 
     result_data: dict[str, Any] | None = None
     extra_shots: int | None = Field(None, ge=0)
     penalties: dict[str, int] | None = None
     penalty_counts: dict[str, int] | None = None
     is_completed: bool | None = None
+
+
+class ActivityResultStaffUpdate(BaseModel):
+    """What a staff member submits when *editing* an existing evaluation.
+
+    regression: the PUT endpoint used to accept ``ActivityResultUpdate``,
+    which carries ``penalties`` (raw points, unvalidated) and ``is_completed``.
+    ``apply_modifiers`` does ``raw_score -= penalty_value``, so a negative
+    ``penalties`` value is a bonus a staff member could award themselves via
+    ``PUT .../evaluate/{id}`` — the ABAC rule that lets staff touch their own
+    checkpoint's results (``UPDATE_ACTIVITY_RESULT``) doesn't distinguish
+    "change my counts" from "set an arbitrary point total".
+
+    Mirrors ``ActivityResultEvaluation`` (the create-time staff schema):
+    counts, never points, and no ``is_completed`` toggle.
+    """
+
+    result_data: dict[str, Any] | None = None
+    extra_shots: int | None = Field(None, ge=0)
+    penalty_counts: dict[str, int] | None = None
 
 
 class ActivityResultResponse(ActivityResultBase):

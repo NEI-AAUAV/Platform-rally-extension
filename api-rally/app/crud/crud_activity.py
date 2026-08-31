@@ -14,6 +14,7 @@ from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
+    ActivityResultStaffUpdate,
     ActivityResultUpdate,
     ActivityUpdate,
     RallyEventCreate,
@@ -125,7 +126,9 @@ class CRUDActivityResult:
         await db.refresh(db_obj)
         return db_obj
 
-    def apply_update(self, db_obj: ActivityResult, obj_in: ActivityResultUpdate) -> dict[str, Any]:
+    def apply_update(
+        self, db_obj: ActivityResult, obj_in: ActivityResultUpdate | ActivityResultStaffUpdate
+    ) -> dict[str, Any]:
         """Set fields from the update schema in-place (no commit).
 
         Returns the applied data so the caller can decide whether a rescore

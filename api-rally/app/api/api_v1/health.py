@@ -11,8 +11,10 @@ import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_admin
+from app.api.api_v1.idempotency import purge_expired_idempotency_keys
+from app.api.deps import get_admin, get_db
 from app.core.config import settings
 from app.core.metrics import collect_summary, set_worker_last_beat_age
 from app.core.redis import check_redis_health
@@ -46,6 +48,12 @@ class HealthController:
             methods=["GET"],
             name="get_admin_metrics",
             response_model=MetricsSummary,
+        )
+        self.router.add_api_route(
+            "/admin/idempotency-keys/purge",
+            self.purge_idempotency_keys,
+            methods=["POST"],
+            name="purge_idempotency_keys",
         )
 
     async def readiness_check(self, response: Response) -> Readiness:
@@ -97,6 +105,19 @@ class HealthController:
         counters from a browser.
         """
         return MetricsSummary(**collect_summary())
+
+    async def purge_idempotency_keys(
+        self,
+        *,
+        _admin: Annotated[DetailedUser, Depends(get_admin)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> dict[str, int]:
+        """Delete completed idempotency-key rows older than the TTL — admin
+        only. nothing pruned this table before; run manually or on a
+        schedule (e.g. an external cron hitting this endpoint) until an
+        in-process scheduler exists."""
+        deleted = await purge_expired_idempotency_keys(db)
+        return {"deleted": deleted}
 
 
 router = HealthController().router

@@ -50,6 +50,15 @@ class IdempotencyKey(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
+    # NULL until store_idempotent_response() runs. Distinguishes "reserved,
+    # write in flight or crashed after commit" from "actually finished" — a
+    # replay against a row with completed_at=None must never be served, since
+    # response_body is still its placeholder {} (see reserve_idempotency_key).
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
 
     def __repr__(self) -> str:
         return f"<IdempotencyKey(endpoint='{self.endpoint}', key='{self.idempotency_key}')>"

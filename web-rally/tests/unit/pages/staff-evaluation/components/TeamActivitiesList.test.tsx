@@ -9,6 +9,8 @@ vi.mock('@/components/forms/ActivityEvaluationForm', () => ({
   default: ({ activity, onSubmit, onCaptured }: any) => (
     <div>
       <span>form-for-{activity.name}</span>
+      <span>status-{activity.evaluation_status ?? 'none'}</span>
+      <span>extra-shots-{activity.existing_result?.extra_shots ?? 'none'}</span>
       <button onClick={() => onSubmit({ result_data: {} })}>submit-form</button>
       <button onClick={onCaptured}>captured</button>
     </div>
@@ -79,6 +81,30 @@ describe('TeamActivitiesList', () => {
     fireEvent.click(screen.getByText('Avaliar'));
     fireEvent.click(screen.getByText('← Voltar às atividades'));
     expect(screen.getByText('Act 1')).toBeInTheDocument();
+  });
+
+  it('C1 regression: reopens a completed activity with existing_result intact', () => {
+    const activities = [
+      {
+        id: 1,
+        name: 'Act 1',
+        activity_type: 'GeneralActivity',
+        evaluation_status: 'completed',
+        existing_result: { extra_shots: 3, penalty_counts: { vomit: 2 } },
+      },
+    ] as unknown as ActivityResponse[];
+    render(
+      <TeamActivitiesList
+        team={team}
+        activities={activities}
+        onEvaluate={vi.fn()}
+        isEvaluating={false}
+      />,
+    );
+    fireEvent.click(screen.getByText('Atualizar'));
+    // Must NOT be forced to "pending" — the form needs the real status/result to hydrate.
+    expect(screen.getByText('status-completed')).toBeInTheDocument();
+    expect(screen.getByText('extra-shots-3')).toBeInTheDocument();
   });
 
   it('renders unknown activity type with default icon', () => {

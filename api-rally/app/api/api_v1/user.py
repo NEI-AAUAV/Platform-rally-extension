@@ -244,17 +244,36 @@ class UserController:
         self,
         user_id: int,
         assignment: TeamAssignmentUpdate,
-        _: Annotated[DetailedUser, Depends(get_admin)],
+        curr_user: Annotated[DetailedUser, Depends(get_admin)],
         service: Annotated[UserService, Depends(get_user_service)],
+        db: Annotated[AsyncSession, Depends(get_db)],
     ) -> RallyGuideAssignmentWithTeam:
-        """Update a guide user's team assignment."""
-        return await service.update_guide_team_assignment(
+        """Update a guide user's team assignment.
+
+        mirrors the staff-assignment audit trail above -- previously this
+        was the one assignment-mutation endpoint that left no audit record, so
+        "which guide was on which team, and when" was unrecoverable for an
+        incident review.
+        """
+        before = await crud.rally_guide_assignment.get_by_user_id(db, user_id)
+        before_team_id = before.team_id if before else None
+        result = await service.update_guide_team_assignment(
             user_id=user_id,
             team_id=assignment.team_id,
             assignment_crud=crud.rally_guide_assignment,
             schema=RallyGuideAssignmentWithTeam,
             error_message="Failed to update guide team assignment",
         )
+        if before_team_id != assignment.team_id:
+            await record_audit(
+                db,
+                action="guide_assignment.updated",
+                actor=AuditActor(id=str(curr_user.id), name=curr_user.name, kind="staff"),
+                target_type="user",
+                target_id=str(user_id),
+                changes={"team_id": {"before": before_team_id, "after": assignment.team_id}},
+            )
+        return result
 
 
 router = UserController().router

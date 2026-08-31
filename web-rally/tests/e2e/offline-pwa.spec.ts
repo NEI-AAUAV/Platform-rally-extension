@@ -192,10 +192,15 @@ test.describe("PWA / offline evaluation queue", () => {
     await setupEvaluationPage(page);
 
     let evaluateCallCount = 0;
-    let failNext = true;
+    // Stays offline until the test explicitly reconnects. A one-shot
+    // `failNext` flag raced: any drain that fires before the test is ready
+    // (Background Sync waking the SW, a pageshow/visibilitychange trigger)
+    // consumed the single failure and replayed successfully against the
+    // mock, emptying the queue and clearing the banner before the assertion
+    // below could observe it.
+    let online = false;
     await page.route("**/api/rally/v1/staff/teams/*/activities/*/evaluate**", async (route) => {
-      if (failNext) {
-        failNext = false;
+      if (!online) {
         return route.abort("internetdisconnected");
       }
       evaluateCallCount += 1;
@@ -220,8 +225,10 @@ test.describe("PWA / offline evaluation queue", () => {
       timeout: 10_000,
     });
 
-    // Reconnect: fire the browser 'online' event the app listens for, which
-    // triggers useOfflineSync's drain against the now-succeeding mock.
+    // Reconnect: let replays succeed, then fire the browser 'online' event the
+    // app listens for, which triggers useOfflineSync's drain against the
+    // now-succeeding mock.
+    online = true;
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
     await expect.poll(() => evaluateCallCount, { timeout: 10_000 }).toBeGreaterThan(0);

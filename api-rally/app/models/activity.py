@@ -163,18 +163,54 @@ class ActivityResult(Base):
     activity = relationship("Activity", back_populates="results")
     team = relationship("Team", back_populates="activity_results")
 
+    @property
+    def is_scored(self) -> bool:
+        """Whether this result counts as done for checkpoint-progress purposes.
+
+        Two different predicates existed for "is this result finished" —
+        ``check_and_advance_team`` used ``final_score is not None``,
+        ``compute_checkpoint_progress`` used ``is_completed``. For every
+        normal result they agree (``build()`` sets both together), but a
+        deferred-judged capture sets ``is_completed=True`` at capture time,
+        before a judge has scored it (``final_score`` stays ``None`` until
+        ``judge_result``/``mark_judged``). That let a team advance past a
+        checkpoint (progress view) whose deferred-judged activity a staff
+        member hadn't actually scored yet.
+
+        Requiring both is the correct predicate everywhere: a result isn't
+        genuinely done until it both has a score and is marked complete.
+        """
+        return self.is_completed and self.final_score is not None
+
     def append_capture(self, media_urls: list[str]) -> None:
         """Append newly-uploaded media to an existing pending-judgment capture."""
         self.media_urls = self.media_urls + media_urls
         self.judgment_status = "pending_judgment"
         self.is_completed = True
 
-    def mark_judged(self, *, points: float, notes: str | None) -> None:
+    def mark_judged(
+        self,
+        *,
+        points: float,
+        notes: str | None,
+        activity_config: dict[str, Any] | None = None,
+    ) -> None:
         """Score a pending-judgment result and close out the judging lifecycle.
 
         The only writer of these fields for a deferred-judged result — callers
         must not set them directly.
+
+        clamps to ``activity_config``'s ``min_points``/``max_points`` —
+        this used to write a judge-entered value straight to ``final_score``
+        with no bound, even though the config (and the result schema) declare
+        one. Pass the activity's config; omitted only for callers that have
+        none available, in which case the raw value passes through unclamped
+        as before.
         """
+        if activity_config is not None:
+            min_points = float(activity_config.get("min_points", 0))
+            max_points = float(activity_config.get("max_points", 100))
+            points = max(min_points, min(points, max_points))
         self.result_data = {"points": points, "notes": notes or ""}
         self.points_score = int(points)
         self.final_score = points
