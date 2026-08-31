@@ -81,7 +81,12 @@ class ProximityService:
         require_same_event(team.event_id, checkpoint.event_id)
 
         if not await can_reach_checkpoint(
-            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
+            self._db,
+            team=team,
+            checkpoint=checkpoint,
+            settings=settings,
+            enforce_hours=False,
+            ignore_times_inflation=True,
         ):
             # Sampling distance to a post further down the route would let a
             # team map the whole thing from the start line.

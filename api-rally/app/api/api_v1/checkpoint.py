@@ -187,13 +187,7 @@ class CheckpointController:
             raise RallyUnauthorizedError(f"{AUTH_REQUIRED} (User with Team or Team Token)")
 
         settings = await rally_settings.get_or_create(db)
-        if is_privileged:
-            checkpoint = await crud.checkpoint.get_next(db=db, team_id=team_id)
-            if checkpoint is None:
-                raise RallyNotFoundError("Checkpoint Not Found")
-            return DetailedCheckPoint.model_validate(checkpoint)
-
-        result = await service.next_checkpoint_for_team(team_id, settings)
+        result = await service.next_checkpoint_for_team(team_id, settings, redact=not is_privileged)
         if result is None:
             raise RallyNotFoundError("Checkpoint Not Found")
         return result

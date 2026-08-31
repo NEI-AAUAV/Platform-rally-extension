@@ -28,6 +28,7 @@ from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.team import (
@@ -187,7 +188,7 @@ class TeamService:
         raise RallyValidationError(f"Checkpoint {checkpoint_order} already visited")
 
     async def add_checkpoint(
-        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate
+        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate, enforce_order: bool = True
     ) -> Team:
         """Record a team's arrival/score at a checkpoint and recompute classification.
 
@@ -196,6 +197,12 @@ class TeamService:
         adoption, timing sync — and a commit inside ``begin_nested()`` would
         close the outer transaction), scores are appended inside the
         savepoint, then the whole thing commits and classification recomputes.
+
+        ``enforce_order`` is False only for the give-up path: ``SkipService``
+        has already run the reachability guard *and* written the skip row, so
+        the post is now resolved and ``_validate_checkpoint_order`` (which keys
+        off ``len(team.times)``) would wrongly reject the very append that moves
+        the team's pointer past it.
         """
         settings = await rally_settings.get_or_create(self._db)
         async with self._db.begin_nested():
@@ -207,7 +214,8 @@ class TeamService:
                 current_time,
                 start_offset_minutes=team.start_offset_minutes or 0,
             )
-            await self._validate_checkpoint_order(team, checkpoint_id, settings)
+            if enforce_order:
+                await self._validate_checkpoint_order(team, checkpoint_id, settings)
 
             team.record_checkpoint(
                 question_score=bool(obj_in.question_score),
@@ -259,9 +267,23 @@ class TeamService:
                 )
             ).all()
         )
-        # Number of checkpoints the team has physically checked into (times grows
-        # by one per checkpoint reached, in order).
-        checked_in_count = len(team_obj.times)
+        # A no-activity post counts as done only once the team has *physically
+        # arrived* there — read from the arrivals table, not inferred from
+        # len(team.times). team.times is inflated by advance_team_to_next_checkpoint,
+        # which appends an entry for the *next* post the team was pointed at but
+        # has not reached yet; trusting its length here marked no-activity posts
+        # ahead of the team as completed and ran current_order off the end of the
+        # route, so a peddy-paper team with posts still to visit saw the finished
+        # card instead of its next post.
+        arrived_checkpoint_ids = set(
+            (
+                await self._db.scalars(
+                    select(CheckpointArrival.checkpoint_id).where(
+                        CheckpointArrival.team_id == team_obj.id
+                    )
+                )
+            ).all()
+        )
 
         last_completed_order = 0
         last_completed_name: str | None = None
@@ -274,10 +296,10 @@ class TeamService:
             active_ids = [a.id for a in cp_activities if a.is_active]
             if not active_ids:
                 # No activity to judge here: the post counts as done once the
-                # team has checked in (via GPS arrival auto-complete).
+                # team has actually arrived (GPS/guide arrival row).
                 # Otherwise it is still their current, not-yet-reached post —
                 # stop here.
-                if checked_in_count >= cp.order:
+                if cp.id in arrived_checkpoint_ids:
                     last_completed_order = cp.order
                     last_completed_name = cp.name
                     continue

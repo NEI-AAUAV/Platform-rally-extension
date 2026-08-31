@@ -302,12 +302,14 @@ async function evaluateOnPage(page: Page, teamName: string): Promise<void> {
  * and because the UI only offers the give-up button once this is exhausted.
  */
 async function buyEveryHint(page: Page): Promise<void> {
-  page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/rally/team-progress");
   for (const hint of world.hints) {
     const hintButton = page.getByRole("button", { name: /Pedir pista/ });
     await expect(hintButton).toBeVisible({ timeout: 15_000 });
     await hintButton.click();
+    // The spend now goes through an in-app confirmation instead of the
+    // browser's confirm().
+    await page.getByRole("button", { name: "Pedir pista", exact: true }).click();
     await expect(page.getByText(hint)).toBeVisible({ timeout: 15_000 });
   }
 }
@@ -929,6 +931,8 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
       });
       await expect(giveUpButton).toBeVisible({ timeout: 15_000 });
       await giveUpButton.click();
+      // Confirm the forfeit in the in-app dialog (was a native confirm()).
+      await deltaPage.getByRole("button", { name: "Desistir", exact: true }).click();
 
       // The point of the escape hatch: no longer stuck, and holding the next
       // riddle instead — on the same screen the button was pressed from, with

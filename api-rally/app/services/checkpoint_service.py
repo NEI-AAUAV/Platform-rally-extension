@@ -29,7 +29,11 @@ from app.schemas.checkpoint import (
 )
 from app.schemas.team import ListingTeam
 from app.services.checkpoint_planning import missing_fields
-from app.services.route_progress import load_stages, resolved_checkpoint_orders
+from app.services.route_progress import (
+    current_checkpoint_order,
+    load_stages,
+    resolved_checkpoint_orders,
+)
 from app.services.route_stages import is_reachable_in_stages
 from app.services.team_service import TeamService
 
@@ -214,17 +218,28 @@ class CheckpointService:
         return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
 
     async def next_checkpoint_for_team(
-        self, team_id: int, settings: Any
+        self, team_id: int, settings: Any, *, redact: bool = True
     ) -> DetailedCheckPoint | None:
         """The single next checkpoint a team must head to, redacted like
         everything else in the list view (`GET /checkpoint/me` is the
         shortcut around list redaction otherwise — same rule applies here).
+
+        "Next" is the first post not yet resolved (arrival / skip / scored
+        activity), matching ``compute_checkpoint_progress`` — not
+        ``len(team.times)``, which the staff-eval advance inflates by one.
+
+        ``redact=False`` is the staff/admin bypass: the post is returned
+        exactly as stored.
         """
-        checkpoint = await self._checkpoint_crud.get_next(db=self._db, team_id=team_id)
+        team = await self._team_crud.get(db=self._db, id=team_id)
+        order = await current_checkpoint_order(self._db, team) if team else None
+        if order is None:
+            return None
+        checkpoint = await self._checkpoint_crud.get_by_order(db=self._db, order=order)
         if checkpoint is None:
             return None
         validated = DetailedCheckPoint.model_validate(checkpoint)
-        if getattr(settings, "reveal_next_checkpoint", True):
+        if redact is False or getattr(settings, "reveal_next_checkpoint", True):
             return validated
         arrived_ids = (
             await self._arrived_checkpoint_ids(team_id)

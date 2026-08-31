@@ -20,7 +20,7 @@ from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
 from app.services.checkin_service import require_same_event
-from app.services.route_progress import can_reach_checkpoint
+from app.services.route_progress import can_reach_checkpoint, current_checkpoint_order
 from app.services.scoring_service import ScoringService
 
 ALREADY_SKIPPED = "This checkpoint was already given up on"
@@ -58,7 +58,12 @@ class SkipService:
         # Hours are not enforced here: giving up on a bar that has not opened
         # yet is exactly what a stuck team wants to do.
         if not await can_reach_checkpoint(
-            self._db, team=team, checkpoint=checkpoint, settings=settings, enforce_hours=False
+            self._db,
+            team=team,
+            checkpoint=checkpoint,
+            settings=settings,
+            enforce_hours=False,
+            ignore_times_inflation=True,
         ):
             # Giving up on a post they have not reached would let a team skim
             # the route, paying to fast-forward to the end.
@@ -81,16 +86,17 @@ class SkipService:
         # current pointer moves to the next post. compute_checkpoint_progress
         # treats a skipped post as resolved, so a post with an unjudged
         # activity no longer blocks the route.
-        await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id)
+        await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
 
         if cost != 0:
             await ScoringService(self._db).update_team_scores(team_id)
 
-        next_checkpoint = await self._checkpoint_crud.get_next(db=self._db, team_id=team_id)
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
+        next_order = await current_checkpoint_order(self._db, team_obj) if team_obj else None
         return CheckpointSkipped(
             checkpoint_id=checkpoint_id,
             cost=cost,
-            next_checkpoint_order=next_checkpoint.order if next_checkpoint else None,
+            next_checkpoint_order=next_order,
         )
 
     async def _charge(self, *, team_id: int, cost: int, checkpoint_order: int) -> None:

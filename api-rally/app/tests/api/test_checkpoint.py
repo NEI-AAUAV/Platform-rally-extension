@@ -171,6 +171,135 @@ class TestNextCheckpoint:
 
         assert response.status_code == 404
 
+    async def test_next_checkpoint_after_no_activity_arrival_points_to_last_post(
+        self, pg_session, pg_client
+    ):
+        """Regression: peddy-paper team finished post 1 (its only activity),
+        physically arrived at the no-activity post 2, and post 3 is the last.
+        ``team.times`` is inflated by advance_team_to_next_checkpoint, but the
+        team must still be pointed at post 3 — redacted — not told the rally is
+        over with post 3's location revealed.
+        """
+        import datetime as dt
+
+        from app.api.api_v1.staff_evaluation_utils import (
+            advance_team_to_next_checkpoint,
+            checkin_team_to_checkpoint,
+        )
+        from app.crud.crud_activity import activity as crud_activity
+        from app.crud.crud_rally_settings import rally_settings
+        from app.crud.crud_team import team as crud_team
+        from app.models.activity import ActivityResult
+        from app.models.checkpoint_arrival import CheckpointArrival
+        from app.schemas.activity import ActivityCreate, ActivityType
+        from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+        from app.schemas.team import TeamCreate
+        from app.tests.conftest import as_team
+
+        await _make_event(pg_session)
+        cp1 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP1", order=1), commit=True
+        )
+        cp2 = await crud_checkpoint.create(
+            pg_session, obj_in=CheckPointCreate(name="CP2", order=2), commit=True
+        )
+        await crud_checkpoint.create(
+            pg_session,
+            obj_in=CheckPointCreate(
+                name="CP3", order=3, clue="Behind the fountain", latitude=40.6, longitude=-8.6
+            ),
+            commit=True,
+        )
+        activity1 = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Act1",
+                checkpoint_id=cp1.id,
+                activity_type=ActivityType.GENERAL,
+                config={},
+                is_active=True,
+            ),
+        )
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="PeddyMe"), commit=True)
+        await pg_session.commit()
+
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+        data["reveal_next_checkpoint"] = False
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
+
+        # Post 1 resolved: its active activity has a completed result. Then the
+        # staff-eval advance checks the team into post 1 and appends the
+        # "next post" pointer — team.times now has two entries, one of them
+        # ahead of where the team physically is.
+        pg_session.add(
+            ActivityResult(
+                activity_id=activity1.id, team_id=team.id, final_score=10, is_completed=True
+            )
+        )
+        await pg_session.commit()
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+        await advance_team_to_next_checkpoint(pg_session, team.id)
+        await pg_session.commit()
+
+        # Physically arrived at the no-activity post 2.
+        pg_session.add(
+            CheckpointArrival(
+                team_id=team.id, checkpoint_id=cp2.id, arrived_at=dt.datetime(2026, 1, 1)
+            )
+        )
+        await pg_session.commit()
+
+        with as_team(team.id, "PeddyMe"):
+            response = pg_client.get("/api/rally/v1/checkpoint/me")
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["order"] == 3
+        assert body["is_redacted"] is True
+        assert body["clue"] == "Behind the fountain"
+        assert body["latitude"] is None
+        assert body["longitude"] is None
+
+    async def test_next_checkpoint_privileged_bypasses_redaction(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Staff/admin get the next post unredacted even under
+        ``reveal_next_checkpoint=False``."""
+        from app.crud.crud_rally_settings import rally_settings
+        from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+
+        await _make_event(pg_session)
+        await crud_checkpoint.create(
+            pg_session,
+            obj_in=CheckPointCreate(
+                name="CP1", order=1, clue="secret", latitude=40.6, longitude=-8.6
+            ),
+            commit=True,
+        )
+        from app.crud.crud_team import team as crud_team
+        from app.schemas.team import TeamCreate
+
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="StaffTeam"), commit=True)
+        as_admin.team_id = team.id
+
+        settings = await rally_settings.get_or_create(pg_session)
+        data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
+        data["reveal_next_checkpoint"] = False
+        await rally_settings.update(
+            pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
+        )
+
+        response = pg_client.get("/api/rally/v1/checkpoint/me")
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["order"] == 1
+        assert body["latitude"] == 40.6
+        assert body.get("is_redacted") in (False, None)
+
 
 class TestCheckpointTeamsEndpoint:
     # Note: the `is_admin(...) and select_in.checkpoint_id is None` branch

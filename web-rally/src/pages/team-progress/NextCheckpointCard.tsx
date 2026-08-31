@@ -8,8 +8,19 @@ import {
   Sparkles,
   Lightbulb,
 } from "lucide-react";
+import { useState } from "react";
 import type { DetailedCheckPoint } from "@/client";
 import { CheckpointDiscovery } from "@/components/shared";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import useCheckpointHints from "@/hooks/useCheckpointHints";
 import ProximityButton from "./ProximityButton";
@@ -142,21 +153,38 @@ export default function NextCheckpointCard({
   const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
   const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
   const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
-  const confirmHint = () =>
-    hints.nextCost === 0 ||
-    globalThis.confirm(`Pedir uma pista custa ${Math.abs(hints.nextCost)} pontos. Continuar?`);
 
   // The way out of an unsolvable riddle. Offered only once the hint ladder is
   // spent, so it reads as a last resort rather than a shortcut — the server
   // allows it at any point, this is a nudge, not the rule.
   const skipCost = settings?.skip_penalty ?? 0;
   const canGiveUp = settings?.skip_enabled !== false && isRedacted && hints.remaining === 0;
-  const confirmGiveUp = () =>
-    globalThis.confirm(
-      skipCost === 0
-        ? "Desistir deste posto? Não o vais pontuar, e passas ao enigma seguinte."
-        : `Desistir deste posto custa ${Math.abs(skipCost)} pontos e não o vais pontuar. Continuar?`,
-    );
+
+  // Both actions spend points, so each goes through an in-app confirmation
+  // instead of the browser's confirm() — the native dialog breaks out of the
+  // app's look and, on some mobile webviews, does not appear at all.
+  const [pendingAction, setPendingAction] = useState<null | "hint" | "giveUp">(null);
+  const closeConfirm = () => setPendingAction(null);
+  const confirmPendingAction = () => {
+    if (pendingAction === "hint") hints.reveal.mutate();
+    else if (pendingAction === "giveUp") hints.giveUp.mutate();
+    setPendingAction(null);
+  };
+  const confirmCopy =
+    pendingAction === "giveUp"
+      ? {
+          title: "Desistir deste posto?",
+          description:
+            skipCost === 0
+              ? "Não o vais pontuar, e passas ao enigma seguinte."
+              : `Custa ${Math.abs(skipCost)} pontos e não o vais pontuar.`,
+          action: "Desistir",
+        }
+      : {
+          title: "Pedir uma pista?",
+          description: `Custa ${Math.abs(hints.nextCost)} pontos.`,
+          action: "Pedir pista",
+        };
 
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
   // The server mirrors the clue into `description` on a redacted checkpoint so
@@ -254,8 +282,10 @@ export default function NextCheckpointCard({
               type="button"
               disabled={hints.reveal.isPending}
               onClick={() => {
-                // Points are spent here, so never on a stray tap.
-                if (confirmHint()) hints.reveal.mutate();
+                // Points are spent here, so never on a stray tap. A free hint
+                // skips the prompt.
+                if (hints.nextCost === 0) hints.reveal.mutate();
+                else setPendingAction("hint");
               }}
               className="rally-press w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
             >
@@ -289,9 +319,7 @@ export default function NextCheckpointCard({
           <button
             type="button"
             disabled={hints.giveUp.isPending}
-            onClick={() => {
-              if (confirmGiveUp()) hints.giveUp.mutate();
-            }}
+            onClick={() => setPendingAction("giveUp")}
             className="rally-press w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition-all hover:bg-accent/30 disabled:opacity-60"
           >
             {giveUpButtonText}
@@ -391,6 +419,21 @@ export default function NextCheckpointCard({
           <CheckpointDiscovery checkpointId={checkpoint.id} description={discoveryDescription} />
         </div>
       )}
+
+      <AlertDialog open={pendingAction !== null} onOpenChange={(open) => !open && closeConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmCopy.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmCopy.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPendingAction}>
+              {confirmCopy.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

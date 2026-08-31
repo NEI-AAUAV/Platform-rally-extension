@@ -16,6 +16,7 @@ const {
   mockPathname: { current: '/scoreboard' },
 }))
 
+vi.mock('@/hooks/useBadges', () => ({ useHasBadgeCatalogue: () => true }))
 vi.mock('@/hooks/useNavAudience', () => ({ default: () => mockUseNavAudience() }))
 vi.mock('@/hooks/useRallySettings', () => ({ default: () => mockUseRallySettings() }))
 vi.mock('@/hooks/useGuideAccess', () => ({ default: () => mockUseGuideAccess() }))
