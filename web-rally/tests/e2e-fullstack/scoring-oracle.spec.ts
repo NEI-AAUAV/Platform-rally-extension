@@ -103,25 +103,34 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     );
     const resultId = evaluated.id;
 
-    // Read current rally settings to use the real bonus-per-shot in the oracle
-    // rather than assuming the config default.
-    const settings = await apiCall<{ bonus_per_extra_shot: number }>('GET', '/rally/settings', {
+    // Read current rally settings to use the real bonus-per-shot and the real
+    // per-occurrence penalty price in the oracle rather than assuming config
+    // defaults. `/results/{id}/penalty` now takes a `penalty_count` of
+    // occurrences that the server prices itself (abs(penalty_per_puke) each),
+    // not a free-form `penalty_value` in points.
+    const settings = await apiCall<{
+      bonus_per_extra_shot: number;
+      penalty_per_puke: number;
+    }>('GET', '/rally/settings', {
       token: rally.admin.accessToken,
     });
 
+    const vomitCount = 2;
     await apiCall('POST', `/activities/results/${resultId}/extra-shots?extra_shots=2`, {
       token: rally.admin.accessToken,
     });
-    await apiCall('POST', `/activities/results/${resultId}/penalty?penalty_type=vomit&penalty_value=10`, {
-      token: rally.admin.accessToken,
-    });
+    await apiCall(
+      'POST',
+      `/activities/results/${resultId}/penalty?penalty_type=vomit&penalty_count=${vomitCount}`,
+      { token: rally.admin.accessToken },
+    );
 
     const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
 
     const expected = applyModifiersOracle(booleanOracle(true), {
       extraShots: 2,
       bonusPerShot: settings.bonus_per_extra_shot,
-      penalties: { vomit: 10 },
+      penalties: { vomit: vomitCount * Math.abs(settings.penalty_per_puke) },
     });
     expect(actual).toBe(expected);
 
@@ -147,16 +156,26 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
       `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`,
       { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} } },
     );
-    // success = 100 points; apply a penalty far larger than the base score.
+    const settings = await apiCall<{ penalty_per_not_drinking: number }>('GET', '/rally/settings', {
+      token: rally.admin.accessToken,
+    });
+
+    // success = 100 points; apply an occurrence count whose server-side price
+    // is far larger than the base score.
+    const notDrinkingCount = 500;
     await apiCall(
       'POST',
-      `/activities/results/${evaluated.id}/penalty?penalty_type=not_drinking&penalty_value=500`,
+      `/activities/results/${evaluated.id}/penalty?penalty_type=not_drinking&penalty_count=${notDrinkingCount}`,
       { token: rally.admin.accessToken },
     );
 
     const actual = await getFinalScore(rally.teamId, rally.activityId, rally.admin.accessToken);
 
-    expect(actual).toBe(applyModifiersOracle(booleanOracle(true), { penalties: { not_drinking: 500 } }));
+    expect(actual).toBe(
+      applyModifiersOracle(booleanOracle(true), {
+        penalties: { not_drinking: notDrinkingCount * Math.abs(settings.penalty_per_not_drinking) },
+      }),
+    );
     expect(actual).toBe(0);
 
     // Scoreboard UI should show 0 pts, clamped

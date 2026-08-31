@@ -7,10 +7,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const store = new Map<string, unknown>();
 vi.mock("idb-keyval", () => ({
   createStore: () => ({}),
+  // Real idb-keyval `get` resolves to the stored value; `update` resolves to
+  // `void`. evalQueue reads via `get` and writes via `update`.
+  get: async (key: string) => store.get(key),
   update: async (key: string, updater: (v: unknown) => unknown) => {
-    const next = updater(store.get(key));
-    store.set(key, next);
-    return next;
+    store.set(key, updater(store.get(key)));
   },
 }));
 

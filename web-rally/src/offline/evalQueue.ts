@@ -13,7 +13,7 @@
  * does exist it is registered as a supplement (see requestBackgroundSync), so
  * Chrome can also replay after the app is closed; nothing depends on it firing.
  */
-import { update } from "idb-keyval";
+import { get, update } from "idb-keyval";
 import { createQueueStore, EVAL_STORE_NAME } from "./db";
 import type { ActivityResultData } from "@/types/forms";
 
@@ -42,7 +42,11 @@ const QUEUE_KEY = "queue";
 const MAX_NETWORK_ATTEMPTS = 10;
 
 async function readAll(): Promise<QueuedEval[]> {
-  return (await update<QueuedEval[] | undefined>(QUEUE_KEY, (v) => v, STORE)) ?? [];
+  // A plain read: idb-keyval's `update` resolves to `void`, so routing reads
+  // through it silently returned [] forever (queue never surfaced in the UI,
+  // drains never replayed). Writes still go through `mutate`/`update` for
+  // their atomic read-modify-write.
+  return (await get<QueuedEval[]>(QUEUE_KEY, STORE)) ?? [];
 }
 
 /** Fired whenever the queue's contents change, so UI can refresh without polling. */
