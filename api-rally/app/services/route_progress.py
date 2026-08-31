@@ -49,7 +49,11 @@ def is_checkpoint_reachable(
 
 
 async def resolved_checkpoint_orders(
-    db: AsyncSession, team: Team, *, ignore_arrival_for: int | None = None
+    db: AsyncSession,
+    team: Team,
+    *,
+    ignore_arrival_for: int | None = None,
+    include_skips: bool = True,
 ) -> frozenset[int]:
     """The orders of the posts this team is done with.
 
@@ -59,6 +63,12 @@ async def resolved_checkpoint_orders(
     the arrivals table rather than inferred from ``len(team.times)``, because
     in a free-choice stage the count says how many posts a team has done but
     not which ones.
+
+    ``include_skips`` is True for "is this post still blocking the route"
+    questions (a skipped post no longer blocks). It is False when the caller
+    needs the team's *physical* frontier — how far along the route the team has
+    actually got — because giving up on a post resolves it without the team
+    ever setting foot at the next one.
 
     ``ignore_arrival_for`` (a checkpoint id) exists for one reason: a GPS
     arrival is recorded — unconditionally, as a fact — *before* this function
@@ -89,7 +99,8 @@ async def resolved_checkpoint_orders(
     resolved: set[int] = set()
     for cp in checkpoints:
         if cp.id in skipped_ids:
-            resolved.add(cp.order)
+            if include_skips:
+                resolved.add(cp.order)
             continue
         activities = await activity_crud.get_by_checkpoint(db, checkpoint_id=cp.id)
         active_ids = [a.id for a in activities if a.is_active]
@@ -226,16 +237,21 @@ async def can_reach_checkpoint(
         # resolved set is a gapless ``{1..k}`` prefix; a post skipped ahead of
         # the pointer, or an out-of-order free-choice resolution, breaks that and
         # would otherwise 400 the very post the client was told to hunt.
-        resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
         if not order_matters:
             # Free choice: any post the team has not finished is fair game.
+            resolved = await resolved_checkpoint_orders(db, team, ignore_arrival_for=checkpoint.id)
             return checkpoint.order not in resolved
-        # Sequential: the huntable post is the first in route order not resolved.
-        for cp in await checkpoint_crud.get_all_ordered(db):
-            if cp.order in resolved:
-                continue
-            return cp.order == checkpoint.order
-        return False  # every post resolved: the route is finished
+        # Sequential: the huntable post is the one right after the team's
+        # *physical* frontier — the furthest post it has actually reached
+        # (arrived at, or scored). Skips are deliberately excluded: giving up
+        # on a post resolves it, but it does not walk the team to the next
+        # one, so a team may not chain give-ups (or hints) past where it
+        # physically stands.
+        physical = await resolved_checkpoint_orders(
+            db, team, ignore_arrival_for=checkpoint.id, include_skips=False
+        )
+        frontier = max(physical, default=0)
+        return checkpoint.order == frontier + 1
 
     return is_checkpoint_reachable(
         checkpoint_order=checkpoint.order,

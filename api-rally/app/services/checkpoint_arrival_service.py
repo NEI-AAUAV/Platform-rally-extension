@@ -311,7 +311,11 @@ class CheckpointArrivalService:
             return False
 
         try:
-            await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id)
+            # enforce_order=False: reachability was just checked above with the
+            # inflation-aware predicate. checkin_team_to_checkpoint's own
+            # enforce_order path uses the bare len(team.times) count, which the
+            # prior staff-eval advance has already run past this post's order.
+            await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
             return True
         except Exception as exc:  # advancement is best-effort; arrival still succeeds
             logger.warning(

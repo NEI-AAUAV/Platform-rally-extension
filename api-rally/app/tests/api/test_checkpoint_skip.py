@@ -171,8 +171,7 @@ async def test_can_give_up_current_post_with_a_later_post_resolved_ahead(pg_sess
 
     event = await _make_event(pg_session)
     cps = [
-        await _make_checkpoint(pg_session, order=order, event_id=event.id)
-        for order in range(1, 6)
+        await _make_checkpoint(pg_session, order=order, event_id=event.id) for order in range(1, 6)
     ]
     team = await make_team(pg_session, event_id=event.id)
     await set_rally_settings(pg_session, checkpoint_order_matters=True)

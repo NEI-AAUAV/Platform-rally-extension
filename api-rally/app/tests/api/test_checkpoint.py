@@ -220,9 +220,7 @@ class TestNextCheckpoint:
                 is_active=True,
             ),
         )
-        team = await crud_team.create(
-            pg_session, obj_in=TeamCreate(name="PeddyMe"), commit=True
-        )
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="PeddyMe"), commit=True)
         await pg_session.commit()
 
         settings = await rally_settings.get_or_create(pg_session)
@@ -284,9 +282,7 @@ class TestNextCheckpoint:
         from app.crud.crud_team import team as crud_team
         from app.schemas.team import TeamCreate
 
-        team = await crud_team.create(
-            pg_session, obj_in=TeamCreate(name="StaffTeam"), commit=True
-        )
+        team = await crud_team.create(pg_session, obj_in=TeamCreate(name="StaffTeam"), commit=True)
         as_admin.team_id = team.id
 
         settings = await rally_settings.get_or_create(pg_session)

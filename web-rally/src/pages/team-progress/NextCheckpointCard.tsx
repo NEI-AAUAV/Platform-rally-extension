@@ -428,7 +428,9 @@ export default function NextCheckpointCard({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmPendingAction}>{confirmCopy.action}</AlertDialogAction>
+            <AlertDialogAction onClick={confirmPendingAction}>
+              {confirmCopy.action}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

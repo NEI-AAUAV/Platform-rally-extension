@@ -86,17 +86,13 @@ class SkipService:
         # current pointer moves to the next post. compute_checkpoint_progress
         # treats a skipped post as resolved, so a post with an unjudged
         # activity no longer blocks the route.
-        await checkin_team_to_checkpoint(
-            self._db, team_id, checkpoint_id, enforce_order=False
-        )
+        await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
 
         if cost != 0:
             await ScoringService(self._db).update_team_scores(team_id)
 
         team_obj = await self._team_crud.get(db=self._db, id=team_id)
-        next_order = (
-            await current_checkpoint_order(self._db, team_obj) if team_obj else None
-        )
+        next_order = await current_checkpoint_order(self._db, team_obj) if team_obj else None
         return CheckpointSkipped(
             checkpoint_id=checkpoint_id,
             cost=cost,
