@@ -26,8 +26,7 @@ export function UserMenu() {
   const logout = useLogout();
 
   const isAdmin =
-    scopes !== undefined &&
-    (scopes.includes("admin") || scopes.includes("manager-rally"));
+    scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally"));
 
   if (sessionLoading) {
     return <div className="h-9 w-20 animate-pulse rounded-md border border-border bg-muted" />;

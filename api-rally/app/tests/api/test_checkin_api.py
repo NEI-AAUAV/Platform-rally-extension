@@ -257,8 +257,9 @@ class TestGetCheckinToken:
     async def test_get_checkin_token_staff_own_checkpoint(self, pg_session, pg_client):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
-        with _as_staff_user(checkpoint_id=checkpoint.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
         ):
             resp = pg_client.get("/api/rally/v1/checkpoint/checkin-token")
 
@@ -272,15 +273,11 @@ class TestGetCheckinToken:
 
         assert resp.status_code == 403
 
-    async def test_get_checkin_token_staff_other_checkpoint_forbidden(
-        self, pg_session, pg_client
-    ):
+    async def test_get_checkin_token_staff_other_checkpoint_forbidden(self, pg_session, pg_client):
         await _make_event(pg_session)
         own_cp = await _make_checkpoint(pg_session, order=1)
         other_cp = await _make_checkpoint(pg_session, order=2)
-        with _as_staff_user(checkpoint_id=own_cp.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
-        ):
+        with _as_staff_user(checkpoint_id=own_cp.id), _override_settings(SELF_CHECKIN_ENABLED=True):
             resp = pg_client.get(
                 "/api/rally/v1/checkpoint/checkin-token",
                 params={"checkpoint_id": other_cp.id},
@@ -302,9 +299,7 @@ class TestGetCheckinToken:
 
         assert resp.status_code == 200, resp.text
 
-    async def test_get_checkin_token_admin_no_checkpoint_403(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_get_checkin_token_admin_no_checkpoint_403(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
         with _override_settings(SELF_CHECKIN_ENABLED=True):
@@ -316,14 +311,13 @@ class TestGetCheckinToken:
 class TestStaffCheckIn:
     STAFF_CHECKIN_URL = "/api/rally/v1/checkpoint/staff-check-in"
 
-    async def test_staff_check_in_works_when_self_checkin_disabled(
-        self, pg_session, pg_client
-    ):
+    async def test_staff_check_in_works_when_self_checkin_disabled(self, pg_session, pg_client):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
-        with _as_staff_user(checkpoint_id=checkpoint.id), _override_settings(
-            SELF_CHECKIN_ENABLED=False
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=False),
         ):
             resp = pg_client.post(
                 self.STAFF_CHECKIN_URL,
@@ -343,8 +337,9 @@ class TestStaffCheckIn:
     async def test_staff_check_in_team_not_found(self, pg_session, pg_client):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
-        with _as_staff_user(checkpoint_id=checkpoint.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
         ):
             resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": "NOPE"})
 
@@ -353,9 +348,7 @@ class TestStaffCheckIn:
     async def test_staff_check_in_checkpoint_not_found(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session)
-        with _as_staff_user(checkpoint_id=999999), _override_settings(
-            SELF_CHECKIN_ENABLED=True
-        ):
+        with _as_staff_user(checkpoint_id=999999), _override_settings(SELF_CHECKIN_ENABLED=True):
             resp = pg_client.post(
                 self.STAFF_CHECKIN_URL,
                 json={"team_code": team.access_code},
@@ -367,8 +360,9 @@ class TestStaffCheckIn:
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
-        with _as_staff_user(checkpoint_id=checkpoint.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
         ):
             resp = pg_client.post(
                 self.STAFF_CHECKIN_URL,
@@ -384,14 +378,13 @@ class TestStaffCheckIn:
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
-        with _as_staff_user(checkpoint_id=checkpoint.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
         ):
             first = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": team.access_code})
             assert first.status_code == 200, first.text
-            second = pg_client.post(
-                self.STAFF_CHECKIN_URL, json={"team_code": team.access_code}
-            )
+            second = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": team.access_code})
 
         assert second.status_code == 200, second.text
         assert second.json()["status"] == "already_present"
@@ -401,17 +394,16 @@ class TestStaffCheckIn:
         await _make_checkpoint(pg_session, order=1)
         checkpoint_2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
-        with _as_staff_user(checkpoint_id=checkpoint_2.id), _override_settings(
-            SELF_CHECKIN_ENABLED=True
+        with (
+            _as_staff_user(checkpoint_id=checkpoint_2.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
         ):
             resp = pg_client.post(self.STAFF_CHECKIN_URL, json={"team_code": team.access_code})
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["status"] == "ahead"
 
-    async def test_staff_check_in_admin_explicit_checkpoint(
-        self, pg_session, pg_client, as_admin
-    ):
+    async def test_staff_check_in_admin_explicit_checkpoint(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, order=1)
         team = await _make_team(pg_session)
@@ -438,4 +430,3 @@ class TestStaffCheckIn:
             )
 
         assert resp.status_code == 403
-

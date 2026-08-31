@@ -229,4 +229,3 @@ async def test_delete_award_rejects_system_generated_excess_penalty_award(
     assert resp.status_code == 400, resp.text
     await pg_session.refresh(award)
     assert award.is_active is True
-

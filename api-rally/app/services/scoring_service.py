@@ -220,9 +220,7 @@ class ScoringService:
         # of event type (see penalty_prices for the matching penalty half).
         has_drinking_mechanics = await self._has_drinking_mechanics()
         max_extra_shots = (
-            max(0, team_size) * settings.max_extra_shots_per_member
-            if has_drinking_mechanics
-            else 0
+            max(0, team_size) * settings.max_extra_shots_per_member if has_drinking_mechanics else 0
         )
         capped_extra_shots = max(0, min(extra_shots, max_extra_shots))
 

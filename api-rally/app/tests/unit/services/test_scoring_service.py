@@ -1372,9 +1372,7 @@ async def test_resolve_penalty_points_non_strict_prices_orphan_key_at_zero(pg_se
     svc = ScoringService(pg_session)
 
     # "old_key" was a penalty_counter removed from this activity's config.
-    priced = await svc.resolve_penalty_points(
-        activity, {"miss": 2, "old_key": 3}, strict=False
-    )
+    priced = await svc.resolve_penalty_points(activity, {"miss": 2, "old_key": 3}, strict=False)
     assert priced == {"miss": 14, "old_key": 0}
 
     with pytest.raises(RallyValidationError, match="Unknown penalty type"):
