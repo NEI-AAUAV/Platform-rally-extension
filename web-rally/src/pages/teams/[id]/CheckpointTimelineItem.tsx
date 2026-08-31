@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
-import type { DetailedTeam, DetailedCheckPoint } from "@/client";
+import type { CheckpointPenalties, DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
 import React from "react";
 
@@ -19,6 +19,8 @@ type CheckpointTimelineItemProps = Readonly<{
   totalTeams: number;
   isExpanded: boolean;
   onToggle: (index: number) => void;
+  /** Points this team lost at this post, by cause. Absent when none. */
+  penalties?: CheckpointPenalties;
 }>;
 
 /**
@@ -42,6 +44,7 @@ export function CheckpointTimelineItem({
   totalTeams,
   isExpanded,
   onToggle,
+  penalties,
 }: CheckpointTimelineItemProps) {
   const checkpointOrder = checkpoint.order;
   const isRedacted = checkpoint.is_redacted === true;
@@ -153,6 +156,19 @@ export function CheckpointTimelineItem({
                   <span className="italic text-muted-foreground"> *</span>
                 )}
               </div>
+              {penalties && penalties.total !== 0 && (
+                <div className="mb-1 space-y-0.5 text-xs font-medium text-destructive">
+                  {penalties.hints_cost !== 0 && (
+                    <div>Dicas: {penalties.hints_cost} pts</div>
+                  )}
+                  {penalties.skip_cost !== 0 && (
+                    <div>Desistência: {penalties.skip_cost} pts</div>
+                  )}
+                  {penalties.activity_penalties !== 0 && (
+                    <div>Penalizações: {penalties.activity_penalties} pts</div>
+                  )}
+                </div>
+              )}
               <div className="text-sm text-muted-foreground">
                 {hasEvaluations && displayTime ? formatTime(displayTime) : "Not evaluated yet"}
               </div>

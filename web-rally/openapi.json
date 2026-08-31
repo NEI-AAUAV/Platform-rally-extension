@@ -9434,6 +9434,45 @@
         ],
         "title": "CheckpointMediaResponse"
       },
+      "CheckpointPenalties": {
+        "properties": {
+          "checkpoint_order": {
+            "type": "integer",
+            "title": "Checkpoint Order"
+          },
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "hints_cost": {
+            "type": "integer",
+            "title": "Hints Cost",
+            "default": 0
+          },
+          "skip_cost": {
+            "type": "integer",
+            "title": "Skip Cost",
+            "default": 0
+          },
+          "activity_penalties": {
+            "type": "integer",
+            "title": "Activity Penalties",
+            "default": 0
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_order",
+          "checkpoint_id"
+        ],
+        "title": "CheckpointPenalties",
+        "description": "Points a team lost at one post, broken down by cause.\n\n``hints_cost`` is what the team paid unlocking guide indications there,\n``skip_cost`` the give-up penalty, ``activity_penalties`` the sum of the\nactivity-level deductions (v\u00f3mitos, n\u00e3o-beber, contadores din\u00e2micos).\nEvery field is negative or zero, the same sign convention as the rest of\nthe app. Only posts with at least one non-zero penalty are emitted, keyed\nby ``checkpoint_order`` so a client can line them up with\n``score_per_checkpoint[order - 1]``."
+      },
       "CheckpointSkipped": {
         "properties": {
           "checkpoint_id": {
@@ -9877,6 +9916,14 @@
               }
             ],
             "title": "Total Checkpoints"
+          },
+          "penalties_per_checkpoint": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointPenalties"
+            },
+            "type": "array",
+            "title": "Penalties Per Checkpoint",
+            "default": []
           }
         },
         "type": "object",
@@ -11195,6 +11242,14 @@
               }
             ],
             "title": "Total Checkpoints"
+          },
+          "penalties_per_checkpoint": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointPenalties"
+            },
+            "type": "array",
+            "title": "Penalties Per Checkpoint",
+            "default": []
           },
           "access_code": {
             "anyOf": [

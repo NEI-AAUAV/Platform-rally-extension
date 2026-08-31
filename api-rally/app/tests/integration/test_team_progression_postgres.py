@@ -124,3 +124,62 @@ async def test_add_checkpoint_outside_rally_window_rejected(pg_session) -> None:
         await call
     assert exc.value.status_code == 400
     assert "ended" in str(exc.value).lower()
+
+
+async def test_penalties_per_checkpoint_groups_hints_skips_and_activity(pg_session) -> None:
+    from app.models.activity import Activity, ActivityResult
+    from app.models.checkpoint_hint_reveal import CheckpointHintReveal
+    from app.models.checkpoint_skip import CheckpointSkip
+    from app.services.team_service import TeamService
+
+    event, _, cp1, cp2, team = await _setup_rally(pg_session)
+
+    # cp1: two hints bought (-3, -2) + an activity that deducted 4 points.
+    activity = Activity(
+        name="Shot", activity_type="GenericActivity", checkpoint_id=cp1.id, event_id=event.id
+    )
+    pg_session.add(activity)
+    await pg_session.commit()
+    await pg_session.refresh(activity)
+    pg_session.add_all(
+        [
+            CheckpointHintReveal(
+                team_id=team.id, checkpoint_id=cp1.id, indication_id=1, cost=-3
+            ),
+            CheckpointHintReveal(
+                team_id=team.id, checkpoint_id=cp1.id, indication_id=2, cost=-2
+            ),
+            ActivityResult(
+                activity_id=activity.id, team_id=team.id, penalties={"vomit": 4}
+            ),
+            # cp2: the team gave up.
+            CheckpointSkip(team_id=team.id, checkpoint_id=cp2.id, cost=-8),
+        ]
+    )
+    await pg_session.commit()
+
+    service = TeamService(db=pg_session, team_crud=crud_team)
+    detailed = await service.build_detailed_team(team, with_progress=True)
+
+    by_order = {p.checkpoint_order: p for p in detailed.penalties_per_checkpoint}
+    assert set(by_order) == {1, 2}
+    assert by_order[1].hints_cost == -5
+    assert by_order[1].activity_penalties == -4
+    assert by_order[1].skip_cost == 0
+    assert by_order[1].total == -9
+    assert by_order[2].skip_cost == -8
+    assert by_order[2].total == -8
+
+
+async def test_penalties_per_checkpoint_empty_when_scores_hidden(pg_session) -> None:
+    from app.models.checkpoint_skip import CheckpointSkip
+    from app.services.team_service import TeamService
+
+    _, _, cp1, _, team = await _setup_rally(pg_session)
+    pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cp1.id, cost=-8))
+    await pg_session.commit()
+
+    service = TeamService(db=pg_session, team_crud=crud_team)
+    detailed = await service.build_detailed_team(team, with_progress=True, hide_scores=True)
+
+    assert detailed.penalties_per_checkpoint == []

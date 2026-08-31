@@ -7,10 +7,9 @@ interface BadgeShowcaseProps {
 }
 
 /**
- * Full "Conquistas" board, data-driven from the DB badge catalogue: every
- * active badge is rendered as a card, earned ones in full colour with their
- * award time, locked ones dimmed with "Por conquistar". Tops the grid with a
- * count chip + progress bar.
+ * "Conquistas" board: only the badges this team has actually unlocked are
+ * rendered, each in full colour with its award time. Hidden entirely when the
+ * team has earned none. Tops the grid with a count chip + progress bar.
  */
 export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
   const { data, isLoading, isError } = useBadgeShowcase(teamId);
@@ -29,8 +28,13 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
   }
 
   const total = definitions.length;
-  const earnedCount = definitions.filter((d) => earnedByCode.has(d.code)).length;
+  // Only badges the team has actually unlocked are shown; locked/"por
+  // conquistar" cards were noise on another team's public page.
+  const activeDefinitions = definitions.filter((d) => earnedByCode.has(d.code));
+  const earnedCount = activeDefinitions.length;
   const pct = total ? Math.round((earnedCount / total) * 100) : 0;
+
+  if (earnedCount === 0) return null;
 
   return (
     <section className="space-y-5">
@@ -73,10 +77,9 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
 
       {/* grid */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-        {definitions.map((defn) => {
+        {activeDefinitions.map((defn) => {
           const { label, description, color, glyph, iconUrl } = getBadgeDisplay(defn);
           const awardedRaw = earnedByCode.get(defn.code);
-          const isEarned = awardedRaw != null;
           const awardedAt = awardedRaw
             ? new Date(awardedRaw).toLocaleTimeString("pt-PT", {
                 hour: "2-digit",
@@ -87,11 +90,8 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
           return (
             <div
               key={defn.code}
-              className="rounded-[18px] border border-border bg-card p-[22px] transition-opacity"
-              style={{
-                opacity: isEarned ? 1 : 0.5,
-                boxShadow: isEarned ? `0 10px 28px -14px ${color}55` : "none",
-              }}
+              className="rounded-[18px] border border-border bg-card p-[22px]"
+              style={{ boxShadow: `0 10px 28px -14px ${color}55` }}
             >
               <div className="flex items-start gap-4">
                 {iconUrl ? (
@@ -100,17 +100,11 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
                     alt=""
                     aria-hidden
                     className="h-[60px] w-[60px] shrink-0 rounded-[18px] object-cover"
-                    style={{ opacity: isEarned ? 1 : 0.5 }}
                   />
                 ) : (
                   <div
                     className="grid shrink-0 place-items-center rounded-[18px] text-[28px] text-white"
-                    style={{
-                      height: 60,
-                      width: 60,
-                      background: color,
-                      opacity: isEarned ? 1 : 0.4,
-                    }}
+                    style={{ height: 60, width: 60, background: color }}
                     aria-hidden
                   >
                     {glyph}
@@ -121,10 +115,8 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
                   <p className="mb-[10px] mt-[5px] text-[13px] leading-[1.45] text-muted-foreground">
                     {description}
                   </p>
-                  <span className="rally-display text-[13px] font-bold">
-                    <span className={isEarned ? "rally-accent" : "text-muted-foreground"}>
-                      {awardedAt ?? "Por conquistar"}
-                    </span>
+                  <span className="rally-display rally-accent text-[13px] font-bold">
+                    {awardedAt}
                   </span>
                 </div>
               </div>

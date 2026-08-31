@@ -18,14 +18,19 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_hint_reveal import CheckpointHintReveal
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.team import (
+    CheckpointPenalties,
     ListingTeam,
     PrivilegedDetailedTeam,
     TeamScoresUpdate,
@@ -332,4 +337,96 @@ class TeamService:
             result.open_checkpoint_orders = sorted(state.open_orders)
             result.is_route_finished = state.is_finished
             result.total_checkpoints = state.total_published
+            if not hide_scores:
+                result.penalties_per_checkpoint = await self._penalties_per_checkpoint(
+                    team_obj
+                )
         return result
+
+    async def _penalties_per_checkpoint(self, team_obj: Team) -> list[CheckpointPenalties]:
+        """Every point this team lost to hints, give-ups and activity
+        penalties, grouped by post and summed per cause.
+
+        The three sources live in separate tables and none is on ``Team``:
+        ``checkpoint_hint_reveals`` and ``checkpoint_skips`` freeze the penalty
+        at the price it was charged, and the activity deductions sit in each
+        ``ActivityResult.penalties`` JSON blob. Posts with nothing to report
+        are dropped so the list stays short.
+        """
+        team_id = team_obj.id
+
+        order_by_cp_id: dict[int, int] = dict(
+            (await self._db.execute(select(CheckPoint.id, CheckPoint.order))).all()
+        )
+
+        buckets: dict[int, dict[str, int]] = {}
+
+        def bucket(checkpoint_id: int) -> dict[str, int]:
+            return buckets.setdefault(
+                checkpoint_id, {"hints_cost": 0, "skip_cost": 0, "activity_penalties": 0}
+            )
+
+        hint_rows = (
+            await self._db.execute(
+                select(
+                    CheckpointHintReveal.checkpoint_id,
+                    func.coalesce(func.sum(CheckpointHintReveal.cost), 0),
+                )
+                .where(CheckpointHintReveal.team_id == team_id)
+                .group_by(CheckpointHintReveal.checkpoint_id)
+            )
+        ).all()
+        for checkpoint_id, cost in hint_rows:
+            bucket(checkpoint_id)["hints_cost"] += int(cost)
+
+        skip_rows = (
+            await self._db.execute(
+                select(
+                    CheckpointSkip.checkpoint_id,
+                    func.coalesce(func.sum(CheckpointSkip.cost), 0),
+                )
+                .where(CheckpointSkip.team_id == team_id)
+                .group_by(CheckpointSkip.checkpoint_id)
+            )
+        ).all()
+        for checkpoint_id, cost in skip_rows:
+            bucket(checkpoint_id)["skip_cost"] += int(cost)
+
+        # Activity penalties are a JSON dict of positive magnitudes deducted
+        # from the activity's score, so they are negated here to match the
+        # negative sign every other penalty carries.
+        penalty_rows = (
+            await self._db.execute(
+                select(Activity.checkpoint_id, ActivityResult.penalties)
+                .join(Activity, Activity.id == ActivityResult.activity_id)
+                .where(
+                    ActivityResult.team_id == team_id,
+                    Activity.checkpoint_id.is_not(None),
+                )
+            )
+        ).all()
+        for checkpoint_id, penalties in penalty_rows:
+            deducted = sum(int(v) for v in (penalties or {}).values())
+            if deducted:
+                bucket(checkpoint_id)["activity_penalties"] -= deducted
+
+        out: list[CheckpointPenalties] = []
+        for checkpoint_id, parts in buckets.items():
+            order = order_by_cp_id.get(checkpoint_id)
+            if order is None:
+                continue
+            total = parts["hints_cost"] + parts["skip_cost"] + parts["activity_penalties"]
+            if total == 0:
+                continue
+            out.append(
+                CheckpointPenalties(
+                    checkpoint_order=order,
+                    checkpoint_id=checkpoint_id,
+                    hints_cost=parts["hints_cost"],
+                    skip_cost=parts["skip_cost"],
+                    activity_penalties=parts["activity_penalties"],
+                    total=total,
+                )
+            )
+        out.sort(key=lambda p: p.checkpoint_order)
+        return out

@@ -51,6 +51,28 @@ class ListingTeam(TeamBase, RouteProgressFields):
     last_checkpoint_name: str | None = None
 
 
+class CheckpointPenalties(BaseModel):
+    """Points a team lost at one post, broken down by cause.
+
+    ``hints_cost`` is what the team paid unlocking guide indications there,
+    ``skip_cost`` the give-up penalty, ``activity_penalties`` the sum of the
+    activity-level deductions (vómitos, não-beber, contadores dinâmicos).
+    Every field is negative or zero, the same sign convention as the rest of
+    the app. Only posts with at least one non-zero penalty are emitted, keyed
+    by ``checkpoint_order`` so a client can line them up with
+    ``score_per_checkpoint[order - 1]``.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    checkpoint_order: int
+    checkpoint_id: int
+    hints_cost: int = 0
+    skip_cost: int = 0
+    activity_penalties: int = 0
+    total: int = 0
+
+
 class DetailedTeam(TeamBase, RouteProgressFields):
     times: list[datetime]
 
@@ -59,6 +81,10 @@ class DetailedTeam(TeamBase, RouteProgressFields):
     members: list[ListingUser]
 
     total_checkpoints: int | None = None
+
+    # Per-post penalty breakdown. Empty when the team lost no points to
+    # hints/give-ups/activity penalties, or when scores are hidden.
+    penalties_per_checkpoint: list[CheckpointPenalties] = []
 
 
 class PrivilegedDetailedTeam(DetailedTeam):

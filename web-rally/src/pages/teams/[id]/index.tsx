@@ -7,7 +7,6 @@ import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
 import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
 import { BadgeShowcase } from "@/components/badges/BadgeShowcase";
-import { ShareButton } from "@/components/shared/ShareButton";
 
 export default function TeamsById() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -28,6 +27,10 @@ export default function TeamsById() {
     isRouteFinished,
     rank,
   } = useTeamDetails(id);
+
+  const penaltiesByOrder = new Map(
+    (team?.penalties_per_checkpoint ?? []).map((p) => [p.checkpoint_order, p]),
+  );
 
   const toggleCheckpoint = (checkpointIndex: number) => {
     setExpandedCheckpoints((prev) => {
@@ -125,9 +128,6 @@ export default function TeamsById() {
                   </p>
                 </div>
               )}
-              <div className="flex justify-end px-5 pb-4">
-                <ShareButton title={`${team.name} — Rally`} label="Partilhar equipa" />
-              </div>
             </div>
 
             {settings?.badges_enabled !== false && <BadgeShowcase teamId={Number(id)} />}
@@ -191,6 +191,7 @@ export default function TeamsById() {
                     index={index}
                     checkpoint={checkpoint}
                     isResolved={resolvedOrders.has(checkpoint.order)}
+                    penalties={penaltiesByOrder.get(checkpoint.order)}
                     isCurrent={
                       !resolvedOrders.has(checkpoint.order) && checkpoint.is_reachable === true
                     }
