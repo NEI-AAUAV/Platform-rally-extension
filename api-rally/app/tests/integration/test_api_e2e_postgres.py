@@ -62,10 +62,16 @@ async def _create_schema_and_seed() -> None:
                     # so the peddy-paper bootstrap that switches GPS check-in on
                     # never runs — this journey exercises the arrive endpoint, so
                     # it has to ask for the setting explicitly.
+                    # Same reason the display/guide switches are set here: the
+                    # column defaults are off, and the surfaces below are gated
+                    # on them server-side (visibility_policy, GuideService).
                     RallySettings(
                         event_id=event.id,
                         checkpoint_order_matters=True,
                         gps_checkin_enabled=True,
+                        participant_view_enabled=True,
+                        guide_mode_enabled=True,
+                        guide_mode_active=True,
                     ),
                     CheckPoint(
                         name="CP1",
@@ -250,7 +256,15 @@ def test_guide_surface_role_gate_and_indications(e2e_client: TestClient) -> None
         app.dependency_overrides.pop(api_nei_auth, None)
 
 
-def test_team_listing_reachable_for_public_leaderboard(e2e_client: TestClient) -> None:
-    teams = e2e_client.get("/api/rally/v1/team/")
-    assert teams.status_code == 200
+def test_team_listing_requires_authentication(e2e_client: TestClient) -> None:
+    """The roster carries every team's progress, so it is behind auth.
+
+    Anonymous callers are refused; a team token is enough (no staff role
+    needed) since the leaderboard is a participant-facing screen.
+    """
+    assert e2e_client.get("/api/rally/v1/team/").status_code == 401
+
+    headers = {"Authorization": f"Bearer {_login(e2e_client)}"}
+    teams = e2e_client.get("/api/rally/v1/team/", headers=headers)
+    assert teams.status_code == 200, teams.text
     assert [t["name"] for t in teams.json()] == ["Equipa E2E"]
