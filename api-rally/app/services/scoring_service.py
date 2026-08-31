@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -324,7 +324,9 @@ class ScoringService:
         # reachable so existing g_<id> counts keep a price instead of an
         # unknown-key rejection (see resolve_penalty_points(strict=False)).
         event_id = await current_event_id(self.db)
-        rule_filters = [(DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))]
+        rule_filters: list[ColumnElement[bool]] = [
+            (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))
+        ]
         if not include_inactive:
             rule_filters.append(DynamicRule.is_active.is_(True))
         rules = (await self.db.scalars(select(DynamicRule).where(*rule_filters))).all()

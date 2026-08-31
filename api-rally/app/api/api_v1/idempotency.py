@@ -171,4 +171,4 @@ async def purge_expired_idempotency_keys(
         )
     )
     await db.commit()
-    return result.rowcount or 0
+    return int(getattr(result, "rowcount", 0) or 0)
