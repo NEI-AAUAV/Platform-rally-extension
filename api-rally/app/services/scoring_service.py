@@ -548,10 +548,21 @@ class ScoringService:
         # 9.7 stored 9 while the total counted 9.7, and a -9.7 penalty stored
         # -9 (under-penalised). Rounding keeps sum(score_per_checkpoint) in step
         # with team.total.
-        by_order = {
-            checkpoint_order_by_id[cid]: round(score) for cid, score in checkpoint_scores.items()
-        }
-        team.score_per_checkpoint = [by_order.get(order, 0) for order in route_orders]
+        #
+        # A reorder passes through a state where two checkpoints briefly share
+        # an ``order``. Keying a plain dict by order would let one of them
+        # overwrite the other and collapse both scores into a single slot, so
+        # instead each score is consumed into the first route slot with a
+        # matching order — two same-order checkpoints keep two distinct slots.
+        pending: dict[int, list[int]] = {}
+        for cid, score in checkpoint_scores.items():
+            pending.setdefault(checkpoint_order_by_id[cid], []).append(round(score))
+
+        layout: list[int] = []
+        for order in route_orders:
+            slot_scores = pending.get(order)
+            layout.append(slot_scores.pop(0) if slot_scores else 0)
+        team.score_per_checkpoint = layout
 
     async def update_all_team_scores(self, teams: list[Team]) -> None:
         """Recompute total + per-checkpoint scores for many teams in bulk.

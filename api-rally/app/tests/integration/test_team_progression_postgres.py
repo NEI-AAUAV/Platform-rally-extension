@@ -143,15 +143,9 @@ async def test_penalties_per_checkpoint_groups_hints_skips_and_activity(pg_sessi
     await pg_session.refresh(activity)
     pg_session.add_all(
         [
-            CheckpointHintReveal(
-                team_id=team.id, checkpoint_id=cp1.id, indication_id=1, cost=-3
-            ),
-            CheckpointHintReveal(
-                team_id=team.id, checkpoint_id=cp1.id, indication_id=2, cost=-2
-            ),
-            ActivityResult(
-                activity_id=activity.id, team_id=team.id, penalties={"vomit": 4}
-            ),
+            CheckpointHintReveal(team_id=team.id, checkpoint_id=cp1.id, indication_id=1, cost=-3),
+            CheckpointHintReveal(team_id=team.id, checkpoint_id=cp1.id, indication_id=2, cost=-2),
+            ActivityResult(activity_id=activity.id, team_id=team.id, penalties={"vomit": 4}),
             # cp2: the team gave up.
             CheckpointSkip(team_id=team.id, checkpoint_id=cp2.id, cost=-8),
         ]

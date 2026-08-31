@@ -338,9 +338,7 @@ class TeamService:
             result.is_route_finished = state.is_finished
             result.total_checkpoints = state.total_published
             if not hide_scores:
-                result.penalties_per_checkpoint = await self._penalties_per_checkpoint(
-                    team_obj
-                )
+                result.penalties_per_checkpoint = await self._penalties_per_checkpoint(team_obj)
         return result
 
     async def _penalties_per_checkpoint(self, team_obj: Team) -> list[CheckpointPenalties]:

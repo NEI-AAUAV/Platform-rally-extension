@@ -158,12 +158,8 @@ export function CheckpointTimelineItem({
               </div>
               {penalties && penalties.total !== 0 && (
                 <div className="mb-1 space-y-0.5 text-xs font-medium text-destructive">
-                  {penalties.hints_cost !== 0 && (
-                    <div>Dicas: {penalties.hints_cost} pts</div>
-                  )}
-                  {penalties.skip_cost !== 0 && (
-                    <div>Desistência: {penalties.skip_cost} pts</div>
-                  )}
+                  {penalties.hints_cost !== 0 && <div>Dicas: {penalties.hints_cost} pts</div>}
+                  {penalties.skip_cost !== 0 && <div>Desistência: {penalties.skip_cost} pts</div>}
                   {penalties.activity_penalties !== 0 && (
                     <div>Penalizações: {penalties.activity_penalties} pts</div>
                   )}
