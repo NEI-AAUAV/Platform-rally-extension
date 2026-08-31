@@ -23,10 +23,11 @@ from app.core.abac import (
     require_permission,
 )
 from app.crud.crud_checkpoint import CRUDCheckPoint
-from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.schemas.user import DetailedUser
+from app.services.route_progress import progress_for_team, unreachable_message
 
 # Explicit exports for mypy
 __all__ = [
@@ -71,7 +72,6 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
 
 async def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
-    db: AsyncSession = Depends(deps.get_db),
     curr_user: DetailedUser = Depends(deps.get_current_user),
 ) -> DetailedUser:
     """
@@ -96,24 +96,17 @@ async def get_staff_with_checkpoint_access(
             status_code=status.HTTP_403_FORBIDDEN, detail="User does not have Rally permissions"
         )
 
-    # For staff users, ensure they have a checkpoint assignment
-    if (
-        "rally-staff" in auth.scopes
-        and not is_admin_or_manager(auth.scopes)
-        and not curr_user.staff_checkpoint_id
-    ):
-        logger.debug(f"Checking staff assignment for user_id={curr_user.id}")
-        staff_assignment = await rally_staff_assignment.get_by_user_id(db, curr_user.id)
-        if not staff_assignment or not staff_assignment.checkpoint_id:
-            logger.warning(f"No staff assignment found for user_id={curr_user.id}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff user must be assigned to a checkpoint",
-            )
-        # Add checkpoint_id to user for easy access
-        curr_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-        logger.debug(
-            f"Staff user {curr_user.id} assigned to checkpoint {staff_assignment.checkpoint_id}"
+    # For staff users, ensure they have a checkpoint assignment.
+    # ``deps.get_current_user`` has already resolved it into
+    # ``staff_checkpoint_id`` for exactly the scopes this request carries; this
+    # used to load the assignment a second time and write the field itself,
+    # which is how the same value came to have three sources that could
+    # disagree about who is stationed where.
+    if not is_admin_or_manager(auth.scopes) and not curr_user.staff_checkpoint_id:
+        logger.warning(f"No staff assignment found for user_id={curr_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff user must be assigned to a checkpoint",
         )
 
     return curr_user
@@ -137,7 +130,7 @@ async def require_checkpoint_score_permission(
         auth: Authentication data
         curr_user: Current user with staff access
     """
-    # For staff users, validate checkpoint order
+    # For staff users, validate that the post is one the team may be at.
     if "rally-staff" in auth.scopes and not is_admin_or_manager(auth.scopes):
         # Get team to check their progress
         team = await team_crud.get(db=db, id=team_id)
@@ -151,15 +144,16 @@ async def require_checkpoint_score_permission(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Checkpoint not found"
             )
 
-        # Check if team is at the correct checkpoint order
-        expected_order = len(team.times) + 1
-        if checkpoint.order != expected_order:
+        # The engine's open set, not ``len(team.times) + 1``: the arithmetic
+        # only ever described a strictly sequential route, and refused a staff
+        # member scoring the team standing in front of them whenever the route
+        # was free-order or staged.
+        settings = await rally_settings.get_or_create(db)
+        progress = await progress_for_team(db, team, settings)
+        if not progress.is_open(checkpoint.order):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Team must complete checkpoint order {expected_order} before checkpoint "
-                    f"order {checkpoint.order}"
-                ),
+                detail=unreachable_message(checkpoint, progress),
             )
 
     require_permission(

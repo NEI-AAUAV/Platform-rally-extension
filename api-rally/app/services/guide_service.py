@@ -9,16 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RallyForbiddenError
+from app.crud import current_event_id
 from app.crud.crud_activity import rally_event
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
-from app.models.activity import EventType
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.rally_guide_assignment import RallyGuideAssignment
 from app.models.team import Team
-from app.services.route_progress import resolved_checkpoint_orders
+from app.services.route_progress import progress_for_team
 
 
 class GuideService:
@@ -26,6 +26,21 @@ class GuideService:
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
+
+    async def require_guide_mode(self) -> None:
+        """Gate every guide surface on the two switches that name it.
+
+        ``guide_mode_enabled`` and ``guide_mode_active`` are the manager's
+        on/off control for the whole guide role, so they decide access to all
+        of it — the route listing, the arrivals panel, marking an arrival, and
+        the guide's own team. Only the listing consulted them before, and it
+        also waived them entirely for a peddy-paper event, which is the exact
+        event type the guide role exists for: the switch read "off" in the
+        admin UI while guides went on working.
+        """
+        settings = await rally_settings.get_or_create(self._db)
+        if not (settings.guide_mode_enabled and settings.guide_mode_active):
+            raise RallyForbiddenError("Guide mode is not active for this event")
 
     async def list_checkpoints_with_gallery(
         self, *, user_id: int | None = None, is_privileged: bool = False
@@ -40,17 +55,8 @@ class GuideService:
         highlights the current one instead of the list being cut down to it.
         Write access (marking an arrival) stays scoped to the current post
         via ``can_manage_checkpoint``; this is the read path only.
-
-        Raises RallyForbiddenError when guide mode is not active and the
-        current event is not Peddy Paper (which always allows the guide view).
         """
         event = await rally_event.get_current(self._db)
-
-        settings = await rally_settings.get_or_create(self._db)
-        guide_mode_on = settings.guide_mode_enabled and settings.guide_mode_active
-        is_peddy_paper = event is not None and event.event_type == EventType.PEDDY_PAPER.value
-        if not guide_mode_on and not is_peddy_paper:
-            raise RallyForbiddenError("Guide mode is not active for this event")
 
         event_filter = CheckPoint.event_id == event.id if event else CheckPoint.event_id.is_(None)
         stmt = (
@@ -101,7 +107,12 @@ class GuideService:
 
     async def _team_progress(self, user_id: int) -> tuple[list[CheckPoint] | None, frozenset[int]]:
         """This guide's team's ordered checkpoints and resolved orders, or
-        ``(None, frozenset())`` when the guide has no team assigned."""
+        ``(None, frozenset())`` when the guide has no team assigned.
+
+        Reads the same progress engine the team's own screen does, so the post
+        the guide is standing at is by construction the post the team is being
+        sent to.
+        """
         team_id = await self.assigned_team_id(user_id)
         if team_id is None:
             return None, frozenset()
@@ -112,7 +123,9 @@ class GuideService:
         checkpoints = list(await checkpoint_crud.get_all_ordered(self._db))
         if not checkpoints:
             return None, frozenset()
-        return checkpoints, await resolved_checkpoint_orders(self._db, team)
+        settings = await rally_settings.get_or_create(self._db)
+        progress = await progress_for_team(self._db, team, settings)
+        return checkpoints, progress.resolved_orders
 
     async def accessible_checkpoint_ids(self, user_id: int) -> set[int]:
         """Checkpoints this guide may act on right now: their team's current
@@ -157,10 +170,16 @@ class GuideService:
         hint the team already paid for — the same words, for free, seconds
         later. Sorted by arrival so the guide sees who turned up first.
         """
+        event_id = await current_event_id(self._db)
         stmt = (
             select(CheckpointArrival, Team)
             .join(Team, Team.id == CheckpointArrival.team_id)
-            .where(CheckpointArrival.checkpoint_id == checkpoint_id)
+            .where(
+                CheckpointArrival.checkpoint_id == checkpoint_id,
+                # Legacy rows carry no event; they belong to whatever edition
+                # is running rather than to none of them.
+                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+            )
             .order_by(CheckpointArrival.arrived_at)
         )
         rows = (await self._db.execute(stmt)).all()
@@ -196,6 +215,12 @@ class GuideService:
         Stricter than the read path: an unassigned guide may *see* the route so
         a misconfigured event is not unusable, but writing progress for a post
         nobody put them at is not something to be lenient about.
+
+        ``is_privileged`` means admin or manager, and nothing else. It used to
+        include ``rally-staff``, which made this a blanket True for every staff
+        account — assignment or not — so anyone with the staff scope could mark
+        any team as arrived at any post. That is the one thing
+        ``_staff_own_checkpoint`` exists to prevent everywhere else.
         """
         if is_privileged:
             return True

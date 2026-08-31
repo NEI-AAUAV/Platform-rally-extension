@@ -18,8 +18,25 @@ class CRUDRallyStaffAssignment(
     CRUDBase[RallyStaffAssignment, RallyStaffAssignmentCreate, RallyStaffAssignmentUpdate]
 ):
     async def get_by_user_id(self, db: AsyncSession, user_id: int) -> RallyStaffAssignment | None:
-        """Get staff assignment for a specific user"""
-        stmt = select(RallyStaffAssignment).where(RallyStaffAssignment.user_id == user_id)
+        """This user's staff assignment **in the current event**.
+
+        A user can be stationed in more than one edition, and this used to
+        select on ``user_id`` alone and take whichever row came back first —
+        so a staff member could be handed a post belonging to a finished
+        edition, and ``create_or_update`` would then overwrite that edition's
+        assignment instead of creating one for this event.
+        ``get_multi_with_checkpoint`` was already scoped this way; this is the
+        same join.
+        """
+        event_id = await current_event_id(db)
+        stmt = (
+            select(RallyStaffAssignment)
+            .join(CheckPoint, RallyStaffAssignment.checkpoint_id == CheckPoint.id)
+            .where(
+                RallyStaffAssignment.user_id == user_id,
+                (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)),
+            )
+        )
         result: RallyStaffAssignment | None = await db.scalar(stmt)
         return result
 

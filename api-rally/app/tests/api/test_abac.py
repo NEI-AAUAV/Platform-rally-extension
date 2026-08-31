@@ -2,7 +2,7 @@
 Critical ABAC (Access Control) tests
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -18,6 +18,7 @@ from app.api.abac_deps import (
     validate_settings_view_access,
 )
 from app.core.abac import (
+    _MANAGER_ACTIONS,
     ALL_CHECKPOINTS,
     ABACEngine,
     Action,
@@ -244,6 +245,43 @@ class TestABACGuideScope:
         assert engine.evaluate(context) is False
 
 
+class TestABACScopeUnion:
+    """Holding a second role must never take permissions away.
+
+    The engine used to be an ordered if-chain that returned on the first table
+    matching one of the caller's scopes, so a staff+guide was judged by the
+    staff table alone and denied everything the staff rules did not cover.
+    """
+
+    @pytest.mark.parametrize("action", [Action.VIEW_CHECKPOINT_TEAMS, Action.VIEW_ACTIVITY_RESULT])
+    def test_staff_and_guide_keeps_what_a_plain_guide_has(self, action):
+        engine = ABACEngine()
+        # No checkpoint assignment: the staff rules for both of these deny,
+        # the guide rules allow. The union must allow.
+        context = _context(action, Resource.CHECKPOINT, ["rally-staff", "rally-guide"])
+        assert engine.evaluate(context) is True
+
+    def test_staff_and_guide_still_denied_outside_both_tables(self):
+        engine = ABACEngine()
+        context = _context(
+            Action.UPDATE_RALLY_SETTINGS, Resource.RALLY_SETTINGS, ["rally-staff", "rally-guide"]
+        )
+        assert engine.evaluate(context) is False
+
+    def test_manager_does_not_fall_through_to_the_staff_rules(self):
+        """An action absent from the manager table is denied on its own terms.
+
+        The manager branch had no ``return`` on a miss, so it fell through to
+        be judged by the staff (and then guide) rules — a manager would have
+        been checkpoint-scoped by rules written for somebody else.
+        """
+        engine = ABACEngine()
+        with patch.dict(_MANAGER_ACTIONS, clear=False):
+            _MANAGER_ACTIONS.pop(Action.VIEW_CHECKPOINT_TEAMS)
+            context = _context(Action.VIEW_CHECKPOINT_TEAMS, Resource.CHECKPOINT, ["manager-rally"])
+            assert engine.evaluate(context) is False
+
+
 class TestABACDependencies:
     """Test ABAC dependency functions"""
 
@@ -279,30 +317,22 @@ class TestABACDependencies:
     async def test_get_staff_with_checkpoint_access_staff_user(
         self, mock_staff_user, mock_staff_auth_data
     ):
-        """Test staff user with checkpoint access"""
-        mock_db = AsyncMock()
-        with patch(
-            "app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id"
-        ) as mock_get_assignment:
-            # get_by_user_id is an async function, so mock_get_assignment is an AsyncMock.
-            # Its return value when awaited should be the mock assignment.
-            mock_get_assignment.return_value = Mock(checkpoint_id=1)
+        """Test staff user with checkpoint access.
 
-            result = await get_staff_with_checkpoint_access(
-                auth=mock_staff_auth_data, curr_user=mock_staff_user, db=mock_db
-            )
+        The assignment is resolved once, by ``deps.get_current_user``, and
+        arrives already on the user — this dependency only checks it is there.
+        """
+        result = await get_staff_with_checkpoint_access(
+            auth=mock_staff_auth_data, curr_user=mock_staff_user
+        )
 
-            assert result == mock_staff_user
+        assert result == mock_staff_user
 
     @pytest.mark.asyncio
     async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
-        mock_db = AsyncMock()
-
         with pytest.raises(HTTPException):
-            await get_staff_with_checkpoint_access(
-                auth=mock_auth_data, curr_user=mock_user, db=mock_db
-            )
+            await get_staff_with_checkpoint_access(auth=mock_auth_data, curr_user=mock_user)
 
 
 class TestActionResourceEnums:

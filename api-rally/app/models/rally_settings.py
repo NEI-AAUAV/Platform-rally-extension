@@ -4,6 +4,13 @@ from app.core.config import settings as app_settings
 from app.models.base import Base
 
 
+# NOTE: these column defaults are the single default table for the whole
+# system. ``crud_rally_settings.get_or_create`` used to restate most of them
+# with its own values and disagreed on six (max_teams, enable_versus,
+# penalty_per_puke, max_extra_shots_per_member, public_access_enabled,
+# rally_theme); the frontend carried a third set. The values kept here are the
+# ones the bootstrap was actually producing, so nothing an event sees changes
+# — what changes is that there is now one place to read them from.
 class RallySettings(Base):
     __tablename__ = "rally_settings"
 
@@ -19,19 +26,19 @@ class RallySettings(Base):
     )
 
     # Team management
-    max_teams = Column(Integer, nullable=False, default=16)
+    max_teams = Column(Integer, nullable=False, default=14)
     max_members_per_team = Column(Integer, nullable=False, default=10)
-    enable_versus = Column(Boolean, nullable=False, default=False)
+    enable_versus = Column(Boolean, nullable=False, default=True)
 
     # Rally timing
     rally_start_time = Column(DateTime(timezone=True), nullable=True)
     rally_end_time = Column(DateTime(timezone=True), nullable=True)
 
     # Scoring system
-    penalty_per_puke = Column(Integer, nullable=False, default=-5)
+    penalty_per_puke = Column(Integer, nullable=False, default=-10)
     penalty_per_not_drinking = Column(Integer, nullable=False, default=-2)
     bonus_per_extra_shot = Column(Integer, nullable=False, default=1)
-    max_extra_shots_per_member = Column(Integer, nullable=False, default=1)
+    max_extra_shots_per_member = Column(Integer, nullable=False, default=5)
 
     # Checkpoint behavior
     checkpoint_order_matters = Column(Boolean, nullable=False, default=True)
@@ -54,7 +61,7 @@ class RallySettings(Base):
     # Rally customization
     # rally_theme is a SKIN PRESET (structure/motif only): 'bloody' | 'nei' | 'default'.
     # Event identity below is DATA, so one build serves every edition.
-    rally_theme = Column(String(100), nullable=False, default="Rally Tascas")
+    rally_theme = Column(String(100), nullable=False, default="bloody")
 
     # Universal branding (data, not code)
     event_name = Column(String(120), nullable=False, default="Rally Tascas")
@@ -81,7 +88,7 @@ class RallySettings(Base):
     visual_presets = Column(JSON, nullable=False, default=list)
 
     # Access control
-    public_access_enabled = Column(Boolean, nullable=False, default=False)
+    public_access_enabled = Column(Boolean, nullable=False, default=True)
 
     # Walk-up registration: staff can add team members during event (B4)
     allow_staff_registration = Column(Boolean, nullable=False, default=False)

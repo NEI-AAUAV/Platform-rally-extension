@@ -103,19 +103,33 @@ export default function CheckpointTeamEvaluation() {
   }
 
   const showScore = settings?.show_score_mode !== "hidden";
+  // Staff scoring can be switched off event-wide. The server refuses the write
+  // either way; hiding the form means a staff member is not invited to run a
+  // team through a challenge and then told at submit that it does not count.
+  // Admins and managers keep it — the switch is about staff, and they are the
+  // ones who correct results while it is off.
+  const staffScoringOff = settings?.enable_staff_scoring === false && !isRallyAdmin;
 
   const order = Number(checkpoint.order ?? 0) || 0;
-  const lastOf = (team: ListingTeam) => Number(team.last_checkpoint_number ?? 0) || 0;
   const teams = checkpointTeams ?? [];
 
+  // Bucketed by what the server's progress engine says about each team, not by
+  // `last_checkpoint_number === order - 1`. That arithmetic reads a count as a
+  // position: under free order or stages a team standing right here has an
+  // arbitrary count, so it landed in "postos anteriores" and the staff member
+  // was told the team in front of them had not arrived.
+  const resolvedHere = (team: ListingTeam) =>
+    (team.resolved_checkpoint_orders ?? []).includes(order);
+  const openHere = (team: ListingTeam) => (team.open_checkpoint_orders ?? []).includes(order);
+
   const teamsToEvaluate = teams.filter(
-    (team) => !teamEvaluationStatus?.[team.id] && lastOf(team) === order - 1,
+    (team) => !teamEvaluationStatus?.[team.id] && !resolvedHere(team) && openHere(team),
   );
   const teamsAtPreviousCheckpoints = teams.filter(
-    (team) => !teamEvaluationStatus?.[team.id] && lastOf(team) < order - 1,
+    (team) => !teamEvaluationStatus?.[team.id] && !resolvedHere(team) && !openHere(team),
   );
   const teamsAlreadyEvaluated = teams.filter(
-    (team) => lastOf(team) >= order || !!teamEvaluationStatus?.[team.id],
+    (team) => resolvedHere(team) || !!teamEvaluationStatus?.[team.id],
   );
 
   return (
@@ -150,6 +164,19 @@ export default function CheckpointTeamEvaluation() {
 
       <CheckpointAnnouncement />
 
+      {staffScoringOff && (
+        <div className="rally-surface flex items-start gap-3 rounded-2xl border border-border p-4">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
+          <div>
+            <p className="font-semibold text-foreground">Pontuação pelo staff desativada</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Um administrador desligou a pontuação manual para este evento. Podes identificar as
+              equipas, mas as avaliações têm de ser registadas por um administrador.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Staff scans the arriving team's QR to identify + open its evaluation */}
       <StaffCheckinScanner
         checkpointId={Number(checkpointId)}
@@ -176,7 +203,7 @@ export default function CheckpointTeamEvaluation() {
             <TeamActivitiesList
               team={selectedTeam}
               activities={teamActivities || []}
-              onEvaluate={handleEvaluateActivity}
+              onEvaluate={staffScoringOff ? undefined : handleEvaluateActivity}
               isEvaluating={isEvaluating}
             />
           )}

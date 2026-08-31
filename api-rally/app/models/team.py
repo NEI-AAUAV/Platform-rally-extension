@@ -95,7 +95,17 @@ class Team(Base):
 
     @property
     def last_checkpoint_score(self) -> int | None:
-        return self.score_per_checkpoint[-1] if self.score_per_checkpoint else None
+        """The score of the furthest post on the route this team has scored at.
+
+        ``score_per_checkpoint`` has one slot per post, in route order, so the
+        last *non-zero* slot is the last post that actually scored. Reading
+        ``[-1]`` blindly reports the final post of the route, which for a team
+        mid-route is always 0.
+        """
+        for score in reversed(self.score_per_checkpoint or []):
+            if score != 0:
+                return score
+        return 0 if self.score_per_checkpoint else None
 
     def record_checkpoint(
         self, *, question_score: bool, time_score: int, pukes: int, skips: int, at: datetime

@@ -130,10 +130,10 @@ async def test_cannot_give_up_on_a_post_the_team_has_not_reached(pg_session, pg_
 
 
 async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session, pg_client):
-    """Regression: ``advance_team_to_next_checkpoint`` inflates ``team.times``
-    with a "next post" pointer, so a team hunting post 2 has
-    ``len(team.times) == 2`` while only post 1 is resolved. The reachability
-    guard must key off resolved posts, not that count.
+    """Regression: ``team.times`` can hold more entries than the team has
+    resolved posts, so a team hunting post 2 may already have two visits
+    recorded. The reachability guard must key off resolved posts, not that
+    count.
     """
     from datetime import UTC, datetime
 

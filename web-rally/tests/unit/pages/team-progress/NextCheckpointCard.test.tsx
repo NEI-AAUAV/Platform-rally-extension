@@ -1,28 +1,23 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { NextCheckpointCard } from "@/pages/teams/[id]/NextCheckpointCard";
-import type { DetailedTeam, DetailedCheckPoint, RallySettingsResponse } from "@/client";
+import type { DetailedCheckPoint, RallySettingsResponse } from "@/client";
 
 describe("NextCheckpointCard", () => {
-  const team = { last_checkpoint_number: 1, times: [] } as unknown as DetailedTeam;
-  const checkpoints = [
-    { id: 1, order: 1, name: "Posto 1" },
-    {
-      id: 2,
-      order: 2,
-      name: "Posto 2",
-      description: "Second stop",
-      latitude: 40.1,
-      longitude: -8.5,
-    },
-  ] as DetailedCheckPoint[];
+  const revealed = {
+    id: 2,
+    order: 2,
+    name: "Posto 2",
+    description: "Second stop",
+    latitude: 40.1,
+    longitude: -8.5,
+  } as DetailedCheckPoint;
 
   it("renders the next checkpoint name and description", () => {
     render(
       <NextCheckpointCard
-        team={team}
-        checkpoints={checkpoints}
-        totalCount={3}
+        nextCheckpoint={revealed}
+        isRouteFinished={false}
         settings={{} as RallySettingsResponse}
       />,
     );
@@ -33,9 +28,8 @@ describe("NextCheckpointCard", () => {
   it("renders a map link when coordinates and show_checkpoint_map are enabled", () => {
     render(
       <NextCheckpointCard
-        team={team}
-        checkpoints={checkpoints}
-        totalCount={3}
+        nextCheckpoint={revealed}
+        isRouteFinished={false}
         settings={{ show_checkpoint_map: true } as RallySettingsResponse}
       />,
     );
@@ -45,38 +39,48 @@ describe("NextCheckpointCard", () => {
   it("hides the map when show_checkpoint_map is false", () => {
     render(
       <NextCheckpointCard
-        team={team}
-        checkpoints={checkpoints}
-        totalCount={3}
+        nextCheckpoint={revealed}
+        isRouteFinished={false}
         settings={{ show_checkpoint_map: false } as RallySettingsResponse}
       />,
     );
     expect(screen.queryByText("Abrir no mapa")).not.toBeInTheDocument();
   });
 
-  it("renders nothing when there are no more checkpoints and route mode is not complete", () => {
-    const doneTeam = { last_checkpoint_number: 3, times: [] } as unknown as DetailedTeam;
+  it("renders nothing once the server says the route is finished", () => {
     const { container } = render(
       <NextCheckpointCard
-        team={doneTeam}
-        checkpoints={checkpoints}
-        totalCount={2}
+        nextCheckpoint={undefined}
+        isRouteFinished
         settings={{} as RallySettingsResponse}
       />,
     );
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders heading when route mode is complete even with no more checkpoints", () => {
-    const doneTeam = { last_checkpoint_number: 3, times: [] } as unknown as DetailedTeam;
+  it("withholds the location of a post the server redacted", () => {
+    // This page is another team's public profile. Printing the venue, its
+    // coordinates and a map link for a post nobody has reached hands the
+    // riddle's answer to whoever opens the page.
+    const redacted = {
+      id: 3,
+      order: 3,
+      name: "Posto 3",
+      description: null,
+      latitude: null,
+      longitude: null,
+      is_redacted: true,
+    } as unknown as DetailedCheckPoint;
+
     render(
       <NextCheckpointCard
-        team={doneTeam}
-        checkpoints={checkpoints}
-        totalCount={2}
-        settings={{ show_route_mode: "complete" } as RallySettingsResponse}
+        nextCheckpoint={redacted}
+        isRouteFinished={false}
+        settings={{ show_checkpoint_map: true } as RallySettingsResponse}
       />,
     );
-    expect(screen.getByText("Próximo Posto")).toBeInTheDocument();
+    expect(screen.getByText("Posto 3")).toBeInTheDocument();
+    expect(screen.getByText(/Ainda por descobrir/)).toBeInTheDocument();
+    expect(screen.queryByText("Abrir no mapa")).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useTeamAuth from "@/hooks/useTeamAuth";
@@ -8,9 +8,12 @@ import {
   getCheckpoints,
   getCheckpointsCount,
   getTeamById,
+  getTeams,
   type DetailedTeam,
   type DetailedCheckPoint,
+  type ListingTeam,
 } from "@/client";
+import { displayRank, sortTeamsByRank } from "@/lib/teamRanking";
 import type { ExtendedRallySettingsResponse } from "./teamProgress.types";
 
 // SSE push (useRallyEventStream) handles near-instant updates when the
@@ -98,6 +101,14 @@ export function useTeamProgress() {
   // since times is appended when staff registers a pass but not all
   // activities may be done yet).
   const completedCheckpointsCount = team?.last_checkpoint_number ?? team?.times?.length ?? 0;
+  // The authoritative "which posts are done" and "is the route over", straight
+  // from the server's progress engine. Neither can be derived from a count
+  // once the route is free-order or staged.
+  const resolvedOrders = useMemo(
+    () => new Set(team?.resolved_checkpoint_orders ?? []),
+    [team?.resolved_checkpoint_orders],
+  );
+  const isRouteFinished = team?.is_route_finished ?? false;
   // A loaded team's `current_checkpoint_number` is authoritative *including*
   // when it is null, which the server sends to mean "no post left to go to" —
   // the route is finished. That is why this cannot be a `??` fallback: null
@@ -115,6 +126,30 @@ export function useTeamProgress() {
   const showScore = settings?.show_score_mode !== "hidden";
   const showRanking = settings?.show_score_mode === "competitive";
 
+  // Only fetched when a rank is actually shown — this is the standings, and
+  // the page has no other use for them.
+  const { data: allTeams } = useQuery<ListingTeam[]>({
+    queryKey: ["allTeams"],
+    queryFn: async () => {
+      try {
+        const { data } = await getTeams();
+        return data ?? [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: showRanking && !!teamData?.team_id,
+    refetchInterval: REFRESH_INTERVAL_MS,
+  });
+
+  // The one client-side ranking policy, shared with /teams/:id and
+  // /scoreboard, instead of the raw `classification` column.
+  const rank = useMemo(() => {
+    if (!team || !allTeams?.length) return null;
+    const position = sortTeamsByRank(allTeams).findIndex((t) => t.id === team.id);
+    return position < 0 ? null : displayRank(position);
+  }, [team, allTeams]);
+
   const totalCount = totalCheckpoints ?? checkpoints?.length ?? 0;
 
   useRallyEventStream([
@@ -131,9 +166,12 @@ export function useTeamProgress() {
     expandedCheckpoints,
     toggleCheckpoint,
     completedCheckpointsCount,
+    resolvedOrders,
+    isRouteFinished,
     nextCheckpoint,
     showScore,
     showRanking,
+    rank,
     totalCount,
   };
 }

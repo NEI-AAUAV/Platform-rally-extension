@@ -7,6 +7,8 @@ guide-only. Nothing here reveals the checkpoint's name or coordinates: the hint
 is help toward the answer, not the answer.
 """
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,7 +82,9 @@ class HintService:
         ]
         return TeamHintSummary(revealed=revealed, total_spent=sum(item.cost for item in revealed))
 
-    async def _require_current_checkpoint(self, team_id: int, checkpoint_id: int) -> None:
+    async def _require_current_checkpoint(
+        self, team_id: int, checkpoint_id: int, *, settings: Any
+    ) -> None:
         """A team may only buy hints for the post it is currently hunting.
 
         Without this, a team could drain the hint ladder of every post in the
@@ -98,7 +102,6 @@ class HintService:
         # Cross-edition guard, same rule the check-in paths apply.
         require_same_event(team.event_id, checkpoint.event_id)
 
-        settings = await rally_settings.get_or_create(self._db)
         # Under a free-choice stage several posts are reachable at once, and
         # hints for any of them are fair: the team really is choosing between
         # them. Opening hours do not apply — the riddle is theirs to solve
@@ -109,7 +112,6 @@ class HintService:
             checkpoint=checkpoint,
             settings=settings,
             enforce_hours=False,
-            ignore_times_inflation=True,
         )
         if not reachable:
             raise RallyValidationError(NOT_CURRENT_CHECKPOINT)
@@ -119,7 +121,18 @@ class HintService:
 
         Deliberately does *not* enforce "current checkpoint": a team must still
         be able to re-read a hint it bought for a post it has since completed.
+        It *does* enforce the same edition, which it did not before — the
+        remaining count tells you how many riddle-hints a post has, and that
+        was readable for any post of any edition by id.
         """
+        checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
+        if checkpoint is None:
+            raise RallyNotFoundError("Checkpoint not found")
+        team = await self._team_crud.get(db=self._db, id=team_id)
+        if team is None:
+            raise RallyNotFoundError("Team not found")
+        require_same_event(team.event_id, checkpoint.event_id)
+
         indications = await self._indications(checkpoint_id)
         reveals = await self._reveals(team_id, checkpoint_id)
         by_id = {indication.id: indication for indication in indications}
@@ -146,10 +159,13 @@ class HintService:
 
     async def reveal_next(self, *, team_id: int, checkpoint_id: int) -> HintReveal:
         """Unlock the next hint in the ladder and charge the team for it."""
+        # One settings read for the whole request: this used to call
+        # ``get_or_create`` three times per reveal — here, inside
+        # ``_require_current_checkpoint``, and again for the cost.
         settings = await rally_settings.get_or_create(self._db)
         if not getattr(settings, "hints_enabled", True):
             raise RallyValidationError(HINTS_DISABLED)
-        await self._require_current_checkpoint(team_id, checkpoint_id)
+        await self._require_current_checkpoint(team_id, checkpoint_id, settings=settings)
 
         indications = await self._indications(checkpoint_id)
         if not indications:
@@ -161,7 +177,6 @@ class HintService:
             raise RallyValidationError(NO_HINTS_LEFT)
 
         indication = remaining[0]
-        settings = await rally_settings.get_or_create(self._db)
         cost = int(settings.hint_penalty or 0)
 
         reveal = CheckpointHintReveal(

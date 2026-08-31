@@ -22,9 +22,12 @@ export default function TeamProgress() {
     expandedCheckpoints,
     toggleCheckpoint,
     completedCheckpointsCount,
+    resolvedOrders,
+    isRouteFinished,
     nextCheckpoint,
     showScore,
     showRanking,
+    rank,
     totalCount,
   } = useTeamProgress();
 
@@ -64,10 +67,11 @@ export default function TeamProgress() {
   // so they aren't duplicated here for this event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
 
-  // Every post resolved — completed or given up on — so there is no next card
-  // to show. Keyed off the route itself rather than a counter: an event with
-  // no checkpoints at all has not been "finished", it just has no route.
-  const isFinished = !nextCheckpoint && (checkpoints?.length ?? 0) > 0;
+  // The server says so. `!nextCheckpoint` was also true whenever
+  // `current_checkpoint_number` named an order outside the returned slice —
+  // the normal case with stages — so a team with posts still to visit was
+  // shown "Chegaram ao fim!".
+  const isFinished = isRouteFinished;
   const nextCheckpointCard = nextCheckpoint ? (
     <NextCheckpointCard
       checkpoint={nextCheckpoint}
@@ -110,6 +114,7 @@ export default function TeamProgress() {
       team={team}
       showScore={showScore}
       showRanking={showRanking}
+      rank={rank}
       completedCount={completedCheckpointsCount}
       totalCount={totalCount}
       rallyStartTime={settings?.rally_start_time}
@@ -151,7 +156,7 @@ export default function TeamProgress() {
                   checkpoint={checkpoint}
                   index={index}
                   team={team}
-                  completedCount={completedCheckpointsCount}
+                  resolvedOrders={resolvedOrders}
                   showScore={showScore}
                   showMap={showMap}
                   isExpanded={expandedCheckpoints.has(index)}

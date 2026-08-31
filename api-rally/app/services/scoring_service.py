@@ -4,6 +4,7 @@ Scoring system service for Rally activities
 
 import logging
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -19,6 +20,7 @@ from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
 from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
+from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
 from app.events import (
     ActivityResultChangedPayload,
@@ -502,43 +504,54 @@ class ScoringService:
             team.last_scored_at = datetime.now(UTC)
         team.total = new_total
 
-        # score_per_checkpoint is positional and parallel to team.times (visit
-        # order == checkpoint order). Lay the per-checkpoint scores out by the
-        # checkpoints' *current* order, sized to the number of visits, so the
-        # last slot stays the last-visited checkpoint's score for `[-1]`
-        # consumers. Keying the aggregation by id (above) keeps this correct
-        # even if orders shift during a reorder.
-        self._apply_checkpoint_layout(team, checkpoint_scores, checkpoint_order_by_id)
+        self._apply_checkpoint_layout(
+            team, checkpoint_scores, checkpoint_order_by_id, await self._route_orders()
+        )
 
         if should_commit:
             await self._commit_and_publish_team_score(team_id, total_score)
 
         return True
 
+    async def _route_orders(self) -> list[int]:
+        """The published route's checkpoint orders, ascending."""
+        return [cp.order for cp in await checkpoint_crud.get_all_ordered(self.db)]
+
+    @staticmethod
     def _apply_checkpoint_layout(
-        self,
         team: Team,
         checkpoint_scores: dict[int, float],
         checkpoint_order_by_id: dict[int, int],
+        route_orders: Sequence[int],
     ) -> None:
         """Lay per-checkpoint scores onto ``team.score_per_checkpoint``.
 
-        Extracted from ``update_team_scores`` so the batch path shares the exact
-        same positional layout (visit order == checkpoint order, sized to
-        ``team.times``).
+        One slot per post on the route, in route order — so slot *i* is always
+        the score of the *i*-th post, and a post that scored nothing holds a
+        zero in its own slot.
+
+        This used to be sized to ``len(team.times)`` and filled with only the
+        posts that had points, padding the shortfall onto the *end*. Any post
+        without a score therefore shifted every later one down a slot: a route
+        of (no-activity, 10pts, 5pts) stored ``[10, 5, 0]`` instead of
+        ``[0, 10, 5]``, and ``Team.last_checkpoint_score`` — which reads the
+        last slot — reported 0. Three things append to ``team.times`` without
+        producing points (the staff-eval "next post" pointer, a give-up, a
+        no-activity check-in), so that shortfall was the normal case, not an
+        edge one. The frontend has always indexed this array by post order,
+        which is now what it actually is.
+
+        Scores are keyed by the stable ``checkpoint.id`` upstream, so a reorder
+        mid-event lands them in their new slots rather than smearing.
         """
-        scores_by_order = sorted(
-            (checkpoint_order_by_id[cid], score) for cid, score in checkpoint_scores.items()
-        )
         # round(), not int(): int() truncates toward zero, so a checkpoint at
         # 9.7 stored 9 while the total counted 9.7, and a -9.7 penalty stored
         # -9 (under-penalised). Rounding keeps sum(score_per_checkpoint) in step
         # with team.total.
-        ordered_scores = [round(score) for _order, score in scores_by_order]
-        num_visits = len(team.times)
-        team.score_per_checkpoint = (
-            ordered_scores[:num_visits] + [0] * (num_visits - len(ordered_scores))
-        )[:num_visits]
+        by_order = {
+            checkpoint_order_by_id[cid]: round(score) for cid, score in checkpoint_scores.items()
+        }
+        team.score_per_checkpoint = [by_order.get(order, 0) for order in route_orders]
 
     async def update_all_team_scores(self, teams: list[Team]) -> None:
         """Recompute total + per-checkpoint scores for many teams in bulk.
@@ -600,6 +613,7 @@ class ScoringService:
             ) + float(award.points)
 
         now = datetime.now(UTC)
+        route_orders = await self._route_orders()
         for team in teams:
             checkpoint_scores, checkpoint_order_by_id, raw_total = per_team[team.id]
             total_score = raw_total + award_points_by_team.get(team.id, 0.0)
@@ -607,7 +621,9 @@ class ScoringService:
             if new_total != team.total:
                 team.last_scored_at = now
             team.total = new_total
-            self._apply_checkpoint_layout(team, checkpoint_scores, checkpoint_order_by_id)
+            self._apply_checkpoint_layout(
+                team, checkpoint_scores, checkpoint_order_by_id, route_orders
+            )
 
     async def _publish_result_change(
         self,
@@ -634,9 +650,20 @@ class ScoringService:
         )
 
     async def apply_extra_shots_bonus(
-        self, team_id: int, activity_id: int, extra_shots: int
+        self,
+        team_id: int,
+        activity_id: int,
+        extra_shots: int,
+        *,
+        editor: EvaluationEditor | None = None,
     ) -> bool:
-        """Apply extra shots bonus to a team's activity result"""
+        """Apply extra shots bonus to a team's activity result.
+
+        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
+        does. This route changes ``final_score`` like any other edit, and used
+        to leave no trail at all — an untracked way to rewrite a team's points
+        that sat right next to the audited one.
+        """
         # Get team size to validate limit
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
@@ -660,11 +687,16 @@ class ScoringService:
         if not result:
             return False
 
+        before = _snapshot_result(result) if editor is not None else None
+
         # Update extra shots
         result.extra_shots = extra_shots
 
         # Recalculate final score
         await self._recalculate_result_score(result)
+
+        if before is not None and editor is not None:
+            self._queue_history(result, before, editor)
 
         await self.db.commit()
         # final_score changed, so the team total must follow.
@@ -673,7 +705,13 @@ class ScoringService:
         return True
 
     async def apply_penalty(
-        self, team_id: int, activity_id: int, penalty_type: str, penalty_count: int
+        self,
+        team_id: int,
+        activity_id: int,
+        penalty_type: str,
+        penalty_count: int,
+        *,
+        editor: EvaluationEditor | None = None,
     ) -> bool:
         """Apply a penalty occurrence count to a team's activity result.
 
@@ -685,6 +723,9 @@ class ScoringService:
         the same way every other penalty is (``resolve_penalty_points``), so
         an unknown ``penalty_type`` is rejected rather than accepted as free
         points.
+
+        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
+        does — this changes the team's points and must leave the same trail.
         """
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
@@ -696,6 +737,8 @@ class ScoringService:
         activity = await self.db.get(Activity, activity_id)
         if not activity:
             return False
+
+        before = _snapshot_result(result) if editor is not None else None
 
         priced = await self.resolve_penalty_points(activity, {penalty_type: penalty_count})
         added_points = priced.get(penalty_type, 0)
@@ -710,6 +753,9 @@ class ScoringService:
 
         # Recalculate final score
         await self._recalculate_result_score(result)
+
+        if before is not None and editor is not None:
+            self._queue_history(result, before, editor)
 
         await self.db.commit()
         # final_score changed, so the team total must follow.

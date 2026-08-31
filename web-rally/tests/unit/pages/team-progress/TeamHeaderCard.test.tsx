@@ -26,7 +26,14 @@ const baseTeam = {
 describe("TeamHeaderCard", () => {
   it("renders team name, initials, and access code", () => {
     render(
-      <TeamHeaderCard team={baseTeam} showScore showRanking completedCount={3} totalCount={5} />,
+      <TeamHeaderCard
+        team={baseTeam}
+        showScore
+        showRanking
+        rank={2}
+        completedCount={3}
+        totalCount={5}
+      />,
     );
     expect(screen.getByText("Team Alpha")).toBeInTheDocument();
     expect(screen.getByText("TA")).toBeInTheDocument();
@@ -36,7 +43,14 @@ describe("TeamHeaderCard", () => {
 
   it("shows ranking and score when enabled", () => {
     render(
-      <TeamHeaderCard team={baseTeam} showScore showRanking completedCount={0} totalCount={5} />,
+      <TeamHeaderCard
+        team={baseTeam}
+        showScore
+        showRanking
+        rank={2}
+        completedCount={0}
+        totalCount={5}
+      />,
     );
     expect(screen.getByText("#2")).toBeInTheDocument();
     expect(screen.getByText("150")).toBeInTheDocument();
@@ -48,6 +62,7 @@ describe("TeamHeaderCard", () => {
         team={baseTeam}
         showScore={false}
         showRanking={false}
+        rank={2}
         completedCount={0}
         totalCount={5}
       />,
@@ -59,7 +74,14 @@ describe("TeamHeaderCard", () => {
   it("does not render access code when absent", () => {
     const teamNoCode = { ...baseTeam, access_code: undefined } as unknown as PrivilegedDetailedTeam;
     render(
-      <TeamHeaderCard team={teamNoCode} showScore showRanking completedCount={0} totalCount={5} />,
+      <TeamHeaderCard
+        team={teamNoCode}
+        showScore
+        showRanking
+        rank={2}
+        completedCount={0}
+        totalCount={5}
+      />,
     );
     expect(screen.queryByText(/Código:/)).not.toBeInTheDocument();
   });

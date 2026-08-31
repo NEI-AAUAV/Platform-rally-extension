@@ -179,9 +179,7 @@ class CheckinController:
         checkpoint = await service.get_checkpoint_or_raise(checkpoint_id)
         require_same_event(team_obj.event_id, checkpoint.event_id)
 
-        arrival_status = service.derive_staff_scan_status(
-            checkpoint_order=checkpoint.order, times_reached=len(team_obj.times)
-        )
+        arrival_status = await service.derive_staff_scan_status(team_obj, checkpoint)
         if arrival_status == "checked_in":
             await service.check_in_and_publish(team_obj.id, checkpoint)
             await record_audit(
@@ -226,15 +224,12 @@ class CheckinController:
         team_obj = await service.get_team_or_raise(team.team_id)
         require_same_event(team_obj.event_id, checkpoint.event_id)
 
-        # Sequential guard: a team may only check into its next checkpoint. times[]
-        # holds the checkpoints already visited, so the next expected order is
-        # len(times) + 1. Anything else is out of order (skip ahead or repeat).
-        expected_order = len(team_obj.times) + 1
-        if checkpoint.order != expected_order:
-            raise RallyConflictError(
-                f"Out-of-order check-in: expected checkpoint {expected_order}, "
-                f"scanned {checkpoint.order}"
-            )
+        # A team may only check into a post the route currently leaves open to
+        # it. That is the engine's answer, not ``len(times) + 1``: the count is
+        # the post's order only on a strictly sequential route, and this same
+        # scan is legitimate at any unvisited post in free order, or at any
+        # post the current stage allows.
+        await service.require_open(team_obj, checkpoint)
 
         await service.check_in_and_publish(team.team_id, checkpoint)
         await record_audit(

@@ -157,8 +157,18 @@ export default function NextCheckpointCard({
   // The way out of an unsolvable riddle. Offered only once the hint ladder is
   // spent, so it reads as a last resort rather than a shortcut — the server
   // allows it at any point, this is a nudge, not the rule.
+  //
+  // "Spent" has to mean the team actually climbed the ladder. With
+  // `hints_enabled` off the server reports `remaining: 0` because there is
+  // nothing to buy, not because anything was bought — so keying off the count
+  // alone put the give-up button on every redacted post from the first second,
+  // which is the opposite of a last resort. When the mechanic is off there is
+  // no ladder to spend, so the nudge has nothing to wait for and the button is
+  // offered straight away; when it is on, it waits for the ladder.
   const skipCost = settings?.skip_penalty ?? 0;
-  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hints.remaining === 0;
+  const hintsOff = settings?.hints_enabled === false;
+  const hintLadderSpent = hintsOff || (hasHintLadder && hints.remaining === 0);
+  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hintLadderSpent;
 
   // Both actions spend points, so each goes through an in-app confirmation
   // instead of the browser's confirm() — the native dialog breaks out of the

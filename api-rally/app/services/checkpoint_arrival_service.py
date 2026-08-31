@@ -64,9 +64,10 @@ class CheckpointArrivalService:
         guide *is* the proof, so there is no distance to validate and no
         coordinates to store.
 
-        Everything else still applies: the cross-edition guard and the event
-        window, and the insert is idempotent on (team, checkpoint) exactly like
-        the GPS path. Returns True when this call created the arrival.
+        Everything else still applies: the cross-edition guard, the event
+        window and the post's own opening hours, and the insert is idempotent
+        on (team, checkpoint) exactly like the GPS path. Returns True when this
+        call created the arrival.
         """
         checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if not checkpoint:
@@ -81,6 +82,14 @@ class CheckpointArrivalService:
             datetime.now(UTC),
             start_offset_minutes=team_obj.start_offset_minutes or 0,
         )
+
+        # Opening hours apply here exactly as they do to a GPS arrival. Without
+        # this an out-of-hours guide arrival wrote a permanent row that revealed
+        # the post (arrival short-circuits redaction) while the auto-advance
+        # behind it refused, leaving the team revealed but not moved on.
+        closed = hours_block_reason(checkpoint, settings)
+        if closed is not None:
+            raise RallyValidationError(closed_message(checkpoint, closed))
 
         arrival = await self._insert_arrival(
             team_id=team_id, checkpoint_id=checkpoint_id, latitude=None, longitude=None
@@ -239,7 +248,14 @@ class CheckpointArrivalService:
             )
             raise RallyValidationError(
                 f"Too far from checkpoint: {_distance_bucket(dist)} "
-                f"(max {checkpoint.arrival_radius_m}m)"
+                f"(max {checkpoint.arrival_radius_m}m)",
+                # The band and the radius as fields, so the app renders its own
+                # sentence instead of running a regex over this one.
+                details={
+                    "code": "too_far",
+                    "distance_band": _distance_bucket(dist),
+                    "max_distance_m": checkpoint.arrival_radius_m,
+                },
             )
 
         arrival = await self._insert_arrival(
@@ -259,13 +275,19 @@ class CheckpointArrivalService:
         return dist, arrival is None
 
     async def auto_complete_if_no_activities(self, team_id: int, checkpoint_id: int) -> bool:
-        """Mark a no-activity checkpoint as completed on GPS arrival and advance.
+        """Stamp the visit time for a no-activity post the team just arrived at.
 
         Peddy-paper posts that only require *being there* (no staff-judged
-        activity) should not wait for an evaluation that will never come. When a
-        team checks in at such a post and it is the post they are currently due to
-        reach, we check them in — which appends this checkpoint to team.times and
-        moves their "current" pointer to the next post.
+        activity) should not wait for an evaluation that will never come. The
+        arrival row is what resolves such a post for the progress engine; this
+        appends the matching entry to ``team.times``, the visit-timestamp log.
+
+        **Call this only when the arrival was newly created.** It used to run on
+        every request "because the order guard inside makes it a no-op" — it
+        does not. The guard asks whether the post is open *ignoring this post's
+        own arrival row*, which is by definition unchanged on a repeat, so a
+        team tapping check-in five times at post 1 appended five entries and was
+        treated as standing at post 6.
 
         Posts that DO have activities are left untouched: those only advance once
         staff submits the activity result (handled by check_and_advance_team).
@@ -291,30 +313,24 @@ class CheckpointArrivalService:
         if not team_obj:
             return False
 
-        # Only auto-advance when the team may actually check in here. This mirrors
-        # add_checkpoint's own validation (same predicate) so the guard tracks the
-        # `checkpoint_order_matters` setting instead of assuming strict order —
-        # under free-order routes every no-activity post would otherwise stay stuck.
+        # Only auto-advance when the team may actually check in here, under
+        # whatever ordering rule the event runs (sequential, free, or staged).
+        # ``ignore_arrival_for`` neutralises this post's own arrival row, which
+        # the caller has just written: without it the post would already read as
+        # resolved and the guard would refuse the very arrival it is evaluating.
         settings = await rally_settings.get_or_create(self._db)
-        # ``ignore_times_inflation=True``: a prior staff-eval advance appends a
-        # pointer row to team.times for a post not yet reached, so the bare
-        # count would reject this genuine arrival at the no-activity post it is
-        # actually standing at. Count resolved posts instead, like the hint /
-        # give-up / proximity callers.
         if not await can_reach_checkpoint(
             self._db,
             team=team_obj,
             checkpoint=checkpoint_obj,
             settings=settings,
-            ignore_times_inflation=True,
+            ignore_arrival_for=checkpoint_obj.id,
         ):
             return False
 
         try:
-            # enforce_order=False: reachability was just checked above with the
-            # inflation-aware predicate. checkin_team_to_checkpoint's own
-            # enforce_order path uses the bare len(team.times) count, which the
-            # prior staff-eval advance has already run past this post's order.
+            # enforce_order=False: reachability was just checked above against
+            # the progress engine, with this arrival held out.
             await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
             return True
         except Exception as exc:  # advancement is best-effort; arrival still succeeds

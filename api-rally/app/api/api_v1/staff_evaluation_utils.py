@@ -8,7 +8,6 @@ This module contains helper functions for:
 - Checkpoint progress calculation
 """
 
-from collections.abc import Sequence
 from typing import Any
 
 from loguru import logger
@@ -22,18 +21,18 @@ from app.api.auth import AuthData
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
 from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team
 from app.models.activity import Activity, ActivityResult
-from app.models.checkpoint_arrival import CheckpointArrival
-from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.activity import (
     ActivityResultCreate,
     ActivityResultEvaluation,
     ActivityResultUpdate,
 )
-from app.schemas.team import TeamScoresUpdate
 from app.schemas.user import DetailedUser
+from app.services.checkpoint_visits import record_visit
+from app.services.route_progress import RouteSnapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
 # Error message constants
@@ -266,12 +265,19 @@ async def mirror_team_vs_result(
     activity_obj: Activity,
     team_id: int,
     result_data: dict[str, Any],
+    *,
+    editor: EvaluationEditor | None = None,
 ) -> None:
     """Keep the opponent's TeamVsActivity result in sync.
 
     When staff marks one team as the winner/loser of a versus matchup, the
     paired team's result for the same activity should flip automatically
     instead of requiring a second, separately-entered evaluation.
+
+    ``editor`` is the person whose evaluation caused the mirror. The write is
+    automatic but it is still somebody's decision changing the opponent's
+    points, and passing it through is what puts that team's flipped result in
+    ``EvaluationHistory`` alongside the one that was entered by hand.
     """
     if activity_obj.activity_type != "TeamVsActivity":
         return
@@ -294,6 +300,7 @@ async def mirror_team_vs_result(
         activity_obj.id,
         ActivityResultEvaluation(result_data=opponent_result_data),
         set_extra_shots_on_update=False,
+        editor=editor,
     )
 
 
@@ -327,15 +334,6 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     if not team_obj:
         return
 
-    # Idempotency guard: len(times) counts checkpoints already reached. If the
-    # team is already past this checkpoint's order, there is nothing to do.
-    if len(team_obj.times) > checkpoint_obj.order:
-        logger.debug(
-            f"Team {team_id} already past checkpoint {current_checkpoint_id} "
-            f"(order {checkpoint_obj.order}), not advancing"
-        )
-        return
-
     # Only advance once every activity at this checkpoint has a scored result.
     stmt = (
         select(ActivityResult)
@@ -358,9 +356,9 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
     if not pending:
         logger.debug(
             f"Team {team_id} completed all activities at "
-            f"checkpoint {current_checkpoint_id}, advancing..."
+            f"checkpoint {current_checkpoint_id}, recording the visit"
         )
-        await ensure_team_checkpoint_and_advance(db, team_id, current_checkpoint_id)
+        await checkin_team_to_checkpoint(db, team_id, current_checkpoint_id, enforce_order=False)
     else:
         logger.debug(
             f"Team {team_id} still has {len(pending)} unscored activities at "
@@ -368,87 +366,39 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
         )
 
 
-async def ensure_team_checkpoint_and_advance(
-    db: AsyncSession, team_id: int, current_checkpoint_id: int
-) -> None:
-    """Ensure team is checked into current checkpoint and advance to next"""
-    # CRUDBase.get() raises RallyNotFoundError rather than returning None, so
-    # these two guards are unreachable in practice; kept as defensive checks.
-    team_obj = await team.get(db, id=team_id)
-    if not team_obj:
-        return
-    current_checkpoint_order = len(team_obj.times)
-
-    # Convert checkpoint ID to order for comparison
-    checkpoint_obj = await checkpoint_crud.get(db, id=current_checkpoint_id)
-    if not checkpoint_obj:
-        return
-
-    checkpoint_order = checkpoint_obj.order
-
-    # If team hasn't been checked into current checkpoint yet, check them in first
-    if current_checkpoint_order < checkpoint_order:
-        await checkin_team_to_checkpoint(db, team_id, current_checkpoint_id)
-
-    # Now advance to next checkpoint
-    await advance_team_to_next_checkpoint(db, team_id)
-
-
 async def checkin_team_to_checkpoint(
     db: AsyncSession, team_id: int, checkpoint_id: int, *, enforce_order: bool = True
 ) -> None:
-    """Check team into checkpoint with default scores.
+    """Record that the team visited this checkpoint.
 
-    ``enforce_order`` is False for the give-up path: reachability was already
-    checked by ``SkipService`` and the skip row makes the post resolved, so the
-    ``len(team.times)``-based order check would reject the pointer append.
+    Idempotent via the arrival row (see ``checkpoint_visits.record_visit``), so
+    a re-evaluation at a post the team has already been recorded at is a no-op.
+
+    There is no longer a second append pointing at the *next* post. Progress is
+    read from what the team has actually resolved, so scoring the last activity
+    here moves the pointer on by itself. The old pair — "check in, then advance"
+    — wrote two entries for one post whenever anything else had already
+    recorded the visit (a guide arrival, a staff scan), which walked the team
+    past a post it never went to.
+
+    ``enforce_order`` is False for callers that have already run the
+    reachability check themselves.
     """
-    checkin_scores = TeamScoresUpdate(
-        checkpoint_id=checkpoint_id,
-        question_score=0,  # Default score
-        time_score=0,  # Default score
-        pukes=0,  # Default
-        skips=0,  # Default
-    )
-
     try:
-        await team.add_checkpoint(
-            db=db,
-            id=team_id,
+        recorded = await record_visit(
+            db,
+            team_id=team_id,
             checkpoint_id=checkpoint_id,
-            obj_in=checkin_scores,
             enforce_order=enforce_order,
         )
-        logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
     except Exception as e:
         # Log error and propagate - checkpoint advancement is critical
         logger.error(f"Failed to check team {team_id} into checkpoint {checkpoint_id}: {e}")
         raise
-
-
-async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> None:
-    """Advance team to next checkpoint with default scores"""
-    next_checkpoint = await checkpoint_crud.get_next(db, team_id=team_id)
-    if next_checkpoint:
-        advance_scores = TeamScoresUpdate(
-            checkpoint_id=next_checkpoint.id,
-            question_score=0,  # Default score
-            time_score=0,  # Default score
-            pukes=0,  # Default
-            skips=0,  # Default
-        )
-
-        try:
-            await team.add_checkpoint(
-                db=db, id=team_id, checkpoint_id=next_checkpoint.id, obj_in=advance_scores
-            )
-            logger.info(f"Advanced team {team_id} to checkpoint {next_checkpoint.id}")
-        except Exception as e:
-            # Log error and propagate - checkpoint advancement failure should be visible
-            logger.error(
-                f"Failed to advance team {team_id} to checkpoint {next_checkpoint.id}: {e}"
-            )
-            raise
+    if recorded:
+        logger.info(f"Checked team {team_id} into checkpoint {checkpoint_id}")
+    else:
+        logger.debug(f"Team {team_id} was already recorded at checkpoint {checkpoint_id}")
 
 
 # =============================================================================
@@ -457,120 +407,24 @@ async def advance_team_to_next_checkpoint(db: AsyncSession, team_id: int) -> Non
 
 
 async def compute_checkpoint_progress(
-    db: AsyncSession,
-    team_obj: Team,
-    *,
-    checkpoints: Sequence[Any] | None = None,
-    activities_by_checkpoint: dict[int, list[Any]] | None = None,
+    db: AsyncSession, team_obj: Team, *, route: RouteSnapshot | None = None
 ) -> tuple[int, int | None, list[int]]:
-    """
-    Calculate last and current checkpoint numbers plus completed orders for a team.
+    """(last_completed_order, current_order, resolved_orders) for a team.
 
-    Mirrors ``TeamService.compute_checkpoint_progress`` exactly (same rule for
-    skips and no-activity/GPS-auto-complete checkpoints), so a staff view of a
-    team's progress never diverges from what the team itself sees. A checkpoint
-    without an activity used to be silently skipped here regardless of whether
-    the team had actually checked in — which meant a peddy-paper post could
-    never register as done for staff, and never blocked one either.
-
-    M3: ``checkpoints``/``activities_by_checkpoint`` let a caller looping over
-    many teams (``get_teams_at_my_checkpoint``) load the checkpoint list and
-    each checkpoint's activities once and pass them in, instead of this
-    function re-querying both per team — 30 teams x 15 checkpoints was 450+
-    queries on the screen staff open most. Omit either to fall back to the
-    original per-call query, for callers scoring a single team.
+    Delegates to ``route_progress.progress_for_team``, which is the whole
+    point: this used to be a second, hand-maintained copy of the same scan, so
+    "what the staff screen says about a team" and "what the team's own screen
+    says" were two implementations that had to be kept in step by hand and
+    were not. The batching parameters this took are gone with it — the engine
+    loads every post's activities in one query rather than one per post.
     """
-    if checkpoints is None:
-        checkpoints = await checkpoint_crud.get_all_ordered(db)
-    team_results = await activity_result.get_by_team(db, team_id=team_obj.id)
-    # is_scored (is_completed AND has a final_score), not is_completed
-    # alone — a deferred-judged capture sets is_completed=True before a judge
-    # has scored it. See ActivityResult.is_scored.
-    completed_activity_ids = {r.activity_id for r in team_results if getattr(r, "is_scored", False)}
-    skipped_ids = set(
-        (
-            await db.scalars(
-                select(CheckpointSkip.checkpoint_id).where(CheckpointSkip.team_id == team_obj.id)
-            )
-        ).all()
+    settings = await rally_settings.get_or_create(db)
+    progress = await progress_for_team(db, team_obj, settings, route=route)
+    return (
+        progress.last_completed_order,
+        progress.current_order,
+        sorted(progress.resolved_orders),
     )
-    # A no-activity post counts as done only once the team has *physically
-    # arrived* there — read from the arrivals table, not inferred from
-    # len(team.times), which advance_team_to_next_checkpoint inflates with a
-    # "next post" pointer the team has not reached yet.
-    arrived_checkpoint_ids = set(
-        (
-            await db.scalars(
-                select(CheckpointArrival.checkpoint_id).where(
-                    CheckpointArrival.team_id == team_obj.id
-                )
-            )
-        ).all()
-    )
-
-    last_completed_order = 0
-    completed_orders: list[int] = []
-    for cp in checkpoints:
-        if cp.id in skipped_ids:
-            last_completed_order = cp.order
-            completed_orders.append(cp.order)
-            continue
-
-        cp_activities = (
-            activities_by_checkpoint.get(cp.id, [])
-            if activities_by_checkpoint is not None
-            else await activity.get_by_checkpoint(db, checkpoint_id=cp.id)
-        )
-        active_ids = [a.id for a in cp_activities if a.is_active]
-        if not active_ids:
-            # No activity to judge here: the post counts as done once the
-            # team has actually arrived (GPS/guide arrival row). Otherwise
-            # it is still their current, not-yet-reached post — stop here.
-            if cp.id in arrived_checkpoint_ids:
-                last_completed_order = cp.order
-                completed_orders.append(cp.order)
-                continue
-            break
-
-        if all(aid in completed_activity_ids for aid in active_ids):
-            last_completed_order = cp.order
-            completed_orders.append(cp.order)
-        else:
-            # Stop at first incomplete checkpoint (teams must complete in order)
-            break
-
-    current_order = determine_current_order(checkpoints, last_completed_order)
-    return last_completed_order, current_order, completed_orders
-
-
-async def checkpoint_has_activities(db: AsyncSession, checkpoint_id: int) -> bool:
-    return bool(await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id))
-
-
-async def is_checkpoint_completed(
-    db: AsyncSession, checkpoint_id: int, completed_activity_ids: set[int]
-) -> bool:
-    checkpoint_activities = await activity.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
-    if not checkpoint_activities:
-        return False
-    return all(act.id in completed_activity_ids for act in checkpoint_activities)
-
-
-def determine_current_order(checkpoints: Sequence[Any], last_completed_order: int) -> int | None:
-    """The order of the post the team is working on, or None if there is none.
-
-    None means the route is finished (or there is no route). Clamping to the
-    last post's order instead — which this used to do — is indistinguishable
-    from a team still working on that post, and it is what left a finished team
-    being shown its final post as "próximo posto" forever. See
-    TeamService.compute_checkpoint_progress, which carries the same rule.
-    """
-    if not checkpoints:
-        return None
-    max_order = checkpoints[-1].order
-    if last_completed_order < max_order:
-        return last_completed_order + 1
-    return None
 
 
 async def build_team_for_staff(
@@ -578,28 +432,18 @@ async def build_team_for_staff(
     team_obj: Team,
     staff_checkpoint_order: int | None = None,
     *,
-    checkpoints: Sequence[Any] | None = None,
-    activities_by_checkpoint: dict[int, list[Any]] | None = None,
+    route: RouteSnapshot | None = None,
 ) -> dict[str, Any]:
     """Build team data for staff evaluation.
 
     The caller must eager-load team_obj.members (accessed below).
-
-    pass ``checkpoints``/``activities_by_checkpoint`` (see
-    ``compute_checkpoint_progress``) when building this for many teams in a
-    loop, so each is queried once for the whole list instead of once per team.
     """
 
     (
         last_checkpoint_number,
         current_checkpoint_number,
         completed_orders,
-    ) = await compute_checkpoint_progress(
-        db,
-        team_obj,
-        checkpoints=checkpoints,
-        activities_by_checkpoint=activities_by_checkpoint,
-    )
+    ) = await compute_checkpoint_progress(db, team_obj, route=route)
 
     return {
         "id": team_obj.id,
@@ -609,9 +453,7 @@ async def build_team_for_staff(
         "versus_group_id": team_obj.versus_group_id,
         "num_members": len(team_obj.members) if team_obj.members else 0,
         "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
-        "last_checkpoint_score": team_obj.score_per_checkpoint[-1]
-        if team_obj.score_per_checkpoint
-        else None,
+        "last_checkpoint_score": team_obj.last_checkpoint_score,
         "last_checkpoint_number": last_checkpoint_number,
         "current_checkpoint_number": current_checkpoint_number,
         "completed_checkpoint_numbers": completed_orders,

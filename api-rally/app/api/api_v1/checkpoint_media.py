@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.abac_deps import require_checkpoint_management_permission
@@ -9,11 +10,16 @@ from app.models.checkpoint_media import MediaKind
 from app.schemas.checkpoint_media import CheckpointMediaResponse
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_media_service import CheckpointMediaService
 from app.services.deps import get_checkpoint_media_service
 
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 MEDIA_NOT_FOUND = "Media not found"
+
+
+def _actor(curr_user: DetailedUser) -> AuditActor:
+    return AuditActor(id=str(curr_user.id), name=curr_user.name, kind="user")
 
 
 class CheckpointMediaController:
@@ -80,6 +86,8 @@ class CheckpointMediaController:
     async def create_checkpoint_media(
         self,
         checkpoint_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
         kind: Annotated[MediaKind, Form()],
         caption: Annotated[str | None, Form()] = None,
@@ -90,7 +98,7 @@ class CheckpointMediaController:
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
         try:
-            return await service.create_media(
+            created = await service.create_media(
                 checkpoint_id,
                 kind=kind,
                 caption=caption,
@@ -102,10 +110,21 @@ class CheckpointMediaController:
             )
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        await record_audit(
+            db,
+            action="checkpoint.media_created",
+            actor=_actor(curr_user),
+            target_type="checkpoint_media",
+            target_id=str(created.id),
+            note=f"checkpoint_id={checkpoint_id} kind={kind.value}",
+        )
+        return created
 
     async def update_checkpoint_media(
         self,
         media_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
         caption: Annotated[str | None, Form()] = None,
         order: Annotated[int | None, Form()] = None,
@@ -115,7 +134,7 @@ class CheckpointMediaController:
         image: Annotated[UploadFile | None, File()] = None,
     ) -> CheckpointMediaResponse:
         try:
-            return await service.update_media(
+            updated = await service.update_media(
                 media_id,
                 caption=caption,
                 order=order,
@@ -126,21 +145,50 @@ class CheckpointMediaController:
             )
         except (ValidationError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        await record_audit(
+            db,
+            action="checkpoint.media_updated",
+            actor=_actor(curr_user),
+            target_type="checkpoint_media",
+            target_id=str(media_id),
+            note=f"checkpoint_id={updated.checkpoint_id}",
+        )
+        return updated
 
     async def delete_checkpoint_media(
         self,
         media_id: int,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
     ) -> None:
         await service.delete_media(media_id)
+        await record_audit(
+            db,
+            action="checkpoint.media_deleted",
+            actor=_actor(curr_user),
+            target_type="checkpoint_media",
+            target_id=str(media_id),
+        )
 
     async def reorder_checkpoint_media(
         self,
         checkpoint_id: int,
         ordered_ids: list[int],
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[CheckpointMediaService, Depends(get_checkpoint_media_service)],
     ) -> list[CheckpointMediaResponse]:
-        return await service.reorder_media(checkpoint_id, ordered_ids)
+        reordered = await service.reorder_media(checkpoint_id, ordered_ids)
+        await record_audit(
+            db,
+            action="checkpoint.media_reordered",
+            actor=_actor(curr_user),
+            target_type="checkpoint",
+            target_id=str(checkpoint_id),
+            note=f"ordered_ids={ordered_ids}",
+        )
+        return reordered
 
 
 router = CheckpointMediaController().router

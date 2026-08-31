@@ -1,27 +1,31 @@
 import type { RallySettingsResponse } from "@/client";
 
 /**
- * Default Rally configuration values
- * These are fallback values when API settings are not available
+ * Fallbacks for the moment before the API's settings arrive.
+ *
+ * They mirror the column defaults in `api-rally/app/models/rally_settings.py`,
+ * which are the system's one default table. Keep them in step: the two sets
+ * had drifted (vomit was -5 against the backend's -10), so a screen rendered
+ * before the settings loaded quoted a penalty the event does not charge.
  */
 export const RALLY_DEFAULTS = {
   // Penalty values (fallback when API not available). Negative by convention,
   // matching the RallySettings columns — the backend applies `abs()` when
   // scoring, and the UI renders the signed value as "N pts each".
   PENALTY_VALUES: {
-    vomit: -5, // Fallback from RallySettings.penalty_per_puke
-    not_drinking: -2, // Fallback from RallySettings.penalty_per_not_drinking
+    vomit: -10, // RallySettings.penalty_per_puke
+    not_drinking: -2, // RallySettings.penalty_per_not_drinking
   },
 
   // Extra shots configuration
   EXTRA_SHOTS: {
-    perMember: 5, // Default extra shots per team member (increased from 1)
+    perMember: 5, // RallySettings.max_extra_shots_per_member
   },
 
   // Form defaults
   FORM_DEFAULTS: {
     generalPoints: 50, // Default points for General activities
-    maxExtraShotsPerMember: 5, // Increased to match EXTRA_SHOTS.perMember
+    maxExtraShotsPerMember: 5, // matches EXTRA_SHOTS.perMember
   },
 } as const;
 

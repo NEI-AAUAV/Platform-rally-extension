@@ -1,17 +1,18 @@
 import { lazy, Suspense } from "react";
 import { Navigation } from "lucide-react";
 import { routeUrl, type MapCoordinates } from "@/lib/mapLinks";
+import type { DetailedCheckPoint } from "@/client";
 
 const RealMap = lazy(() => import("./RealMap"));
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  order: number;
-}
+/** The generated schema, not a local shape.
+ *
+ * The hand-written interface omitted `is_redacted`, `clue` and the `search_*`
+ * circle fields, so TypeScript could not warn about code that ignored
+ * redaction — and the search circles RealMap draws were invisible to every
+ * caller's types.
+ */
+type Checkpoint = DetailedCheckPoint;
 
 type MapSectionProps = Readonly<{
   checkpoints: Checkpoint[];

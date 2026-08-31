@@ -10,19 +10,10 @@ import { MapPin } from "lucide-react";
 import { CheckpointList, MapSection } from "./components";
 import { Navigate } from "@tanstack/react-router";
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  order: number;
-}
-
 import { useUserStore } from "@/stores/useUserStore";
 
 export default function Postos() {
-  const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
+  const [selectedCheckpoint, setSelectedCheckpoint] = useState<DetailedCheckPoint | null>(null);
   const { settings } = useRallySettings();
   const terms = useEventTerms();
   const checkpointsLabel = capitalize(terms.checkpoints);
@@ -55,7 +46,7 @@ export default function Postos() {
   }
 
   // Sort checkpoints by order property from database
-  const sortedCheckpoints: Checkpoint[] =
+  const sortedCheckpoints: DetailedCheckPoint[] =
     checkpoints
       ?.slice()
       .sort((a: DetailedCheckPoint, b: DetailedCheckPoint) => a.order - b.order) || [];

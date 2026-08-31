@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import TypeAdapter
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,9 +16,10 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
-from app.models.activity import Activity
+from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.checkpoint_skip import CheckpointSkip
 from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.team import Team
 from app.models.user import User
@@ -29,12 +30,7 @@ from app.schemas.checkpoint import (
 )
 from app.schemas.team import ListingTeam
 from app.services.checkpoint_planning import missing_fields
-from app.services.route_progress import (
-    current_checkpoint_order,
-    load_stages,
-    resolved_checkpoint_orders,
-)
-from app.services.route_stages import is_reachable_in_stages
+from app.services.route_progress import TeamProgress, progress_for_team
 from app.services.team_service import TeamService
 
 
@@ -92,11 +88,10 @@ class CheckpointService:
     def _redact_unreached(
         checkpoint: DetailedCheckPoint,
         *,
-        current_order: int | None,
+        resolved_orders: frozenset[int],
+        open_orders: frozenset[int],
         has_arrived: bool = False,
         search_radius_m: int = 0,
-        current_orders: frozenset[int] | None = None,
-        resolved_orders: frozenset[int] | None = None,
     ) -> DetailedCheckPoint:
         """Strip the answer-bearing fields from a checkpoint the team hasn't
         reached yet: name, description, and coordinates. In a peddy paper,
@@ -113,36 +108,26 @@ class CheckpointService:
           name and photos from a team standing in front of it made arriving
           unrewarding — finding the place is the whole game.
 
-        The ``clue`` survives redaction, but **only for the post the team is
-        currently hunting** (order == current_order). A riddle describes its
-        place well enough that anyone who knows the city can read it and skip
-        straight there, so handing over the whole route's riddles at once lets
-        a team solve post 4 while standing at post 1. One riddle at a time is
-        the game. It is also mirrored into ``description`` so clients that only
-        render the description still show something.
+        The ``clue`` survives redaction, but **only for the posts the team may
+        head to now** (``open_orders``). A riddle describes its place well
+        enough that anyone who knows the city can read it and skip straight
+        there, so handing over the whole route's riddles at once lets a team
+        solve post 4 while standing at post 1. One riddle at a time is the
+        game — or, in a free-choice stage, one riddle per genuinely open post.
+        It is also mirrored into ``description`` so clients that only render the
+        description still show something.
+
+        Both sets come from ``route_progress.progress_for_team``. "Resolved"
+        is deliberately a set membership and not ``order < current_order``:
+        under free order or stages a team resolves posts out of sequence, and
+        the comparison censored a post the team had already finished.
+        Unauthenticated callers pass two empty sets, so nothing is resolved and
+        nothing is open.
         """
-        # With stages, "done" and "current" stop being a single number: a
-        # free-choice stage leaves several posts open at once, and the team may
-        # have resolved them out of order. The caller passes the two sets when
-        # that is the case; otherwise the sequential comparison stands.
-        # current_order None means the team has no post left to go to: the
-        # route is finished, so every post is behind them and nothing is
-        # current. (Public callers pass 0, which resolves nothing.)
-        is_resolved = (
-            checkpoint.order in resolved_orders
-            if resolved_orders is not None
-            else current_order is None or checkpoint.order < current_order
-        )
-        if is_resolved or has_arrived:
+        if checkpoint.order in resolved_orders or has_arrived:
             return checkpoint
         area = CheckpointService._search_area(checkpoint, search_radius_m)
-        # Only the posts they may head to now. Public callers pass
-        # current_order=0 and no set, so they never match and get no riddle.
-        is_current = (
-            checkpoint.order in current_orders
-            if current_orders is not None
-            else current_order is not None and checkpoint.order == current_order
-        )
+        is_current = checkpoint.order in open_orders
         clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
             update={
@@ -163,21 +148,20 @@ class CheckpointService:
         self,
         checkpoints: Sequence[Any],
         *,
-        current_order: int | None,
+        resolved_orders: frozenset[int],
+        open_orders: frozenset[int],
         reveal_next: bool,
         arrived_ids: frozenset[int] = frozenset(),
         search_radius_m: int = 0,
-        current_orders: frozenset[int] | None = None,
-        resolved_orders: frozenset[int] | None = None,
     ) -> list[DetailedCheckPoint]:
+        """Stamp ``is_reachable`` on every post, then redact the unreached ones.
+
+        ``is_reachable`` is set on the revealed path too: a fully-visible rally
+        can still run free-choice stages, and the team's screen has no other
+        way to know that more than one post is open.
+        """
         validated = [
-            cp.model_copy(
-                update={
-                    "is_reachable": self._is_reachable(
-                        cp, current_order=current_order, current_orders=current_orders
-                    )
-                }
-            )
+            cp.model_copy(update={"is_reachable": cp.order in open_orders})
             for cp in self._validate_list(checkpoints)
         ]
         if reveal_next:
@@ -185,33 +169,13 @@ class CheckpointService:
         return [
             self._redact_unreached(
                 cp,
-                current_order=current_order,
+                resolved_orders=resolved_orders,
+                open_orders=open_orders,
                 has_arrived=cp.id in arrived_ids,
                 search_radius_m=search_radius_m,
-                current_orders=current_orders,
-                resolved_orders=resolved_orders,
             )
             for cp in validated
         ]
-
-    @staticmethod
-    def _is_reachable(
-        checkpoint: DetailedCheckPoint,
-        *,
-        current_order: int | None,
-        current_orders: frozenset[int] | None,
-    ) -> bool:
-        """Whether this team may check in here right now.
-
-        Same rule the redactor uses to decide who gets a riddle, surfaced as a
-        flag: a free-choice stage opens several posts at once, and the team's
-        own screen otherwise had no way to know that more than one was
-        available. Set on both the redacted and unredacted paths, since a
-        fully-revealed rally can have free-choice stages too.
-        """
-        if current_orders is not None:
-            return checkpoint.order in current_orders
-        return current_order is not None and checkpoint.order == current_order
 
     async def all_checkpoints(self) -> list[DetailedCheckPoint]:
         """Every checkpoint in the current event, ordered — the admin/staff view."""
@@ -232,13 +196,19 @@ class CheckpointService:
         exactly as stored.
         """
         team = await self._team_crud.get(db=self._db, id=team_id)
-        order = await current_checkpoint_order(self._db, team) if team else None
-        if order is None:
+        if team is None:
             return None
-        checkpoint = await self._checkpoint_crud.get_by_order(db=self._db, order=order)
+        progress = await progress_for_team(self._db, team, settings)
+        if progress.current_order is None:
+            return None
+        checkpoint = await self._checkpoint_crud.get_by_order(
+            db=self._db, order=progress.current_order
+        )
         if checkpoint is None:
             return None
-        validated = DetailedCheckPoint.model_validate(checkpoint)
+        validated = DetailedCheckPoint.model_validate(checkpoint).model_copy(
+            update={"is_reachable": True}
+        )
         if redact is False or getattr(settings, "reveal_next_checkpoint", True):
             return validated
         arrived_ids = (
@@ -248,7 +218,8 @@ class CheckpointService:
         )
         return self._redact_unreached(
             validated,
-            current_order=validated.order,
+            resolved_orders=progress.resolved_orders,
+            open_orders=progress.open_orders,
             has_arrived=validated.id in arrived_ids,
             search_radius_m=int(getattr(settings, "search_radius_m", 0) or 0),
         )
@@ -270,9 +241,7 @@ class CheckpointService:
         if not team:
             return []
 
-        _, current_order, _ = await TeamService(
-            self._db, self._team_crud
-        ).compute_checkpoint_progress(team)
+        progress = await progress_for_team(self._db, team, settings)
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
         # Skipped entirely when nothing is redacted anyway, so a rally does not
         # pay for a query it cannot use.
@@ -283,93 +252,69 @@ class CheckpointService:
         )
         search_radius = int(getattr(settings, "search_radius_m", 0) or 0)
 
-        # Under stages there is no single "current" post: an ordered stage has
-        # one, a free stage has several at once. Both sets are computed here
-        # and handed to the redactor, which otherwise compares against a
-        # single order.
-        stage_sets = await self._stage_reveal_sets(team, settings)
-
-        if settings.show_route_mode == "complete":
-            return self._redact_list(
-                all_checkpoints,
-                current_order=current_order,
-                reveal_next=reveal_next,
-                arrived_ids=arrived_ids,
-                search_radius_m=search_radius,
-                **stage_sets,
-            )
-
-        if stage_sets:
-            # Everything the team has finished, plus everything it may head to
-            # now. Posts locked behind a later stage stay out of the list.
-            open_orders = stage_sets["current_orders"] | stage_sets["resolved_orders"]
-            visible = [cp for cp in all_checkpoints if cp.order in open_orders]
-        elif getattr(settings, "checkpoint_order_matters", True):
-            # None = finished, so the prefix is the whole route.
-            visible = [
-                cp for cp in all_checkpoints if current_order is None or cp.order <= current_order
-            ]
-        else:
-            # Free order: a team can reach checkpoint 3 before 2, but a
-            # sequential prefix would hide that it exists at all. Every
-            # checkpoint is visible — completed ones pass through, the rest
-            # stay redacted until reached.
-            visible = list(all_checkpoints)
+        visible = self._visible_subset(all_checkpoints, settings, progress)
         return self._redact_list(
             visible,
-            current_order=current_order,
+            resolved_orders=progress.resolved_orders,
+            open_orders=progress.open_orders,
             reveal_next=reveal_next,
             arrived_ids=arrived_ids,
             search_radius_m=search_radius,
-            **stage_sets,
         )
 
-    async def _stage_reveal_sets(self, team: Any, settings: Any) -> dict[str, frozenset[int]]:
-        """``{"current_orders", "resolved_orders"}`` when the event runs on
-        stages, or an empty dict when it does not.
+    @staticmethod
+    def _visible_subset(
+        all_checkpoints: Sequence[Any], settings: Any, progress: TeamProgress
+    ) -> list[Any]:
+        """Which rows the team's route list contains at all.
 
-        Empty means "fall back to the sequential comparison", which is what
-        every event without stages has always done — the redactor and the
-        visibility filter both read it that way.
+        ``complete`` mode lists everything (still redacted). Otherwise the list
+        is what the team has finished plus what it may head to now — which for
+        a sequential route is the familiar prefix, for a free-order route is
+        every post, and for a staged route leaves the posts locked behind a
+        later stage out entirely.
         """
-        if not getattr(settings, "route_stages_enabled", False):
-            return {}
-        stages = await load_stages(self._db)
-        if not stages:
-            return {}
-
-        resolved = await resolved_checkpoint_orders(self._db, team)
-        reachable = frozenset(
-            order
-            for stage in stages
-            for order in stage.checkpoint_orders
-            if is_reachable_in_stages(
-                checkpoint_order=order, stages=stages, resolved_orders=resolved
-            )
-        )
-        return {"current_orders": reachable, "resolved_orders": resolved}
+        if settings.show_route_mode == "complete":
+            return list(all_checkpoints)
+        if progress.is_finished:
+            return list(all_checkpoints)
+        shown = progress.resolved_orders | progress.open_orders
+        return [cp for cp in all_checkpoints if cp.order in shown]
 
     async def visible_checkpoints_for_public(
         self, settings: Any
     ) -> list[DetailedCheckPoint] | None:
         """Return visible checkpoints for unauthenticated / public access.
 
-        ``show_checkpoint_map`` decides whether the route is public at all;
-        ``show_route_mode`` decides how much of it is revealed. Focused mode
-        exposes only the first post — progressive route reveal is the whole game
-        in peddy paper, so it is honored on every path that returns data.
+        ``public_access_enabled`` decides whether an unauthenticated caller is
+        served at all, ``show_checkpoint_map`` whether the route is one of the
+        things they get, and ``show_route_mode`` how much of it is revealed.
+        Focused mode exposes only the first post — progressive route reveal is
+        the whole game in peddy paper, so it is honored on every path that
+        returns data.
+
+        The first switch was checked only by ``/checkpoint/count``, so turning
+        public access off left the full route listing open; with
+        ``reveal_next_checkpoint`` on and a complete route mode, that is every
+        post's name, description and exact coordinates to anyone at all.
 
         Returns *None* when access should be denied.
         """
-        if not settings.show_checkpoint_map:
+        if not settings.public_access_enabled or not settings.show_checkpoint_map:
             return None
 
         all_checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db)
         subset = all_checkpoints[:1] if settings.show_route_mode == "focused" else all_checkpoints
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
-        # Public access has no team, hence no notion of "already completed" —
-        # every checkpoint is redacted as if unreached when redaction is on.
-        return self._redact_list(subset, current_order=0, reveal_next=reveal_next)
+        # Public access has no team, hence no notion of "already completed" and
+        # nothing open — every checkpoint is redacted as if unreached when
+        # redaction is on, and none of them carries a riddle.
+        return self._redact_list(
+            subset,
+            resolved_orders=frozenset(),
+            open_orders=frozenset(),
+            reveal_next=reveal_next,
+        )
 
     async def team_can_view_media(self, team_id: int, checkpoint_id: int, settings: Any) -> bool:
         """Whether a team's own token may see a checkpoint's media (photos,
@@ -392,26 +337,33 @@ class CheckpointService:
         ):
             return True
 
-        _, current_order, _ = await TeamService(
-            self._db, self._team_crud
-        ).compute_checkpoint_progress(team)
-        # Finished route: every post is behind them, so every gallery is open.
-        if current_order is None or checkpoint.order < current_order:
+        progress = await progress_for_team(self._db, team, settings)
+        if checkpoint.order in progress.resolved_orders:
             return True
-        if checkpoint.order == current_order:
+        if checkpoint.order in progress.open_orders:
             return getattr(settings, "reveal_next_checkpoint", True)
         return False
 
     async def public_can_view_media(self, checkpoint_id: int, settings: Any) -> bool:
-        """Whether an unauthenticated visitor may see a checkpoint's media."""
+        """Whether an unauthenticated visitor may see a checkpoint's media.
+
+        Scoped to the same subset the public route listing returns, rather than
+        the all-or-nothing check this used to be: outside focused mode it
+        answered True for *any* checkpoint id, which handed the whole route's
+        gallery to an unauthenticated caller.
+        """
         if not settings.show_checkpoint_map or not getattr(
             settings, "reveal_next_checkpoint", True
         ):
             return False
-        if settings.show_route_mode != "focused":
-            return True
+        if not getattr(settings, "public_access_enabled", False):
+            return False
         checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
-        return checkpoint is not None and checkpoint.order == 1
+        if checkpoint is None or checkpoint.is_draft:
+            return False
+        if settings.show_route_mode == "focused":
+            return checkpoint.order == 1
+        return True
 
     async def list_teams_at_checkpoint(
         self, *, checkpoint_id: int, is_admin_unfiltered: bool
@@ -419,33 +371,33 @@ class CheckpointService:
         """Teams currently at (or having passed through) a checkpoint.
 
         ``is_admin_unfiltered`` selects every team regardless of checkpoint
-        when an admin passed no ``checkpoint_id`` filter.
+        when an admin passed no ``checkpoint_id`` filter — scoped to the
+        current edition, which it was not: an unfiltered ``select(Team)``
+        returned every team the deployment had ever had.
+
+        Progress fields are filled in rather than left ``None``. They share the
+        ``ListingTeam`` schema with ``TeamService.build_listing_team``, and a
+        response where half the callers populate a field and half send null is
+        two meanings for one contract.
         """
         if is_admin_unfiltered:
-            teams = (await self._db.scalars(select(Team).options(selectinload(Team.members)))).all()
+            event_id = await current_event_id(self._db)
+            teams = (
+                await self._db.scalars(
+                    select(Team)
+                    .where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+                    .options(selectinload(Team.members))
+                )
+            ).all()
         else:
             teams = await self._team_crud.get_by_checkpoint(
                 db=self._db, checkpoint_id=checkpoint_id
             )
 
-        return [
-            ListingTeam(
-                id=team.id,
-                name=team.name,
-                total=team.total,
-                classification=team.classification,
-                versus_group_id=team.versus_group_id,
-                start_offset_minutes=team.start_offset_minutes or 0,
-                times=team.times,
-                last_checkpoint_time=team.last_checkpoint_time,
-                last_checkpoint_score=team.last_checkpoint_score,
-                num_members=team.num_members,
-                last_checkpoint_number=None,
-                last_checkpoint_name=None,
-                current_checkpoint_number=None,
-            )
-            for team in teams
-        ]
+        # Staff-facing, so the name of a post another team has reached is not a
+        # secret to withhold here.
+        team_service = TeamService(self._db, self._team_crud)
+        return [await team_service.build_listing_team(team, is_privileged=True) for team in teams]
 
     async def _checkpoint_ids_with_activity(self) -> set[int]:
         stmt = select(Activity.checkpoint_id).where(
@@ -507,15 +459,31 @@ class CheckpointService:
         unpublish a draft post while planning the next route. The rule is
         about *this* edition's teams being under way, not about the
         organization ever having run an event.
+
+        "Under way" is more than a GPS arrival. A rally run purely through
+        staff evaluation writes no ``CheckpointArrival`` at all, so this used
+        to answer False for the whole event and let posts be published or
+        drafted — firing a resequence — while teams were mid-route. A skip, a
+        scored result, or any recorded visit counts just the same.
         """
         event_id = await current_event_id(self._db)
-        started = await self._db.scalar(
-            select(CheckpointArrival.id)
-            .join(CheckPoint, CheckPoint.id == CheckpointArrival.checkpoint_id)
-            .where((CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)))
-            .limit(1)
+        event_posts = select(CheckPoint.id).where(
+            (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None))
         )
-        return bool(started)
+        event_teams = (Team.event_id == event_id) | (Team.event_id.is_(None))
+
+        signals = (
+            select(CheckpointArrival.id).where(CheckpointArrival.checkpoint_id.in_(event_posts)),
+            select(CheckpointSkip.id).where(CheckpointSkip.checkpoint_id.in_(event_posts)),
+            select(ActivityResult.id)
+            .join(Activity, Activity.id == ActivityResult.activity_id)
+            .where(Activity.checkpoint_id.in_(event_posts)),
+            select(Team.id).where(event_teams, func.cardinality(Team.times) > 0),
+        )
+        for stmt in signals:
+            if await self._db.scalar(stmt.limit(1)):
+                return True
+        return False
 
     async def set_draft(self, checkpoint_id: int, *, is_draft: bool) -> AdminCheckPoint:
         """Publish a draft post, or pull a published one back into planning."""
@@ -536,7 +504,13 @@ class CheckpointService:
         """Delete a checkpoint and everything that references it: the staff
         assignment pointing at it, and staff members' assigned-checkpoint
         pointer. Guide assignments point at a team, not a checkpoint, so
-        deleting a post never touches them."""
+        deleting a post never touches them.
+
+        The route is renumbered afterwards, as it already is on create and on
+        reorder. Deleting post 2 of 4 used to leave the orders as 1, 3, 4:
+        progress is read by order, ``current_order`` can then name a number no
+        post has, and ``get_by_order`` returning None made ``/checkpoint/me``
+        answer 404 for every team on the route."""
         await self._db.execute(
             delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == checkpoint_id)
         )
@@ -546,4 +520,5 @@ class CheckpointService:
             .values(staff_checkpoint_id=None)
         )
         await self._checkpoint_crud.remove(db=self._db, id=checkpoint_id, commit=False)
+        await self._checkpoint_crud.resequence(self._db, commit=False)
         await self._db.commit()

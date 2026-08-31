@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy import ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -19,7 +19,13 @@ class CheckpointGuideIndication(Base):
     """
 
     __tablename__ = "checkpoint_guide_indication"
-    __table_args__: Any = {"schema": settings.SCHEMA_NAME}
+    # ``order`` is the hint ladder's rung, and ``HintService`` buys "the next
+    # one" by it — two rows sharing an order at the same post make which hint
+    # a team paid for ambiguous.
+    __table_args__: Any = (
+        UniqueConstraint("checkpoint_id", "order", name="uq_guide_indication_checkpoint_order"),
+        {"schema": settings.SCHEMA_NAME},
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     checkpoint_id: Mapped[int] = mapped_column(

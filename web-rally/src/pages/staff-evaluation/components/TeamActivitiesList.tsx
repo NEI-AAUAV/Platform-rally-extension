@@ -9,7 +9,13 @@ import { cn } from "@/lib/utils";
 type TeamActivitiesListProps = Readonly<{
   team: Team;
   activities: TeamActivityWithStatus[];
-  onEvaluate: (teamId: number, activityId: number, resultData: ActivityResultData) => Promise<void>;
+  /** Omitted when the caller may not record evaluations — the list becomes
+   *  read-only rather than offering a button the server will refuse. */
+  onEvaluate?: (
+    teamId: number,
+    activityId: number,
+    resultData: ActivityResultData,
+  ) => Promise<void>;
   isEvaluating: boolean;
 }>;
 
@@ -41,7 +47,7 @@ export function TeamActivitiesList({
   };
 
   const handleFormSubmit = async (resultData: ActivityResultData) => {
-    if (selectedActivity) {
+    if (selectedActivity && onEvaluate) {
       await onEvaluate(team.id, selectedActivity.id, resultData);
     }
     setShowEvaluationForm(false);
@@ -150,25 +156,27 @@ export function TeamActivitiesList({
                   {isCompleted ? "Avaliado" : "Pendente"}
                 </span>
 
-                <Button
-                  onClick={() => handleEvaluateClick(activity)}
-                  variant={isCompleted ? "outline" : "default"}
-                  size="sm"
-                  disabled={isEvaluating}
-                  className={cn(!isCompleted && "rally-bg-accent text-white hover:opacity-90")}
-                >
-                  {isCompleted ? (
-                    <>
-                      <Edit className="mr-1.5 h-3.5 w-3.5" />
-                      Atualizar
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                      Avaliar
-                    </>
-                  )}
-                </Button>
+                {onEvaluate && (
+                  <Button
+                    onClick={() => handleEvaluateClick(activity)}
+                    variant={isCompleted ? "outline" : "default"}
+                    size="sm"
+                    disabled={isEvaluating}
+                    className={cn(!isCompleted && "rally-bg-accent text-white hover:opacity-90")}
+                  >
+                    {isCompleted ? (
+                      <>
+                        <Edit className="mr-1.5 h-3.5 w-3.5" />
+                        Atualizar
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                        Avaliar
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           );

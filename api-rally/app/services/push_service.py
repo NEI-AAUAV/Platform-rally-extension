@@ -25,6 +25,7 @@ from app import crud
 from app.core.config import settings
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_push_subscription import CRUDPushSubscription
+from app.crud.crud_rally_settings import rally_settings
 from app.models.push_subscription import PushSubscription
 from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionRead
 
@@ -164,10 +165,23 @@ class PushService:
         """Staff announcing something about their own post — reaches every
         team like an admin broadcast does (the whole rally needs to know a
         post is delayed or closed, not just teams already there); the post's
-        own name is stamped onto the title server-side so a staffer can't
+        own identity is stamped onto the title server-side so a staffer can't
         post as if they were a different checkpoint or a generic admin
         message.
+
+        On a redacted route the title is the post's *number*, not its name:
+        this reaches every team, and in a peddy paper the name of the place is
+        the answer to the riddle they are still solving. Pushing it to teams
+        that have not arrived hands them the solution.
         """
         self._require_vapid_configured()
         checkpoint = await self._checkpoint_crud.get(self._db, id=checkpoint_id)
-        return await send_to_all(self._db, title=f"📍 {checkpoint.name}", body=body, url=url)
+        # ``settings`` is the app config in this module; the event's row is
+        # a different thing.
+        rally_config = await rally_settings.get_or_create(self._db)
+        label = (
+            checkpoint.name
+            if getattr(rally_config, "reveal_next_checkpoint", True)
+            else f"Posto {checkpoint.order}"
+        )
+        return await send_to_all(self._db, title=f"📍 {label}", body=body, url=url)

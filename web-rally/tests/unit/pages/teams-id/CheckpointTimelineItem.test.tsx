@@ -16,7 +16,7 @@ const baseTeam = {
   times: ['2024-01-01T10:00:00Z'],
 } as unknown as DetailedTeam;
 
-const checkpoints = [{ id: 1, order: 1, name: 'Posto 1' }] as DetailedCheckPoint[];
+const checkpoint = { id: 1, order: 1, name: 'Posto 1' } as DetailedCheckPoint;
 
 describe('CheckpointTimelineItem', () => {
   it('renders basic checkpoint info', () => {
@@ -24,7 +24,9 @@ describe('CheckpointTimelineItem', () => {
       <CheckpointTimelineItem
         team={baseTeam}
         index={0}
-        checkpoints={checkpoints}
+        checkpoint={checkpoint}
+        isResolved
+        isCurrent={false}
         activityResults={[]}
         allEvaluations={[]}
         totalTeams={2}
@@ -43,7 +45,9 @@ describe('CheckpointTimelineItem', () => {
       <CheckpointTimelineItem
         team={team}
         index={0}
-        checkpoints={checkpoints}
+        checkpoint={checkpoint}
+        isResolved={false}
+        isCurrent
         activityResults={[]}
         allEvaluations={[]}
         totalTeams={2}
@@ -70,7 +74,9 @@ describe('CheckpointTimelineItem', () => {
       <CheckpointTimelineItem
         team={baseTeam}
         index={0}
-        checkpoints={checkpoints}
+        checkpoint={checkpoint}
+        isResolved
+        isCurrent={false}
         activityResults={activityResults}
         allEvaluations={activityResults}
         totalTeams={1}
@@ -103,7 +109,9 @@ describe('CheckpointTimelineItem', () => {
       <CheckpointTimelineItem
         team={baseTeam}
         index={0}
-        checkpoints={checkpoints}
+        checkpoint={checkpoint}
+        isResolved
+        isCurrent={false}
         activityResults={activityResults}
         allEvaluations={activityResults}
         totalTeams={2}
@@ -135,7 +143,9 @@ describe('CheckpointTimelineItem', () => {
       <CheckpointTimelineItem
         team={baseTeam}
         index={0}
-        checkpoints={checkpoints}
+        checkpoint={checkpoint}
+        isResolved
+        isCurrent={false}
         activityResults={activityResults}
         allEvaluations={activityResults}
         totalTeams={2}
@@ -147,12 +157,18 @@ describe('CheckpointTimelineItem', () => {
     expect(screen.getByText('15 pts')).toBeInTheDocument();
   });
 
-  it('renders a fallback checkpoint name when no matching checkpoint is found', () => {
+  it("labels the row by the post's own order, not its position in the list", () => {
+    // The row used to be numbered `index + 1` and look the post up by that
+    // number, so it printed a literal `Checkpoint N` whenever the lookup
+    // missed. The post is passed in now, so its order is the label.
+    const third = { id: 3, order: 3, name: 'Posto 3' } as DetailedCheckPoint;
     render(
       <CheckpointTimelineItem
         team={baseTeam}
-        index={5}
-        checkpoints={checkpoints}
+        index={0}
+        checkpoint={third}
+        isResolved
+        isCurrent={false}
         activityResults={[]}
         allEvaluations={[]}
         totalTeams={2}
@@ -160,6 +176,31 @@ describe('CheckpointTimelineItem', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getAllByText('Checkpoint 6').length).toBeGreaterThan(0);
+    expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
+    expect(screen.getByText('Posto 3')).toBeInTheDocument();
+  });
+
+  it('withholds the gallery for a post the server redacted', () => {
+    const redacted = {
+      id: 4,
+      order: 4,
+      name: 'Posto 4',
+      is_redacted: true,
+    } as unknown as DetailedCheckPoint;
+    render(
+      <CheckpointTimelineItem
+        team={baseTeam}
+        index={0}
+        checkpoint={redacted}
+        isResolved={false}
+        isCurrent
+        activityResults={[]}
+        allEvaluations={[]}
+        totalTeams={2}
+        isExpanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('discovery')).not.toBeInTheDocument();
   });
 });

@@ -306,9 +306,10 @@ class TestGetTeamById:
         """Regression: a peddy-paper team that finished post 1 (its only post
         with an activity) and has posts 2 and 3 still to visit — neither with
         an activity, neither arrived at — must be pointed at post 2, not shown
-        the finished card. Before the fix, team.times inflation from
-        advance_team_to_next_checkpoint made both no-activity posts count as
-        done and current_checkpoint_number went null.
+        the finished card. Before the fix, progress was read from
+        ``len(team.times)``, which the staff-evaluation advance had inflated,
+        so both no-activity posts counted as done and
+        current_checkpoint_number went null.
         """
         await _make_event(pg_session)
         cp1 = await _create_checkpoint(pg_session, name="CP1", order=1)

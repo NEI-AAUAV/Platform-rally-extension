@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -47,6 +47,8 @@ from app.crud.deps import (
     get_team_crud,
 )
 from app.models.activity import Activity, ActivityResult
+from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.evaluation_history import EvaluationHistory
 from app.models.team import Team
 from app.schemas.activity import (
@@ -58,6 +60,8 @@ from app.schemas.checkpoint import DetailedCheckPoint
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.user import DetailedUser
 from app.services.deps import get_scoring_service
+from app.services.route_progress import load_route_snapshot, progress_for_team
+from app.services.scoring_policy import require_staff_scoring_enabled
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
 _EVALUATE_ENDPOINT = "evaluate_team_activity"
@@ -65,23 +69,6 @@ _EVALUATE_ENDPOINT = "evaluate_team_activity"
 # Error message constants
 TEAM_NOT_FOUND_AT_CHECKPOINT = "Team not found at your assigned checkpoint"
 NO_RALLY_PERMISSIONS = "User does not have Rally permissions"
-STAFF_SCORING_DISABLED = (
-    "Staff scoring is disabled for this event. Only an admin or manager can "
-    "record or edit evaluations."
-)
-
-
-async def _require_staff_scoring_enabled(db: Any, is_admin_or_manager_flag: bool) -> None:
-    """Block staff (non admin/manager) when ``enable_staff_scoring`` is off.
-
-    Admins and managers keep write access so they can still correct results
-    while the master switch is disabled in the admin UI.
-    """
-    if is_admin_or_manager_flag:
-        return
-    rally_config = await rally_settings.get_or_create(db)
-    if not rally_config.enable_staff_scoring:
-        raise RallyForbiddenError(STAFF_SCORING_DISABLED)
 
 
 def _build_activity_status_list(
@@ -212,38 +199,41 @@ class StaffEvaluationController:
             raise RallyNotFoundError("Assigned checkpoint not found")
         staff_checkpoint_order = checkpoint_obj.order
 
-        # Get all teams that staff can evaluate (at current checkpoint or previous checkpoints).
+        # Teams staff can evaluate: those that have not already moved past this
+        # post. "Past" means an arrival at a post further along the route —
+        # this used to be `cardinality(team.times) <= staff_checkpoint_order`,
+        # a count rather than an identity, which mis-sorted teams as soon as a
+        # route ran out of strict sequence.
         # Eager-load members (build_team_for_staff reads team.members).
         # Scoped to the current event (legacy NULL rows count as current).
         event_id = await current_event_id(db)
+        moved_past = (
+            select(CheckpointArrival.team_id)
+            .join(CheckPoint, CheckPoint.id == CheckpointArrival.checkpoint_id)
+            .where(CheckPoint.order > staff_checkpoint_order)
+        )
         teams_stmt = (
             select(Team)
             .options(selectinload(Team.members))
             .where(
-                func.cardinality(Team.times) <= staff_checkpoint_order,
+                Team.id.not_in(moved_past),
                 (Team.event_id == event_id) | (Team.event_id.is_(None)),
             )
         )
         teams = (await db.scalars(teams_stmt)).all()
 
-        # load the checkpoint list and every checkpoint's activities once
-        # for the whole batch, instead of build_team_for_staff/
-        # compute_checkpoint_progress re-querying both per team — 30 teams x
-        # 15 checkpoints was 450+ queries on this screen.
-        checkpoints = await checkpoint_crud.get_all_ordered(db)
-        activities_by_checkpoint: dict[int, list[Any]] = {}
-        for cp in checkpoints:
-            activities_by_checkpoint[cp.id] = await activity_crud.get_by_checkpoint(
-                db, checkpoint_id=cp.id
-            )
+        # The route half of every team's progress is loaded once for the whole
+        # batch rather than per team — 30 teams x 15 checkpoints was 450+
+        # queries on the screen staff open most.
+        settings = await rally_settings.get_or_create(db)
+        route = await load_route_snapshot(db, settings)
 
         return [
             await build_team_for_staff(
                 db,
                 team_obj,
                 staff_checkpoint_order=staff_checkpoint_order,
-                checkpoints=checkpoints,
-                activities_by_checkpoint=activities_by_checkpoint,
+                route=route,
             )
             for team_obj in teams
         ]
@@ -251,56 +241,31 @@ class StaffEvaluationController:
     async def _resolve_admin_checkpoint_id(
         self,
         db: AsyncSession,
-        team_checkpoint_number: int,
+        team_obj: Team,
         *,
         checkpoint_crud: CRUDCheckPoint,
-        activity_crud: CRUDActivity,
     ) -> int:
         """Resolve the checkpoint an admin/manager should see activities for.
 
-        The team's most recently reached checkpoint (order == len(times)) is
-        where they currently stand and where staff evaluate them — not
-        get_next()'s order+1, which is the checkpoint still ahead of them
-        and 404s once the team has already checked into their last post.
-        Checkpoints are numbered starting at 1, so a team with no visits
-        yet (len(times) == 0) stands at the first checkpoint, not order 0.
+        The post the team is standing at is the one the progress engine has
+        open for them; once the route is finished there is no open post, so
+        show the last one they resolved — that is what a manager opening the
+        screen right after the final evaluation wants to look at.
 
-        But evaluating the *last* pending activity at a checkpoint makes
-        check_and_advance_team auto-advance the team past it in the same
-        request (staff_evaluation_utils.py's ensure_team_checkpoint_and_advance),
-        so by the time this GET runs right after that evaluate,
-        len(times) already reflects the *next* checkpoint — order+1 relative
-        to where the just-scored activity actually lives. Try the team's
-        current order first; if it has no activities for this team (no
-        pending ones, no prior results), assume they just completed and
-        advanced past it, and fall back one order to show what was just
-        evaluated instead of an empty list.
+        This used to be positional on ``len(team.times)`` plus a fall-back one
+        order down, because the staff-evaluation path appended a second,
+        "next post" entry and left the count pointing past the post that had
+        just been scored. Nothing inflates the array any more, and reading the
+        engine also makes this agree with free-order and staged routes, where
+        a count was never the post's order to begin with.
         """
-        checkpoint_obj = await checkpoint_crud.get_by_order(
-            db, order=max(team_checkpoint_number, 1)
-        )
-        resolved_checkpoint_id = checkpoint_obj.id if checkpoint_obj else None
-
-        checkpoint_activities_preview = (
-            await activity_crud.get_by_checkpoint(db, checkpoint_id=resolved_checkpoint_id)
-            if resolved_checkpoint_id is not None
-            else []
-        )
-        # No checkpoint at the team's current order, or it has nothing pending:
-        # either way this can mean the team just advanced past their last
-        # checkpoint in this event (e.g. a single-checkpoint event), so fall back
-        # one order to show what was just evaluated instead of 404ing.
-        if (not checkpoint_obj or not checkpoint_activities_preview) and team_checkpoint_number > 1:
-            previous_checkpoint = await checkpoint_crud.get_by_order(
-                db, order=team_checkpoint_number - 1
-            )
-            if previous_checkpoint:
-                resolved_checkpoint_id = previous_checkpoint.id
-
-        if resolved_checkpoint_id is None:
+        settings = await rally_settings.get_or_create(db)
+        progress = await progress_for_team(db, team_obj, settings)
+        order = progress.current_order or progress.last_completed_order
+        checkpoint_obj = await checkpoint_crud.get_by_order(db, order=max(order, 1))
+        if checkpoint_obj is None:
             raise RallyNotFoundError("Checkpoint not found")
-
-        return resolved_checkpoint_id
+        return checkpoint_obj.id
 
     async def get_team_activities_for_evaluation(
         self,
@@ -320,8 +285,6 @@ class StaffEvaluationController:
         if not team_obj:
             raise RallyNotFoundError(TEAM_NOT_FOUND)
 
-        team_checkpoint_number = len(team_obj.times)
-
         # Admins/managers aren't tied to a single checkpoint (staff_checkpoint_id is
         # only ever populated for rally-staff scope, mirroring evaluate_team_activity's
         # is_admin_or_manager bypass at line ~238) — resolve the team's current
@@ -329,9 +292,8 @@ class StaffEvaluationController:
         if is_admin_or_manager(auth):
             resolved_checkpoint_id = await self._resolve_admin_checkpoint_id(
                 db,
-                team_checkpoint_number,
+                team_obj,
                 checkpoint_crud=checkpoint_crud,
-                activity_crud=activity_crud,
             )
         else:
             if not current_user.staff_checkpoint_id:
@@ -340,7 +302,7 @@ class StaffEvaluationController:
 
         logger.debug(
             f"Staff {current_user.id} (checkpoint {resolved_checkpoint_id}) "
-            f"evaluating team {team_id} (at checkpoint {team_checkpoint_number})"
+            f"evaluating team {team_id}"
         )
 
         # Always show activities for the resolved checkpoint
@@ -419,7 +381,7 @@ class StaffEvaluationController:
         # Validate access based on user role
         is_admin_or_manager_flag = is_admin_or_manager(auth)
 
-        await _require_staff_scoring_enabled(db, is_admin_or_manager_flag)
+        await require_staff_scoring_enabled(db, is_admin_or_manager=is_admin_or_manager_flag)
 
         try:
             if is_admin_or_manager_flag:
@@ -483,7 +445,12 @@ class StaffEvaluationController:
         # <-> lose, draw <-> draw)
         try:
             await mirror_team_vs_result(
-                db, scoring_service, activity_obj, team_id, db_result.result_data or {}
+                db,
+                scoring_service,
+                activity_obj,
+                team_id,
+                db_result.result_data or {},
+                editor=EvaluationEditor(id=str(current_user.id), name=current_user.name),
             )
         except Exception:
             # loguru's `.error(..., exc_info=True)` does NOT attach a
@@ -574,7 +541,7 @@ class StaffEvaluationController:
             raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
 
         is_manager = is_admin_or_manager(auth)
-        await _require_staff_scoring_enabled(db, is_manager)
+        await require_staff_scoring_enabled(db, is_admin_or_manager=is_manager)
         activity_obj, _team_obj = await self._load_activity_and_team_for_update(
             db,
             team_id=team_id,
@@ -599,7 +566,12 @@ class StaffEvaluationController:
         try:
             if activity_obj:
                 await mirror_team_vs_result(
-                    db, scoring_service, activity_obj, team_id, db_result.result_data or {}
+                    db,
+                    scoring_service,
+                    activity_obj,
+                    team_id,
+                    db_result.result_data or {},
+                    editor=editor,
                 )
         except Exception:
             logger.exception(

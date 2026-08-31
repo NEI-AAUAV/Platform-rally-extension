@@ -176,16 +176,12 @@ class TestNextCheckpoint:
     ):
         """Regression: peddy-paper team finished post 1 (its only activity),
         physically arrived at the no-activity post 2, and post 3 is the last.
-        ``team.times`` is inflated by advance_team_to_next_checkpoint, but the
-        team must still be pointed at post 3 — redacted — not told the rally is
+        The team must be pointed at post 3 — redacted — not told the rally is
         over with post 3's location revealed.
         """
         import datetime as dt
 
-        from app.api.api_v1.staff_evaluation_utils import (
-            advance_team_to_next_checkpoint,
-            checkin_team_to_checkpoint,
-        )
+        from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
         from app.crud.crud_activity import activity as crud_activity
         from app.crud.crud_rally_settings import rally_settings
         from app.crud.crud_team import team as crud_team
@@ -230,10 +226,8 @@ class TestNextCheckpoint:
             pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
         )
 
-        # Post 1 resolved: its active activity has a completed result. Then the
-        # staff-eval advance checks the team into post 1 and appends the
-        # "next post" pointer — team.times now has two entries, one of them
-        # ahead of where the team physically is.
+        # Post 1 resolved: its active activity has a scored result, and the
+        # staff evaluation recorded the visit.
         pg_session.add(
             ActivityResult(
                 activity_id=activity1.id, team_id=team.id, final_score=10, is_completed=True
@@ -241,7 +235,6 @@ class TestNextCheckpoint:
         )
         await pg_session.commit()
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-        await advance_team_to_next_checkpoint(pg_session, team.id)
         await pg_session.commit()
 
         # Physically arrived at the no-activity post 2.

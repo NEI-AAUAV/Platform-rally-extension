@@ -1,8 +1,7 @@
 """Tests for staff_evaluation_utils, against real Postgres.
 
-`serialize_activity`/`serialize_team`/`determine_current_order` are pure
-dict-shaping functions with no DB access — kept as plain unit tests, not
-migrated here.
+`serialize_activity`/`serialize_team` are pure dict-shaping functions with
+no DB access — kept as plain unit tests, not migrated here.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -10,17 +9,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.api.api_v1.staff_evaluation_utils import (
-    advance_team_to_next_checkpoint,
     build_team_for_staff,
     check_and_advance_team,
     check_existing_result,
     checkin_team_to_checkpoint,
-    checkpoint_has_activities,
     compute_checkpoint_progress,
     create_or_update_activity_result,
-    determine_current_order,
-    ensure_team_checkpoint_and_advance,
-    is_checkpoint_completed,
     mirror_team_vs_result,
     serialize_activity,
     serialize_team,
@@ -206,43 +200,6 @@ class TestCheckpointProgression:
         refreshed = await crud_team.get(pg_session, id=team.id)
         assert len(refreshed.times) == 1
 
-    async def test_advance_team_to_next_checkpoint(self, pg_session):
-        event = await _make_event(pg_session)
-        await _activate_rally(pg_session, event)
-        cp1 = await _make_checkpoint(pg_session, order=1)
-        await _make_checkpoint(pg_session, order=2)
-        team = await _make_team(pg_session)
-        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-
-        await advance_team_to_next_checkpoint(pg_session, team.id)
-
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 2
-
-    async def test_advance_team_to_next_checkpoint_no_next(self, pg_session):
-        event = await _make_event(pg_session)
-        await _activate_rally(pg_session, event)
-        cp = await _make_checkpoint(pg_session, order=1)
-        team = await _make_team(pg_session)
-        await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
-
-        await advance_team_to_next_checkpoint(pg_session, team.id)  # no-op, no next checkpoint
-
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
-
-    async def test_ensure_team_checkpoint_and_advance_checks_in_first(self, pg_session):
-        event = await _make_event(pg_session)
-        await _activate_rally(pg_session, event)
-        cp1 = await _make_checkpoint(pg_session, order=1)
-        await _make_checkpoint(pg_session, order=2)
-        team = await _make_team(pg_session)
-
-        await ensure_team_checkpoint_and_advance(pg_session, team.id, cp1.id)
-
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 2  # checked into cp1, then advanced to cp2
-
     async def test_check_and_advance_team_global_activity_never_advances(self, pg_session):
         await _make_event(pg_session)
         team = await _make_team(pg_session)
@@ -290,12 +247,12 @@ class TestCheckpointProgression:
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)
         cp1 = await _make_checkpoint(pg_session, order=1)
-        await _make_checkpoint(pg_session, order=2)
+        cp2 = await _make_checkpoint(pg_session, order=2)
         team = await _make_team(pg_session)
         activity = await _make_activity(pg_session, cp1.id)
 
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-        await advance_team_to_next_checkpoint(pg_session, team.id)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp2.id)
 
         await check_and_advance_team(pg_session, team.id, activity)
 
@@ -316,27 +273,6 @@ class TestCheckpointProgression:
 
 
 class TestCheckpointProgressCalculation:
-    async def test_checkpoint_has_activities(self, pg_session):
-        await _make_event(pg_session)
-        cp = await _make_checkpoint(pg_session)
-        await _make_activity(pg_session, cp.id)
-
-        assert await checkpoint_has_activities(pg_session, cp.id) is True
-
-    async def test_checkpoint_has_activities_false(self, pg_session):
-        await _make_event(pg_session)
-        cp = await _make_checkpoint(pg_session)
-
-        assert await checkpoint_has_activities(pg_session, cp.id) is False
-
-    async def test_is_checkpoint_completed(self, pg_session):
-        await _make_event(pg_session)
-        cp = await _make_checkpoint(pg_session)
-        activity = await _make_activity(pg_session, cp.id)
-
-        assert await is_checkpoint_completed(pg_session, cp.id, {activity.id}) is True
-        assert await is_checkpoint_completed(pg_session, cp.id, set()) is False
-
     async def test_compute_checkpoint_progress_all_completed(self, pg_session):
         await _make_event(pg_session)
         cp1 = await _make_checkpoint(pg_session, order=1)
@@ -369,7 +305,7 @@ class TestCheckpointProgressCalculation:
         last, current, completed = await compute_checkpoint_progress(pg_session, team)
 
         assert last == 2
-        # No post left to send them to — see determine_current_order.
+        # No post left to send them to — see route_progress.progress_for_team.
         assert current is None
         assert completed == [1, 2]
 
@@ -408,18 +344,14 @@ class TestCheckpointProgressCalculation:
         assert result["last_checkpoint_number"] == 1
         assert result["evaluated_at_current_checkpoint"] is True
 
-    async def test_is_checkpoint_completed_no_activities(self, pg_session):
-        """Checkpoint exists but has zero activities: not `all([])` (vacuously
-        True) — an explicit early-return False so an empty checkpoint never
-        counts as completed."""
-        await _make_event(pg_session)
-        cp = await _make_checkpoint(pg_session)
-
-        assert await is_checkpoint_completed(pg_session, cp.id, set()) is False
-
     async def test_compute_checkpoint_progress_stops_at_first_incomplete(self, pg_session):
-        """Completed checkpoint 2 must not count if checkpoint 1 is incomplete
-        (teams must complete in order) -- loop breaks instead of continuing."""
+        """Post 2 resolved out of order does not move ``last_completed_order``.
+
+        ``last_completed_order`` is the end of the *contiguous* resolved
+        prefix, so a post cleared ahead of the route still leaves the team
+        being sent to post 1. It does show up in ``resolved_orders`` — that is
+        the set the redaction reads, and a post the team has genuinely
+        finished must never come back censored."""
         await _make_event(pg_session)
         cp1 = await _make_checkpoint(pg_session, order=1)
         cp2 = await _make_checkpoint(pg_session, order=2)
@@ -429,7 +361,13 @@ class TestCheckpointProgressCalculation:
         from app.models.activity import ActivityResult
 
         pg_session.add(
-            ActivityResult(team_id=team.id, activity_id=a2.id, result_data={}, is_completed=True)
+            ActivityResult(
+                team_id=team.id,
+                activity_id=a2.id,
+                result_data={},
+                is_completed=True,
+                final_score=10,
+            )
         )
         await pg_session.commit()
 
@@ -437,36 +375,7 @@ class TestCheckpointProgressCalculation:
 
         assert last == 0
         assert current == 1
-        assert completed == []
-
-
-class TestDetermineCurrentOrder:
-    class _CP:
-        def __init__(self, order):
-            self.order = order
-
-    def test_no_route_has_no_current_post(self):
-        assert determine_current_order([], 0) is None
-
-    def test_all_checkpoints_completed_has_no_current_post(self):
-        """None, not the last post's order.
-
-        Clamping to the last order is indistinguishable from a team still
-        working on that post, and the participant screen builds its next-post
-        card from this number — so a finished team was shown the post it had
-        just completed as its "próximo posto" and never reached the finished
-        card.
-        """
-        checkpoints = [self._CP(1), self._CP(2)]
-        assert determine_current_order(checkpoints, 2) is None
-
-    def test_mid_route_points_at_the_next_post(self):
-        checkpoints = [self._CP(1), self._CP(2), self._CP(3)]
-        assert determine_current_order(checkpoints, 1) == 2
-
-    def test_a_team_that_has_started_nothing_is_sent_to_the_first_post(self):
-        checkpoints = [self._CP(1), self._CP(2)]
-        assert determine_current_order(checkpoints, 0) == 1
+        assert completed == [2]
 
 
 class TestSerializers:
@@ -684,22 +593,3 @@ class TestCheckinAndAdvanceExceptionPaths:
 
         with pytest.raises(RallyValidationError):
             await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
-
-    async def test_advance_team_to_next_checkpoint_propagates_exception(self, pg_session):
-        event = await _make_event(pg_session)
-        await _activate_rally(pg_session, event)
-        cp1 = await _make_checkpoint(pg_session, order=1)
-        await _make_checkpoint(pg_session, order=2)
-        team = await _make_team(pg_session)
-        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-
-        # Deactivate the rally window so the next add_checkpoint call fails
-        # timing validation, exercising the except/raise path.
-
-        event.start_time = datetime.now(UTC) + timedelta(hours=1)
-        event.end_time = datetime.now(UTC) + timedelta(hours=2)
-        pg_session.add(event)
-        await pg_session.commit()
-
-        with pytest.raises(RallyValidationError):
-            await advance_team_to_next_checkpoint(pg_session, team.id)

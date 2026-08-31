@@ -2,6 +2,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -90,7 +91,12 @@ async def rally_error_handler(request: Request, exc: RallyError) -> JSONResponse
         logger.exception(f"Rally error on {where}: {exc.message}")
     else:
         logger.warning(f"Rally error on {where}: {exc.message}")
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+    content: dict[str, Any] = {"detail": exc.message}
+    if exc.details is not None:
+        # Machine-readable companion to the prose, so clients act on a code
+        # and fields rather than on the wording of the sentence.
+        content["details"] = exc.details
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 @app.exception_handler(RequestValidationError)

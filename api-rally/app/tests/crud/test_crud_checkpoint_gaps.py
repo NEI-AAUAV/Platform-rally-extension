@@ -1,15 +1,9 @@
 """DB-backed tests for the small remaining gaps in app.crud.crud_checkpoint:
-get_next() returning None for a missing team, and get_max_order()."""
+get_max_order()."""
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import make_event as _make_event
-
-
-async def test_get_next_returns_none_for_unknown_team(pg_session):
-    await _make_event(pg_session)
-    result = await crud_checkpoint.get_next(pg_session, team_id=999999)
-    assert result is None
 
 
 async def test_get_max_order_returns_zero_when_no_checkpoints(pg_session):

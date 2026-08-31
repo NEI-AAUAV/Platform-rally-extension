@@ -19,7 +19,26 @@ class TeamBase(BaseModel):
     start_offset_minutes: int = 0
 
 
-class ListingTeam(TeamBase):
+class RouteProgressFields(BaseModel):
+    """The team's position on the route, as the server computes it.
+
+    The sets exist because ``current_checkpoint_number`` alone cannot describe
+    a free-order or staged route: several posts are open at once, and resolved
+    posts need not form a prefix. Clients must render "concluído"/"pendente"
+    from ``resolved_checkpoint_orders`` and the finished state from
+    ``is_route_finished`` rather than re-deriving either from a count — that
+    arithmetic is what made the participant screen and the team page disagree.
+    """
+
+    # Activity-based completion counters (more reliable than len(times))
+    last_checkpoint_number: int | None = None
+    current_checkpoint_number: int | None = None
+    resolved_checkpoint_orders: list[int] = []
+    open_checkpoint_orders: list[int] = []
+    is_route_finished: bool = False
+
+
+class ListingTeam(TeamBase, RouteProgressFields):
     """
     The schema returned when listing multiple teams
     """
@@ -29,21 +48,16 @@ class ListingTeam(TeamBase):
 
     last_checkpoint_time: datetime | None
     last_checkpoint_score: int | None = None
-    last_checkpoint_number: int | None = None
     last_checkpoint_name: str | None = None
-    current_checkpoint_number: int | None = None
 
 
-class DetailedTeam(TeamBase):
+class DetailedTeam(TeamBase, RouteProgressFields):
     times: list[datetime]
 
     score_per_checkpoint: list[int]
 
     members: list[ListingUser]
 
-    # Activity-based completion counters (more reliable than len(times))
-    last_checkpoint_number: int | None = None
-    current_checkpoint_number: int | None = None
     total_checkpoints: int | None = None
 
 

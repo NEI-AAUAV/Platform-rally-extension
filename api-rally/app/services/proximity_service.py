@@ -86,7 +86,6 @@ class ProximityService:
             checkpoint=checkpoint,
             settings=settings,
             enforce_hours=False,
-            ignore_times_inflation=True,
         ):
             # Sampling distance to a post further down the route would let a
             # team map the whole thing from the start line.
