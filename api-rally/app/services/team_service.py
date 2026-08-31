@@ -353,9 +353,12 @@ class TeamService:
         """
         team_id = team_obj.id
 
-        order_by_cp_id: dict[int, int] = dict(
-            (await self._db.execute(select(CheckPoint.id, CheckPoint.order))).all()
-        )
+        order_by_cp_id: dict[int, int] = {
+            cp_id: cp_order
+            for cp_id, cp_order in (
+                await self._db.execute(select(CheckPoint.id, CheckPoint.order))
+            ).all()
+        }
 
         buckets: dict[int, dict[str, int]] = {}
 
