@@ -266,6 +266,7 @@ export default function TeamManagement() {
                     <BloodyButton
                       variant="neutral"
                       title="Ver QR code e código de acesso"
+                      aria-label={`Ver QR code e código de acesso da equipa ${team.name}`}
                       onClick={() => setSelectedTeamForQR(team)}
                     >
                       <QrCode className="h-4 w-4" />
@@ -273,15 +274,21 @@ export default function TeamManagement() {
                     <BloodyButton
                       variant="neutral"
                       title="Gerir membros da equipa"
+                      aria-label={`Gerir membros da equipa ${team.name}`}
                       onClick={() => navigate({ to: "/team-members" })}
                     >
                       <Users className="h-4 w-4" />
                     </BloodyButton>
-                    <BloodyButton variant="neutral" onClick={() => startEditTeam(team)}>
+                    <BloodyButton
+                      variant="neutral"
+                      aria-label={`Editar equipa ${team.name}`}
+                      onClick={() => startEditTeam(team)}
+                    >
                       <Edit className="h-4 w-4" />
                     </BloodyButton>
                     <BloodyButton
                       variant="neutral"
+                      aria-label={`Eliminar equipa ${team.name}`}
                       onClick={() => {
                         if (confirm("Tem certeza que deseja deletar esta equipa?")) {
                           deleteTeam(team.id);
@@ -328,6 +335,7 @@ export default function TeamManagement() {
                     setSelectedTeamForQR(null);
                   }}
                   title="Fechar"
+                  aria-label="Fechar modal do código QR da equipa"
                   className="text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <X className="h-6 w-6" />

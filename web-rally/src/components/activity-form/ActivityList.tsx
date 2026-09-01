@@ -163,10 +163,18 @@ export default function ActivityList({
               </div>
 
               <div className="ml-4 flex gap-2">
-                <BloodyButton variant="neutral" onClick={() => onEdit(activity)}>
+                <BloodyButton
+                  variant="neutral"
+                  aria-label={`Editar atividade ${activity.name}`}
+                  onClick={() => onEdit(activity)}
+                >
                   <Edit className="h-4 w-4" />
                 </BloodyButton>
-                <BloodyButton variant="neutral" onClick={() => onDelete(activity.id)}>
+                <BloodyButton
+                  variant="neutral"
+                  aria-label={`Eliminar atividade ${activity.name}`}
+                  onClick={() => onDelete(activity.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </BloodyButton>
               </div>

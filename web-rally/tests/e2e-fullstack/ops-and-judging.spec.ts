@@ -167,6 +167,44 @@ test.describe("Operação — avisar toda a gente, e julgar o que ficou por julg
     expect(unsubscribed.status).toBeLessThan(400);
   });
 
+  test("with a VAPID keypair, subscribe and send paths are configured instead of 503", async () => {
+    const world = await seedOps();
+    test.skip(!(await vapidConfigured(world.adminToken)), "this stack has no push configured");
+
+    const key = await apiCall<{ public_key: string | null }>("GET", "/push/vapid-public-key", {
+      token: world.adminToken,
+    });
+    expect(key.public_key).toBeTruthy();
+
+    const endpoint = `https://example.invalid/push/${world.runId}`;
+    const post = async (path: string, token: string, body: unknown) =>
+      fetch(`${API_V1}${path}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const subscribed = await post("/push/subscribe", world.adminToken, {
+      endpoint,
+      keys: { p256dh: "BFakeKeyForTesting", auth: "fakeAuthSecret" },
+    });
+    expect(subscribed.status, await subscribed.text()).toBe(200);
+
+    const broadcast = await post("/push/broadcast", world.adminToken, {
+      title: "Aviso",
+      body: "O rally começa às 21h",
+    });
+    expect(broadcast.status, await broadcast.text()).toBe(200);
+
+    const announcement = await post("/push/checkpoint-announcement", world.staffToken, {
+      body: "Este posto está com fila, venham daqui a 20 minutos",
+    });
+    expect(announcement.status, await announcement.text()).toBe(200);
+
+    const unsubscribed = await post("/push/unsubscribe", world.adminToken, { endpoint });
+    expect(unsubscribed.status).toBeLessThan(400);
+  });
+
   test("a broadcast is admin-only and an announcement needs a post to speak for", async () => {
     const world = await seedOps();
 

@@ -113,7 +113,7 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
                 onClick={() => deleteIndication.mutate(ind.id)}
                 disabled={deleteIndication.isPending}
                 className="shrink-0 text-muted-foreground transition hover:text-destructive"
-                aria-label="Remover indicação"
+                aria-label={`Remover indicação ${typeof ind.order === "number" ? ind.order + 1 : ""} do checkpoint`.trim()}
               >
                 <Trash2 className="h-4 w-4" />
               </button>

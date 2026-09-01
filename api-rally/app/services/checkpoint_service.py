@@ -189,6 +189,16 @@ class CheckpointService:
         """Every checkpoint in the current event, ordered — the admin/staff view."""
         return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
 
+    async def _progress_for_team(self, team: Team) -> TeamProgress:
+        """The canonical progress snapshot, via ``TeamService``.
+
+        ``route_progress.progress_for_team`` is still the single engine, but
+        ``CheckpointService`` now gets at it the same way the participant
+        payloads do, through ``TeamService.progress``. That keeps `/checkpoint/me`
+        and `/team/*` on one service-level entry point as well as one engine.
+        """
+        return await TeamService(self._db, self._team_crud).progress(team)
+
     async def next_checkpoint_for_team(
         self, team_id: int, settings: Any, *, redact: bool = True
     ) -> DetailedCheckPoint | None:
@@ -206,7 +216,7 @@ class CheckpointService:
         team = await self._team_crud.get(db=self._db, id=team_id)
         if team is None:
             return None
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         if progress.current_order is None:
             return None
         checkpoint = await self._checkpoint_crud.get_by_order(
@@ -249,7 +259,7 @@ class CheckpointService:
         if not team:
             return []
 
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
         # Skipped entirely when nothing is redacted anyway, so a rally does not
         # pay for a query it cannot use.
@@ -345,7 +355,7 @@ class CheckpointService:
         ):
             return True
 
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         if checkpoint.order in progress.resolved_orders:
             return True
         if checkpoint.order in progress.open_orders:

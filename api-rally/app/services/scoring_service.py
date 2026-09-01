@@ -516,6 +516,13 @@ class ScoringService:
         if not team:
             return None
 
+        # Sessions use autoflush=False. Score-source mutations may already be
+        # pending in this transaction (most importantly a DynamicAward created,
+        # updated or deleted by _sync_excess_penalty_award). Flush before the
+        # aggregation SELECTs so team.total is derived from the exact state that
+        # the same transaction is going to commit.
+        await self.db.flush()
+
         (
             checkpoint_scores,
             checkpoint_order_by_id,
@@ -626,6 +633,11 @@ class ScoringService:
         """
         if not teams:
             return
+
+        # Same aggregation contract as _apply_team_score: sessions use
+        # autoflush=False, therefore the SELECTs below must explicitly see
+        # pending ActivityResult/DynamicAward INSERT/UPDATE/DELETE mutations.
+        await self.db.flush()
 
         team_ids = [team.id for team in teams]
 
@@ -997,7 +1009,6 @@ class ScoringService:
             if penalty_counts
             else obj_in.penalties
         )
-
         is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
         completion_time = obj_in.result_data.get("completion_time_seconds")
         extra_time = float(completion_time) if completion_time is not None else None

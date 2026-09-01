@@ -17,15 +17,18 @@ being fixed.
 
 import pytest
 
+from app.api import deps
+from app.api.auth import api_nei_auth
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_activity import activity_result as crud_activity_result
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.main import app
 from app.models.activity import ActivityResult
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
-from app.tests.conftest import make_event
+from app.tests.conftest import _fake_auth_data, _fake_detailed_user, as_team, make_event
 
 RESULTS_URL = "/api/rally/v1/activities/results/"
 
@@ -280,6 +283,73 @@ class TestTeamVsFollowsTheSameRule:
             team2=two_posts["other_team"].id,
             winner=two_posts["team"].id,
         )
+
+        assert response.status_code == 403
+
+    async def test_manager_settles_a_match_at_any_post(self, pg_session, pg_client, two_posts):
+        manager = _fake_detailed_user(id=7, name="Test Manager", scopes=["manager-rally"])
+        auth_data = _fake_auth_data(
+            oidc_sub="test-manager-sub", name="Test Manager", scopes=["manager-rally"]
+        )
+        deps_to_restore = (
+            api_nei_auth,
+            deps.get_participant,
+            deps.get_current_user,
+            deps.get_current_user_optional,
+        )
+        app.dependency_overrides[api_nei_auth] = lambda: auth_data
+        app.dependency_overrides[deps.get_participant] = lambda: manager
+        app.dependency_overrides[deps.get_current_user] = lambda: manager
+        app.dependency_overrides[deps.get_current_user_optional] = lambda: manager
+        try:
+            response = self._settle(
+                pg_client,
+                activity_id=two_posts["theirs_vs"].id,
+                team1=two_posts["team"].id,
+                team2=two_posts["other_team"].id,
+                winner=two_posts["other_team"].id,
+            )
+        finally:
+            for dep in deps_to_restore:
+                app.dependency_overrides.pop(dep, None)
+
+        assert response.status_code == 200, response.text
+
+    async def test_admin_settles_a_match_at_any_post(
+        self, pg_session, pg_client, as_admin, two_posts
+    ):
+        response = self._settle(
+            pg_client,
+            activity_id=two_posts["theirs_vs"].id,
+            team1=two_posts["team"].id,
+            team2=two_posts["other_team"].id,
+            winner=two_posts["other_team"].id,
+        )
+
+        assert response.status_code == 200, response.text
+
+    async def test_participant_cannot_settle_a_match(
+        self, pg_session, pg_client, as_user, two_posts
+    ):
+        response = self._settle(
+            pg_client,
+            activity_id=two_posts["mine_vs"].id,
+            team1=two_posts["team"].id,
+            team2=two_posts["other_team"].id,
+            winner=two_posts["team"].id,
+        )
+
+        assert response.status_code == 403
+
+    async def test_team_token_cannot_settle_a_match(self, pg_session, pg_client, two_posts):
+        with as_team(two_posts["team"].id, two_posts["team"].name):
+            response = self._settle(
+                pg_client,
+                activity_id=two_posts["mine_vs"].id,
+                team1=two_posts["team"].id,
+                team2=two_posts["other_team"].id,
+                winner=two_posts["team"].id,
+            )
 
         assert response.status_code == 403
 

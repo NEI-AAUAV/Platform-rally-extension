@@ -23,6 +23,33 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:RELEASE.2026-07-23T15-54-02Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:RELEASE.2026-08-01T01-00-00Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb -p local/rally-smoke || true && mc anonymous set download local/rally-smoke",
+      ]
+
   fake-oidc:
     build:
       context: .
@@ -62,6 +89,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
       fake-oidc:
         condition: service_healthy
     environment:
@@ -74,7 +103,15 @@ services:
       OIDC_PROVIDER_URL: http://fake-oidc:9009
       OIDC_CLIENT_ID: rally-smoke-client
       OIDC_APPLICATION_SLUG: rally
+      R2_ENDPOINT_URL: http://minio:9000
+      R2_ACCESS_KEY_ID: minioadmin
+      R2_SECRET_ACCESS_KEY: minioadmin
+      R2_BUCKET: rally-smoke
+      R2_PUBLIC_BASE_URL: http://localhost:9000/rally-smoke
       TEAM_JWT_SECRET_KEY: smoke-only-secret-not-for-prod
+      VAPID_PUBLIC_KEY: BOT6_YRLvJJuj_4434BQOyZQegRgYSKzeEoQGckKP8BQ8u-geoK9cRKQkPCbMbpeZSluYMq4nl-2YRwF9OyMXXk
+      VAPID_PRIVATE_KEY: Ma9f_ZEtTzcXpFJW-Km8tvbC6Vsi4DnM9ci4Bl5zOns
+      VAPID_SUBJECT: mailto:smoke-tests@example.invalid
       EVENTS_ENABLED: "true"
       EVENTS_FAIL_SILENTLY: "false"
       SELF_CHECKIN_ENABLED: "true"

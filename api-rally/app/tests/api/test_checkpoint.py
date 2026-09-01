@@ -1,6 +1,9 @@
 """Checkpoint API tests against a real Postgres schema (pg_client + as_admin/as_user)."""
 
+import datetime as dt
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.models.activity import EventType
 from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import make_event as _make_event
 from app.tests.conftest import set_rally_settings
@@ -12,6 +15,44 @@ async def _make_checkpoint(pg_session, order: int = 1):
         obj_in=CheckPointCreate(name=f"Checkpoint {order}", order=order),
         commit=True,
     )
+
+
+async def _make_checkpoint_with_location(pg_session, order: int, **overrides):
+    return await crud_checkpoint.create(
+        pg_session,
+        obj_in=CheckPointCreate(
+            name=overrides.pop("name", f"Checkpoint {order}"),
+            order=order,
+            latitude=overrides.pop("latitude", 40.0 + order),
+            longitude=overrides.pop("longitude", -8.0 - order),
+            clue=overrides.pop("clue", f"Clue {order}"),
+            **overrides,
+        ),
+        commit=True,
+    )
+
+
+def _own_team(pg_client):
+    return pg_client.get("/api/rally/v1/team/me")
+
+
+def _next_checkpoint(pg_client):
+    return pg_client.get("/api/rally/v1/checkpoint/me")
+
+
+def _assert_progress_agreement(pg_client, *, expected_order: int | None) -> None:
+    team_response = _own_team(pg_client)
+    assert team_response.status_code == 200, team_response.text
+    team_body = team_response.json()
+
+    next_response = _next_checkpoint(pg_client)
+    if expected_order is None:
+        assert next_response.status_code == 404, next_response.text
+    else:
+        assert next_response.status_code == 200, next_response.text
+        assert next_response.json()["order"] == expected_order
+
+    assert team_body["current_checkpoint_number"] == expected_order
 
 
 class TestCheckpointListing:
@@ -303,6 +344,203 @@ class TestNextCheckpoint:
         assert body["order"] == 1
         assert body["latitude"] == 40.6
         assert body.get("is_redacted") in (False, None)
+
+
+class TestCanonicalProgressAgreement:
+    async def test_sequential_staff_scan_agrees_with_team_progress(
+        self, pg_session, pg_client, as_user
+    ):
+        from app.tests.conftest import make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, participant_view_enabled=True)
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        from app.services.checkpoint_visits import record_visit
+
+        assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is True
+
+        _assert_progress_agreement(pg_client, expected_order=2)
+
+    async def test_free_order_agrees_with_team_progress(self, pg_session, pg_client, as_user):
+        from app.tests.conftest import make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(
+            pg_session,
+            participant_view_enabled=True,
+            checkpoint_order_matters=False,
+        )
+        await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        _assert_progress_agreement(pg_client, expected_order=1)
+        assert set(_own_team(pg_client).json()["open_checkpoint_orders"]) == {1, 2}
+
+    async def test_route_stages_agree_with_team_progress(self, pg_session, pg_client, as_admin):
+        from app.tests.conftest import make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(
+            pg_session,
+            participant_view_enabled=True,
+            gps_checkin_enabled=True,
+            route_stages_enabled=True,
+        )
+        stage1 = pg_client.post(
+            "/api/rally/v1/route-stages",
+            json={"name": "Stage 1", "order": 1, "order_matters": True, "required_count": 1},
+        ).json()
+        stage2 = pg_client.post(
+            "/api/rally/v1/route-stages",
+            json={"name": "Stage 2", "order": 2, "order_matters": False, "required_count": None},
+        ).json()
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        cp2 = await _make_checkpoint_with_location(pg_session, 2)
+        cp3 = await _make_checkpoint_with_location(pg_session, 3)
+        pg_client.put(f"/api/rally/v1/checkpoint/{cp1.id}", json={"stage_id": stage1["id"]})
+        pg_client.put(f"/api/rally/v1/checkpoint/{cp2.id}", json={"stage_id": stage2["id"]})
+        pg_client.put(f"/api/rally/v1/checkpoint/{cp3.id}", json={"stage_id": stage2["id"]})
+        team = await make_team(pg_session, event_id=event.id)
+        as_admin.team_id = team.id
+
+        from app.services.checkpoint_visits import record_visit
+
+        assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is True
+        _assert_progress_agreement(pg_client, expected_order=2)
+        team_body = _own_team(pg_client).json()
+        assert set(team_body["open_checkpoint_orders"]) == {2, 3}
+
+    async def test_gps_arrival_agrees_with_team_progress(self, pg_session, pg_client, as_user):
+        from app.tests.conftest import as_team, make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(
+            pg_session,
+            participant_view_enabled=True,
+            gps_checkin_enabled=True,
+            reveal_next_checkpoint=False,
+        )
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        with as_team(team.id):
+            response = pg_client.post(
+                f"/api/rally/v1/checkpoint/{cp1.id}/arrive",
+                json={"latitude": cp1.latitude, "longitude": cp1.longitude},
+            )
+        assert response.status_code == 200, response.text
+
+        _assert_progress_agreement(pg_client, expected_order=2)
+
+    async def test_guide_arrival_agrees_with_team_progress(self, pg_session, pg_client, as_admin):
+        from app.tests.conftest import make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(
+            pg_session,
+            participant_view_enabled=True,
+            guide_manual_arrival_enabled=True,
+        )
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_admin.team_id = team.id
+
+        response = pg_client.post(
+            f"/api/rally/v1/guide/checkpoints/{cp1.id}/arrivals",
+            json={"team_id": team.id},
+        )
+        assert response.status_code == 200, response.text
+
+        _assert_progress_agreement(pg_client, expected_order=2)
+
+    async def test_skip_agrees_with_team_progress(self, pg_session, pg_client, as_user):
+        from app.tests.conftest import as_team, make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, participant_view_enabled=True, skip_enabled=True)
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        with as_team(team.id):
+            response = pg_client.post(f"/api/rally/v1/checkpoint/{cp1.id}/skip")
+        assert response.status_code == 200, response.text
+
+        _assert_progress_agreement(pg_client, expected_order=2)
+
+    async def test_checkpoint_without_activity_agrees_on_arrival(
+        self, pg_session, pg_client, as_user
+    ):
+        from app.tests.conftest import as_team, make_team
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, participant_view_enabled=True, gps_checkin_enabled=True)
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        with as_team(team.id):
+            response = pg_client.post(
+                f"/api/rally/v1/checkpoint/{cp1.id}/arrive",
+                json={"latitude": cp1.latitude, "longitude": cp1.longitude},
+            )
+        assert response.status_code == 200, response.text
+
+        _assert_progress_agreement(pg_client, expected_order=2)
+
+    async def test_checkpoint_with_activity_stays_current_until_scored_and_then_advances(
+        self, pg_session, pg_client, as_user
+    ):
+        from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
+        from app.crud.crud_activity import activity as crud_activity
+        from app.tests.conftest import as_team, make_team
+        from app.models.activity import ActivityResult
+        from app.schemas.activity import ActivityCreate, ActivityType
+
+        event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        await set_rally_settings(pg_session, participant_view_enabled=True, gps_checkin_enabled=True)
+        cp1 = await _make_checkpoint_with_location(pg_session, 1)
+        await _make_checkpoint_with_location(pg_session, 2)
+        activity = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Quiz",
+                checkpoint_id=cp1.id,
+                activity_type=ActivityType.GENERAL,
+                config={},
+                is_active=True,
+            ),
+        )
+        team = await make_team(pg_session, event_id=event.id)
+        as_user.team_id = team.id
+
+        with as_team(team.id):
+            arrival = pg_client.post(
+                f"/api/rally/v1/checkpoint/{cp1.id}/arrive",
+                json={"latitude": cp1.latitude, "longitude": cp1.longitude},
+            )
+        assert arrival.status_code == 200, arrival.text
+        _assert_progress_agreement(pg_client, expected_order=1)
+
+        pg_session.add(
+            ActivityResult(activity_id=activity.id, team_id=team.id, final_score=10, is_completed=True)
+        )
+        await pg_session.commit()
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id, enforce_order=False)
+        await pg_session.commit()
+
+        _assert_progress_agreement(pg_client, expected_order=2)
 
 
 class TestCheckpointTeamsEndpoint:
