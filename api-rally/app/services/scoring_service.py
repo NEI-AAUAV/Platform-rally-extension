@@ -89,6 +89,12 @@ _AUDITED_FIELDS = (
 )
 
 
+# Namespace for the per-activity advisory lock taken while scoring, so its
+# keyspace can never collide with the other advisory locks this database takes
+# (user mirroring, migrations).
+_ACTIVITY_SCORING_LOCK_NAMESPACE = 41_205
+
+
 def _snapshot_result(result: ActivityResult) -> dict[str, Any]:
     """Deep-copy the audited fields of a result for later diffing."""
     return snapshot_fields(result, _AUDITED_FIELDS)
@@ -458,6 +464,16 @@ class ScoringService:
         await team_crud.reassign_ranks_unlocked(self.db)
 
     async def _commit_and_publish_team_score(self, team_id: int, total_score: float) -> None:
+        await self._commit_and_publish_team_scores({team_id: total_score})
+
+    async def _commit_and_publish_team_scores(self, totals: dict[int, float]) -> None:
+        """Re-rank, commit once, then publish one team.score_updated per team.
+
+        One commit for the whole write rather than one per team: the write paths
+        hold a per-activity advisory lock that Postgres releases at commit, so
+        committing between the rescore and the team totals would drop the lock
+        halfway through the very cycle it exists to protect.
+        """
         try:
             await self._reassign_team_ranks()
             await self.db.commit()
@@ -467,14 +483,21 @@ class ScoringService:
         # Publish after the commit so subscribers never see scores a
         # rollback would erase. No-op unless the realtime subsystem is on.
         # This is the single funnel for every leaderboard-affecting change.
-        await publish_event(
-            TeamScoreUpdatedEvent(
-                payload=TeamScoreUpdatedPayload(team_id=team_id, total_score=total_score)
+        for team_id, total_score in sorted(totals.items()):
+            await publish_event(
+                TeamScoreUpdatedEvent(
+                    payload=TeamScoreUpdatedPayload(team_id=team_id, total_score=total_score)
+                )
             )
-        )
 
-    async def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
-        """Update team's total and score_per_checkpoint based on activity results"""
+    async def _apply_team_score(self, team_id: int) -> float | None:
+        """Recompute one team's total and checkpoint layout in the session.
+
+        Returns the unrounded total, or None when the team no longer exists.
+        Neither commits nor publishes: the caller decides when the write lands,
+        which is what lets one transaction cover an activity-wide rescore plus
+        every team total it moves.
+        """
         # This is a read-modify-write of team.total, so it needs the row lock
         # before the read — two evaluations on the same team would otherwise
         # interleave and lose one update.
@@ -485,10 +508,13 @@ class ScoringService:
         # Locking one row here and the whole table there gives two lock orders
         # and deadlocks: A holds team 5 and wants 2 while B holds 2 and wants 5.
         # One order for both, so they queue instead of deadlocking.
+        #
+        # Ordering against the per-activity lock: _lock_activity_scoring always
+        # comes first (see its docstring), never the other way round.
         await self.db.scalars(select(Team.id).order_by(Team.id).with_for_update())
         team = await self.db.get(Team, team_id)
         if not team:
-            return False
+            return None
 
         (
             checkpoint_scores,
@@ -507,6 +533,13 @@ class ScoringService:
         self._apply_checkpoint_layout(
             team, checkpoint_scores, checkpoint_order_by_id, await self._route_orders()
         )
+        return total_score
+
+    async def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
+        """Update team's total and score_per_checkpoint based on activity results"""
+        total_score = await self._apply_team_score(team_id)
+        if total_score is None:
+            return False
 
         if should_commit:
             await self._commit_and_publish_team_score(team_id, total_score)
@@ -675,6 +708,11 @@ class ScoringService:
         to leave no trail at all — an untracked way to rewrite a team's points
         that sat right next to the audited one.
         """
+        # Rescoring reads this activity's time distribution and rewrites a
+        # final_score on it, so it belongs to the same serialized unit as an
+        # evaluation (see _lock_activity_scoring).
+        await self._lock_activity_scoring(activity_id)
+
         # Get team size to validate limit
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
@@ -738,6 +776,11 @@ class ScoringService:
         ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
         does — this changes the team's points and must leave the same trail.
         """
+        # Rescoring reads this activity's time distribution and rewrites a
+        # final_score on it, so it belongs to the same serialized unit as an
+        # evaluation (see _lock_activity_scoring).
+        await self._lock_activity_scoring(activity_id)
+
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
@@ -851,6 +894,44 @@ class ScoringService:
     # dependency direction is Service -> CRUD and there is no import cycle.
     # =========================================================================
 
+    def _dialect_name(self) -> str:
+        """Backend name of the bound engine ("postgresql", "sqlite", ...)."""
+        try:
+            return str(self.db.get_bind().dialect.name)
+        except Exception:  # pragma: no cover - unit tests pass mock sessions
+            return ""
+
+    async def _lock_activity_scoring(self, activity_id: int) -> None:
+        """Serialize scoring of one activity for the rest of this transaction.
+
+        A time-based score is a *relative* rank: a team's points depend on every
+        other team's time (TimeBasedActivity.calculate_relative_ranking_score).
+        Reading that distribution, scoring against it and writing the row is one
+        read-modify-write over the whole activity, and two evaluations that
+        interleave inside it each score as if the other did not exist. Nothing
+        repairs the loser afterwards: every write's rescore pass only fixes the
+        rows visible at that moment, so the last writer in the window keeps a
+        rank computed from a set that was already stale - a wrong final ranking,
+        with no error raised anywhere.
+
+        Transaction-scoped: Postgres releases it at commit/rollback, so callers
+        must hold ONE transaction across the whole read-compute-write cycle.
+        That is why the write paths flush their steps and commit once at the
+        end instead of committing per step.
+
+        Lock ordering: always taken *before* the ORDER BY Team.id FOR UPDATE in
+        _apply_team_score, never after, so concurrent writers queue instead of
+        deadlocking.
+
+        No-op outside Postgres - the sqlite test harness has no advisory locks
+        and drives sessions serially anyway.
+        """
+        if self._dialect_name() != "postgresql":
+            return
+        await self.db.execute(
+            select(func.pg_advisory_xact_lock(_ACTIVITY_SCORING_LOCK_NAMESPACE, activity_id))
+        )
+
     def _set_activity_specific_scores(
         self, db_obj: ActivityResult, activity: Activity, result_data: dict[str, Any]
     ) -> None:
@@ -879,6 +960,10 @@ class ScoringService:
         activity = await self.db.get(Activity, obj_in.activity_id)
         if not activity:
             raise ValueError(f"Activity {obj_in.activity_id} not found")
+
+        # Taken before the first read of the ranking inputs: everything from
+        # here to the commit is one serialized unit for this activity.
+        await self._lock_activity_scoring(activity.id)
 
         instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
         if not await instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
@@ -916,42 +1001,43 @@ class ScoringService:
         db_obj.penalties = dict(penalties)
         db_obj.penalty_counts = dict(penalty_counts)
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
-        await activity_result_crud.persist(self.db, db_obj, commit=commit)
+        # Flush, never commit here: the row, its excess-penalty award, the
+        # activity-wide rescore and every team total it moves belong to the one
+        # transaction holding the activity lock, and commit together below.
+        await activity_result_crud.persist(self.db, db_obj, commit=False)
 
         # Carry any penalty that overflowed this activity's points to team.total.
         await self._sync_excess_penalty_award(db_obj, breakdown.raw, activity_name=activity.name)
 
-        # `persist()` already committed the result row above (when
-        # `commit=True`, the default). The award `db.add()` just above is
-        # normally saved by `update_team_scores`'s commit a few lines down —
-        # but that call is skipped whenever `_defer_recompute` is set, so
-        # nothing would ever commit the award: it sat added-but-uncommitted
-        # until some unrelated later commit happened to sweep it in, or the
-        # session closed and dropped it outright. A batched caller
-        # (`commit=False`) still owns its own commit as before.
-        if commit and self._defer_recompute:
-            await self.db.commit()
+        if not commit:
+            # Batched caller (commit=False, e.g. team-vs) owns the commit, the
+            # team-score updates and the events.
+            return db_obj
 
-        # Adding a time-based result shifts the ranking, so rescore the rest.
+        # Adding a time-based result shifts the ranking, so rescore the whole
+        # activity. The new row is already flushed, so that pass sees it like
+        # any other and scores it against the final distribution — it no longer
+        # keeps the rank it was given when it was read as the only time.
         # When recompute is deferred, the scoring worker does this off-path;
         # the row keeps its own freshly-computed final_score in the meantime.
-        if recalc and is_time_based and not self._defer_recompute:
-            await self._recalculate_all_results_for_activity(
-                activity.id, exclude_result_id=db_obj.id
-            )
+        totals: dict[int, float] = {}
+        if not self._defer_recompute:
+            if recalc and is_time_based:
+                totals.update(
+                    await self._recalculate_all_results_for_activity(activity.id, commit=False)
+                )
+            if update_team_scores:
+                total = await self._apply_team_score(obj_in.team_id)
+                if total is not None:
+                    totals[obj_in.team_id] = total
 
-        if update_team_scores and not self._defer_recompute:
-            await self.update_team_scores(obj_in.team_id)
-
-        # Granular event only when this call owns the commit. Batched callers
-        # (commit=False, e.g. team-vs) publish once after their own commit.
-        if commit:
-            await self._publish_result_change(
-                ActivityResultCreatedEvent,
-                result_id=db_obj.id,
-                team_id=db_obj.team_id,
-                activity_id=db_obj.activity_id,
-            )
+        await self._commit_and_publish_team_scores(totals)
+        await self._publish_result_change(
+            ActivityResultCreatedEvent,
+            result_id=db_obj.id,
+            team_id=db_obj.team_id,
+            activity_id=db_obj.activity_id,
+        )
 
         return db_obj
 
@@ -968,6 +1054,10 @@ class ScoringService:
         the field-level diff — the audit trail for who changed a score. No row
         is written when nothing actually changed.
         """
+        # Everything from here to the single commit at the end is one
+        # serialized unit for this activity (see _lock_activity_scoring).
+        await self._lock_activity_scoring(db_obj.activity_id)
+
         before = _snapshot_result(db_obj) if editor is not None else None
 
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
@@ -994,6 +1084,7 @@ class ScoringService:
         # shots), so an edit to any one must rescore the row and re-sync its
         # excess-penalty award — not just a result_data change.
         scoring_fields = {"result_data", "extra_shots", "penalties", "penalty_counts"}
+        totals: dict[int, float] = {}
         if scoring_fields & update_data.keys():
             activity = await self.db.get(Activity, db_obj.activity_id)
             if activity and "result_data" in update_data:
@@ -1011,21 +1102,29 @@ class ScoringService:
                 and "result_data" in update_data
                 and not self._defer_recompute
             ):
-                await self._recalculate_all_results_for_activity(activity.id)
+                totals.update(
+                    await self._recalculate_all_results_for_activity(activity.id, commit=False)
+                )
 
-        # Queue the audit row *before* persisting, so the single commit inside
-        # persist() covers both. Recording it afterwards needed a commit of its
-        # own mid-flow, which split the write into two transactions: a crash
-        # between them left the score changed with no audit trail (or, when the
-        # recompute is deferred and no editor was supplied, an audit row that
-        # never committed at all).
+        # Queue the audit row *before* persisting, so the single commit at the
+        # end of this method covers both. Recording it afterwards needed a
+        # commit of its own mid-flow, which split the write into two
+        # transactions: a crash between them left the score changed with no
+        # audit trail (or, when the recompute is deferred and no editor was
+        # supplied, an audit row that never committed at all).
         if before is not None and editor is not None:
             self._queue_history(db_obj, before, editor)
 
-        await activity_result_crud.persist(self.db, db_obj)
+        # Flush only — the row, the audit trail, the rescored rivals and the
+        # team totals commit together below, while the activity lock still
+        # covers them all.
+        await activity_result_crud.persist(self.db, db_obj, commit=False)
 
         if not self._defer_recompute:
-            await self.update_team_scores(db_obj.team_id)
+            total = await self._apply_team_score(db_obj.team_id)
+            if total is not None:
+                totals[db_obj.team_id] = total
+        await self._commit_and_publish_team_scores(totals)
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=db_obj.id,
@@ -1067,6 +1166,9 @@ class ScoringService:
         # Capture identifiers before the row is gone.
         team_id = db_obj.team_id
         activity_id = db_obj.activity_id
+        # Removing a time also re-ranks everyone else, so this delete is part of
+        # the same serialized unit as any evaluation on the activity.
+        await self._lock_activity_scoring(activity_id)
         activity = await self.db.get(Activity, activity_id)
         is_time_based = (
             activity is not None and activity.activity_type == ActivityType.TIME_BASED.value
@@ -1090,12 +1192,20 @@ class ScoringService:
                 ).all()
             )
 
-        await activity_result_crud.delete(self.db, db_obj=db_obj)
+        # Flush the delete so the rescore below no longer sees this row, but
+        # keep the transaction — and the activity lock — open to the end.
+        await activity_result_crud.delete(self.db, db_obj=db_obj, commit=False)
+        totals: dict[int, float] = {}
         if not self._defer_recompute:
             if is_time_based:
-                await self._recalculate_all_results_for_activity(activity_id)
+                totals.update(
+                    await self._recalculate_all_results_for_activity(activity_id, commit=False)
+                )
             for affected_team_id in sorted(affected_team_ids):
-                await self.update_team_scores(affected_team_id)
+                total = await self._apply_team_score(affected_team_id)
+                if total is not None:
+                    totals[affected_team_id] = total
+        await self._commit_and_publish_team_scores(totals)
         await self._publish_result_change(
             ActivityResultDeletedEvent,
             result_id=result_id,
@@ -1105,38 +1215,44 @@ class ScoringService:
         return db_obj
 
     async def _recalculate_all_results_for_activity(
-        self, activity_id: int, exclude_result_id: int | None = None, *, commit: bool = True
-    ) -> None:
+        self, activity_id: int, *, commit: bool = True
+    ) -> dict[int, float]:
         """Rescore every completed result of a time-based activity.
 
-        Called when the set of times changed (a result was added/edited), since
-        relative ranking depends on the full distribution of completion times.
+        Called when the set of times changed (a result was added/edited/removed),
+        since relative ranking depends on the full distribution of completion
+        times. Every completed row is rescored, the caller's own included: a row
+        left out here would keep whatever rank it was given when it was scored,
+        which is exactly the stale value a concurrent write produces.
+
+        Returns the unrounded total of each team this moved, keyed by team id,
+        so a caller deferring the commit can publish them once it lands.
 
         Pass commit=False to defer persistence to the caller, so this rescore
         can be batched into a single atomic transaction.
         """
         start = time.perf_counter()
+        totals: dict[int, float] = {}
         with traced("scoring.recalculate_all_results_for_activity"):
+            # Serialize against any other write scoring this activity. The write
+            # paths already hold it and re-enter harmlessly; the scoring worker
+            # calls in here without one.
+            await self._lock_activity_scoring(activity_id)
+
             activity = await self.db.get(Activity, activity_id)
             if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
-                return
+                return totals
 
             stmt = select(ActivityResult).where(
                 ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
             )
-            if exclude_result_id is not None:
-                stmt = stmt.where(ActivityResult.id != exclude_result_id)
 
             all_results = list((await self.db.scalars(stmt)).all())
             if not all_results:
-                return
+                return totals
 
+            # `is not None`, not truthiness: a 0.0 time must still rank.
             all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
-            if exclude_result_id is not None:
-                excluded = await self.db.get(ActivityResult, exclude_result_id)
-                # `is not None`, not truthiness: a 0.0 time must still rank.
-                if excluded and excluded.time_score is not None:
-                    all_times.append(float(excluded.time_score))
 
             team_size_cache: dict[int, int] = {}
             for result in all_results:
@@ -1156,12 +1272,16 @@ class ScoringService:
                     result, breakdown.raw, activity_name=activity.name
                 )
 
+            for team_id in sorted({r.team_id for r in all_results}):
+                total = await self._apply_team_score(team_id)
+                if total is not None:
+                    totals[team_id] = total
+
             if commit:
-                await self.db.commit()
-            for team_id in {r.team_id for r in all_results}:
-                await self.update_team_scores(team_id, should_commit=commit)
+                await self._commit_and_publish_team_scores(totals)
 
         observe_scoring_recompute(time.perf_counter() - start)
+        return totals
 
     async def reprice_all_results(self) -> int:
         """Re-run the scorer over every completed result of the current event.
@@ -1187,6 +1307,27 @@ class ScoringService:
         )
         if not team_ids:
             return 0
+
+        # Lock every activity this pass will rescore, ascending, *before*
+        # reading the times. Without it a concurrent evaluation can commit
+        # between this read and the rescore below, and have its result
+        # overwritten with a rank computed as if it never happened. Ascending
+        # order matches the single-activity write paths, so the two queue
+        # rather than deadlock.
+        activity_ids = sorted(
+            (
+                await self.db.scalars(
+                    select(ActivityResult.activity_id)
+                    .where(
+                        ActivityResult.team_id.in_(team_ids),
+                        ActivityResult.is_completed.is_(True),
+                    )
+                    .distinct()
+                )
+            ).all()
+        )
+        for activity_id in activity_ids:
+            await self._lock_activity_scoring(activity_id)
 
         results = list(
             (

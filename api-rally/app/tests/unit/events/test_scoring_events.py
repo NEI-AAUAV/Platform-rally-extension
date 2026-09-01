@@ -97,7 +97,11 @@ async def test_remove_result_publishes_deleted_after_commit(
     monkeypatch.setattr(crud_activity.activity_result, "delete", AsyncMock())
 
     service = ScoringService(AsyncMock())
-    monkeypatch.setattr(service, "update_team_scores", AsyncMock(return_value=True))
+    # Stub the team-total recompute and the commit funnel every write path goes
+    # through, so this test stays about the event rather than about scoring and
+    # ranking a mock team.
+    monkeypatch.setattr(service, "_apply_team_score", AsyncMock(return_value=0.0))
+    monkeypatch.setattr(service, "_commit_and_publish_team_scores", AsyncMock())
 
     removed = await service.remove_result(11)
 

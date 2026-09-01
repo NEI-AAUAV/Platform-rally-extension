@@ -175,10 +175,19 @@ class CRUDActivityResult:
         stmt = select(ActivityResult).order_by(desc(ActivityResult.completed_at))
         return list((await db.scalars(stmt)).all())
 
-    async def delete(self, db: AsyncSession, *, db_obj: ActivityResult) -> ActivityResult:
-        """Delete a result and commit (no team-score side effects)."""
+    async def delete(
+        self, db: AsyncSession, *, db_obj: ActivityResult, commit: bool = True
+    ) -> ActivityResult:
+        """Delete a result (no team-score side effects).
+
+        Commits by default. Pass commit=False to only flush, so the caller can
+        batch the delete with the rescore it triggers into one transaction.
+        """
         await db.delete(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return db_obj
 
 

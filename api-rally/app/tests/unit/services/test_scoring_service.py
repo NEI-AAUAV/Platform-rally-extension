@@ -12,9 +12,11 @@ synchronous scoring path is exercised end to end. The fixture auto-skips when
 Postgres is unreachable.
 """
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.exceptions import RallyError, RallyValidationError
 from app.crud.crud_team import team as crud_team
@@ -1074,6 +1076,72 @@ async def test_create_time_based_result_reranks_activity(pg_session):
     # faster time must score at least as high as the slower one
     assert fast_res.final_score >= slow_res.final_score
     assert fast_res.final_score == pytest.approx(100)  # fastest gets max
+
+
+async def test_concurrent_time_based_evaluations_rank_against_each_other(pg_session, _pg_engine):
+    """Two overlapping evaluations of one time-based activity must not each
+    score as if theirs were the only time recorded.
+
+    A time-based score is a relative rank, so reading the times, scoring
+    against them and writing the row is a read-modify-write over the whole
+    activity. Without the per-activity advisory lock the two evaluations both
+    read the distribution before either committed, both wrote a first-place
+    score, and each one's rescore pass only repaired the *other* row — leaving
+    whichever committed last with points it never earned, with no error raised
+    and nothing to correct it until the next write to that activity.
+
+    The stall reproduces that window deterministically: it holds each
+    evaluation open between its rescore and its commit, so both rescore against
+    a distribution neither has committed to yet — exactly the interleaving the
+    lock has to prevent.
+    """
+    activity = await _make_activity(
+        pg_session,
+        activity_type=ActivityType.TIME_BASED.value,
+        config={"max_points": 100, "min_points": 10},
+    )
+    fast = await _make_team(pg_session, "Fast")
+    slow = await _make_team(pg_session, "Slow")
+    await pg_session.commit()
+
+    maker = async_sessionmaker(_pg_engine, expire_on_commit=False)
+
+    stall = 0.3
+
+    async def evaluate(team_id: int, seconds: float) -> None:
+        async with maker() as session:
+            service = ScoringService(session)
+            # Everything a create scores — the times it reads and the rows it
+            # rescores — happens before this final commit, so stalling here
+            # holds the whole cycle open and lets the other evaluation run its
+            # own read and rescore inside it.
+            original_commit = service._commit_and_publish_team_scores
+
+            async def stalled_commit(totals: dict[int, float]) -> None:
+                await asyncio.sleep(stall)
+                await original_commit(totals)
+
+            service._commit_and_publish_team_scores = stalled_commit  # type: ignore[method-assign]
+            await service.create_result(
+                ActivityResultCreate(
+                    activity_id=activity.id,
+                    team_id=team_id,
+                    result_data={"completion_time_seconds": seconds},
+                    is_completed=True,
+                )
+            )
+
+    await asyncio.gather(
+        evaluate(slow.id, 90),
+        evaluate(fast.id, 30),
+    )
+
+    fast_res = (await pg_session.scalars(_select_result(activity.id, fast.id))).first()
+    slow_res = (await pg_session.scalars(_select_result(activity.id, slow.id))).first()
+    # Whichever order the two land in, the final rows must be ranked against
+    # each other: fastest on max_points, slowest on min_points.
+    assert fast_res.final_score == pytest.approx(100)
+    assert slow_res.final_score == pytest.approx(10)
 
 
 async def test_removing_time_based_result_reranks_the_rest(pg_session):
