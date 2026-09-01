@@ -159,14 +159,14 @@ class TestTeamVsValidateResult:
 
 
 class TestValidateVersusGroup:
-    async def test_returns_true_when_opponent_is_none(self):
+    async def test_returns_false_when_opponent_is_none(self):
         activity = TeamVsActivity(config={})
         with patch(
             "app.crud.crud_versus.versus.get_opponent",
             new=AsyncMock(return_value=None),
         ):
             result = await activity._validate_versus_group(1, 2, object())
-        assert result is True
+        assert result is False
 
     async def test_returns_true_when_opponent_matches(self):
         activity = TeamVsActivity(config={})
@@ -188,14 +188,14 @@ class TestValidateVersusGroup:
             result = await activity._validate_versus_group(1, 2, object())
         assert result is False
 
-    async def test_falls_back_to_true_when_versus_lookup_raises(self):
+    async def test_rejects_when_versus_lookup_raises(self):
         activity = TeamVsActivity(config={})
         with patch(
             "app.crud.crud_versus.versus.get_opponent",
             new=AsyncMock(side_effect=RuntimeError("db down")),
         ):
             result = await activity._validate_versus_group(1, 2, object())
-        assert result is True
+        assert result is False
 
 
 class TestGetOpponentForTeam:

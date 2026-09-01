@@ -51,9 +51,8 @@ class RallySettingsService:
         """
         validate_settings_update_access(curr_user, auth)
 
-        # Drop the previous R2 file for this field, if any.
         current = await rally_settings.get_or_create(self._db)
-        storage_client.delete_image(getattr(current, field))
+        old_url = getattr(current, field)
 
         url = await validate_and_store(
             image=image,
@@ -62,5 +61,13 @@ class RallySettingsService:
             max_size_bytes=max_size_bytes,
         )
 
-        updated = await rally_settings.set_image_url(self._db, field=field, url=url)
+        try:
+            updated = await rally_settings.set_image_url(self._db, field=field, url=url)
+        except Exception:
+            # The database remains on the old URL, so compensate the newly
+            # uploaded object rather than orphaning it.
+            storage_client.delete_image(url)
+            raise
+        # Cleanup is deliberately best-effort: the new URL is already durable.
+        storage_client.delete_image(old_url)
         return await self.build_response(updated)

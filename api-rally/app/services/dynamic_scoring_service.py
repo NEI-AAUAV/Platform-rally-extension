@@ -86,10 +86,8 @@ class DynamicScoringService:
             is_active=True,
         )
         self._db.add(award)
-        await self._db.commit()
-        await self._db.refresh(award)
-        # Trigger score recalculation so leaderboard reflects immediately.
         await ScoringService(self._db).update_team_scores(team_id)
+        await self._db.refresh(award)
         return award
 
     async def delete_award(self, award_id: int) -> None:
@@ -112,6 +110,4 @@ class DynamicScoringService:
             )
         team_id = award.team_id
         award.is_active = False
-        await self._db.commit()
-        # Recompute score now that the award is gone.
         await ScoringService(self._db).update_team_scores(team_id)

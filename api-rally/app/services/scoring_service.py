@@ -543,8 +543,27 @@ class ScoringService:
 
         if should_commit:
             await self._commit_and_publish_team_score(team_id, total_score)
+        else:
+            # ``should_commit=False`` still means fully consistent in-session
+            # state; its caller owns only the final commit/publication.
+            await self._reassign_team_ranks()
+            await self.db.flush()
 
         return True
+
+    async def recompute_and_commit_team_scores(self, team_ids: set[int]) -> None:
+        """Atomically persist scores for several teams and publish afterwards.
+
+        Callers that mutate several source results in one transaction use this
+        instead of committing each team independently.
+        """
+        totals: dict[int, float] = {}
+        for team_id in sorted(team_ids):
+            total = await self._apply_team_score(team_id)
+            if total is not None:
+                totals[team_id] = total
+        if totals:
+            await self._commit_and_publish_team_scores(totals)
 
     async def _route_orders(self) -> list[int]:
         """The published route's checkpoint orders, ascending."""
@@ -1009,17 +1028,6 @@ class ScoringService:
         # Carry any penalty that overflowed this activity's points to team.total.
         await self._sync_excess_penalty_award(db_obj, breakdown.raw, activity_name=activity.name)
 
-        if not commit:
-            # Batched caller (commit=False, e.g. team-vs) owns the commit, the
-            # team-score updates and the events.
-            return db_obj
-
-        # Adding a time-based result shifts the ranking, so rescore the whole
-        # activity. The new row is already flushed, so that pass sees it like
-        # any other and scores it against the final distribution — it no longer
-        # keeps the rank it was given when it was read as the only time.
-        # When recompute is deferred, the scoring worker does this off-path;
-        # the row keeps its own freshly-computed final_score in the meantime.
         totals: dict[int, float] = {}
         if not self._defer_recompute:
             if recalc and is_time_based:
@@ -1030,6 +1038,14 @@ class ScoringService:
                 total = await self._apply_team_score(obj_in.team_id)
                 if total is not None:
                     totals[obj_in.team_id] = total
+
+        if not commit:
+            # Batched caller owns only the final commit and post-commit events.
+            # All scoring side effects above still have to run so the session
+            # state it commits is already internally consistent.
+            await self._reassign_team_ranks()
+            await self.db.flush()
+            return db_obj
 
         await self._commit_and_publish_team_scores(totals)
         await self._publish_result_change(

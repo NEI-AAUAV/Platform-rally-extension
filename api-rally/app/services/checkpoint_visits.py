@@ -56,16 +56,24 @@ async def insert_arrival(
         latitude=latitude,
         longitude=longitude,
     )
-    db.add(arrival)
-    try:
-        if commit:
+    if commit:
+        db.add(arrival)
+        try:
             await db.commit()
-        else:
-            await db.flush()
-    except IntegrityError:
-        # Lost a race against a concurrent arrival for the same pair.
-        await db.rollback()
-        return None
+        except IntegrityError:
+            # Lost a race against a concurrent arrival for the same pair.
+            await db.rollback()
+            return None
+    else:
+        try:
+            async with db.begin_nested():
+                db.add(arrival)
+                await db.flush()
+        except IntegrityError:
+            # Lost a race against a concurrent arrival for the same pair. The
+            # savepoint rolls back only this insert; the caller's transaction
+            # stays intact.
+            return None
     # arrived_at is a server_default, only populated on the DB side.
     await db.refresh(arrival)
     return arrival

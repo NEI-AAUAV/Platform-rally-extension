@@ -23,6 +23,7 @@ from app.models.idempotency_key import IdempotencyKey
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
+from app.services.scoring_service import ScoringService
 from app.tests.conftest import _fake_auth_data, as_team
 from app.tests.conftest import make_event as _make_event
 
@@ -47,6 +48,13 @@ async def _make_activity(pg_session, checkpoint_id):
             config={},
         ),
     )
+
+
+async def _scoreboard_row(pg_session, team_id: int) -> dict:
+    ranking = await ScoringService(pg_session).get_team_ranking()
+    row = next((item for item in ranking if item["team_id"] == team_id), None)
+    assert row is not None
+    return row
 
 
 class TestStaffEvaluationAPI:
@@ -448,11 +456,15 @@ class TestEvaluationIdempotency:
 
         first = pg_client.post(url, json=payload, headers=headers)
         assert first.status_code == 200, first.text
+        await pg_session.refresh(team_obj)
+        scoreboard_before = await _scoreboard_row(pg_session, team_obj.id)
+        total_before = team_obj.total
+        classification_before = team_obj.classification
         second = pg_client.post(url, json=payload, headers=headers)
         assert second.status_code == 200, second.text
 
         # Same response replayed…
-        assert first.json()["final_score"] == second.json()["final_score"]
+        assert first.json() == second.json()
 
         # …and still exactly one result row (no double-apply).
         rows = (
@@ -471,6 +483,100 @@ class TestEvaluationIdempotency:
             )
         ).all()
         assert len(keys) == 1
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == total_before
+        assert team_obj.classification == classification_before
+        assert await _scoreboard_row(pg_session, team_obj.id) == scoreboard_before
+
+    async def test_idempotent_evaluation_updates_total_classification_and_scoreboard(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "eval-total-1"})
+        assert resp.status_code == 200, resp.text
+
+        result = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_obj.id,
+            )
+        )
+        assert result is not None
+        assert result.final_score == 50
+
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+        assert team_obj.classification == 1
+
+        scoreboard_row = await _scoreboard_row(pg_session, team_obj.id)
+        assert scoreboard_row["total_score"] == 50.0
+        assert scoreboard_row["rank"] == 1
+
+    async def test_time_ranking_recomputes_via_idempotent_staff_path(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Timed Activity",
+                activity_type=ActivityType.TIME_BASED,
+                checkpoint_id=checkpoint.id,
+                config={"max_points": 100, "min_points": 10},
+            ),
+        )
+        url_a = f"/api/rally/v1/staff/teams/{team_a.id}/activities/{activity_obj.id}/evaluate"
+        url_b = f"/api/rally/v1/staff/teams/{team_b.id}/activities/{activity_obj.id}/evaluate"
+
+        resp_a = pg_client.post(
+            url_a,
+            json={"result_data": {"completion_time_seconds": 10}, "extra_shots": 0},
+            headers={"Idempotency-Key": "time-a"},
+        )
+        assert resp_a.status_code == 200, resp_a.text
+
+        resp_b = pg_client.post(
+            url_b,
+            json={"result_data": {"completion_time_seconds": 5}, "extra_shots": 0},
+            headers={"Idempotency-Key": "time-b"},
+        )
+        assert resp_b.status_code == 200, resp_b.text
+
+        result_a = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_a.id,
+            )
+        )
+        result_b = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_b.id,
+            )
+        )
+        assert result_a is not None
+        assert result_b is not None
+        assert result_b.final_score == pytest.approx(100)
+        assert result_a.final_score == pytest.approx(10)
+
+        await pg_session.refresh(team_a)
+        await pg_session.refresh(team_b)
+        assert team_b.total == 100
+        assert team_a.total == 10
+        assert team_b.classification == 1
+        assert team_a.classification == 2
+
+        scoreboard = await ScoringService(pg_session).get_team_ranking()
+        assert [row["team_id"] for row in scoreboard[:2]] == [team_b.id, team_a.id]
+        assert scoreboard[0]["total_score"] == 100.0
+        assert scoreboard[0]["rank"] == 1
+        assert scoreboard[1]["total_score"] == 10.0
+        assert scoreboard[1]["rank"] == 2
 
     async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)

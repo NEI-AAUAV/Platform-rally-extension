@@ -1674,6 +1674,46 @@
         ]
       }
     },
+    "/api/rally/v1/versus/groups/{group_id}": {
+      "delete": {
+        "tags": [
+          "Versus"
+        ],
+        "summary": "Remove Versus Group",
+        "operationId": "remove_versus_group",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/team/{team_id}/members": {
       "post": {
         "tags": [
@@ -4938,7 +4978,7 @@
             }
           },
           "400": {
-            "description": "GPS check-in unavailable, missing coordinates, or too far from checkpoint"
+            "description": "GPS check-in unavailable, missing coordinates, too far from the checkpoint, or a checkpoint the team is not due at yet"
           },
           "404": {
             "description": "Checkpoint not found"
@@ -5790,7 +5830,7 @@
             }
           },
           "404": {
-            "description": "Activity not found"
+            "description": "Activity or team not found, or team of another event"
           },
           "400": {
             "description": "Activity is not deferred-judged type, or team_id is missing"
@@ -6073,7 +6113,7 @@
             "description": "Activity not found"
           },
           "400": {
-            "description": "A result doesn't belong to this activity, or is duplicated"
+            "description": "The ranking doesn't cover every capture for this activity, or lists one twice"
           },
           "422": {
             "description": "Validation Error",
@@ -13507,6 +13547,18 @@
               }
             ],
             "title": "Name"
+          },
+          "access_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z0-9]{4}-[A-Z0-9]{4}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Code"
           },
           "start_offset_minutes": {
             "anyOf": [

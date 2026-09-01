@@ -310,14 +310,19 @@ class TeamController:
             raise RallyForbiddenError("Not allowed to change this team's photo.")
 
         team = await team_crud.get(db=db, id=id)
-        storage_client.delete_image(team.photo_url)
+        old_url = team.photo_url
 
         url = await validate_and_store(
             image=image,
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
             key_prefix=f"rally/teams/{id}",
         )
-        team_db = await team_crud.set_photo_url(db=db, id=id, url=url)
+        try:
+            team_db = await team_crud.set_photo_url(db=db, id=id, url=url)
+        except Exception:
+            storage_client.delete_image(url)
+            raise
+        storage_client.delete_image(old_url)
         return await service.build_detailed_team(team_db)
 
     async def delete_team(

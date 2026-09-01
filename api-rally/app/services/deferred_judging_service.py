@@ -94,12 +94,9 @@ class DeferredJudgingService:
         result.mark_judged(
             points=points, notes=notes, activity_config=activity.config if activity else None
         )
-        await self._db.commit()
-        await self._db.refresh(result)
-
-        # Not best-effort: a failed recompute leaves total and classification
-        # stale with no way to notice. Surface it.
+        # Keep the judged result and all derived team state in one transaction.
         await ScoringService(self._db).update_team_scores(result.team_id)
+        await self._db.refresh(result)
 
         return result
 
@@ -177,13 +174,10 @@ class DeferredJudgingService:
             result.mark_judged(points=points, notes=(notes or {}).get(result_id))
             results.append(result)
 
-        await self._db.commit()
+        scoring = ScoringService(self._db)
+        await scoring.recompute_and_commit_team_scores({r.team_id for r in results})
         for result in results:
             await self._db.refresh(result)
-
-        scoring = ScoringService(self._db)
-        for team_id in {r.team_id for r in results}:
-            await scoring.update_team_scores(team_id)
 
         return results
 

@@ -71,12 +71,13 @@ class CRUDBadgeDefinition:
             db_obj.trigger_type = obj_in.trigger_type
         if obj_in.criteria is not None:
             db_obj.criteria = obj_in.criteria
+        old_icon_url = db_obj.icon_url
         if icon_url is not None:
-            if db_obj.icon_url:
-                storage_client.delete_image(db_obj.icon_url)
             db_obj.icon_url = icon_url
         await db.commit()
         await db.refresh(db_obj)
+        if icon_url is not None:
+            storage_client.delete_image(old_icon_url)
         return db_obj
 
     async def delete(self, db: AsyncSession, *, db_obj: BadgeDefinition) -> None:

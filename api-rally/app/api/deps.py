@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
 from app.core.config import SettingsDep
+from app.core.exceptions import RallyUnauthorizedError
 from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.db.session import SessionLocal
@@ -224,7 +225,7 @@ async def get_current_team_optional(
             return None
 
         return await validate_team_token(db, token.credentials)
-    except (JWTError, HTTPException):
+    except (JWTError, HTTPException, RallyUnauthorizedError):
         return None
 
 

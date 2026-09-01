@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.abac_deps import Action, Resource, require_permission
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
 from app.crud.crud_versus import versus
-from app.models.team import Team
 from app.schemas.user import DetailedUser
 from app.schemas.versus import (
     VersusGroupListResponse,
@@ -14,7 +12,6 @@ from app.schemas.versus import (
     VersusPairCreate,
     VersusPairResponse,
 )
-from app.services.versus_service import VersusService
 
 
 class VersusController:
@@ -45,6 +42,13 @@ class VersusController:
             methods=["GET"],
             name="list_versus_groups",
             response_model=VersusGroupListResponse,
+        )
+        self.router.add_api_route(
+            "/versus/groups/{group_id}",
+            self.remove_versus_group,
+            methods=["DELETE"],
+            name="remove_versus_group",
+            status_code=204,
         )
 
     async def create_versus_pair(
@@ -106,17 +110,32 @@ class VersusController:
             resource=Resource.VERSUS_GROUP,
         )
 
-        teams = list(
-            (
-                await db.scalars(
-                    select(Team)
-                    .where(Team.versus_group_id.isnot(None))
-                    .order_by(Team.versus_group_id, Team.id)
+        pairs = await versus.get_all_versus_pairs(db)
+        return VersusGroupListResponse(
+            groups=[
+                VersusPairResponse(
+                    group_id=pair["group_id"],
+                    team_a_id=pair["team_ids"][0],
+                    team_b_id=pair["team_ids"][1],
                 )
-            ).all()
+                for pair in pairs
+            ]
         )
 
-        return VersusGroupListResponse(groups=VersusService.build_pair_list(teams))
+    async def remove_versus_group(
+        self,
+        group_id: int,
+        db: AsyncSession = Depends(get_db),
+        curr_user: DetailedUser = Depends(get_participant),
+        auth: AuthData = Security(api_nei_auth, scopes=[]),
+    ) -> None:
+        require_permission(
+            user=curr_user,
+            auth=auth,
+            action=Action.CREATE_VERSUS_GROUP,
+            resource=Resource.VERSUS_GROUP,
+        )
+        await versus.remove_versus_pair(db, group_id=group_id)
 
 
 router = VersusController().router

@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
+from app.models.activity import RallyEvent
+from app.models.team import Team
 from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
 from app.schemas.team import TeamCreate
 
@@ -87,6 +89,40 @@ class TestVersusAPI:
         groups = resp.json()["groups"]
         assert len(groups) == 1
         assert {groups[0]["team_a_id"], groups[0]["team_b_id"]} == {team_a.id, team_b.id}
+
+    async def test_pairing_rejects_team_from_another_event(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        current_team = await _make_team(pg_session, "Current Team")
+        archived = RallyEvent(name="Archived", is_current=False)
+        pg_session.add(archived)
+        await pg_session.commit()
+        archived_team = Team(name="Archived Team", access_code="ARCH-0001", event_id=archived.id)
+        pg_session.add(archived_team)
+        await pg_session.commit()
+
+        response = pg_client.post(
+            "/api/rally/v1/versus/pair",
+            json={"team_a_id": current_team.id, "team_b_id": archived_team.id},
+        )
+
+        assert response.status_code == 404
+
+    async def test_remove_versus_group_clears_both_teams(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        created = pg_client.post(
+            "/api/rally/v1/versus/pair",
+            json={"team_a_id": team_a.id, "team_b_id": team_b.id},
+        )
+
+        response = pg_client.delete(f"/api/rally/v1/versus/groups/{created.json()['group_id']}")
+
+        assert response.status_code == 204
+        await pg_session.refresh(team_a)
+        await pg_session.refresh(team_b)
+        assert team_a.versus_group_id is None
+        assert team_b.versus_group_id is None
 
 
 class TestConcurrentVersusPairing:

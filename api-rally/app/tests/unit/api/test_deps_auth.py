@@ -418,6 +418,19 @@ async def test_team_optional_rejects_tampered_signature():
     assert await deps.get_current_team_optional(_creds(token), settings, AsyncMock()) is None
 
 
+async def test_team_optional_treats_revoked_token_as_anonymous():
+    from app.core.exceptions import RallyUnauthorizedError
+
+    with patch(
+        "app.api.deps.validate_team_token",
+        new=AsyncMock(side_effect=RallyUnauthorizedError("Team session expired")),
+    ):
+        optional_team = await deps.get_current_team_optional(
+            _creds(_team_token()), settings, AsyncMock()
+        )
+        assert optional_team is None
+
+
 def test_get_current_team_raises_401_without_token():
     with pytest.raises(HTTPException) as exc:
         deps.get_current_team(None)
