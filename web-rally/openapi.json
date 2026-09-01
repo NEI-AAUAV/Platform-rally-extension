@@ -11,7 +11,7 @@
           "Team"
         ],
         "summary": "Get Teams",
-        "description": "The team directory.\n\nAuthentication is required. This route had no auth dependency at all \u2014\n``curr_user`` was optional and only steered the redaction of the next\npost's name \u2014 so the full roster, with every team's progress, was\nreadable by anyone. ``show_score_mode`` decides whether the points and\nranks come with it.",
+        "description": "The team directory.\n\nThis route had no auth dependency at all \u2014 ``curr_user`` was optional\nand only steered the redaction of the next post's name \u2014 so the full\nroster, with every team's progress, was readable by anyone whatever\nthe event had configured. An anonymous caller is now served only while\nthe event publishes to the public (``public_access_enabled`` and\n``show_live_leaderboard``): that pair is what the public scoreboard\nruns on, and closing either one closes this too.\n``show_score_mode`` decides whether the points and ranks come with it.",
         "operationId": "get_teams",
         "responses": {
           "200": {
