@@ -174,11 +174,16 @@ class TestCheckpointVisibility:
     # RallyNotFoundError itself for a missing id rather than returning None, so
     # a linked team_id that no longer resolves 404s before this branch runs.
 
-    async def test_public_access_disabled_but_map_shown(self, pg_session, pg_client):
-        """`public_access_enabled=False` with `show_checkpoint_map=True` still
-        publishes the route — but `show_route_mode` still decides how much of
-        it. Turning public access off must never reveal *more* than leaving it
-        on: focused stays focused."""
+    async def test_public_access_disabled_denies_the_route_even_with_map_shown(
+        self, pg_session, pg_client
+    ):
+        """`public_access_enabled=False` closes the public route listing, and
+        `show_checkpoint_map=True` does not reopen it.
+
+        That switch was read only by `/checkpoint/count`, so turning public
+        access off left the listing itself open — with a complete route mode,
+        every post's name, description and exact coordinates, to anyone at
+        all."""
         await _make_event(pg_session)
         settings = await rally_settings.get_or_create(pg_session)
         await rally_settings.update(
@@ -197,10 +202,7 @@ class TestCheckpointVisibility:
 
         response = pg_client.get("/api/rally/v1/checkpoint/")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["order"] == 1
+        assert response.status_code == 403
 
     async def test_map_hidden_denies_public_access(self, pg_session, pg_client):
         """`show_checkpoint_map=False` denies the public route listing outright,

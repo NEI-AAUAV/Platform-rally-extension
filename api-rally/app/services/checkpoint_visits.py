@@ -98,6 +98,32 @@ async def record_visit(
     if arrival is None:
         return False
 
+    await append_visit_entry(
+        db, team_id=team_id, checkpoint_id=checkpoint_id, enforce_order=enforce_order
+    )
+    return True
+
+
+async def append_visit_entry(
+    db: AsyncSession,
+    *,
+    team_id: int,
+    checkpoint_id: int,
+    enforce_order: bool = True,
+) -> None:
+    """Stamp the visit on ``team.times`` (and the parallel score arrays).
+
+    Split out of :func:`record_visit` for the one caller that has *already*
+    claimed the arrival row itself and is still owed the timestamp: the GPS and
+    guide arrival paths write the arrival as a fact first, and only afterwards
+    decide whether that arrival also completes the post. Going back through
+    ``record_visit`` there recorded nothing at all — the claim it uses as its
+    idempotency token was the arrival the same request had just written, so it
+    returned False and the visit never reached ``team.times``.
+
+    This function has no idempotency of its own: call it once per claimed
+    arrival, exactly where the claim happened.
+    """
     await team_crud.add_checkpoint(
         db=db,
         id=team_id,
@@ -111,4 +137,3 @@ async def record_visit(
         ),
         enforce_order=enforce_order,
     )
-    return True

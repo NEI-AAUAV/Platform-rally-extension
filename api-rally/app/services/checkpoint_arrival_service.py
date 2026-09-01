@@ -331,7 +331,16 @@ class CheckpointArrivalService:
         try:
             # enforce_order=False: reachability was just checked above against
             # the progress engine, with this arrival held out.
-            await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
+            # arrival_already_recorded=True: the caller wrote this arrival row
+            # moments ago, so the row is not evidence of an earlier visit — it
+            # is this one, and the timestamp for it is still owed.
+            await checkin_team_to_checkpoint(
+                self._db,
+                team_id,
+                checkpoint_id,
+                enforce_order=False,
+                arrival_already_recorded=True,
+            )
             return True
         except Exception as exc:  # advancement is best-effort; arrival still succeeds
             logger.warning(

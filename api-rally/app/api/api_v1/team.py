@@ -41,6 +41,7 @@ from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
 from app.services.visibility_policy import (
+    public_listing_allowed,
     require_participant_view,
     require_team_details,
     scores_are_hidden,
@@ -115,13 +116,16 @@ class TeamController:
     ) -> list[ListingTeam]:
         """The team directory.
 
-        Authentication is required. This route had no auth dependency at all —
-        ``curr_user`` was optional and only steered the redaction of the next
-        post's name — so the full roster, with every team's progress, was
-        readable by anyone. ``show_score_mode`` decides whether the points and
-        ranks come with it.
+        This route had no auth dependency at all — ``curr_user`` was optional
+        and only steered the redaction of the next post's name — so the full
+        roster, with every team's progress, was readable by anyone whatever
+        the event had configured. An anonymous caller is now served only while
+        the event publishes to the public (``public_access_enabled`` and
+        ``show_live_leaderboard``): that pair is what the public scoreboard
+        runs on, and closing either one closes this too.
+        ``show_score_mode`` decides whether the points and ranks come with it.
         """
-        if not curr_user and not curr_team:
+        if not curr_user and not curr_team and not await public_listing_allowed(db):
             raise RallyUnauthorizedError(AUTH_REQUIRED)
 
         teams = await team_crud.get_multi(db)

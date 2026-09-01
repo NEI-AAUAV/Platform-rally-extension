@@ -88,13 +88,17 @@ async def test_guide_checkpoints_maps_media_and_indications(pg_session, pg_clien
     assert cp_data["indications"][0]["question"] == "Q?"
 
 
-async def test_guide_checkpoints_allowed_for_peddy_paper_even_if_mode_off(
-    pg_session, pg_client, as_admin
-):
+async def test_guide_checkpoints_403_for_peddy_paper_when_mode_off(pg_session, pg_client, as_admin):
+    """The switches decide, whatever the event type.
+
+    This route used to waive them for a peddy paper — the exact event type the
+    guide role exists for — so the admin UI read "guide mode off" while guides
+    went on working. The waiver is gone: turning the mode off closes every
+    guide surface.
+    """
     await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
     await _set_guide_mode(pg_session, enabled=False, active=False)
 
     resp = pg_client.get("/api/rally/v1/guide/checkpoints")
 
-    assert resp.status_code == 200
-    assert resp.json() == []
+    assert resp.status_code == 403

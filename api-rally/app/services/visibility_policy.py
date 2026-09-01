@@ -23,6 +23,20 @@ TEAM_DETAILS_HIDDEN = "Team details are turned off for this event"
 PARTICIPANT_VIEW_DISABLED = "The participant view is turned off for this event"
 
 
+async def public_listing_allowed(db: AsyncSession) -> bool:
+    """Whether an unauthenticated caller may read the team directory.
+
+    Two switches, the same pair the public route listing answers to: an event
+    that has closed public access serves nobody, and one that has turned the
+    live leaderboard off is not publishing standings to passers-by either.
+    With both on, the anonymous scoreboard is a feature — the board on the
+    wall, the phone of someone who did not enter — so the listing cannot
+    simply demand a token.
+    """
+    settings = await rally_settings.get_or_create(db)
+    return bool(settings.public_access_enabled and settings.show_live_leaderboard)
+
+
 async def require_live_leaderboard(db: AsyncSession, *, is_privileged: bool) -> None:
     """Gate the scoreboard on ``show_live_leaderboard``."""
     if is_privileged:

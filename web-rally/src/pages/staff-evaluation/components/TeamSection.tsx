@@ -10,7 +10,10 @@ const DIVIDER_CLASS: Record<TeamCardVariant, string> = {
 
 const LABEL_CLASS: Record<TeamCardVariant, string> = {
   current: "rally-accent",
-  previous: "text-amber-600 dark:text-amber-400",
+  // amber-700, not amber-600: at this size and weight amber-600 on the light
+  // surface is 3.05:1, a serious WCAG AA contrast failure (the a11y suite
+  // catches it now that the "postos anteriores" section actually renders).
+  previous: "text-amber-700 dark:text-amber-400",
   evaluated: "text-muted-foreground",
 };
 

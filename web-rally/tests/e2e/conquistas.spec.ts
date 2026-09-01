@@ -59,7 +59,7 @@ const DEFINITIONS = [
 ];
 
 test.describe("Conquistas", () => {
-  test("shows badge showcase with earned and locked badges", async ({ page, context }) => {
+  test("shows the badges the team has earned, and only those", async ({ page, context }) => {
     await mockSettings(page, { badges_enabled: true });
     await seedTeamAuth(context, page);
     await mockShowcase(page, DEFINITIONS, [
@@ -71,7 +71,18 @@ test.describe("Conquistas", () => {
     await expect(page.getByText("Badges")).toBeVisible();
     await expect(page.getByText("Conquistadas")).toBeVisible();
     await expect(page.getByText("Primeiro Check-in", { exact: true })).toBeVisible();
-    await expect(page.getByText("Velocista", { exact: true })).toBeVisible();
+    // Locked badges are no longer rendered as dimmed "Por conquistar" cards.
+    await expect(page.getByText("Velocista", { exact: true })).toHaveCount(0);
+  });
+
+  test("renders nothing when the team has earned no badge", async ({ page, context }) => {
+    await mockSettings(page, { badges_enabled: true });
+    await seedTeamAuth(context, page);
+    await mockShowcase(page, DEFINITIONS, []);
+
+    await page.goto("/rally/achievements");
+
+    await expect(page.getByText("Badges")).toHaveCount(0);
   });
 
   test("redirects home when badges_enabled is false", async ({ page, context }) => {
@@ -114,7 +125,9 @@ test.describe("Conquistas", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await mockSettings(page, { badges_enabled: true });
     await seedTeamAuth(context, page);
-    await mockShowcase(page, DEFINITIONS, []);
+    await mockShowcase(page, DEFINITIONS, [
+      { code: "first-checkin", awarded_at: new Date().toISOString() },
+    ]);
 
     await page.goto("/rally/achievements");
 

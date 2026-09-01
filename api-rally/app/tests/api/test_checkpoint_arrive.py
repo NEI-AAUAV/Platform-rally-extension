@@ -295,7 +295,10 @@ async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_sessio
         ActivityResult(activity_id=act1.id, team_id=team.id, final_score=10, is_completed=True)
     )
     await pg_session.commit()
-    await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
+    # enforce_order=False, exactly as the staff-evaluation path calls it: the
+    # scored result above already resolves post 1, so the reachability guard
+    # would (correctly) refuse a fresh check-in there.
+    await checkin_team_to_checkpoint(pg_session, team.id, cp1.id, enforce_order=False)
     await pg_session.commit()
 
     with as_team(team.id, "TeamA"):

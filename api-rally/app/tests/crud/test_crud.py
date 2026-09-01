@@ -16,6 +16,7 @@ from app.models.checkpoint import CheckPoint
 from app.schemas.rally_settings import RallySettingsUpdate
 from app.schemas.team import TeamCreate, TeamScoresUpdate, TeamUpdate
 from app.schemas.user import UserCreate
+from app.services.checkpoint_visits import record_visit
 from app.tests.conftest import make_event as _make_event
 
 
@@ -180,12 +181,10 @@ class TestTeamCRUD:
             end_time=now + timedelta(hours=1),
         )
         await rally_settings.get_or_create(pg_session)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
-        )
-        await crud_team.add_checkpoint(
-            pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
-        )
+        # ``get_by_checkpoint`` reads the arrival row, which names the post —
+        # it used to compare the *count* of visits to the post's order. Record
+        # the visit through ``record_visit``, the one writer of both.
+        await record_visit(pg_session, team_id=team.id, checkpoint_id=checkpoint.id)
 
         result = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=checkpoint.id)
 
@@ -325,19 +324,17 @@ class TestTeamCheckpointLogic:
             obj_in=_settings_update(settings, checkpoint_order_matters=False),
             commit=True,
         )
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=cp1.id, question_score=1, time_score=20, pukes=0, skips=0
-        )
-        await crud_team.add_checkpoint(
-            pg_session, id=team.id, checkpoint_id=cp1.id, obj_in=checkpoint_data
-        )
+        assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is True
 
-        # Team has already visited cp1 (order 1); re-adding it should be
-        # rejected even though order doesn't matter for this rally.
-        with pytest.raises(RallyValidationError):
-            await crud_team.add_checkpoint(
-                pg_session, id=team.id, checkpoint_id=cp1.id, obj_in=checkpoint_data
-            )
+        # Team has already visited cp1 (order 1); a second visit must not be
+        # recorded again, even though order doesn't matter for this rally. The
+        # guard is the arrival row's unique (team, checkpoint) constraint —
+        # ``record_visit`` is where every check-in path goes through it — and
+        # not the order check, which no longer keys off ``len(team.times)``.
+        assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is False
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
 
 
 class TestUserCRUD:

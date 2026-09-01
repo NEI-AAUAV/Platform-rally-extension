@@ -251,8 +251,11 @@ class TestCheckpointProgression:
         team = await _make_team(pg_session)
         activity = await _make_activity(pg_session, cp1.id)
 
+        # enforce_order=False on cp2: post 1's activity is still unscored, so
+        # the reachability guard would (correctly) refuse a check-in at post 2.
+        # The point of the test is what happens *after* both visits exist.
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-        await checkin_team_to_checkpoint(pg_session, team.id, cp2.id)
+        await checkin_team_to_checkpoint(pg_session, team.id, cp2.id, enforce_order=False)
 
         await check_and_advance_team(pg_session, team.id, activity)
 
