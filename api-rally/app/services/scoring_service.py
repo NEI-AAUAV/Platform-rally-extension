@@ -550,14 +550,31 @@ class ScoringService:
     ) -> bool:
         """Apply extra shots bonus to a team's activity result.
 
-        The result mutation, audit row, excess-penalty award, team total and
-        classification are one transaction in the synchronous path. In
-        off-path mode the result is committed and an ``activity_result.updated``
-        event is always published afterwards so the scoring worker can perform
-        the deferred recompute.
+        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
+        does. This route changes ``final_score`` like any other edit, and used
+        to leave no trail at all — an untracked way to rewrite a team's points
+        that sat right next to the audited one.
+
+        The result mutation, any excess-penalty award, the owning team's total
+        and the global classification are persisted in one transaction. This is
+        important because the per-activity advisory lock is transaction-scoped:
+        committing the result first and the team total afterwards would release
+        the lock halfway through the scoring cycle and could leave durable score
+        sources with a stale leaderboard if the second transaction failed.
+
+        When recomputation is deliberately deferred (``RECOMPUTE_OFF_PATH`` +
+        realtime events enabled), the result still commits through the same
+        funnel and an ``activity_result.updated`` event is emitted afterwards.
+        The scoring worker consumes that event and performs the deferred team
+        recompute; without it this endpoint could leave ``Team.total`` stale
+        indefinitely.
         """
+        # Rescoring reads this activity's time distribution and rewrites a
+        # final_score on it, so it belongs to the same serialized unit as an
+        # evaluation (see _lock_activity_scoring).
         await self._lock_activity_scoring(activity_id)
 
+        # Get team size to validate limit
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
         )
@@ -566,13 +583,17 @@ class ScoringService:
 
         team_size = len(team.members) if team.members else 1
 
+        # Validate extra shots limit (configurable per team member)
         settings = await self._get_settings()
         max_shots = team_size * settings.max_extra_shots_per_member
         if extra_shots > max_shots:
             return False
 
+        # Get the existing activity result. The helper only edits an already
+        # evaluated result; it must never create a second scoring path.
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team_id,
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -580,19 +601,33 @@ class ScoringService:
 
         before = _snapshot_result(result) if editor is not None else None
 
+        # Update the score source first, then recalculate the persisted
+        # final_score and its possible excess-penalty DynamicAward. Nothing is
+        # committed yet: all of these mutations still belong to one transaction.
         result.extra_shots = extra_shots
         await self._recalculate_result_score(result)
 
+        # Queue the audit row in the same open transaction as the score edit.
         if before is not None and editor is not None:
             self._queue_history(result, before, editor)
 
         totals: dict[int, float] = {}
         if not self._defer_recompute:
+            # _apply_team_score flushes the pending result/award mutations before
+            # aggregating, so Team.total is calculated from exactly the state
+            # that the commit funnel will persist.
             total = await self._apply_team_score(team_id)
             if total is not None:
                 totals[team_id] = total
 
+        # Single durable boundary for result + award + team total + ranking.
+        # With off-path recompute, totals is intentionally empty but this still
+        # commits the result and audit trail before the worker event is emitted.
         await self._commit_and_publish_team_scores(totals)
+
+        # Always publish after the durable commit. In synchronous mode this keeps
+        # result-event consumers informed; in off-path mode it is the trigger
+        # that causes the scoring worker to refresh Team.total/classification.
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=result.id,
@@ -612,16 +647,37 @@ class ScoringService:
     ) -> bool:
         """Apply a penalty occurrence count to a team's activity result.
 
-        The result mutation, audit row, excess-penalty award, team total and
-        classification are one transaction in the synchronous path. In
-        off-path mode the result is committed and an ``activity_result.updated``
-        event is always published afterwards so the scoring worker can perform
-        the deferred recompute.
+        This used to write ``penalty_value`` straight into
+        ``penalties`` as points, with no pricing and no key validation — a
+        caller with ``UPDATE_ACTIVITY_RESULT`` (which a checkpoint staff has
+        for their own checkpoint) could add arbitrary points via ``other``, a
+        key ``penalty_prices`` never prices. ``penalty_count`` is now priced
+        the same way every other penalty is (``resolve_penalty_points``), so
+        an unknown ``penalty_type`` is rejected rather than accepted as free
+        points.
+
+        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
+        does — this changes the team's points and must leave the same trail.
+
+        The result mutation, any excess-penalty award, the owning team's total
+        and the global classification are persisted in one transaction. The
+        previous two-commit flow could durably change the ActivityResult and
+        then fail while refreshing Team.total, leaving the stored result and
+        leaderboard permanently inconsistent.
+
+        When recomputation is deferred, the result is still committed first and
+        an ``activity_result.updated`` event is always emitted after that commit.
+        That event is the scoring worker's durable trigger to perform the team
+        recompute off the request path.
         """
+        # Rescoring reads this activity's time distribution and rewrites a
+        # final_score on it, so it belongs to the same serialized unit as an
+        # evaluation (see _lock_activity_scoring).
         await self._lock_activity_scoring(activity_id)
 
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
+            ActivityResult.activity_id == activity_id,
+            ActivityResult.team_id == team_id,
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -633,17 +689,29 @@ class ScoringService:
 
         before = _snapshot_result(result) if editor is not None else None
 
-        priced = await self.resolve_penalty_points(activity, {penalty_type: penalty_count})
+        # The request supplies occurrence counts, never trusted point values.
+        # Resolve the current server-side price before touching the persisted
+        # penalty totals.
+        priced = await self.resolve_penalty_points(
+            activity,
+            {penalty_type: penalty_count},
+        )
         added_points = priced.get(penalty_type, 0)
 
         if penalty_type not in result.penalties:
             result.penalties[penalty_type] = 0
         result.penalties[penalty_type] += added_points
+
+        # Keep the occurrence count alongside the priced point total so future
+        # repricing can reconstruct the score using then-current settings.
         result.penalty_counts = {
             **(result.penalty_counts or {}),
-            penalty_type: (result.penalty_counts or {}).get(penalty_type, 0) + penalty_count,
+            penalty_type: (result.penalty_counts or {}).get(penalty_type, 0)
+            + penalty_count,
         }
 
+        # Recalculate both final_score and the excess-penalty DynamicAward while
+        # the same transaction and per-activity advisory lock are still open.
         await self._recalculate_result_score(result)
 
         if before is not None and editor is not None:
@@ -651,11 +719,19 @@ class ScoringService:
 
         totals: dict[int, float] = {}
         if not self._defer_recompute:
+            # _apply_team_score explicitly flushes pending source mutations, so
+            # its aggregation includes this penalty and any award created or
+            # removed by _recalculate_result_score.
             total = await self._apply_team_score(team_id)
             if total is not None:
                 totals[team_id] = total
 
+        # Exactly one commit for result + award + total + classification.
         await self._commit_and_publish_team_scores(totals)
+
+        # The result event is post-commit by design: subscribers must never act
+        # on data that could still roll back. It is mandatory in off-path mode
+        # because the scoring worker reacts to activity-result events.
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=result.id,
