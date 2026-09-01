@@ -22,6 +22,7 @@ from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
+from app.crud.crud_versus import versus
 from app.events import (
     ActivityResultChangedPayload,
     ActivityResultCreatedEvent,
@@ -550,31 +551,14 @@ class ScoringService:
     ) -> bool:
         """Apply extra shots bonus to a team's activity result.
 
-        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
-        does. This route changes ``final_score`` like any other edit, and used
-        to leave no trail at all — an untracked way to rewrite a team's points
-        that sat right next to the audited one.
-
-        The result mutation, any excess-penalty award, the owning team's total
-        and the global classification are persisted in one transaction. This is
-        important because the per-activity advisory lock is transaction-scoped:
-        committing the result first and the team total afterwards would release
-        the lock halfway through the scoring cycle and could leave durable score
-        sources with a stale leaderboard if the second transaction failed.
-
-        When recomputation is deliberately deferred (``RECOMPUTE_OFF_PATH`` +
-        realtime events enabled), the result still commits through the same
-        funnel and an ``activity_result.updated`` event is emitted afterwards.
-        The scoring worker consumes that event and performs the deferred team
-        recompute; without it this endpoint could leave ``Team.total`` stale
-        indefinitely.
+        The result mutation, audit row, excess-penalty award, team total and
+        classification are one transaction in the synchronous path. In
+        off-path mode the result is committed and an ``activity_result.updated``
+        event is always published afterwards so the scoring worker can perform
+        the deferred recompute.
         """
-        # Rescoring reads this activity's time distribution and rewrites a
-        # final_score on it, so it belongs to the same serialized unit as an
-        # evaluation (see _lock_activity_scoring).
         await self._lock_activity_scoring(activity_id)
 
-        # Get team size to validate limit
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
         )
@@ -583,17 +567,13 @@ class ScoringService:
 
         team_size = len(team.members) if team.members else 1
 
-        # Validate extra shots limit (configurable per team member)
         settings = await self._get_settings()
         max_shots = team_size * settings.max_extra_shots_per_member
         if extra_shots > max_shots:
             return False
 
-        # Get the existing activity result. The helper only edits an already
-        # evaluated result; it must never create a second scoring path.
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id,
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -601,33 +581,19 @@ class ScoringService:
 
         before = _snapshot_result(result) if editor is not None else None
 
-        # Update the score source first, then recalculate the persisted
-        # final_score and its possible excess-penalty DynamicAward. Nothing is
-        # committed yet: all of these mutations still belong to one transaction.
         result.extra_shots = extra_shots
         await self._recalculate_result_score(result)
 
-        # Queue the audit row in the same open transaction as the score edit.
         if before is not None and editor is not None:
             self._queue_history(result, before, editor)
 
         totals: dict[int, float] = {}
         if not self._defer_recompute:
-            # _apply_team_score flushes the pending result/award mutations before
-            # aggregating, so Team.total is calculated from exactly the state
-            # that the commit funnel will persist.
             total = await self._apply_team_score(team_id)
             if total is not None:
                 totals[team_id] = total
 
-        # Single durable boundary for result + award + team total + ranking.
-        # With off-path recompute, totals is intentionally empty but this still
-        # commits the result and audit trail before the worker event is emitted.
         await self._commit_and_publish_team_scores(totals)
-
-        # Always publish after the durable commit. In synchronous mode this keeps
-        # result-event consumers informed; in off-path mode it is the trigger
-        # that causes the scoring worker to refresh Team.total/classification.
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=result.id,
@@ -647,37 +613,16 @@ class ScoringService:
     ) -> bool:
         """Apply a penalty occurrence count to a team's activity result.
 
-        This used to write ``penalty_value`` straight into
-        ``penalties`` as points, with no pricing and no key validation — a
-        caller with ``UPDATE_ACTIVITY_RESULT`` (which a checkpoint staff has
-        for their own checkpoint) could add arbitrary points via ``other``, a
-        key ``penalty_prices`` never prices. ``penalty_count`` is now priced
-        the same way every other penalty is (``resolve_penalty_points``), so
-        an unknown ``penalty_type`` is rejected rather than accepted as free
-        points.
-
-        ``editor`` writes the same ``EvaluationHistory`` row ``update_result``
-        does — this changes the team's points and must leave the same trail.
-
-        The result mutation, any excess-penalty award, the owning team's total
-        and the global classification are persisted in one transaction. The
-        previous two-commit flow could durably change the ActivityResult and
-        then fail while refreshing Team.total, leaving the stored result and
-        leaderboard permanently inconsistent.
-
-        When recomputation is deferred, the result is still committed first and
-        an ``activity_result.updated`` event is always emitted after that commit.
-        That event is the scoring worker's durable trigger to perform the team
-        recompute off the request path.
+        The result mutation, audit row, excess-penalty award, team total and
+        classification are one transaction in the synchronous path. In
+        off-path mode the result is committed and an ``activity_result.updated``
+        event is always published afterwards so the scoring worker can perform
+        the deferred recompute.
         """
-        # Rescoring reads this activity's time distribution and rewrites a
-        # final_score on it, so it belongs to the same serialized unit as an
-        # evaluation (see _lock_activity_scoring).
         await self._lock_activity_scoring(activity_id)
 
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id,
-            ActivityResult.team_id == team_id,
+            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team_id
         )
         result = (await self.db.scalars(stmt)).first()
         if not result:
@@ -689,29 +634,17 @@ class ScoringService:
 
         before = _snapshot_result(result) if editor is not None else None
 
-        # The request supplies occurrence counts, never trusted point values.
-        # Resolve the current server-side price before touching the persisted
-        # penalty totals.
-        priced = await self.resolve_penalty_points(
-            activity,
-            {penalty_type: penalty_count},
-        )
+        priced = await self.resolve_penalty_points(activity, {penalty_type: penalty_count})
         added_points = priced.get(penalty_type, 0)
 
         if penalty_type not in result.penalties:
             result.penalties[penalty_type] = 0
         result.penalties[penalty_type] += added_points
-
-        # Keep the occurrence count alongside the priced point total so future
-        # repricing can reconstruct the score using then-current settings.
         result.penalty_counts = {
             **(result.penalty_counts or {}),
-            penalty_type: (result.penalty_counts or {}).get(penalty_type, 0)
-            + penalty_count,
+            penalty_type: (result.penalty_counts or {}).get(penalty_type, 0) + penalty_count,
         }
 
-        # Recalculate both final_score and the excess-penalty DynamicAward while
-        # the same transaction and per-activity advisory lock are still open.
         await self._recalculate_result_score(result)
 
         if before is not None and editor is not None:
@@ -719,19 +652,11 @@ class ScoringService:
 
         totals: dict[int, float] = {}
         if not self._defer_recompute:
-            # _apply_team_score explicitly flushes pending source mutations, so
-            # its aggregation includes this penalty and any award created or
-            # removed by _recalculate_result_score.
             total = await self._apply_team_score(team_id)
             if total is not None:
                 totals[team_id] = total
 
-        # Exactly one commit for result + award + total + classification.
         await self._commit_and_publish_team_scores(totals)
-
-        # The result event is post-commit by design: subscribers must never act
-        # on data that could still roll back. It is mandatory in off-path mode
-        # because the scoring worker reacts to activity-result events.
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
             result_id=result.id,
@@ -831,13 +756,37 @@ class ScoringService:
         recalc: bool = True,
         update_team_scores: bool = True,
         commit: bool = True,
+        sync_team_vs: bool = True,
     ) -> ActivityResult:
-        """Validate, score and persist a new activity result."""
+        """Validate, score and persist a new activity result.
+
+        TeamVs writes are routed through ``create_team_vs_result`` so the two
+        halves of the match are always one atomic unit, including the normal
+        staff-evaluation path that calls this generic method.
+        """
         activity = await self.db.get(Activity, obj_in.activity_id)
         if not activity:
             raise ValueError(f"Activity {obj_in.activity_id} not found")
 
         await self._lock_activity_scoring(activity.id)
+
+        if sync_team_vs and activity.activity_type == ActivityType.TEAM_VS.value:
+            opponent_id, winner_id, match_data = self._parse_team_vs_result_data(
+                obj_in.team_id, obj_in.result_data
+            )
+            result, _ = await self.create_team_vs_result(
+                obj_in.team_id,
+                opponent_id,
+                activity.id,
+                winner_id,
+                match_data,
+                team1_extra_shots=obj_in.extra_shots,
+                team1_penalties=obj_in.penalties,
+                team1_penalty_counts=obj_in.penalty_counts,
+                allow_update=False,
+                commit=commit,
+            )
+            return result
 
         instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
         if not await instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
@@ -907,9 +856,46 @@ class ScoringService:
         *,
         editor: EvaluationEditor | None = None,
         commit: bool = True,
+        sync_team_vs: bool = True,
     ) -> ActivityResult:
-        """Apply an update to a result, rescoring when result_data changed."""
+        """Apply an update to a result, rescoring when result_data changed.
+
+        A TeamVs outcome edit is a match edit, not a single-row edit. Route it
+        through the same atomic pair primitive before mutating either row.
+        Modifier-only edits remain team-local because extra shots/penalties are
+        not mirrored to the opponent.
+        """
         await self._lock_activity_scoring(db_obj.activity_id)
+
+        pending_update = obj_in.model_dump(exclude_unset=True)
+        if sync_team_vs and "result_data" in pending_update:
+            activity = await self.db.get(Activity, db_obj.activity_id)
+            if activity is not None and activity.activity_type == ActivityType.TEAM_VS.value:
+                result_data = pending_update.get("result_data") or {}
+                # The legacy staff controller still invokes its old mirror helper
+                # after the generic write. Once the generic write has atomically
+                # synchronized the pair, that mirror reaches the opponent with
+                # an identical result_data-only update. Treat it as a true no-op
+                # so it cannot create duplicate commits/events/history.
+                if set(pending_update) == {"result_data"} and dict(db_obj.result_data or {}) == result_data:
+                    return db_obj
+                opponent_id, winner_id, match_data = self._parse_team_vs_result_data(
+                    db_obj.team_id, result_data
+                )
+                result, _ = await self.create_team_vs_result(
+                    db_obj.team_id,
+                    opponent_id,
+                    db_obj.activity_id,
+                    winner_id,
+                    match_data,
+                    team1_extra_shots=pending_update.get("extra_shots"),
+                    team1_penalties=pending_update.get("penalties"),
+                    team1_penalty_counts=pending_update.get("penalty_counts"),
+                    editor=editor,
+                    allow_update=True,
+                    commit=commit,
+                )
+                return result
 
         before = _snapshot_result(db_obj) if editor is not None else None
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
@@ -1265,28 +1251,80 @@ class ScoringService:
             "completion_rate": len(completed_results) / len(results) if results else 0.0,
         }
 
-    async def validate_team_vs_match(self, team1_id: int, team2_id: int, activity_id: int) -> bool:
-        """Validate that two teams can compete in a team vs team activity"""
+    @staticmethod
+    def _parse_team_vs_result_data(
+        team_id: int, result_data: dict[str, Any]
+    ) -> tuple[int, int, dict[str, Any]]:
+        """Translate one team's outcome payload into canonical match data."""
+        opponent_id = result_data.get("opponent_team_id")
+        outcome = result_data.get("result")
+        if not isinstance(opponent_id, int) or opponent_id <= 0:
+            raise RallyValidationError("Invalid TeamVs opponent")
+        if outcome not in {"win", "lose", "draw"}:
+            raise RallyValidationError("Invalid TeamVs result")
+
+        winner_id = 0 if outcome == "draw" else (team_id if outcome == "win" else opponent_id)
+        match_data = {
+            key: value
+            for key, value in result_data.items()
+            if key not in {"result", "opponent_team_id"}
+        }
+        return opponent_id, winner_id, match_data
+
+    async def validate_team_vs_match(
+        self,
+        team1_id: int,
+        team2_id: int,
+        activity_id: int,
+        *,
+        winner_id: int | None = None,
+        allow_completed: bool = False,
+    ) -> bool:
+        """Validate a configured TeamVs match in the current edition.
+
+        The legacy TeamVs endpoint reaches this service directly, so every
+        invariant enforced by the Versus CRUD must also be enforced here:
+        activity type/edition, exact configured pairing and a winner that is
+        either one of the two teams or ``0`` (draw).
+        """
+        if team1_id == team2_id:
+            return False
+
+        activity = await self.db.get(Activity, activity_id)
+        if activity is None or activity.activity_type != ActivityType.TEAM_VS.value:
+            return False
+
+        event_id = await current_event_id(self.db)
+        if activity.event_id not in (None, event_id):
+            return False
+
         team1 = await self.db.get(Team, team1_id)
         team2 = await self.db.get(Team, team2_id)
-
-        if not team1 or not team2:
+        if team1 is None or team2 is None:
+            return False
+        if team1.event_id not in (None, event_id) or team2.event_id not in (None, event_id):
             return False
 
-        stmt1 = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team1_id
-        )
-        result1 = (await self.db.scalars(stmt1)).first()
-
-        stmt2 = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.team_id == team2_id
-        )
-        result2 = (await self.db.scalars(stmt2)).first()
-
-        if result1 and result1.is_completed:
+        opponent = await versus.get_opponent(self.db, team_id=team1_id)
+        if opponent is None or opponent.id != team2_id:
             return False
 
-        return not (result2 and result2.is_completed)
+        if winner_id is not None and winner_id not in (0, team1_id, team2_id):
+            return False
+
+        if allow_completed:
+            return True
+
+        result1 = await activity_result_crud.get_by_activity_and_team(
+            self.db, activity_id, team1_id
+        )
+        result2 = await activity_result_crud.get_by_activity_and_team(
+            self.db, activity_id, team2_id
+        )
+        return not (
+            (result1 is not None and result1.is_completed)
+            or (result2 is not None and result2.is_completed)
+        )
 
     async def create_team_vs_result(
         self,
@@ -1295,64 +1333,165 @@ class ScoringService:
         activity_id: int,
         winner_id: int,
         match_data: dict[str, Any],
+        *,
+        team1_extra_shots: int | None = None,
+        team1_penalties: dict[str, int] | None = None,
+        team1_penalty_counts: dict[str, int] | None = None,
+        editor: EvaluationEditor | None = None,
+        allow_update: bool = False,
+        commit: bool = True,
     ) -> tuple[ActivityResult, ActivityResult]:
-        """Create results for both teams in a team vs team activity."""
-        if not await self.validate_team_vs_match(team1_id, team2_id, activity_id):
+        """Atomically create or update both halves of one TeamVs match.
+
+        ``allow_update`` is used by the staff evaluation flow, where a POST can
+        intentionally re-evaluate an existing result. The legacy endpoint keeps
+        create-only semantics. With ``commit=False`` this method participates in
+        the caller's transaction (for example the idempotency transaction) and
+        never rolls it back or commits it.
+        """
+        if not await self.validate_team_vs_match(
+            team1_id,
+            team2_id,
+            activity_id,
+            winner_id=winner_id,
+            allow_completed=allow_update,
+        ):
             raise RallyValidationError("Teams cannot compete in this activity")
 
         def outcome_for(team_id: int) -> str:
-            if winner_id == team_id:
-                return "win"
-            return "draw" if winner_id == 0 else "lose"
+            if winner_id == 0:
+                return "draw"
+            return "win" if winner_id == team_id else "lose"
 
-        team1_result = outcome_for(team1_id)
-        team2_result = outcome_for(team2_id)
+        # Outcome and opponent are server-owned fields. Do not let legacy
+        # ``match_data`` override either of them by dictionary merge order.
+        safe_match_data = {
+            key: value
+            for key, value in (match_data or {}).items()
+            if key not in {"result", "opponent_team_id"}
+        }
+        result1_data = {
+            **safe_match_data,
+            "result": outcome_for(team1_id),
+            "opponent_team_id": team2_id,
+        }
+        result2_data = {
+            **safe_match_data,
+            "result": outcome_for(team2_id),
+            "opponent_team_id": team1_id,
+        }
 
-        result1_data = {"result": team1_result, "opponent_team_id": team2_id, **match_data}
-        result2_data = {"result": team2_result, "opponent_team_id": team1_id, **match_data}
+        result_events: list[
+            tuple[
+                type[ActivityResultCreatedEvent | ActivityResultUpdatedEvent],
+                ActivityResult,
+            ]
+        ] = []
 
         try:
-            result1_create = ActivityResultCreate(
-                activity_id=activity_id, team_id=team1_id, result_data=result1_data
-            )
-            result2_create = ActivityResultCreate(
-                activity_id=activity_id, team_id=team2_id, result_data=result2_data
-            )
-
-            current_time = datetime.now(UTC)
-
-            result1_db_obj = await self.create_result(
-                result1_create, recalc=False, update_team_scores=False, commit=False
-            )
-            result2_db_obj = await self.create_result(
-                result2_create, recalc=False, update_team_scores=False, commit=False
-            )
-
-            result1_db_obj.is_completed = True
-            result1_db_obj.completed_at = current_time
-            result2_db_obj.is_completed = True
-            result2_db_obj.completed_at = current_time
-
-            await self._recalculate_all_results_for_activity(activity_id, commit=False)
-            await self.update_team_scores(team1_id, should_commit=False)
-            await self.update_team_scores(team2_id, should_commit=False)
-            await self._reassign_team_ranks()
-            await self.db.commit()
-
-            for db_obj in (result1_db_obj, result2_db_obj):
-                await self._publish_result_change(
-                    ActivityResultCreatedEvent,
-                    result_id=db_obj.id,
-                    team_id=db_obj.team_id,
-                    activity_id=db_obj.activity_id,
+            # A SAVEPOINT makes the pair all-or-nothing even when this method is
+            # embedded in a larger transaction (notably idempotent staff writes).
+            async with self.db.begin_nested():
+                existing1 = await activity_result_crud.get_by_activity_and_team(
+                    self.db, activity_id, team1_id
+                )
+                existing2 = await activity_result_crud.get_by_activity_and_team(
+                    self.db, activity_id, team2_id
                 )
 
-            return result1_db_obj, result2_db_obj
+                if (existing1 is not None or existing2 is not None) and not allow_update:
+                    raise RallyValidationError("Teams cannot compete in this activity")
 
-        except RallyError:
-            await self.db.rollback()
+                if existing1 is None:
+                    result1_create = ActivityResultCreate(
+                        activity_id=activity_id,
+                        team_id=team1_id,
+                        result_data=result1_data,
+                        extra_shots=team1_extra_shots or 0,
+                        penalties=team1_penalties or {},
+                        penalty_counts=team1_penalty_counts,
+                    )
+                    result1 = await self.create_result(
+                        result1_create,
+                        recalc=False,
+                        update_team_scores=False,
+                        commit=False,
+                        sync_team_vs=False,
+                    )
+                    result_events.append((ActivityResultCreatedEvent, result1))
+                else:
+                    fields: dict[str, Any] = {"result_data": result1_data}
+                    if team1_extra_shots is not None:
+                        fields["extra_shots"] = team1_extra_shots
+                    if team1_penalties is not None:
+                        fields["penalties"] = team1_penalties
+                    if team1_penalty_counts is not None:
+                        fields["penalty_counts"] = team1_penalty_counts
+                    result1 = await self.update_result(
+                        existing1,
+                        ActivityResultUpdate(**fields),
+                        editor=editor,
+                        commit=False,
+                        sync_team_vs=False,
+                    )
+                    result_events.append((ActivityResultUpdatedEvent, result1))
+
+                if existing2 is None:
+                    result2_create = ActivityResultCreate(
+                        activity_id=activity_id,
+                        team_id=team2_id,
+                        result_data=result2_data,
+                    )
+                    result2 = await self.create_result(
+                        result2_create,
+                        recalc=False,
+                        update_team_scores=False,
+                        commit=False,
+                        sync_team_vs=False,
+                    )
+                    result_events.append((ActivityResultCreatedEvent, result2))
+                else:
+                    result2 = await self.update_result(
+                        existing2,
+                        ActivityResultUpdate(result_data=result2_data),
+                        editor=editor,
+                        commit=False,
+                        sync_team_vs=False,
+                    )
+                    result_events.append((ActivityResultUpdatedEvent, result2))
+
+                # Both results must participate in the totals/ranking before the
+                # transaction can become durable. No "mirror" is a later side
+                # effect anymore.
+                await self.update_team_scores(team1_id, should_commit=False)
+                await self.update_team_scores(team2_id, should_commit=False)
+                await self._reassign_team_ranks()
+                await self.db.flush()
+        except Exception:
+            logger.exception(
+                "Failed to stage team-vs results for teams %s/%s activity %s",
+                team1_id,
+                team2_id,
+                activity_id,
+            )
             raise
+
+        if not commit:
+            return result1, result2
+
+        try:
+            await self.db.commit()
         except Exception:
             await self.db.rollback()
-            logger.exception("Failed to create team vs team results")
+            logger.exception("Failed to commit team-vs results")
             raise
+
+        for event_cls, db_obj in result_events:
+            await self._publish_result_change(
+                event_cls,
+                result_id=db_obj.id,
+                team_id=db_obj.team_id,
+                activity_id=db_obj.activity_id,
+            )
+
+        return result1, result2

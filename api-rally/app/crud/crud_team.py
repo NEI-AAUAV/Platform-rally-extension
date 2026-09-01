@@ -150,17 +150,16 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         team = self.model(**obj_in_data)
 
-        # Flushed (not committed) here regardless of the caller's commit=
-        # intent: a duplicate access_code/name is only detectable once
-        # Postgres evaluates the unique constraints, and the retry logic
-        # below depends on that failing atomically within its own savepoint
-        # rather than the caller's outer transaction.
+        # The INSERT must be isolated from an outer transaction.  A caller that
+        # asked for commit=False owns that transaction, so a uniqueness failure
+        # here may roll back only this INSERT, never unrelated work already queued
+        # on the session.  Keep the flush inside the SAVEPOINT so PostgreSQL can
+        # evaluate the unique constraints there.
         try:
-            db.add(team)
-            await db.flush()
+            async with db.begin_nested():
+                db.add(team)
+                await db.flush()
         except IntegrityError as e:
-            await db.rollback()
-
             if e.orig is None:
                 raise
 

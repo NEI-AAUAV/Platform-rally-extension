@@ -1,10 +1,9 @@
 from collections.abc import Sequence
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.core.config import settings
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.models.checkpoint import CheckPoint
@@ -131,30 +130,42 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
     async def reorder_checkpoints(
         self, db: AsyncSession, checkpoint_orders: dict[int, int]
     ) -> None:
-        """Reorder checkpoints by updating their order values."""
-        # Use raw SQL to avoid unique constraint violations
-        # First, set all affected checkpoints to negative orders
-        for checkpoint_id in checkpoint_orders:
-            await db.execute(
-                text(
-                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = -:checkpoint_id '
-                    f"WHERE id = :checkpoint_id"
-                ),
-                {"checkpoint_id": checkpoint_id},
+        """Atomically reorder checkpoints in the current event.
+
+        The temporary negative phase and the final positive phase live in the
+        same transaction.  A failure between them therefore rolls the whole
+        reorder back instead of leaving persisted negative route positions.
+        """
+        if not checkpoint_orders:
+            return
+
+        event_id = await current_event_id(db)
+        stmt = (
+            select(CheckPoint)
+            .where(
+                CheckPoint.id.in_(checkpoint_orders),
+                _event_filter(event_id),
             )
+            .order_by(CheckPoint.id)
+            .with_for_update()
+        )
+        checkpoints = list((await db.scalars(stmt)).all())
+        by_id = {checkpoint.id: checkpoint for checkpoint in checkpoints}
 
-        await db.commit()
+        # Keep the old endpoint semantics for missing IDs: only rows that
+        # actually exist in the current edition are touched.  The API layer
+        # performs its own validation before calling this helper.
+        for checkpoint_id, checkpoint in by_id.items():
+            checkpoint.order = -checkpoint_id
+        await db.flush()
 
-        # Then set the final orders
         for checkpoint_id, new_order in checkpoint_orders.items():
-            await db.execute(
-                text(
-                    f'UPDATE {settings.SCHEMA_NAME}.checkpoints SET "order" = :new_order '
-                    f"WHERE id = :checkpoint_id"
-                ),
-                {"new_order": new_order, "checkpoint_id": checkpoint_id},
-            )
+            checkpoint = by_id.get(checkpoint_id)
+            if checkpoint is not None:
+                checkpoint.order = new_order
+        await db.flush()
 
+        # Exactly one durability boundary for the whole reorder.
         await db.commit()
 
 
